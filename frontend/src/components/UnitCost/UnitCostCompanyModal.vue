@@ -7,12 +7,15 @@
 import { computed, ref, watch } from "vue";
 import ModalShell from "@/components/ModalShell.vue";
 import { useToast } from "@/composables/useToast";
+import CreditDonut, { type DonutEntry } from "@/components/CreditPortfolio/CreditDonut.vue";
+import MentionableTextarea from "@/components/MentionableTextarea.vue";
 import { unitCostApi, FUELS, type UCCompany, type UCPrices, type UCWorld,
-         type EditProduct, type EditImport } from "@/api/unitCost";
+         type EditProduct, type EditImport, type EditComment } from "@/api/unitCost";
 
 const props = defineProps<{
   open: boolean; company: UCCompany | null;
   prices: UCPrices; world: UCWorld | null; fuelLabels: Record<string, string>;
+  year: number; quarter: string;
 }>();
 const emit = defineEmits<{ (e: "close"): void; (e: "saved"): void }>();
 const toast = useToast();
@@ -21,8 +24,14 @@ const FUEL_UNIT: Record<string, string> = {
   electricity: "кВт·ч/ед", gas: "м³/ед", diesel: "т/ед", mazut: "т/ед", coal: "т/ед", kerosene: "т/ед",
 };
 
+const FUEL_COLOR: Record<string, string> = {
+  electricity: "#EF9F27", gas: "#378ADD", diesel: "#E24B4A", mazut: "#8B7FFF", coal: "#4B5468", kerosene: "#1D9E75",
+};
 const draft = ref<EditProduct[]>([]);
 const imports = ref<EditImport[]>([]);
+const comments = ref<EditComment[]>([]);
+const newComment = ref("");
+const newMentions = ref<string[]>([]);
 const saving = ref(false);
 let initial = "";
 
@@ -36,10 +45,51 @@ function toEdit(c: UCCompany): EditProduct[] {
 function init() {
   draft.value = props.company ? toEdit(props.company) : [];
   imports.value = (props.company?.imports || []).map((it) => ({ name: it.name, unit: it.unit, usd: it.usd, qty: it.qty }));
-  initial = JSON.stringify({ p: draft.value, i: imports.value });
+  comments.value = (props.company?.comments || []).map((c) => ({ author: c.author, text: c.text, at: c.at, mentions: c.mentions }));
+  newComment.value = ""; newMentions.value = [];
+  initial = JSON.stringify({ p: draft.value, i: imports.value, c: comments.value });
 }
 watch(() => props.open, (o) => { if (o) init(); }, { immediate: true });
-const dirty = computed(() => JSON.stringify({ p: draft.value, i: imports.value }) !== initial);
+const dirty = computed(() => JSON.stringify({ p: draft.value, i: imports.value, c: comments.value }) !== initial
+  || newComment.value.trim().length > 0);
+
+// живые донаты компании (по всем продуктам, вес = выпуск||1)
+function fuelCost(f: string): number {
+  return draft.value.reduce((s, p) => s + num(p.energy[f]) * priceOf(f) * (num(p.output) || 1), 0);
+}
+const mixDonut = computed<DonutEntry[]>(() =>
+  FUELS.map((f) => ({ label: props.fuelLabels[f] || f, color: FUEL_COLOR[f], value: fuelCost(f) }))
+    .filter((e) => e.value > 0));
+const mixTotal = computed(() => FUELS.reduce((s, f) => s + fuelCost(f), 0));
+const structDonut = computed<DonutEntry[]>(() => {
+  const energy = mixTotal.value;
+  const comps = draft.value.reduce((s, p) =>
+    s + (p.components || []).reduce((a, c) => a + num(c.value), 0) * (num(p.output) || 1), 0);
+  const out: DonutEntry[] = [];
+  if (energy > 0) out.push({ label: "Энергозатраты", color: "#EF9F27", value: energy });
+  if (comps > 0) out.push({ label: "Прочие статьи", color: "#7F77DD", value: comps });
+  return out;
+});
+const structTotal = computed(() => structDonut.value.reduce((s, e) => s + e.value, 0));
+function donutHover(e: DonutEntry, total: number): [string, string] {
+  return [fmt(e.value), total ? Math.round((e.value / total) * 100) + "%" : ""];
+}
+
+function onMention(u: { username?: string; full_name?: string; email?: string }) {
+  const tag = u.username || u.full_name || u.email || "";
+  if (tag && !newMentions.value.includes(tag)) newMentions.value.push(tag);
+}
+function addComment() {
+  const t = newComment.value.trim();
+  if (!t) return;
+  comments.value.push({ text: t, mentions: [...newMentions.value] });
+  newComment.value = ""; newMentions.value = [];
+}
+function fmtDate(iso?: string): string {
+  if (!iso) return "";
+  try { return new Date(iso).toLocaleString("ru", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }); }
+  catch { return iso; }
+}
 
 function num(v: unknown): number { const n = Number(String(v ?? "").replace(",", ".")); return isFinite(n) ? n : 0; }
 const usdRate = computed(() => num(props.world?.usd_rate));
@@ -100,11 +150,12 @@ async function save() {
   for (const p of draft.value) {
     if (!p.name.trim()) { toast.error("У продукта пустое название"); return; }
   }
+  if (newComment.value.trim()) addComment();  // не потерять недобавленный коммент
   saving.value = true;
   try {
-    await unitCostApi.saveCompany(props.company.code, draft.value, imports.value);
+    await unitCostApi.saveCompany(props.company.code, draft.value, imports.value, comments.value, props.year, props.quarter);
     toast.success("Себестоимость сохранена");
-    initial = JSON.stringify({ p: draft.value, i: imports.value });
+    initial = JSON.stringify({ p: draft.value, i: imports.value, c: comments.value });
     emit("saved");
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
@@ -124,6 +175,20 @@ async function save() {
     </template>
 
     <div v-if="company" class="ucm-body">
+      <!-- донаты компании -->
+      <div v-if="mixDonut.length || structDonut.length" class="ucm-charts">
+        <div v-if="mixDonut.length" class="ucm-chart">
+          <div class="ucm-chart-t">Энергомикс</div>
+          <CreditDonut :entries="mixDonut" :center-value="fmt(mixTotal)" center-label="энергия"
+            :hover-fmt="donutHover" :size="118" />
+        </div>
+        <div v-if="structDonut.length" class="ucm-chart">
+          <div class="ucm-chart-t">Структура</div>
+          <CreditDonut :entries="structDonut" :center-value="fmt(structTotal)" center-label="итого"
+            :hover-fmt="donutHover" :size="118" />
+        </div>
+      </div>
+
       <div v-for="(p, i) in draft" :key="i" class="ucm-prod" :class="{ open: expanded === i }"
            :style="{ '--d': (i * 40) + 'ms' }">
         <!-- шапка продукта -->
@@ -215,6 +280,25 @@ async function save() {
         </div>
         <div v-else class="ucm-imp-empty">импорт не указан — добавьте позиции кнопкой «+ позиция»</div>
       </div>
+
+      <!-- Комментарии с @-упоминаниями (история хранится по периоду) -->
+      <div class="ucm-cm">
+        <div class="ucm-cm-t">Комментарии</div>
+        <div v-if="comments.length" class="ucm-cm-list">
+          <div v-for="(c, ci) in comments" :key="ci" class="ucm-cm-item">
+            <div class="ucm-cm-hd">
+              <span class="ucm-cm-author">{{ c.author || "—" }}</span>
+              <span class="ucm-cm-date">{{ fmtDate(c.at) }}</span>
+            </div>
+            <div class="ucm-cm-text">{{ c.text }}</div>
+          </div>
+        </div>
+        <div class="ucm-cm-add">
+          <MentionableTextarea v-model="newComment" placeholder="Комментарий… используйте @ для упоминания"
+                               @mention="onMention" />
+          <button type="button" class="ucm-cm-btn" :disabled="!newComment.trim()" @click="addComment">Добавить</button>
+        </div>
+      </div>
     </div>
 
     <template #footer>
@@ -235,6 +319,25 @@ async function save() {
 .ucm-meta { font-size: 11px; color: var(--t3,#94A3B8); }
 
 .ucm-body { display: flex; flex-direction: column; gap: 8px; }
+.ucm-charts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 4px; }
+@media (max-width: 560px) { .ucm-charts { grid-template-columns: 1fr; } }
+.ucm-chart { background: var(--bg2,#FAFAFD); border-radius: 12px; padding: 10px 8px 6px; }
+.ucm-chart-t { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--p-deep,#534AB7); padding-left: 8px; }
+
+.ucm-cm { border-top: 0.5px solid rgba(0,0,0,.08); padding-top: 12px; margin-top: 2px; }
+.ucm-cm-t { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--p-deep,#534AB7); margin-bottom: 8px; }
+.ucm-cm-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+.ucm-cm-item { background: var(--bg2,#FAFAFD); border-radius: 10px; padding: 8px 11px; animation: ucmProdIn .3s ease both; }
+.ucm-cm-hd { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 3px; }
+.ucm-cm-author { font-size: 11px; font-weight: 700; color: var(--t1,#1E2A4A); }
+.ucm-cm-date { font-size: 9.5px; color: var(--t3,#94A3B8); font-variant-numeric: tabular-nums; }
+.ucm-cm-text { font-size: 12px; color: var(--t2,#4B5468); line-height: 1.4; white-space: pre-wrap; word-break: break-word; }
+.ucm-cm-add { display: flex; flex-direction: column; gap: 8px; }
+.ucm-cm-btn { align-self: flex-end; font-size: 11.5px; font-weight: 600; font-family: inherit; color: #fff;
+  background: linear-gradient(135deg,#8B7FFF 0%,#6C5CE7 100%); border: none; border-radius: 9px; padding: 7px 16px; cursor: pointer;
+  box-shadow: 0 2px 8px rgba(108,92,231,.3); transition: transform .14s, opacity .14s; }
+.ucm-cm-btn:hover:not(:disabled) { transform: translateY(-1px); }
+.ucm-cm-btn:disabled { opacity: .45; cursor: default; box-shadow: none; }
 .ucm-prod { border: 1px solid var(--border,#ECEAF5); border-radius: 12px; overflow: hidden; background: #fff;
   animation: ucmProdIn .4s var(--ease-standard,ease) var(--d,0ms) both; transition: box-shadow .16s; }
 @keyframes ucmProdIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }

@@ -1,7 +1,7 @@
 """Удельная себестоимость — API (тонкий слой над UnitCostService)."""
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi import status as http_status
 from pydantic import BaseModel
 from sqlalchemy import text
@@ -18,13 +18,15 @@ router = APIRouter(prefix="/unit-cost", tags=["unit-cost"])
 
 @router.get("/overview")
 async def unit_cost_overview(
+    year: int = Query(2025, ge=2018, le=2035),
+    quarter: str = Query("annual", pattern="^(annual|q1|q2|q3|q4)$"),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     if not await has_effective_permission(db, user, "financials.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "financials.view required")
     scope_ids = await allowed_company_ids(db, user)
-    return await UnitCostService().overview(db, scope_ids=scope_ids)
+    return await UnitCostService().overview(db, year=year, quarter=quarter, scope_ids=scope_ids)
 
 
 class PricesPayload(BaseModel):
@@ -35,6 +37,8 @@ class PricesPayload(BaseModel):
 @router.put("/prices")
 async def unit_cost_save_prices(
     payload: PricesPayload,
+    year: int = Query(2025, ge=2018, le=2035),
+    quarter: str = Query("annual", pattern="^(annual|q1|q2|q3|q4)$"),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -45,7 +49,7 @@ async def unit_cost_save_prices(
         raise HTTPException(http_status.HTTP_403_FORBIDDEN,
                             "Цены энергоносителей — только для полного доступа к портфелю")
     return await UnitCostService().save_prices(
-        db, payload.prices, payload.world,
+        db, payload.prices, payload.world, year=year, quarter=quarter,
         user_email=user.email, user_id=str(user.id) if user.id else None,
     )
 
@@ -53,12 +57,15 @@ async def unit_cost_save_prices(
 class CompanyPayload(BaseModel):
     products: list[dict[str, Any]] = []
     imports: list[dict[str, Any]] = []
+    comments: list[dict[str, Any]] = []
 
 
 @router.put("/companies/{code}")
 async def unit_cost_save_company(
     code: str,
     payload: CompanyPayload,
+    year: int = Query(2025, ge=2018, le=2035),
+    quarter: str = Query("annual", pattern="^(annual|q1|q2|q3|q4)$"),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -72,6 +79,7 @@ async def unit_cost_save_company(
         ), {"c": code})).first()
         in_scope = bool(crow) and crow[0] in set(scope_ids)
     return await UnitCostService().save_company(
-        db, code, payload.products, payload.imports, cid_in_scope=in_scope,
+        db, code, payload.products, payload.imports, payload.comments,
+        year=year, quarter=quarter, cid_in_scope=in_scope,
         user_email=user.email, user_id=str(user.id) if user.id else None,
     )

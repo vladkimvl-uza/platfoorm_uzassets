@@ -53,8 +53,17 @@ def _num(v: Any) -> Optional[float]:
         return None
 
 
+_QUARTERS = ("annual", "q1", "q2", "q3", "q4")
+_DEFAULT_WORLD = {"usd_rate": 12650, "brent": 70, "gold": 2600, "copper": 9500}
+
+
 class UnitCostService:
-    async def _read(self, db: AsyncSession) -> dict[str, Any]:
+    @staticmethod
+    def _period_key(year: int, quarter: str) -> str:
+        q = quarter if quarter in _QUARTERS else "annual"
+        return f"{int(year)}-{q}"
+
+    async def _read_raw(self, db: AsyncSession) -> dict[str, Any]:
         row = (await db.execute(
             text("SELECT value FROM system_config WHERE key = :k LIMIT 1"), {"k": _KEY},
         )).first()
@@ -68,29 +77,98 @@ class UnitCostService:
                 return {}
         return v if isinstance(v, dict) else {}
 
-    async def _write(self, db: AsyncSession, data: dict[str, Any]) -> None:
+    async def _write_raw(self, db: AsyncSession, data: dict[str, Any]) -> None:
         await db.execute(text(
             "INSERT INTO system_config (id, key, value, description, is_secret, created_at, updated_at) "
             "VALUES (gen_random_uuid(), :k, CAST(:v AS jsonb), :d, FALSE, NOW(), NOW()) "
             "ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()"
         ), {"k": _KEY, "v": json.dumps(data, ensure_ascii=False),
-            "d": "Удельная себестоимость: цены энергоносителей + продукты компаний"})
+            "d": "Удельная себестоимость: цены/продукты по периодам (год+квартал)"})
         await db.commit()
 
-    async def load(self, db: AsyncSession) -> dict[str, Any]:
-        """Снапшот; при первом чтении инициализируется seed'ом (энергонормы+каталог)."""
-        data = await self._read(db)
-        if not data or not data.get("companies"):
-            data = _load_seed()
+    async def load_raw(self, db: AsyncSession) -> dict[str, Any]:
+        """Весь снапшот; миграция старого ПЛОСКОГО формата → {periods:{...}}."""
+        raw = await self._read_raw(db)
+        if "periods" not in raw:
+            if raw.get("companies"):  # старый плоский снапшот → период 2025-annual
+                raw = {"periods": {"2025-annual": {
+                    "energyPrices": raw.get("energyPrices", {}),
+                    "world": raw.get("world", {}), "companies": raw.get("companies", {})}}}
+            else:
+                raw = {"periods": {}}
+        raw.setdefault("periods", {})
+        return raw
+
+    def _period(self, raw: dict[str, Any], year: int, quarter: str) -> tuple[str, dict[str, Any], bool]:
+        """Данные периода (при первом обращении сеются из каталога seed_data)."""
+        key = self._period_key(year, quarter)
+        per = raw["periods"].get(key)
+        seeded = False
+        if per is None:
+            per = _load_seed()
+            raw["periods"][key] = per
+            seeded = True
+        per.setdefault("energyPrices", {})
+        per.setdefault("companies", {})
+        per.setdefault("world", dict(_DEFAULT_WORLD))
+        return key, per, seeded
+
+    async def available_periods(self, db: AsyncSession) -> list[str]:
+        raw = await self.load_raw(db)
+        return sorted(raw["periods"].keys())
+
+    async def _fetch_world_live(self) -> dict[str, Any]:
+        """Best-effort живой фид: USD/сум от ЦБ РУз, золото — публичный источник.
+        Brent/медь — нет надёжного keyless-источника (остаются из кэша/ручные).
+        Всё в try/except: капризный интернет VM не должен ронять overview."""
+        out: dict[str, Any] = {}
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=4.0, follow_redirects=True) as c:
+                try:  # официальный курс USD Центрального банка Узбекистана
+                    r = await c.get("https://cbu.uz/ru/arkhiv-kursov-valyut/json/")
+                    for it in (r.json() or []):
+                        if it.get("Ccy") == "USD":
+                            out["usd_rate"] = round(float(it["Rate"]), 2)
+                            break
+                except Exception:
+                    pass
+                try:  # спот-цена золота (USD/oz)
+                    r = await c.get("https://data-asg.goldprice.org/dbXRates/USD",
+                                    headers={"User-Agent": "Mozilla/5.0"})
+                    xau = float(r.json()["items"][0]["xauPrice"])
+                    if xau > 0:
+                        out["gold"] = round(xau, 1)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        return out
+
+    async def _world_live(self, db: AsyncSession, raw: dict[str, Any]) -> dict[str, Any]:
+        """Кэш живых цен (root-level, вне периодов): освежаем раз в час, best-effort."""
+        wl = dict(raw.get("world_live") or {})
+        stale = True
+        ts = wl.get("updated_at")
+        if ts:
             try:
-                await self._write(db, data)
+                age = (datetime.now(UTC) - datetime.fromisoformat(ts)).total_seconds()
+                stale = age > 3600
             except Exception:
-                pass  # чтение не должно падать из-за записи
-        data.setdefault("energyPrices", {})
-        data.setdefault("companies", {})
-        # мировые ориентиры + курс (влияют на цены, привязанные к USD)
-        data.setdefault("world", {"usd_rate": 12650, "brent": 70, "gold": 2600, "copper": 9500})
-        return data
+                stale = True
+        if stale:
+            fetched = await self._fetch_world_live()
+            if fetched:
+                wl = {**_DEFAULT_WORLD, **wl, **fetched,
+                      "updated_at": datetime.now(UTC).isoformat(), "source": "live"}
+                raw["world_live"] = wl
+                try:
+                    await self._write_raw(db, raw)
+                except Exception:
+                    pass
+        if not wl:
+            wl = {**_DEFAULT_WORLD, "source": "default"}
+        return wl
 
     # ─── Расчёт ──────────────────────────────────────────────────────
     @staticmethod
@@ -145,12 +223,20 @@ class UnitCostService:
         }
 
     async def overview(
-        self, db: AsyncSession, *, scope_ids: Optional[Sequence[UUID]],
+        self, db: AsyncSession, *, year: int = 2025, quarter: str = "annual",
+        scope_ids: Optional[Sequence[UUID]],
     ) -> dict[str, Any]:
-        data = await self.load(db)
-        world = data.get("world", {})
+        raw = await self.load_raw(db)
+        key, per, seeded = self._period(raw, year, quarter)
+        if seeded:
+            try:
+                await self._write_raw(db, raw)
+            except Exception:
+                pass
+        world_live = await self._world_live(db, raw)
+        world = per.get("world", {})
         usd_rate = _num(world.get("usd_rate")) or 0.0
-        pm = self._price_map(data.get("energyPrices", {}), usd_rate)
+        pm = self._price_map(per.get("energyPrices", {}), usd_rate)
         mix: dict[str, float] = {f: 0.0 for f in FUELS}
 
         # ростер компаний (имена/секторы/scope) из канона
@@ -171,7 +257,7 @@ class UnitCostService:
         for code, name, cid, sector, color in rows:
             if scope is not None and str(cid) not in scope:
                 continue
-            block = (data.get("companies", {}) or {}).get(code, {})
+            block = (per.get("companies", {}) or {}).get(code, {})
             prods = [self._calc_product(p, pm) for p in (block.get("products") or [])]
             prod_count += len(prods)
             c_total = sum(p["total_cost"] for p in prods if p["total_cost"] is not None)
@@ -204,6 +290,7 @@ class UnitCostService:
                 "energy_share": (round(c_energy / c_total * 100, 1) if c_total > 0 else None),
                 "import_cost": round(imp_cost, 1) if imp_cost else None,
                 "imports": imports_out,
+                "comments": block.get("comments") or [],
                 "products": prods,
             })
         companies.sort(key=lambda x: (x["total_cost"] is None, -(x["total_cost"] or 0)))
@@ -215,8 +302,11 @@ class UnitCostService:
         ]
         energy_mix.sort(key=lambda x: -x["cost"])
         return {
-            "energyPrices": data.get("energyPrices", {}),
+            "year": int(year), "quarter": quarter, "period": key,
+            "periods": sorted(raw["periods"].keys()),
+            "energyPrices": per.get("energyPrices", {}),
             "world": world,
+            "world_live": world_live,
             "fuel_labels": FUEL_LABELS,
             "companies": companies,
             "energy_mix": energy_mix,
@@ -236,9 +326,10 @@ class UnitCostService:
     # ─── Правки ──────────────────────────────────────────────────────
     async def save_prices(
         self, db: AsyncSession, prices: dict[str, Any], world: dict[str, Any],
-        *, user_email: str, user_id: Optional[str],
+        *, year: int, quarter: str, user_email: str, user_id: Optional[str],
     ) -> dict[str, Any]:
-        data = await self.load(db)
+        raw = await self.load_raw(db)
+        key, data, _ = self._period(raw, year, quarter)
         clean: dict[str, Any] = dict(data.get("energyPrices", {}))
         for f in FUELS:
             src = prices.get(f)
@@ -267,18 +358,34 @@ class UnitCostService:
                 if v is not None and v >= 0:
                     w[k] = v
             data["world"] = w
-        await self._write(db, data)
-        await self._audit(db, user_email, user_id, "unit_cost.prices.update", "цены энергоносителей + мировые")
+        await self._write_raw(db, raw)
+        await self._audit(db, user_email, user_id, "unit_cost.prices.update", f"цены+мировые {key}")
         return {"energyPrices": clean, "world": data.get("world", {})}
 
     async def save_company(
         self, db: AsyncSession, code: str, products: list[dict[str, Any]],
-        imports: list[dict[str, Any]], *, cid_in_scope: bool,
+        imports: list[dict[str, Any]], comments: list[dict[str, Any]],
+        *, year: int, quarter: str, cid_in_scope: bool,
         user_email: str, user_id: Optional[str],
     ) -> dict[str, Any]:
         if not cid_in_scope:
             raise HTTPException(403, "Нет доступа к компании")
-        data = await self.load(db)
+        raw = await self.load_raw(db)
+        key, data, _ = self._period(raw, year, quarter)
+        # комментарии: существующие (с at) сохраняем, новые (без at) штампуем
+        clean_comments: list[dict[str, Any]] = []
+        now_iso = datetime.now(UTC).isoformat()
+        for c in (comments or []):
+            txt = str(c.get("text", "")).strip()[:2000]
+            if not txt:
+                continue
+            if c.get("at"):
+                clean_comments.append({"author": str(c.get("author", ""))[:120],
+                                       "text": txt, "at": str(c.get("at"))[:40],
+                                       "mentions": [str(m)[:120] for m in (c.get("mentions") or [])][:20]})
+            else:
+                clean_comments.append({"author": user_email, "text": txt, "at": now_iso,
+                                       "mentions": [str(m)[:120] for m in (c.get("mentions") or [])][:20]})
         clean_imports: list[dict[str, Any]] = []
         for it in (imports or []):
             nm = str(it.get("name", "")).strip()[:120]
@@ -306,11 +413,12 @@ class UnitCostService:
                 "energy": energy, "components": comps,
             })
         data.setdefault("companies", {})[code] = {
-            "products": clean_products, "imports": clean_imports,
+            "products": clean_products, "imports": clean_imports, "comments": clean_comments,
         }
-        await self._write(db, data)
-        await self._audit(db, user_email, user_id, "unit_cost.company.update", f"продукты {code}")
-        return {"code": code, "products": clean_products, "imports": clean_imports}
+        await self._write_raw(db, raw)
+        await self._audit(db, user_email, user_id, "unit_cost.company.update", f"{code} {key}")
+        return {"code": code, "products": clean_products, "imports": clean_imports,
+                "comments": clean_comments}
 
     async def _audit(self, db, email, uid, action, note) -> None:
         try:

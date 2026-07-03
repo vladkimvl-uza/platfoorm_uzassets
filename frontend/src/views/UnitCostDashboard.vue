@@ -5,11 +5,15 @@
  * статьи, на единицу продукции. KPI-полоса, цены энергоносителей, список
  * компаний со сводкой, дрилл-редактор продуктов. Премиум UX.
  */
-import { computed, inject, onMounted, ref } from "vue";
+import { computed, inject, onMounted, ref, watch } from "vue";
 import { usePermissions } from "@/composables/usePermissions";
+import { useSavedFilter } from "@/composables/useSavedFilter";
 import { ensureFinancialsCss } from "@/components/Financials/financialsHelpers";
+import UzaSegment from "@/components/UZA/UzaSegment.vue";
+import UzaYearStepper from "@/components/UZA/UzaYearStepper.vue";
 import Odometer from "@/components/Odometer.vue";
 import CreditDonut, { type DonutEntry } from "@/components/CreditPortfolio/CreditDonut.vue";
+import FuelIcon from "@/components/UnitCost/FuelIcon.vue";
 import { unitCostApi, type UCOverview, type UCCompany } from "@/api/unitCost";
 import UnitCostCompanyModal from "@/components/UnitCost/UnitCostCompanyModal.vue";
 import UnitCostPricesModal from "@/components/UnitCost/UnitCostPricesModal.vue";
@@ -22,25 +26,40 @@ function onBurger() {
   else toggleSidebar();
 }
 
+const YEARS = Array.from({ length: 6 }, (_, i) => 2021 + i); // 2021..2026
+const QUARTERS = [
+  { value: "annual", label: "Год" }, { value: "q1", label: "I кв" },
+  { value: "q2", label: "II кв" }, { value: "q3", label: "III кв" }, { value: "q4", label: "IV кв" },
+] as const;
+const year = useSavedFilter<number>("unitCost.year", 2025);
+const quarter = useSavedFilter<string>("unitCost.quarter", "annual");
+
 const data = ref<UCOverview | null>(null);
 const loading = ref(true);
 const error = ref<string | null>(null);
+let seq = 0;
 
 async function load() {
+  const my = ++seq;
   loading.value = true; error.value = null;
   try {
-    data.value = await unitCostApi.overview();
+    const r = await unitCostApi.overview(year.value, quarter.value);
+    if (my !== seq) return;
+    data.value = r;
   } catch (e: unknown) {
+    if (my !== seq) return;
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
     error.value = err?.response?.data?.detail || err?.message || "Не удалось загрузить";
-  } finally { loading.value = false; }
+  } finally { if (my === seq) loading.value = false; }
 }
 onMounted(() => { ensureFinancialsCss(); load(); });
+watch([year, quarter], load);
 
 const pf = computed(() => data.value?.portfolio || null);
 const companies = computed(() => data.value?.companies || []);
 const pricesOpen = ref(false);
 const editCompany = ref<UCCompany | null>(null);
+function onKpiClick() { if (finPerm.canEdit.value) pricesOpen.value = true; }
 
 function fmtSum(v: number | null): string {
   if (v == null) return "—";
@@ -62,8 +81,13 @@ function shareColor(s: number | null): string {
   return "#1D9E75";
 }
 
-// мировые ориентиры (тикер + влияют на цены в USD)
-const world = computed(() => data.value?.world || null);
+// живой тикер (авто-обновление, best-effort); правки — в редакторе (per-period)
+const worldLive = computed(() => data.value?.world_live || null);
+const liveFresh = computed(() => {
+  const t = worldLive.value?.updated_at; if (!t) return "";
+  try { return new Date(t).toLocaleTimeString("ru", { hour: "2-digit", minute: "2-digit" }); }
+  catch { return ""; }
+});
 function fmtNum(v: number | null | undefined, d = 0): string {
   return v == null ? "—" : Number(v).toLocaleString("ru", { maximumFractionDigits: d });
 }
@@ -86,6 +110,15 @@ const structDonut = computed<DonutEntry[]>(() => {
   if (p.components_cost && p.components_cost > 0) out.push({ label: "Прочие статьи", color: "#7F77DD", value: p.components_cost, sub: fmtSum(p.components_cost) });
   return out;
 });
+// себестоимость по секторам
+const SECTOR_PAL = ["#7F77DD", "#1D9E75", "#EF9F27", "#378ADD", "#E24B4A", "#8B7FFF", "#5DC093", "#4B5468"];
+const sectorDonut = computed<DonutEntry[]>(() => {
+  const by: Record<string, number> = {};
+  for (const c of companies.value) if (c.total_cost) by[c.sector] = (by[c.sector] || 0) + c.total_cost;
+  return Object.entries(by).sort((a, b) => b[1] - a[1])
+    .map(([name, v], i) => ({ label: name, color: SECTOR_PAL[i % SECTOR_PAL.length], value: v, sub: fmtSum(v) }));
+});
+const sectorTotal = computed(() => companies.value.reduce((a, c) => a + (c.total_cost || 0), 0));
 function donutHover(e: DonutEntry, total: number): [string, string] {
   return [e.sub || String(e.value), total ? Math.round((e.value / total) * 100) + "%" : ""];
 }
@@ -108,12 +141,19 @@ function donutHover(e: DonutEntry, total: number): [string, string] {
         </div>
       </div>
       <div class="uc-cluster">
-        <div v-if="world" class="uc-ticker" title="Курс и мировые ориентиры — влияют на цены в USD (правятся в редакторе)">
-          <span class="uc-tk"><b>USD</b>{{ fmtNum(world.usd_rate) }}</span>
-          <span class="uc-tk"><b>Brent</b>${{ fmtNum(world.brent, 1) }}</span>
-          <span class="uc-tk"><b>Gold</b>${{ fmtNum(world.gold) }}</span>
-          <span class="uc-tk"><b>Cu</b>${{ fmtNum(world.copper) }}</span>
+        <div v-if="worldLive" class="uc-ticker"
+             :title="'Живой фид (USD — ЦБ РУз, золото — спот)' + (liveFresh ? ', обновлено ' + liveFresh : '') + '. Правки — в редакторе.'">
+          <span v-if="worldLive.source === 'live'" class="uc-live"><i /></span>
+          <span class="uc-tk"><b>USD</b>{{ fmtNum(worldLive.usd_rate) }}</span>
+          <span class="uc-tk"><b>Brent</b>${{ fmtNum(worldLive.brent, 1) }}</span>
+          <span class="uc-tk"><b>Gold</b>${{ fmtNum(worldLive.gold) }}</span>
+          <span class="uc-tk"><b>Cu</b>${{ fmtNum(worldLive.copper) }}</span>
         </div>
+        <div class="uc-div" aria-hidden="true"></div>
+        <UzaSegment :model-value="quarter" :options="QUARTERS as never" size="sm" tone="dark"
+                    @update:model-value="quarter = $event as string" />
+        <UzaYearStepper tone="dark" :model-value="year" :years="YEARS" prefix="FY "
+                        @update:model-value="year = ($event as number) ?? year" />
         <button v-if="finPerm.canEdit.value" class="uc-prices-btn" type="button" @click="pricesOpen = true"
                 title="Цены энергоносителей и мировые ориентиры">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
@@ -133,17 +173,17 @@ function donutHover(e: DonutEntry, total: number): [string, string] {
       <!-- KPI-полоса -->
       <section class="uc-section">
         <div class="uc-kpi-band kpi-rail">
-          <div class="uc-kpi" style="--accent:#7F77DD; --d:0ms;">
+          <div class="uc-kpi uc-kpi-clk" role="button" tabindex="0" @click="onKpiClick" style="--accent:#7F77DD; --d:0ms;">
             <div class="uc-kpi-l">Совокупная себестоимость</div>
             <div class="uc-kpi-v">{{ fmtSum(pf.total_cost) }}</div>
             <div class="uc-kpi-s">по заполненному выпуску</div>
           </div>
-          <div class="uc-kpi" style="--accent:#EF9F27; --d:80ms;">
+          <div class="uc-kpi uc-kpi-clk" role="button" tabindex="0" @click="onKpiClick" style="--accent:#EF9F27; --d:80ms;">
             <div class="uc-kpi-l">Энергозатраты</div>
             <div class="uc-kpi-v">{{ fmtSum(pf.energy_cost) }}</div>
             <div class="uc-kpi-s">из совокупной</div>
           </div>
-          <div class="uc-kpi" style="--accent:#E24B4A; --d:160ms;">
+          <div class="uc-kpi uc-kpi-clk" role="button" tabindex="0" @click="onKpiClick" style="--accent:#E24B4A; --d:160ms;">
             <div class="uc-kpi-l">Доля энергии</div>
             <div class="uc-kpi-v">
               <span v-if="pf.energy_share != null"><Odometer :value="pf.energy_share.toFixed(1)" /><span class="uc-kpi-u">%</span></span>
@@ -151,11 +191,42 @@ function donutHover(e: DonutEntry, total: number): [string, string] {
             </div>
             <div class="uc-kpi-s">энергоёмкость портфеля</div>
           </div>
-          <div class="uc-kpi" style="--accent:#1D9E75; --d:240ms;">
+          <div class="uc-kpi uc-kpi-clk" role="button" tabindex="0" @click="onKpiClick" style="--accent:#1D9E75; --d:240ms;">
             <div class="uc-kpi-l">Заполнено продуктов</div>
             <div class="uc-kpi-v">{{ pf.priced_count }}<span class="uc-kpi-u">/ {{ pf.product_count }}</span></div>
             <div class="uc-kpi-s">{{ pf.company_count }} компаний</div>
           </div>
+        </div>
+      </section>
+
+      <!-- Пайчарты: между KPI и ценами -->
+      <section class="uc-section uc-3col">
+        <div class="uc-card">
+          <div class="uc-card-hd"><div>
+            <div class="uc-card-t">Энергомикс портфеля</div>
+            <div class="uc-card-s">доля видов топлива в энергозатратах</div>
+          </div></div>
+          <CreditDonut v-if="mixDonut.length" :entries="mixDonut" :center-value="fmtSum(mixTotal)"
+            center-label="энергия" :hover-fmt="donutHover" :size="150" />
+          <div v-else class="uc-chart-empty">заполните выпуск продуктов</div>
+        </div>
+        <div class="uc-card">
+          <div class="uc-card-hd"><div>
+            <div class="uc-card-t">Структура себестоимости</div>
+            <div class="uc-card-s">энергозатраты и прочие статьи</div>
+          </div></div>
+          <CreditDonut v-if="structDonut.length" :entries="structDonut" :center-value="fmtSum(pf!.total_cost)"
+            center-label="итого" :hover-fmt="donutHover" :size="150" />
+          <div v-else class="uc-chart-empty">заполните статьи себестоимости</div>
+        </div>
+        <div class="uc-card">
+          <div class="uc-card-hd"><div>
+            <div class="uc-card-t">Себестоимость по секторам</div>
+            <div class="uc-card-s">распределение по отраслям</div>
+          </div></div>
+          <CreditDonut v-if="sectorDonut.length" :entries="sectorDonut" :center-value="fmtSum(sectorTotal)"
+            center-label="итого" :hover-fmt="donutHover" :size="150" />
+          <div v-else class="uc-chart-empty">нет данных по себестоимости</div>
         </div>
       </section>
 
@@ -169,32 +240,12 @@ function donutHover(e: DonutEntry, total: number): [string, string] {
             </div>
           </div>
           <div class="uc-prices">
-            <div v-for="(p, i) in priceRows" :key="p.fuel" class="uc-price" :style="{ '--d': (i * 50) + 'ms' }">
-              <div class="uc-price-l">{{ p.label }}</div>
+            <div v-for="(p, i) in priceRows" :key="p.fuel" class="uc-price" :style="{ '--d': (i * 50) + 'ms', '--fc': FUEL_PAL[p.fuel] || '#7F77DD' }">
+              <div class="uc-price-l"><FuelIcon :fuel="p.fuel" :size="13" />{{ p.label }}</div>
               <div class="uc-price-v">{{ p.price.toLocaleString("ru") }}</div>
               <div class="uc-price-u">{{ p.unit }}</div>
             </div>
           </div>
-        </div>
-      </section>
-
-      <!-- Графики: энергомикс + структура -->
-      <section v-if="mixDonut.length || structDonut.length" class="uc-section uc-2col">
-        <div v-if="mixDonut.length" class="uc-card">
-          <div class="uc-card-hd"><div>
-            <div class="uc-card-t">Энергомикс портфеля</div>
-            <div class="uc-card-s">доля видов топлива в энергозатратах</div>
-          </div></div>
-          <CreditDonut :entries="mixDonut" :center-value="fmtSum(mixTotal)" center-label="энергия"
-            :hover-fmt="donutHover" :size="150" />
-        </div>
-        <div v-if="structDonut.length" class="uc-card">
-          <div class="uc-card-hd"><div>
-            <div class="uc-card-t">Структура себестоимости</div>
-            <div class="uc-card-s">энергозатраты и прочие статьи</div>
-          </div></div>
-          <CreditDonut :entries="structDonut" :center-value="fmtSum(pf!.total_cost)" center-label="итого"
-            :hover-fmt="donutHover" :size="150" />
         </div>
       </section>
 
@@ -238,6 +289,7 @@ function donutHover(e: DonutEntry, total: number): [string, string] {
       :prices="data?.energyPrices || {}"
       :world="data?.world || null"
       :fuel-labels="data?.fuel_labels || {}"
+      :year="year" :quarter="quarter"
       @close="editCompany = null"
       @saved="editCompany = null; load()"
     />
@@ -245,7 +297,9 @@ function donutHover(e: DonutEntry, total: number): [string, string] {
       :open="pricesOpen"
       :prices="data?.energyPrices || {}"
       :world="data?.world || null"
+      :live="data?.world_live || null"
       :fuel-labels="data?.fuel_labels || {}"
+      :year="year" :quarter="quarter"
       @close="pricesOpen = false"
       @saved="pricesOpen = false; load()"
     />
@@ -278,6 +332,11 @@ function donutHover(e: DonutEntry, total: number): [string, string] {
 .uc-tk { font-size: 11.5px; font-weight: 600; color: rgba(255,255,255,.9); font-variant-numeric: tabular-nums; white-space: nowrap;
   padding: 3px 9px; border-radius: 7px; background: rgba(255,255,255,.06); }
 .uc-tk b { font-size: 8.5px; font-weight: 700; color: rgba(255,255,255,.5); text-transform: uppercase; letter-spacing: .04em; margin-right: 5px; }
+.uc-live { display: inline-flex; align-items: center; }
+.uc-live i { width: 7px; height: 7px; border-radius: 50%; background: #4ADE80; box-shadow: 0 0 0 0 rgba(74,222,128,.6);
+  animation: ucLivePulse 2s ease-in-out infinite; }
+@keyframes ucLivePulse { 0%,100% { box-shadow: 0 0 0 0 rgba(74,222,128,.5); } 50% { box-shadow: 0 0 0 4px rgba(74,222,128,0); } }
+.uc-div { width: 1px; height: 20px; background: rgba(255,255,255,.14); margin: 0 2px; flex-shrink: 0; }
 .uc-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 @media (max-width: 900px) { .uc-2col { grid-template-columns: 1fr; } }
 
@@ -304,6 +363,9 @@ function donutHover(e: DonutEntry, total: number): [string, string] {
   font-variant-numeric: tabular-nums; display: flex; align-items: baseline; gap: 3px; margin: 4px 0 2px; }
 .uc-kpi-u { font-size: 11px; color: var(--t3,#94A3B8); font-weight: 500; }
 .uc-kpi-s { font-size: 10.5px; color: var(--t3,#94A3B8); }
+.uc-kpi-clk { cursor: pointer; transition: transform .16s ease, box-shadow .16s ease; outline: none; }
+.uc-kpi-clk:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(15,23,60,.10), 0 1px 3px rgba(15,23,60,.04); }
+.uc-kpi-clk:focus-visible { box-shadow: 0 0 0 2px rgba(127,119,221,.45); }
 
 /* Карточки */
 .uc-card { background: rgba(255,255,255,.82); backdrop-filter: blur(16px) saturate(1.5);
@@ -319,7 +381,11 @@ function donutHover(e: DonutEntry, total: number): [string, string] {
 @media (max-width: 560px) { .uc-prices { grid-template-columns: repeat(2, 1fr); } }
 .uc-price { background: var(--bg2,#FAFAFD); border-radius: 11px; padding: 10px 12px;
   animation: finKpiCardIn .5s var(--ease-standard) var(--d,0ms) both; }
-.uc-price-l { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--t3,#94A3B8); }
+.uc-3col { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+@media (max-width: 1000px) { .uc-3col { grid-template-columns: 1fr; } }
+.uc-chart-empty { padding: 40px 16px; text-align: center; font-size: 11.5px; color: #C4C8D4; font-style: italic; }
+.uc-price-l { display: flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--t3,#94A3B8); }
+.uc-price-l :deep(.fi) { color: var(--fc, #7F77DD); }
 .uc-price-v { font-size: 16px; font-weight: 500; color: var(--t1,#1E2A4A); font-variant-numeric: tabular-nums; margin: 3px 0 1px; }
 .uc-price-u { font-size: 9.5px; color: var(--t3,#94A3B8); }
 

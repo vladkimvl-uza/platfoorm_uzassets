@@ -8,8 +8,10 @@ import { computed, ref, watch } from "vue";
 import ModalShell from "@/components/ModalShell.vue";
 import { useToast } from "@/composables/useToast";
 import { unitCostApi, FUELS, type UCPrices, type UCWorld } from "@/api/unitCost";
+import FuelIcon from "@/components/UnitCost/FuelIcon.vue";
 
-const props = defineProps<{ open: boolean; prices: UCPrices; world: UCWorld | null; fuelLabels: Record<string, string> }>();
+const props = defineProps<{ open: boolean; prices: UCPrices; world: UCWorld | null;
+  live: UCWorld | null; fuelLabels: Record<string, string>; year: number; quarter: string }>();
 const emit = defineEmits<{ (e: "close"): void; (e: "saved"): void }>();
 const toast = useToast();
 
@@ -66,6 +68,13 @@ const hasErr = computed(() => FUELS.some((f) => priceErr(f)) ||
   WORLD.some((w) => wdraft.value[w.key] !== "" && (num(wdraft.value[w.key]) == null || num(wdraft.value[w.key])! < 0)));
 function fmt(v: number | null): string { return v == null ? "—" : v.toLocaleString("ru", { maximumFractionDigits: 0 }); }
 
+function fillFromLive() {
+  if (!props.live) return;
+  for (const w of WORLD) {
+    const v = (props.live as Record<string, number>)[w.key];
+    if (v != null) wdraft.value[w.key] = String(v);
+  }
+}
 async function save() {
   if (saving.value || hasErr.value) return;
   const prices: UCPrices = {};
@@ -80,7 +89,7 @@ async function save() {
   for (const it of WORLD) { const v = num(wdraft.value[it.key]); if (v != null && v >= 0) (w as Record<string, number>)[it.key] = v; }
   saving.value = true;
   try {
-    await unitCostApi.savePrices(prices, w);
+    await unitCostApi.savePrices(prices, w, props.year, props.quarter);
     toast.success("Цены и курсы сохранены");
     initial = JSON.stringify({ p: pdraft.value, w: wdraft.value });
     emit("saved");
@@ -103,7 +112,10 @@ async function save() {
 
     <div class="ucp-body">
       <!-- Мировые ориентиры -->
-      <div class="ucp-block-t">Курс и мировые ориентиры</div>
+      <div class="ucp-block-t">Курс и мировые ориентиры
+        <button v-if="live && live.source === 'live'" type="button" class="ucp-live-btn" @click="fillFromLive"
+                title="Подставить значения из живого фида">из живого фида</button>
+      </div>
       <div class="ucp-world">
         <div v-for="w in WORLD" :key="w.key" class="ucp-w">
           <div class="ucp-w-l">{{ w.label }}</div>
@@ -118,7 +130,7 @@ async function save() {
         <span></span><span>Цена, сум</span><span>или USD</span><span>Итог, сум</span>
       </div>
       <div v-for="(f, i) in FUELS" :key="f" class="ucp-row" :class="{ err: priceErr(f) }" :style="{ '--d': (i * 45) + 'ms' }">
-        <span class="ucp-label"><i :style="{ background: FUEL_COLOR[f] }" />{{ fuelLabels[f] || f }}</span>
+        <span class="ucp-label" :style="{ '--fc': FUEL_COLOR[f] }"><FuelIcon :fuel="f" :size="14" />{{ fuelLabels[f] || f }}</span>
         <div class="ucp-inwrap">
           <input v-model="pdraft[f].price" type="text" inputmode="decimal" class="ucp-inp ucp-inp-c"
                  :disabled="!!num(pdraft[f].usd)" placeholder="—" />
@@ -152,6 +164,9 @@ async function save() {
 .ucp-block-t { display: flex; align-items: baseline; gap: 8px; font-size: 10.5px; font-weight: 700; text-transform: uppercase;
   letter-spacing: .05em; color: var(--p-deep,#534AB7); margin: 6px 0 4px; }
 .ucp-block-t span { font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--t3,#94A3B8); font-size: 10px; }
+.ucp-live-btn { margin-left: auto; font-size: 9.5px; font-weight: 600; font-family: inherit; text-transform: none; letter-spacing: 0;
+  color: #1D9E75; background: rgba(29,158,117,.1); border: 1px solid rgba(29,158,117,.3); border-radius: 7px; padding: 3px 9px; cursor: pointer; transition: all .14s; }
+.ucp-live-btn:hover { background: rgba(29,158,117,.18); }
 
 .ucp-world { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 6px; }
 @media (max-width: 640px) { .ucp-world { grid-template-columns: repeat(2, 1fr); } }
@@ -168,7 +183,7 @@ async function save() {
 .ucp-row:hover { background: var(--bg2,#FAFAFD); }
 .ucp-row.err { background: rgba(226,75,74,.05); }
 .ucp-label { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--t1,#1E2A4A); }
-.ucp-label i { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.ucp-label :deep(.fi) { color: var(--fc, #7F77DD); }
 .ucp-inwrap { display: flex; align-items: center; gap: 6px; }
 .ucp-inp { flex: 1; min-width: 0; box-sizing: border-box; font-size: 12.5px; font-family: inherit; color: var(--t1,#1E2A4A);
   padding: 7px 9px; border: 1.5px solid var(--border,#ECEAF5); border-radius: 8px; outline: none; background: #fff;
