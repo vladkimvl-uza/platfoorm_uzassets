@@ -77,16 +77,18 @@ function yoyColor(v: number | null | undefined): string {
         <div class="ffb-val">{{ fmtAmount(taxKpi?.income_tax).text }}<span class="ffb-u">{{ fmtAmount(taxKpi?.income_tax).unit }}</span></div>
         <div class="ffb-sub" :style="{ color: yoyColor(taxKpi?.yoy_income_tax_pct) }">{{ fmtYoY(taxKpi?.yoy_income_tax_pct) || '—' }}</div>
       </div>
-      <!-- НДС -->
-      <div class="ffb-kpi" style="--accent:#1D9E75; --d:210ms">
-        <div class="ffb-lbl">НДС (12% выручки)</div>
-        <div class="ffb-val">{{ fmtAmount(taxKpi?.vat).text }}<span class="ffb-u">{{ fmtAmount(taxKpi?.vat).unit }}</span></div>
+      <!-- НДС — расчётная ОЦЕНКА, не факт (честная маркировка) -->
+      <div class="ffb-kpi" style="--accent:#1D9E75; --d:210ms"
+           title="Расчётная оценка: 12% × выручка (НСБУ). Не учитывает нулевую ставку НДС на экспорт и зачёт входящего НДС — фактический НДС к уплате ниже. Для факта заполните «Налоги» в индикаторах компаний.">
+        <div class="ffb-lbl">НДС (12% выручки) <span class="ffb-est">оценка</span></div>
+        <div class="ffb-val">≈{{ fmtAmount(taxKpi?.vat).text }}<span class="ffb-u">{{ fmtAmount(taxKpi?.vat).unit }}</span></div>
         <div class="ffb-sub" :style="{ color: yoyColor(taxKpi?.yoy_vat_pct) }">{{ fmtYoY(taxKpi?.yoy_vat_pct) || '—' }}</div>
       </div>
-      <!-- Итоговый налоговый вклад -->
-      <div class="ffb-kpi ffb-hl" style="--accent:#EF9F27; --d:280ms">
-        <div class="ffb-lbl">Итоговый налоговый вклад</div>
-        <div class="ffb-val">{{ fmtAmount(taxKpi?.total).text }}<span class="ffb-u">{{ fmtAmount(taxKpi?.total).unit }}</span></div>
+      <!-- Итоговый налоговый вклад = факт (налог) + оценка (НДС) → оценка -->
+      <div class="ffb-kpi ffb-hl" style="--accent:#EF9F27; --d:280ms"
+           title="Налог на прибыль (факт по отчётности НСБУ) + НДС (расчётная оценка). Не включает НДПИ, акцизы, роялти и дивиденды — итог является оценкой.">
+        <div class="ffb-lbl">Итоговый налоговый вклад <span class="ffb-est">оценка</span></div>
+        <div class="ffb-val">≈{{ fmtAmount(taxKpi?.total).text }}<span class="ffb-u">{{ fmtAmount(taxKpi?.total).unit }}</span></div>
         <div class="ffb-sub" :style="{ color: yoyColor(taxKpi?.yoy_total_pct) }">{{ fmtYoY(taxKpi?.yoy_total_pct) || '—' }}</div>
       </div>
     </div>
@@ -133,6 +135,9 @@ function yoyColor(v: number | null | undefined): string {
 
 .ffb-lbl { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: .06em; color: var(--t3, var(--t-muted));
   margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* бейдж «оценка» — расчётные значения не выдаём за факт */
+.ffb-est { font-size: 8.5px; font-weight: 700; color: #B45309; background: rgba(239,159,39,.16);
+  border-radius: 5px; padding: 1px 5px; letter-spacing: .04em; vertical-align: 1px; }
 .ffb-val { font-size: clamp(17px, 1.7vw, 28px); font-weight: 400; letter-spacing: -.04em; line-height: 1; color: var(--t1, #1E2A4A);
   font-variant-numeric: tabular-nums; display: flex; align-items: baseline; gap: 5px; margin: 2px 0 4px; white-space: nowrap; min-width: 0; }
 .ffb-u { font-size: 12px; color: var(--t3, var(--t-muted)); font-weight: 400; }

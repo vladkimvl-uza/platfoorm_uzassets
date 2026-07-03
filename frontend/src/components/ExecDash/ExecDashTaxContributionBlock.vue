@@ -182,11 +182,11 @@ const tYoYTotal     = useNumberTween(() => Number(kpi.value?.yoy_total_pct) || 0
           tabindex="0"
           @click="openDrill('vat')"
           @keydown="onKpiKeydown($event, 'vat')"
-          title="Подробнее: Налог на добавленную стоимость"
+          title="Расчётная оценка: 12% × выручка (НСБУ). Не учитывает нулевую ставку НДС на экспорт и зачёт входящего НДС — фактический НДС к уплате ниже."
         >
-          <div class="etx-kpi-lbl">Налог на добавленную стоимость (12% от выручки)</div>
+          <div class="etx-kpi-lbl">НДС (12% от выручки) <span class="etx-est">оценка</span></div>
           <div class="etx-kpi-val">
-            {{ fmtMoney(tVat).value }}<span class="etx-kpi-u">{{ fmtMoney(tVat).unit }}</span>
+            ≈{{ fmtMoney(tVat).value }}<span class="etx-kpi-u">{{ fmtMoney(tVat).unit }}</span>
           </div>
           <div class="etx-kpi-yoy" :style="{ color: yoyColor(kpi.yoy_vat_pct) }">
             <span v-if="kpi.yoy_vat_pct != null">{{ fmtYoY(tYoYVat) }} к {{ block.prev_year }}</span>
@@ -201,11 +201,11 @@ const tYoYTotal     = useNumberTween(() => Number(kpi.value?.yoy_total_pct) || 0
           tabindex="0"
           @click="openDrill('total')"
           @keydown="onKpiKeydown($event, 'total')"
-          title="Подробнее: Итоговый налоговый вклад"
+          title="Налог на прибыль (факт по отчётности НСБУ) + НДС (расчётная оценка). Не включает НДПИ, акцизы, роялти и дивиденды — итог является оценкой."
         >
-          <div class="etx-kpi-lbl">Итоговый налоговый вклад</div>
+          <div class="etx-kpi-lbl">Итоговый налоговый вклад <span class="etx-est">оценка</span></div>
           <div class="etx-kpi-val">
-            {{ fmtMoney(tTotal).value }}<span class="etx-kpi-u">{{ fmtMoney(tTotal).unit }}</span>
+            ≈{{ fmtMoney(tTotal).value }}<span class="etx-kpi-u">{{ fmtMoney(tTotal).unit }}</span>
           </div>
           <div class="etx-kpi-yoy" :style="{ color: yoyColor(kpi.yoy_total_pct) }">
             <span v-if="kpi.yoy_total_pct != null">{{ fmtYoY(tYoYTotal) }} к {{ block.prev_year }}</span>
@@ -431,6 +431,9 @@ const tYoYTotal     = useNumberTween(() => Number(kpi.value?.yoy_total_pct) || 0
   letter-spacing: 0.06em;
   margin-bottom: 6px;
 }
+/* бейдж «оценка» — расчётные значения не выдаём за факт */
+.etx-est { font-size: 8.5px; font-weight: 700; color: #B45309; background: rgba(239, 159, 39, .16);
+  border-radius: 5px; padding: 1px 5px; letter-spacing: .04em; vertical-align: 1px; text-transform: none; }
 .etx-kpi-val {
   font-size: 26px;
   font-weight: 400;
