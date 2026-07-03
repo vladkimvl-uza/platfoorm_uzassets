@@ -407,8 +407,15 @@ class SoeHealthService:
             zone_counts[c["zone"]["key"]] += 1
         portfolio_avg = round(sum(c["overall"] for c in scored) / len(scored), 2) if scored else None
 
-        total_q = text("SELECT count(*) FROM companies WHERE is_active = true")
-        total_companies = (await db.execute(total_q)).scalar() or 0
+        # total — в пределах scope пользователя (company-scoped видит «из своих»)
+        if scope_ids is not None:
+            total_companies = (await db.execute(text(
+                "SELECT count(*) FROM companies WHERE is_active = true AND id = ANY(:scope)"
+            ), {"scope": [str(i) for i in scope_ids]})).scalar() or 0
+        else:
+            total_companies = (await db.execute(text(
+                "SELECT count(*) FROM companies WHERE is_active = true"
+            ))).scalar() or 0
 
         series = await self._load_series(
             db, y0=year - 4, y1=year, standard=standard, scope_ids=scope_ids,

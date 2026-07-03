@@ -313,8 +313,12 @@ const seriesYears = computed(() => data.value?.series?.years || []);
   display: flex; align-items: center; gap: 14px; row-gap: 10px; flex-wrap: wrap;
   padding: 10px 16px; min-height: 52px;
   background: linear-gradient(180deg, #1E2A4A 0%, #182039 100%);
-  color: #fff; border-radius: 12px;
+  color: #fff;
+  /* цельно с сайдбаром: слева без радиуса (нет светлой выемки), без анимаций */
+  border-radius: 0 12px 12px 0;
   box-shadow: 0 4px 14px rgba(15, 23, 60, 0.15);
+  animation: none !important;
+  transition: none;
 }
 .sh-burger {
   width: 34px; height: 34px; border-radius: 8px; flex-shrink: 0;

@@ -149,11 +149,19 @@ async def save_soe_health_params(
     user: User = Depends(get_current_user),
 ):
     from fastapi import HTTPException
+    from app.core.access import allowed_company_ids
     from app.core.security import has_effective_permission
     from app.services.soe_health import SoeHealthService
 
     if not await has_effective_permission(db, user, "financials.edit"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "financials.edit required")
+    # Пороги ГЛОБАЛЬНЫЕ (одни на весь портфель) — company-scoped пользователь
+    # не должен менять методику для чужих компаний.
+    if await allowed_company_ids(db, user) is not None:
+        raise HTTPException(
+            http_status.HTTP_403_FORBIDDEN,
+            "Глобальные пороги может менять только пользователь с полным доступом к портфелю",
+        )
     ratios = await SoeHealthService().save_params(
         db, payload.overrides,
         user_email=user.email, user_id=str(user.id) if user.id else None,
