@@ -8,8 +8,7 @@
  * Премиум-паттерны платформы: kpi-rail полоса с Odometer, top-accent карточки,
  * staggered-появление строк, светофорные пилюли (пастель), дрилл-модалка.
  */
-import { computed, onMounted, ref, watch } from "vue";
-import { api } from "@/api/client";
+import { computed, onMounted, ref } from "vue";
 import { ensureFinancialsCss } from "@/components/Financials/financialsHelpers";
 import Odometer from "@/components/Odometer.vue";
 import SoeHealthDrillModal from "@/components/Financials/SoeHealthDrillModal.vue";
@@ -26,11 +25,23 @@ export interface SoeCompany {
   zone: { key: string; label: string; color: string } | null;
   prev_overall: number | null; delta: number | null; available: number;
 }
-interface SoeHealthPayload {
+export interface SoeRatioMeta {
+  key: string; label: string; group: string; formula: string;
+  thresholds: number[]; default_thresholds?: number[]; overridden?: boolean;
+  direction: "gte" | "lte"; fmt: "pct" | "x" | "days";
+}
+export interface SoeZone { key: string; label: string; color: string; max: number }
+export interface SoeHealthPayload {
   year: number; standard: string;
-  ratios_meta: { key: string; label: string; formula: string; thresholds: number[]; direction: string; fmt: string }[];
-  zones: { key: string; label: string; color: string; max: number }[];
+  ratios_meta: SoeRatioMeta[];
+  params_overridden?: boolean;
+  zones: SoeZone[];
   companies: SoeCompany[];
+  series?: {
+    years: number[];
+    totals: Record<string, (number | null)[]>;
+    ratios: Record<string, (number | null)[]>;
+  };
   portfolio: {
     avg: number | null; zone: { key: string; label: string; color: string } | null;
     zone_counts: Record<string, number>; scored_count: number; total_companies: number;
@@ -40,34 +51,12 @@ interface SoeHealthPayload {
   methodology: string;
 }
 
-const props = defineProps<{ year: number; standard: "IFRS" | "NSBU"; search?: string }>();
+// Презентационный компонент: данные загружает страница-дашборд.
+const props = defineProps<{ data: SoeHealthPayload | null; search?: string }>();
 
-const data = ref<SoeHealthPayload | null>(null);
-const loading = ref(true);
-const error = ref<string | null>(null);
-let seq = 0;
+onMounted(() => { ensureFinancialsCss(); });
 
-async function load() {
-  const my = ++seq;
-  loading.value = true;
-  error.value = null;
-  try {
-    const r = await api.get<SoeHealthPayload>("/financials/soe-health", {
-      params: { year: props.year, standard: props.standard },
-    });
-    if (my !== seq) return;
-    data.value = r.data;
-  } catch (e: unknown) {
-    if (my !== seq) return;
-    const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    error.value = err?.response?.data?.detail || err?.message || "Не удалось загрузить";
-  } finally {
-    if (my === seq) loading.value = false;
-  }
-}
-onMounted(() => { ensureFinancialsCss(); load(); });
-watch(() => [props.year, props.standard], load);
-
+const data = computed(() => props.data);
 const companies = computed(() => {
   const list = data.value?.companies || [];
   const q = (props.search || "").trim().toLowerCase();
@@ -116,10 +105,7 @@ const drillCompany = ref<SoeCompany | null>(null);
 
 <template>
   <div class="shb">
-    <div v-if="loading && !data" class="shb-state">Загрузка SOE Health Check…</div>
-    <div v-else-if="error && !data" class="shb-state shb-err">{{ error }}</div>
-
-    <template v-else-if="data && pf">
+    <template v-if="data && pf">
       <!-- KPI-полоса (единая лента kpi-rail, как эталон Финансов) -->
       <div class="shb-band kpi-rail">
         <div class="shb-kpi" :style="{ '--accent': pf.zone?.color || '#7F77DD', '--d': '0ms' }">
@@ -224,8 +210,8 @@ const drillCompany = ref<SoeCompany | null>(null);
       :open="!!drillCompany"
       :company="drillCompany"
       :zones="zones"
-      :year="data?.year ?? year"
-      :standard="data?.standard ?? standard"
+      :year="data?.year ?? 0"
+      :standard="data?.standard ?? ''"
       @close="drillCompany = null"
     />
   </div>

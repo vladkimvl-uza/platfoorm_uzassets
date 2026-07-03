@@ -335,6 +335,12 @@ const router = createRouter({
           meta: { title: "Финансы", requiresPermission: "financials.view" },
         },
         {
+          path: "soe-health",
+          name: "soe-health",
+          component: () => import("@/views/SoeHealthDashboard.vue"),
+          meta: { title: "SOE Health Check", requiresPermission: "financials.view" },
+        },
+        {
           path: "financials-edit/nsbu",
           name: "financials-edit-nsbu",
           component: () => import("@/views/NsbuEditor.vue"),

@@ -18,12 +18,14 @@
 """
 from __future__ import annotations
 
+import json
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, Optional
 from uuid import UUID
 
+from fastapi import HTTPException
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -40,6 +42,12 @@ SOE_HEALTH_RATIOS: list[dict[str, Any]] = [
     {"key": "costRecovery", "label": "Cost Recovery", "group": "Рентабельность",
      "formula": "Выручка / операционные затраты (≈ выручка − опер. прибыль)",
      "direction": "gte", "thresholds": [1.5, 1.3, 1.0, 0.8], "fmt": "x"},
+    {"key": "currentRatio", "label": "Current Ratio", "group": "Ликвидность",
+     "formula": "Оборотные активы / Краткосрочные обязательства",
+     "direction": "gte", "thresholds": [2.0, 1.5, 1.3, 1.0], "fmt": "x"},
+    {"key": "quickRatio", "label": "Quick Ratio", "group": "Ликвидность",
+     "formula": "(Оборотные активы − Запасы) / Краткосрочные обязательства",
+     "direction": "gte", "thresholds": [1.2, 1.0, 0.8, 0.7], "fmt": "x"},
     {"key": "debtorDays", "label": "Дебиторка, дни", "group": "Ликвидность",
      "formula": "Дебиторская задолженность / Выручка × 365",
      "direction": "lte", "thresholds": [30, 40, 50, 90], "fmt": "days"},
@@ -78,7 +86,13 @@ _NEEDED_CODES = (
     "revenue", "cogs", "opProfit", "profit", "ebitda", "finCost",
     "totalAssets", "totalLiabilities", "equity", "debt",
     "accountsReceivable", "accountsPayable", "cfo",
+    # CR/QR: totalCA + stBorrowings («Краткосрочные обяз-ва» = текущие
+    # обязательства в схемах НСБУ/МСФО-редакторов) + inventories (МСФО)
+    "totalCA", "stBorrowings", "inventories",
 )
+
+# Ключ порогов-оверрайдов в system_config (редактор показателей).
+_PARAMS_KEY = "raw_snapshot.soeHealthParams"
 
 
 def _band(value: float, direction: str, thr: list[float]) -> int:
@@ -103,7 +117,26 @@ def _zone(score: Optional[float]) -> Optional[dict]:
     return None
 
 
-def _compute_ratios(m: dict[str, float]) -> list[dict[str, Any]]:
+def _effective_ratios(overrides: dict) -> list[dict[str, Any]]:
+    """Дефолтные пороги + оверрайды редактора показателей (system_config)."""
+    out: list[dict[str, Any]] = []
+    for r in SOE_HEALTH_RATIOS:
+        rr = dict(r)
+        rr["default_thresholds"] = list(r["thresholds"])
+        rr["overridden"] = False
+        o = overrides.get(r["key"]) if isinstance(overrides, dict) else None
+        thr = (o or {}).get("thresholds") if isinstance(o, dict) else None
+        if isinstance(thr, list) and len(thr) == 4:
+            try:
+                rr["thresholds"] = [float(x) for x in thr]
+                rr["overridden"] = True
+            except (TypeError, ValueError):
+                pass
+        out.append(rr)
+    return out
+
+
+def _compute_ratios(m: dict[str, float], ratios: Optional[list[dict[str, Any]]] = None) -> list[dict[str, Any]]:
     """Коэффициенты компании из канонических метрик. value=None → «н/д»;
     band может быть 5 при value=None (отриц. капитал/EBITDA) с note."""
     def g(k: str) -> Optional[float]:
@@ -131,6 +164,13 @@ def _compute_ratios(m: dict[str, float]) -> list[dict[str, Any]]:
         out["costRecovery"] = (revenue / (revenue - op), None, None)
     else:
         out["costRecovery"] = (None, None, None)
+    total_ca, st_liab, inv = g("totalCA"), g("stBorrowings"), g("inventories")
+    if total_ca is not None and st_liab and st_liab > 0:
+        out["currentRatio"] = (total_ca / st_liab, None, None)
+        out["quickRatio"] = ((total_ca - abs(inv)) / st_liab, None, None) if inv is not None else (None, None, None)
+    else:
+        out["currentRatio"] = (None, None, None)
+        out["quickRatio"] = (None, None, None)
     out["debtorDays"] = (abs(ar) / revenue * 365, None, None) if (ar is not None and revenue and revenue > 0) else (None, None, None)
     out["creditorDays"] = (abs(ap) / cogs_a * 365, None, None) if (ap is not None and cogs_a) else (None, None, None)
     out["debtToAssets"] = (debt / assets, None, None) if (debt is not None and assets and assets > 0) else (None, None, None)
@@ -143,7 +183,7 @@ def _compute_ratios(m: dict[str, float]) -> list[dict[str, Any]]:
     out["debtCoverage"] = (cfo / debt, None, None) if (cfo is not None and debt and debt > 0) else (None, None, None)
 
     rows: list[dict[str, Any]] = []
-    for r in SOE_HEALTH_RATIOS:
+    for r in (ratios or SOE_HEALTH_RATIOS):
         value, forced_band, note = out.get(r["key"], (None, None, None))
         band = forced_band
         if band is None and value is not None:
@@ -167,22 +207,98 @@ def _overall(rows: list[dict[str, Any]]) -> tuple[Optional[float], int]:
 
 @dataclass
 class SoeHealthService:
+    # ─── Пороги: редактор показателей (оверрайды в system_config) ────
+    async def load_params(self, db: AsyncSession) -> dict:
+        res = await db.execute(
+            text("SELECT value FROM system_config WHERE key = :k LIMIT 1"),
+            {"k": _PARAMS_KEY},
+        )
+        row = res.first()
+        if not row or not row[0]:
+            return {}
+        v = row[0]
+        if isinstance(v, str):
+            try:
+                v = json.loads(v)
+            except json.JSONDecodeError:
+                return {}
+        return v if isinstance(v, dict) else {}
+
+    async def save_params(
+        self, db: AsyncSession, overrides: dict, *, user_email: str, user_id: Optional[str],
+    ) -> list[dict[str, Any]]:
+        """Сохранить оверрайды порогов. Валидация: известный ключ, 4 числа,
+        монотонность по направлению (gte — убывающие, lte — возрастающие).
+        Совпадающие с дефолтом — не хранить. Аудит-запись обязательна."""
+        meta = {r["key"]: r for r in SOE_HEALTH_RATIOS}
+        clean: dict[str, dict] = {}
+        for k, o in (overrides or {}).items():
+            if k not in meta:
+                raise HTTPException(400, f"Неизвестный коэффициент: {k}")
+            thr = (o or {}).get("thresholds")
+            if not isinstance(thr, list) or len(thr) != 4:
+                raise HTTPException(400, f"{meta[k]['label']}: нужно ровно 4 порога")
+            try:
+                thr = [float(x) for x in thr]
+            except (TypeError, ValueError):
+                raise HTTPException(400, f"{meta[k]['label']}: пороги должны быть числами")
+            d = meta[k]["direction"]
+            mono = all(thr[i] > thr[i + 1] for i in range(3)) if d == "gte" \
+                else all(thr[i] < thr[i + 1] for i in range(3))
+            if not mono:
+                raise HTTPException(
+                    400,
+                    f"{meta[k]['label']}: пороги должны быть строго "
+                    + ("убывающими (лучше ≥)" if d == "gte" else "возрастающими (лучше ≤)"),
+                )
+            if thr != [float(x) for x in meta[k]["thresholds"]]:
+                clean[k] = {"thresholds": thr}
+
+        prev = await self.load_params(db)
+        await db.execute(text(
+            "INSERT INTO system_config (id, key, value, description, is_secret, created_at, updated_at) "
+            "VALUES (gen_random_uuid(), :k, CAST(:v AS jsonb), :d, FALSE, NOW(), NOW()) "
+            "ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()"
+        ), {
+            "k": _PARAMS_KEY,
+            "v": json.dumps(clean, ensure_ascii=False),
+            "d": "SOE Health Check: оверрайды порогов риска (редактор показателей)",
+        })
+        await db.commit()
+        # аудит: кто и что поменял (diff old→new)
+        try:
+            from app.core.audit_chain import append_audit_entry
+            await append_audit_entry(
+                db, actor_id=user_id, actor_email=user_email,
+                action="soe_health.params.update",
+                entity_type="system_config", entity_id=_PARAMS_KEY,
+                diff={"old": prev, "new": clean},
+                notes=f"пороги SOE Health Check: оверрайдов {len(clean)}",
+            )
+            await db.commit()
+        except Exception:  # pragma: no cover — аудит не валит сохранение
+            pass
+        return _effective_ratios(clean)
+
     async def _load_metrics(
         self, db: AsyncSession, *, year: int, standard: str,
         scope_ids: Optional[Sequence[UUID]],
     ) -> dict[str, dict[str, Any]]:
         """{company_code: {name, sector..., metrics{lc: val}}} из канона (summary FY)."""
+        # LEFT JOIN: в ростере ВСЕ активные компании — без отчётности за
+        # год/стандарт показываются честными «н/д», а не исчезают из матрицы.
         q = text(
             "SELECT c.code, COALESCE(c.name_short, c.name_ru) AS name, c.id AS cid, "
             "       s.code AS sector_code, s.name_ru AS sector_name, s.color_hex AS sector_color, "
             "       fl.line_code, fl.value "
             "FROM companies c "
             "LEFT JOIN sectors s ON s.id = c.sector_id "
-            "JOIN financial_reports fr ON fr.company_id = c.id "
-            "JOIN financial_lines fl ON fl.report_id = fr.id "
-            "WHERE c.is_active = true AND fr.standard = :std AND fr.year = :yr "
-            "AND fr.is_detailed = false AND fr.quarter IS NULL "
-            "AND fl.line_code = ANY(:codes) AND fl.value IS NOT NULL"
+            "LEFT JOIN financial_reports fr ON fr.company_id = c.id "
+            "     AND fr.standard = :std AND fr.year = :yr "
+            "     AND fr.is_detailed = false AND fr.quarter IS NULL "
+            "LEFT JOIN financial_lines fl ON fl.report_id = fr.id "
+            "     AND fl.line_code = ANY(:codes) AND fl.value IS NOT NULL "
+            "WHERE c.is_active = true"
         )
         rows = (await db.execute(q, {
             "std": standard, "yr": year, "codes": list(_NEEDED_CODES),
@@ -197,24 +313,77 @@ class SoeHealthService:
                 "sector_code": sec_code, "sector_name": sec_name,
                 "sector_color": sec_color, "metrics": {},
             })
-            co["metrics"][lc] = float(val)
+            if lc is not None and val is not None:
+                co["metrics"][lc] = float(val)
         return out
+
+    async def _load_series(
+        self, db: AsyncSession, *, y0: int, y1: int, standard: str,
+        scope_ids: Optional[Sequence[UUID]],
+    ) -> dict[str, Any]:
+        """Портфельные агрегаты по годам [y0..y1] (для трендов дашборда)."""
+        base = (
+            "SELECT fr.year, fl.line_code, SUM(fl.value) AS s "
+            "FROM companies c "
+            "JOIN financial_reports fr ON fr.company_id = c.id "
+            "JOIN financial_lines fl ON fl.report_id = fr.id "
+            "WHERE c.is_active = true AND fr.standard = :std "
+            "AND fr.year BETWEEN :y0 AND :y1 "
+            "AND fr.is_detailed = false AND fr.quarter IS NULL "
+            "AND fl.line_code = ANY(:codes) AND fl.value IS NOT NULL "
+        )
+        params: dict[str, Any] = {
+            "std": standard, "y0": y0, "y1": y1, "codes": list(_NEEDED_CODES),
+        }
+        if scope_ids is not None:
+            base += "AND c.id = ANY(:scope) "
+            params["scope"] = [str(i) for i in scope_ids]
+        base += "GROUP BY fr.year, fl.line_code"
+        rows = (await db.execute(text(base), params)).all()
+
+        by_year: dict[int, dict[str, float]] = {}
+        for yr, lc, s in rows:
+            by_year.setdefault(int(yr), {})[lc] = float(s)
+
+        years = list(range(y0, y1 + 1))
+        def ratio(m: dict[str, float], num: str, den: str) -> Optional[float]:
+            n, d = m.get(num), m.get(den)
+            if n is None or not d or d <= 0:
+                return None
+            return round(n / d, 4)
+
+        series = {
+            "years": years,
+            "totals": {k: [by_year.get(y, {}).get(k) for y in years]
+                       for k in ("totalAssets", "totalLiabilities", "equity",
+                                 "revenue", "ebitda", "profit", "debt")},
+            "ratios": {
+                "roa":          [ratio(by_year.get(y, {}), "profit", "totalAssets") for y in years],
+                "roe":          [ratio(by_year.get(y, {}), "profit", "equity") for y in years],
+                "debtToEquity": [ratio(by_year.get(y, {}), "debt", "equity") for y in years],
+                "currentRatio": [ratio(by_year.get(y, {}), "totalCA", "stBorrowings") for y in years],
+            },
+        }
+        return series
 
     async def build(
         self, db: AsyncSession, *, year: int, standard: str,
         scope_ids: Optional[Sequence[UUID]],
     ) -> dict[str, Any]:
         standard = "IFRS" if standard.upper() == "IFRS" else "NSBU"
+        overrides = await self.load_params(db)
+        ratios_eff = _effective_ratios(overrides)
         cur = await self._load_metrics(db, year=year, standard=standard, scope_ids=scope_ids)
         prev = await self._load_metrics(db, year=year - 1, standard=standard, scope_ids=scope_ids)
 
         companies: list[dict[str, Any]] = []
         for code, co in cur.items():
-            rows = _compute_ratios(co["metrics"])
+            rows = _compute_ratios(co["metrics"], ratios_eff)
             overall, n_avail = _overall(rows)
             prev_overall = None
             if code in prev:
-                prev_overall, _n = _overall(_compute_ratios(prev[code]["metrics"]))
+                prev_overall, _n = _overall(_compute_ratios(prev[code]["metrics"], ratios_eff))
+            m = co["metrics"]
             companies.append({
                 "code": code, "name": co["name"], "company_id": co["company_id"],
                 "sector_code": co["sector_code"], "sector_name": co["sector_name"],
@@ -224,6 +393,10 @@ class SoeHealthService:
                 "delta": (round(overall - prev_overall, 2)
                           if overall is not None and prev_overall is not None else None),
                 "available": n_avail,
+                # сырьё для портфельных графиков (млрд сум)
+                "metrics_out": {k: (round(m[k], 1) if k in m else None)
+                                for k in ("totalLiabilities", "ebitda", "debt",
+                                          "revenue", "totalAssets")},
             })
         # худшие сверху (внимание министра), н/д — в конец
         companies.sort(key=lambda x: (x["overall"] is None, -(x["overall"] or 0)))
@@ -237,10 +410,16 @@ class SoeHealthService:
         total_q = text("SELECT count(*) FROM companies WHERE is_active = true")
         total_companies = (await db.execute(total_q)).scalar() or 0
 
+        series = await self._load_series(
+            db, y0=year - 4, y1=year, standard=standard, scope_ids=scope_ids,
+        )
+
         return {
+            "series": series,
             "year": year,
             "standard": standard,
-            "ratios_meta": SOE_HEALTH_RATIOS,
+            "ratios_meta": ratios_eff,
+            "params_overridden": bool(overrides),
             "zones": SOE_HEALTH_ZONES,
             "companies": companies,
             "portfolio": {

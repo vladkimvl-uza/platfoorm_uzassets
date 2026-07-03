@@ -117,7 +117,6 @@ export function metricsFor(standard: "IFRS" | "NSBU", viewTab: string): MetricDe
       { id: "opProfit",     label: "Опер. прибыль" },
       { id: "profit",       label: "Чистая прибыль" },
       { id: "ebitda",       label: "EBITDA" },
-      { id: "soeHealth",    label: "SOE Health Check" },
       { id: "ifrsHistory",  label: "История отчётности" },
     ];
   }
@@ -140,7 +139,6 @@ export function metricsFor(standard: "IFRS" | "NSBU", viewTab: string): MetricDe
     { id: "profit",      label: "Чистая прибыль" },
     { id: "accountsReceivable", label: "Дебиторская задолженность" },
     { id: "accountsPayable",    label: "Кредиторская задолженность" },
-    { id: "soeHealth",   label: "SOE Health Check" },
   ];
 }
 

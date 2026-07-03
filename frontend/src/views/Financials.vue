@@ -25,7 +25,6 @@ import { useCurrencyConverter } from "@/composables/useCurrencyConverter";
 import FinTopFilters    from "@/components/Financials/FinTopFilters.vue";
 import FinKpiBand       from "@/components/Financials/FinKpiBand.vue";
 import FinFiscalBand    from "@/components/Financials/FinFiscalBand.vue";
-import SoeHealthBoard   from "@/components/Financials/SoeHealthBoard.vue";
 import { api }          from "@/api/client";
 import FinMetricTabs    from "@/components/Financials/FinMetricTabs.vue";
 import FinSectorTable   from "@/components/Financials/FinSectorTable.vue";
@@ -469,11 +468,6 @@ function onModalClose() {
       <!-- История отчётности МСФО — по чипу, на всю ширину -->
       <div v-if="activeMetric === 'ifrsHistory'" class="fd-section">
         <IfrsReportHistory :companies="companies" :sectors="sectors" :can-edit="finPerm.canEdit.value" />
-      </div>
-
-      <!-- SOE Health Check — светофорная матрица финансовой устойчивости -->
-      <div v-else-if="activeMetric === 'soeHealth'" class="fd-section">
-        <SoeHealthBoard :year="year" :standard="standard" />
       </div>
 
       <template v-else>

@@ -135,6 +135,31 @@ async def financials_soe_health(
     )
 
 
+class SoeHealthParamsPayload(BaseModel):
+    """Оверрайды порогов: {ratio_key: {thresholds: [t1,t2,t3,t4]}}.
+    Пустой dict = сброс к дефолтам методики."""
+    overrides: dict[str, dict] = {}
+
+
+@router.put("/soe-health/params")
+async def save_soe_health_params(
+    payload: SoeHealthParamsPayload,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    from fastapi import HTTPException
+    from app.core.security import has_effective_permission
+    from app.services.soe_health import SoeHealthService
+
+    if not await has_effective_permission(db, user, "financials.edit"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "financials.edit required")
+    ratios = await SoeHealthService().save_params(
+        db, payload.overrides,
+        user_email=user.email, user_id=str(user.id) if user.id else None,
+    )
+    return {"saved": True, "ratios_meta": ratios}
+
+
 @router.get("/{report_id}", response_model=FinancialReportFull)
 async def get_report(
     report_id: UUID,
