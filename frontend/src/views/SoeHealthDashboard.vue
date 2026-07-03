@@ -102,6 +102,23 @@ const paretoBars = computed<ParetoBar[]>(() => {
 });
 const paretoMax = computed(() => Math.max(1, ...paretoBars.value.map((b) => b.v)));
 
+// Вертикальная геометрия Pareto (тонкие бары + кумул-линия)
+const PW = 960, PH = 280, PL = 10, PR = 40, PT = 16, PB = 42;
+function pX(i: number): number {
+  const n = paretoBars.value.length || 1; const w = (PW - PL - PR) / n;
+  return PL + i * w + w * 0.28;
+}
+function pW(): number {
+  const n = paretoBars.value.length || 1; return ((PW - PL - PR) / n) * 0.44;
+}
+function pH(v: number): number { return (v / paretoMax.value) * (PH - PT - PB); }
+function pY(v: number): number { return PH - PB - pH(v); }
+function pCumY(cum: number): number { return PT + (1 - cum / 100) * (PH - PT - PB); }
+function pCum(): string {
+  return paretoBars.value
+    .map((b, i) => `${(pX(i) + pW() / 2).toFixed(1)},${pCumY(b.cum).toFixed(1)}`).join(" ");
+}
+
 function fmtBln(v: number): string {
   if (Math.abs(v) >= 1000) return (v / 1000).toLocaleString("ru", { maximumFractionDigits: 1 }) + " трлн";
   return v.toLocaleString("ru", { maximumFractionDigits: 0 }) + " млрд";
@@ -175,20 +192,26 @@ function fmtTrln(bln: number | null): string {
   return (bln / 1000).toLocaleString("ru", { maximumFractionDigits: 0 }) + " трлн";
 }
 
-// ─── Комбо «Активы и ROA» / «Капитал и ROE» по секторам (гориз. строки) ──
-interface ComboRow { code: string; name: string; color: string; bar: number; ret: number | null; barPct: number }
-interface ComboVM { rows: ComboRow[] }
+// ─── Комбо «Активы и ROA» / «Капитал и ROE» по секторам (верт. бары) ──
+interface ComboRow { code: string; name: string; color: string; bar: number; ret: number | null }
+interface ComboVM { rows: ComboRow[]; barMax: number }
 function buildCombo(barKey: "totalAssets" | "equity", lineKey: "roa" | "roe"): ComboVM {
-  const raw = (pf.value?.by_sector || [])
+  const rows = (pf.value?.by_sector || [])
     .map((s) => ({ code: s.code, name: s.name, color: s.color,
                    bar: Number(s[barKey] ?? 0), ret: s[lineKey] }))
     .filter((s) => s.bar > 0)
     .sort((a, b) => b.bar - a.bar);
-  const barMax = Math.max(1, ...raw.map((r) => r.bar));
-  return { rows: raw.map((r) => ({ ...r, barPct: Math.max(3, r.bar / barMax * 100) })) };
+  return { rows, barMax: Math.max(1, ...rows.map((r) => r.bar)) };
 }
 const comboAssets = computed(() => buildCombo("totalAssets", "roa"));
 const comboEquity = computed(() => buildCombo("equity", "roe"));
+// Вертикальная геометрия комбо (тонкие бары + рентабельность подписью над баром)
+const CW = 520, CH = 230, CL = 10, CR = 12, CT = 26, CB = 44;
+function cX(i: number, n: number): number { const w = (CW - CL - CR) / n; return CL + i * w + w * 0.30; }
+function cW(n: number): number { return ((CW - CL - CR) / n) * 0.40; }
+function cH(v: number, max: number): number { return (v / max) * (CH - CT - CB); }
+function cY(v: number, max: number): number { return CH - CB - cH(v, max); }
+function cutName(s: string): string { return s.length > 11 ? s.slice(0, 10) + "…" : s; }
 function fmtPct(v: number | null): string {
   return v == null ? "—" : (v * 100).toFixed(1) + "%";
 }
@@ -425,18 +448,24 @@ const seriesYears = computed(() => data.value?.series?.years || []);
               @update:model-value="paretoMetric = $event as string"
             />
           </div>
-          <div v-if="paretoBars.length" class="sh-conc-list">
-            <button v-for="(b, i) in paretoBars" :key="b.code" type="button" class="sh-conc-row"
-                    :class="{ dim: focusSector && b.sector !== focusSector }"
-                    :style="{ '--d': (i * 28) + 'ms' }"
-                    :title="b.name + ' · клик — детали'" @click="openCompany(b.code)">
-              <span class="sh-conc-code">{{ b.code.toUpperCase() }}</span>
-              <span class="sh-conc-track">
-                <span class="sh-conc-fill" :style="{ width: (b.v / paretoMax * 100) + '%' }" />
-              </span>
-              <span class="sh-conc-val">{{ fmtBln(b.v) }}</span>
-              <span class="sh-conc-cum">Σ {{ b.cum.toFixed(0) }}%</span>
-            </button>
+          <div v-if="paretoBars.length" class="sh-pareto-svgwrap">
+            <svg :viewBox="`0 0 ${PW} ${PH}`" class="sh-pareto-svg" preserveAspectRatio="xMidYMid meet">
+              <line v-for="f in [0.5, 1]" :key="f" :x1="PL" :x2="PW - PR"
+                    :y1="PT + (1 - f) * (PH - PT - PB)" :y2="PT + (1 - f) * (PH - PT - PB)" class="sh-grid-line" />
+              <g v-for="(b, i) in paretoBars" :key="b.code" class="sh-vbar-g"
+                 :class="{ dim: focusSector && b.sector !== focusSector }" @click="openCompany(b.code)">
+                <rect :x="pX(i)" :y="pY(b.v)" :width="pW()" :height="pH(b.v)" rx="3"
+                      fill="#8B7FFF" fill-opacity="0.85" class="sh-vbar" :style="{ '--d': (i * 35) + 'ms' }">
+                  <title>{{ b.name }} · {{ fmtBln(b.v) }} · Σ {{ b.cum.toFixed(0) }}% · клик — детали</title>
+                </rect>
+                <text :x="pX(i) + pW() / 2" :y="PH - PB + 13" text-anchor="middle" class="sh-vbar-lbl">{{ b.code.toUpperCase() }}</text>
+              </g>
+              <polyline :points="pCum()" class="sh-vcum-line" fill="none" />
+              <circle v-for="(b, i) in paretoBars" :key="'c' + b.code" :cx="pX(i) + pW() / 2"
+                      :cy="pCumY(b.cum)" r="2.5" class="sh-vcum-dot" :style="{ '--d': (i * 35 + 300) + 'ms' }" />
+              <text v-for="f in [0, 50, 100]" :key="'p' + f" :x="PW - PR + 6"
+                    :y="PT + (1 - f / 100) * (PH - PT - PB) + 3" class="sh-axis-lbl">{{ f }}%</text>
+            </svg>
           </div>
           <div v-else class="sh-none">Нет данных за {{ data.year }} ({{ data.standard }})</div>
         </div>
@@ -522,19 +551,24 @@ const seriesYears = computed(() => data.value?.series?.years || []);
             <div class="sh-card-t">{{ cfg.t }}</div>
             <div class="sh-card-s">{{ cfg.s }}</div>
           </div></div>
-          <div v-if="cfg.vm.rows.length" class="sh-cbo-list">
-            <div v-for="(row, i) in cfg.vm.rows" :key="row.name" class="sh-cbo-row"
-                 :class="{ dim: focusSector && row.code !== focusSector }"
-                 :style="{ '--d': (i * 55) + 'ms' }">
-              <span class="sh-cbo-name" :title="row.name">{{ row.name }}</span>
-              <span class="sh-cbo-track">
-                <span class="sh-cbo-fill" :style="{ width: row.barPct + '%', background: row.color }" />
-              </span>
-              <span class="sh-cbo-abs">{{ fmtBln(row.bar) }}</span>
-              <span class="sh-cbo-ret" :style="{ color: retColor(row.ret), background: retColor(row.ret) + '14' }">
-                {{ fmtPct(row.ret) }}
-              </span>
-            </div>
+          <div v-if="cfg.vm.rows.length" class="sh-pareto-svgwrap">
+            <svg :viewBox="`0 0 ${CW} ${CH}`" class="sh-pareto-svg" preserveAspectRatio="xMidYMid meet">
+              <line v-for="f in [0.5, 1]" :key="f" :x1="CL" :x2="CW - CR"
+                    :y1="CT + (1 - f) * (CH - CT - CB)" :y2="CT + (1 - f) * (CH - CT - CB)" class="sh-grid-line" />
+              <g v-for="(row, i) in cfg.vm.rows" :key="row.code" class="sh-vbar-g"
+                 :class="{ dim: focusSector && row.code !== focusSector }">
+                <rect :x="cX(i, cfg.vm.rows.length)" :y="cY(row.bar, cfg.vm.barMax)"
+                      :width="cW(cfg.vm.rows.length)" :height="cH(row.bar, cfg.vm.barMax)" rx="3"
+                      :fill="row.color" fill-opacity="0.82" class="sh-vbar" :style="{ '--d': (i * 60) + 'ms' }">
+                  <title>{{ row.name }} · {{ fmtBln(row.bar) }} · {{ cfg.ret }} {{ fmtPct(row.ret) }}</title>
+                </rect>
+                <text :x="cX(i, cfg.vm.rows.length) + cW(cfg.vm.rows.length) / 2"
+                      :y="cY(row.bar, cfg.vm.barMax) - 6" text-anchor="middle" class="sh-vret"
+                      :fill="retColor(row.ret)" :style="{ '--d': (i * 60 + 350) + 'ms' }">{{ fmtPct(row.ret) }}</text>
+                <text :x="cX(i, cfg.vm.rows.length) + cW(cfg.vm.rows.length) / 2" :y="CH - CB + 13"
+                      text-anchor="middle" class="sh-vbar-lbl">{{ cutName(row.name) }}</text>
+              </g>
+            </svg>
           </div>
           <div v-else class="sh-none">Нет данных за {{ data.year }} ({{ data.standard }})</div>
         </div>
@@ -754,38 +788,19 @@ const seriesYears = computed(() => data.value?.series?.years || []);
 .sh-lolli-val { font-size: 11.5px; font-weight: 600; color: var(--t2, #4B5468);
   font-variant-numeric: tabular-nums; white-space: nowrap; }
 
-/* Концентрация — компактный ранжированный список (клик → дрилл) */
-.sh-conc-list { display: flex; flex-direction: column; gap: 1px; padding-top: 4px; }
-.sh-conc-row { display: grid; grid-template-columns: 46px 1fr max-content 52px; align-items: center; gap: 10px;
-  width: 100%; text-align: left; background: none; border: 0; font-family: inherit; cursor: pointer;
-  padding: 5px 8px; border-radius: 8px; transition: background .14s, opacity .18s;
-  animation: shSecRowIn .32s var(--ease-standard, ease) var(--d, 0ms) both; }
-.sh-conc-row:hover { background: rgba(127,119,221,.05); }
-.sh-conc-row.dim { opacity: .32; }
-.sh-conc-code { font-size: 10px; font-weight: 700; letter-spacing: .02em; color: var(--t2, #4B5468); }
-.sh-conc-track { height: 6px; background: rgba(30,42,74,.05); border-radius: 3px; overflow: hidden; }
-.sh-conc-fill { height: 100%; border-radius: 3px; background: var(--p-deep, #6C5CE7); opacity: .68;
-  transform-origin: left center; animation: shSecGrow .7s var(--ease-standard, ease) var(--d, 0ms) both; }
-.sh-conc-val { font-size: 11px; font-weight: 600; color: var(--t1, #1E2A4A);
-  font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
-.sh-conc-cum { font-size: 10px; font-weight: 500; color: var(--t3, #94A3B8);
-  font-variant-numeric: tabular-nums; text-align: right; }
-
-/* Комбо — сектор · тонкий бар размера · пилюля рентабельности */
-.sh-cbo-list { display: flex; flex-direction: column; gap: 3px; padding-top: 6px; }
-.sh-cbo-row { display: grid; grid-template-columns: minmax(84px, 1.1fr) 1fr max-content 56px;
-  align-items: center; gap: 10px; padding: 8px; border-radius: 9px; transition: opacity .18s;
-  animation: shSecRowIn .4s var(--ease-standard, ease) var(--d, 0ms) both; }
-.sh-cbo-row.dim { opacity: .4; }
-.sh-cbo-name { font-size: 11.5px; font-weight: 500; color: var(--t1, #1E2A4A);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sh-cbo-track { height: 7px; background: rgba(30,42,74,.05); border-radius: 4px; overflow: hidden; }
-.sh-cbo-fill { height: 100%; border-radius: 4px; opacity: .78; transform-origin: left center;
-  animation: shSecGrow .7s var(--ease-standard, ease) var(--d, 0ms) both; }
-.sh-cbo-abs { font-size: 11px; font-weight: 600; color: var(--t2, #4B5468);
-  font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
-.sh-cbo-ret { font-size: 11px; font-weight: 700; border-radius: 6px; padding: 2px 0;
-  font-variant-numeric: tabular-nums; text-align: center; }
+/* Вертикальные бары (Концентрация + комбо) — тонкие, скруглённый верх, приглушённые */
+.sh-vbar-g { cursor: pointer; transition: opacity .18s ease; }
+.sh-vbar-g.dim { opacity: .22; }
+.sh-vbar { transform-origin: center bottom; transform-box: fill-box;
+  animation: shBarGrow .6s var(--ease-standard, ease) var(--d, 0ms) both; transition: filter .15s; }
+.sh-vbar-g:hover .sh-vbar { filter: brightness(1.08) saturate(1.1); }
+.sh-vbar-lbl { font-size: 8.5px; font-weight: 600; fill: var(--t3, #94A3B8); letter-spacing: .02em; }
+.sh-vret { font-size: 9.5px; font-weight: 700; font-variant-numeric: tabular-nums;
+  opacity: 0; animation: shDotIn .3s ease var(--d, 0ms) forwards; }
+.sh-vcum-line { stroke: var(--p-deep, #534AB7); stroke-width: 1.5; opacity: .55;
+  stroke-dasharray: 1400; stroke-dashoffset: 1400; animation: shLineDraw 1.2s ease .35s forwards; }
+.sh-vcum-dot { fill: #fff; stroke: var(--p-deep, #534AB7); stroke-width: 1.5;
+  opacity: 0; animation: shDotIn .3s ease var(--d, 0ms) forwards; }
 
 /* ── Тренды ── */
 .sh-trends { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
