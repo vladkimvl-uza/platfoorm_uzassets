@@ -10,7 +10,7 @@
  * анимацией роста и кумулятивной линией, спарклайны с draw-анимацией,
  * редактор порогов (dirty-guard) и дрилл-модалка компании.
  */
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, inject, onMounted, ref, watch } from "vue";
 import { api } from "@/api/client";
 import { useSavedFilter } from "@/composables/useSavedFilter";
 import { usePermissions } from "@/composables/usePermissions";
@@ -22,6 +22,14 @@ import SoeHealthBoard, { type SoeHealthPayload } from "@/components/Financials/S
 import SoeHealthParamsModal from "@/components/Financials/SoeHealthParamsModal.vue";
 
 const finPerm = usePermissions("financials");
+
+// Бургер как в FinTopFilters (инжект из AppShell): ≤1023 — drawer, иначе рейка.
+const toggleSidebar = inject<() => void>("toggleSidebar", () => {});
+const openMobileSidebar = inject<() => void>("openMobileSidebar", () => {});
+function onBurger() {
+  if (typeof window !== "undefined" && window.innerWidth <= 1023) openMobileSidebar();
+  else toggleSidebar();
+}
 
 const CURRENT_FY = 2025;
 const YEARS = Array.from({ length: 8 }, (_, i) => 2019 + i); // 2019..2026
@@ -153,26 +161,34 @@ const seriesYears = computed(() => data.value?.series?.years || []);
 
 <template>
   <div class="sh-page">
-    <!-- ═══ Топбар ═══ -->
-    <header class="sh-top">
-      <div class="sh-top-l">
+    <!-- ═══ Топбар — тёмная плашка в стиле financials (FinTopFilters) ═══ -->
+    <header class="sh-bar">
+      <button class="sh-burger" @click="onBurger()" title="Меню / свернуть сайдбар">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+      </button>
+
+      <div class="sh-head">
         <div class="sh-eyebrow">ФИНАНСЫ · ЗДОРОВЬЕ ПОРТФЕЛЯ</div>
-        <h1 class="sh-title">SOE Health Check</h1>
-        <div class="sh-sub">
-          Светофорная оценка финансовой устойчивости ·
-          <strong>{{ standard }}</strong> · FY {{ year }}
-          <span v-if="data?.params_overridden" class="sh-ovr-badge" title="Пороги изменены относительно методики">пороги настроены</span>
+        <div class="sh-title-row">
+          <span class="sh-title">SOE Health Check</span>
+          <span class="sh-sub">
+            светофорная оценка устойчивости · <strong>{{ standard }}</strong> · FY {{ year }}
+            <span v-if="data?.params_overridden" class="sh-ovr-badge" title="Пороги изменены относительно методики">пороги настроены</span>
+          </span>
         </div>
       </div>
-      <div class="sh-top-r">
-        <UzaSegment
-          :model-value="standard"
-          :options="[{ value: 'NSBU', label: 'НСБУ' }, { value: 'IFRS', label: 'МСФО' }]"
-          size="sm"
-          @update:model-value="standard = $event as never"
-        />
-        <UzaYearStepper :model-value="year" :years="YEARS" prefix="FY "
+
+      <div class="sh-cluster">
+        <div class="sh-tabs uza-seg on-dark" title="Стандарт отчётности">
+          <button class="uza-seg-btn" :class="{ on: standard === 'NSBU' }" @click="standard = 'NSBU'">НСБУ</button>
+          <button class="uza-seg-btn" :class="{ on: standard === 'IFRS' }" @click="standard = 'IFRS'">МСФО</button>
+        </div>
+        <div class="sh-div" aria-hidden="true"></div>
+        <UzaYearStepper tone="dark" :model-value="year" :years="YEARS" prefix="FY "
                         @update:model-value="year = ($event as number) ?? year" />
+        <div class="sh-div" aria-hidden="true"></div>
         <button v-if="finPerm.canEdit.value" class="sh-params-btn" type="button" @click="paramsOpen = true"
                 title="Редактор порогов риска">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
@@ -282,20 +298,39 @@ const seriesYears = computed(() => data.value?.series?.years || []);
 <style scoped>
 .sh-page { padding: 18px 22px 40px; display: flex; flex-direction: column; gap: 16px; }
 
-/* ── Топбар ── */
-.sh-top { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
-.sh-eyebrow { font-size: 10px; font-weight: 700; letter-spacing: .09em; color: var(--t3, #94A3B8); }
-.sh-title { font-size: 22px; font-weight: 650; letter-spacing: -.015em; color: var(--t1, #1E2A4A); margin: 3px 0 0; }
-.sh-sub { font-size: 12px; color: var(--t3, #94A3B8); margin-top: 4px; }
-.sh-ovr-badge { margin-left: 8px; font-size: 9px; font-weight: 700; color: #B45309; background: rgba(239,159,39,.16); border-radius: 5px; padding: 1px 6px; letter-spacing: .03em; }
-.sh-top-r { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+/* ── Топбар — 1:1 стиль financials (.ft-bar: градиент #1E2A4A → #182039) ── */
+.sh-bar {
+  display: flex; align-items: center; gap: 14px; row-gap: 10px; flex-wrap: wrap;
+  padding: 10px 16px; min-height: 52px;
+  background: linear-gradient(180deg, #1E2A4A 0%, #182039 100%);
+  color: #fff; border-radius: 12px;
+  box-shadow: 0 4px 14px rgba(15, 23, 60, 0.15);
+}
+.sh-burger {
+  width: 34px; height: 34px; border-radius: 8px; flex-shrink: 0;
+  border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.08);
+  color: rgba(255,255,255,.85); cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: background .15s ease, border-color .15s ease, transform .16s ease;
+}
+.sh-burger:hover { background: rgba(255,255,255,.14); border-color: rgba(255,255,255,.22); color: #fff; }
+.sh-burger:active { transform: scale(.94); }
+.sh-head { flex: 1 1 280px; min-width: 0; }
+.sh-eyebrow { font-size: 9.5px; font-weight: 700; letter-spacing: .09em; color: rgba(255,255,255,.55); }
+.sh-title-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.sh-title { font-size: 17px; font-weight: 650; letter-spacing: -.01em; color: #fff; }
+.sh-sub { font-size: 11px; color: rgba(255,255,255,.62); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sh-sub strong { color: rgba(255,255,255,.9); }
+.sh-ovr-badge { margin-left: 7px; font-size: 9px; font-weight: 700; color: #FFD9A0; background: rgba(239,159,39,.22); border-radius: 5px; padding: 1px 6px; letter-spacing: .03em; }
+.sh-cluster { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-left: auto; }
+.sh-div { width: 1px; height: 22px; background: rgba(255,255,255,.14); }
 .sh-params-btn {
   display: inline-flex; align-items: center; gap: 6px;
-  font-size: 12px; font-weight: 600; font-family: inherit; color: var(--p-deep, #534AB7);
-  background: rgba(124,111,247,.08); border: 1px solid rgba(124,111,247,.35); border-radius: 10px;
+  font-size: 12px; font-weight: 600; font-family: inherit; color: rgba(255,255,255,.88);
+  background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.16); border-radius: 9px;
   padding: 7px 13px; cursor: pointer; transition: all .15s ease;
 }
-.sh-params-btn:hover { background: rgba(124,111,247,.16); transform: translateY(-1px); }
+.sh-params-btn:hover { background: rgba(255,255,255,.15); border-color: rgba(255,255,255,.28); transform: translateY(-1px); }
 
 /* ── Состояния ── */
 .sh-state { display: flex; flex-direction: column; gap: 10px; padding: 8px 0; }
