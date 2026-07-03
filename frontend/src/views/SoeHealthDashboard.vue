@@ -156,6 +156,40 @@ const sectorBars = computed<SectorBar[]>(() => {
 
 const profitSplit = computed(() => pf.value?.profit_split || null);
 
+// ─── Комбо «Активы и ROA» / «Капитал и ROE» по секторам ────────────
+const CW = 520, CH = 240, CL = 8, CR = 42, CT = 16, CB = 54;
+interface ComboBar { name: string; color: string; bar: number; line: number | null;
+  x: number; w: number; h: number; y: number; ly: number | null; lx: number }
+interface ComboVM { bars: ComboBar[]; linePts: string; lmin: number; lmax: number; barMax: number }
+function buildCombo(barKey: "totalAssets" | "equity", lineKey: "roa" | "roe"): ComboVM {
+  const rows = (pf.value?.by_sector || [])
+    .map((s) => ({ name: s.name, color: s.color, bar: Number(s[barKey] ?? 0), line: s[lineKey] }))
+    .filter((s) => s.bar > 0)
+    .sort((a, b) => b.bar - a.bar);
+  const n = rows.length || 1;
+  const barMax = Math.max(1, ...rows.map((r) => r.bar));
+  const lvals = rows.map((r) => r.line).filter((v) => v != null) as number[];
+  const lmax = lvals.length ? Math.max(...lvals) : 1;
+  const lmin = Math.min(0, ...lvals, 0);
+  const span = (lmax - lmin) || 1;
+  const cw = (CW - CL - CR) / n, bw = cw * 0.64;
+  const bars: ComboBar[] = rows.map((r, i) => {
+    const x = CL + i * cw + cw * 0.18;
+    const h = (r.bar / barMax) * (CH - CT - CB);
+    const lx = x + bw / 2;
+    const ly = r.line == null ? null : CT + (1 - (r.line - lmin) / span) * (CH - CT - CB);
+    return { ...r, x, w: bw, h, y: CH - CB - h, lx, ly };
+  });
+  const linePts = bars.filter((b) => b.ly != null)
+    .map((b) => `${b.lx.toFixed(1)},${(b.ly as number).toFixed(1)}`).join(" ");
+  return { bars, linePts, lmin, lmax, barMax };
+}
+const comboAssets = computed(() => buildCombo("totalAssets", "roa"));
+const comboEquity = computed(() => buildCombo("equity", "roe"));
+function fmtPct(v: number | null): string {
+  return v == null ? "—" : (v * 100).toFixed(1) + "%";
+}
+
 // ─── Пайчарты структуры портфеля (канон-донат CreditDonut) ─────────
 const SECTOR_PALETTE = ["#7F77DD", "#1D9E75", "#EF9F27", "#378ADD", "#E24B4A",
                         "#8B7FFF", "#5DC093", "#E8590C", "#9AA0AE"];
@@ -444,6 +478,45 @@ const seriesYears = computed(() => data.value?.series?.years || []);
         </div>
       </section>
 
+      <!-- ═══ Активы/Капитал и рентабельность по секторам (комбо) ═══ -->
+      <section class="sh-section sh-2col">
+        <div v-for="cfg in [
+               { key: 'a', vm: comboAssets, t: 'Активы и ROA', s: 'столбцы — активы (млрд) · линия — рентабельность активов', accent: '#1D9E75' },
+               { key: 'e', vm: comboEquity, t: 'Капитал и ROE', s: 'столбцы — капитал (млрд) · линия — рентабельность капитала', accent: '#378ADD' },
+             ]" :key="cfg.key" class="sh-card" :style="{ '--d': (cfg.key === 'a' ? 80 : 160) + 'ms' }">
+          <div class="sh-card-hd"><div>
+            <div class="sh-card-t">{{ cfg.t }}</div>
+            <div class="sh-card-s">{{ cfg.s }}</div>
+          </div></div>
+          <div v-if="cfg.vm.bars.length" class="sh-pareto-svgwrap">
+            <svg :viewBox="`0 0 ${CW} ${CH}`" class="sh-pareto-svg" preserveAspectRatio="xMidYMid meet">
+              <line v-for="f in [0.25,0.5,0.75]" :key="f" :x1="CL" :x2="CW-CR"
+                    :y1="CT+(1-f)*(CH-CT-CB)" :y2="CT+(1-f)*(CH-CT-CB)" class="sh-grid-line" />
+              <g v-for="(b, i) in cfg.vm.bars" :key="b.name">
+                <rect :x="b.x" :y="b.y" :width="b.w" :height="b.h" :fill="b.color" rx="4"
+                      class="sh-bar" :style="{ '--d': (i*50)+'ms' }">
+                  <title>{{ b.name }} · {{ fmtBln(b.bar) }} · {{ fmtPct(b.line) }}</title>
+                </rect>
+                <text :x="b.lx" :y="CH-CB+13" text-anchor="middle" class="sh-bar-lbl">
+                  {{ b.name.length > 10 ? b.name.slice(0,9)+'…' : b.name }}
+                </text>
+              </g>
+              <polyline v-if="cfg.vm.linePts" :points="cfg.vm.linePts" fill="none"
+                        :stroke="cfg.accent" stroke-width="2.5" stroke-linecap="round"
+                        stroke-linejoin="round" class="sh-combo-line" />
+              <circle v-for="(b, i) in cfg.vm.bars.filter(x => x.ly != null)" :key="'d'+i"
+                      :cx="b.lx" :cy="b.ly!" r="3.5" :fill="cfg.accent" class="sh-cum-dot"
+                      :style="{ '--d': (i*50+300)+'ms' }" />
+              <text v-for="f in [0,0.5,1]" :key="'ax'+f" :x="CW-CR+6"
+                    :y="CT+(1-f)*(CH-CT-CB)+3" class="sh-axis-lbl">
+                {{ ((cfg.vm.lmin + f*(cfg.vm.lmax-cfg.vm.lmin))*100).toFixed(0) }}%
+              </text>
+            </svg>
+          </div>
+          <div v-else class="sh-none">Нет данных за {{ data.year }} ({{ data.standard }})</div>
+        </div>
+      </section>
+
       <!-- ═══ Тренды агрегатов ═══ -->
       <section class="sh-section">
         <div class="sh-trends">
@@ -561,6 +634,7 @@ const seriesYears = computed(() => data.value?.series?.years || []);
 @keyframes shBarGrow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
 .sh-bar-lbl { font-size: 9px; font-weight: 600; fill: var(--t3, #94A3B8); letter-spacing: .02em; }
 .sh-cum-line { stroke: var(--p-deep, #534AB7); stroke-width: 2; stroke-dasharray: 1400; stroke-dashoffset: 1400; animation: shLineDraw 1.2s ease .35s forwards; }
+.sh-combo-line { stroke-dasharray: 1200; stroke-dashoffset: 1200; animation: shLineDraw 1.1s ease .4s forwards; }
 @keyframes shLineDraw { to { stroke-dashoffset: 0; } }
 .sh-cum-dot { fill: #fff; stroke: var(--p-deep, #534AB7); stroke-width: 2; opacity: 0; animation: shDotIn .3s ease var(--d, 0ms) forwards; }
 @keyframes shDotIn { to { opacity: 1; } }
