@@ -363,12 +363,12 @@ const seriesYears = computed(() => data.value?.series?.years || []);
               <span class="sh-gdp-src">IMF WEO · ред.</span>
             </div>
           </div></div>
-          <div class="sh-fiscal-grid">
+          <div class="sh-fiscal-grid kpi-rail">
             <div v-for="(f, i) in fiscalCards" :key="f.label" class="sh-fiscal-i"
-                 :style="{ '--accent': f.accent, '--d': (i * 70) + 'ms' }">
+                 :style="{ '--accent': f.accent, '--d': (i * 80) + 'ms' }">
               <div class="sh-fiscal-l">{{ f.label }}</div>
               <div class="sh-fiscal-v">
-                <span v-if="f.pct != null">{{ f.pct.toFixed(1) }}<span class="sh-fiscal-u">% ВВП</span></span>
+                <span v-if="f.pct != null"><Odometer :value="f.pct.toFixed(1)" /><span class="sh-fiscal-u">% ВВП</span></span>
                 <span v-else>—</span>
               </div>
               <div class="sh-fiscal-abs">{{ fmtTrln(f.abs) }} сум</div>
@@ -707,16 +707,34 @@ const seriesYears = computed(() => data.value?.series?.years || []);
   background: rgba(127,119,221,.1); border-radius: 4px; padding: 1px 5px; letter-spacing: .03em; }
 .sh-fiscal-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 6px; }
 @media (max-width: 900px) { .sh-fiscal-grid { grid-template-columns: repeat(2, 1fr); } }
-.sh-fiscal-i { padding: 12px 14px; border-radius: 12px; background: var(--bg2, #FAFAFD);
-  position: relative; overflow: hidden; animation: finKpiCardIn .5s var(--ease-standard) var(--d, 0ms) both; }
-.sh-fiscal-i::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
-  background: var(--accent, #7F77DD); animation: finKpi2DrawIn .8s var(--ease-standard) var(--d, 0ms) both;
-  transform-origin: left center; }
-.sh-fiscal-l { font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--t3, #94A3B8); }
-.sh-fiscal-v { font-size: 26px; font-weight: 400; letter-spacing: -.03em; color: var(--t1, #1E2A4A);
-  font-variant-numeric: tabular-nums; margin: 4px 0 2px; }
-.sh-fiscal-u { font-size: 11px; color: var(--t3, #94A3B8); font-weight: 500; margin-left: 3px; }
-.sh-fiscal-abs { font-size: 11px; color: var(--t2, #4B5468); font-variant-numeric: tabular-nums; }
+/* Стеклянные fkb-card как в финансах: блюр + верхняя полоса (draw+breathe) + шиммер */
+.sh-fiscal-i {
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(16px) saturate(1.5); -webkit-backdrop-filter: blur(16px) saturate(1.5);
+  border: 1px solid rgba(255, 255, 255, 0.70); border-radius: 14px; padding: 14px 16px 12px;
+  box-shadow: 0 2px 12px rgba(15, 23, 60, 0.07), 0 1px 3px rgba(15, 23, 60, 0.04);
+  position: relative; overflow: hidden; display: flex; flex-direction: column;
+  justify-content: space-between; min-height: 96px;
+  animation: finKpiCardIn .55s var(--ease-standard) var(--d, 0ms) both;
+}
+.sh-fiscal-i::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: var(--accent, #7F77DD); border-radius: 14px 14px 0 0;
+  animation: finKpi2DrawIn .8s var(--ease-standard) var(--d, 0ms) both,
+             finKpi2Breathe 2.8s ease-in-out calc(var(--d, 0ms) + 1s) infinite;
+  transform-origin: left center;
+}
+.sh-fiscal-i::after {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .55), transparent);
+  animation: finShimmer 6s ease-in-out calc(var(--d, 0ms) + 1.2s) 1;
+  transform: translateX(-120%); pointer-events: none;
+}
+.sh-fiscal-l { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: .06em; color: var(--t3, #94A3B8); margin-bottom: 6px; }
+.sh-fiscal-v { font-size: 26px; font-weight: 400; letter-spacing: -.035em; line-height: 1; color: var(--t1, #1E2A4A);
+  font-variant-numeric: tabular-nums; display: flex; align-items: baseline; gap: 2px; margin: 2px 0 4px; }
+.sh-fiscal-u { font-size: 11px; color: var(--t3, #94A3B8); font-weight: 500; margin-left: 3px; letter-spacing: 0; }
+.sh-fiscal-abs { font-size: 11px; color: var(--t2, #4B5468); font-variant-numeric: tabular-nums; margin-top: 4px; }
 
 /* ── Структура: паи ── */
 .sh-4col { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
