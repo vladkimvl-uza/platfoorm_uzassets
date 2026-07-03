@@ -113,6 +113,28 @@ async def financials_tax_contribution(
     return await build_tax_contribution_block(db, year, co_name, co_sector)
 
 
+# Здоровье SOE по методике МВФ (светофорные бенды + Overall Rating).
+# ВАЖНО: литеральный маршрут ДО параметрического /{report_id} (см. tax-contribution).
+@router.get("/soe-health")
+async def financials_soe_health(
+    year: int = Query(..., ge=2018, le=2030),
+    standard: str = Query("NSBU", pattern="^(NSBU|IFRS)$"),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    from fastapi import HTTPException
+    from app.core.access import allowed_company_ids
+    from app.core.security import has_effective_permission
+    from app.services.soe_health import SoeHealthService
+
+    if not await has_effective_permission(db, user, "financials.view"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "financials.view required")
+    scope_ids = await allowed_company_ids(db, user)
+    return await SoeHealthService().build(
+        db, year=year, standard=standard, scope_ids=scope_ids,
+    )
+
+
 @router.get("/{report_id}", response_model=FinancialReportFull)
 async def get_report(
     report_id: UUID,
