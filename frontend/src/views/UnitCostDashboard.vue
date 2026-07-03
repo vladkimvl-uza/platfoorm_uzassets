@@ -26,7 +26,14 @@ function onBurger() {
   else toggleSidebar();
 }
 
-const YEARS = Array.from({ length: 6 }, (_, i) => 2021 + i); // 2021..2026
+// годы: с 2021 по следующий год включительно (новый год появляется сам —
+// напр. в 2026-м доступен 2027). Данные period-keyed, любой год валиден на бэке.
+const YEARS = (() => {
+  const next = new Date().getFullYear() + 1;
+  const out: number[] = [];
+  for (let y = 2021; y <= Math.max(next, 2026); y++) out.push(y);
+  return out;
+})();
 const QUARTERS = [
   { value: "annual", label: "Год" }, { value: "q1", label: "I кв" },
   { value: "q2", label: "II кв" }, { value: "q3", label: "III кв" }, { value: "q4", label: "IV кв" },
@@ -179,10 +186,13 @@ function donutHover(e: DonutEntry, total: number): [string, string] {
       <div class="uc-cluster">
         <div v-if="worldLive" class="uc-ticker"
              :title="'Зелёная точка — живой источник; остальное — ориентир, правится в «Цены и курсы»' + (liveFresh ? '. Обновлено ' + liveFresh : '')">
-          <span v-for="t in tickerItems" :key="t.key" class="uc-tk" :class="{ 'uc-tk-live': t.live }"
-                :title="t.live ? ('Живой источник: ' + t.src + (liveFresh ? ', ' + liveFresh : '')) : 'Ориентир (нет живого источника) — правится в «Цены и курсы»'">
+          <span v-for="t in tickerItems" :key="t.key" class="uc-tk" :class="t.live ? 'uc-tk-live' : 'uc-tk-off'"
+                :title="t.live ? ('Живой источник: ' + t.src + (liveFresh ? ', ' + liveFresh : '')) : 'Ориентир: нет живого источника — задаётся вручную в «Цены и курсы»'">
             <span v-if="t.live" class="uc-live"><i /></span>
+            <span v-else class="uc-offdot" aria-hidden="true"></span>
             <b>{{ t.label }}</b>{{ t.val }}
+            <span v-if="t.live" class="uc-tag uc-tag-live">live</span>
+            <span v-else class="uc-tag uc-tag-off">ориентир</span>
           </span>
         </div>
         <div class="uc-div" aria-hidden="true"></div>
@@ -394,8 +404,15 @@ function donutHover(e: DonutEntry, total: number): [string, string] {
 .uc-tk { display: inline-flex; align-items: center; font-size: 11.5px; font-weight: 600; color: rgba(255,255,255,.9); font-variant-numeric: tabular-nums; white-space: nowrap;
   padding: 3px 9px; border-radius: 7px; background: rgba(255,255,255,.06); }
 .uc-tk-live { background: rgba(74,222,128,.10); box-shadow: inset 0 0 0 1px rgba(74,222,128,.22); }
+.uc-tk-off { opacity: .82; }
 .uc-tk b { font-size: 8.5px; font-weight: 700; color: rgba(255,255,255,.5); text-transform: uppercase; letter-spacing: .04em; margin-right: 5px; }
 .uc-live { display: inline-flex; align-items: center; margin-right: 5px; }
+.uc-offdot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; box-sizing: border-box;
+  border: 1.5px solid rgba(255,255,255,.34); margin-right: 5px; flex-shrink: 0; }
+.uc-tag { margin-left: 6px; font-size: 7.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+  border-radius: 5px; padding: 1px 5px; line-height: 1.5; }
+.uc-tag-live { color: #4ADE80; background: rgba(74,222,128,.16); }
+.uc-tag-off { color: rgba(255,255,255,.62); background: rgba(255,255,255,.10); }
 .uc-live i { width: 7px; height: 7px; border-radius: 50%; background: #4ADE80; box-shadow: 0 0 0 0 rgba(74,222,128,.6);
   animation: ucLivePulse 2s ease-in-out infinite; }
 @keyframes ucLivePulse { 0%,100% { box-shadow: 0 0 0 0 rgba(74,222,128,.5); } 50% { box-shadow: 0 0 0 4px rgba(74,222,128,0); } }

@@ -50,6 +50,9 @@ function init() {
 watch(() => props.open, (o) => { if (o) init(); }, { immediate: true });
 const dirty = computed(() => JSON.stringify({ p: pdraft.value, w: wdraft.value }) !== initial);
 
+// какие мировые поля реально подтягиваются из живого источника (USD/золото);
+// Brent/медь живого keyless-источника не имеют → всегда «ориентир» (ручные)
+function isLive(key: string): boolean { return (props.live?.live_fields || []).includes(key); }
 function num(v: unknown): number | null { const n = Number(String(v ?? "").replace(",", ".")); return isFinite(n) ? n : null; }
 const usdRate = computed(() => num(wdraft.value.usd_rate) || 0);
 // эффективная цена (сум): USD×курс если задан USD, иначе прямая
@@ -118,11 +121,18 @@ async function save() {
       </div>
       <div class="ucp-world">
         <div v-for="w in WORLD" :key="w.key" class="ucp-w">
-          <div class="ucp-w-l">{{ w.label }}</div>
+          <div class="ucp-w-l">
+            <span>{{ w.label }}</span>
+            <span class="ucp-w-badge" :class="isLive(w.key) ? 'live' : 'off'"
+                  :title="isLive(w.key) ? (w.key === 'usd_rate' ? 'Обновляется из курса ЦБ РУз' : 'Обновляется со спот-рынка') : 'Нет живого источника — значение задаётся вручную'">
+              <i v-if="isLive(w.key)" class="ucp-w-dot" />{{ isLive(w.key) ? 'live' : 'ориентир' }}
+            </span>
+          </div>
           <input v-model="wdraft[w.key]" type="text" inputmode="decimal" class="ucp-inp ucp-inp-c" placeholder="—" />
           <div class="ucp-w-u">{{ w.unit }}</div>
         </div>
       </div>
+      <div class="ucp-w-hint">«live» — берётся из источника (USD — ЦБ РУз, золото — спот-рынок); «ориентир» — Brent и медь без живого источника, задаются вручную.</div>
 
       <!-- Энергоносители -->
       <div class="ucp-block-t">Цены энергоносителей <span>в сумах напрямую или в USD (тогда × курс)</span></div>
@@ -171,8 +181,17 @@ async function save() {
 .ucp-world { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 6px; }
 @media (max-width: 640px) { .ucp-world { grid-template-columns: repeat(2, 1fr); } }
 .ucp-w { display: flex; flex-direction: column; gap: 4px; background: var(--bg2,#FAFAFD); border-radius: 10px; padding: 9px 11px; }
-.ucp-w-l { font-size: 9.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--t3,#94A3B8); }
+.ucp-w-l { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 9.5px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .04em; color: var(--t3,#94A3B8); }
+.ucp-w-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 7.5px; font-weight: 700; letter-spacing: .03em;
+  border-radius: 5px; padding: 1px 5px; flex-shrink: 0; }
+.ucp-w-badge.live { color: #1D9E75; background: rgba(29,158,117,.13); }
+.ucp-w-badge.off { color: #94A3B8; background: rgba(148,160,174,.16); }
+.ucp-w-dot { width: 5px; height: 5px; border-radius: 50%; background: #1D9E75; box-shadow: 0 0 0 0 rgba(29,158,117,.5);
+  animation: ucpLiveDot 2s ease-in-out infinite; }
+@keyframes ucpLiveDot { 0%,100% { box-shadow: 0 0 0 0 rgba(29,158,117,.5); } 50% { box-shadow: 0 0 0 3px rgba(29,158,117,0); } }
 .ucp-w-u { font-size: 8.5px; color: var(--t3,#94A3B8); }
+.ucp-w-hint { font-size: 9.5px; color: var(--t3,#94A3B8); font-style: italic; margin: -2px 0 6px; line-height: 1.4; }
 
 .ucp-head-row, .ucp-row { display: grid; grid-template-columns: 1.3fr 1fr 1fr 90px; align-items: center; gap: 10px; }
 .ucp-head-row { padding: 0 4px 5px; border-bottom: 0.5px solid rgba(0,0,0,.06); }
