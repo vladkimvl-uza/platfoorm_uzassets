@@ -22,6 +22,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi import status as http_status
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import get_current_user
