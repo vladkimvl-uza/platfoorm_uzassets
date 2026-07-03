@@ -242,6 +242,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_committee_meetings(conn)
             await _patch_financial_unit_scale(conn)
             await _patch_hlf_backfill_ifrs_lines(conn)
+            await _patch_soe_retained_earnings_seed(conn)
             await _bump_alembic(conn)
     except Exception as e:
         # Never crash the app on a self-heal failure - just log and continue.
@@ -1336,6 +1337,69 @@ async def _patch_hlf_backfill_ifrs_lines(conn) -> None:
             "[runtime_migration] hlf-backfill: +%d IFRS reports, +%d financial_lines",
             ins_reports, ins_lines,
         )
+
+
+# Нераспределённая прибыль (retained earnings) для Altman Z-Score.
+# Источник: IMF SOE Health Check Tool (Input Forms), млрд UZS. В каноне этого
+# поля не было (0 покрытия) → Z-Score был заблокирован. Сидим как ОЦЕНКУ
+# (line_name помечен «imf-healthcheck»), редактируемо через редактор.
+_SOE_RE_SEED: dict[str, dict[int, float]] = {
+    "ngmk": {2023: 57721.0, 2024: 64964.0, 2025: 63373.0},
+    "agmk": {2023: 8423.1, 2024: 6640.3},
+    "nur":  {2023: 6806.0, 2024: 10311.0, 2025: 13742.0},
+    "umk":  {2023: 2184.0, 2024: 3045.0},
+    "uug":  {2023: -135.7},
+    "tes":  {2023: -11165.4, 2024: -9196.0, 2025: -9555.4},
+    "nes":  {2023: -18406.5, 2024: -6740.6},
+    "uge":  {2023: 6721.3, 2024: 8747.6},
+    "utg":  {2023: -17420.0, 2024: -7494.0, 2025: -3045.0},
+    "ung":  {2023: 23136.0, 2024: 23853.0},
+    "hgt":  {2023: -3766.0, 2024: -6154.0},
+    "ugt":  {2023: -5161.0, 2024: -13726.0, 2025: -13180.0},
+    "uhy":  {2023: -1686.0, 2024: -1103.0, 2025: 272.0},
+    "uap":  {2023: -5134.0},
+    "tst":  {2023: -574.4, 2024: -575.1},
+    "utc":  {2023: 2456.8, 2024: 2897.3, 2025: 3465.1},
+    "uas":  {2023: 10248.6, 2024: 12179.9},
+    "naz":  {2023: -6079.0, 2024: -5347.3},
+    "uks":  {2023: -5840.7, 2024: -5369.1},
+}
+
+
+async def _patch_soe_retained_earnings_seed(conn) -> None:
+    """Сид `retainedEarnings` в тот же NSBU summary-отчёт, где лежит `equity`
+    (баланс) — чтобы Z-Score считался на согласованном источнике. Идемпотентно:
+    пропускаем отчёт, где строка уже есть (ручной ввод не перетираем)."""
+    # отчёт, содержащий equity за (company, year) — туда кладём RE
+    reps = (await conn.execute(text(
+        "SELECT DISTINCT fr.id AS rid, c.code AS code, fr.year AS year "
+        "FROM financial_reports fr "
+        "JOIN companies c ON c.id = fr.company_id "
+        "JOIN financial_lines fl ON fl.report_id = fr.id AND fl.line_code = 'equity' "
+        "WHERE fr.standard = 'NSBU' AND fr.is_detailed = false AND fr.quarter IS NULL"
+    ))).all()
+    rep_by = {(r.code, int(r.year)): r.rid for r in reps}
+    have = {r.report_id for r in (await conn.execute(text(
+        "SELECT DISTINCT report_id FROM financial_lines WHERE line_code = 'retainedEarnings'"
+    ))).all()}
+
+    ins = 0
+    for code, ymap in _SOE_RE_SEED.items():
+        for year, val in ymap.items():
+            rid = rep_by.get((code, year))
+            if rid is None or rid in have:
+                continue  # нет баланс-отчёта / уже заполнено — не трогаем
+            await conn.execute(text(
+                "INSERT INTO financial_lines "
+                "(id, report_id, line_code, line_name, value, is_subtotal, "
+                " is_calculated, sort_order, indent_level, created_at, updated_at) "
+                "VALUES (gen_random_uuid(), :rid, 'retainedEarnings', :ln, :v, "
+                " false, false, 0, 0, now(), now())"
+            ), {"rid": rid, "ln": "Нераспределённая прибыль (оценка · imf-healthcheck)", "v": val})
+            have.add(rid)
+            ins += 1
+    if ins:
+        logger.info("[runtime_migration] soe RE seed: +%d retainedEarnings lines", ins)
 
 
 async def _patch_committee_meetings(conn) -> None:

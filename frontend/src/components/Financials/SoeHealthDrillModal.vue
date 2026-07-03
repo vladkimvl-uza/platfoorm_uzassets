@@ -110,9 +110,17 @@ const best = computed(() =>
           </h2>
           <div class="shd-meta">{{ company.sector_name || '—' }} · оценено коэффициентов: {{ company.available }} из {{ company.ratios.length }}</div>
         </div>
-        <div v-if="company.overall != null" class="shd-score" :style="{ background: company.zone?.color || '#94A3B8' }">
-          <div class="shd-score-v"><Odometer :value="company.overall.toFixed(1)" /></div>
-          <div class="shd-score-l">{{ company.zone?.label }}</div>
+        <div class="shd-badges">
+          <div v-if="company.z_score" class="shd-zbadge" :title="'Altman Z-Score (модель развив. рынков). ' + company.z_score.zone.label"
+               :style="{ borderColor: company.z_score.zone.color + '55', color: company.z_score.zone.color }">
+            <div class="shd-zbadge-k">Z-Score</div>
+            <div class="shd-zbadge-v">{{ company.z_score.z.toFixed(2) }}</div>
+            <div class="shd-zbadge-l">{{ company.z_score.zone.label }}</div>
+          </div>
+          <div v-if="company.overall != null" class="shd-score" :style="{ background: company.zone?.color || '#94A3B8' }">
+            <div class="shd-score-v"><Odometer :value="company.overall.toFixed(1)" /></div>
+            <div class="shd-score-l">{{ company.zone?.label }}</div>
+          </div>
         </div>
       </div>
     </template>
@@ -215,6 +223,15 @@ const best = computed(() =>
 .shd-title { font-size: 17px; font-weight: 600; margin: 4px 0 0; color: var(--t1, #1E2A4A); display: flex; align-items: center; gap: 8px; }
 .shd-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 .shd-meta { font-size: 11px; color: var(--t3, #94A3B8); margin-top: 4px; }
+.shd-badges { display: flex; align-items: stretch; gap: 8px; flex-shrink: 0; }
+.shd-zbadge {
+  border: 1.5px solid; border-radius: 13px; padding: 8px 14px; text-align: center;
+  display: flex; flex-direction: column; justify-content: center; background: #fff;
+  animation: shdPop .45s var(--ease-standard, ease) both;
+}
+.shd-zbadge-k { font-size: 8.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; opacity: .8; }
+.shd-zbadge-v { font-size: 22px; font-weight: 600; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.shd-zbadge-l { font-size: 8.5px; font-weight: 600; opacity: .85; margin-top: 1px; }
 .shd-score {
   border-radius: 13px; color: #fff; padding: 9px 16px; text-align: center; flex-shrink: 0;
   box-shadow: 0 6px 18px rgba(15,23,60,.18); animation: shdPop .45s var(--ease-standard, ease) both;

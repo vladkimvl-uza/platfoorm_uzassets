@@ -25,6 +25,7 @@ export interface SoeCompany {
   zone: { key: string; label: string; color: string } | null;
   prev_overall: number | null; delta: number | null; available: number;
   metrics_out?: Record<string, number | null>;
+  z_score?: { z: number; zone: { key: string; label: string; color: string } } | null;
 }
 export interface SoeSectorAgg {
   code: string; name: string; color: string; count: number;

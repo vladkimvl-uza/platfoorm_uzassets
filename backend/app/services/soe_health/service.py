@@ -89,6 +89,8 @@ _NEEDED_CODES = (
     # CR/QR: totalCA + stBorrowings («Краткосрочные обяз-ва» = текущие
     # обязательства в схемах НСБУ/МСФО-редакторов) + inventories (МСФО)
     "totalCA", "stBorrowings", "inventories",
+    # Altman Z-Score: retainedEarnings (сид из imf-healthcheck / редактор)
+    "retainedEarnings",
 )
 
 # Выписка «Отчёт о фин. результатах» и «Баланс» для дрилла компании —
@@ -117,6 +119,8 @@ _BS_SPEC: list[tuple[str, str, bool]] = [
     ("totalCA",            "Оборотные активы",             True),
     ("totalAssets",        "ИТОГО Активы",                 True),
     ("equity",             "Собственный капитал",          True),
+    ("shareCapital",       "  Уставный капитал",           False),
+    ("retainedEarnings",   "  Нераспределённая прибыль",   False),
     ("ltBorrowings",       "Долгосрочные займы",           False),
     ("stBorrowings",       "Краткосрочные обязательства",  False),
     ("debt",               "Финансовый долг",              False),
@@ -147,6 +151,39 @@ def _zone(score: Optional[float]) -> Optional[dict]:
         if score < z["max"]:
             return {"key": z["key"], "label": z["label"], "color": z["color"]}
     return None
+
+
+def _z_score(m: dict[str, float]) -> Optional[dict[str, Any]]:
+    """Altman Z''-Score (модель для развивающихся рынков / не-производств):
+        Z'' = 6.56·X1 + 3.26·X2 + 6.72·X3 + 1.05·X4
+        X1 = оборотный капитал / активы = (totalCA − stBorrowings)/totalAssets
+        X2 = нераспр. прибыль / активы = retainedEarnings/totalAssets
+        X3 = EBIT / активы = opProfit/totalAssets
+        X4 = баланс. капитал / обязательства = equity/totalLiabilities
+    Зоны: >2.6 устойчивая · 1.1–2.6 серая · <1.1 зона риска.
+    БЕЗ EM-константы +3.25 — сверено 1:1 с эталонным Z инструмента SOE Health
+    Check Tool (43/43 значения совпали). None, если нет входа («нет данных ≠ 0»)."""
+    def g(k: str) -> Optional[float]:
+        v = m.get(k)
+        return float(v) if v is not None else None
+
+    ta, tl = g("totalAssets"), g("totalLiabilities")
+    ca, stb = g("totalCA"), g("stBorrowings")
+    re, ebit, eq = g("retainedEarnings"), g("opProfit"), g("equity")
+    if not ta or ta <= 0 or not tl or tl <= 0:
+        return None
+    if any(x is None for x in (ca, stb, re, ebit, eq)):
+        return None
+    wc = ca - stb
+    z = round(6.56 * (wc / ta) + 3.26 * (re / ta)
+              + 6.72 * (ebit / ta) + 1.05 * (eq / tl), 2)
+    if z >= 2.6:
+        zone = {"key": "safe", "label": "Устойчивая зона", "color": "#1D9E75"}
+    elif z >= 1.1:
+        zone = {"key": "grey", "label": "Серая зона", "color": "#EF9F27"}
+    else:
+        zone = {"key": "distress", "label": "Зона риска", "color": "#E24B4A"}
+    return {"z": z, "zone": zone}
 
 
 def _effective_ratios(overrides: dict) -> list[dict[str, Any]]:
@@ -480,6 +517,8 @@ class SoeHealthService:
                 "delta": (round(overall - prev_overall, 2)
                           if overall is not None and prev_overall is not None else None),
                 "available": n_avail,
+                # Altman Z''-Score (distress) — отдельно от RAG-Overall
+                "z_score": _z_score(co["metrics"]),
                 # сырьё для портфельных графиков (млрд сум)
                 "metrics_out": {k: (round(m[k], 1) if k in m else None)
                                 for k in ("totalLiabilities", "ebitda", "debt",

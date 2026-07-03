@@ -77,6 +77,8 @@ export const ROWS_BY_SECTION: Record<Section, FinRow[]> = {
       auto_calc_hint: "totalNCA + totalCA" },
     { code: "equity",       label_ifrs: "Собственный капитал",                label_nsbu: "Собственный капитал",
       group_header_ifrs: "СОБСТВЕННЫЙ КАПИТАЛ", group_header_nsbu: "СОБСТВЕННЫЙ КАПИТАЛ" },
+    { code: "shareCapital",     label_ifrs: "Уставный капитал",              label_nsbu: "Уставный капитал" },
+    { code: "retainedEarnings", label_ifrs: "Нераспределённая прибыль",      label_nsbu: "Нераспределённая прибыль" },
     { code: "ltBorrowings", label_ifrs: "Долгосрочные займы",                 label_nsbu: "Долгосрочные обязательства",        is_expense: true,
       group_header_ifrs: "ОБЯЗАТЕЛЬСТВА", group_header_nsbu: "ОБЯЗАТЕЛЬСТВА" },
     { code: "stBorrowings", label_ifrs: "Краткосрочные займы",                label_nsbu: "Краткосрочные обязательства",       is_expense: true },

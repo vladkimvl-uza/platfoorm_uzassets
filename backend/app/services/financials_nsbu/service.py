@@ -42,7 +42,8 @@ _NSBU_PL_FIELDS = {
 }
 _NSBU_BS_FIELDS = {
     "ppe", "totalNCA", "cash", "totalCA", "accountsReceivable", "totalAssets",
-    "equity", "ltBorrowings", "stBorrowings", "accountsPayable", "totalLiabilities",
+    "equity", "shareCapital", "retainedEarnings",
+    "ltBorrowings", "stBorrowings", "accountsPayable", "totalLiabilities",
     "ltBankLoans", "ltOtherLoans", "stBankLoans", "stOtherLoans", "debt",
 }
 
@@ -69,6 +70,8 @@ _NSBU_FIELD_LABELS: dict[str, tuple[str, str, str, str]] = {
     "accountsReceivable": ("accountsReceivable", "Дебиторская задолженность",       "210", "sofp"),
     "totalAssets":      ("totalAssets",      "ИТОГО Активы (авто)",                "400", "sofp"),
     "equity":           ("equity",           "Собственный капитал",                "480", "sofp"),
+    "shareCapital":     ("shareCapital",     "Уставный капитал",                   "410", "sofp"),
+    "retainedEarnings": ("retainedEarnings", "Нераспределённая прибыль",           "470", "sofp"),
     "ltBorrowings":     ("ltBorrowings",     "Долгосрочные обязательства",         "590", "sofp"),
     "stBorrowings":     ("stBorrowings",     "Краткосрочные обязательства",        "780", "sofp"),
     "accountsPayable":  ("accountsPayable",  "Кредиторская задолженность",         "601", "sofp"),

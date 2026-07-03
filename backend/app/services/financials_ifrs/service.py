@@ -50,7 +50,8 @@ _IFRS_OCI_FIELDS = {
 }
 _IFRS_BS_FIELDS = {
     "ppe", "totalNCA", "cash", "totalCA", "totalAssets",
-    "equity", "ltBorrowings", "stBorrowings", "totalLiabilities",
+    "equity", "shareCapital", "retainedEarnings",
+    "ltBorrowings", "stBorrowings", "totalLiabilities",
     "ltBankLoans", "ltOtherLoans", "stBankLoans", "stOtherLoans",
     "longTermDebt", "debt",
 }
@@ -101,6 +102,8 @@ _IFRS_FIELD_LABELS: dict[str, tuple[str, str, str, str]] = {
     "totalCA":            ("totalCA",            "Total CA · Оборотные активы (итог)",               "", "sofp"),
     "totalAssets":        ("totalAssets",        "TOTAL ASSETS · ИТОГО Активы (авто)",               "", "sofp"),
     "equity":             ("equity",             "Equity · Собственный капитал",                     "", "sofp"),
+    "shareCapital":       ("shareCapital",       "Share capital · Уставный капитал",                 "", "sofp"),
+    "retainedEarnings":   ("retainedEarnings",   "Retained earnings · Нераспределённая прибыль",     "", "sofp"),
     "ltBorrowings":       ("ltBorrowings",       "LT borrowings · Долгоср. займы",                   "", "sofp"),
     "stBorrowings":       ("stBorrowings",       "ST borrowings · Краткоср. займы",                  "", "sofp"),
     "totalLiabilities":   ("totalLiabilities",   "TOTAL LIABILITIES (авто)",                         "", "sofp"),
