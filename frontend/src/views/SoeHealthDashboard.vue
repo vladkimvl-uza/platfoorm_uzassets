@@ -85,13 +85,14 @@ const PARETO_METRICS = [
 ] as const;
 const paretoMetric = ref<string>("totalLiabilities");
 
-interface ParetoBar { code: string; name: string; v: number; color: string; cum: number }
+interface ParetoBar { code: string; name: string; v: number; color: string; cum: number; sector: string }
 const paretoBars = computed<ParetoBar[]>(() => {
   const cos = (data.value?.companies || [])
     .map((c) => ({
       code: c.code, name: c.name,
       v: Number((c as { metrics_out?: Record<string, number | null> }).metrics_out?.[paretoMetric.value] ?? 0),
       color: c.sector_color || "#7F77DD",
+      sector: c.sector_code || "",
     }))
     .filter((b) => b.v > 0)
     .sort((a, b) => b.v - a.v);
@@ -101,24 +102,6 @@ const paretoBars = computed<ParetoBar[]>(() => {
 });
 const paretoMax = computed(() => Math.max(1, ...paretoBars.value.map((b) => b.v)));
 
-// SVG-геометрия Pareto
-const PW = 960, PH = 300, PADL = 8, PADR = 40, PADT = 16, PADB = 44;
-function barX(i: number): number {
-  const n = paretoBars.value.length || 1;
-  const w = (PW - PADL - PADR) / n;
-  return PADL + i * w + w * 0.30;   // центрируем тонкий бар (0.30 + 0.40)
-}
-function barW(): number {
-  const n = paretoBars.value.length || 1;
-  return ((PW - PADL - PADR) / n) * 0.40;
-}
-function barH(v: number): number { return (v / paretoMax.value) * (PH - PADT - PADB); }
-function barY(v: number): number { return PH - PADB - barH(v); }
-function cumPoints(): string {
-  return paretoBars.value
-    .map((b, i) => `${(barX(i) + barW() / 2).toFixed(1)},${(PADT + (1 - b.cum / 100) * (PH - PADT - PADB)).toFixed(1)}`)
-    .join(" ");
-}
 function fmtBln(v: number): string {
   if (Math.abs(v) >= 1000) return (v / 1000).toLocaleString("ru", { maximumFractionDigits: 1 }) + " трлн";
   return v.toLocaleString("ru", { maximumFractionDigits: 0 }) + " млрд";
@@ -192,38 +175,26 @@ function fmtTrln(bln: number | null): string {
   return (bln / 1000).toLocaleString("ru", { maximumFractionDigits: 0 }) + " трлн";
 }
 
-// ─── Комбо «Активы и ROA» / «Капитал и ROE» по секторам ────────────
-const CW = 520, CH = 240, CL = 8, CR = 42, CT = 16, CB = 54;
-interface ComboBar { name: string; color: string; bar: number; line: number | null;
-  x: number; w: number; h: number; y: number; ly: number | null; lx: number }
-interface ComboVM { bars: ComboBar[]; linePts: string; lmin: number; lmax: number; barMax: number }
+// ─── Комбо «Активы и ROA» / «Капитал и ROE» по секторам (гориз. строки) ──
+interface ComboRow { code: string; name: string; color: string; bar: number; ret: number | null; barPct: number }
+interface ComboVM { rows: ComboRow[] }
 function buildCombo(barKey: "totalAssets" | "equity", lineKey: "roa" | "roe"): ComboVM {
-  const rows = (pf.value?.by_sector || [])
-    .map((s) => ({ name: s.name, color: s.color, bar: Number(s[barKey] ?? 0), line: s[lineKey] }))
+  const raw = (pf.value?.by_sector || [])
+    .map((s) => ({ code: s.code, name: s.name, color: s.color,
+                   bar: Number(s[barKey] ?? 0), ret: s[lineKey] }))
     .filter((s) => s.bar > 0)
     .sort((a, b) => b.bar - a.bar);
-  const n = rows.length || 1;
-  const barMax = Math.max(1, ...rows.map((r) => r.bar));
-  const lvals = rows.map((r) => r.line).filter((v) => v != null) as number[];
-  const lmax = lvals.length ? Math.max(...lvals) : 1;
-  const lmin = Math.min(0, ...lvals, 0);
-  const span = (lmax - lmin) || 1;
-  const cw = (CW - CL - CR) / n, bw = cw * 0.38;
-  const bars: ComboBar[] = rows.map((r, i) => {
-    const x = CL + i * cw + cw * 0.31;
-    const h = (r.bar / barMax) * (CH - CT - CB);
-    const lx = x + bw / 2;
-    const ly = r.line == null ? null : CT + (1 - (r.line - lmin) / span) * (CH - CT - CB);
-    return { ...r, x, w: bw, h, y: CH - CB - h, lx, ly };
-  });
-  const linePts = bars.filter((b) => b.ly != null)
-    .map((b) => `${b.lx.toFixed(1)},${(b.ly as number).toFixed(1)}`).join(" ");
-  return { bars, linePts, lmin, lmax, barMax };
+  const barMax = Math.max(1, ...raw.map((r) => r.bar));
+  return { rows: raw.map((r) => ({ ...r, barPct: Math.max(3, r.bar / barMax * 100) })) };
 }
 const comboAssets = computed(() => buildCombo("totalAssets", "roa"));
 const comboEquity = computed(() => buildCombo("equity", "roe"));
 function fmtPct(v: number | null): string {
   return v == null ? "—" : (v * 100).toFixed(1) + "%";
+}
+function retColor(v: number | null): string {
+  if (v == null) return "#9AA0AE";
+  return v >= 0 ? "#1D9E75" : "#E24B4A";
 }
 
 // ─── Пайчарты структуры портфеля (канон-донат CreditDonut) ─────────
@@ -445,7 +416,7 @@ const seriesYears = computed(() => data.value?.series?.years || []);
           <div class="sh-card-hd">
             <div>
               <div class="sh-card-t">Концентрация портфеля</div>
-              <div class="sh-card-s">компании по убыванию · линия — накопленная доля</div>
+              <div class="sh-card-s">компании по убыванию · Σ — накопленная доля · клик — детали</div>
             </div>
             <UzaSegment
               :model-value="paretoMetric"
@@ -454,42 +425,18 @@ const seriesYears = computed(() => data.value?.series?.years || []);
               @update:model-value="paretoMetric = $event as string"
             />
           </div>
-          <div v-if="paretoBars.length" class="sh-pareto-svgwrap">
-            <svg :viewBox="`0 0 ${PW} ${PH}`" class="sh-pareto-svg" preserveAspectRatio="xMidYMid meet">
-              <!-- сетка -->
-              <line v-for="f in [0.25, 0.5, 0.75]" :key="f"
-                    :x1="PADL" :x2="PW - PADR"
-                    :y1="PADT + (1 - f) * (PH - PADT - PADB)" :y2="PADT + (1 - f) * (PH - PADT - PADB)"
-                    class="sh-grid-line" />
-              <!-- бары -->
-              <!-- единый бренд-пурпур (канон: без секторной радуги) -->
-              <defs>
-                <linearGradient id="shBarGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="#8B7FFF" />
-                  <stop offset="100%" stop-color="#6C5CE7" />
-                </linearGradient>
-              </defs>
-              <g v-for="(b, i) in paretoBars" :key="b.code">
-                <rect :x="barX(i)" :y="barY(b.v)" :width="barW()" :height="barH(b.v)"
-                      fill="url(#shBarGrad)" rx="4" class="sh-bar" :style="{ '--d': (i * 40) + 'ms' }">
-                  <title>{{ b.name }} · {{ fmtBln(b.v) }} · накоплено {{ b.cum.toFixed(0) }}%</title>
-                </rect>
-                <text :x="barX(i) + barW() / 2" :y="PH - PADB + 14" class="sh-bar-lbl"
-                      text-anchor="middle">{{ b.code.toUpperCase() }}</text>
-              </g>
-              <!-- кумулятивная линия -->
-              <polyline :points="cumPoints()" class="sh-cum-line" fill="none" />
-              <circle v-for="(b, i) in paretoBars" :key="'c' + b.code"
-                      :cx="barX(i) + barW() / 2"
-                      :cy="PADT + (1 - b.cum / 100) * (PH - PADT - PADB)"
-                      r="3" class="sh-cum-dot" :style="{ '--d': (i * 40 + 300) + 'ms' }">
-                <title>{{ b.name }} · накоплено {{ b.cum.toFixed(0) }}%</title>
-              </circle>
-              <!-- правая ось % -->
-              <text v-for="f in [0, 50, 100]" :key="'p' + f"
-                    :x="PW - PADR + 6" :y="PADT + (1 - f / 100) * (PH - PADT - PADB) + 3"
-                    class="sh-axis-lbl">{{ f }}%</text>
-            </svg>
+          <div v-if="paretoBars.length" class="sh-conc-list">
+            <button v-for="(b, i) in paretoBars" :key="b.code" type="button" class="sh-conc-row"
+                    :class="{ dim: focusSector && b.sector !== focusSector }"
+                    :style="{ '--d': (i * 28) + 'ms' }"
+                    :title="b.name + ' · клик — детали'" @click="openCompany(b.code)">
+              <span class="sh-conc-code">{{ b.code.toUpperCase() }}</span>
+              <span class="sh-conc-track">
+                <span class="sh-conc-fill" :style="{ width: (b.v / paretoMax * 100) + '%' }" />
+              </span>
+              <span class="sh-conc-val">{{ fmtBln(b.v) }}</span>
+              <span class="sh-conc-cum">Σ {{ b.cum.toFixed(0) }}%</span>
+            </button>
           </div>
           <div v-else class="sh-none">Нет данных за {{ data.year }} ({{ data.standard }})</div>
         </div>
@@ -566,39 +513,28 @@ const seriesYears = computed(() => data.value?.series?.years || []);
       </section>
 
       <!-- ═══ Активы/Капитал и рентабельность по секторам (комбо) ═══ -->
-      <section class="sh-section sh-2col">
+      <section class="sh-section sh-2eq">
         <div v-for="cfg in [
-               { key: 'a', vm: comboAssets, t: 'Активы и ROA', s: 'столбцы — активы (млрд) · линия — рентабельность активов', accent: '#1D9E75' },
-               { key: 'e', vm: comboEquity, t: 'Капитал и ROE', s: 'столбцы — капитал (млрд) · линия — рентабельность капитала', accent: '#378ADD' },
+               { key: 'a', vm: comboAssets, t: 'Активы и ROA', s: 'бар — активы (млрд) · справа — рентабельность активов', ret: 'ROA' },
+               { key: 'e', vm: comboEquity, t: 'Капитал и ROE', s: 'бар — капитал (млрд) · справа — рентабельность капитала', ret: 'ROE' },
              ]" :key="cfg.key" class="sh-card" :style="{ '--d': (cfg.key === 'a' ? 80 : 160) + 'ms' }">
           <div class="sh-card-hd"><div>
             <div class="sh-card-t">{{ cfg.t }}</div>
             <div class="sh-card-s">{{ cfg.s }}</div>
           </div></div>
-          <div v-if="cfg.vm.bars.length" class="sh-pareto-svgwrap">
-            <svg :viewBox="`0 0 ${CW} ${CH}`" class="sh-pareto-svg" preserveAspectRatio="xMidYMid meet">
-              <line v-for="f in [0.25,0.5,0.75]" :key="f" :x1="CL" :x2="CW-CR"
-                    :y1="CT+(1-f)*(CH-CT-CB)" :y2="CT+(1-f)*(CH-CT-CB)" class="sh-grid-line" />
-              <g v-for="(b, i) in cfg.vm.bars" :key="b.name">
-                <rect :x="b.x" :y="b.y" :width="b.w" :height="b.h" :fill="b.color" rx="4"
-                      class="sh-bar" :style="{ '--d': (i*50)+'ms' }">
-                  <title>{{ b.name }} · {{ fmtBln(b.bar) }} · {{ fmtPct(b.line) }}</title>
-                </rect>
-                <text :x="b.lx" :y="CH-CB+13" text-anchor="middle" class="sh-bar-lbl">
-                  {{ b.name.length > 10 ? b.name.slice(0,9)+'…' : b.name }}
-                </text>
-              </g>
-              <polyline v-if="cfg.vm.linePts" :points="cfg.vm.linePts" fill="none"
-                        :stroke="cfg.accent" stroke-width="2.5" stroke-linecap="round"
-                        stroke-linejoin="round" class="sh-combo-line" />
-              <circle v-for="(b, i) in cfg.vm.bars.filter(x => x.ly != null)" :key="'d'+i"
-                      :cx="b.lx" :cy="b.ly!" r="3.5" :fill="cfg.accent" class="sh-cum-dot"
-                      :style="{ '--d': (i*50+300)+'ms' }" />
-              <text v-for="f in [0,0.5,1]" :key="'ax'+f" :x="CW-CR+6"
-                    :y="CT+(1-f)*(CH-CT-CB)+3" class="sh-axis-lbl">
-                {{ ((cfg.vm.lmin + f*(cfg.vm.lmax-cfg.vm.lmin))*100).toFixed(0) }}%
-              </text>
-            </svg>
+          <div v-if="cfg.vm.rows.length" class="sh-cbo-list">
+            <div v-for="(row, i) in cfg.vm.rows" :key="row.name" class="sh-cbo-row"
+                 :class="{ dim: focusSector && row.code !== focusSector }"
+                 :style="{ '--d': (i * 55) + 'ms' }">
+              <span class="sh-cbo-name" :title="row.name">{{ row.name }}</span>
+              <span class="sh-cbo-track">
+                <span class="sh-cbo-fill" :style="{ width: row.barPct + '%', background: row.color }" />
+              </span>
+              <span class="sh-cbo-abs">{{ fmtBln(row.bar) }}</span>
+              <span class="sh-cbo-ret" :style="{ color: retColor(row.ret), background: retColor(row.ret) + '14' }">
+                {{ fmtPct(row.ret) }}
+              </span>
+            </div>
           </div>
           <div v-else class="sh-none">Нет данных за {{ data.year }} ({{ data.standard }})</div>
         </div>
@@ -778,6 +714,8 @@ const seriesYears = computed(() => data.value?.series?.years || []);
 /* ── Размер×риск + секторы ── */
 .sh-2col { display: grid; grid-template-columns: 1.4fr 1fr; gap: 12px; }
 @media (max-width: 1100px) { .sh-2col { grid-template-columns: 1fr; } }
+.sh-2eq { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 1100px) { .sh-2eq { grid-template-columns: 1fr; } }
 /* Scatter: кликабельные точки + затемнение вне фокуса */
 .sh-dot-g { cursor: pointer; transition: opacity .18s ease; }
 .sh-dot-g.dim { opacity: .18; }
@@ -815,6 +753,39 @@ const seriesYears = computed(() => data.value?.series?.years || []);
 @keyframes shSecGrow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 .sh-lolli-val { font-size: 11.5px; font-weight: 600; color: var(--t2, #4B5468);
   font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* Концентрация — компактный ранжированный список (клик → дрилл) */
+.sh-conc-list { display: flex; flex-direction: column; gap: 1px; padding-top: 4px; }
+.sh-conc-row { display: grid; grid-template-columns: 46px 1fr max-content 52px; align-items: center; gap: 10px;
+  width: 100%; text-align: left; background: none; border: 0; font-family: inherit; cursor: pointer;
+  padding: 5px 8px; border-radius: 8px; transition: background .14s, opacity .18s;
+  animation: shSecRowIn .32s var(--ease-standard, ease) var(--d, 0ms) both; }
+.sh-conc-row:hover { background: rgba(127,119,221,.05); }
+.sh-conc-row.dim { opacity: .32; }
+.sh-conc-code { font-size: 10px; font-weight: 700; letter-spacing: .02em; color: var(--t2, #4B5468); }
+.sh-conc-track { height: 6px; background: rgba(30,42,74,.05); border-radius: 3px; overflow: hidden; }
+.sh-conc-fill { height: 100%; border-radius: 3px; background: var(--p-deep, #6C5CE7); opacity: .68;
+  transform-origin: left center; animation: shSecGrow .7s var(--ease-standard, ease) var(--d, 0ms) both; }
+.sh-conc-val { font-size: 11px; font-weight: 600; color: var(--t1, #1E2A4A);
+  font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
+.sh-conc-cum { font-size: 10px; font-weight: 500; color: var(--t3, #94A3B8);
+  font-variant-numeric: tabular-nums; text-align: right; }
+
+/* Комбо — сектор · тонкий бар размера · пилюля рентабельности */
+.sh-cbo-list { display: flex; flex-direction: column; gap: 3px; padding-top: 6px; }
+.sh-cbo-row { display: grid; grid-template-columns: minmax(84px, 1.1fr) 1fr max-content 56px;
+  align-items: center; gap: 10px; padding: 8px; border-radius: 9px; transition: opacity .18s;
+  animation: shSecRowIn .4s var(--ease-standard, ease) var(--d, 0ms) both; }
+.sh-cbo-row.dim { opacity: .4; }
+.sh-cbo-name { font-size: 11.5px; font-weight: 500; color: var(--t1, #1E2A4A);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sh-cbo-track { height: 7px; background: rgba(30,42,74,.05); border-radius: 4px; overflow: hidden; }
+.sh-cbo-fill { height: 100%; border-radius: 4px; opacity: .78; transform-origin: left center;
+  animation: shSecGrow .7s var(--ease-standard, ease) var(--d, 0ms) both; }
+.sh-cbo-abs { font-size: 11px; font-weight: 600; color: var(--t2, #4B5468);
+  font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
+.sh-cbo-ret { font-size: 11px; font-weight: 700; border-radius: 6px; padding: 2px 0;
+  font-variant-numeric: tabular-nums; text-align: center; }
 
 /* ── Тренды ── */
 .sh-trends { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
