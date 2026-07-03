@@ -10,6 +10,7 @@
 import { computed, onMounted } from "vue";
 import { fmtSubsidySum } from "@/api/subsidies";
 import { ensureFinancialsCss } from "@/components/Financials/financialsHelpers";
+import Odometer from "@/components/Odometer.vue";
 
 interface TaxKpi {
   income_tax?: number | null;
@@ -62,33 +63,33 @@ function yoyColor(v: number | null | undefined): string {
            @click="emit('open-subsidies')" @keydown.enter="emit('open-subsidies')" @keydown.space.prevent="emit('open-subsidies')"
            title="Реестр субсидий">
         <div class="ffb-lbl">Субсидии</div>
-        <div class="ffb-val">{{ subFmt.value }}<span class="ffb-u">{{ subFmt.unit || 'сум' }}</span></div>
+        <div class="ffb-val"><Odometer :value="subFmt.value" /><span class="ffb-u">{{ subFmt.unit || 'сум' }}</span></div>
         <div class="ffb-sub">реестр по компаниям и секторам</div>
       </div>
       <!-- Спонсорство -->
       <div class="ffb-kpi" style="--accent:#7C6FF7; --d:70ms">
         <div class="ffb-lbl">Спонсорство</div>
-        <div class="ffb-val">{{ spoFmt.value }}<span class="ffb-u">{{ spoFmt.unit || 'сум' }}</span></div>
+        <div class="ffb-val"><Odometer :value="spoFmt.value" /><span class="ffb-u">{{ spoFmt.unit || 'сум' }}</span></div>
         <div class="ffb-sub">благотворительность и спонсорство</div>
       </div>
       <!-- Налог на прибыль -->
       <div class="ffb-kpi" style="--accent:#3B82F6; --d:140ms">
         <div class="ffb-lbl">Налог на прибыль</div>
-        <div class="ffb-val">{{ fmtAmount(taxKpi?.income_tax).text }}<span class="ffb-u">{{ fmtAmount(taxKpi?.income_tax).unit }}</span></div>
+        <div class="ffb-val"><Odometer :value="fmtAmount(taxKpi?.income_tax).text" /><span class="ffb-u">{{ fmtAmount(taxKpi?.income_tax).unit }}</span></div>
         <div class="ffb-sub" :style="{ color: yoyColor(taxKpi?.yoy_income_tax_pct) }">{{ fmtYoY(taxKpi?.yoy_income_tax_pct) || '—' }}</div>
       </div>
       <!-- НДС — расчётная ОЦЕНКА, не факт (честная маркировка) -->
       <div class="ffb-kpi" style="--accent:#1D9E75; --d:210ms"
            title="Расчётная оценка: 12% × выручка (НСБУ). Не учитывает нулевую ставку НДС на экспорт и зачёт входящего НДС — фактический НДС к уплате ниже. Для факта заполните «Налоги» в индикаторах компаний.">
         <div class="ffb-lbl">НДС (12% выручки) <span class="ffb-est">оценка</span></div>
-        <div class="ffb-val">≈{{ fmtAmount(taxKpi?.vat).text }}<span class="ffb-u">{{ fmtAmount(taxKpi?.vat).unit }}</span></div>
+        <div class="ffb-val">≈<Odometer :value="fmtAmount(taxKpi?.vat).text" /><span class="ffb-u">{{ fmtAmount(taxKpi?.vat).unit }}</span></div>
         <div class="ffb-sub" :style="{ color: yoyColor(taxKpi?.yoy_vat_pct) }">{{ fmtYoY(taxKpi?.yoy_vat_pct) || '—' }}</div>
       </div>
       <!-- Итоговый налоговый вклад = факт (налог) + оценка (НДС) → оценка -->
       <div class="ffb-kpi ffb-hl" style="--accent:#EF9F27; --d:280ms"
            title="Налог на прибыль (факт по отчётности НСБУ) + НДС (расчётная оценка). Не включает НДПИ, акцизы, роялти и дивиденды — итог является оценкой.">
         <div class="ffb-lbl">Итоговый налоговый вклад <span class="ffb-est">оценка</span></div>
-        <div class="ffb-val">≈{{ fmtAmount(taxKpi?.total).text }}<span class="ffb-u">{{ fmtAmount(taxKpi?.total).unit }}</span></div>
+        <div class="ffb-val">≈<Odometer :value="fmtAmount(taxKpi?.total).text" /><span class="ffb-u">{{ fmtAmount(taxKpi?.total).unit }}</span></div>
         <div class="ffb-sub" :style="{ color: yoyColor(taxKpi?.yoy_total_pct) }">{{ fmtYoY(taxKpi?.yoy_total_pct) || '—' }}</div>
       </div>
     </div>
