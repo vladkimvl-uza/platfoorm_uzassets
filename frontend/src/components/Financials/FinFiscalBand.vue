@@ -33,9 +33,15 @@ onMounted(ensureFinancialsCss);
 const subFmt = computed(() => fmtSubsidySum(props.subsidiesTotal ?? null));
 const spoFmt = computed(() => fmtSubsidySum(props.sponsorshipTotal ?? null));
 
-function fmtBln(v: number | null | undefined): string {
-  if (v == null || !isFinite(v)) return "—";
-  return v.toLocaleString("ru", { maximumFractionDigits: 1 });
+// Налоги приходят в МЛРД сум (аудит P1: бэк больше не делит на 1e3 —
+// раньше «28,1 млрд» на карточке было на самом деле 28,1 трлн).
+// ≥1000 млрд показываем в трлн — читаемо для министерского дашборда.
+function fmtAmount(v: number | null | undefined): { text: string; unit: string } {
+  if (v == null || !isFinite(v)) return { text: "—", unit: "млрд сум" };
+  if (Math.abs(v) >= 1000) {
+    return { text: (v / 1000).toLocaleString("ru", { maximumFractionDigits: 1 }), unit: "трлн сум" };
+  }
+  return { text: v.toLocaleString("ru", { maximumFractionDigits: 1 }), unit: "млрд сум" };
 }
 function fmtYoY(v: number | null | undefined): string {
   if (v == null || isNaN(v)) return "";
@@ -68,19 +74,19 @@ function yoyColor(v: number | null | undefined): string {
       <!-- Налог на прибыль -->
       <div class="ffb-kpi" style="--accent:#3B82F6; --d:140ms">
         <div class="ffb-lbl">Налог на прибыль</div>
-        <div class="ffb-val">{{ fmtBln(taxKpi?.income_tax) }}<span class="ffb-u">млрд сум</span></div>
+        <div class="ffb-val">{{ fmtAmount(taxKpi?.income_tax).text }}<span class="ffb-u">{{ fmtAmount(taxKpi?.income_tax).unit }}</span></div>
         <div class="ffb-sub" :style="{ color: yoyColor(taxKpi?.yoy_income_tax_pct) }">{{ fmtYoY(taxKpi?.yoy_income_tax_pct) || '—' }}</div>
       </div>
       <!-- НДС -->
       <div class="ffb-kpi" style="--accent:#1D9E75; --d:210ms">
         <div class="ffb-lbl">НДС (12% выручки)</div>
-        <div class="ffb-val">{{ fmtBln(taxKpi?.vat) }}<span class="ffb-u">млрд сум</span></div>
+        <div class="ffb-val">{{ fmtAmount(taxKpi?.vat).text }}<span class="ffb-u">{{ fmtAmount(taxKpi?.vat).unit }}</span></div>
         <div class="ffb-sub" :style="{ color: yoyColor(taxKpi?.yoy_vat_pct) }">{{ fmtYoY(taxKpi?.yoy_vat_pct) || '—' }}</div>
       </div>
       <!-- Итоговый налоговый вклад -->
       <div class="ffb-kpi ffb-hl" style="--accent:#EF9F27; --d:280ms">
         <div class="ffb-lbl">Итоговый налоговый вклад</div>
-        <div class="ffb-val">{{ fmtBln(taxKpi?.total) }}<span class="ffb-u">млрд сум</span></div>
+        <div class="ffb-val">{{ fmtAmount(taxKpi?.total).text }}<span class="ffb-u">{{ fmtAmount(taxKpi?.total).unit }}</span></div>
         <div class="ffb-sub" :style="{ color: yoyColor(taxKpi?.yoy_total_pct) }">{{ fmtYoY(taxKpi?.yoy_total_pct) || '—' }}</div>
       </div>
     </div>

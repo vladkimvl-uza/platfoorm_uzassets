@@ -776,7 +776,8 @@ async def bulk_create_financials(
             "standard": std,
             "report_type": rt,
             "currency": str(row.currency or "").strip().upper() or body.default_currency,
-            "unit_scale": 1000,
+            # канон платформы: value в МЛРД сум → unit_scale=1e9 (аудит P1)
+            "unit_scale": 1_000_000_000,
             "article": row.article,
             "value": _to_decimal(row.value),
         })

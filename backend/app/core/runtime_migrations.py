@@ -240,6 +240,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_agency_rating_history(conn)
             await _seed_company_inns(conn)
             await _patch_committee_meetings(conn)
+            await _patch_financial_unit_scale(conn)
             await _bump_alembic(conn)
     except Exception as e:
         # Never crash the app on a self-heal failure - just log and continue.
@@ -1125,6 +1126,27 @@ _CMTG_SEED_2026_Q1: tuple[tuple[str, int | None, int | None, int | None, int | N
     ("200837914", 5, 42, 1, 2, 1, 1),
     ("201051951", 2, None, 0, 0, 0, 0),
 )
+
+
+async def _patch_financial_unit_scale(conn) -> None:
+    """Аудит фин-источников P1 (июль 2026): FinancialLine.value хранится в
+    МЛРД сум у ВСЕХ отчётов (проверено данными: НГМК 2025 NSBU revenue=135810
+    при unit_scale=1000 vs IFRS revenue=136145 при unit_scale=1e9 — одинаковый
+    масштаб, разные флаги). unit_scale=1000 у ~440 отчётов — неверный флаг
+    эпохи раннего импорта; читатели `value*unit_scale` (company_library,
+    finmodel broadcast) получали цифры в 1e6 раз меньше истины. Данные НЕ
+    трогаем — нормализуем ФЛАГ. Идемпотентно."""
+    # Только доказанно-неверный флаг 1000 (в БД существуют лишь 1000 и 1e9);
+    # гипотетический будущий легитимный 1e6-импорт не трогаем.
+    res = await conn.execute(text(
+        "UPDATE financial_reports SET unit_scale = 1000000000 "
+        "WHERE unit_scale = 1000"
+    ))
+    if res.rowcount:
+        logger.info(
+            "[runtime_migration] normalized unit_scale → 1e9 on %d financial_reports",
+            res.rowcount,
+        )
 
 
 async def _patch_committee_meetings(conn) -> None:

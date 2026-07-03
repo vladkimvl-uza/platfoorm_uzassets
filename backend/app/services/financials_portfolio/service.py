@@ -302,7 +302,9 @@ class FinancialsPortfolioService:
             if not canon:
                 continue
             try:
-                value_raw = float(r.val) * 1_000_000_000.0
+                # Аудит P1: масштаб — из unit_scale отчёта (канон 1e9 = млрд),
+                # а не хардкод ×1e9: будущие отличные масштабы не соврут.
+                value_raw = float(r.val) * float(getattr(r, "scale", None) or 1_000_000_000)
             except (TypeError, ValueError):
                 continue
 

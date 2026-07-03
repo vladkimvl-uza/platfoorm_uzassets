@@ -12,16 +12,20 @@ from __future__ import annotations
 from sqlalchemy import func
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
+from app.models.bp_kpi import BP_METRIC_KEYS as _BP_METRIC_KEYS
+from app.models.bp_kpi import BP_PERIODS as _BP_PERIODS
 from app.models.bp_kpi import BpRecord
 from app.models.moderation import ModerationSubmission
 from app.models.user import User
 from app.schemas.bp_kpi import BpBulkUpsert
 from app.services.moderation_service import register_apply_handler
 
-# Mirror the validation lists from routes/business_plan.py
-BP_PERIODS = {"year", "q1", "q2", "q3", "q4"}
-BP_METRIC_KEYS = {"revenue", "ebitda", "net_income", "capex", "opex", "fcf",
-                  "debt", "equity", "assets", "cash", "headcount"}
+# P0 (аудит фин-источников): раньше здесь были самодельные списки с «year»
+# вместо канонического «annual» (CHECK-констрейнт bp_records!) и 11 метрик
+# вместо 22 — одобренная заявка МОЛЧА теряла все годовые ячейки и половину
+# метрик. Используем канонические константы модели — единственный источник.
+BP_PERIODS = set(_BP_PERIODS)          # {"annual", "q1".."q4"}
+BP_METRIC_KEYS = set(_BP_METRIC_KEYS)  # все 22 канонические метрики БП
 
 
 async def apply(db, *, sub: ModerationSubmission, user: User) -> dict:

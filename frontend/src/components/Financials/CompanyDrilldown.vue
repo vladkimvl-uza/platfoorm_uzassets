@@ -331,45 +331,51 @@ const yearOptions = computed<number[]>(() => {
 
 // Денежный поток из HLF: CFO / CapEx / Дивиденды / CFI / CFF (если строки есть) +
 // FCF = CFO − |CapEx|. Возвращаем {field: {yearStr: value}} в той же единице (млрд).
+// Аудит P1 — паритет с бэк-матчером _extract_hlf_cash (financials_portfolio):
+//  1) иглы включают реальные метки БД «Operating/Investing/Financing Cash Flow»
+//     (старый список их пропускал → CFI/CFF терялись);
+//  2) индекс values мапится на годы СЕКЦИИ (top-level years — union по всем
+//     секциям, может быть длиннее → сдвиг годов);
+//  3) subtotal (итог секции) приоритетнее обычной line.
 function extractHlfCash(hlf: unknown): Record<string, Record<string, number>> {
   const out: Record<string, Record<string, number>> = {};
-  const h = hlf as { years?: number[]; sections?: { rows?: HlfRowLike[] }[] } | null;
-  if (!h || !Array.isArray(h.years) || !Array.isArray(h.sections)) return out;
-  const rows: HlfRowLike[] = h.sections.flatMap((s) => s.rows || []);
+  const h = hlf as { years?: number[]; sections?: { years?: number[]; rows?: HlfRowLike[] }[] } | null;
+  if (!h || !Array.isArray(h.sections)) return out;
+  const topYears = Array.isArray(h.years) ? h.years : [];
   const M: Record<string, string[]> = {
-    cfo: ["operating cash flow", "cash from operating", "net cash from operating", "cash generated from operating", "cash flows from operating", "поток от операц", "операционн"],
-    cfi: ["cash from investing", "net cash used in investing", "cash flows from investing", "поток от инвест", "инвестиционн"],
-    cff: ["cash from financing", "net cash from financing", "cash flows from financing", "поток от фин", "финансов"],
+    cfo: ["operating cash flow", "net cash from operating", "cash from operating", "cash generated from operating", "cash flows from operating", "поток от операц", "операционн"],
+    cfi: ["investing cash flow", "net cash used in investing", "cash from investing", "cash flows from investing", "поток от инвест", "инвестиционн"],
+    cff: ["financing cash flow", "net cash from financing", "cash from financing", "cash flows from financing", "поток от фин", "финансиров"],
     cfi_capex: ["purchase of ppe", "purchases of property", "capital expenditures", "capex", "капитальные затраты", "капитал қўйилмалар", "additions to property"],
-    dividendsPaid: ["dividends paid", "тўланган дивиденд", "дивиденды выпл", "дивиденды упл"],
+    dividendsPaid: ["dividends paid", "тўланган дивиденд", "дивиденды выпл", "дивиденды упл", "дивиденд"],
   };
-  const find = (key: string): HlfRowLike | null => {
-    for (const p of M[key]) {
-      const lp = p.toLowerCase();
-      const f = rows.find((r) => r && r.type !== "section_header" && r.type !== "subheader" &&
-        (String(r.label || "").toLowerCase().includes(lp) || String(r.mapping || "").toLowerCase().includes(lp)));
-      if (f) return f;
-    }
-    return null;
-  };
-  const rCfo = find("cfo"), rCfi = find("cfi"), rCff = find("cff"), rCapex = find("cfi_capex"), rDiv = find("dividendsPaid");
   const put = (field: string, year: number, v: unknown) => {
     const n = Number(v);
     if (v == null || !isFinite(n)) return;
     (out[field] ||= {})[String(year)] = n;
   };
-  h.years.forEach((year, yi) => {
-    const cfo = rCfo?.values?.[yi];
-    const capex = rCapex?.values?.[yi];
-    put("cfo", year, cfo);
-    put("cfi", year, rCfi?.values?.[yi]);
-    put("cff", year, rCff?.values?.[yi]);
-    put("cfi_capex", year, capex);
-    put("dividendsPaid", year, rDiv?.values?.[yi]);
-    if (cfo != null && isFinite(Number(cfo))) {
-      put("freeCashFlow", year, Number(cfo) - Math.abs(capex != null ? Number(capex) : 0));
+  for (const key of Object.keys(M)) {
+    let chosen: { row: HlfRowLike; years: number[]; subtotal: boolean } | null = null;
+    for (const sec of h.sections) {
+      const rows = sec?.rows || [];
+      const secYears = Array.isArray(sec?.years) && sec.years.length ? sec.years : topYears;
+      for (const r of rows) {
+        if (!r || r.type === "section_header" || r.type === "subheader") continue;
+        const hay = (String(r.label || "") + " " + String(r.mapping || "")).toLowerCase();
+        if (!M[key].some((p) => hay.includes(p))) continue;
+        const isSub = r.type === "subtotal";
+        if (!chosen || (isSub && !chosen.subtotal)) chosen = { row: r, years: secYears, subtotal: isSub };
+        if (chosen.subtotal) break;
+      }
+      if (chosen?.subtotal) break;
     }
-  });
+    if (chosen) chosen.years.forEach((year, yi) => put(key, year, chosen!.row.values?.[yi]));
+  }
+  // FCF = CFO − |CapEx| по годам, где есть CFO
+  for (const [ys, cfoV] of Object.entries(out["cfo"] || {})) {
+    const capex = out["cfi_capex"]?.[ys];
+    put("freeCashFlow", Number(ys), cfoV - Math.abs(capex != null ? capex : 0));
+  }
   return out;
 }
 const HLF_FALLBACK = new Set(["cfo", "cfi", "cff", "cfi_capex", "dividendsPaid", "freeCashFlow"]);

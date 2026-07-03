@@ -645,8 +645,11 @@ async function loadKpi() {
     // as a gray reference column under each indicator.
     const anyFact = (data || []).some((mgr: any) =>
       (mgr.indicators || []).some((ind: any) => {
-        const f = ind.fact_year;
-        const p = ind.plan_year;
+        // Аудит P1: у связанных (bp_metric_key) строк факт живёт в resolved-полях
+        // из БП/НСБУ — иначе компания с полностью связанными KPI ложно уходила
+        // в прошлогодний fallback.
+        const f = ind.bp_metric_key && ind.bp_fact_resolved != null ? ind.bp_fact_resolved : ind.fact_year;
+        const p = ind.bp_metric_key && ind.bp_plan_resolved != null ? ind.bp_plan_resolved : ind.plan_year;
         const fn = typeof f === "string" ? parseFloat(f) : (f as number | null);
         const pn = typeof p === "string" ? parseFloat(p) : (p as number | null);
         return fn != null && !Number.isNaN(fn) && pn != null && pn !== 0;
@@ -1345,8 +1348,14 @@ const kpiManagerViews = computed<KpiManagerView[]>(() => {
     let attentionCount = 0;
     const indicators: KpiIndicatorView[] = (mgr.indicators || []).map(ind => {
       const w = num(ind.weight);
-      const plan = maybeNum(ind.plan_year);
-      const fact = maybeNum(ind.fact_year);
+      // Аудит P1: связанный (bp_metric_key) индикатор зеркалит план/факт из
+      // БП/НСБУ — resolved приоритетнее статической копии (иначе связанные
+      // строки показывали пусто/0, а сводка /kpi считала верно).
+      const linked = !!(ind as any).bp_metric_key;
+      const plan = (linked && (ind as any).bp_plan_resolved != null)
+        ? maybeNum((ind as any).bp_plan_resolved) : maybeNum(ind.plan_year);
+      const fact = (linked && (ind as any).bp_fact_resolved != null)
+        ? maybeNum((ind as any).bp_fact_resolved) : maybeNum(ind.fact_year);
       const indHasFact = fact !== null && plan !== null && plan !== 0;
       let ratio: number | null = null;
       if (indHasFact) {

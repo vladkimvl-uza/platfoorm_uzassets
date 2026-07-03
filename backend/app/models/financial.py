@@ -37,8 +37,12 @@ class FinancialReport(Base, UUIDMixin, TimestampMixin):
     # Currency: UZS | USD | EUR | RUB
     currency: Mapped[str] = mapped_column(String(8), default="UZS", nullable=False)
 
-    # Unit scale: 1 | 1000 | 1000000 (mln)
-    unit_scale: Mapped[int] = mapped_column(Integer, default=1000, nullable=False)
+    # Unit scale: множитель value → абсолютные сумы. Канон платформы:
+    # value хранится в МЛРД → unit_scale=1e9 (аудит фин-источников P1;
+    # старый default 1000 был неверным флагом — данные всегда были в млрд).
+    unit_scale: Mapped[int] = mapped_column(
+        Integer, default=1_000_000_000, nullable=False,
+    )
 
     # Source of data: import | manual | api | excel-confirm:<filename>
     source: Mapped[str] = mapped_column(String(255), default="manual", nullable=False)

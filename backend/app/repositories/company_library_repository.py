@@ -177,6 +177,10 @@ class CompanyLibraryRepository:
             .where(FinancialReport.company_id.in_(company_ids))
             .where(FinancialReport.report_type.in_(("PL", "BS")))
             .where(FinancialReport.standard == "IFRS")
+            # аудит P1: summary-слой FY — без detailed-дублей (agmk/utg имели
+            # оба слоя за один год → библиотека брала недетерминированный)
+            .where(FinancialReport.is_detailed.is_(False))
+            .where(FinancialReport.quarter.is_(None))
         )
         return list((await self.session.execute(q)).scalars().all())
 

@@ -51,14 +51,23 @@ function periodKey(): "year" | "q1" | "q2" | "q3" | "q4" {
 
 function planValue(ind: KpiIndicator, p: string): number | null {
   const k = p === "annual" ? "year" : p;
-  if (k === "year") return ind.plan_year != null ? num(ind.plan_year) : null;
+  if (k === "year") {
+    // Аудит P1: связанный (bp_metric_key) индикатор зеркалит план из БП/НСБУ —
+    // resolved-значение приоритетнее статической копии (раньше связанные строки
+    // показывали 0/прошлогоднее, при этом серверная сводка считала верно).
+    if (ind.bp_metric_key && ind.bp_plan_resolved != null) return num(ind.bp_plan_resolved);
+    return ind.plan_year != null ? num(ind.plan_year) : null;
+  }
   const v = (ind as unknown as Record<string, unknown>)[`${k}_plan`];
   return v != null ? num(v as string | number) : null;
 }
 
 function factValue(ind: KpiIndicator, p: string): number | null {
   const k = p === "annual" ? "year" : p;
-  if (k === "year") return ind.fact_year != null ? num(ind.fact_year) : null;
+  if (k === "year") {
+    if (ind.bp_metric_key && ind.bp_fact_resolved != null) return num(ind.bp_fact_resolved);
+    return ind.fact_year != null ? num(ind.fact_year) : null;
+  }
   const v = (ind as unknown as Record<string, unknown>)[`${k}_fact`];
   return v != null ? num(v as string | number) : null;
 }

@@ -100,6 +100,9 @@ class CompaniesRepository:
     ) -> dict[str, tuple[int, Optional[float]]]:
         if not company_ids:
             return {}
+        # P0 (аудит фин-источников): line_code в БД — 'revenue' (lowercase),
+        # раньше искали 'REVENUE' → latest_revenue был вечно пуст. Плюс дубли
+        # detailed-слоя отфильтрованы (is_detailed=False — summary-канон).
         fin_q = (
             select(
                 FinancialReport.company_id,
@@ -109,14 +112,20 @@ class CompaniesRepository:
             .join(FinancialLine, FinancialLine.report_id == FinancialReport.id)
             .where(
                 FinancialReport.company_id.in_(company_ids),
-                FinancialLine.line_code == "REVENUE",
+                FinancialReport.report_type == "PL",
+                FinancialReport.is_detailed.is_(False),
+                FinancialLine.line_code == "revenue",
             )
             .order_by(FinancialReport.company_id, desc(FinancialReport.year))
         )
         out: dict[str, tuple[int, Optional[float]]] = {}
         for cid, year, value in (await self.session.execute(fin_q)).all():
-            if cid not in out:
-                out[str(cid)] = (year, value)
+            key = str(cid)
+            # первый ряд на компанию = самый свежий год (сортировка year DESC);
+            # раньше сравнивали сырой UUID с str-ключами → всегда перезапись,
+            # и «последний» (самый старый) год побеждал.
+            if key not in out:
+                out[key] = (year, value)
         return out
 
     async def latest_gov_scores_by_companies(

@@ -270,6 +270,12 @@ class FinancialsHlfService:
         repo = FinancialsRepository(db)
         cos = await repo.list_all_companies()
         co_by_code = {c.code.lower(): c for c in cos}
+        # P0 (аудит фин-источников): per-company scope. Раньше импорт проверял
+        # только financials.edit и писал во ВСЕ компании, чьи коды совпали с
+        # листами — company-scoped пользователь мог перезаписать HLF чужих
+        # компаний. Теперь чужие листы пропускаются (как в PUT/GET).
+        from app.core.access import allowed_company_ids
+        scope_ids = await allowed_company_ids(db, user)
 
         now_iso = datetime.utcnow().isoformat()
         summary_log: list[str] = []
@@ -283,6 +289,9 @@ class FinancialsHlfService:
             co = co_by_code.get(sn_lower)
             if not co:
                 skipped_sheets.append(f"{sheet_name} (no company)")
+                continue
+            if scope_ids is not None and co.id not in scope_ids:
+                skipped_sheets.append(f"{sheet_name} (нет доступа к компании)")
                 continue
             ws = wb[sheet_name]
             try:

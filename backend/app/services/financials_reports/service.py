@@ -433,7 +433,8 @@ class FinancialsReportsService:
                     company_id=cid, year=year, quarter=quarter,
                     standard=standard, report_type=rtype,
                     currency=grp[0].get("currency") or "UZS",
-                    unit_scale=grp[0].get("unit_scale") or 1000,
+                    # канон платформы: value в МЛРД → unit_scale=1e9 (аудит P1)
+                    unit_scale=grp[0].get("unit_scale") or 1_000_000_000,
                     source="import",
                 )
                 repo.add(report)

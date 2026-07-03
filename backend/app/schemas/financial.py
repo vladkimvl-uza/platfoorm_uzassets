@@ -51,7 +51,7 @@ class FinancialReportFull(BaseModel):
     standard: str  # IFRS | NSBU
     report_type: str  # PL | BS | CF
     currency: str = "UZS"
-    unit_scale: int = 1000  # 1=units, 1000=thousands, 1000000=millions
+    unit_scale: int = 1_000_000_000  # множитель value→сумы; канон = млрд (1e9)
     source: str = "manual"
     is_audited: bool = False
     notes: Optional[str] = None
@@ -80,7 +80,7 @@ class FinancialReportSavePayload(BaseModel):
     standard: str = Field("IFRS", pattern="^(IFRS|NSBU)$")
     report_type: str = Field("PL", pattern="^(PL|BS|CF)$")
     currency: str = Field("UZS", min_length=3, max_length=8)
-    unit_scale: int = Field(1000, ge=1)
+    unit_scale: int = Field(1_000_000_000, ge=1)   # канон = млрд (1e9)
     source: str = Field("manual", min_length=1, max_length=32)
     is_audited: bool = False
     notes: Optional[str] = None
@@ -125,7 +125,7 @@ class FinancialReportCreatePayload(BaseModel):
     standard: str = Field("IFRS", pattern="^(IFRS|NSBU)$")
     report_type: str = Field("PL", pattern="^(PL|BS|CF)$")
     currency: str = Field("UZS", min_length=3, max_length=8)
-    unit_scale: int = Field(1000, ge=1)
+    unit_scale: int = Field(1_000_000_000, ge=1)   # канон = млрд (1e9)
     source: str = Field("manual", min_length=1, max_length=32)
 
 

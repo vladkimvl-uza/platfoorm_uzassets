@@ -295,6 +295,9 @@ async def build_bp_tracker_block(
                     FinancialReport.year == target_year,
                     FinancialReport.standard == "NSBU",
                     FinancialReport.report_type == "PL",
+                    # аудит P1: summary-слой FY (без detailed-дублей/кварталов)
+                    FinancialReport.is_detailed.is_(False),
+                    FinancialReport.quarter.is_(None),
                     FinancialLine.line_code == nsbu_line,
                 )
             )
@@ -605,13 +608,14 @@ async def build_tax_contribution_block(
     prev_year = year - 1
 
     async def _sum_by_co(target_year: int, std: str, line_code: str) -> Dict[Any, float]:
-        """Sum of values per company_id, в условных «МЛН сум» (legacy convention).
+        """Sum of values per company_id, в МЛРД сум.
 
-        Pack 7.9h FINDINGS: в БД value для revenue ~135809 у крупнейшей SOE — это
-        135.8 млрд сум. То есть `value` хранится в **миллионах сум**. Поле
-        `unit_scale` существует но используется непоследовательно (112 reports
-        со scale=1000, 6 со scale=1e9) — игнорируем его для consistency со старой
-        логикой; принимаем convention: 1 единица value = 1 млн сум.
+        Аудит фин-источников P1 (июль 2026): проверено данными — value хранится
+        в МЛРД сум у всех отчётов (НГМК 2025 revenue=135810 млрд = 135.8 трлн;
+        старый комментарий «млн» интерпретировал масштаб неверно ×1000, из-за
+        чего карточки показывали «28,1 млрд» вместо 28,1 трлн). unit_scale
+        нормализован к 1e9 runtime-миграцией. Плюс фильтр summary-слоя:
+        detailed-дубли (agmk/utg IFRS) раньше УДВАИВАЛИ суммы в IFRS-фолбэке.
         """
         q = (
             select(FinancialReport.company_id, func.sum(FinancialLine.value))
@@ -621,6 +625,8 @@ async def build_tax_contribution_block(
                     FinancialReport.year == target_year,
                     FinancialReport.standard == std,
                     FinancialReport.report_type == "PL",
+                    FinancialReport.is_detailed.is_(False),
+                    FinancialReport.quarter.is_(None),
                     FinancialLine.line_code == line_code,
                 )
             )
@@ -692,14 +698,10 @@ async def build_tax_contribution_block(
     yoy_tax = ((sum_tax / sum_tax_prev) - 1.0) * 100 if sum_tax_prev > 0 else None
     yoy_vat = ((sum_vat / sum_vat_prev) - 1.0) * 100 if sum_vat_prev > 0 else None
 
-    # revert to legacy-original convention per user feedback.
-    # В легасие `total` интерпретируется в специфичной convention где
-    # `total_trln = total / 1e3` даёт 28% от бюджета 350 (трлн)
-    # — то есть SOE-портфель ≈ 28% бюджета РУз, что соответствует реальности.
-    # Math purity (98.7 млрд / 350 трлн = 0.028%) даёт цифру которая не
-    # отражает фактический вклад крупнейших госкомпаний в госбюджет.
-    # Legacy convention сохраняется для consistency с legacy интерпретацией.
-    total_trln = total / 1e3   # legacy convention — gives 28.2% for SOE portfolio
+    # value = МЛРД сум (аудит P1) → total в млрд; млрд/1e3 = трлн. Никакой
+    # «legacy convention»: 73 459 млрд = 73.5 трлн ≈ 21-28% бюджета РУз —
+    # математика и реальность совпадают без поправочных коэффициентов.
+    total_trln = total / 1e3
 
     # бюджет читаем из year_registry (admin-editable). Если в БД
     # колонка пустая (например миграция ещё не накатилась) — используем
@@ -723,7 +725,8 @@ async def build_tax_contribution_block(
 
     budget_share_pct = (total_trln / budget_trln * 100) if budget_trln else None
 
-    # per_company в МЛН сум — конвертируем в МЛРД для отображения (/1e3)
+    # per_company уже в МЛРД сум (аудит P1) — отдаём как есть, фронт
+    # форматирует ≥1000 млрд как трлн. Старый /1e3 занижал подписи ×1000.
     top_5_pairs = sorted(per_company.items(), key=lambda x: -x[1])[:5]
     top_payers: List[ExecTaxTopPayer] = []
     for co_id, amt in top_5_pairs:
@@ -732,7 +735,7 @@ async def build_tax_contribution_block(
             company_id=co_id,
             name=co_id_to_name.get(co_id, "—"),
             sector=co_id_to_sector.get(co_id, "other"),
-            amount=amt / 1e3,     # млн → млрд
+            amount=amt,           # млрд сум
             share_pct=share,
         ))
 
@@ -752,9 +755,9 @@ async def build_tax_contribution_block(
         cos_count=len(cos_seen),
         missing_companies=missing_companies,
         kpi=ExecTaxKpi(
-            income_tax=sum_tax / 1e3,         # млн → млрд
-            vat=sum_vat / 1e3,
-            total=total / 1e3,
+            income_tax=sum_tax,               # млрд сум (аудит P1: без /1e3)
+            vat=sum_vat,                      # млрд сум
+            total=total,                      # млрд сум
             yoy_total_pct=yoy_total,
             yoy_income_tax_pct=yoy_tax,
             yoy_vat_pct=yoy_vat,

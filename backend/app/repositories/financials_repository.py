@@ -233,6 +233,11 @@ class FinancialsRepository:
                 FinancialReport.standard == standard,
                 FinancialReport.year.in_(year_list),
                 FinancialReport.report_type.in_(["PL", "BS", "CF"]),
+                # Аудит фин-источников P1: канон портфеля = summary-слой FY.
+                # Без фильтра detailed-отчёты (agmk/utg/nur IFRS) дублировали
+                # summary и «побеждал max|value|» — недетерминированные цифры.
+                FinancialReport.is_detailed.is_(False),
+                FinancialReport.quarter.is_(None),
             )
         )
         if allowed_company_ids is not None:
