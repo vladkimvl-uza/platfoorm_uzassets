@@ -45,6 +45,27 @@ def _load_seed() -> dict[str, Any]:
         return {"energyPrices": {}, "companies": {}}
 
 
+_SEED_NORMS: Optional[dict[str, dict[str, dict[str, Any]]]] = None
+
+
+def _seed_norm_map() -> dict[str, dict[str, dict[str, Any]]]:
+    """Каталожные нормы расхода {code: {product_name: {fuel: norm}}} (ленивый кэш).
+    Для бэкфилла периодов, засеянных до появления поля `norm`."""
+    global _SEED_NORMS
+    if _SEED_NORMS is None:
+        m: dict[str, dict[str, dict[str, Any]]] = {}
+        for code, blk in (_load_seed().get("companies", {}) or {}).items():
+            byname: dict[str, dict[str, Any]] = {}
+            for p in (blk.get("products") or []):
+                nm = str(p.get("name", "")).strip()
+                if nm and p.get("norm"):
+                    byname[nm] = p["norm"]
+            if byname:
+                m[code] = byname
+        _SEED_NORMS = m
+    return _SEED_NORMS
+
+
 def _num(v: Any) -> Optional[float]:
     try:
         f = float(v)
@@ -111,7 +132,23 @@ class UnitCostService:
         per.setdefault("energyPrices", {})
         per.setdefault("companies", {})
         per.setdefault("world", dict(_DEFAULT_WORLD))
+        self._backfill_norms(per)
         return key, per, seeded
+
+    @staticmethod
+    def _backfill_norms(per: dict[str, Any]) -> None:
+        """Проставить каталожную норму продуктам, у которых её нет (периоды,
+        засеянные до появления поля `norm`). Не трогает уже заданные нормы."""
+        nm_map = _seed_norm_map()
+        for code, block in (per.get("companies", {}) or {}).items():
+            byname = nm_map.get(code)
+            if not byname:
+                continue
+            for p in (block.get("products") or []):
+                if not p.get("norm"):
+                    seed_norm = byname.get(str(p.get("name", "")).strip())
+                    if seed_norm:
+                        p["norm"] = dict(seed_norm)
 
     async def available_periods(self, db: AsyncSession) -> list[str]:
         raw = await self.load_raw(db)
@@ -122,6 +159,7 @@ class UnitCostService:
         Brent/медь — нет надёжного keyless-источника (остаются из кэша/ручные).
         Всё в try/except: капризный интернет VM не должен ронять overview."""
         out: dict[str, Any] = {}
+        live: list[str] = []  # какие поля реально получены из живого источника
         try:
             import httpx
             async with httpx.AsyncClient(timeout=4.0, follow_redirects=True) as c:
@@ -130,6 +168,7 @@ class UnitCostService:
                     for it in (r.json() or []):
                         if it.get("Ccy") == "USD":
                             out["usd_rate"] = round(float(it["Rate"]), 2)
+                            live.append("usd_rate")
                             break
                 except Exception:
                     pass
@@ -139,10 +178,13 @@ class UnitCostService:
                     xau = float(r.json()["items"][0]["xauPrice"])
                     if xau > 0:
                         out["gold"] = round(xau, 1)
+                        live.append("gold")
                 except Exception:
                     pass
         except Exception:
             pass
+        # Brent/медь: надёжного keyless-источника нет → остаются ручными/дефолтными
+        out["_live_fields"] = live
         return out
 
     async def _world_live(self, db: AsyncSession, raw: dict[str, Any]) -> dict[str, Any]:
@@ -158,16 +200,20 @@ class UnitCostService:
                 stale = True
         if stale:
             fetched = await self._fetch_world_live()
+            live_fields = fetched.pop("_live_fields", []) if isinstance(fetched, dict) else []
             if fetched:
                 wl = {**_DEFAULT_WORLD, **wl, **fetched,
-                      "updated_at": datetime.now(UTC).isoformat(), "source": "live"}
+                      "updated_at": datetime.now(UTC).isoformat(),
+                      "source": "live" if live_fields else "default",
+                      "live_fields": live_fields}
                 raw["world_live"] = wl
                 try:
                     await self._write_raw(db, raw)
                 except Exception:
                     pass
         if not wl:
-            wl = {**_DEFAULT_WORLD, "source": "default"}
+            wl = {**_DEFAULT_WORLD, "source": "default", "live_fields": []}
+        wl.setdefault("live_fields", [])
         return wl
 
     # ─── Расчёт ──────────────────────────────────────────────────────
@@ -188,17 +234,34 @@ class UnitCostService:
         return out
 
     def _calc_product(self, p: dict[str, Any], pm: dict[str, float]) -> dict[str, Any]:
-        energy = p.get("energy") or {}
+        energy = p.get("energy") or {}     # фактический удельный расход
+        norm = p.get("norm") or {}         # норма расхода (плановый удельный)
         energy_cost = 0.0
         energy_breakdown: list[dict[str, Any]] = []
+        overrun_unit = 0.0                 # сум/ед: (факт − норма)×цена, + перерасход / − экономия
+        overrun_breakdown: list[dict[str, Any]] = []
+        has_norm = False
         for f in FUELS:
-            norm = _num(energy.get(f))
-            if norm is None or f not in pm:
-                continue
-            c = norm * pm[f]
-            energy_cost += c
-            energy_breakdown.append({"fuel": f, "label": FUEL_LABELS[f],
-                                     "norm": round(norm, 4), "cost": round(c, 2)})
+            act = _num(energy.get(f))
+            nrm = _num(norm.get(f))
+            price = pm.get(f)
+            if act is not None and price is not None:
+                c = act * price
+                energy_cost += c
+                energy_breakdown.append({"fuel": f, "label": FUEL_LABELS[f],
+                                         "norm": round(act, 4), "cost": round(c, 2)})
+            # отклонение от нормы (нужны факт, норма и цена)
+            if act is not None and nrm is not None:
+                has_norm = True
+                if price is not None:
+                    delta = act - nrm
+                    dcost = delta * price
+                    overrun_unit += dcost
+                    overrun_breakdown.append({
+                        "fuel": f, "label": FUEL_LABELS[f],
+                        "actual": round(act, 4), "norm_val": round(nrm, 4),
+                        "delta": round(delta, 4), "cost": round(dcost, 2),
+                    })
         comps = p.get("components") or []
         comp_out: list[dict[str, Any]] = []
         comp_cost = 0.0
@@ -208,6 +271,7 @@ class UnitCostService:
             comp_out.append({"name": c.get("name", ""), "value": round(v, 2)})
         unit_cost = energy_cost + comp_cost
         output = _num(p.get("output")) or 0.0
+        overrun_cost = round(overrun_unit * output, 2) if (output > 0 and has_norm) else None
         return {
             "name": p.get("name", ""), "unit": p.get("unit", ""),
             "output": round(output, 2),
@@ -218,8 +282,13 @@ class UnitCostService:
             "total_cost": round(unit_cost * output, 2) if output > 0 else None,
             "energy_breakdown": energy_breakdown,
             "energy": {f: _num(energy.get(f)) for f in FUELS if _num(energy.get(f)) is not None},
+            "norm": {f: _num(norm.get(f)) for f in FUELS if _num(norm.get(f)) is not None},
             "components": comp_out,
             "has_energy": bool(energy_breakdown),
+            "has_norm": has_norm,
+            "overrun_unit": round(overrun_unit, 2) if has_norm else None,
+            "overrun_cost": overrun_cost,
+            "overrun_breakdown": overrun_breakdown,
         }
 
     async def overview(
@@ -253,6 +322,8 @@ class UnitCostService:
         pf_total = 0.0
         pf_energy = 0.0
         pf_import = 0.0
+        pf_overrun = 0.0
+        pf_has_overrun = False
         prod_count = 0
         for code, name, cid, sector, color in rows:
             if scope is not None and str(cid) not in scope:
@@ -262,6 +333,8 @@ class UnitCostService:
             prod_count += len(prods)
             c_total = sum(p["total_cost"] for p in prods if p["total_cost"] is not None)
             c_energy = sum(p["energy_cost"] * p["output"] for p in prods if p["output"])
+            c_overrun = sum(p["overrun_cost"] for p in prods if p["overrun_cost"] is not None)
+            c_has_overrun = any(p["overrun_cost"] is not None for p in prods)
             for p in prods:  # энергомикс по видам топлива (для донат-чарта)
                 if p["output"] > 0:
                     for eb in p["energy_breakdown"]:
@@ -279,6 +352,9 @@ class UnitCostService:
             pf_total += c_total
             pf_energy += c_energy
             pf_import += imp_cost
+            if c_has_overrun:
+                pf_overrun += c_overrun
+                pf_has_overrun = True
             filled = [p for p in prods if p["output"] > 0]
             companies.append({
                 "code": code, "name": name, "sector": sector or "—",
@@ -289,6 +365,7 @@ class UnitCostService:
                 "energy_cost": round(c_energy, 1) if c_energy else None,
                 "energy_share": (round(c_energy / c_total * 100, 1) if c_total > 0 else None),
                 "import_cost": round(imp_cost, 1) if imp_cost else None,
+                "overrun_cost": round(c_overrun, 1) if c_has_overrun else None,
                 "imports": imports_out,
                 "comments": block.get("comments") or [],
                 "products": prods,
@@ -316,6 +393,7 @@ class UnitCostService:
                 "components_cost": (round(pf_total - pf_energy, 1) if pf_total > 0 else None),
                 "energy_share": (round(pf_energy / pf_total * 100, 1) if pf_total > 0 else None),
                 "import_cost": round(pf_import, 1) if pf_import else None,
+                "overrun_cost": round(pf_overrun, 1) if pf_has_overrun else None,
                 "company_count": len(companies),
                 "product_count": prod_count,
                 "priced_count": sum(c["priced_count"] for c in companies),
@@ -398,10 +476,14 @@ class UnitCostService:
         clean_products: list[dict[str, Any]] = []
         for p in products:
             energy = {}
+            norm = {}
             for f in FUELS:
                 v = _num((p.get("energy") or {}).get(f))
                 if v is not None:
                     energy[f] = v
+                nv = _num((p.get("norm") or {}).get(f))
+                if nv is not None:
+                    norm[f] = nv
             comps = []
             for c in (p.get("components") or []):
                 comps.append({"name": str(c.get("name", "")).strip()[:80],
@@ -410,7 +492,7 @@ class UnitCostService:
                 "name": str(p.get("name", "")).strip()[:120],
                 "unit": str(p.get("unit", "")).strip()[:32],
                 "output": _num(p.get("output")) or 0.0,
-                "energy": energy, "components": comps,
+                "energy": energy, "norm": norm, "components": comps,
             })
         data.setdefault("companies", {})[code] = {
             "products": clean_products, "imports": clean_imports, "comments": clean_comments,

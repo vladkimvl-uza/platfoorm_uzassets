@@ -212,7 +212,7 @@ const best = computed(() =>
 
     <template #footer>
       <span class="shd-note">RAG-оценка финансовой устойчивости · пороги настраиваемые · ниже балл = устойчивее</span>
-      <button class="shd-ok" type="button" @click="emit('close')">Понятно</button>
+      <button class="shd-ok" type="button" @click="emit('close')">Закрыть</button>
     </template>
   </ModalShell>
 </template>

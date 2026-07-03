@@ -252,7 +252,7 @@ function metricNeg(p: EvmProject, m: MetricDef): boolean {
               <div class="ev-src-r"><b>Бюджет (BAC) и факт (AC)</b> — поля проекта «бюджет» и «факт затрат». Пока они пусты, считается только индекс расписания SPI; стоимостные метрики появятся после заполнения.</div>
             </div>
           </div>
-          <div class="ev-mf"><button class="ev-btn" @click="methodOpen = false">Понятно</button></div>
+          <div class="ev-mf"><button class="ev-btn" @click="methodOpen = false">Закрыть</button></div>
         </div>
       </div>
     </Transition>

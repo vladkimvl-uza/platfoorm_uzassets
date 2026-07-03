@@ -61,13 +61,25 @@ const pricesOpen = ref(false);
 const editCompany = ref<UCCompany | null>(null);
 function onKpiClick() { if (finPerm.canEdit.value) pricesOpen.value = true; }
 
-function fmtSum(v: number | null): string {
-  if (v == null) return "—";
+// компактное представление суммы в СУМАХ (сырьё уже в сумах)
+function scaleSum(v: number): string {
   const a = Math.abs(v);
-  if (a >= 1e6) return (v / 1e6).toLocaleString("ru", { maximumFractionDigits: 1 }) + " трлн";
-  if (a >= 1e3) return (v / 1e3).toLocaleString("ru", { maximumFractionDigits: 1 }) + " млрд";
-  return v.toLocaleString("ru", { maximumFractionDigits: 0 }) + " млн";
+  if (a >= 1e12) return (v / 1e12).toLocaleString("ru", { maximumFractionDigits: 2 }) + " трлн";
+  if (a >= 1e9) return (v / 1e9).toLocaleString("ru", { maximumFractionDigits: 1 }) + " млрд";
+  if (a >= 1e6) return (v / 1e6).toLocaleString("ru", { maximumFractionDigits: 1 }) + " млн";
+  if (a >= 1e3) return (v / 1e3).toLocaleString("ru", { maximumFractionDigits: 1 }) + " тыс";
+  return v.toLocaleString("ru", { maximumFractionDigits: 0 });
 }
+function fmtSum(v: number | null): string { return v == null ? "—" : scaleSum(v); }
+
+// перерасход/экономия к норме (знак: + перерасход / − экономия)
+const overrun = computed(() => pf.value?.overrun_cost ?? null);
+const overrunState = computed<"over" | "save" | "none">(() => {
+  const v = overrun.value; if (v == null) return "none";
+  return v > 0 ? "over" : "save";
+});
+const overrunColor = computed(() =>
+  overrunState.value === "over" ? "#E24B4A" : overrunState.value === "save" ? "#1D9E75" : "#94A3B8");
 const priceRows = computed(() => {
   const p = data.value?.energyPrices || {}; const lbl = data.value?.fuel_labels || {};
   return Object.keys(lbl).filter((f) => p[f]).map((f) => ({
@@ -91,6 +103,30 @@ const liveFresh = computed(() => {
 function fmtNum(v: number | null | undefined, d = 0): string {
   return v == null ? "—" : Number(v).toLocaleString("ru", { maximumFractionDigits: d });
 }
+// честный тикер: помечаем только реально живые поля (USD — ЦБ, золото — спот);
+// Brent/медь — ориентиры без живого источника (правятся в «Цены и курсы»).
+const LIVE_SRC: Record<string, string> = { usd_rate: "курс ЦБ РУз", gold: "спот-рынок" };
+const tickerItems = computed(() => {
+  const w = worldLive.value; if (!w) return [];
+  const lf = w.live_fields || [];
+  return [
+    { key: "usd_rate", label: "USD", val: fmtNum(w.usd_rate) },
+    { key: "brent", label: "Brent", val: "$" + fmtNum(w.brent, 1) },
+    { key: "gold", label: "Gold", val: "$" + fmtNum(w.gold) },
+    { key: "copper", label: "Cu", val: "$" + fmtNum(w.copper) },
+  ].map((t) => ({ ...t, live: lf.includes(t.key), src: LIVE_SRC[t.key] || "ориентир" }));
+});
+
+// фильтр по секторам (для списка компаний)
+const sectorFilter = ref<string>("");
+const sectors = computed(() => {
+  const set = new Map<string, string>();  // sector → цвет
+  for (const c of companies.value) if (c.sector && c.sector !== "—") set.set(c.sector, c.color);
+  return Array.from(set, ([name, color]) => ({ name, color })).sort((a, b) => a.name.localeCompare(b.name, "ru"));
+});
+const visibleCompanies = computed(() =>
+  sectorFilter.value ? companies.value.filter((c) => c.sector === sectorFilter.value) : companies.value);
+watch([year, quarter], () => { sectorFilter.value = ""; });
 
 // графики
 const FUEL_PAL: Record<string, string> = {
@@ -142,12 +178,12 @@ function donutHover(e: DonutEntry, total: number): [string, string] {
       </div>
       <div class="uc-cluster">
         <div v-if="worldLive" class="uc-ticker"
-             :title="'Живой фид (USD — ЦБ РУз, золото — спот)' + (liveFresh ? ', обновлено ' + liveFresh : '') + '. Правки — в редакторе.'">
-          <span v-if="worldLive.source === 'live'" class="uc-live"><i /></span>
-          <span class="uc-tk"><b>USD</b>{{ fmtNum(worldLive.usd_rate) }}</span>
-          <span class="uc-tk"><b>Brent</b>${{ fmtNum(worldLive.brent, 1) }}</span>
-          <span class="uc-tk"><b>Gold</b>${{ fmtNum(worldLive.gold) }}</span>
-          <span class="uc-tk"><b>Cu</b>${{ fmtNum(worldLive.copper) }}</span>
+             :title="'Зелёная точка — живой источник; остальное — ориентир, правится в «Цены и курсы»' + (liveFresh ? '. Обновлено ' + liveFresh : '')">
+          <span v-for="t in tickerItems" :key="t.key" class="uc-tk" :class="{ 'uc-tk-live': t.live }"
+                :title="t.live ? ('Живой источник: ' + t.src + (liveFresh ? ', ' + liveFresh : '')) : 'Ориентир (нет живого источника) — правится в «Цены и курсы»'">
+            <span v-if="t.live" class="uc-live"><i /></span>
+            <b>{{ t.label }}</b>{{ t.val }}
+          </span>
         </div>
         <div class="uc-div" aria-hidden="true"></div>
         <UzaSegment :model-value="quarter" :options="QUARTERS as never" size="sm" tone="dark"
@@ -195,6 +231,22 @@ function donutHover(e: DonutEntry, total: number): [string, string] {
             <div class="uc-kpi-l">Заполнено продуктов</div>
             <div class="uc-kpi-v">{{ pf.priced_count }}<span class="uc-kpi-u">/ {{ pf.product_count }}</span></div>
             <div class="uc-kpi-s">{{ pf.company_count }} компаний</div>
+          </div>
+          <div class="uc-kpi"
+               :style="{ '--accent': overrunColor, '--d': '320ms' }"
+               title="Отклонение фактического удельного расхода от нормы, в деньгах">
+            <div class="uc-kpi-l">Перерасход / Экономия</div>
+            <div class="uc-kpi-v" :style="{ color: overrunColor }">
+              <template v-if="overrun != null">
+                <span class="uc-ov-sign">{{ overrunState === 'over' ? '+' : '−' }}</span>{{ fmtSum(Math.abs(overrun)) }}
+              </template>
+              <span v-else>—</span>
+            </div>
+            <div class="uc-kpi-s">
+              <template v-if="overrunState === 'over'">перерасход к норме расхода</template>
+              <template v-else-if="overrunState === 'save'">экономия против нормы</template>
+              <template v-else>заполните выпуск и нормы</template>
+            </div>
           </div>
         </div>
       </section>
@@ -252,10 +304,19 @@ function donutHover(e: DonutEntry, total: number): [string, string] {
       <!-- Компании -->
       <section class="uc-section">
         <div class="uc-card">
-          <div class="uc-card-hd">
+          <div class="uc-card-hd uc-card-hd-row">
             <div>
               <div class="uc-card-t">Себестоимость по компаниям</div>
               <div class="uc-card-s">клик по компании — продукты и статьи · доля энергии в цвете</div>
+            </div>
+            <div v-if="sectors.length > 1" class="uc-secfilter">
+              <button type="button" class="uc-sec" :class="{ on: sectorFilter === '' }" @click="sectorFilter = ''">
+                Все<span class="uc-sec-n">{{ companies.length }}</span>
+              </button>
+              <button v-for="s in sectors" :key="s.name" type="button" class="uc-sec"
+                      :class="{ on: sectorFilter === s.name }" @click="sectorFilter = s.name">
+                <i :style="{ background: s.color }" />{{ s.name }}
+              </button>
             </div>
           </div>
           <div class="uc-cos">
@@ -263,7 +324,7 @@ function donutHover(e: DonutEntry, total: number): [string, string] {
               <span>Компания</span><span>Продуктов</span><span>Себестоимость</span>
               <span>Энергозатраты</span><span>Доля энергии</span>
             </div>
-            <button v-for="(c, i) in companies" :key="c.code" type="button" class="uc-co"
+            <button v-for="(c, i) in visibleCompanies" :key="c.code" type="button" class="uc-co"
                     :style="{ '--d': Math.min(i * 24, 400) + 'ms' }"
                     :title="'Редактировать: ' + c.name" @click="editCompany = c">
               <span class="uc-co-name"><i :style="{ background: c.color }" />{{ c.name }}</span>
@@ -278,6 +339,7 @@ function donutHover(e: DonutEntry, total: number): [string, string] {
                 <span v-else class="uc-dash">н/д</span>
               </span>
             </button>
+            <div v-if="!visibleCompanies.length" class="uc-chart-empty">в секторе «{{ sectorFilter }}» нет компаний</div>
           </div>
         </div>
       </section>
@@ -328,11 +390,12 @@ function donutHover(e: DonutEntry, total: number): [string, string] {
   font-family: inherit; color: rgba(255,255,255,.88); background: rgba(255,255,255,.08);
   border: 1px solid rgba(255,255,255,.16); border-radius: 9px; padding: 7px 13px; cursor: pointer; transition: all .15s; }
 .uc-prices-btn:hover { background: rgba(255,255,255,.15); transform: translateY(-1px); }
-.uc-ticker { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.uc-tk { font-size: 11.5px; font-weight: 600; color: rgba(255,255,255,.9); font-variant-numeric: tabular-nums; white-space: nowrap;
+.uc-ticker { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.uc-tk { display: inline-flex; align-items: center; font-size: 11.5px; font-weight: 600; color: rgba(255,255,255,.9); font-variant-numeric: tabular-nums; white-space: nowrap;
   padding: 3px 9px; border-radius: 7px; background: rgba(255,255,255,.06); }
+.uc-tk-live { background: rgba(74,222,128,.10); box-shadow: inset 0 0 0 1px rgba(74,222,128,.22); }
 .uc-tk b { font-size: 8.5px; font-weight: 700; color: rgba(255,255,255,.5); text-transform: uppercase; letter-spacing: .04em; margin-right: 5px; }
-.uc-live { display: inline-flex; align-items: center; }
+.uc-live { display: inline-flex; align-items: center; margin-right: 5px; }
 .uc-live i { width: 7px; height: 7px; border-radius: 50%; background: #4ADE80; box-shadow: 0 0 0 0 rgba(74,222,128,.6);
   animation: ucLivePulse 2s ease-in-out infinite; }
 @keyframes ucLivePulse { 0%,100% { box-shadow: 0 0 0 0 rgba(74,222,128,.5); } 50% { box-shadow: 0 0 0 4px rgba(74,222,128,0); } }
@@ -348,8 +411,10 @@ function donutHover(e: DonutEntry, total: number): [string, string] {
 .uc-retry { font-size: 12px; font-weight: 600; font-family: inherit; border: 1px solid #E5E7EB; background: #fff; border-radius: 9px; padding: 6px 14px; cursor: pointer; }
 
 /* KPI */
-.uc-kpi-band { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-@media (max-width: 1100px) { .uc-kpi-band { grid-template-columns: 1fr 1fr; } }
+.uc-kpi-band { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+@media (max-width: 1280px) { .uc-kpi-band { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 720px) { .uc-kpi-band { grid-template-columns: 1fr 1fr; } }
+.uc-ov-sign { font-size: 16px; font-weight: 500; margin-right: 1px; }
 .uc-kpi { background: rgba(255,255,255,.82); backdrop-filter: blur(16px) saturate(1.5); border-radius: 14px;
   padding: 14px 16px 12px; border: 1px solid rgba(255,255,255,.70);
   box-shadow: 0 2px 12px rgba(15,23,60,.07),0 1px 3px rgba(15,23,60,.04); position: relative; overflow: hidden;
@@ -372,8 +437,21 @@ function donutHover(e: DonutEntry, total: number): [string, string] {
   border: 1px solid rgba(255,255,255,.70); border-radius: 14px; padding: 16px 18px;
   box-shadow: 0 2px 12px rgba(15,23,60,.07); }
 .uc-card-hd { margin-bottom: 12px; }
+.uc-card-hd-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .uc-card-t { font-size: 13px; font-weight: 650; color: var(--t1,#1E2A4A); }
 .uc-card-s { font-size: 10.5px; color: var(--t3,#94A3B8); margin-top: 2px; }
+
+/* Фильтр по секторам */
+.uc-secfilter { display: flex; flex-wrap: wrap; gap: 5px; }
+.uc-sec { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; font-family: inherit;
+  color: var(--t2,#4B5468); background: var(--bg2,#FAFAFD); border: 1px solid var(--border,#ECEAF5); border-radius: 8px;
+  padding: 5px 10px; cursor: pointer; transition: all .14s; white-space: nowrap; }
+.uc-sec i { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.uc-sec:hover { border-color: rgba(124,111,247,.4); background: rgba(124,111,247,.05); }
+.uc-sec.on { color: #fff; background: linear-gradient(135deg,#8B7FFF 0%,#6C5CE7 100%); border-color: transparent;
+  box-shadow: 0 2px 8px rgba(108,92,231,.28); }
+.uc-sec.on i { box-shadow: 0 0 0 1.5px rgba(255,255,255,.7); }
+.uc-sec-n { font-size: 9.5px; opacity: .7; font-variant-numeric: tabular-nums; }
 
 /* Цены */
 .uc-prices { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }

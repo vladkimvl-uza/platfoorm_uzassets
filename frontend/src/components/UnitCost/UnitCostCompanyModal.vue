@@ -39,6 +39,7 @@ function toEdit(c: UCCompany): EditProduct[] {
   return (c.products || []).map((p) => ({
     name: p.name, unit: p.unit, output: p.output,
     energy: { ...(p.energy || {}) },
+    norm: { ...(p.norm || {}) },
     components: (p.components || []).map((x) => ({ name: x.name, value: x.value })),
   }));
 }
@@ -72,7 +73,7 @@ const structDonut = computed<DonutEntry[]>(() => {
 });
 const structTotal = computed(() => structDonut.value.reduce((s, e) => s + e.value, 0));
 function donutHover(e: DonutEntry, total: number): [string, string] {
-  return [fmt(e.value), total ? Math.round((e.value / total) * 100) + "%" : ""];
+  return [fmtC(e.value), total ? Math.round((e.value / total) * 100) + "%" : ""];
 }
 
 function onMention(u: { username?: string; full_name?: string; email?: string }) {
@@ -106,29 +107,78 @@ const importTotal = computed(() => imports.value.reduce((s, it) => s + importCos
 function addImport() { imports.value.push({ name: "", unit: "т", usd: 0, qty: 0 }); }
 function removeImport(i: number) { imports.value.splice(i, 1); }
 
-// живой расчёт продукта
+// живой расчёт продукта (факт + отклонение от нормы расхода)
 function calc(p: EditProduct) {
   let energy = 0;
+  let overUnit = 0;      // сум/ед: (факт − норма)×цена, + перерасход / − экономия
+  let hasNorm = false;
   for (const f of FUELS) {
-    const nrm = p.energy[f]; if (nrm == null) continue;
-    energy += num(nrm) * priceOf(f);
+    const act = p.energy[f];
+    if (act != null) energy += num(act) * priceOf(f);
+    const nrm = p.norm?.[f];
+    if (act != null && nrm != null) { hasNorm = true; overUnit += (num(act) - num(nrm)) * priceOf(f); }
   }
   const comps = (p.components || []).reduce((s, c) => s + num(c.value), 0);
   const unit = energy + comps;
+  const out = num(p.output);
   return {
-    energy, comps, unit,
+    energy, comps, unit, hasNorm,
     share: unit > 0 ? (energy / unit) * 100 : null,
-    total: num(p.output) > 0 ? unit * num(p.output) : null,
+    total: out > 0 ? unit * out : null,
+    overUnit: hasNorm ? overUnit : null,
+    overrunCost: hasNorm && out > 0 ? overUnit * out : null,
   };
+}
+// отклонение по конкретному энергоресурсу (для индикатора в редакторе)
+function fuelDelta(p: EditProduct, f: string): { d: number; cost: number; over: boolean } | null {
+  const act = p.energy[f]; const nrm = p.norm?.[f];
+  if (act == null || nrm == null) return null;
+  const d = num(act) - num(nrm);
+  return { d, cost: d * priceOf(f), over: d > 0 };
 }
 function fmt(v: number | null): string {
   if (v == null) return "—";
   return v.toLocaleString("ru", { maximumFractionDigits: 2 });
 }
+// компактная сумма (для донатов и KPI компании — не вылезает за пределы)
+function fmtC(v: number | null): string {
+  if (v == null) return "—";
+  const a = Math.abs(v);
+  if (a >= 1e12) return (v / 1e12).toLocaleString("ru", { maximumFractionDigits: 2 }) + " трлн";
+  if (a >= 1e9) return (v / 1e9).toLocaleString("ru", { maximumFractionDigits: 1 }) + " млрд";
+  if (a >= 1e6) return (v / 1e6).toLocaleString("ru", { maximumFractionDigits: 1 }) + " млн";
+  if (a >= 1e3) return (v / 1e3).toLocaleString("ru", { maximumFractionDigits: 1 }) + " тыс";
+  return v.toLocaleString("ru", { maximumFractionDigits: 0 });
+}
 function shareColor(s: number | null): string {
   if (s == null) return "#9AA0AE";
   return s >= 60 ? "#E24B4A" : s >= 35 ? "#EF9F27" : "#1D9E75";
 }
+
+// сводные KPI компании (те же показатели, что на дашборде, но по этой компании)
+const kpi = computed(() => {
+  let total = 0, energy = 0, over = 0, filled = 0;
+  let hasOver = false;
+  for (const p of draft.value) {
+    const c = calc(p);
+    if (num(p.output) > 0) {
+      filled++;
+      if (c.total != null) total += c.total;
+      energy += c.energy * num(p.output);
+    }
+    if (c.overrunCost != null) { over += c.overrunCost; hasOver = true; }
+  }
+  return {
+    total: total || null, energy: energy || null,
+    share: total > 0 ? (energy / total) * 100 : null,
+    filled, count: draft.value.length,
+    overrun: hasOver ? over : null,
+  };
+});
+const overColor = computed(() => {
+  const v = kpi.value.overrun; if (v == null) return "#94A3B8";
+  return v > 0 ? "#E24B4A" : "#1D9E75";
+});
 
 const expanded = ref<number | null>(0);
 function toggle(i: number) { expanded.value = expanded.value === i ? null : i; }
@@ -136,7 +186,7 @@ function toggle(i: number) { expanded.value = expanded.value === i ? null : i; }
 function addComponent(p: EditProduct) { p.components.push({ name: "", value: 0 }); }
 function removeComponent(p: EditProduct, i: number) { p.components.splice(i, 1); }
 function addProduct() {
-  draft.value.push({ name: "Новый продукт", unit: "ед.", output: 0, energy: {},
+  draft.value.push({ name: "Новый продукт", unit: "ед.", output: 0, energy: {}, norm: {},
     components: [{ name: "Сырьё и материалы", value: 0 }, { name: "Оплата труда", value: 0 }] });
   expanded.value = draft.value.length - 1;
 }
@@ -175,16 +225,31 @@ async function save() {
     </template>
 
     <div v-if="company" class="ucm-body">
+      <!-- сводные показатели компании (те же, что на дашборде) -->
+      <div class="ucm-kpis">
+        <div class="ucm-k" style="--kc:#7F77DD"><span>Себестоимость</span><b>{{ fmtC(kpi.total) }}</b></div>
+        <div class="ucm-k" style="--kc:#EF9F27"><span>Энергозатраты</span><b>{{ fmtC(kpi.energy) }}</b></div>
+        <div class="ucm-k" style="--kc:#E24B4A"><span>Доля энергии</span><b>{{ kpi.share != null ? kpi.share.toFixed(1) + '%' : '—' }}</b></div>
+        <div class="ucm-k" style="--kc:#1D9E75"><span>Заполнено</span><b>{{ kpi.filled }}<i>/{{ kpi.count }}</i></b></div>
+        <div class="ucm-k" :style="{ '--kc': overColor }" title="Отклонение факта от нормы расхода, в деньгах">
+          <span>Перерасход / Экономия</span>
+          <b :style="{ color: overColor }">
+            <template v-if="kpi.overrun != null">{{ kpi.overrun > 0 ? '+' : '−' }}{{ fmtC(Math.abs(kpi.overrun)) }}</template>
+            <template v-else>—</template>
+          </b>
+        </div>
+      </div>
+
       <!-- донаты компании -->
       <div v-if="mixDonut.length || structDonut.length" class="ucm-charts">
         <div v-if="mixDonut.length" class="ucm-chart">
           <div class="ucm-chart-t">Энергомикс</div>
-          <CreditDonut :entries="mixDonut" :center-value="fmt(mixTotal)" center-label="энергия"
+          <CreditDonut :entries="mixDonut" :center-value="fmtC(mixTotal)" center-label="энергия"
             :hover-fmt="donutHover" :size="118" />
         </div>
         <div v-if="structDonut.length" class="ucm-chart">
           <div class="ucm-chart-t">Структура</div>
-          <CreditDonut :entries="structDonut" :center-value="fmt(structTotal)" center-label="итого"
+          <CreditDonut :entries="structDonut" :center-value="fmtC(structTotal)" center-label="итого"
             :hover-fmt="donutHover" :size="118" />
         </div>
       </div>
@@ -216,15 +281,26 @@ async function save() {
                 <input v-model.number="p.output" type="text" inputmode="decimal" class="ucm-inp" /></label>
             </div>
 
-            <!-- энергонормы -->
-            <div class="ucm-sub">Удельный расход энергоресурсов <span>на единицу продукции</span></div>
+            <!-- энергонормы: факт + норма расхода + отклонение -->
+            <div class="ucm-sub">Удельный расход энергоресурсов <span>факт и норма на единицу · отклонение = перерасход / экономия</span></div>
             <div class="ucm-energy">
               <div v-for="f in FUELS" :key="f" class="ucm-en">
-                <div class="ucm-en-l">{{ fuelLabels[f] || f }}</div>
-                <input v-model.number="p.energy[f]" type="text" inputmode="decimal" class="ucm-inp ucm-inp-c"
-                       placeholder="—" :aria-label="fuelLabels[f]" />
-                <div class="ucm-en-u">{{ FUEL_UNIT[f] }}</div>
-                <div class="ucm-en-c">{{ p.energy[f] != null ? fmt(num(p.energy[f]) * priceOf(f)) + ' сум' : '' }}</div>
+                <div class="ucm-en-l">{{ fuelLabels[f] || f }} <span class="ucm-en-u">{{ FUEL_UNIT[f] }}</span></div>
+                <div class="ucm-en-flds">
+                  <label class="ucm-en-fld"><span>факт</span>
+                    <input v-model.number="p.energy[f]" type="text" inputmode="decimal" class="ucm-inp ucm-inp-c"
+                           placeholder="—" :aria-label="'Факт: ' + fuelLabels[f]" /></label>
+                  <label class="ucm-en-fld ucm-en-norm"><span>норма</span>
+                    <input v-model.number="p.norm[f]" type="text" inputmode="decimal" class="ucm-inp ucm-inp-c"
+                           placeholder="—" :aria-label="'Норма: ' + fuelLabels[f]" /></label>
+                </div>
+                <div class="ucm-en-foot">
+                  <span class="ucm-en-c">{{ p.energy[f] != null ? fmt(num(p.energy[f]) * priceOf(f)) + ' сум' : '' }}</span>
+                  <span v-if="fuelDelta(p, f)" class="ucm-en-diff" :class="fuelDelta(p, f)!.over ? 'over' : 'save'"
+                        :title="fuelDelta(p, f)!.over ? 'Перерасход к норме' : 'Экономия против нормы'">
+                    {{ fuelDelta(p, f)!.over ? '+' : '−' }}{{ fmt(Math.abs(fuelDelta(p, f)!.d)) }}
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -247,6 +323,12 @@ async function save() {
               <div class="ucm-tot-i"><span>Прочие статьи</span><b>{{ fmt(calc(p).comps) }}</b></div>
               <div class="ucm-tot-i ucm-tot-sum"><span>Удельная себестоимость</span><b>{{ fmt(calc(p).unit) }} сум/{{ p.unit || 'ед.' }}</b></div>
               <div v-if="calc(p).total != null" class="ucm-tot-i"><span>Годовая себестоимость</span><b>{{ fmt(calc(p).total) }} сум</b></div>
+              <div v-if="calc(p).overrunCost != null" class="ucm-tot-i">
+                <span>{{ calc(p).overUnit! > 0 ? 'Перерасход к норме' : 'Экономия к норме' }}</span>
+                <b :style="{ color: calc(p).overUnit! > 0 ? '#E24B4A' : '#1D9E75' }">
+                  {{ calc(p).overUnit! > 0 ? '+' : '−' }}{{ fmt(Math.abs(calc(p).overrunCost!)) }} сум
+                </b>
+              </div>
               <button type="button" class="ucm-rmprod" @click="removeProduct(i)">Удалить продукт</button>
             </div>
           </div>
@@ -319,6 +401,18 @@ async function save() {
 .ucm-meta { font-size: 11px; color: var(--t3,#94A3B8); }
 
 .ucm-body { display: flex; flex-direction: column; gap: 8px; }
+
+/* Сводные KPI компании */
+.ucm-kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+@media (max-width: 720px) { .ucm-kpis { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 460px) { .ucm-kpis { grid-template-columns: 1fr 1fr; } }
+.ucm-k { position: relative; background: var(--bg2,#FAFAFD); border-radius: 11px; padding: 9px 11px 8px;
+  display: flex; flex-direction: column; gap: 3px; overflow: hidden; animation: ucmProdIn .4s ease both; }
+.ucm-k::before { content:''; position: absolute; top: 0; left: 0; right: 0; height: 2.5px; background: var(--kc,#7F77DD); opacity: .85; }
+.ucm-k span { font-size: 8.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; color: var(--t3,#94A3B8); line-height: 1.2; }
+.ucm-k b { font-size: 15px; font-weight: 500; color: var(--t1,#1E2A4A); font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.ucm-k b i { font-size: 10px; font-style: normal; color: var(--t3,#94A3B8); font-weight: 500; }
+
 .ucm-charts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 4px; }
 @media (max-width: 560px) { .ucm-charts { grid-template-columns: 1fr; } }
 .ucm-chart { background: var(--bg2,#FAFAFD); border-radius: 12px; padding: 10px 8px 6px; }

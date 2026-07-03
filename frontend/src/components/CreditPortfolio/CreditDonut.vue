@@ -41,6 +41,15 @@ const totalValue = computed(() =>
 
 const sizePx = computed(() => props.size || 140);
 
+// Центр-число не должно вылезать за пределы дырки доната (cutout 84%):
+// ужимаем шрифт под длину строки и доступную ширину внутреннего круга.
+const centerFontPx = computed(() => {
+  const len = (centerNum.value || "").length || 1;
+  const usable = sizePx.value * 0.7;         // диаметр дырки минус поля
+  const fit = usable / (len * 0.56);          // ~0.56·fs на символ (tnum)
+  return Math.max(11, Math.min(22, fit));
+});
+
 function buildConfig(): ChartConfiguration {
   const labels = props.entries.map((e) => e.label);
   const values = props.entries.map((e) => Math.abs(e.value));
@@ -157,7 +166,7 @@ function pctOf(v: number): number {
     >
       <canvas ref="canvasEl" :width="sizePx" :height="sizePx" />
       <div class="cp-donut-center">
-        <div class="cp-donut-center-num"><Odometer :value="centerNum" /></div>
+        <div class="cp-donut-center-num" :style="{ fontSize: centerFontPx + 'px' }"><Odometer :value="centerNum" /></div>
         <div class="cp-donut-center-lbl">{{ centerLbl }}</div>
       </div>
     </div>
@@ -208,6 +217,7 @@ function pctOf(v: number): number {
   justify-content: center;
   pointer-events: none;
   text-align: center;
+  padding: 0 6%;
 }
 
 .cp-donut-center-num {
@@ -216,6 +226,9 @@ function pctOf(v: number): number {
   color: var(--t1, #1e2a4a);
   letter-spacing: -0.04em;
   font-feature-settings: "tnum";
+  line-height: 1.05;
+  white-space: nowrap;
+  max-width: 100%;
   animation: cpFadeNum 0.5s ease 600ms both;
 }
 
