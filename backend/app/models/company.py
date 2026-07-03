@@ -59,6 +59,9 @@ class Company(Base, UUIDMixin, TimestampMixin):
     name_uz: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     name_en: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     legal_form: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    # Орган управления / собственник (напр. «Агентство по управлению госактивами»,
+    # министерство) — для пая «Ownership entity» в SOE Health Check Tool.
+    ownership_entity: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     inn: Mapped[Optional[str]] = mapped_column(String(32), index=True, nullable=True)
 
     sector_id: Mapped[Optional[UUID]] = mapped_column(

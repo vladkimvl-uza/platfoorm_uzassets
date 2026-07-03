@@ -57,6 +57,7 @@ export interface SoeHealthPayload {
     by_sector?: SoeSectorAgg[];
     profit_split?: { profitable: number; loss: number; unknown: number };
     legal_form_split?: { label: string; count: number }[];
+    ownership_split?: { label: string; count: number }[];
   };
   methodology: string;
 }

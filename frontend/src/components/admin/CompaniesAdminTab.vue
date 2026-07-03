@@ -417,6 +417,11 @@ const EXCLUSION_OPTIONS = Object.entries(EXCLUSION_REASONS).map(([k, v]) => ({ v
                 <label>CEO</label>
                 <input :value="detail.ceo_name || ''" @change="updateField('ceo_name', ($event.target as HTMLInputElement).value as any)"/>
               </div>
+              <div class="ca-f">
+                <label>Орган управления / собственник</label>
+                <input :value="detail.ownership_entity || ''" placeholder="напр. Агентство по управлению госактивами"
+                       @change="updateField('ownership_entity', ($event.target as HTMLInputElement).value as any)"/>
+              </div>
             </div>
             <div class="ca-f">
               <label>Описание</label>

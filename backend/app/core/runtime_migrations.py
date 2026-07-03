@@ -243,6 +243,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_financial_unit_scale(conn)
             await _patch_hlf_backfill_ifrs_lines(conn)
             await _patch_soe_retained_earnings_seed(conn)
+            await _patch_company_ownership_entity(conn)
             await _bump_alembic(conn)
     except Exception as e:
         # Never crash the app on a self-heal failure - just log and continue.
@@ -1400,6 +1401,15 @@ async def _patch_soe_retained_earnings_seed(conn) -> None:
             ins += 1
     if ins:
         logger.info("[runtime_migration] soe RE seed: +%d retainedEarnings lines", ins)
+
+
+async def _patch_company_ownership_entity(conn) -> None:
+    """Колонка companies.ownership_entity (орган управления / собственник) —
+    редактируемое поле для пая «Ownership entity» в SOE Health Check Tool.
+    Не сидим значениями (нет достоверной привязки) — заполняется вручную."""
+    await conn.execute(text(
+        "ALTER TABLE companies ADD COLUMN IF NOT EXISTS ownership_entity VARCHAR(128)"
+    ))
 
 
 async def _patch_committee_meetings(conn) -> None:

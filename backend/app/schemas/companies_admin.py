@@ -25,6 +25,7 @@ class CompanyAdminRead(BaseModel):
     name_uz: Optional[str] = None
     name_en: Optional[str] = None
     legal_form: Optional[str] = None
+    ownership_entity: Optional[str] = None
     inn: Optional[str] = None
 
     sector_id: Optional[UUID] = None
@@ -79,6 +80,7 @@ class CompanyAdminUpdate(BaseModel):
     name_uz: Optional[str] = None
     name_en: Optional[str] = None
     legal_form: Optional[str] = None
+    ownership_entity: Optional[str] = None
     inn: Optional[str] = None
     sector_code: Optional[str] = None
     description: Optional[str] = None
@@ -123,6 +125,7 @@ class CompanyAdminCreate(BaseModel):
     name_en: Optional[str] = None
     sector_code: Optional[str] = None
     legal_form: Optional[str] = None
+    ownership_entity: Optional[str] = None
     inn: Optional[str] = None
     founded_year: Optional[int] = None
     parent_code: Optional[str] = None

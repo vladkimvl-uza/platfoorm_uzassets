@@ -45,7 +45,7 @@ class CompaniesAdminV2Service:
         return CompanyAdminRead(
             id=c.id, code=c.code, name_ru=c.name_ru, name_short=c.name_short,
             name_uz=c.name_uz, name_en=c.name_en,
-            legal_form=c.legal_form, inn=c.inn,
+            legal_form=c.legal_form, ownership_entity=c.ownership_entity, inn=c.inn,
             sector_id=c.sector_id, sector_code=sector_code, sector_name=sector_name,
             description=c.description, logo_url=c.logo_url,
             website=c.website, address=c.address,
@@ -120,7 +120,8 @@ class CompaniesAdminV2Service:
             c = Company(
                 code=body.code, name_ru=body.name_ru, name_short=body.name_short,
                 name_uz=body.name_uz, name_en=body.name_en,
-                sector_id=sector_id, legal_form=body.legal_form, inn=body.inn,
+                sector_id=sector_id, legal_form=body.legal_form,
+                ownership_entity=body.ownership_entity, inn=body.inn,
                 founded_year=body.founded_year, parent_id=parent_id,
                 portfolio_start_year=body.portfolio_start_year,
                 status=body.status or "active",

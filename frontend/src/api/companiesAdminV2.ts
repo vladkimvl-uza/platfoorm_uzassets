@@ -17,6 +17,7 @@ export interface CompanyAdmin {
   name_uz: string | null;
   name_en: string | null;
   legal_form: string | null;
+  ownership_entity: string | null;
   inn: string | null;
 
   sector_id: string | null;

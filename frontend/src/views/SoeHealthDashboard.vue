@@ -220,6 +220,13 @@ const legalDonut = computed<DonutEntry[]>(() =>
 );
 const legalTotal = computed(() =>
   (pf.value?.legal_form_split || []).reduce((a, l) => a + l.count, 0));
+const ownershipDonut = computed<DonutEntry[]>(() =>
+  (pf.value?.ownership_split || [])
+    .map((l, i) => ({ label: l.label, color: SECTOR_PALETTE[i % SECTOR_PALETTE.length],
+                      value: l.count, sub: String(l.count) })),
+);
+const ownershipTotal = computed(() =>
+  (pf.value?.ownership_split || []).reduce((a, l) => a + l.count, 0));
 function donutHover(e: DonutEntry, total: number): [string, string] {
   return [String(e.value), total ? Math.round((e.value / total) * 100) + "%" : ""];
 }
@@ -326,7 +333,7 @@ const seriesYears = computed(() => data.value?.series?.years || []);
       </section>
 
       <!-- ═══ Структура портфеля: пайчарты (канон-донат) ═══ -->
-      <section class="sh-section sh-3col">
+      <section class="sh-section sh-4col">
         <div class="sh-card" style="--d:60ms">
           <div class="sh-card-hd"><div>
             <div class="sh-card-t">Прибыльные компании</div>
@@ -354,6 +361,16 @@ const seriesYears = computed(() => data.value?.series?.years || []);
           </div></div>
           <CreditDonut v-if="legalDonut.length" :entries="legalDonut"
             :center-value="String(legalTotal)" center-label="компаний"
+            :hover-fmt="donutHover" :size="140" />
+          <div v-else class="sh-none">нет данных</div>
+        </div>
+        <div class="sh-card" style="--d:300ms">
+          <div class="sh-card-hd"><div>
+            <div class="sh-card-t">Орган управления</div>
+            <div class="sh-card-s">собственник / надзорный орган</div>
+          </div></div>
+          <CreditDonut v-if="ownershipDonut.length" :entries="ownershipDonut"
+            :center-value="String(ownershipTotal)" center-label="компаний"
             :hover-fmt="donutHover" :size="140" />
           <div v-else class="sh-none">нет данных</div>
         </div>
@@ -640,9 +657,10 @@ const seriesYears = computed(() => data.value?.series?.years || []);
 @keyframes shDotIn { to { opacity: 1; } }
 .sh-axis-lbl { font-size: 9px; fill: var(--t3, #94A3B8); font-variant-numeric: tabular-nums; }
 
-/* ── Структура: 3 пая ── */
-.sh-3col { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-@media (max-width: 1100px) { .sh-3col { grid-template-columns: 1fr; } }
+/* ── Структура: паи ── */
+.sh-4col { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+@media (max-width: 1400px) { .sh-4col { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 700px) { .sh-4col { grid-template-columns: 1fr; } }
 
 /* ── Размер×риск + секторы ── */
 .sh-2col { display: grid; grid-template-columns: 1.4fr 1fr; gap: 12px; }
