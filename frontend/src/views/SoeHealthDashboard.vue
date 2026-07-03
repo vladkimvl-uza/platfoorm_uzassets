@@ -325,15 +325,17 @@ const seriesYears = computed(() => data.value?.series?.years || []);
 }
 .sh-burger:hover { background: rgba(255,255,255,.14); border-color: rgba(255,255,255,.22); color: #fff; }
 .sh-burger:active { transform: scale(.94); }
-.sh-head { flex: 1 1 280px; min-width: 0; }
-.sh-eyebrow { font-size: 9.5px; font-weight: 700; letter-spacing: .09em; color: rgba(255,255,255,.55); }
-.sh-title-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
-.sh-title { font-size: 17px; font-weight: 650; letter-spacing: -.01em; color: #fff; }
-.sh-sub { font-size: 11px; color: rgba(255,255,255,.62); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sh-sub strong { color: rgba(255,255,255,.9); }
+/* 1:1 значения из FinTopFilters (.ft-head/.ft-div/.ft-cluster) */
+.sh-head { flex: 1 1 280px; min-width: 0; display: flex; flex-direction: column; gap: 1px; overflow: hidden; }
+.sh-eyebrow { font-size: 10px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: rgba(255,255,255,.55); }
+.sh-title-row { display: flex; align-items: baseline; gap: 10px; min-width: 0; flex-wrap: wrap; row-gap: 2px; }
+.sh-title { font-size: 19px; font-weight: 500; letter-spacing: -.01em; color: #fff; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; min-width: 0; }
+.sh-sub { font-size: 12px; color: rgba(255,255,255,.65); line-height: 1.45; flex: 1 1 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sh-sub strong { color: #fff; font-weight: 500; }
 .sh-ovr-badge { margin-left: 7px; font-size: 9px; font-weight: 700; color: #FFD9A0; background: rgba(239,159,39,.22); border-radius: 5px; padding: 1px 6px; letter-spacing: .03em; }
-.sh-cluster { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-left: auto; }
-.sh-div { width: 1px; height: 22px; background: rgba(255,255,255,.14); }
+.sh-cluster { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; row-gap: 6px; flex: 0 1 auto; min-width: 0; margin-left: auto; }
+@media (max-width: 1440px) { .sh-cluster { flex: 1 1 100%; margin-left: 0; justify-content: flex-start; row-gap: 8px; } }
+.sh-div { width: 1px; height: 20px; background: rgba(255,255,255,.12); margin: 0 2px; flex-shrink: 0; }
 .sh-params-btn {
   display: inline-flex; align-items: center; gap: 6px;
   font-size: 12px; font-weight: 600; font-family: inherit; color: rgba(255,255,255,.88);
