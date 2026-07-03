@@ -220,6 +220,17 @@ class ExecDashboardService:
                     co_sector=co_sector, sectors_filter=sectors,
                 )
 
+            # Row 2.8 — Здоровье портфеля (SOE Health Check · RAG).
+            # Изолируем: падение блока не валит весь дашборд.
+            health_out = None
+            try:
+                from app.services.exec_dashboard.blocks_health import build_health_block
+                health_out = await build_health_block(
+                    session, year, scope_ids=scope_company_ids,
+                )
+            except Exception as e:
+                log.warning("[exec_dashboard] health block failed: %s", e)
+
         title_sub = f"FY {year} · REVIEW · {total_companies} КОМПАНИЙ"
         row1_subtitle = (
             f"{len(tasks)} задач · "
@@ -245,6 +256,7 @@ class ExecDashboardService:
             economic_effect=economic_effect_out,
             bp_tracker=bp_tracker_out,
             tax_contribution=tax_contribution_out,
+            health=health_out,
             available_years=available_years,
             available_sectors=available_sectors_out,
         )

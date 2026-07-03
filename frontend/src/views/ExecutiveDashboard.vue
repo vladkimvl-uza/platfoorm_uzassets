@@ -23,6 +23,7 @@ import ExecDashBPTrackerBlock from "@/components/ExecDash/ExecDashBPTrackerBlock
 import ExecDashProductionBlock from "@/components/ExecDash/ExecDashProductionBlock.vue";
 import ExecDashKpiBlock from "@/components/ExecDash/ExecDashKpiBlock.vue";
 import ExecDashTaxContributionBlock from "@/components/ExecDash/ExecDashTaxContributionBlock.vue";
+import ExecDashHealthBlock from "@/components/ExecDash/ExecDashHealthBlock.vue";
 import ExecDashDirectionsBlock from "@/components/ExecDash/ExecDashDirectionsBlock.vue";
 import ExecDashGovernanceBlock from "@/components/ExecDash/ExecDashGovernanceBlock.vue";
 import ExecDashStandardsBlock from "@/components/ExecDash/ExecDashStandardsBlock.vue";
@@ -123,6 +124,9 @@ useAiPageContext({
 
         <!-- Row 2.7: Налоговый вклад (Pack 5) -->
         <ExecDashTaxContributionBlock v-reveal="0" />
+
+        <!-- Row 2.8: Здоровье портфеля (SOE Health Check · RAG) -->
+        <ExecDashHealthBlock v-reveal="0" />
 
         <!-- Row 3 (Pack 4): Направления · Корпуправление · Стандарты -->
         <div class="ed-row-3" v-reveal="0">

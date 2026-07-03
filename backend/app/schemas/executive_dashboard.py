@@ -348,6 +348,38 @@ class ExecTaxBlock(BaseModel):
     requested_year: Optional[int] = None  # year-fallback: исходно выбранный год
 
 
+# ─── Block 4 Здоровье портфеля (SOE Health Check · RAG) ───
+class ExecHealthZone(BaseModel):
+    key: str
+    label: str
+    color: str
+    count: int = 0            # сколько компаний в этой зоне
+
+
+class ExecHealthCompany(BaseModel):
+    code: str
+    name: str
+    overall: float            # балл 1..5 (ниже = устойчивее)
+    zone_label: str
+    zone_color: str
+    delta: Optional[float] = None   # изменение к прошлому году (− лучше)
+
+
+class ExecHealthBlock(BaseModel):
+    year: int
+    standard: str
+    has_data: bool
+    avg: Optional[float] = None            # средний балл портфеля 1..5
+    avg_zone_label: Optional[str] = None
+    avg_zone_color: Optional[str] = None
+    scored_count: int = 0                  # оценено компаний
+    total_companies: int = 0               # всего в scope
+    zones: List[ExecHealthZone] = []       # 5 зон с count
+    worst: List[ExecHealthCompany] = []    # тянут вниз (внимание министра)
+    best: List[ExecHealthCompany] = []     # опора портфеля
+    requested_year: Optional[int] = None   # year-fallback: исходно выбранный год
+
+
 # ─────────────────────────── Top-level payload ──────────────────────
 
 class ExecutiveDashboardData(BaseModel):
@@ -380,6 +412,9 @@ class ExecutiveDashboardData(BaseModel):
     economic_effect: Optional[ExecEconomicEffectBlock] = None
     bp_tracker: Optional[ExecBPBlock] = None
     tax_contribution: Optional[ExecTaxBlock] = None
+
+    # Row 2.8 — Здоровье портфеля (SOE Health Check · RAG)
+    health: Optional[ExecHealthBlock] = None
 
     # Filters state
     available_years: List[int]

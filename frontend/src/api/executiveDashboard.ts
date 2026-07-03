@@ -256,6 +256,36 @@ export interface ExecTaxBlock {
   top_payers: ExecTaxTopPayer[];
 }
 
+// ─── Block 4 Здоровье портфеля (SOE Health Check · RAG) ───
+export interface ExecHealthZone {
+  key: string;
+  label: string;
+  color: string;
+  count: number;
+}
+export interface ExecHealthCompany {
+  code: string;
+  name: string;
+  overall: number;
+  zone_label: string;
+  zone_color: string;
+  delta?: number | null;
+}
+export interface ExecHealthBlock {
+  year: number;
+  standard: string;
+  has_data: boolean;
+  avg?: number | null;
+  avg_zone_label?: string | null;
+  avg_zone_color?: string | null;
+  scored_count: number;
+  total_companies: number;
+  zones: ExecHealthZone[];
+  worst: ExecHealthCompany[];
+  best: ExecHealthCompany[];
+  requested_year?: number | null;
+}
+
 // ─── Top-level payload ───
 export interface ExecutiveDashboardData {
   year: number;
@@ -283,6 +313,9 @@ export interface ExecutiveDashboardData {
   economic_effect: ExecEconomicEffectBlock | null;
   bp_tracker: ExecBPBlock | null;
   tax_contribution: ExecTaxBlock | null;
+
+  // Row 2.8 — Здоровье портфеля
+  health: ExecHealthBlock | null;
 
   available_years: number[];
   available_sectors: ExecAvailableSector[];
