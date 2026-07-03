@@ -36,6 +36,7 @@ export interface SoeRatioMeta {
   key: string; label: string; group: string; formula: string;
   thresholds: number[]; default_thresholds?: number[]; overridden?: boolean;
   direction: "gte" | "lte"; fmt: "pct" | "x" | "days";
+  enabled?: boolean; weight?: number; default_enabled?: boolean; default_weight?: number;
 }
 export interface SoeZone { key: string; label: string; color: string; max: number }
 export interface SoeHealthPayload {

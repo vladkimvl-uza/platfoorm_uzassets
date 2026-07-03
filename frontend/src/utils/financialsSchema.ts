@@ -52,6 +52,7 @@ export const ROWS_BY_SECTION: Record<Section, FinRow[]> = {
   pnl: [
     { code: "revenue",     label_ifrs: "Выручка",                 label_nsbu: "Выручка",
       group_header_ifrs: "ДОХОДЫ И РАСХОДЫ", group_header_nsbu: "ДОХОДЫ И РАСХОДЫ" },
+    { code: "govGrants",   label_ifrs: "Господдержка (трансферы)", label_nsbu: "Господдержка (трансферы)" },
     { code: "cogs",        label_ifrs: "Себестоимость",            label_nsbu: "Себестоимость",        is_expense: true },
     { code: "grossProfit", label_ifrs: "Валовая прибыль",          label_nsbu: "Валовая прибыль",      is_subtotal: true, is_calculated: true,
       auto_calc_hint: "revenue − |cogs|" },

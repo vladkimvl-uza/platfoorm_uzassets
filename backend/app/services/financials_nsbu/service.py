@@ -37,7 +37,7 @@ from app.repositories.financials_repository import FinancialsRepository
 
 # Field sets — MUST match useNsbuSchema.ts STANDARD_SCHEMA in frontend.
 _NSBU_PL_FIELDS = {
-    "revenue", "cogs", "grossProfit", "opProfit", "depreciation",
+    "revenue", "govGrants", "cogs", "grossProfit", "opProfit", "depreciation",
     "finIncome", "finCost", "forex", "pbt", "tax", "profit", "ebitda",
 }
 _NSBU_BS_FIELDS = {
@@ -51,6 +51,7 @@ _NSBU_BS_FIELDS = {
 _NSBU_FIELD_LABELS: dict[str, tuple[str, str, str, str]] = {
     # P&L (ОФР)
     "revenue":       ("revenue",       "Выручка",                                  "010", "pnl"),
+    "govGrants":     ("govGrants",     "Господдержка (трансферы)",                 "",    "pnl"),
     "cogs":          ("cogs",          "Себестоимость",                            "020", "pnl"),
     "grossProfit":   ("grossProfit",   "Валовая прибыль (авто)",                   "030", "pnl"),
     "opProfit":      ("opProfit",      "Операционная прибыль",                     "060", "pnl"),

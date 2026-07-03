@@ -40,7 +40,7 @@ from app.services.financials_portfolio.service import _canon_metric
 
 # Field sets per section. MUST match useIfrsSchema.ts in frontend.
 _IFRS_PL_FIELDS = {
-    "revenue", "cogs", "grossProfit", "opProfit", "depreciation",
+    "revenue", "govGrants", "cogs", "grossProfit", "opProfit", "depreciation",
     "finIncome", "finCost", "interestExp", "forex",
     "pbt", "tax", "profit", "ebitda",
 }
@@ -76,6 +76,7 @@ _IFRS_SHEET_LABELS = {
 _IFRS_FIELD_LABELS: dict[str, tuple[str, str, str, str]] = {
     # P&L
     "revenue":            ("revenue",            "Revenue · Выручка",                                 "", "pnl"),
+    "govGrants":          ("govGrants",          "Government transfers · Господдержка (трансферы)",  "", "pnl"),
     "cogs":               ("cogs",               "Cost of sales · Себестоимость",                    "", "pnl"),
     "grossProfit":        ("grossProfit",        "Gross profit · Валовая прибыль (авто)",            "", "pnl"),
     "opProfit":           ("opProfit",           "Operating profit · Операционная прибыль",          "", "pnl"),

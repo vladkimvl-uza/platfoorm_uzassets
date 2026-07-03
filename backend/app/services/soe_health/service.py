@@ -72,6 +72,12 @@ SOE_HEALTH_RATIOS: list[dict[str, Any]] = [
     {"key": "debtCoverage", "label": "Debt Coverage", "group": "Платёжеспособность",
      "formula": "Операционный денежный поток (CFO) / Долг",
      "direction": "gte", "thresholds": [0.8, 0.6, 0.4, 0.3], "fmt": "x"},
+    # Отношения с государством (лист Parameters, «Government Relationship»).
+    # По умолчанию ВЫКЛЮЧЕН из Overall (информационный, как в инструменте) —
+    # включается через редактор показателей.
+    {"key": "govTransfersToRevenue", "label": "Трансферты/Выручка", "group": "Гос. поддержка",
+     "formula": "Господдержка (трансферы) / Выручка",
+     "direction": "lte", "thresholds": [0.3, 0.4, 0.5, 0.6], "fmt": "pct", "enabled": False},
 ]
 
 SOE_HEALTH_ZONES = [
@@ -91,6 +97,8 @@ _NEEDED_CODES = (
     "totalCA", "stBorrowings", "inventories",
     # Altman Z-Score: retainedEarnings (сид из imf-healthcheck / редактор)
     "retainedEarnings",
+    # Гос. поддержка: govGrants (трансферы) — для «Трансферты/Выручка»
+    "govGrants",
 )
 
 # Выписка «Отчёт о фин. результатах» и «Баланс» для дрилла компании —
@@ -193,14 +201,26 @@ def _effective_ratios(overrides: dict) -> list[dict[str, Any]]:
         rr = dict(r)
         rr["default_thresholds"] = list(r["thresholds"])
         rr["overridden"] = False
+        # выбор индикатора (вкл/выкл в Overall) + вес (по умолч. 1.0)
+        rr["enabled"] = bool(r.get("enabled", True))
+        rr["weight"] = float(r.get("weight", 1.0))
+        rr["default_enabled"] = rr["enabled"]
+        rr["default_weight"] = rr["weight"]
         o = overrides.get(r["key"]) if isinstance(overrides, dict) else None
-        thr = (o or {}).get("thresholds") if isinstance(o, dict) else None
-        if isinstance(thr, list) and len(thr) == 4:
-            try:
-                rr["thresholds"] = [float(x) for x in thr]
+        if isinstance(o, dict):
+            thr = o.get("thresholds")
+            if isinstance(thr, list) and len(thr) == 4:
+                try:
+                    rr["thresholds"] = [float(x) for x in thr]
+                    rr["overridden"] = True
+                except (TypeError, ValueError):
+                    pass
+            if "enabled" in o:
+                rr["enabled"] = bool(o["enabled"])
                 rr["overridden"] = True
-            except (TypeError, ValueError):
-                pass
+            if isinstance(o.get("weight"), (int, float)) and o["weight"] >= 0:
+                rr["weight"] = float(o["weight"])
+                rr["overridden"] = True
         out.append(rr)
     return out
 
@@ -250,6 +270,8 @@ def _compute_ratios(m: dict[str, float], ratios: Optional[list[dict[str, Any]]] 
     out["interestCoverage"] = (op / fc, None, None) if (op is not None and fc) else (None, None, None)
     out["cashInterestCoverage"] = (ebitda / fc, None, None) if (ebitda is not None and fc) else (None, None, None)
     out["debtCoverage"] = (cfo / debt, None, None) if (cfo is not None and debt and debt > 0) else (None, None, None)
+    gov = g("govGrants")
+    out["govTransfersToRevenue"] = (abs(gov) / revenue, None, None) if (gov is not None and revenue and revenue > 0) else (None, None, None)
 
     rows: list[dict[str, Any]] = []
     for r in (ratios or SOE_HEALTH_RATIOS):
@@ -263,15 +285,20 @@ def _compute_ratios(m: dict[str, float], ratios: Optional[list[dict[str, Any]]] 
             "thresholds": r["thresholds"], "fmt": r["fmt"],
             "value": (round(value, 4) if value is not None else None),
             "band": band, "note": note,
+            "enabled": bool(r.get("enabled", True)), "weight": float(r.get("weight", 1.0)),
         })
     return rows
 
 
 def _overall(rows: list[dict[str, Any]]) -> tuple[Optional[float], int]:
-    bands = [r["band"] for r in rows if r["band"] is not None]
-    if not bands:
+    """Взвешенное среднее бендов ВКЛЮЧЁННЫХ индикаторов (по умолчанию все веса
+    1.0 → обычное среднее). Выключенные (enabled=False) и «н/д» — исключены."""
+    sel = [(r["band"], float(r.get("weight", 1.0))) for r in rows
+           if r["band"] is not None and r.get("enabled", True)]
+    tw = sum(w for _, w in sel)
+    if not sel or tw <= 0:
         return None, 0
-    return round(sum(bands) / len(bands), 2), len(bands)
+    return round(sum(b * w for b, w in sel) / tw, 2), len(sel)
 
 
 @dataclass
@@ -296,32 +323,54 @@ class SoeHealthService:
     async def save_params(
         self, db: AsyncSession, overrides: dict, *, user_email: str, user_id: Optional[str],
     ) -> list[dict[str, Any]]:
-        """Сохранить оверрайды порогов. Валидация: известный ключ, 4 числа,
-        монотонность по направлению (gte — убывающие, lte — возрастающие).
-        Совпадающие с дефолтом — не хранить. Аудит-запись обязательна."""
+        """Сохранить оверрайды: пороги (опц., 4 числа + монотонность), выбор
+        индикатора enabled (опц.), вес weight (опц., ≥0). Хранятся только
+        отличия от дефолта. Аудит-запись обязательна."""
         meta = {r["key"]: r for r in SOE_HEALTH_RATIOS}
         clean: dict[str, dict] = {}
         for k, o in (overrides or {}).items():
             if k not in meta:
                 raise HTTPException(400, f"Неизвестный коэффициент: {k}")
-            thr = (o or {}).get("thresholds")
-            if not isinstance(thr, list) or len(thr) != 4:
-                raise HTTPException(400, f"{meta[k]['label']}: нужно ровно 4 порога")
-            try:
-                thr = [float(x) for x in thr]
-            except (TypeError, ValueError):
-                raise HTTPException(400, f"{meta[k]['label']}: пороги должны быть числами")
-            d = meta[k]["direction"]
-            mono = all(thr[i] > thr[i + 1] for i in range(3)) if d == "gte" \
-                else all(thr[i] < thr[i + 1] for i in range(3))
-            if not mono:
-                raise HTTPException(
-                    400,
-                    f"{meta[k]['label']}: пороги должны быть строго "
-                    + ("убывающими (лучше ≥)" if d == "gte" else "возрастающими (лучше ≤)"),
-                )
-            if thr != [float(x) for x in meta[k]["thresholds"]]:
-                clean[k] = {"thresholds": thr}
+            if not isinstance(o, dict):
+                continue
+            entry: dict[str, Any] = {}
+            # пороги (опционально)
+            thr = o.get("thresholds")
+            if thr is not None:
+                if not isinstance(thr, list) or len(thr) != 4:
+                    raise HTTPException(400, f"{meta[k]['label']}: нужно ровно 4 порога")
+                try:
+                    thr = [float(x) for x in thr]
+                except (TypeError, ValueError):
+                    raise HTTPException(400, f"{meta[k]['label']}: пороги должны быть числами")
+                d = meta[k]["direction"]
+                mono = all(thr[i] > thr[i + 1] for i in range(3)) if d == "gte" \
+                    else all(thr[i] < thr[i + 1] for i in range(3))
+                if not mono:
+                    raise HTTPException(
+                        400,
+                        f"{meta[k]['label']}: пороги должны быть строго "
+                        + ("убывающими (лучше ≥)" if d == "gte" else "возрастающими (лучше ≤)"),
+                    )
+                if thr != [float(x) for x in meta[k]["thresholds"]]:
+                    entry["thresholds"] = thr
+            # выбор индикатора (опционально)
+            if "enabled" in o:
+                en = bool(o["enabled"])
+                if en != bool(meta[k].get("enabled", True)):
+                    entry["enabled"] = en
+            # вес (опционально, ≥0)
+            if o.get("weight") is not None:
+                try:
+                    w = float(o["weight"])
+                except (TypeError, ValueError):
+                    raise HTTPException(400, f"{meta[k]['label']}: вес должен быть числом")
+                if w < 0:
+                    raise HTTPException(400, f"{meta[k]['label']}: вес не может быть отрицательным")
+                if abs(w - float(meta[k].get("weight", 1.0))) > 1e-9:
+                    entry["weight"] = w
+            if entry:
+                clean[k] = entry
 
         prev = await self.load_params(db)
         await db.execute(text(
