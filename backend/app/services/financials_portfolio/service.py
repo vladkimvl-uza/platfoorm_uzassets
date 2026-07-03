@@ -62,6 +62,17 @@ _PORTFOLIO_METRIC_ALIASES: dict[str, str] = {
     "accounts_receivable": "accountsReceivable",
     "accountsPayable": "accountsPayable",
     "accounts_payable": "accountsPayable",
+    # Cash Flow — аудит P2: МСФО-редактор ПИШЕТ эти коды в financial_lines,
+    # но алиасов не было → вкладка CF жила только на HLF-инъекции. Теперь
+    # канон читается первым, HLF остаётся фолбэком (инъекция не перетирает).
+    "cfo": "cfo",
+    "cfi": "cfi",
+    "cff": "cff",
+    "dividendsPaid": "dividendsPaid",
+    "dividends_paid": "dividendsPaid",
+    "freeCashFlow": "freeCashFlow",
+    "free_cash_flow": "freeCashFlow",
+    "cfi_capex": "cfi_capex",
 }
 
 

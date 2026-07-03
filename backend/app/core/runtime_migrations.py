@@ -241,6 +241,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _seed_company_inns(conn)
             await _patch_committee_meetings(conn)
             await _patch_financial_unit_scale(conn)
+            await _patch_hlf_backfill_ifrs_lines(conn)
             await _bump_alembic(conn)
     except Exception as e:
         # Never crash the app on a self-heal failure - just log and continue.
@@ -1146,6 +1147,194 @@ async def _patch_financial_unit_scale(conn) -> None:
         logger.info(
             "[runtime_migration] normalized unit_scale → 1e9 on %d financial_reports",
             res.rowcount,
+        )
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Аудит фин-источников P2 — backfill канона (financial_lines IFRS,
+# summary FY) из HLF-blob'ов (companies.extra["hlf"]).
+#
+# Сверка по VM-БД (finrecon, июль 2026): 349 точек компания×год×метрика
+# есть в HLF, но ОТСУТСТВУЮТ в financial_lines IFRS — весь Cash Flow
+# (CFO/CFI/CFF/дивиденды), дебиторка/кредиторка МСФО, часть BS/PL.
+# Правила честности:
+#   • существующие строки НИКОГДА не перезаписываем (канон = редактор);
+#   • нулевые значения HLF пропускаем — это столбцы-пустышки шаблона
+#     (hgt 2024: HLF=0.0 при МСФО=9419), «нет данных» ≠ 0;
+#   • знак нормализуем к конвенции редактора: tax/dividendsPaid → abs()
+#     (HLF-шаблон хранит оттоки с минусом, редактор — с плюсом);
+#   • метрики ищутся только в «своих» секциях (pnl/sofp/cashflow) —
+#     без кросс-хитов вроде «cash» в строках кэшфлоу.
+# Идемпотентно: повторный боот — 0 вставок.
+# ─────────────────────────────────────────────────────────────────────
+
+# metric → (report_type, иглы label (приоритет по порядку), id секций HLF)
+_HLF_BF_MATCHERS: dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]] = {
+    "revenue":       ("PL", ("revenue", "выручка"), ("pnl",)),
+    "cogs":          ("PL", ("cost of sales", "cost of goods", "себестоимость"), ("pnl",)),
+    "grossProfit":   ("PL", ("gross profit", "валовая прибыль"), ("pnl",)),
+    "opProfit":      ("PL", ("operating profit", "операционная прибыль"), ("pnl",)),
+    "pbt":           ("PL", ("profit before tax", "прибыль до налогообложения"), ("pnl",)),
+    "tax":           ("PL", ("income tax", "налог на прибыль"), ("pnl",)),
+    "profit":        ("PL", ("profit for the period", "profit for the year", "net profit", "чистая прибыль"), ("pnl",)),
+    "totalAssets":       ("BS", ("total assets", "итого активы", "всего активов"), ("sofp",)),
+    "totalLiabilities":  ("BS", ("total liabilities", "итого обязательства"), ("sofp",)),
+    "equity":            ("BS", ("total equity", "итого капитал", "собственный капитал"), ("sofp",)),
+    "cash":              ("BS", ("cash and cash equivalents", "денежные средства"), ("sofp",)),
+    "debt":              ("BS", ("total debt", "loans and borrowings", "borrowings", "кредиты и займы"), ("sofp",)),
+    "accountsReceivable": ("BS", ("trade and other receivables", "trade receivables", "дебиторская"), ("sofp",)),
+    "accountsPayable":    ("BS", ("trade and other payables", "trade payables", "кредиторская"), ("sofp",)),
+    "cfo": ("CF", ("operating cash flow", "net cash from operating", "cash from operating",
+                   "cash generated from operating", "cash flows from operating",
+                   "поток от операц", "операционн"), ("cashflow",)),
+    "cfi": ("CF", ("investing cash flow", "net cash used in investing", "cash from investing",
+                   "cash flows from investing", "поток от инвест", "инвестиционн"), ("cashflow",)),
+    "cff": ("CF", ("financing cash flow", "net cash from financing", "cash from financing",
+                   "cash flows from financing", "поток от фин", "финансиров"), ("cashflow",)),
+    "dividendsPaid": ("CF", ("dividends paid", "тўланган дивиденд", "дивиденды выпл",
+                             "дивиденды упл", "дивиденд"), ("cashflow", "sofp", "pnl")),
+}
+_HLF_BF_LABELS: dict[str, str] = {
+    "revenue": "Выручка", "cogs": "Себестоимость", "grossProfit": "Валовая прибыль",
+    "opProfit": "Операционная прибыль", "pbt": "Прибыль до налогообложения",
+    "tax": "Налог на прибыль", "profit": "Чистая прибыль",
+    "totalAssets": "Итого активы", "totalLiabilities": "Итого обязательства",
+    "equity": "Итого капитал", "cash": "Денежные средства и эквиваленты",
+    "debt": "Долг (займы и кредиты)", "accountsReceivable": "Дебиторская задолженность",
+    "accountsPayable": "Кредиторская задолженность",
+    "cfo": "CFO · Поток от операционной деятельности",
+    "cfi": "CFI · Поток от инвестиционной деятельности",
+    "cff": "CFF · Поток от финансовой деятельности",
+    "dividendsPaid": "Дивиденды выплаченные",
+}
+_HLF_BF_ABS = {"tax", "dividendsPaid"}          # знак → конвенция редактора
+_HLF_BF_BAD_LABEL = ("%", "margin", "маржа", "рентабельн")
+
+
+def _hlf_bf_extract(hlf) -> dict[str, dict[int, float]]:
+    """{metric: {year: value}} из HLF-blob'а. Годы — из СЕКЦИИ (top-level
+    years = union и может быть длиннее). total/subtotal приоритетнее line."""
+    out: dict[str, dict[int, float]] = {}
+    if not isinstance(hlf, dict):
+        return out
+    sections = hlf.get("sections") or []
+    top_years = hlf.get("years") or []
+    for metric, (_rt, needles, sec_ids) in _HLF_BF_MATCHERS.items():
+        chosen = None   # (prio, is_total, row, years)
+        for sec in sections:
+            if not isinstance(sec, dict):
+                continue
+            sid = str(sec.get("id") or "")
+            if not (sid in sec_ids or sid.startswith("custom")):
+                continue
+            years = sec.get("years") or top_years
+            for row in sec.get("rows") or []:
+                if not isinstance(row, dict):
+                    continue
+                rtype = str(row.get("type") or "")
+                if rtype in ("section_header", "subheader"):
+                    continue
+                hay = (str(row.get("label") or "") + " " + str(row.get("mapping") or "")).lower()
+                if any(b in hay for b in _HLF_BF_BAD_LABEL):
+                    continue
+                for prio, needle in enumerate(needles):
+                    if needle in hay:
+                        is_total = rtype in ("subtotal", "total")
+                        if chosen is None or (is_total and not chosen[1]) \
+                                or (is_total == chosen[1] and prio < chosen[0]):
+                            chosen = (prio, is_total, row, years)
+                        break
+        if chosen is None:
+            continue
+        _p, _t, row, years = chosen
+        vals = row.get("values") or []
+        ymap: dict[int, float] = {}
+        for i, y in enumerate(years):
+            try:
+                yi = int(y)
+            except (TypeError, ValueError):
+                continue
+            if not (2000 < yi < 2100) or i >= len(vals):
+                continue
+            v = vals[i]
+            if v is None or v == "":
+                continue
+            try:
+                f = float(v)
+            except (TypeError, ValueError):
+                continue
+            if f == f and abs(f) != float("inf"):
+                ymap[yi] = f
+        if ymap:
+            out[metric] = ymap
+    return out
+
+
+async def _patch_hlf_backfill_ifrs_lines(conn) -> None:
+    """Backfill канона из HLF (см. блок-комментарий выше). Идемпотентно."""
+    import json as _json
+    cos = (await conn.execute(text(
+        "SELECT id, code, extra FROM companies WHERE is_active = true"
+    ))).all()
+
+    reps = (await conn.execute(text(
+        "SELECT id, company_id, year, report_type FROM financial_reports "
+        "WHERE standard = 'IFRS' AND is_detailed = false AND quarter IS NULL"
+    ))).all()
+    rep_by: dict[tuple, object] = {(r.company_id, int(r.year), r.report_type): r.id for r in reps}
+
+    codes = list(_HLF_BF_MATCHERS.keys())
+    have_rows = (await conn.execute(text(
+        "SELECT report_id, line_code FROM financial_lines WHERE line_code = ANY(:codes)"
+    ), {"codes": codes})).all()
+    have = {(r.report_id, r.line_code) for r in have_rows}
+
+    ins_reports = ins_lines = 0
+    for cid, _code, extra in cos:
+        if isinstance(extra, str):
+            try:
+                extra = _json.loads(extra)
+            except Exception:
+                extra = None
+        hlf = (extra or {}).get("hlf") if isinstance(extra, dict) else None
+        if not hlf:
+            continue
+        for metric, ymap in _hlf_bf_extract(hlf).items():
+            rtype = _HLF_BF_MATCHERS[metric][0]
+            for year, val in ymap.items():
+                if val == 0.0:
+                    continue   # столбец-пустышка, «нет данных» ≠ 0
+                if metric in _HLF_BF_ABS:
+                    val = abs(val)
+                rid = rep_by.get((cid, year, rtype))
+                if rid is None:
+                    rid = (await conn.execute(text(
+                        "INSERT INTO financial_reports "
+                        "(id, company_id, year, quarter, standard, report_type, currency, "
+                        " unit_scale, source, is_audited, is_detailed, is_consolidated, "
+                        " created_at, updated_at) "
+                        "VALUES (gen_random_uuid(), :cid, :yr, NULL, 'IFRS', :rt, 'UZS', "
+                        " 1000000000, 'hlf-backfill', false, false, true, now(), now()) "
+                        "RETURNING id"
+                    ), {"cid": cid, "yr": year, "rt": rtype})).scalar_one()
+                    rep_by[(cid, year, rtype)] = rid
+                    ins_reports += 1
+                if (rid, metric) in have:
+                    continue   # канон уже заполнен — не трогаем
+                await conn.execute(text(
+                    "INSERT INTO financial_lines "
+                    "(id, report_id, line_code, line_name, value, is_subtotal, "
+                    " is_calculated, sort_order, indent_level, created_at, updated_at) "
+                    "VALUES (gen_random_uuid(), :rid, :lc, :ln, :v, false, false, 0, 0, "
+                    " now(), now())"
+                ), {"rid": rid, "lc": metric, "ln": _HLF_BF_LABELS[metric], "v": val})
+                have.add((rid, metric))
+                ins_lines += 1
+
+    if ins_reports or ins_lines:
+        logger.info(
+            "[runtime_migration] hlf-backfill: +%d IFRS reports, +%d financial_lines",
+            ins_reports, ins_lines,
         )
 
 
