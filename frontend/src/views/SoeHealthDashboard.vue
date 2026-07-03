@@ -63,6 +63,7 @@ onMounted(() => { ensureFinancialsCss(); load(); });
 watch([year, standard], load);
 
 const paramsOpen = ref(false);
+const pf = computed(() => data.value?.portfolio || null);
 
 // ─── Портфельный уровень: Pareto по компаниям ──────────────────────
 const PARETO_METRICS = [
@@ -110,6 +111,49 @@ function fmtBln(v: number): string {
   if (Math.abs(v) >= 1000) return (v / 1000).toLocaleString("ru", { maximumFractionDigits: 1 }) + " трлн";
   return v.toLocaleString("ru", { maximumFractionDigits: 0 }) + " млрд";
 }
+
+// ─── Размер vs риск (scatter): x = обязательства (√-шкала), y = балл 1..5 ──
+interface RiskDot { code: string; name: string; liab: number; overall: number; color: string }
+const riskDots = computed<RiskDot[]>(() =>
+  (data.value?.companies || [])
+    .map((c) => ({
+      code: c.code, name: c.name,
+      liab: Number(c.metrics_out?.totalLiabilities ?? 0),
+      overall: Number(c.overall ?? NaN),
+      color: c.zone?.color || "#94A3B8",
+    }))
+    .filter((d) => d.liab > 0 && isFinite(d.overall)),
+);
+const SXW = 960, SXH = 300, SXL = 46, SXR = 16, SXT = 16, SXB = 40;
+const liabMaxSqrt = computed(() => Math.sqrt(Math.max(1, ...riskDots.value.map((d) => d.liab))));
+function scX(liab: number): number {
+  return SXL + (Math.sqrt(liab) / liabMaxSqrt.value) * (SXW - SXL - SXR);
+}
+function scY(overall: number): number {
+  // 1 (устойчиво) сверху → 5 (критично) снизу
+  return SXT + ((overall - 1) / 4) * (SXH - SXT - SXB);
+}
+
+// ─── Разрезы по секторам ───────────────────────────────────────────
+const SECTOR_METRICS = [
+  { value: "totalLiabilities", label: "Обязательства" },
+  { value: "totalAssets", label: "Активы" },
+  { value: "revenue", label: "Выручка" },
+  { value: "equity", label: "Капитал" },
+] as const;
+const sectorMetric = ref<string>("totalLiabilities");
+interface SectorBar { code: string; name: string; color: string; v: number; pct: number }
+const sectorBars = computed<SectorBar[]>(() => {
+  const rows = (pf.value?.by_sector || [])
+    .map((s) => ({ code: s.code, name: s.name, color: s.color,
+                   v: Number((s as unknown as Record<string, number>)[sectorMetric.value] ?? 0) }))
+    .filter((s) => s.v > 0)
+    .sort((a, b) => b.v - a.v);
+  const max = Math.max(1, ...rows.map((r) => r.v));
+  return rows.map((r) => ({ ...r, pct: Math.max(2, (r.v / max) * 100) }));
+});
+
+const profitSplit = computed(() => pf.value?.profit_split || null);
 
 // ─── Тренды агрегатов (спарклайны) ─────────────────────────────────
 const TRENDS = [
@@ -268,6 +312,69 @@ const seriesYears = computed(() => data.value?.series?.years || []);
         </div>
       </section>
 
+      <!-- ═══ Размер vs риск + разрезы по секторам ═══ -->
+      <section class="sh-section sh-2col">
+        <!-- Scatter: обязательства × балл риска -->
+        <div class="sh-card" style="--d:80ms">
+          <div class="sh-card-hd">
+            <div>
+              <div class="sh-card-t">Размер обязательств и риск</div>
+              <div class="sh-card-s">ось X — обязательства (√-шкала) · ось Y — балл 1→5 · правый-низ = крупные и рисковые</div>
+            </div>
+          </div>
+          <div v-if="riskDots.length" class="sh-pareto-svgwrap">
+            <svg :viewBox="`0 0 ${SXW} ${SXH}`" class="sh-pareto-svg" preserveAspectRatio="xMidYMid meet">
+              <!-- зоны балла (горизонтальные полосы) -->
+              <line v-for="s in [1,2,3,4,5]" :key="'g'+s"
+                    :x1="SXL" :x2="SXW - SXR" :y1="scY(s)" :y2="scY(s)" class="sh-grid-line" />
+              <text v-for="s in [1,2,3,4,5]" :key="'gl'+s"
+                    :x="SXL - 8" :y="scY(s) + 3" text-anchor="end" class="sh-axis-lbl">{{ s }}</text>
+              <!-- точки компаний -->
+              <g v-for="(d, i) in riskDots" :key="d.code">
+                <circle :cx="scX(d.liab)" :cy="scY(d.overall)" r="7"
+                        :fill="d.color" fill-opacity="0.82" stroke="#fff" stroke-width="1.5"
+                        class="sh-dot" :style="{ '--d': (i * 30) + 'ms' }">
+                  <title>{{ d.name }} · балл {{ d.overall.toFixed(1) }} · обяз. {{ fmtBln(d.liab) }}</title>
+                </circle>
+                <text :x="scX(d.liab)" :y="scY(d.overall) - 10" text-anchor="middle"
+                      class="sh-dot-lbl">{{ d.code.toUpperCase() }}</text>
+              </g>
+            </svg>
+          </div>
+          <div v-else class="sh-none">Нет данных за {{ data.year }} ({{ data.standard }})</div>
+        </div>
+
+        <!-- Разрезы по секторам -->
+        <div class="sh-card" style="--d:160ms">
+          <div class="sh-card-hd">
+            <div>
+              <div class="sh-card-t">Разрез по секторам</div>
+              <div class="sh-card-s" v-if="profitSplit">
+                прибыльные {{ profitSplit.profitable }} · убыточные {{ profitSplit.loss }}
+                <span v-if="profitSplit.unknown">· н/д {{ profitSplit.unknown }}</span>
+              </div>
+            </div>
+            <UzaSegment
+              :model-value="sectorMetric"
+              :options="SECTOR_METRICS as never"
+              size="sm"
+              @update:model-value="sectorMetric = $event as string"
+            />
+          </div>
+          <div v-if="sectorBars.length" class="sh-secwrap">
+            <div v-for="(s, i) in sectorBars" :key="s.code" class="sh-sec-row"
+                 :style="{ '--d': (i * 60) + 'ms' }">
+              <span class="sh-sec-name" :title="s.name">{{ s.name }}</span>
+              <div class="sh-sec-track">
+                <div class="sh-sec-fill" :style="{ width: s.pct + '%', background: s.color }" />
+              </div>
+              <span class="sh-sec-val">{{ fmtBln(s.v) }}</span>
+            </div>
+          </div>
+          <div v-else class="sh-none">Нет данных за {{ data.year }} ({{ data.standard }})</div>
+        </div>
+      </section>
+
       <!-- ═══ Тренды агрегатов ═══ -->
       <section class="sh-section">
         <div class="sh-trends">
@@ -389,6 +496,28 @@ const seriesYears = computed(() => data.value?.series?.years || []);
 .sh-cum-dot { fill: #fff; stroke: var(--p-deep, #534AB7); stroke-width: 2; opacity: 0; animation: shDotIn .3s ease var(--d, 0ms) forwards; }
 @keyframes shDotIn { to { opacity: 1; } }
 .sh-axis-lbl { font-size: 9px; fill: var(--t3, #94A3B8); font-variant-numeric: tabular-nums; }
+
+/* ── Размер×риск + секторы ── */
+.sh-2col { display: grid; grid-template-columns: 1.4fr 1fr; gap: 12px; }
+@media (max-width: 1100px) { .sh-2col { grid-template-columns: 1fr; } }
+.sh-dot { transform-origin: center; transform-box: fill-box; cursor: default;
+  animation: shDotPop .45s var(--ease-standard, ease) var(--d, 0ms) both; transition: fill-opacity .15s; }
+.sh-dot:hover { fill-opacity: 1; }
+@keyframes shDotPop { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.sh-dot-lbl { font-size: 8px; font-weight: 600; fill: var(--t3, #94A3B8); letter-spacing: .02em;
+  pointer-events: none; opacity: 0; animation: shDotIn .3s ease .4s forwards; }
+.sh-secwrap { display: flex; flex-direction: column; gap: 9px; padding-top: 4px; }
+.sh-sec-row { display: grid; grid-template-columns: 120px 1fr max-content; align-items: center; gap: 10px;
+  animation: shSecRowIn .4s var(--ease-standard, ease) var(--d, 0ms) both; }
+@keyframes shSecRowIn { from { opacity: 0; transform: translateX(-4px); } to { opacity: 1; transform: translateX(0); } }
+.sh-sec-name { font-size: 11.5px; font-weight: 500; color: var(--t1, #1E2A4A);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sh-sec-track { height: 9px; background: rgba(127,119,221,.08); border-radius: 5px; overflow: hidden; }
+.sh-sec-fill { height: 100%; border-radius: 5px; transition: width .6s var(--ease-standard, ease);
+  animation: shSecGrow .7s var(--ease-standard, ease) var(--d, 0ms) both; transform-origin: left center; }
+@keyframes shSecGrow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.sh-sec-val { font-size: 11px; font-weight: 600; color: var(--t2, #4B5468);
+  font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 /* ── Тренды ── */
 .sh-trends { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }

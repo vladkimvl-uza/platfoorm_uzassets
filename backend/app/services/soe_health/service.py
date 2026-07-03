@@ -12,8 +12,8 @@
   • нет данных ≠ 0: недоступный коэффициент = «н/д», исключён из Overall;
   • отрицательный капитал/EBITDA — отдельный кейс: бенд 5 с пометкой, без
     деления на отрицательное (иначе знак переворачивает смысл, ср. −187% в KPI);
-  • Current/Quick Ratio НЕ считаем: в каноне нет кода текущих обязательств
-    (честное «н/д» до появления totalCL в редакторе);
+  • Current/Quick Ratio СЧИТАЕМ: знаменатель текущих обязательств = stBorrowings
+    («Краткосрочные обяз-ва» в схемах НСБУ/МСФО-редакторов); нет данных → «н/д»;
   • Cost Recovery и Cash Interest Coverage — приближения, помечены в формуле.
 """
 from __future__ import annotations
@@ -396,7 +396,7 @@ class SoeHealthService:
                 # сырьё для портфельных графиков (млрд сум)
                 "metrics_out": {k: (round(m[k], 1) if k in m else None)
                                 for k in ("totalLiabilities", "ebitda", "debt",
-                                          "revenue", "totalAssets")},
+                                          "revenue", "totalAssets", "equity", "profit")},
             })
         # худшие сверху (внимание министра), н/д — в конец
         companies.sort(key=lambda x: (x["overall"] is None, -(x["overall"] or 0)))
@@ -421,6 +421,42 @@ class SoeHealthService:
             db, y0=year - 4, y1=year, standard=standard, scope_ids=scope_ids,
         )
 
+        # ─── Разрезы по секторам (активы/обязательства/выручка/капитал) ───
+        # суммируем метрики компаний по сектору; «нет данных ≠ 0» (пропуски не
+        # тянут сумму вниз, но и не выдаём отсутствие за ноль — считаем только
+        # присутствующие значения).
+        _sec: dict[str, dict[str, Any]] = {}
+        for c in companies:
+            sc = c["sector_code"] or "other"
+            s = _sec.setdefault(sc, {
+                "code": sc, "name": c["sector_name"] or "Прочее",
+                "color": c["sector_color"] or "#94A3B8",
+                "totalAssets": 0.0, "totalLiabilities": 0.0,
+                "revenue": 0.0, "equity": 0.0, "count": 0,
+            })
+            s["count"] += 1
+            for k in ("totalAssets", "totalLiabilities", "revenue", "equity"):
+                v = c["metrics_out"].get(k)
+                if v is not None:
+                    s[k] += v
+        by_sector = sorted(
+            _sec.values(), key=lambda x: x["totalLiabilities"], reverse=True,
+        )
+        for s in by_sector:
+            for k in ("totalAssets", "totalLiabilities", "revenue", "equity"):
+                s[k] = round(s[k], 1)
+
+        # ─── Прибыльные / убыточные (по знаку чистой прибыли) ───
+        prof = loss = unknown = 0
+        for c in companies:
+            p = c["metrics_out"].get("profit")
+            if p is None:
+                unknown += 1
+            elif p >= 0:
+                prof += 1
+            else:
+                loss += 1
+
         return {
             "series": series,
             "year": year,
@@ -439,6 +475,8 @@ class SoeHealthService:
                            for c in scored[:3]] if scored else []),
                 "best": ([{"code": c["code"], "name": c["name"], "overall": c["overall"]}
                           for c in sorted(scored, key=lambda x: x["overall"])[:3]] if scored else []),
+                "by_sector": by_sector,
+                "profit_split": {"profitable": prof, "loss": loss, "unknown": unknown},
             },
             # без брендинга источника в UI (пожелание пользователя) — методика
             # описана нейтрально; провенанс порогов см. в докстринге модуля.

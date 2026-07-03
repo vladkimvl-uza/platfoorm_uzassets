@@ -24,6 +24,11 @@ export interface SoeCompany {
   ratios: SoeRatio[]; overall: number | null;
   zone: { key: string; label: string; color: string } | null;
   prev_overall: number | null; delta: number | null; available: number;
+  metrics_out?: Record<string, number | null>;
+}
+export interface SoeSectorAgg {
+  code: string; name: string; color: string; count: number;
+  totalAssets: number; totalLiabilities: number; revenue: number; equity: number;
 }
 export interface SoeRatioMeta {
   key: string; label: string; group: string; formula: string;
@@ -47,6 +52,8 @@ export interface SoeHealthPayload {
     zone_counts: Record<string, number>; scored_count: number; total_companies: number;
     worst: { code: string; name: string; overall: number }[];
     best: { code: string; name: string; overall: number }[];
+    by_sector?: SoeSectorAgg[];
+    profit_split?: { profitable: number; loss: number; unknown: number };
   };
   methodology: string;
 }
