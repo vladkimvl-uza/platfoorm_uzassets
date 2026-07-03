@@ -96,6 +96,7 @@ const mobileSidebarOpen = ref(false);
 // /companies/:id (CompanyDetail) НЕ входит — только workspace.
 const OWN_TOPBAR_PREFIXES = [
   "/dashboard", "/executive-dashboard", "/financials",
+  "/soe-health",
   "/credit-portfolio", "/invest-projects", "/admin/rbac",
   "/esg", "/kpi", "/ratings", "/governance", "/consultants",
   "/business-plan", "/procurement",
