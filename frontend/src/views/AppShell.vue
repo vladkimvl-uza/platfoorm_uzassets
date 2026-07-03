@@ -577,7 +577,7 @@ function exitImpersonate() {
             <!-- SOE Health Check — светофорная оценка устойчивости портфеля -->
             <RouterLink v-if="can('financials.view')" to="/soe-health" class="sb-item sb-sub" active-class="active">
               <span class="sb-sub-dot"></span>
-              <span class="sb-name">SOE Health Check</span>
+              <span class="sb-name">SOE Health Check Tool</span>
             </RouterLink>
 
             <!-- FinModel: единая страница с company picker в топбаре -->

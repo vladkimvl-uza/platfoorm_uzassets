@@ -100,7 +100,7 @@ const BAND_COLORS = ["#1D9E75", "#7DC4A0", "#EF9F27", "#E8590C"];
   <ModalShell :open="open" size="lg" :dirty="dirty" @close="emit('close')">
     <template #header>
       <div class="spm-head">
-        <div class="spm-eyebrow">SOE Health Check</div>
+        <div class="spm-eyebrow">SOE Health Check Tool</div>
         <h2 class="spm-title">Пороги риска</h2>
         <div class="spm-sub">границы бендов 1→5 · значения переходов между зонами</div>
       </div>

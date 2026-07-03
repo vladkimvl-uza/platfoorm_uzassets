@@ -103,7 +103,7 @@ const best = computed(() =>
     <template v-if="company" #header>
       <div class="shd-head">
         <div class="shd-head-l">
-          <div class="shd-eyebrow">SOE Health Check · {{ standard }} · FY {{ year }}</div>
+          <div class="shd-eyebrow">SOE Health Check Tool · {{ standard }} · FY {{ year }}</div>
           <h2 class="shd-title">
             <span class="shd-dot" :style="{ background: company.sector_color || '#94A3B8' }" />
             {{ company.name || company.code }}

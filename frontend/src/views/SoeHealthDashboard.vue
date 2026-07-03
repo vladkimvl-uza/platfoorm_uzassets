@@ -216,7 +216,7 @@ const seriesYears = computed(() => data.value?.series?.years || []);
       <div class="sh-head">
         <div class="sh-eyebrow">ФИНАНСЫ · ЗДОРОВЬЕ ПОРТФЕЛЯ</div>
         <div class="sh-title-row">
-          <span class="sh-title">SOE Health Check</span>
+          <span class="sh-title">SOE Health Check Tool</span>
           <span class="sh-sub">
             RAG-оценка устойчивости · <strong>{{ standard }}</strong> · FY {{ year }}
             <span v-if="data?.params_overridden" class="sh-ovr-badge" title="Пороги изменены относительно методики">пороги настроены</span>

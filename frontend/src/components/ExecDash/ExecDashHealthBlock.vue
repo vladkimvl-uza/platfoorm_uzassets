@@ -75,12 +75,12 @@ function openBoard() {
           <span v-if="isFallback" class="ehl-fallback">данные за FY {{ block?.year }}</span>
         </div>
         <div class="ehl-sub">
-          FY {{ block?.year || exec.year.value }} · SOE Health Check · RAG-оценка устойчивости
+          FY {{ block?.year || exec.year.value }} · SOE Health Check Tool · RAG-оценка устойчивости
         </div>
       </div>
       <div v-if="block && block.has_data" class="ehl-hdr-r">
         <span class="ehl-stat">{{ block.scored_count }} / {{ block.total_companies }} оценено · {{ block.standard }}</span>
-        <button class="ehl-open" type="button" @click="openBoard" title="Открыть дашборд SOE Health Check">
+        <button class="ehl-open" type="button" @click="openBoard" title="Открыть SOE Health Check Tool">
           Подробнее
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>
         </button>

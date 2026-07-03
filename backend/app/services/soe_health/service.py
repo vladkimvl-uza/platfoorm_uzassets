@@ -567,6 +567,6 @@ class SoeHealthService:
             },
             # без брендинга источника в UI (пожелание пользователя) — методика
             # описана нейтрально; провенанс порогов см. в докстринге модуля.
-            "methodology": "SOE Health Check · RAG-оценка финансовой устойчивости, пороги настраиваемые",
+            "methodology": "SOE Health Check Tool · RAG-оценка финансовой устойчивости, пороги настраиваемые",
             "generated_at": datetime.now(UTC).isoformat(),
         }

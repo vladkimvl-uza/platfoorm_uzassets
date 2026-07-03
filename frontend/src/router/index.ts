@@ -338,7 +338,7 @@ const router = createRouter({
           path: "soe-health",
           name: "soe-health",
           component: () => import("@/views/SoeHealthDashboard.vue"),
-          meta: { title: "SOE Health Check", requiresPermission: "financials.view" },
+          meta: { title: "SOE Health Check Tool", requiresPermission: "financials.view" },
         },
         {
           path: "financials-edit/nsbu",
