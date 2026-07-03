@@ -12,19 +12,27 @@ export interface UCProduct {
   energy_breakdown: EnergyBreakdown[]; energy: Record<string, number>;
   components: CostComponent[]; has_energy: boolean;
 }
+export interface UCImport { name: string; unit: string; usd: number; qty: number; cost: number }
 export interface UCCompany {
   code: string; name: string; sector: string; color: string;
   product_count: number; priced_count: number;
   total_cost: number | null; energy_cost: number | null; energy_share: number | null;
+  import_cost: number | null; imports: UCImport[];
   products: UCProduct[];
 }
-export interface UCPrices { [fuel: string]: { price: number; unit: string } }
+export interface UCPriceEntry { price?: number; unit: string; usd?: number }
+export interface UCPrices { [fuel: string]: UCPriceEntry }
+export interface UCWorld { usd_rate: number; brent: number; gold: number; copper: number }
+export interface EnergyMix { fuel: string; label: string; cost: number; share: number }
 export interface UCOverview {
   energyPrices: UCPrices;
+  world: UCWorld;
   fuel_labels: Record<string, string>;
   companies: UCCompany[];
+  energy_mix: EnergyMix[];
   portfolio: {
-    total_cost: number | null; energy_cost: number | null; energy_share: number | null;
+    total_cost: number | null; energy_cost: number | null; components_cost: number | null;
+    import_cost: number | null; energy_share: number | null;
     company_count: number; product_count: number; priced_count: number;
   };
   generated_at: string;
@@ -36,15 +44,16 @@ export interface EditProduct {
   energy: Record<string, number | null>;
   components: CostComponent[];
 }
+export interface EditImport { name: string; unit: string; usd: number; qty: number }
 
 export const unitCostApi = {
   async overview(): Promise<UCOverview> {
     return (await api.get<UCOverview>("/unit-cost/overview")).data;
   },
-  async savePrices(prices: UCPrices): Promise<UCPrices> {
-    return (await api.put("/unit-cost/prices", { prices })).data;
+  async savePrices(prices: UCPrices, world: Partial<UCWorld>): Promise<unknown> {
+    return (await api.put("/unit-cost/prices", { prices, world })).data;
   },
-  async saveCompany(code: string, products: EditProduct[]): Promise<unknown> {
-    return (await api.put(`/unit-cost/companies/${code}`, { products })).data;
+  async saveCompany(code: string, products: EditProduct[], imports: EditImport[]): Promise<unknown> {
+    return (await api.put(`/unit-cost/companies/${code}`, { products, imports })).data;
   },
 };

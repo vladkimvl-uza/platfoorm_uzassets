@@ -9,6 +9,7 @@ import { computed, inject, onMounted, ref } from "vue";
 import { usePermissions } from "@/composables/usePermissions";
 import { ensureFinancialsCss } from "@/components/Financials/financialsHelpers";
 import Odometer from "@/components/Odometer.vue";
+import CreditDonut, { type DonutEntry } from "@/components/CreditPortfolio/CreditDonut.vue";
 import { unitCostApi, type UCOverview, type UCCompany } from "@/api/unitCost";
 import UnitCostCompanyModal from "@/components/UnitCost/UnitCostCompanyModal.vue";
 import UnitCostPricesModal from "@/components/UnitCost/UnitCostPricesModal.vue";
@@ -60,6 +61,34 @@ function shareColor(s: number | null): string {
   if (s >= 35) return "#EF9F27";
   return "#1D9E75";
 }
+
+// мировые ориентиры (тикер + влияют на цены в USD)
+const world = computed(() => data.value?.world || null);
+function fmtNum(v: number | null | undefined, d = 0): string {
+  return v == null ? "—" : Number(v).toLocaleString("ru", { maximumFractionDigits: d });
+}
+
+// графики
+const FUEL_PAL: Record<string, string> = {
+  electricity: "#EF9F27", gas: "#378ADD", diesel: "#E24B4A",
+  mazut: "#8B7FFF", coal: "#4B5468", kerosene: "#1D9E75",
+};
+const mixDonut = computed<DonutEntry[]>(() =>
+  (data.value?.energy_mix || []).map((m) => ({
+    label: m.label, color: FUEL_PAL[m.fuel] || "#7F77DD", value: m.cost, sub: fmtSum(m.cost),
+  })),
+);
+const mixTotal = computed(() => (data.value?.energy_mix || []).reduce((a, m) => a + m.cost, 0));
+const structDonut = computed<DonutEntry[]>(() => {
+  const p = pf.value; if (!p) return [];
+  const out: DonutEntry[] = [];
+  if (p.energy_cost) out.push({ label: "Энергозатраты", color: "#EF9F27", value: p.energy_cost, sub: fmtSum(p.energy_cost) });
+  if (p.components_cost && p.components_cost > 0) out.push({ label: "Прочие статьи", color: "#7F77DD", value: p.components_cost, sub: fmtSum(p.components_cost) });
+  return out;
+});
+function donutHover(e: DonutEntry, total: number): [string, string] {
+  return [e.sub || String(e.value), total ? Math.round((e.value / total) * 100) + "%" : ""];
+}
 </script>
 
 <template>
@@ -79,10 +108,16 @@ function shareColor(s: number | null): string {
         </div>
       </div>
       <div class="uc-cluster">
+        <div v-if="world" class="uc-ticker" title="Курс и мировые ориентиры — влияют на цены в USD (правятся в редакторе)">
+          <span class="uc-tk"><b>USD</b>{{ fmtNum(world.usd_rate) }}</span>
+          <span class="uc-tk"><b>Brent</b>${{ fmtNum(world.brent, 1) }}</span>
+          <span class="uc-tk"><b>Gold</b>${{ fmtNum(world.gold) }}</span>
+          <span class="uc-tk"><b>Cu</b>${{ fmtNum(world.copper) }}</span>
+        </div>
         <button v-if="finPerm.canEdit.value" class="uc-prices-btn" type="button" @click="pricesOpen = true"
-                title="Цены энергоносителей">
+                title="Цены энергоносителей и мировые ориентиры">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-          Цены энергоносителей
+          Цены и курсы
         </button>
       </div>
     </header>
@@ -143,6 +178,26 @@ function shareColor(s: number | null): string {
         </div>
       </section>
 
+      <!-- Графики: энергомикс + структура -->
+      <section v-if="mixDonut.length || structDonut.length" class="uc-section uc-2col">
+        <div v-if="mixDonut.length" class="uc-card">
+          <div class="uc-card-hd"><div>
+            <div class="uc-card-t">Энергомикс портфеля</div>
+            <div class="uc-card-s">доля видов топлива в энергозатратах</div>
+          </div></div>
+          <CreditDonut :entries="mixDonut" :center-value="fmtSum(mixTotal)" center-label="энергия"
+            :hover-fmt="donutHover" :size="150" />
+        </div>
+        <div v-if="structDonut.length" class="uc-card">
+          <div class="uc-card-hd"><div>
+            <div class="uc-card-t">Структура себестоимости</div>
+            <div class="uc-card-s">энергозатраты и прочие статьи</div>
+          </div></div>
+          <CreditDonut :entries="structDonut" :center-value="fmtSum(pf!.total_cost)" center-label="итого"
+            :hover-fmt="donutHover" :size="150" />
+        </div>
+      </section>
+
       <!-- Компании -->
       <section class="uc-section">
         <div class="uc-card">
@@ -181,6 +236,7 @@ function shareColor(s: number | null): string {
       :open="!!editCompany"
       :company="editCompany"
       :prices="data?.energyPrices || {}"
+      :world="data?.world || null"
       :fuel-labels="data?.fuel_labels || {}"
       @close="editCompany = null"
       @saved="editCompany = null; load()"
@@ -188,6 +244,7 @@ function shareColor(s: number | null): string {
     <UnitCostPricesModal
       :open="pricesOpen"
       :prices="data?.energyPrices || {}"
+      :world="data?.world || null"
       :fuel-labels="data?.fuel_labels || {}"
       @close="pricesOpen = false"
       @saved="pricesOpen = false; load()"
@@ -217,6 +274,12 @@ function shareColor(s: number | null): string {
   font-family: inherit; color: rgba(255,255,255,.88); background: rgba(255,255,255,.08);
   border: 1px solid rgba(255,255,255,.16); border-radius: 9px; padding: 7px 13px; cursor: pointer; transition: all .15s; }
 .uc-prices-btn:hover { background: rgba(255,255,255,.15); transform: translateY(-1px); }
+.uc-ticker { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.uc-tk { font-size: 11.5px; font-weight: 600; color: rgba(255,255,255,.9); font-variant-numeric: tabular-nums; white-space: nowrap;
+  padding: 3px 9px; border-radius: 7px; background: rgba(255,255,255,.06); }
+.uc-tk b { font-size: 8.5px; font-weight: 700; color: rgba(255,255,255,.5); text-transform: uppercase; letter-spacing: .04em; margin-right: 5px; }
+.uc-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 900px) { .uc-2col { grid-template-columns: 1fr; } }
 
 .uc-state { display: flex; flex-direction: column; gap: 10px; margin: 0 14px; }
 .uc-skel { height: 92px; border-radius: 14px; background: linear-gradient(90deg,#F1F0F7 25%,#FAF9FE 50%,#F1F0F7 75%);

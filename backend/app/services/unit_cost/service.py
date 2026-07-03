@@ -88,16 +88,25 @@ class UnitCostService:
                 pass  # чтение не должно падать из-за записи
         data.setdefault("energyPrices", {})
         data.setdefault("companies", {})
+        # мировые ориентиры + курс (влияют на цены, привязанные к USD)
+        data.setdefault("world", {"usd_rate": 12650, "brent": 70, "gold": 2600, "copper": 9500})
         return data
 
     # ─── Расчёт ──────────────────────────────────────────────────────
     @staticmethod
-    def _price_map(prices: dict[str, Any]) -> dict[str, float]:
+    def _price_map(prices: dict[str, Any], usd_rate: float) -> dict[str, float]:
+        """Эффективная цена (сум): если задана цена в USD — пересчёт по курсу,
+        иначе прямая цена в сумах. Так курс USD влияет на все привязанные цены."""
         out: dict[str, float] = {}
         for f in FUELS:
-            p = _num((prices.get(f) or {}).get("price"))
-            if p is not None:
-                out[f] = p
+            pr = prices.get(f) or {}
+            usd = _num(pr.get("usd"))
+            if usd is not None and usd > 0 and usd_rate:
+                out[f] = usd * usd_rate
+            else:
+                p = _num(pr.get("price"))
+                if p is not None:
+                    out[f] = p
         return out
 
     def _calc_product(self, p: dict[str, Any], pm: dict[str, float]) -> dict[str, Any]:
@@ -139,7 +148,10 @@ class UnitCostService:
         self, db: AsyncSession, *, scope_ids: Optional[Sequence[UUID]],
     ) -> dict[str, Any]:
         data = await self.load(db)
-        pm = self._price_map(data.get("energyPrices", {}))
+        world = data.get("world", {})
+        usd_rate = _num(world.get("usd_rate")) or 0.0
+        pm = self._price_map(data.get("energyPrices", {}), usd_rate)
+        mix: dict[str, float] = {f: 0.0 for f in FUELS}
 
         # ростер компаний (имена/секторы/scope) из канона
         q = text(
@@ -154,6 +166,7 @@ class UnitCostService:
         companies: list[dict[str, Any]] = []
         pf_total = 0.0
         pf_energy = 0.0
+        pf_import = 0.0
         prod_count = 0
         for code, name, cid, sector, color in rows:
             if scope is not None and str(cid) not in scope:
@@ -163,8 +176,23 @@ class UnitCostService:
             prod_count += len(prods)
             c_total = sum(p["total_cost"] for p in prods if p["total_cost"] is not None)
             c_energy = sum(p["energy_cost"] * p["output"] for p in prods if p["output"])
+            for p in prods:  # энергомикс по видам топлива (для донат-чарта)
+                if p["output"] > 0:
+                    for eb in p["energy_breakdown"]:
+                        mix[eb["fuel"]] += eb["cost"] * p["output"]
+            # импорт (сырьё/комплектующие для производства), цена в USD → сум по курсу
+            imports_out: list[dict[str, Any]] = []
+            imp_cost = 0.0
+            for it in (block.get("imports") or []):
+                u = _num(it.get("usd")) or 0.0
+                q = _num(it.get("qty")) or 0.0
+                c = u * usd_rate * q
+                imp_cost += c
+                imports_out.append({"name": it.get("name", ""), "unit": it.get("unit", ""),
+                                    "usd": round(u, 4), "qty": round(q, 2), "cost": round(c, 1)})
             pf_total += c_total
             pf_energy += c_energy
+            pf_import += imp_cost
             filled = [p for p in prods if p["output"] > 0]
             companies.append({
                 "code": code, "name": name, "sector": sector or "—",
@@ -174,18 +202,30 @@ class UnitCostService:
                 "total_cost": round(c_total, 1) if c_total else None,
                 "energy_cost": round(c_energy, 1) if c_energy else None,
                 "energy_share": (round(c_energy / c_total * 100, 1) if c_total > 0 else None),
+                "import_cost": round(imp_cost, 1) if imp_cost else None,
+                "imports": imports_out,
                 "products": prods,
             })
         companies.sort(key=lambda x: (x["total_cost"] is None, -(x["total_cost"] or 0)))
 
+        energy_mix = [
+            {"fuel": f, "label": FUEL_LABELS[f], "cost": round(mix[f], 1),
+             "share": round(mix[f] / pf_energy * 100, 1) if pf_energy > 0 else 0}
+            for f in FUELS if mix[f] > 0
+        ]
+        energy_mix.sort(key=lambda x: -x["cost"])
         return {
             "energyPrices": data.get("energyPrices", {}),
+            "world": world,
             "fuel_labels": FUEL_LABELS,
             "companies": companies,
+            "energy_mix": energy_mix,
             "portfolio": {
                 "total_cost": round(pf_total, 1) if pf_total else None,
                 "energy_cost": round(pf_energy, 1) if pf_energy else None,
+                "components_cost": (round(pf_total - pf_energy, 1) if pf_total > 0 else None),
                 "energy_share": (round(pf_energy / pf_total * 100, 1) if pf_total > 0 else None),
+                "import_cost": round(pf_import, 1) if pf_import else None,
                 "company_count": len(companies),
                 "product_count": prod_count,
                 "priced_count": sum(c["priced_count"] for c in companies),
@@ -195,7 +235,8 @@ class UnitCostService:
 
     # ─── Правки ──────────────────────────────────────────────────────
     async def save_prices(
-        self, db: AsyncSession, prices: dict[str, Any], *, user_email: str, user_id: Optional[str],
+        self, db: AsyncSession, prices: dict[str, Any], world: dict[str, Any],
+        *, user_email: str, user_id: Optional[str],
     ) -> dict[str, Any]:
         data = await self.load(db)
         clean: dict[str, Any] = dict(data.get("energyPrices", {}))
@@ -203,23 +244,50 @@ class UnitCostService:
             src = prices.get(f)
             if not isinstance(src, dict):
                 continue
+            entry: dict[str, Any] = dict(clean.get(f, {}))
+            entry["unit"] = src.get("unit") or entry.get("unit", "")
             p = _num(src.get("price"))
-            if p is None or p < 0:
-                raise HTTPException(400, f"{FUEL_LABELS[f]}: цена — число ≥ 0")
-            clean.setdefault(f, {})
-            clean[f] = {"price": p, "unit": src.get("unit") or clean.get(f, {}).get("unit", "")}
+            if p is not None:
+                if p < 0:
+                    raise HTTPException(400, f"{FUEL_LABELS[f]}: цена — число ≥ 0")
+                entry["price"] = p
+            usd = _num(src.get("usd"))
+            if usd is not None:
+                if usd < 0:
+                    raise HTTPException(400, f"{FUEL_LABELS[f]}: цена USD — число ≥ 0")
+                entry["usd"] = usd
+            elif "usd" in src:  # явный сброс привязки к USD
+                entry.pop("usd", None)
+            clean[f] = entry
         data["energyPrices"] = clean
+        if isinstance(world, dict) and world:
+            w = dict(data.get("world", {}))
+            for k in ("usd_rate", "brent", "gold", "copper"):
+                v = _num(world.get(k))
+                if v is not None and v >= 0:
+                    w[k] = v
+            data["world"] = w
         await self._write(db, data)
-        await self._audit(db, user_email, user_id, "unit_cost.prices.update", "цены энергоносителей")
-        return clean
+        await self._audit(db, user_email, user_id, "unit_cost.prices.update", "цены энергоносителей + мировые")
+        return {"energyPrices": clean, "world": data.get("world", {})}
 
     async def save_company(
         self, db: AsyncSession, code: str, products: list[dict[str, Any]],
-        *, cid_in_scope: bool, user_email: str, user_id: Optional[str],
+        imports: list[dict[str, Any]], *, cid_in_scope: bool,
+        user_email: str, user_id: Optional[str],
     ) -> dict[str, Any]:
         if not cid_in_scope:
             raise HTTPException(403, "Нет доступа к компании")
         data = await self.load(db)
+        clean_imports: list[dict[str, Any]] = []
+        for it in (imports or []):
+            nm = str(it.get("name", "")).strip()[:120]
+            if not nm:
+                continue
+            clean_imports.append({
+                "name": nm, "unit": str(it.get("unit", "")).strip()[:32],
+                "usd": _num(it.get("usd")) or 0.0, "qty": _num(it.get("qty")) or 0.0,
+            })
         clean_products: list[dict[str, Any]] = []
         for p in products:
             energy = {}
@@ -237,10 +305,12 @@ class UnitCostService:
                 "output": _num(p.get("output")) or 0.0,
                 "energy": energy, "components": comps,
             })
-        data.setdefault("companies", {})[code] = {"products": clean_products}
+        data.setdefault("companies", {})[code] = {
+            "products": clean_products, "imports": clean_imports,
+        }
         await self._write(db, data)
         await self._audit(db, user_email, user_id, "unit_cost.company.update", f"продукты {code}")
-        return {"code": code, "products": clean_products}
+        return {"code": code, "products": clean_products, "imports": clean_imports}
 
     async def _audit(self, db, email, uid, action, note) -> None:
         try:

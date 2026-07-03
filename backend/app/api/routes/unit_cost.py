@@ -29,6 +29,7 @@ async def unit_cost_overview(
 
 class PricesPayload(BaseModel):
     prices: dict[str, Any] = {}
+    world: dict[str, Any] = {}
 
 
 @router.put("/prices")
@@ -44,12 +45,14 @@ async def unit_cost_save_prices(
         raise HTTPException(http_status.HTTP_403_FORBIDDEN,
                             "Цены энергоносителей — только для полного доступа к портфелю")
     return await UnitCostService().save_prices(
-        db, payload.prices, user_email=user.email, user_id=str(user.id) if user.id else None,
+        db, payload.prices, payload.world,
+        user_email=user.email, user_id=str(user.id) if user.id else None,
     )
 
 
 class CompanyPayload(BaseModel):
     products: list[dict[str, Any]] = []
+    imports: list[dict[str, Any]] = []
 
 
 @router.put("/companies/{code}")
@@ -69,6 +72,6 @@ async def unit_cost_save_company(
         ), {"c": code})).first()
         in_scope = bool(crow) and crow[0] in set(scope_ids)
     return await UnitCostService().save_company(
-        db, code, payload.products, cid_in_scope=in_scope,
+        db, code, payload.products, payload.imports, cid_in_scope=in_scope,
         user_email=user.email, user_id=str(user.id) if user.id else None,
     )

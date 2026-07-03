@@ -7,11 +7,12 @@
 import { computed, ref, watch } from "vue";
 import ModalShell from "@/components/ModalShell.vue";
 import { useToast } from "@/composables/useToast";
-import { unitCostApi, FUELS, type UCCompany, type UCPrices, type EditProduct } from "@/api/unitCost";
+import { unitCostApi, FUELS, type UCCompany, type UCPrices, type UCWorld,
+         type EditProduct, type EditImport } from "@/api/unitCost";
 
 const props = defineProps<{
   open: boolean; company: UCCompany | null;
-  prices: UCPrices; fuelLabels: Record<string, string>;
+  prices: UCPrices; world: UCWorld | null; fuelLabels: Record<string, string>;
 }>();
 const emit = defineEmits<{ (e: "close"): void; (e: "saved"): void }>();
 const toast = useToast();
@@ -21,6 +22,7 @@ const FUEL_UNIT: Record<string, string> = {
 };
 
 const draft = ref<EditProduct[]>([]);
+const imports = ref<EditImport[]>([]);
 const saving = ref(false);
 let initial = "";
 
@@ -33,13 +35,26 @@ function toEdit(c: UCCompany): EditProduct[] {
 }
 function init() {
   draft.value = props.company ? toEdit(props.company) : [];
-  initial = JSON.stringify(draft.value);
+  imports.value = (props.company?.imports || []).map((it) => ({ name: it.name, unit: it.unit, usd: it.usd, qty: it.qty }));
+  initial = JSON.stringify({ p: draft.value, i: imports.value });
 }
 watch(() => props.open, (o) => { if (o) init(); }, { immediate: true });
-const dirty = computed(() => JSON.stringify(draft.value) !== initial);
+const dirty = computed(() => JSON.stringify({ p: draft.value, i: imports.value }) !== initial);
 
 function num(v: unknown): number { const n = Number(String(v ?? "").replace(",", ".")); return isFinite(n) ? n : 0; }
-function priceOf(fuel: string): number { return num(props.prices?.[fuel]?.price); }
+const usdRate = computed(() => num(props.world?.usd_rate));
+// эффективная цена энергоносителя (сум): USD×курс если задан USD, иначе прямая
+function priceOf(fuel: string): number {
+  const e = props.prices?.[fuel] || {};
+  const usd = num(e.usd);
+  if (usd > 0 && usdRate.value) return usd * usdRate.value;
+  return num(e.price);
+}
+// импорт: цена в USD × курс × количество
+function importCost(it: EditImport): number { return num(it.usd) * usdRate.value * num(it.qty); }
+const importTotal = computed(() => imports.value.reduce((s, it) => s + importCost(it), 0));
+function addImport() { imports.value.push({ name: "", unit: "т", usd: 0, qty: 0 }); }
+function removeImport(i: number) { imports.value.splice(i, 1); }
 
 // живой расчёт продукта
 function calc(p: EditProduct) {
@@ -87,9 +102,9 @@ async function save() {
   }
   saving.value = true;
   try {
-    await unitCostApi.saveCompany(props.company.code, draft.value);
+    await unitCostApi.saveCompany(props.company.code, draft.value, imports.value);
     toast.success("Себестоимость сохранена");
-    initial = JSON.stringify(draft.value);
+    initial = JSON.stringify({ p: draft.value, i: imports.value });
     emit("saved");
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
@@ -174,6 +189,32 @@ async function save() {
       </div>
 
       <button type="button" class="ucm-addprod" @click="addProduct">+ добавить продукт</button>
+
+      <!-- Импорт: сырьё/комплектующие для производства (в USD, зависит от курса) -->
+      <div class="ucm-imp">
+        <div class="ucm-imp-hd">
+          <div>
+            <div class="ucm-imp-t">Импорт для производства</div>
+            <div class="ucm-imp-s">закупаемое за рубежом сырьё и комплектующие · цена в USD × курс {{ num(usdRate).toLocaleString("ru") }}</div>
+          </div>
+          <button type="button" class="ucm-add" @click="addImport">+ позиция</button>
+        </div>
+        <div v-if="imports.length" class="ucm-imp-list">
+          <div class="ucm-imp-head">
+            <span>Наименование</span><span>Ед.</span><span>Цена, $</span><span>Кол-во</span><span>Итог, сум</span><span></span>
+          </div>
+          <div v-for="(it, ii) in imports" :key="ii" class="ucm-imp-row">
+            <input v-model="it.name" type="text" class="ucm-inp" placeholder="Импортируемая позиция" />
+            <input v-model="it.unit" type="text" class="ucm-inp ucm-inp-c" placeholder="т" />
+            <input v-model.number="it.usd" type="text" inputmode="decimal" class="ucm-inp ucm-inp-c" placeholder="0" />
+            <input v-model.number="it.qty" type="text" inputmode="decimal" class="ucm-inp ucm-inp-c" placeholder="0" />
+            <span class="ucm-imp-cost">{{ fmt(importCost(it)) }}</span>
+            <button type="button" class="ucm-del" @click="removeImport(ii)" title="Удалить">✕</button>
+          </div>
+          <div class="ucm-imp-total">Итого импорт: <b>{{ fmt(importTotal) }} сум</b></div>
+        </div>
+        <div v-else class="ucm-imp-empty">импорт не указан — добавьте позиции кнопкой «+ позиция»</div>
+      </div>
     </div>
 
     <template #footer>
@@ -256,6 +297,21 @@ async function save() {
   background: rgba(124,111,247,.06); border: 1.5px dashed rgba(124,111,247,.35); border-radius: 11px; padding: 11px; cursor: pointer;
   transition: all .14s; margin-top: 2px; }
 .ucm-addprod:hover { background: rgba(124,111,247,.12); }
+
+/* Импорт */
+.ucm-imp { border: 1px solid var(--border,#ECEAF5); border-radius: 12px; padding: 13px; background: var(--bg2,#FAFAFD); margin-top: 4px; }
+.ucm-imp-hd { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.ucm-imp-t { font-size: 12px; font-weight: 700; color: var(--t1,#1E2A4A); }
+.ucm-imp-s { font-size: 10px; color: var(--t3,#94A3B8); margin-top: 2px; }
+.ucm-imp-head, .ucm-imp-row { display: grid; grid-template-columns: 1fr 60px 90px 90px 110px 26px; gap: 8px; align-items: center; }
+.ucm-imp-head { padding: 0 2px 5px; }
+.ucm-imp-head span { font-size: 8.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; color: var(--t3,#94A3B8); text-align: right; }
+.ucm-imp-head span:first-child { text-align: left; }
+.ucm-imp-row { margin-bottom: 6px; animation: ucmProdIn .3s ease both; }
+.ucm-imp-cost { text-align: right; font-size: 11.5px; font-weight: 700; color: #1D9E75; font-variant-numeric: tabular-nums; }
+.ucm-imp-total { text-align: right; font-size: 11.5px; color: var(--t2,#4B5468); margin-top: 4px; padding-top: 8px; border-top: 0.5px dashed rgba(0,0,0,.1); }
+.ucm-imp-total b { color: var(--p-deep,#534AB7); font-variant-numeric: tabular-nums; }
+.ucm-imp-empty { font-size: 10.5px; color: #C4C8D4; font-style: italic; }
 
 .ucm-exp-enter-active, .ucm-exp-leave-active { transition: all .22s var(--ease-standard,ease); overflow: hidden; }
 .ucm-exp-enter-from, .ucm-exp-leave-to { opacity: 0; max-height: 0; }
