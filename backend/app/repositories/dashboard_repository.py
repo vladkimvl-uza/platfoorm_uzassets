@@ -160,6 +160,14 @@ class DashboardRepository:
         )).all()
         return {bid: cid for bid, cid in rows}
 
+    async def inactive_company_ids(self) -> set:
+        """ID деактивированных компаний (is_active=false). Их данные не должны
+        попадать в дашборды/сводки — деактивация = скрыть везде."""
+        rows = (await self.session.execute(
+            select(Company.id).where(Company.is_active.is_(False))
+        )).all()
+        return {cid for (cid,) in rows}
+
     async def boards_with_names_map(self) -> dict[Any, dict]:
         rows = (await self.session.execute(
             select(Board.id, Board.name, Board.company_id)

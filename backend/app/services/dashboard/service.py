@@ -85,6 +85,17 @@ class DashboardService:
             co_meta = await r.companies_meta()
             dir_to_code = await r.direction_id_to_code()
             rating_rows = await r.list_agency_ratings_for_dashboard()
+            inactive_ids = await r.inactive_company_ids()
+
+        # Деактивированные компании (is_active=false) исключаем ВЕЗДЕ: и из
+        # счётчиков/статусов (фильтр строк), и из разбивки по компаниям (co_meta).
+        # Компанию строки резолвим как доска→компания ЛИБО прямой company_id.
+        if inactive_ids:
+            def _co_of(row):
+                return board_to_company.get(row.board_id) or getattr(row, "company_id", None)
+            p_rows = [row for row in p_rows if _co_of(row) not in inactive_ids]
+            t_rows = [row for row in t_rows if _co_of(row) not in inactive_ids]
+            co_meta = {cid: m for cid, m in co_meta.items() if cid not in inactive_ids}
 
         kpis = self._build_kpis(p_rows, t_rows)
         statuses = self._build_statuses(p_rows, t_rows, kpis)
@@ -494,6 +505,15 @@ class DashboardService:
             )
             board_to_company = await r.board_to_company_map()
             co_meta_raw = await r.companies_meta()
+            inactive_ids = await r.inactive_company_ids()
+
+        # Деактивированные компании исключаем и из drill-разбивки (как в overview).
+        if inactive_ids:
+            def _co_of(row):
+                return board_to_company.get(row.board_id) or getattr(row, "company_id", None)
+            p_rows = [row for row in p_rows if _co_of(row) not in inactive_ids]
+            t_rows = [row for row in t_rows if _co_of(row) not in inactive_ids]
+            co_meta_raw = {cid: m for cid, m in co_meta_raw.items() if cid not in inactive_ids}
 
         co_meta = {
             cid: {"id": str(cid), "code": m["code"],
