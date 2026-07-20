@@ -699,6 +699,19 @@ async function selectCompany(code: string) {
     const { api } = await import("@/api/client");
     const { data } = await api.get(`/financials/companies/${code}/ifrs-editor?period=${period.value}&consolidated=${consolidated.value}`);
     if (data) {
+      // Авторитетные значения ИМЕННО этого среза (period+consolidated), уже в млрд.
+      // Заменяют FY-консолидированные из portfolioSummary — иначе кварталы/standalone
+      // показывали годовую консолидацию, а сохранение писало её не в тот срез.
+      if (data.values && typeof data.values === "object") {
+        const vals: Record<string, Record<number, number>> = {};
+        for (const [field, byYear] of Object.entries(data.values as Record<string, Record<string, number>>)) {
+          for (const [yStr, v] of Object.entries((byYear || {}) as Record<string, number>)) {
+            if (v == null || !isFinite(v as number)) continue;
+            (vals[field] ||= {})[Number(yStr)] = v as number;
+          }
+        }
+        state.values = vals;
+      }
       if (Array.isArray(data.customFields) && data.customFields.length) {
         state.customFields = data.customFields;
       }

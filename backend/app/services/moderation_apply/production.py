@@ -14,7 +14,7 @@ from app.schemas.production import ProductionUpsert
 from app.services.moderation_service import register_apply_handler
 
 _FIELDS = ("name", "unit", "total", "parent", "baseN", "baseM",
-           "planN", "planM", "expN", "expM")
+           "planN", "planM", "expN", "expM", "factN", "factM")
 
 
 async def apply(db, *, sub: ModerationSubmission, user: User) -> dict:

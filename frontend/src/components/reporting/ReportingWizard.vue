@@ -103,11 +103,15 @@ const saving = ref(false);
 const loadError = ref(false);   // сбой загрузки → не давать «Сохранить» (иначе затрём реальный отчёт пустой страницей)
 const savedBy = ref<string | null>(null);
 const savedAt = ref<string | null>(null);
+// Полный конфиг строки (company,year): визард владеет только ключом `pages`,
+// но в той же строке живёт блок projects_status_report — его нельзя затирать.
+const loadedConfig = ref<Record<string, any>>({});
 
 async function loadSaved() {
   loadError.value = false;
   try {
     const r = await reportWizardApi.get(props.companyCode, wizYear.value);
+    loadedConfig.value = (r.config && typeof r.config === "object") ? { ...(r.config as any) } : {};
     const cfg = r.config as { pages?: ReportPage[] } | undefined;
     if (cfg?.pages && Array.isArray(cfg.pages) && cfg.pages.length) {
       pages.value = cfg.pages.map(p => ({ ...p, keyProjects: p.keyProjects || [], rows: p.rows || [] }));
@@ -137,8 +141,10 @@ async function saveReport() {
   if (loadError.value) { toast.error("Загрузка не удалась — сохранение заблокировано, чтобы не затереть отчёт. Нажмите «Повторить»."); return; }
   saving.value = true;
   try {
-    const cfg = { pages: JSON.parse(JSON.stringify(pages.value)) };
+    // Сохраняем СВОЙ ключ `pages`, не затирая соседний projects_status_report.
+    const cfg = { ...loadedConfig.value, pages: JSON.parse(JSON.stringify(pages.value)) };
     const r = await reportWizardApi.save(props.companyCode, wizYear.value, cfg);
+    loadedConfig.value = cfg;
     savedBy.value = r.updated_by_name || null;
     savedAt.value = r.updated_at || null;
     // Тост убран: статус сохранения уже виден в нижней панели «Сохранено: … · дата»

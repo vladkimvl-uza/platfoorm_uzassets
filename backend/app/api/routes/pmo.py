@@ -476,8 +476,17 @@ async def patch_task_agile(
     if not await has_effective_permission(db, user, "pmo.edit"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Нет права на правку (pmo.edit)")
     t = await _load_task(db, task_id)
-    if t.company_id:
-        await ensure_company_access(db, user, t.company_id)
+    # Авторизуем именно компанию доски (code), которую вернём в ответе, а не только
+    # компанию задачи — иначе ответом утекала чужая Agile-доска (IDOR по ?code=).
+    company = (await db.execute(
+        select(Company).where(Company.code == code)
+    )).scalar_one_or_none()
+    if company is None:
+        raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Компания не найдена")
+    await ensure_company_access(db, user, company.id)
+    if t.company_id and t.company_id != company.id:
+        raise HTTPException(http_status.HTTP_400_BAD_REQUEST,
+                            "Задача не принадлежит указанной компании")
     data = payload.model_dump(exclude_unset=True)
     if "status" in data and data["status"] not in _BOARD_STATUSES:
         raise HTTPException(http_status.HTTP_400_BAD_REQUEST, "Недопустимый статус")

@@ -794,7 +794,7 @@ async function loadEsg() {
       const map: Record<string, { avgAttainment: number | null; companyCount: number }> = {};
       overview.pillars.forEach((p: any) => {
         map[p.pillar] = {
-          avgAttainment: p.avg_target_attainment != null ? Math.round(p.avg_target_attainment * 100) : null,
+          avgAttainment: p.avg_target_attainment != null ? Math.round(p.avg_target_attainment) : null,
           companyCount: p.company_count || 0,
         };
       });
@@ -1626,7 +1626,11 @@ interface PillarView {
 
 const esgPillarStats = computed<PillarView[]>(() => {
   const detail = esgDetail.value;
-  const metrics: any[] = (detail?.metrics || []) as any[];
+  const metrics: any[] = [
+    ...((detail as any)?.metrics_e || []),
+    ...((detail as any)?.metrics_s || []),
+    ...((detail as any)?.metrics_g || []),
+  ] as any[];
   
   return PILLAR_META.map(pm => {
     const pillarMetrics = metrics.filter(m => m.pillar === pm.key);
@@ -1674,7 +1678,11 @@ interface EsgMetricView {
 
 const esgMetricsByPillar = computed(() => {
   const detail = esgDetail.value;
-  const metrics: any[] = (detail?.metrics || []) as any[];
+  const metrics: any[] = [
+    ...((detail as any)?.metrics_e || []),
+    ...((detail as any)?.metrics_s || []),
+    ...((detail as any)?.metrics_g || []),
+  ] as any[];
   
   return PILLAR_META.map(pm => ({
     pillar: pm.key,
@@ -3574,7 +3582,7 @@ function onEditorClose() {
           <UzaStateBlock v-else-if="esgError" state="error" variant="block" title="Ошибка загрузки" :text="esgError" retry @retry="loadEsg" />
 
           <UzaStateBlock
-            v-else-if="!esgDetail || (esgDetail.metrics?.length === 0 && esgIssues.length === 0)"
+            v-else-if="!esgDetail || ((((esgDetail as any).metrics_e?.length||0)+((esgDetail as any).metrics_s?.length||0)+((esgDetail as any).metrics_g?.length||0)) === 0 && esgIssues.length === 0)"
             state="empty"
             variant="block"
             title="ESG-данные не введены"
