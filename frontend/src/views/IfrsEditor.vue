@@ -160,7 +160,14 @@ const cellMatrix = computed<CellMatrix>(() => {
 });
 
 // ─── Auto-calc on values change (reactive) ─────────────────────
-function recomputeAutoFields() {
+// preserveExisting=true (пути ЗАГРУЗКИ/восстановления): не перетираем уже
+// пришедшее с бэкенда фактическое значение авто-поля клиентской переформулой —
+// иначе отчёт, где хранится чистая прибыль/EBITDA, но нет промежуточного входа
+// (напр. прибыли до налога), обнулялся бы в редакторе, а сохранение удаляло бы
+// строку. На загрузке только ЗАПОЛНЯЕМ пустые ячейки; при правках (default)
+// пересчёт полный.
+function recomputeAutoFields(opts?: { preserveExisting?: boolean }) {
+  const preserve = !!opts?.preserveExisting;
   const state = currentState.value;
   if (!state) return;
   for (const section of displaySchema.value) {
@@ -171,6 +178,8 @@ function recomputeAutoFields() {
       for (const y of years.value) {
         const isManual = !!state.manualFlags[field.id]?.[y];
         if (isManual) continue;
+        // На загрузке: сохранённый факт важнее клиентской переформулы.
+        if (preserve && state.values[field.id]?.[y] != null) continue;
 
         let computed: number | null = null;
         if (overrideExpr) {
@@ -738,7 +747,7 @@ async function selectCompany(code: string) {
   // Просто перезатираем значения из backup'а — backup это полный snapshot.
   restoreBackup(code);
 
-  recomputeAutoFields();
+  recomputeAutoFields({ preserveExisting: true });
 }
 
 // ─── Save ──────────────────────────────────────────────────────
@@ -816,7 +825,7 @@ async function revertCurrent() {
   if (!selectedCode.value) return;
   if (!(await confirmDialog({ message: "Откатить несохранённые изменения?", danger: true }))) return;
   restoreBackup(selectedCode.value);
-  recomputeAutoFields();
+  recomputeAutoFields({ preserveExisting: true });
 }
 
 // ─── Lifecycle ─────────────────────────────────────────────────

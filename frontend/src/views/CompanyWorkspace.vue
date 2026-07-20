@@ -218,7 +218,28 @@ const finLoadedFor = ref<string>("");  // companyCode:year:standard
 // у части компаний нет данных за текущий год, тогда берём последний доступный).
 const finShownYear = ref<number>(0);
 
-const year = ref<number>(2026);
+const year = ref<number>(new Date().getFullYear());
+// Один раз после загрузки: если у выбранного (текущего) года нет ни проектов,
+// ни задач, а данные есть за другой год — переключаемся на последний год с
+// данными (как KPI/BP-вкладки, которые сами скатываются на доступный FY). Гвард
+// не даёт перебивать ручной выбор пользователя через степпер года.
+const _yearAutoAdjusted = ref(false);
+function adjustYearToData() {
+  if (_yearAutoAdjusted.value) return;
+  const yrs = new Set<number>();
+  for (const p of allProjects.value) {
+    const py = (p as any).portfolio_year;
+    if (py != null) yrs.add(Number(py));
+  }
+  for (const t of allTasks.value) {
+    const py = (t as any).portfolio_year;
+    if (py != null && !(t as any).is_project) yrs.add(Number(py));
+  }
+  if (yrs.size === 0) return;              // нет годовых данных — оставляем как есть
+  if (yrs.has(year.value)) { _yearAutoAdjusted.value = true; return; }
+  year.value = Math.max(...yrs);
+  _yearAutoAdjusted.value = true;
+}
 // Подвкладки таба «Отчёт»: мастер отчёта | сводный обзор (exec-overview, scoped к компании)
 const repSub = ref<"wizard" | "overview" | "projreport">("wizard");
 function repSubBtn(active: boolean): string {
@@ -344,6 +365,7 @@ async function loadAll() {
     if (taskResp.status === "fulfilled") {
       allTasks.value = (taskResp.value as any).items || [];
     }
+    adjustYearToData();
   } catch (e: any) {
     error.value = e?.response?.status === 404
       ? `Компания «${code.value}» не найдена`
@@ -454,13 +476,21 @@ function isExcludedStatus(status: string): boolean {
   return EXCLUDED_FROM_PCT.has(status);
 }
 
+// Предикат года ЕДИНЫЙ с виджетами Overview-Extras (CompanyOverviewExtras.vue:
+// py == null || py === year): строки без portfolio_year (legacy/orphan, напр. у
+// новых компаний) считаются в обоих местах, иначе hero-пончик и «По направлениям»
+// показывали бы разные итоги на одном экране.
 const projItems = computed(() =>
-  allProjects.value.filter(p => (p as any).portfolio_year === year.value)
+  allProjects.value.filter(p => {
+    const py = (p as any).portfolio_year;
+    return py == null || py === year.value;
+  })
 );
 const taskItems = computed(() =>
-  allTasks.value.filter(t =>
-    (t as any).portfolio_year === year.value && !t.is_project
-  )
+  allTasks.value.filter(t => {
+    const py = (t as any).portfolio_year;
+    return (py == null || py === year.value) && !t.is_project;
+  })
 );
 
 // =====================================================================
