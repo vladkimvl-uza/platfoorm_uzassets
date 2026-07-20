@@ -76,6 +76,7 @@ import HighLevelFinancials from "@/components/Financials/HighLevelFinancials.vue
 import FinReportUpload from "@/components/Financials/FinReportUpload.vue";
 import GovernanceEditor from "@/components/Governance/GovernanceEditor.vue";
 import BoardMemberProfileModal from "@/components/Governance/BoardMemberProfileModal.vue";
+import BoardMemberHoverCard, { type HoverAnchor } from "@/components/Governance/BoardMemberHoverCard.vue";
 import ESGEditor from "@/components/ESG/ESGEditor.vue";
 import CompanyEmployeesTab from "@/components/Company/CompanyEmployeesTab.vue";
 import CompanyEmployeesSummary from "@/components/Company/CompanyEmployeesSummary.vue";
@@ -1685,7 +1686,35 @@ const selectedBoardMember = ref<BoardMemberView | null>(null);
 function openBoardMember(m: BoardMemberView) {
   selectedBoardMember.value = m;
   boardMemberModalOpen.value = true;
+  bmHoverOpen.value = false;  // клик закрывает hover-карточку
 }
+
+// Быстрая hover-карточка члена совета (аналог UserCardHost у сотрудников).
+const bmHoverOpen = ref(false);
+const bmHoverMember = ref<BoardMemberView | null>(null);
+const bmHoverAnchor = ref<HoverAnchor | null>(null);
+let _bmOpenTimer: number | undefined;
+let _bmCloseTimer: number | undefined;
+let _bmOverCard = false;
+function bmHoverEnter(m: BoardMemberView, el: HTMLElement) {
+  window.clearTimeout(_bmCloseTimer);
+  window.clearTimeout(_bmOpenTimer);
+  const r = el.getBoundingClientRect();
+  _bmOpenTimer = window.setTimeout(() => {
+    bmHoverMember.value = m;
+    bmHoverAnchor.value = { top: r.top, left: r.left, bottom: r.bottom, right: r.right, width: r.width, height: r.height };
+    bmHoverOpen.value = true;
+  }, 200);
+}
+function bmHoverLeave() {
+  window.clearTimeout(_bmOpenTimer);
+  window.clearTimeout(_bmCloseTimer);
+  _bmCloseTimer = window.setTimeout(() => {
+    if (!_bmOverCard) bmHoverOpen.value = false;
+  }, 180);
+}
+function bmCardEnter() { _bmOverCard = true; window.clearTimeout(_bmCloseTimer); }
+function bmCardLeave() { _bmOverCard = false; bmHoverLeave(); }
 
 // =====================================================================
 // ESG computed views
@@ -1849,9 +1878,10 @@ const consPerCompanyKpis = computed(() => {
   const d = consPerCompany.value;
   if (!d) return null;
   const big4Count = d.consultants.filter(c => c.is_big4).length;
-  const totalDone = d.consultants.reduce((s, c) => s + c.task_done, 0);
-  const totalTasks = d.consultants.reduce((s, c) => s + c.task_count, 0);
-  const completionPct = totalTasks > 0 ? Math.round((totalDone / totalTasks) * 100) : 0;
+  // «Выполнение задач» — ВЗВЕШЕННОЕ с бэкенда (weighted_pct по дедуп-объединению
+  // консультируемых задач), а не done/total на фронте: иначе цифра расходилась
+  // и со своими карточками, и с полностраничным модулем /consultants.
+  const completionPct = Math.round(d.completion_pct ?? 0);
   return {
     consultants: d.total_consultants,
     assignments: d.total_assignments,
@@ -3663,6 +3693,10 @@ function onEditorClose() {
                   @click="openBoardMember(m)"
                   @keydown.enter.prevent="openBoardMember(m)"
                   @keydown.space.prevent="openBoardMember(m)"
+                  @mouseenter="bmHoverEnter(m, $event.currentTarget as HTMLElement)"
+                  @mouseleave="bmHoverLeave"
+                  @focus="bmHoverEnter(m, $event.currentTarget as HTMLElement)"
+                  @blur="bmHoverLeave"
                 >
                   <div class="cw-gov-avatar" :style="`background: ${m.roleColor}`">
                     {{ m.initials }}
@@ -4741,7 +4775,17 @@ function onEditorClose() {
       @saved="onGovEditorSaved"
     />
 
-    <!-- Всплывающий профиль члена совета директоров -->
+    <!-- Быстрая hover-карточка члена совета (наведение) -->
+    <BoardMemberHoverCard
+      :open="bmHoverOpen"
+      :member="bmHoverMember as any"
+      :anchor="bmHoverAnchor"
+      @enter="bmCardEnter"
+      @leave="bmCardLeave"
+      @open="bmHoverMember && openBoardMember(bmHoverMember)"
+    />
+
+    <!-- Всплывающий профиль члена совета директоров (клик) -->
     <BoardMemberProfileModal
       :open="boardMemberModalOpen"
       :member="selectedBoardMember as any"

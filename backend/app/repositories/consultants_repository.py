@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from typing import Any, Optional
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.board import Board
@@ -102,12 +102,22 @@ class ConsultantsRepository:
         *,
         year: Optional[int],
     ) -> list:
+        # Атрибуция к компании как в overview (service.list_company_active_tasks
+        # использовал только Task.company_id и молча терял board-linked задачи с
+        # NULL company_id → вкладка недосчитывала консультантов vs полный модуль).
+        # Резолвим: Task.company_id == id ЛИБО (company_id IS NULL И доска компании).
         q = (
             select(
                 Task.id, Task.num, Task.title, Task.status, Task.due_date,
                 Task.portfolio_year, Task.extra,
             )
-            .where(Task.company_id == company_id)
+            .outerjoin(Board, Board.id == Task.board_id)
+            .where(
+                or_(
+                    Task.company_id == company_id,
+                    and_(Task.company_id.is_(None), Board.company_id == company_id),
+                )
+            )
             .where(Task.is_archived == False)  # noqa: E712
         )
         if year:

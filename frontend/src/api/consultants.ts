@@ -57,6 +57,8 @@ export interface CompanyConsultantsResponse {
   consultants: CompanyConsultant[];
   total_assignments: number;
   total_consultants: number;
+  /** Сводное взвешенное выполнение по компании (weighted_pct, 0..100). */
+  completion_pct?: number;
 }
 
 // ---------------------------------------------------------------------

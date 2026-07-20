@@ -414,10 +414,23 @@ class ConsultantsService:
             })
         result.sort(key=lambda x: (-int(x["is_big4"]), -x["task_count"], x["name"] or ""))
 
+        # Сводное «Выполнение задач» по компании — ВЗВЕШЕННОЕ по дедуп-объединению
+        # всех консультируемых задач (не done/total на фронте, иначе цифра
+        # расходилась и со своими же карточками, и с полностраничным модулем;
+        # monthly/ongoing взвешивание исключает — как core/progress.py).
+        consulted_tids = {tid for tid, _cid, _src in ca_rows}
+        company_items = [
+            (task_by_id[tid]["status"], task_by_id[tid]["extra"])
+            for tid in consulted_tids
+            if tid in task_by_id
+        ]
+        company_completion = weighted_pct(company_items)
+
         return {
             "company_id": str(company_id),
             "year": year,
             "consultants": result,
             "total_assignments": len(ca_rows),
             "total_consultants": len(result),
+            "completion_pct": company_completion,
         }
