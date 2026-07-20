@@ -155,7 +155,7 @@ const KIND_META: Record<string, { title: string; eyebrow: string; accent: string
   portfolio: { title: "Кредитный портфель", eyebrow: "размер программы", accent: "#534AB7",
     explain: "Сумма всех изначальных размеров кредитов по подписанным договорам, пересчитанных в USD по курсу на дату получения. SUM(sum_total_usd). Размер программы, не текущая задолженность." },
   outstanding: { title: "Общий долг outstanding", eyebrow: "детализация показателя", accent: "#7F77DD",
-    explain: "Сумма колонки debt_usd по всем активным кредитам — сколько 22 предприятия должны прямо сейчас. SELECT SUM(debt_usd) WHERE deleted_at IS NULL." },
+    explain: "Сумма колонки debt_usd по всем активным кредитам — сколько предприятия портфеля должны прямо сейчас. SELECT SUM(debt_usd) WHERE deleted_at IS NULL." },
   rate: { title: "Средневзвешенная ставка", eyebrow: "по размеру долга", accent: "#EF9F27",
     explain: "Σ(rate × debt_usd) / Σ debt_usd. Большие кредиты весят больше. Не путать с простой средней." },
   guaranteed: { title: "Кредиты с государственной гарантией", eyebrow: "доля защищённого долга", accent: "#1D9E75",
@@ -246,7 +246,7 @@ const filterDesc = computed(() => {
   if (k === "guaranteed") return "is_guaranteed = true"
   if (k === "overdue") return "overdue_days > 0"
   if (k === "due12mo") return "до 365 дней до date_due"
-  return "все 22 предприятия"
+  return "все предприятия портфеля"
 })
 
 // === Native currency formatter ===

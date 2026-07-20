@@ -157,9 +157,12 @@ class DashboardService:
     def _bucket_by_company(p_rows, t_rows, board_to_company) -> dict:
         co_buckets: dict[Any, dict] = {}
         for r in p_rows:
-            if r.board_id is None:
-                continue
-            cid = board_to_company.get(r.board_id)
+            # Атрибуция к компании: сначала по доске, при её отсутствии — по
+            # прямому company_id (board-less проекты, напр. у новой компании без
+            # доски; иначе они считались в общем KPI, но выпадали из разбивки).
+            cid = board_to_company.get(r.board_id) if r.board_id is not None else None
+            if cid is None:
+                cid = getattr(r, "company_id", None)
             if cid is None:
                 continue
             b = co_buckets.setdefault(cid, {
@@ -171,9 +174,9 @@ class DashboardService:
                 b["projects_done"] += 1
         from app.core.progress import task_weight
         for r in t_rows:
-            if r.board_id is None:
-                continue
-            cid = board_to_company.get(r.board_id)
+            cid = board_to_company.get(r.board_id) if r.board_id is not None else None
+            if cid is None:
+                cid = getattr(r, "company_id", None)
             if cid is None:
                 continue
             b = co_buckets.setdefault(cid, {

@@ -84,7 +84,11 @@ interface OverviewResponse {
 const data = ref<OverviewResponse | null>(null);
 const loading = ref(true);
 const errorMsg = ref<string | null>(null);
-const year = ref<number | null>(null);
+// По умолчанию — актуальный (текущий) год; если его нет в данных, после первой
+// загрузки откатываемся на последний доступный.
+const CURRENT_YEAR = new Date().getFullYear();
+const year = ref<number | null>(CURRENT_YEAR);
+let _yearAutoChecked = false;
 const filterConsultantCode = ref<string | null>(null);
 const heatmapZoomed = ref(false);
 
@@ -158,6 +162,15 @@ async function load() {
     if (year.value) params.year = year.value;
     const res = await api.get<OverviewResponse>("/consultants/overview", { params });
     data.value = res.data;
+    // Актуального года нет в данных → откат на последний доступный (разово).
+    if (!_yearAutoChecked) {
+      _yearAutoChecked = true;
+      const avail = res.data.available_years || [];
+      if (year.value !== null && avail.length && !avail.includes(year.value)) {
+        year.value = Math.max(...avail);
+        return;  // watch(year) перезагрузит с корректным годом
+      }
+    }
     await nextTick();
     rescan();
   } catch (e: unknown) {

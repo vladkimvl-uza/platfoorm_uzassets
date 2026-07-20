@@ -41,8 +41,8 @@ class DashboardRepository:
         # before direction_id existed).
         q = (select(
             Project.id, Project.status, Project.due_date, Project.direction_id,
-            Project.board_id, Project.linked_year, Project.linked_project_id,
-            Project.portfolio_year,
+            Project.board_id, Project.company_id, Project.linked_year,
+            Project.linked_project_id, Project.portfolio_year,
             Project.extra,
         ).where(Project.is_archived == False))  # noqa: E712
         if year:
@@ -62,7 +62,7 @@ class DashboardRepository:
     ):
         q = (select(
             Task.id, Task.status, Task.due_date, Task.direction_id,
-            Task.board_id, Task.linked_year, Task.linked_task_id,
+            Task.board_id, Task.company_id, Task.linked_year, Task.linked_task_id,
             Task.portfolio_year,
             Task.extra,
         ).where(Task.is_archived == False))  # noqa: E712
