@@ -14,6 +14,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi import status as http_status
+from fastapi.responses import JSONResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -490,9 +491,63 @@ async def patch_task_agile(
     data = payload.model_dump(exclude_unset=True)
     if "status" in data and data["status"] not in _BOARD_STATUSES:
         raise HTTPException(http_status.HTTP_400_BAD_REQUEST, "Недопустимый статус")
+
+    new_status = data.get("status")
+    status_changing = "status" in data and str(t.status) != str(new_status)
+    _old_status = t.status
+
+    # Спринт / story points — не модерируются (не влияют на прогресс/KPI),
+    # применяем сразу. Статус — отдельно, через модерационный гейт.
     for k, v in data.items():
+        if k == "status":
+            continue
         setattr(t, k, v)
+
+    queued = False
+    if status_changing:
+        # Перетаскивание карточки по Agile-доске = та же смена статуса задачи,
+        # что и через PATCH /tasks/{id}: раньше здесь был прямой setattr+commit в
+        # обход модерации и без уведомлений — ограниченный пользователь применял
+        # статус (в т.ч. «Готово» → 100% прогресса платформенно) мимо гейта.
+        from app.services.moderation_service import gate_or_apply
+        queued, sub = await gate_or_apply(
+            db, user=user,
+            module="tasks", action="status_change",
+            entity_id=str(task_id), entity_label=f"Задача: {t.title}",
+            company_id=t.company_id, sector_id=None, year=t.portfolio_year,
+            payload={"status": new_status},
+            diff_summary=f"Статус задачи '{t.title}': {_old_status} → {new_status}",
+        )
+        if queued:
+            await db.commit()  # спринт/points применены, статус — на модерации
+            return JSONResponse(
+                status_code=http_status.HTTP_202_ACCEPTED,
+                content={"queued": True, "submission_id": str(sub.id), "status": sub.status},
+            )
+        t.status = new_status
+
     await db.commit()
+
+    # Уведомления при фактической смене статуса — как в PATCH /tasks/{id}.
+    if status_changing and not queued:
+        from app.services.tasks.notifications import notify_task_status_change
+        await notify_task_status_change(
+            db, task=t, old_status=_old_status, new_status=new_status, actor=user,
+        )
+        from app.services import watch_service
+        await watch_service.notify_watchers(
+            db, entity_type="task", entity_id=str(t.id), actor_id=user.id,
+            notif_type="watch.status",
+            title="Статус отслеживаемой задачи изменён",
+            body=f"{user.full_name or user.email}: {_old_status} → {new_status}",
+            payload={
+                "entity_type": "task", "entity_id": str(t.id),
+                "entity_title": t.title,
+                "action": "status_changed",
+                "old_status": _old_status, "new_status": new_status,
+            },
+        )
+
     result = await build_agile(db, code, None)
     if result is None:
         raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Компания не найдена")

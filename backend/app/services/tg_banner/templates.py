@@ -72,6 +72,7 @@ MODULES: dict[str, ModuleSpec] = {
     "loan":        ModuleSpec(label_ru="Кредит",         icon_label="CR",    default_severity="critical"),
     "procurement": ModuleSpec(label_ru="Закупки",        icon_label="PR",    default_severity="info"),
     "tasks":       ModuleSpec(label_ru="Задачи",         icon_label="TS",    default_severity="info"),
+    "projects":    ModuleSpec(label_ru="Проекты",        icon_label="PJ",    default_severity="info"),
     "deadline":    ModuleSpec(label_ru="Дедлайн",        icon_label="DL",    default_severity="warning"),
     "moderation":  ModuleSpec(label_ru="Модерация",      icon_label="MOD",   default_severity="info"),
     "mfa":         ModuleSpec(label_ru="Безопасность",   icon_label="2FA",   default_severity="info"),

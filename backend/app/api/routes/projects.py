@@ -16,6 +16,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi import status as http_status
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.access import allowed_company_ids
@@ -132,6 +133,24 @@ async def create_project(
                 "Cannot create project for a company outside your allowed list",
             )
 
+    # Moderation gate — как у задач (иначе ограниченный пользователь применял бы
+    # правки проектов немедленно в обход модерации). module="projects".
+    from app.services.moderation_service import gate_or_apply
+    queued, sub = await gate_or_apply(
+        db, user=user,
+        module="projects", action="create",
+        entity_id=None, entity_label=f"Проект: {payload.title}",
+        company_id=payload.company_id, sector_id=None,
+        year=payload.portfolio_year,
+        payload=payload.model_dump(mode="json"),
+        diff_summary=f"Новый проект · {payload.priority or '—'} · {payload.title}",
+    )
+    if queued:
+        return JSONResponse(
+            status_code=http_status.HTTP_202_ACCEPTED,
+            content={"queued": True, "submission_id": str(sub.id), "status": sub.status},
+        )
+
     detail, _info = await service.create_project(payload, creator_id=user.id)
     # Watch: автор авто-подписывается на проект
     from app.services import watch_service
@@ -153,7 +172,7 @@ async def update_project(
     await _require(db, user, "tasks.edit")
     scope_ids = await _scope(db, user)
 
-    _changed = payload.model_dump(exclude_unset=True)
+    _changed = payload.model_dump(mode="json", exclude_unset=True)
     request.state.activity_fields = list(_changed.keys())
     # Деталь уведомления при смене статуса проекта: «Статус: Новая → Завершено».
     if "status" in _changed:
@@ -169,6 +188,31 @@ async def update_project(
                 f"Статус: {_stl(_pre.status)} → {_stl(_changed.get('status'))}"
             )
             request.state.activity_entity = _pre.title
+
+    # Moderation gate — как у задач. Смена статуса → action "status_change".
+    from sqlalchemy import select as _sel_g
+
+    from app.models.project import Project as _PrG
+    _pre_g = (await db.execute(
+        _sel_g(_PrG.title, _PrG.company_id, _PrG.portfolio_year).where(_PrG.id == project_id)
+    )).first()
+    if _pre_g is None:
+        raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Project not found")
+    _mod_action = "status_change" if "status" in _changed else "update"
+    from app.services.moderation_service import gate_or_apply
+    queued, sub = await gate_or_apply(
+        db, user=user,
+        module="projects", action=_mod_action,
+        entity_id=str(project_id), entity_label=f"Проект: {_pre_g.title}",
+        company_id=_pre_g.company_id, sector_id=None, year=_pre_g.portfolio_year,
+        payload=_changed,
+        diff_summary=f"Обновление проекта '{_pre_g.title}'",
+    )
+    if queued:
+        return JSONResponse(
+            status_code=http_status.HTTP_202_ACCEPTED,
+            content={"queued": True, "submission_id": str(sub.id), "status": sub.status},
+        )
 
     project, info = await service.update_project(
         project_id, payload, scope_company_ids=scope_ids,
@@ -236,6 +280,33 @@ async def archive_project(
     user: User = Depends(get_current_user),
 ):
     await _require(db, user, "tasks.delete")
+    scope_ids = await _scope(db, user)
+
+    # Moderation gate — архивация проекта тоже проходит модерацию (как задачи).
+    from sqlalchemy import select as _sel_a
+
+    from app.models.project import Project as _PrA
+    _pre_a = (await db.execute(
+        _sel_a(_PrA.title, _PrA.company_id, _PrA.portfolio_year).where(_PrA.id == project_id)
+    )).first()
+    if _pre_a is None:
+        raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Project not found")
+
+    from app.services.moderation_service import gate_or_apply
+    queued, sub = await gate_or_apply(
+        db, user=user,
+        module="projects", action="delete",
+        entity_id=str(project_id), entity_label=f"Проект: {_pre_a.title}",
+        company_id=_pre_a.company_id, sector_id=None, year=_pre_a.portfolio_year,
+        payload={"project_id": str(project_id)},
+        diff_summary=f"Архивация проекта '{_pre_a.title}'",
+    )
+    if queued:
+        return JSONResponse(
+            status_code=http_status.HTTP_202_ACCEPTED,
+            content={"queued": True, "submission_id": str(sub.id), "status": sub.status},
+        )
+
     await service.archive_project(
-        project_id, scope_company_ids=await _scope(db, user),
+        project_id, scope_company_ids=scope_ids,
     )

@@ -38,6 +38,10 @@ interface HlfRow {
   mapping?: string;
   // Автосумма для total/subtotal: true=вкл, false=выкл, undefined=эвристика по метке.
   auto?: boolean;
+  // Годы ВЛАДЕЮЩЕЙ секции (проставляются в allRows() при уплощении). row.values
+  // выровнены по НИМ, а не по глобальным data.years — нужно для честного маппинга
+  // год→значение в KPI при расхождении наборов лет секций.
+  _secYears?: number[];
 }
 interface HlfSection { id: string; title: string; years: number[]; rows: HlfRow[]; }
 interface HlfData {
@@ -637,11 +641,14 @@ function commitAddYear() {
     return;
   }
   data.value.years = [...data.value.years, yr].sort((a, b) => a - b);
-  const insertIdx = data.value.years.indexOf(yr);
   for (const sec of data.value.sections) {
+    // Индекс вставки — ПО СВОИМ годам секции, не по глобальным data.years:
+    // при расхождении наборов лет глобальный индекс сдвигал значения строки
+    // (v под чужим годом). Зеркалит per-section логику removeYear.
     sec.years = [...sec.years, yr].sort((a, b) => a - b);
+    const secIdx = sec.years.indexOf(yr);
     for (const row of sec.rows) {
-      row.values.splice(insertIdx, 0, null);
+      row.values.splice(secIdx, 0, null);
     }
   }
   dirty.value = true;
@@ -927,10 +934,23 @@ function matchRow(rows: HlfRow[], key: string): HlfRow | null {
 
 function allRows(): HlfRow[] {
   if (!data.value) return [];
-  return data.value.sections.flatMap(s => s.rows);
+  // Уплощаем в КОПИИ с проставленными _secYears — так каждый ряд знает годы
+  // своей секции (values выровнены по ним). Копии, чтобы не мутировать источник;
+  // потребители (buildKpis, авто-выбор года) только читают.
+  return data.value.sections.flatMap(s => s.rows.map(r => ({ ...r, _secYears: s.years })));
 }
 
-function totalDebtIn(rows: HlfRow[], yearIdx: number): number | null {
+// Значение ряда за КОНКРЕТНЫЙ год (не по глобальному индексу): маппим год через
+// годы владеющей секции. targetYear === null → fallback к позиционному индексу.
+function rowValueForYear(r: HlfRow, targetYear: number | null): number | null {
+  if (targetYear == null) return null;
+  const sy = r._secYears;
+  if (!sy) return null;
+  const li = sy.indexOf(targetYear);
+  return li === -1 ? null : (r.values[li] ?? null);
+}
+
+function totalDebtIn(rows: HlfRow[], targetYear: number): number | null {
   const matched = rows.filter(r =>
     r.type !== "section_header" && r.type !== "subheader" &&
     (r.label.toLowerCase().includes("займ") ||
@@ -939,7 +959,7 @@ function totalDebtIn(rows: HlfRow[], yearIdx: number): number | null {
   );
   let sum = 0, any = false;
   for (const r of matched) {
-    const v = r.values[yearIdx];
+    const v = rowValueForYear(r, targetYear);
     // 2026-05-26: Number-coerce — backend numeric может приходить строкой.
     if (v != null) { sum += Number(v); any = true; }
   }
@@ -951,9 +971,13 @@ interface KpiVal { label: string; key: string; unit: "%" | "x" | "money"; values
 // Чистая функция: считает 12 KPI для любого набора (годы + строки). Используется
 // и для выбранной компании (computed kpis), и для кросс-компанийного ИИ-анализа.
 function buildKpis(years: number[], rows: HlfRow[]): KpiVal[] {
+  // yi — индекс в ГЛОБАЛЬНОМ массиве years; значение ряда берём по годовому
+  // ЗНАЧЕНИЮ (years[yi]) через годы его секции, а не по позиции yi в row.values —
+  // иначе при расхождении наборов лет секций числитель и знаменатель KPI брались
+  // бы из РАЗНЫХ годов (ROA = чистая прибыль одного года / активы другого).
   const get = (key: string, yi: number): number | null => {
     const r = matchRow(rows, key);
-    return r ? (r.values[yi] ?? null) : null;
+    return r ? rowValueForYear(r, years[yi] ?? null) : null;
   };
   const computeMetric = (fn: (yi: number) => number | null): (number | null)[] => years.map((_, yi) => fn(yi));
 
@@ -997,7 +1021,7 @@ function buildKpis(years: number[], rows: HlfRow[]): KpiVal[] {
     {
       label: "Debt / EBITDA", key: "de", unit: "x",
       values: computeMetric(yi => {
-        const debt = totalDebtIn(rows, yi);
+        const debt = totalDebtIn(rows, years[yi]);
         const op = get("operating_profit", yi), d = get("depreciation", yi);
         if (debt == null || op == null) return null;
         const ebitda = op + (d == null ? 0 : Math.abs(d));
@@ -1115,8 +1139,11 @@ watch(data, () => {
   const rows = allRows();
   const revenueRow = matchRow(rows, "revenue") || matchRow(rows, "net_profit") || matchRow(rows, "total_assets");
   if (revenueRow) {
-    for (let i = revenueRow.values.length - 1; i >= 0; i--) {
-      if (revenueRow.values[i] != null) {
+    // Идём по ГЛОБАЛЬНЫМ годам от свежих к старым; значение берём через годы
+    // секции (activeKpiYearIdx — глобальный индекс, им же индексируются kpis).
+    const gYears = data.value.years;
+    for (let i = gYears.length - 1; i >= 0; i--) {
+      if (rowValueForYear(revenueRow, gYears[i]) != null) {
         activeKpiYearIdx.value = i;
         return;
       }
