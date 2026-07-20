@@ -78,7 +78,6 @@ import GovernanceEditor from "@/components/Governance/GovernanceEditor.vue";
 import BoardMemberProfileModal from "@/components/Governance/BoardMemberProfileModal.vue";
 import BoardMemberHoverCard, { type HoverAnchor } from "@/components/Governance/BoardMemberHoverCard.vue";
 import ESGEditor from "@/components/ESG/ESGEditor.vue";
-import ESGCompanyDetailPanel from "@/components/ESG/ESGCompanyDetailPanel.vue";
 import ESGMaturityProfilePanel from "@/components/ESG/ESGMaturityProfilePanel.vue";
 import ESGSwotPanel from "@/components/ESG/ESGSwotPanel.vue";
 import UzaSegment from "@/components/UZA/UzaSegment.vue";
@@ -851,10 +850,9 @@ async function loadEsg() {
 const esgPerm = usePermissions("esg");
 const esgEditorOpen = ref(false);
 const esgShownYear = ref<number>(0);
-// Подвкладки ESG (как в /esg): показатели · зрелость · SWOT.
-const esgSubTab = ref<"metrics" | "maturity" | "swot">("metrics");
+// Подвкладки ESG (как в /esg): зрелость · SWOT.
+const esgSubTab = ref<"maturity" | "swot">("maturity");
 const ESG_SUBTABS = [
-  { value: "metrics", label: "Показатели" },
   { value: "maturity", label: "Зрелость" },
   { value: "swot", label: "SWOT" },
 ];
@@ -3767,15 +3765,8 @@ function onEditorClose() {
             <UzaSegment v-model="esgSubTab" :options="ESG_SUBTABS" size="sm" />
           </div>
 
-          <ESGCompanyDetailPanel
-            v-if="company && esgSubTab === 'metrics'"
-            :company-id="company.id"
-            :initial-year="year"
-            variant="embedded"
-            @changed="onEsgPanelChanged"
-          />
           <ESGMaturityProfilePanel
-            v-else-if="company && esgSubTab === 'maturity'"
+            v-if="company && esgSubTab === 'maturity'"
             :company-id="company.id"
             :company-code="company.code"
             :year="year"
