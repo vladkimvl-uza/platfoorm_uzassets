@@ -74,6 +74,28 @@ export const useCompaniesStore = defineStore("companies", () => {
     await ensureLoaded(true);
   }
 
+  // ─── Авто-обновление ростера при возврате на вкладку ───
+  // Решает рассинхрон: компанию создали/включили в другой вкладке (или другим
+  // путём админки), а тут кешированный список устарел. При возврате фокуса на
+  // вкладку тихо перечитываем ростер — новые/включённые компании появляются в
+  // сайдбаре, пикерах, KPI и прочих store-driven списках без ручного F5.
+  let _autoRefreshBound = false;
+  let _lastAutoRefresh = 0;
+  function initAutoRefresh(): void {
+    if (_autoRefreshBound || typeof document === "undefined") return;
+    _autoRefreshBound = true;
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      if (!loaded.value || loading.value) return;
+      const now = Date.now();
+      if (now - _lastAutoRefresh < 3000) return;  // антидребезг
+      _lastAutoRefresh = now;
+      void reload();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+  }
+
   /** Fetch the company list once. Call ensureLoaded() — it's a no-op if already loaded. */
   async function ensureLoaded(force = false): Promise<void> {
     if (loaded.value && !force) return;
@@ -213,7 +235,7 @@ export const useCompaniesStore = defineStore("companies", () => {
     // getters
     bySector, totalCount,
     // actions
-    ensureLoaded, invalidate, reload, findByCode, findSectorCode,
+    ensureLoaded, invalidate, reload, initAutoRefresh, findByCode, findSectorCode,
     // unified naming
     findSectorByCode, findById,
     getCompanyName, getCompanyNameById, getSectorName,

@@ -376,7 +376,27 @@ watch([() => yearStore.year, sectorFilter], ([y, sec]) => {
 watch([year, sectorFilter, directionFilter, companyFilter], load);
 
 onMounted(load);
+
+// Обновление при возврате на вкладку: данные дашборда (в т.ч. «Проекты по
+// компаниям») приходят с эндпоинта и кешируются — при возврате фокуса
+// перечитываем их и ростер, чтобы новые/включённые компании появлялись без F5.
+let _lastVisRefresh = 0;
+function onTabVisible() {
+  if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+  const now = Date.now();
+  if (now - _lastVisRefresh < 3000) return;
+  _lastVisRefresh = now;
+  void companies.reload();
+  void load();
+  if (yearStore.year) exec.loadData();
+}
+onMounted(() => {
+  document.addEventListener("visibilitychange", onTabVisible);
+  window.addEventListener("focus", onTabVisible);
+});
 onBeforeUnmount(() => {
+  document.removeEventListener("visibilitychange", onTabVisible);
+  window.removeEventListener("focus", onTabVisible);
   if (donutChart) donutChart.destroy();
 });
 

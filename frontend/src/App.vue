@@ -14,10 +14,15 @@ import StickyAckModal from "@/components/broadcasts/StickyAckModal.vue";
 import VersionUpdateBanner from "@/components/VersionUpdateBanner.vue";
 import NotificationDetailModal from "@/components/notifications/NotificationDetailModal.vue";
 import { useAuthStore } from "@/stores/auth";
-import { computed } from "vue";
+import { useCompaniesStore } from "@/stores/companies";
+import { computed, onMounted } from "vue";
 
 const auth = useAuthStore();
 const isAuthed = computed(() => !!auth.accessToken && !!auth.user);
+
+// Ростер компаний авто-обновляется при возврате фокуса на вкладку — новые/
+// включённые в другой вкладке компании появляются без ручного обновления.
+onMounted(() => useCompaniesStore().initAutoRefresh());
 </script>
 
 <template>
