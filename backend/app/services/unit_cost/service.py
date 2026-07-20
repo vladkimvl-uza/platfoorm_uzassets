@@ -45,6 +45,29 @@ def _load_seed() -> dict[str, Any]:
         return {"energyPrices": {}, "companies": {}}
 
 
+# Эталонный период с реальными фактами из seed_data (энергоёмкость 2025).
+# Все ПРОЧИЕ периоды засеваются пустым бланком (структура каталога без фактов),
+# иначе новый год открывался бы копией фактов 2025 → «данные те же самые».
+_SEED_PERIOD = "2025-annual"
+
+
+def _blank_seed() -> dict[str, Any]:
+    """Каталог для НОВОГО периода: сохраняем структуру продуктов (название,
+    ед. изм., норму расхода и названия статей), но обнуляем ФАКТ — новый год
+    начинается с чистого листа, а не копией эталонного 2025-annual.
+    Рыночные ориентиры (energyPrices/world) остаются — это не данные компании."""
+    seed = _load_seed()
+    for _code, blk in (seed.get("companies", {}) or {}).items():
+        for p in (blk.get("products") or []):
+            p["energy"] = {}      # факт удельного расхода — пусто
+            p["output"] = 0       # годовой выпуск — 0
+            for c in (p.get("components") or []):
+                c["value"] = 0    # прочие статьи (сум/ед.) — 0, названия сохраняем
+        blk["imports"] = []
+        blk["comments"] = []
+    return seed
+
+
 _SEED_NORMS: Optional[dict[str, dict[str, dict[str, Any]]]] = None
 
 
@@ -126,9 +149,16 @@ class UnitCostService:
         per = raw["periods"].get(key)
         seeded = False
         if per is None:
-            per = _load_seed()
+            # эталон 2025-annual → реальные факты; прочие периоды → пустой бланк
+            per = _load_seed() if key == _SEED_PERIOD else _blank_seed()
             raw["periods"][key] = per
             seeded = True
+        elif key != _SEED_PERIOD and not per.get("_edited"):
+            # период был авто-засеян ранее (persist-on-view до фикса), но НИКОГДА
+            # не сохранялся вручную → показываем чистый бланк, а не устаревшую
+            # копию фактов 2025. Реально отредактированные периоды (_edited) целы.
+            per = _blank_seed()
+            raw["periods"][key] = per
         per.setdefault("energyPrices", {})
         per.setdefault("companies", {})
         per.setdefault("world", dict(_DEFAULT_WORLD))
@@ -296,12 +326,10 @@ class UnitCostService:
         scope_ids: Optional[Sequence[UUID]],
     ) -> dict[str, Any]:
         raw = await self.load_raw(db)
-        key, per, seeded = self._period(raw, year, quarter)
-        if seeded:
-            try:
-                await self._write_raw(db, raw)
-            except Exception:
-                pass
+        key, per, _seeded = self._period(raw, year, quarter)
+        # НЕ персистим при простом просмотре: незаполненные периоды считаются
+        # свежим бланком каждый раз (детерминированно из seed). Запись — только
+        # при явном сохранении (save_company/save_prices).
         world_live = await self._world_live(db, raw)
         world = per.get("world", {})
         usd_rate = _num(world.get("usd_rate")) or 0.0
@@ -436,6 +464,7 @@ class UnitCostService:
                 if v is not None and v >= 0:
                     w[k] = v
             data["world"] = w
+        data["_edited"] = True   # период реально отредактирован → не ре-бланкить
         await self._write_raw(db, raw)
         await self._audit(db, user_email, user_id, "unit_cost.prices.update", f"цены+мировые {key}")
         return {"energyPrices": clean, "world": data.get("world", {})}
@@ -497,6 +526,7 @@ class UnitCostService:
         data.setdefault("companies", {})[code] = {
             "products": clean_products, "imports": clean_imports, "comments": clean_comments,
         }
+        data["_edited"] = True   # период реально отредактирован → не ре-бланкить
         await self._write_raw(db, raw)
         await self._audit(db, user_email, user_id, "unit_cost.company.update", f"{code} {key}")
         return {"code": code, "products": clean_products, "imports": clean_imports,
