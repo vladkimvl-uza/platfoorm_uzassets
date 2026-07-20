@@ -223,6 +223,16 @@ class GovernanceCompanyDetail(BaseModel):
     women_pct: Optional[float] = None
     foreign_pct: Optional[float] = None
 
+    # Агрегаты из таблицы «Заседания НС и комитетов» (committee_meetings) за год —
+    # единый источник «заседаний»/«решений» и активности комитетов (не ручное
+    # meetings_per_year из governance_data). None → данных о заседаниях за год нет.
+    sb_meetings_year: Optional[int] = None
+    sb_decisions_year: Optional[int] = None
+    audit_mtg_year: Optional[int] = None
+    strategy_mtg_year: Optional[int] = None
+    nomrem_mtg_year: Optional[int] = None
+    anticorr_mtg_year: Optional[int] = None
+
     available_years: list[int] = Field(default_factory=list)
 
 

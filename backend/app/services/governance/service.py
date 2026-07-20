@@ -68,6 +68,25 @@ def _committee_cell(m: CommitteeMeeting) -> CommitteeMeetingCell:
     )
 
 
+_CM_FIELDS = ("sb_meetings", "sb_decisions", "audit_mtg",
+              "strategy_mtg", "nomrem_mtg", "anticorr_mtg")
+
+
+def _aggregate_committee_meetings(rows: list) -> dict:
+    """Годовой агрегат заседаний БЕЗ двойного счёта: если есть квартальные строки
+    (quarter не NULL) — суммируем их; иначе берём годовую (quarter IS NULL).
+    Каждое поле None, если ни одна учтённая строка его не заполнила (нет данных ≠ 0)."""
+    quarterly = [r for r in rows if r.quarter is not None]
+    used = quarterly if quarterly else [r for r in rows if r.quarter is None]
+    out: dict = {f: None for f in _CM_FIELDS}
+    for r in used:
+        for f in _CM_FIELDS:
+            v = getattr(r, f, None)
+            if v is not None:
+                out[f] = (out[f] or 0) + v
+    return out
+
+
 class GovernanceService:
     def __init__(self, uow: UnitOfWorkABC) -> None:
         self.uow = uow
@@ -187,6 +206,14 @@ class GovernanceService:
             members_rows = await self.uow.governance.list_company_board_members(company_id)
             members = [member_to_brief(m) for m in members_rows]
 
+            # Агрегат заседаний за год из committee_meetings — ЕДИНЫЙ источник.
+            # Правило без двойного счёта: если есть квартальные строки — суммируем
+            # ИХ; иначе берём годовую (quarter IS NULL). Пустой агрегат → None.
+            cm_rows = await self.uow.governance.list_committee_meetings_for_company_year(
+                company_id, target_year,
+            )
+            cm_agg = _aggregate_committee_meetings(cm_rows)
+
             indep_pct = wm_pct = fo_pct = score = None
             if d:
                 bs = d.board_size or 0
@@ -211,6 +238,12 @@ class GovernanceService:
                 independent_pct=indep_pct,
                 women_pct=wm_pct,
                 foreign_pct=fo_pct,
+                sb_meetings_year=cm_agg["sb_meetings"],
+                sb_decisions_year=cm_agg["sb_decisions"],
+                audit_mtg_year=cm_agg["audit_mtg"],
+                strategy_mtg_year=cm_agg["strategy_mtg"],
+                nomrem_mtg_year=cm_agg["nomrem_mtg"],
+                anticorr_mtg_year=cm_agg["anticorr_mtg"],
                 available_years=available_years,
             )
 

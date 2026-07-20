@@ -145,6 +145,13 @@ export interface GovernanceCompanyDetail {
   independent_pct: number | null;
   women_pct: number | null;
   foreign_pct: number | null;
+  // Агрегаты заседаний за год из committee_meetings (единый источник).
+  sb_meetings_year: number | null;
+  sb_decisions_year: number | null;
+  audit_mtg_year: number | null;
+  strategy_mtg_year: number | null;
+  nomrem_mtg_year: number | null;
+  anticorr_mtg_year: number | null;
   available_years: number[];
 }
 

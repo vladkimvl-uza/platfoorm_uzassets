@@ -162,6 +162,18 @@ class GovernanceRepository:
             q = q.where(CommitteeMeeting.company_id.in_(scope_company_ids))
         return (await self.session.execute(q)).scalars().all()
 
+    async def list_committee_meetings_for_company_year(
+        self,
+        company_id: UUID,
+        year: int,
+    ) -> list:
+        """Все строки заседаний (годовая + квартальные) для компании за год."""
+        q = select(CommitteeMeeting).where(and_(
+            CommitteeMeeting.company_id == company_id,
+            CommitteeMeeting.year == year,
+        ))
+        return list((await self.session.execute(q)).scalars().all())
+
     async def get_committee_meeting(
         self,
         company_id: UUID,

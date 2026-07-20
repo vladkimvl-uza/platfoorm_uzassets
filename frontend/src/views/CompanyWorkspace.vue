@@ -1561,19 +1561,24 @@ const govKpis = computed<GovKpi[]>(() => {
   const women = data.women_directors_count ?? data.women_count ?? null;
   const foreign = data.foreign_directors_count ?? data.foreign_count ?? null;
   const attendance = data.avg_attendance_pct ?? null;
-  const meetings = data.meetings_per_year ?? null;
-  
+  // «Заседания»/«решения» берём из таблицы committee_meetings (единый источник,
+  // как в /governance), а не из ручного meetings_per_year; fallback к legacy,
+  // если по заседаниям за год данных нет.
+  const meetings = (d.sb_meetings_year ?? data.meetings_per_year) ?? null;
+  const decisions = d.sb_decisions_year ?? null;
+
   const indepPct = boardSize && indep !== null ? Math.round((indep / boardSize) * 100) : null;
   const womenPct = boardSize && women !== null ? Math.round((women / boardSize) * 100) : null;
   const foreignPct = boardSize && foreign !== null ? Math.round((foreign / boardSize) * 100) : null;
-  
+
   return [
     { label: "Размер совета", value: boardSize ?? "—", raw: boardSize, unit: "чел.", color: "#7F77DD" },
     { label: "Независимые", value: indepPct === null ? "—" : `${indepPct}%`, raw: indepPct, unit: indep !== null ? `(${indep} чел.)` : "", color: "#1D9E75" },
     { label: "Женщины", value: womenPct === null ? "—" : `${womenPct}%`, raw: womenPct, unit: women !== null ? `(${women} чел.)` : "", color: "#EF9F27" },
     { label: "Иностранцы", value: foreignPct === null ? "—" : `${foreignPct}%`, raw: foreignPct, unit: foreign !== null ? `(${foreign} чел.)` : "", color: "#378ADD" },
     { label: "Посещаемость", value: attendance !== null ? `${attendance}%` : "—", raw: attendance, unit: "", color: "#1D9E75" },
-    { label: "Заседаний в год", value: meetings ?? "—", raw: meetings, unit: "", color: "#7F77DD" },
+    { label: "Заседаний НС", value: meetings ?? "—", raw: meetings, unit: "за год", color: "#7F77DD" },
+    { label: "Решения (протоколы)", value: decisions ?? "—", raw: decisions, unit: "за год", color: "#A855F7" },
   ];
 });
 
@@ -1581,12 +1586,18 @@ const govCommittees = computed(() => {
   const d = govDetail.value;
   if (!d) return [];
   const data = d.data || d.governance_data || d;
+  // Комитет активен, если формально есть (флаг) ИЛИ реально заседал (meetings>0)
+  // — честнее «флаг≠работа». Показываем и число заседаний за год.
+  const mk = (label: string, flag: boolean, meetings: number | null) => ({
+    label, meetings,
+    present: flag || (meetings != null && meetings > 0),
+  });
   return [
-    { label: "Аудит", present: !!data.has_audit_committee },
-    { label: "Стратегия", present: !!data.has_strategy_committee },
-    { label: "Назначения и вознагр.", present: !!(data.has_nomination_committee || data.has_remuneration_committee) },
-    { label: "Антикор.", present: !!data.has_anticorr_committee },
-    { label: "Введение", present: !!data.has_induction_program },
+    mk("Аудит", !!data.has_audit_committee, d.audit_mtg_year ?? null),
+    mk("Стратегия", !!data.has_strategy_committee, d.strategy_mtg_year ?? null),
+    mk("Назначения и вознагр.", !!(data.has_nomination_committee || data.has_remuneration_committee), d.nomrem_mtg_year ?? null),
+    mk("Антикор.", !!data.has_anticorr_committee, d.anticorr_mtg_year ?? null),
+    mk("Введение", !!data.has_induction_program, null),
   ];
 });
 
@@ -3680,6 +3691,7 @@ function onEditorClose() {
                 >
                   <span class="cw-gov-committee-icon"><svg v-if="c.present" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><svg v-else width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="8"/></svg></span>
                   <span>{{ c.label }}</span>
+                  <span v-if="c.meetings != null" class="cw-gov-committee-mtg" :title="`Заседаний за ${year} год`">{{ c.meetings }}</span>
                 </div>
               </div>
             </div>
@@ -6588,6 +6600,19 @@ function onEditorClose() {
 }
 .cw-gov-committee-icon {
   font-weight: 700;
+}
+.cw-gov-committee-mtg {
+  margin-left: 2px;
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(15, 23, 60, .08);
+  color: inherit;
+}
+.cw-gov-committee-on .cw-gov-committee-mtg {
+  background: rgba(29, 158, 117, .18);
 }
 
 .cw-gov-members {
