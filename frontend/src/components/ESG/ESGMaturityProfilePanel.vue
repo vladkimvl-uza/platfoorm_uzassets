@@ -6,9 +6,10 @@
  * Данные из общего getMaturityHeatmap → берём строку своей компании (синк с /esg).
  */
 import { computed, ref, watch } from "vue";
-import { esgApi, type ESGMaturityCompany } from "@/api/esg";
+import { esgApi, type ESGMaturityHeatmap } from "@/api/esg";
 import { ratingsApi, type AgencyRatingBrief, type AgencyRatingHistoryItem } from "@/api/ratings";
 import ESGReportsTable from "@/components/ESG/ESGReportsTable.vue";
+import ESGMaturityMatrix from "@/components/ESG/ESGMaturityMatrix.vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 
 const props = defineProps<{
@@ -18,55 +19,33 @@ const props = defineProps<{
   canEdit?: boolean;
 }>();
 
-// Метки 6 измерений матрицы зрелости (1:1 с шапкой ESGMaturityMatrix).
-const DIM_META: { key: string; label: string; max: number }[] = [
-  { key: "D1",  label: "Системы менеджмента ИСО", max: 2 },
-  { key: "D2",  label: "Подготовка ESG-отчётности", max: 3 },
-  { key: "D2A", label: "Независимое заверение", max: 2 },
-  { key: "D3",  label: "Получение ESG-рейтинга", max: 2 },
-  { key: "D4",  label: "Климатическая стратегия", max: 4 },
-  { key: "D5",  label: "Внедрение ESG-рисков", max: 3 },
-];
-
 const loading = ref(true);
 const error = ref<string | null>(null);
-const co = ref<ESGMaturityCompany | null>(null);
+const heatmap = ref<ESGMaturityHeatmap | null>(null);
 
 async function loadMaturity() {
   loading.value = true;
   error.value = null;
   try {
-    const hm = await esgApi.getMaturityHeatmap(props.year);
-    co.value = (hm.companies || []).find(c => c.company_id === props.companyId) || null;
+    heatmap.value = await esgApi.getMaturityHeatmap(props.year);
   } catch (e: any) {
     error.value = e?.response?.data?.detail || "Не удалось загрузить зрелость";
-    co.value = null;
+    heatmap.value = null;
   } finally {
     loading.value = false;
   }
 }
 watch(() => [props.companyId, props.year], loadMaturity, { immediate: true });
 
-function emsColor(v: number): string {
-  if (v >= 66) return "#1D9E75";
-  if (v >= 33) return "#EF9F27";
-  return "#E24B4A";
-}
-function stageColor(pct: number): string {
-  if (pct >= 100) return "#1D9E75";
-  if (pct >= 50) return "#7DC4A0";
-  if (pct > 0) return "#EF9F27";
-  return "#CBD5E1";
-}
-const dims = computed(() => {
-  const ds = co.value?.dim_stage || {};
-  const nr = new Set(co.value?.dim_not_required || []);
-  return DIM_META.map(d => {
-    const stage = ds[d.key] ?? 0;
-    const notReq = nr.has(d.key);
-    return { ...d, stage, notReq, pct: notReq ? 0 : Math.round((Math.min(stage, d.max) / d.max) * 100) };
-  });
+// Срез матрицы зрелости по ОДНОЙ компании — та же редактируемая матрица, что в
+// /esg (ISO / отчётность / заверение / рейтинг / климат / риски), но одна строка.
+const singleHeatmap = computed<ESGMaturityHeatmap | null>(() => {
+  const hm = heatmap.value;
+  if (!hm) return null;
+  const row = (hm.companies || []).find(c => c.company_id === props.companyId);
+  return { ...hm, companies: row ? [row] : [] };
 });
+const hasRow = computed(() => (singleHeatmap.value?.companies.length || 0) > 0);
 
 // ─── Динамика ESG-рейтингов (read-only, как в ESGMaturityProfileModal) ───
 const ratings = ref<AgencyRatingBrief[]>([]);
@@ -110,23 +89,11 @@ function histDate(iso: string): string {
     <UzaStateBlock v-else-if="error" state="error" variant="block" :text="error" retry @retry="loadMaturity" />
 
     <template v-else>
-      <!-- EMS + измерения -->
-      <div v-if="co" class="mpp-mat">
-        <div class="mpp-ems" :style="{ '--ems': emsColor(co.ems) }">
-          <div class="mpp-ems-l">Индекс зрелости (EMS)</div>
-          <div class="mpp-ems-v">{{ co.ems.toFixed(0) }}<span class="mpp-ems-of">/100</span></div>
-          <div class="mpp-ems-track"><div class="mpp-ems-fill" :style="{ width: co.ems + '%' }"></div></div>
-        </div>
-        <div class="mpp-dims">
-          <div v-for="d in dims" :key="d.key" class="mpp-dim" :class="{ 'mpp-dim-nr': d.notReq }">
-            <div class="mpp-dim-hd">
-              <span class="mpp-dim-l">{{ d.label }}</span>
-              <span class="mpp-dim-v">{{ d.notReq ? 'не требуется' : `${d.stage}/${d.max}` }}</span>
-            </div>
-            <div class="mpp-dim-track">
-              <div class="mpp-dim-fill" :style="{ width: d.pct + '%', background: stageColor(d.pct) }"></div>
-            </div>
-          </div>
+      <!-- Матрица зрелости (срез по компании) — 1:1 с /esg, редактируемая -->
+      <div v-if="hasRow" class="mpp-matrix">
+        <div class="cw-section-label">Матрица ESG-зрелости</div>
+        <div class="mpp-matrix-scroll">
+          <ESGMaturityMatrix :heatmap="singleHeatmap" :can-edit="canEdit" @saved="loadMaturity" />
         </div>
       </div>
       <UzaStateBlock v-else state="empty" variant="inline" :text="`Матрица зрелости за ${year} год не заполнена`" />
@@ -186,26 +153,11 @@ function histDate(iso: string): string {
 <style scoped>
 .mpp { display: flex; flex-direction: column; gap: 18px; }
 
-.mpp-mat { display: grid; grid-template-columns: 220px 1fr; gap: 16px; }
-@media (max-width: 820px) { .mpp-mat { grid-template-columns: 1fr; } }
-.mpp-ems {
-  background: var(--bg2, #FAFAFD); border: 1px solid var(--line, #ECEAF4); border-radius: 12px;
-  padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; align-self: start;
-}
-.mpp-ems-l { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--t3, #94A3B8); }
-.mpp-ems-v { font-size: 30px; font-weight: 400; letter-spacing: -.02em; color: var(--ems, #1D9E75); font-variant-numeric: tabular-nums; }
-.mpp-ems-of { font-size: 13px; opacity: .5; margin-left: 2px; }
-.mpp-ems-track { height: 6px; border-radius: 999px; background: var(--bg3, #EEEDF4); overflow: hidden; margin-top: 4px; }
-.mpp-ems-fill { height: 100%; border-radius: 999px; background: var(--ems, #1D9E75); transition: width .8s var(--ease-standard, cubic-bezier(.4,0,.2,1)); }
-
-.mpp-dims { display: grid; grid-template-columns: repeat(2, 1fr); gap: 11px 18px; align-content: start; }
-@media (max-width: 560px) { .mpp-dims { grid-template-columns: 1fr; } }
-.mpp-dim-nr { opacity: .5; }
-.mpp-dim-hd { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 5px; }
-.mpp-dim-l { font-size: 12px; font-weight: 500; color: var(--t1, #1A1730); }
-.mpp-dim-v { font-size: 11.5px; font-weight: 500; color: var(--t2, #6B6880); font-variant-numeric: tabular-nums; }
-.mpp-dim-track { height: 6px; border-radius: 999px; background: var(--bg3, #EEEDF4); overflow: hidden; }
-.mpp-dim-fill { height: 100%; border-radius: 999px; transition: width .7s var(--ease-standard, cubic-bezier(.4,0,.2,1)); }
+.mpp-matrix .cw-section-label,
+.mpp-matrix > div:first-child { margin-bottom: 10px; }
+.cw-section-label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--t2, #6B6880); }
+/* Матрица широкая (9 колонок) — скроллим внутри своего контейнера. */
+.mpp-matrix-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
 /* Динамика рейтингов */
 .mpp-rh-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
