@@ -73,6 +73,7 @@ import CompanyDocumentsCard from "@/components/Company/CompanyDocumentsCard.vue"
 import CompanyBoardList from "@/components/CompanyBoardList.vue";
 import CompanyTabBar from "@/components/Company/CompanyTabBar.vue";
 import HighLevelFinancials from "@/components/Financials/HighLevelFinancials.vue";
+import FinReportUpload from "@/components/Financials/FinReportUpload.vue";
 import GovernanceEditor from "@/components/Governance/GovernanceEditor.vue";
 import ESGEditor from "@/components/ESG/ESGEditor.vue";
 import CompanyEmployeesTab from "@/components/Company/CompanyEmployeesTab.vue";
@@ -139,6 +140,7 @@ const activeKpiMgrIdx = ref(0);
 const kpiEditorOpen = ref(false);
 const kpiPerm = usePermissions("kpi");
 const pmoPerm = usePermissions("pmo");
+const companiesPerm = usePermissions("companies");  // для загрузки файлов отчётности (бэкенд требует companies.edit)
 const pmoRefreshTick = ref(0);   // бамп после сохранения в редакторе → PmoTab перезагружает расписание
 function openKpiEditor() { kpiEditorOpen.value = true; }
 function onKpiEditorSaved() {
@@ -4355,6 +4357,17 @@ function onEditorClose() {
                 <span v-if="!t.available" class="cw-fin-type-na">нет данных</span>
               </button>
             </div>
+
+            <!-- Ручная загрузка исходных файлов отчётности (Excel/PDF/…) -->
+            <FinReportUpload
+              v-if="company?.id"
+              class="cw-fin-upload"
+              :company-id="company.id"
+              :category="activeTab + '_report'"
+              :year="year"
+              :can-edit="companiesPerm.canEdit.value"
+              :title="'Загруженные отчёты ' + finStandardLabel"
+            />
 
             <!-- Loading full report -->
             <UzaStateBlock v-if="finFullLoading" state="loading" text="Загрузка строк отчёта…" />
