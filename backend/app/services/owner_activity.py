@@ -29,11 +29,58 @@ from uuid import UUID
 
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.requests import Request
 
 from app.models.notification import Notification
 from app.services.notifications_service import notify
 
 log = logging.getLogger(__name__)
+
+
+# Ключи тела, из которых берём человекочитаемое НАЗВАНИЕ записи (для «что изменено»).
+_DESCRIPTOR_KEYS = (
+    "metric_name", "product_name", "committee_name", "name", "title", "label",
+    "agency", "rating", "product", "full_name",
+)
+# Ключи тела, указывающие на компанию (для scope получателей + контекста).
+_COMPANY_REF_KEYS = ("company_id", "company_code", "company", "code")
+
+
+async def capture_activity(request: Request) -> None:
+    """FastAPI-зависимость (router-level): снимает из JSON-тела ДО обработчика —
+    имена полей (что за область изменена), название записи и ссылку на компанию —
+    чтобы уведомление об изменении показало «что именно изменено» по ВСЕМ модулям
+    без ручной проводки в каждом роуте. Тело кэшируется Starlette → Pydantic всё
+    равно распарсит его из кэша. Только мутации с JSON-телом; multipart/файлы и
+    пустые тела не трогаем. Значений-секретов не берём (только whitelist-ключи)."""
+    m = (request.method or "").upper()
+    if m not in ("POST", "PUT", "PATCH"):
+        return
+    if "application/json" not in (request.headers.get("content-type", "") or "").lower():
+        return
+    try:
+        body = await request.json()
+    except Exception:
+        return
+    d = body if isinstance(body, dict) else (
+        body[0] if isinstance(body, list) and body and isinstance(body[0], dict) else None)
+    if not d:
+        return
+    st = request.state
+    try:
+        st.activity_body_keys = [str(k) for k in d.keys()][:40]
+        for dk in _DESCRIPTOR_KEYS:
+            v = d.get(dk)
+            if isinstance(v, str) and v.strip():
+                st.activity_descriptor = v.strip()[:120]
+                break
+        for ck in _COMPANY_REF_KEYS:
+            v = d.get(ck)
+            if isinstance(v, str) and v.strip():
+                st.activity_company_ref = v.strip()[:64]
+                break
+    except Exception:
+        pass
 
 _MUTATING = {"POST", "PUT", "PATCH", "DELETE"}
 _UUID_RE = re.compile(
@@ -155,6 +202,19 @@ async def _resolve_entity_title(db: AsyncSession, path: str) -> Optional[str]:
     return None
 
 
+async def _company_name(db: AsyncSession, company_id: Optional[UUID]) -> Optional[str]:
+    """Имя компании для контекста уведомления («ESG · Узбекнефтегаз»)."""
+    if company_id is None:
+        return None
+    try:
+        return (await db.execute(
+            text("SELECT COALESCE(name_short, name_ru, code) FROM companies WHERE id = :i"),
+            {"i": str(company_id)},
+        )).scalar()
+    except Exception:
+        return None
+
+
 _OWNERS_SQL = "SELECT id FROM users WHERE is_owner = true AND is_active = true"
 
 # Active users who can access a given company: owners, companies.view_all holders,
@@ -197,8 +257,11 @@ async def _recipients(db: AsyncSession, company_id: Optional[UUID]) -> list[UUID
     return list(rows)
 
 
-# Рус. лейблы полей задач/проектов — для детали «Изменено: статус, срок».
+# Рус. лейблы полей — для детали «Изменено: статус, срок». Покрывают все модули
+# (задачи/проекты + финансы/ESG/рейтинги/корп.упр./KPI/БП/закупки/себестоимость),
+# т.к. changed_fields теперь приходят из ключей тела запроса по всем разделам.
 _FIELD_LABELS: dict[str, str] = {
+    # задачи / проекты / общее
     "title": "название", "name": "название", "description": "описание",
     "status": "статус", "due_date": "срок", "start_date": "дата начала",
     "assignee_id": "исполнитель", "assignee_email": "исполнитель", "assignees": "исполнители",
@@ -206,11 +269,43 @@ _FIELD_LABELS: dict[str, str] = {
     "priority": "приоритет", "direction_id": "направление",
     "tags": "теги", "progress": "прогресс", "progress_pct": "прогресс",
     "result": "результат", "is_result": "результат",
+    "notes": "примечание", "comment": "комментарий", "comments": "комментарии",
+    "color": "цвет", "sector": "сектор", "is_active": "активность",
+    # финансы / бизнес-план / HLF
+    "revenue": "выручка", "ebitda": "EBITDA", "net_profit": "чистая прибыль",
+    "gross_profit": "валовая прибыль", "assets": "активы", "liabilities": "обязательства",
+    "equity": "капитал", "cash": "денежные средства", "opex": "операц. расходы",
+    "capex": "капзатраты", "debt": "долг", "plan": "план", "fact": "факт",
+    "metric_key": "показатель", "metrics": "показатели", "records": "записи",
+    "lines": "статьи", "values": "значения", "amount": "сумма", "currency": "валюта",
+    # KPI
+    "indicators": "показатели", "weight": "вес", "direction": "направление",
+    "managers": "ответственные", "target": "цель", "value": "значение",
+    # ESG
+    "issues": "риски/вопросы", "swot": "SWOT", "pillar": "компонент",
+    "score": "оценка", "e": "экология", "s": "социальное", "g": "управление",
+    # рейтинги
+    "rating": "рейтинг", "agency": "агентство", "outlook": "прогноз",
+    "scale": "шкала", "report_url": "ссылка на отчёт", "is_esg": "ESG-флаг", "date": "дата",
+    # корп. управление
+    "board_members": "совет директоров", "committees": "комитеты",
+    "meetings": "заседания", "decisions": "решения", "chairman": "председатель",
+    "members": "состав", "is_independent": "независимость", "email": "e-mail", "phone": "телефон",
+    # закупки
+    "contracts": "договоры", "savings": "экономия", "suppliers": "поставщики", "lots": "лоты",
+    # себестоимость
+    "products": "продукты", "imports": "импорт", "energy": "энергоресурсы",
+    "norm": "норма расхода", "output": "выпуск", "components": "статьи затрат",
+    # назначения / консультанты
+    "assignments": "назначения", "consultant": "консультант", "tasks": "задачи",
 }
 # Внутренние/служебные поля — не показываем в «Изменено» (не несут смысла читателю).
+# year/period/quarter/code — это КОНТЕКСТ записи (какой год/период), а не «что
+# изменено», поэтому тоже скрываем из списка полей.
 _FIELD_HIDDEN = {
-    "num", "id", "project_id", "board_id", "parent_id", "company_id",
-    "portfolio_year", "weight", "sort_order", "position", "order", "updated_at",
+    "num", "id", "project_id", "board_id", "parent_id", "company_id", "company_code",
+    "code", "year", "period", "quarter", "portfolio_year",
+    "sort_order", "position", "order", "updated_at", "created_at",
 }
 
 
@@ -228,6 +323,10 @@ def status_label(code: Optional[str]) -> str:
 
 
 def _humanize_fields(keys: Optional[list[str]]) -> list[str]:
+    """Ключи → рус. лейблы. Незамапленные ключи ОТБРАСЫВАЕМ (не показываем сырые
+    англ. имена вроде metric_code): тело upsert-а несёт всю запись, поэтому список
+    ключей — это «какая область затронута», и чистый рус. список читается лучше
+    сырого. Замапленные поля (задачи/финансы/ESG/…) покрывают все ходовые случаи."""
     if not keys:
         return []
     out: list[str] = []
@@ -235,10 +334,8 @@ def _humanize_fields(keys: Optional[list[str]]) -> list[str]:
         if k in _FIELD_HIDDEN:
             continue
         lbl = _FIELD_LABELS.get(k)
-        if not lbl:
-            if k.endswith("_id"):      # неизвестные внутренние id — скрываем
-                continue
-            lbl = k
+        if not lbl:                    # неизвестное поле — не шумим сырым ключом
+            continue
         if lbl not in out:
             out.append(lbl)
     return out
@@ -255,6 +352,8 @@ async def notify_owners_of_change(
     changed_fields: Optional[list[str]] = None,
     summary: Optional[str] = None,
     entity_override: Optional[str] = None,
+    descriptor: Optional[str] = None,
+    company_ref: Optional[str] = None,
 ) -> None:
     """Best-effort: notify everyone with access to the affected company (OWNERs
     always; scoped users only for their companies) of a change. Only fires for
@@ -276,11 +375,19 @@ async def notify_owners_of_change(
             actor_uuid = None
 
     company_id = await _resolve_company_id(db, http_path or "")
+    # Компания часто приходит в ТЕЛЕ (напр. PUT /esg/metric с company_id в payload),
+    # а не в пути → добираем из captured company_ref, чтобы верно заскоупить
+    # получателей и показать компанию в контексте.
+    if company_id is None and company_ref:
+        company_id = await _company_id_from_token(db, company_ref)
     recipient_ids = await _recipients(db, company_id)
 
     verb = _verb(method, (http_path or "").split("?", 1)[0])
-    # entity_override (от роута: «Выручка · 2025») приоритетнее, чем подтянутое из пути.
-    entity_title = entity_override or await _resolve_entity_title(db, http_path or "")
+    # Название записи: явный override роута → описатель из тела (имя показателя/
+    # записи) → подтянутое из пути (задача/проект) → имя компании как контекст.
+    entity_title = (entity_override or descriptor
+                    or await _resolve_entity_title(db, http_path or "")
+                    or await _company_name(db, company_id))
     fields = _humanize_fields(changed_fields)
     link = _resolve_link(http_path or "")
     title = f"{label}: {verb}"

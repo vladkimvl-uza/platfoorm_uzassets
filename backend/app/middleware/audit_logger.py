@@ -189,10 +189,20 @@ class AuditLoggerMiddleware(BaseHTTPMiddleware):
                                 actor_id=actor_id,
                                 actor_email=actor_email,
                                 # Роут (где известен diff) кладёт список изменённых
-                                # полей в request.state — middleware их пробрасывает.
-                                changed_fields=getattr(request.state, "activity_fields", None),
+                                # полей в request.state; иначе — общий фолбэк из
+                                # ключей JSON-тела (capture_activity), чтобы деталь
+                                # «что изменено» была по ВСЕМ модулям, не только
+                                # задачам/проектам.
+                                changed_fields=(
+                                    getattr(request.state, "activity_fields", None)
+                                    or getattr(request.state, "activity_body_keys", None)
+                                ),
                                 summary=getattr(request.state, "activity_summary", None),
                                 entity_override=getattr(request.state, "activity_entity", None),
+                                # Из тела запроса (capture_activity): название записи
+                                # и ссылка на компанию — для детали и scope по всем модулям.
+                                descriptor=getattr(request.state, "activity_descriptor", None),
+                                company_ref=getattr(request.state, "activity_company_ref", None),
                             )
                         except Exception as _oe:
                             logger.warning("owner-activity hook failed: %s", _oe)

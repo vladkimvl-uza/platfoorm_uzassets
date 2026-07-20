@@ -452,6 +452,12 @@ ROUTER_MODULES = [
 mounted: list[str] = []
 skipped: list[tuple[str, str]] = []
 
+# Router-level зависимость: снимает ключи JSON-тела (что изменено) для фида
+# активности по ВСЕМ модулям. Побочный эффект в request.state; тело кэшируется.
+from fastapi import Depends as _Depends  # noqa: E402
+from app.services.owner_activity import capture_activity as _capture_activity  # noqa: E402
+_ACTIVITY_DEP = [_Depends(_capture_activity)]
+
 for _name in ROUTER_MODULES:
     try:
         _mod = importlib.import_module(f"app.api.routes.{_name}")
@@ -461,7 +467,7 @@ for _name in ROUTER_MODULES:
             logger.info(f"  [SKIP] app.api.routes.{_name} -- no router attribute")
             continue
         # NATIVE prefix only -- no /api override.
-        app.include_router(_router)
+        app.include_router(_router, dependencies=_ACTIVITY_DEP)
         prefix = _router.prefix or "<root>"
         mounted.append(_name)
         logger.info(f"  [OK]   app.api.routes.{_name} (prefix={prefix})")
