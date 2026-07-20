@@ -79,6 +79,9 @@ import BoardMemberProfileModal from "@/components/Governance/BoardMemberProfileM
 import BoardMemberHoverCard, { type HoverAnchor } from "@/components/Governance/BoardMemberHoverCard.vue";
 import ESGEditor from "@/components/ESG/ESGEditor.vue";
 import ESGCompanyDetailPanel from "@/components/ESG/ESGCompanyDetailPanel.vue";
+import ESGMaturityProfilePanel from "@/components/ESG/ESGMaturityProfilePanel.vue";
+import ESGSwotPanel from "@/components/ESG/ESGSwotPanel.vue";
+import UzaSegment from "@/components/UZA/UzaSegment.vue";
 import CompanyEmployeesTab from "@/components/Company/CompanyEmployeesTab.vue";
 import CompanyEmployeesSummary from "@/components/Company/CompanyEmployeesSummary.vue";
 import InvestProjectsView from "@/views/InvestProjects.vue";
@@ -848,6 +851,13 @@ async function loadEsg() {
 const esgPerm = usePermissions("esg");
 const esgEditorOpen = ref(false);
 const esgShownYear = ref<number>(0);
+// Подвкладки ESG (как в /esg): показатели · зрелость · SWOT.
+const esgSubTab = ref<"metrics" | "maturity" | "swot">("metrics");
+const ESG_SUBTABS = [
+  { value: "metrics", label: "Показатели" },
+  { value: "maturity", label: "Зрелость" },
+  { value: "swot", label: "SWOT" },
+];
 function openEsgEditor(): void { esgEditorOpen.value = true; }
 async function onEsgEditorSaved(): Promise<void> {
   esgLoadedFor.value = "";
@@ -3751,13 +3761,30 @@ function onEditorClose() {
 
         <!-- ═══ ESG TAB — real implementation ═══ -->
         <div v-else-if="activeTab === 'esg'" :key="'esg'" class="cw-esg-scroll">
-          <!-- ESG-вкладка = тот же per-company view, что в /esg (общий ESGCompanyDetailPanel):
-               4 балльные карточки (E/S/G/Σ), разбивка метрик с инлайн-правкой, вопросы, редактор. -->
+          <!-- ESG-вкладка = весь /esg в срезе компании: подвкладки Показатели /
+               Зрелость / SWOT на общих с /esg панелях (единый бэкенд → синк). -->
+          <div v-if="company" class="cw-esg-subtabs" style="margin-bottom:16px">
+            <UzaSegment v-model="esgSubTab" :options="ESG_SUBTABS" size="sm" />
+          </div>
+
           <ESGCompanyDetailPanel
-            v-if="company"
+            v-if="company && esgSubTab === 'metrics'"
             :company-id="company.id"
             :initial-year="year"
             variant="embedded"
+            @changed="onEsgPanelChanged"
+          />
+          <ESGMaturityProfilePanel
+            v-else-if="company && esgSubTab === 'maturity'"
+            :company-id="company.id"
+            :company-code="company.code"
+            :year="year"
+            :can-edit="esgPerm.canEdit.value"
+          />
+          <ESGSwotPanel
+            v-else-if="company && esgSubTab === 'swot'"
+            :company-id="company.id"
+            :can-edit="esgPerm.canEdit.value"
             @changed="onEsgPanelChanged"
           />
         </div>
