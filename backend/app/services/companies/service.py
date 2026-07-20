@@ -8,6 +8,7 @@ from uuid import UUID
 from fastapi import HTTPException
 from fastapi import status as http_status
 
+from app.models.board import Board
 from app.models.company import Company, Sector
 from app.models.user import Group
 from app.schemas.company import (
@@ -233,6 +234,17 @@ class CompaniesService:
             grp_code = desired_code if not dup_grp else f"{desired_code}_co"
             grp = Group(code=grp_code, name=co.name_ru, company_id=co.id)
             self.uow.companies.add(grp)
+
+            # Auto-create 1:1 доска для компании: иначе проекты/задачи новой
+            # компании создаются без доски (board_id NULL) и выпадают из board-
+            # based вью (Канбан воркспейса, разбивки дашборда по доскам).
+            board = Board(
+                name=co.name_short or co.name_ru,
+                company_id=co.id,
+                sector_code=(sector.code if sector else None),
+                sort_order=co.sort_order or 0,
+            )
+            self.uow.companies.add(board)
 
             await self.uow.companies.flush()
             await self.uow.companies.refresh(co)
