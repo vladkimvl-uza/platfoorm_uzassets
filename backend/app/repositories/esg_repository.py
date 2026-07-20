@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from typing import Optional
 from uuid import UUID
 
-from sqlalchemy import and_, desc, func, select
+from sqlalchemy import and_, desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -27,12 +27,14 @@ class EsgRepository:
         sector_code: Optional[str],
         scope_company_ids: Optional[Sequence[UUID]],
     ):
-        q = select(ESGMetric)
+        # Деактивированные компании исключаем из портфельного ESG-overview.
+        q = (select(ESGMetric)
+             .join(Company, Company.id == ESGMetric.company_id)
+             .where(Company.is_active.is_(True)))
         if year:
             q = q.where(ESGMetric.year == year)
         if sector_code:
-            q = (q.join(Company, Company.id == ESGMetric.company_id)
-                  .join(Sector, Sector.id == Company.sector_id)
+            q = (q.join(Sector, Sector.id == Company.sector_id)
                   .where(Sector.code == sector_code))
         if scope_company_ids is not None:
             if not scope_company_ids:
@@ -86,10 +88,11 @@ class EsgRepository:
         sector_code: Optional[str],
         scope_company_ids: Optional[Sequence[UUID]],
     ):
-        q = select(ESGIssue)
+        q = (select(ESGIssue)
+             .join(Company, Company.id == ESGIssue.company_id)
+             .where(Company.is_active.is_(True)))
         if sector_code:
-            q = (q.join(Company, Company.id == ESGIssue.company_id)
-                  .join(Sector, Sector.id == Company.sector_id)
+            q = (q.join(Sector, Sector.id == Company.sector_id)
                   .where(Sector.code == sector_code))
         if scope_company_ids is not None:
             if not scope_company_ids:
@@ -215,7 +218,11 @@ class EsgRepository:
         *,
         scope_company_ids: Optional[Sequence[UUID]],
     ):
-        q = select(AgencyRating).where(AgencyRating.is_esg == True)  # noqa: E712
+        # Деактивированные компании исключаем; рейтинги-сироты (company_id NULL) — оставляем.
+        q = (select(AgencyRating)
+             .outerjoin(Company, Company.id == AgencyRating.company_id)
+             .where(AgencyRating.is_esg == True,  # noqa: E712
+                    or_(Company.is_active.is_(True), AgencyRating.company_id.is_(None))))
         if scope_company_ids is not None:
             if not scope_company_ids:
                 return []

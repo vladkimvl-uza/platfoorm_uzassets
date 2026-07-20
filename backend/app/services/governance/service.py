@@ -110,6 +110,10 @@ class GovernanceService:
                 year=year, sector_code=sector_code,
                 scope_company_ids=scope_company_ids,
             )
+            # list_companies уже фильтрует is_active; данные КУ — нет. Отсекаем
+            # данные деактивированных компаний, иначе committee-счётчики их считали.
+            active_ids = {co.id for co in companies}
+            all_data = [d for d in all_data if d.company_id in active_ids]
 
             # Latest data per company if year not specified
             by_co: dict[UUID, GovernanceData] = {}
@@ -170,6 +174,8 @@ class GovernanceService:
             members = await self.uow.governance.list_active_board_members(
                 sector_code=sector_code, scope_company_ids=scope_company_ids,
             )
+            # Не учитываем составы советов деактивированных компаний.
+            members = [m for m in members if m.company_id in active_ids]
             diversity_split = diversity_from_members(members)
 
             # Facets

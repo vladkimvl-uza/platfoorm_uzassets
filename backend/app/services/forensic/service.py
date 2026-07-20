@@ -97,6 +97,8 @@ class ForensicService:
         for ac in active:
             if ac["k"] not in existing:
                 merged.append({"k": ac["k"], "n": ac["n"], "s": ac["s"], "years": []})
+        # Коды АКТИВНЫХ компаний — для отсева деактивированных строк снапшота.
+        active_codes = {(ac.get("k") or "").strip().lower() for ac in active}
 
         if not merged:
             return {
@@ -118,6 +120,11 @@ class ForensicService:
                 row_code = (raw.get("k") or "").strip().lower()
                 if not row_code or row_code not in allowed_codes:
                     continue
+            # Деактивированная компания: код есть в Company (name_map = все), но
+            # не в active_codes. Чисто-легаси коды (нет в Company) — оставляем.
+            code_lc = (raw.get("k") or "").strip().lower()
+            if code_lc and code_lc in name_map and code_lc not in active_codes:
+                continue
             sector = (raw.get("s") or "other").lower()
             enriched = dict(raw)
             # Каноничное имя из Company (если код есть в БД) — иначе имя из снапшота.

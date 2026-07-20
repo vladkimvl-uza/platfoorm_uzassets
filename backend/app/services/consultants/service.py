@@ -146,6 +146,16 @@ class ConsultantsService:
                 for bid, bname, co_id in b_rows
             }
             dir_rows = await r.list_directions()
+            inactive_co = await r.inactive_company_ids()
+
+        # Деактивированные компании исключаем из портфельного overview: убираем
+        # их задачи (компания = прямой company_id ЛИБО через доску) до подсчёта
+        # покрытия/KPI/heatmap/dirs. Per-company view (by_company) не трогаем.
+        if inactive_co:
+            task_by_id = {
+                tid: t for tid, t in task_by_id.items()
+                if (t.get("company_id") or boards_data.get(t["board_id"], {}).get("company_id")) not in inactive_co
+            }
 
         # task_id → set(consultant_ids), and reverse.
         # Назначения НЕактивных консультантов пропускаем (cons_by_id = только
@@ -155,6 +165,8 @@ class ConsultantsService:
         cid_to_tids: dict[Any, set] = {c.id: set() for c in all_cons}
         for tid, cid in ca_rows:
             if cid not in cons_by_id:
+                continue
+            if tid not in task_by_id:   # задача отфильтрована (деактивир. компания)
                 continue
             task_to_cids.setdefault(tid, set()).add(cid)
             cid_to_tids.setdefault(cid, set()).add(tid)

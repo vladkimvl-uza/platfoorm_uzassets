@@ -144,7 +144,7 @@ class FinancialsRepository:
         self, *, allowed_company_ids: Optional[set[UUID]] = None
     ) -> int:
         from sqlalchemy import func
-        q = select(func.count(Company.id))
+        q = select(func.count(Company.id)).where(Company.is_active.is_(True))
         if allowed_company_ids is not None:
             q = q.where(Company.id.in_(list(allowed_company_ids)))
         return int((await self._session.execute(q)).scalar() or 0)
@@ -238,6 +238,8 @@ class FinancialsRepository:
                 # summary и «побеждал max|value|» — недетерминированные цифры.
                 FinancialReport.is_detailed.is_(False),
                 FinancialReport.quarter.is_(None),
+                # Деактивированные компании не показываем в портфельной сводке.
+                Company.is_active.is_(True),
             )
         )
         if allowed_company_ids is not None:

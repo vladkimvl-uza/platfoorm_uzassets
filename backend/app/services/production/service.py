@@ -185,6 +185,10 @@ class ProductionService:
             code = (raw.get("k") or "").lower()
             if allowed_codes is not None and code not in allowed_codes:
                 continue
+            # meta_by_code (companies_meta) содержит только is_active=true — код,
+            # которого там нет, = деактивированная (или несуществующая) компания.
+            if code not in meta_by_code:
+                continue
             c = _company_payload(code, raw, meta_by_code.get(code, {}))
             if c["has_data"]:
                 with_data += 1

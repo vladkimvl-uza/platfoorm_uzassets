@@ -426,6 +426,10 @@ class ExecDashboardService:
                 co_id = getattr(r, "company_id", None)
                 if not co_id:
                     continue
+                # co_name содержит только активные компании (list_companies фильтрует
+                # is_active) — рейтинги деактивированных компаний в блок не берём.
+                if co_id not in co_name:
+                    continue
                 agency_raw = getattr(r, "agency", None) or getattr(r, "agency_name", None) or ""
                 key = normalize_agency(agency_raw)
                 if key not in {"fitch", "sp", "moodys", "sf", "sp_esg", "cdp"}:

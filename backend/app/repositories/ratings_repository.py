@@ -70,6 +70,11 @@ class RatingsRepository:
         q = (select(AgencyRating, Company.code.label("co_code"),
                     Company.name_short.label("co_name"))
              .outerjoin(Company, AgencyRating.company_id == Company.id))
+        # Портфельный список (без явного фильтра по компании) не показывает
+        # рейтинги деактивированных компаний; рейтинги-сироты (company_id NULL)
+        # сохраняем. При явном фильтре по company_id/code — показываем как есть.
+        if not company_id and not company_code:
+            q = q.where(or_(Company.is_active.is_(True), AgencyRating.company_id.is_(None)))
         if scope_company_ids is not None:
             q = q.where(AgencyRating.company_id.in_(scope_company_ids))
         if company_id:
@@ -117,6 +122,8 @@ class RatingsRepository:
         q = (select(AgencyRating.agency, AgencyRating.is_esg,
                     AgencyRating.company_id, Company.code)
              .outerjoin(Company, AgencyRating.company_id == Company.id))
+        if not company_id and not company_code:
+            q = q.where(or_(Company.is_active.is_(True), AgencyRating.company_id.is_(None)))
         if scope_company_ids is not None:
             q = q.where(AgencyRating.company_id.in_(scope_company_ids))
         if company_id:

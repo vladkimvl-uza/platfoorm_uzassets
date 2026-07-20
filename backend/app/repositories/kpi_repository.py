@@ -82,7 +82,9 @@ class KpiRepository:
         """Все managers за год (с companies+sector pre-loaded) для портфельной сводки."""
         q = (
             select(KpiManager)
-            .where(KpiManager.year == year)
+            .join(Company, KpiManager.company_id == Company.id)
+            # Деактивированные компании не участвуют в портфельной сводке KPI.
+            .where(KpiManager.year == year, Company.is_active.is_(True))
             .options(
                 selectinload(KpiManager.indicators),
                 selectinload(KpiManager.company).selectinload(Company.sector),

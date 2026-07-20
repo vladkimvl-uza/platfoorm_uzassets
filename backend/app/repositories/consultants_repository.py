@@ -96,6 +96,14 @@ class ConsultantsRepository:
             q = q.where(Task.company_id.in_(list(company_ids)))
         return list((await self.session.execute(q)).all())
 
+    async def inactive_company_ids(self) -> set:
+        """ID деактивированных компаний (is_active=false) — их задачи не считаем
+        в портфельном overview консультантов."""
+        rows = (await self.session.execute(
+            select(Company.id).where(Company.is_active.is_(False))
+        )).all()
+        return {cid for (cid,) in rows}
+
     async def list_company_active_tasks(
         self,
         company_id: UUID,
