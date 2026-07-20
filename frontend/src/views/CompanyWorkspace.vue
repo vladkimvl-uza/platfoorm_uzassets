@@ -78,6 +78,7 @@ import GovernanceEditor from "@/components/Governance/GovernanceEditor.vue";
 import BoardMemberProfileModal from "@/components/Governance/BoardMemberProfileModal.vue";
 import BoardMemberHoverCard, { type HoverAnchor } from "@/components/Governance/BoardMemberHoverCard.vue";
 import ESGEditor from "@/components/ESG/ESGEditor.vue";
+import ESGCompanyDetailPanel from "@/components/ESG/ESGCompanyDetailPanel.vue";
 import CompanyEmployeesTab from "@/components/Company/CompanyEmployeesTab.vue";
 import CompanyEmployeesSummary from "@/components/Company/CompanyEmployeesSummary.vue";
 import InvestProjectsView from "@/views/InvestProjects.vue";
@@ -851,6 +852,12 @@ function openEsgEditor(): void { esgEditorOpen.value = true; }
 async function onEsgEditorSaved(): Promise<void> {
   esgLoadedFor.value = "";
   await loadEsg();          // рефетч (синк с /esg — общий бэкенд)
+}
+// Панель ESG (общая с /esg) сама перезагрузилась после правки — здесь освежаем
+// воркспейс-состояние ESG (используется в hero/бейджах), синк с общим бэкендом.
+async function onEsgPanelChanged(): Promise<void> {
+  esgLoadedFor.value = "";
+  await loadEsg();
 }
 
 async function loadConsultantsPerCompany() {
@@ -3744,162 +3751,15 @@ function onEditorClose() {
 
         <!-- ═══ ESG TAB — real implementation ═══ -->
         <div v-else-if="activeTab === 'esg'" :key="'esg'" class="cw-esg-scroll">
-          <UzaStateBlock v-if="esgLoading" state="loading" text="Загрузка ESG-данных…" />
-
-          <UzaStateBlock v-else-if="esgError" state="error" variant="block" title="Ошибка загрузки" :text="esgError" retry @retry="loadEsg" />
-
-          <UzaStateBlock
-            v-else-if="!esgDetail || ((((esgDetail as any).metrics_e?.length||0)+((esgDetail as any).metrics_s?.length||0)+((esgDetail as any).metrics_g?.length||0)) === 0 && esgIssues.length === 0)"
-            state="empty"
-            variant="block"
-            title="ESG-данные не введены"
-            :text="`Для ${company.name_short || company.name_ru} в ${year} году метрики ESG отсутствуют.`"
-          >
-            <template #actions>
-              <button v-if="esgPerm.canEdit.value" class="cw-cta-btn" @click="openEsgEditor">Ввести данные</button>
-              <RouterLink v-else to="/esg" class="cw-cta-btn">Открыть редактор →</RouterLink>
-            </template>
-          </UzaStateBlock>
-
-          <template v-else>
-            <!-- Header: year-fallback notice + edit -->
-            <div class="cw-gov-toolbar">
-              <div v-if="esgShownYear && esgShownYear !== year" class="cw-fin-year-notice cw-gov-notice">
-                За <b>{{ year }}</b> ESG-данных нет — показан <b>{{ esgShownYear }}</b> (последний доступный).
-              </div>
-              <span v-else></span>
-              <button v-if="esgPerm.canEdit.value" class="cw-gov-edit-btn" @click="openEsgEditor">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:5px"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>Редактировать
-              </button>
-            </div>
-
-            <!-- 3 pillar cards -->
-            <div class="cw-esg-pillars">
-              <div
-                v-for="p in esgPillarStats"
-                :key="p.pillar"
-                class="cw-esg-pillar-card"
-                :style="`--accent: ${p.color}`"
-              >
-                <div class="cw-esg-pillar-letter">{{ p.label }}</div>
-                <div class="cw-esg-pillar-name">{{ p.fullLabel }}</div>
-                <div class="cw-esg-pillar-stats">
-                  <div class="cw-esg-pillar-stat">
-                    <div class="cw-esg-pillar-stat-v">{{ p.metricCount }}</div>
-                    <div class="cw-esg-pillar-stat-l">метрик</div>
-                  </div>
-                  <div class="cw-esg-pillar-stat">
-                    <div class="cw-esg-pillar-stat-v" :style="`color: ${esgPctColor(p.avgAttainment)}`">
-                      {{ p.avgAttainment === null ? "—" : p.avgAttainment + "%" }}
-                    </div>
-                    <div class="cw-esg-pillar-stat-l">средн. достижение</div>
-                  </div>
-                </div>
-                <div v-if="p.metricCount > 0" class="cw-esg-pillar-chips">
-                  <span v-if="p.metricsOnTarget > 0" class="cw-esg-chip cw-esg-chip-good">
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px"><polyline points="20 6 9 17 4 12"/></svg>{{ p.metricsOnTarget }}
-                  </span>
-                  <span v-if="p.metricsBehind > 0" class="cw-esg-chip cw-esg-chip-bad">
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px"><path d="M10.3 4 2 18.3a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 4a2 2 0 0 0-3.4 0z"/><line x1="12" y1="9.5" x2="12" y2="13.5"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>{{ p.metricsBehind }}
-                  </span>
-                </div>
-
-                <!-- Sprint C · Sector benchmark line -->
-                <div
-                  v-if="esgSectorPillars[p.pillar] && esgSectorPillars[p.pillar].avgAttainment !== null"
-                  class="cw-esg-pillar-bench"
-                  :title="`${esgSectorLabel}: ${esgSectorPillars[p.pillar].companyCount} компаний с данными`"
-                >
-                  <span class="cw-esg-pillar-bench-cap">vs сектор:</span>
-                  <span class="cw-esg-pillar-bench-v">{{ esgSectorPillars[p.pillar].avgAttainment }}%</span>
-                  <span
-                    v-if="p.avgAttainment !== null"
-                    class="cw-esg-pillar-bench-diff"
-                    :class="(p.avgAttainment - esgSectorPillars[p.pillar].avgAttainment!) >= 0 ? 'cw-esg-pillar-bench-up' : 'cw-esg-pillar-bench-down'"
-                  >
-                    {{ (p.avgAttainment - esgSectorPillars[p.pillar].avgAttainment!) >= 0 ? '▲' : '▼' }}
-                    {{ Math.abs(p.avgAttainment - esgSectorPillars[p.pillar].avgAttainment!) }} п.п.
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Metrics by pillar -->
-            <template v-for="grp in esgMetricsByPillar" :key="grp.pillar">
-              <div v-if="grp.metrics.length > 0" class="cw-esg-section">
-                <div class="cw-section-label" :style="`color: ${grp.color}`">
-                  {{ grp.label }} · {{ grp.metrics.length }} метрик
-                </div>
-                <div class="cw-esg-metrics">
-                  <div
-                    v-for="m in grp.metrics"
-                    :key="m.id"
-                    class="cw-esg-metric"
-                    :style="`--accent: ${grp.color}`"
-                  >
-                    <div class="cw-esg-m-row1">
-                      <div class="cw-esg-m-name" :title="m.metric_name">{{ m.metric_name }}</div>
-                      <div v-if="m.pct !== null" class="cw-esg-m-pct" :style="`color: ${esgPctColor(m.pct)}`">
-                        {{ m.pct }}%
-                      </div>
-                    </div>
-                    <div class="cw-esg-m-row2">
-                      <span class="cw-esg-m-stat">
-                        <span class="cw-esg-m-stat-l">Факт:</span>
-                        <span class="cw-esg-m-stat-v">{{ fmtEsgValue(m.value, m.unit) }}</span>
-                      </span>
-                      <span class="cw-esg-m-stat">
-                        <span class="cw-esg-m-stat-l">Цель:</span>
-                        <span class="cw-esg-m-stat-v">{{ fmtEsgValue(m.target, m.unit) }}</span>
-                      </span>
-                      <span v-if="m.benchmark !== null" class="cw-esg-m-stat">
-                        <span class="cw-esg-m-stat-l">Бенч.:</span>
-                        <span class="cw-esg-m-stat-v">{{ fmtEsgValue(m.benchmark, m.unit) }}</span>
-                      </span>
-                    </div>
-                    <div v-if="m.pct !== null" class="cw-esg-m-bar-wrap">
-                      <div
-                        class="cw-esg-m-bar"
-                        :style="`width: ${Math.min(100, m.pct)}%; background: ${esgPctColor(m.pct)}`"
-                      ></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </template>
-
-            <!-- Issues -->
-            <div v-if="esgIssuesView.length > 0" class="cw-esg-section">
-              <div class="cw-section-label">
-                ESG-инциденты · {{ esgIssuesView.length }}
-                <span v-if="esgIssuesOpen.length > 0" style="color: var(--uza-red); font-weight: 600">
-                  · {{ esgIssuesOpen.length }} в работе
-                </span>
-              </div>
-              <div class="cw-esg-issues">
-                <div
-                  v-for="iss in esgIssuesView"
-                  :key="iss.id"
-                  class="cw-esg-issue"
-                  :class="`cw-esg-issue-${iss.status}`"
-                >
-                  <div class="cw-esg-issue-header">
-                    <span class="cw-esg-pillar-tag" :style="`background: ${iss.pillarColor}22; color: ${iss.pillarColor}`">
-                      {{ iss.pillar || "—" }}
-                    </span>
-                    <span class="cw-esg-sev-pill" :style="`background: ${iss.severityColor}22; color: ${iss.severityColor}`">
-                      {{ iss.severityLabel }}
-                    </span>
-                    <span class="cw-esg-status-pill" :style="`background: ${iss.statusColor}22; color: ${iss.statusColor}`">
-                      {{ iss.statusLabel }}
-                    </span>
-                  </div>
-                  <div class="cw-esg-issue-title">{{ iss.title }}</div>
-                  <div v-if="iss.description" class="cw-esg-issue-desc">{{ iss.description }}</div>
-                </div>
-              </div>
-            </div>
-          </template>
+          <!-- ESG-вкладка = тот же per-company view, что в /esg (общий ESGCompanyDetailPanel):
+               4 балльные карточки (E/S/G/Σ), разбивка метрик с инлайн-правкой, вопросы, редактор. -->
+          <ESGCompanyDetailPanel
+            v-if="company"
+            :company-id="company.id"
+            :initial-year="year"
+            variant="embedded"
+            @changed="onEsgPanelChanged"
+          />
         </div>
 
         <!-- ═══ CONSULTANTS TAB — directory + per-company integration TBD ═══ -->
