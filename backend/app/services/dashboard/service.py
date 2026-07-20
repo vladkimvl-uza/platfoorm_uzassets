@@ -516,7 +516,10 @@ class DashboardService:
             return rec
 
         for r_row in p_rows:
-            cid = board_to_company.get(r_row.board_id)
+            # доска, при её отсутствии — прямой company_id (board-less строки).
+            cid = board_to_company.get(r_row.board_id) if r_row.board_id is not None else None
+            if cid is None:
+                cid = getattr(r_row, "company_id", None)
             if cid is None:
                 continue
             rec = _co_record(cid)
@@ -538,7 +541,9 @@ class DashboardService:
                     rec["assignees"].add(r_row.assignee_email.lower())
 
         for r_row in t_rows:
-            cid = board_to_company.get(r_row.board_id)
+            cid = board_to_company.get(r_row.board_id) if r_row.board_id is not None else None
+            if cid is None:
+                cid = getattr(r_row, "company_id", None)
             if cid is None:
                 continue
             rec = _co_record(cid)

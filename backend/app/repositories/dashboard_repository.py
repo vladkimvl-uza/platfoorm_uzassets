@@ -88,7 +88,7 @@ class DashboardRepository:
             Project.due_date, Project.linked_year, Project.linked_project_id,
             Project.portfolio_year,
             Project.progress_percent, Project.assignee_name, Project.assignee_email,
-            Project.board_id, Project.direction_id,
+            Project.board_id, Project.company_id, Project.direction_id,
         ).where(Project.is_archived == False))  # noqa: E712
         if year:
             q = q.where(Project.portfolio_year == year)
@@ -110,7 +110,7 @@ class DashboardRepository:
             Task.due_date, Task.linked_year, Task.linked_task_id,
             Task.portfolio_year,
             Task.progress_percent, Task.assignee_name, Task.assignee_email,
-            Task.board_id, Task.direction_id, Task.extra,
+            Task.board_id, Task.company_id, Task.direction_id, Task.extra,
         ).where(Task.is_archived == False))  # noqa: E712
         if year:
             q = q.where(Task.portfolio_year == year)
