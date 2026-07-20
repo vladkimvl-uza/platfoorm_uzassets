@@ -69,6 +69,24 @@ def _ensure_year_row(co: dict, year: int) -> dict:
     return new_yr
 
 
+async def _active_company(db, code: str) -> dict | None:
+    """Активная компания канона по коду -> {k,n,s} или None. Нужна, чтобы
+    одобренная правка по новой компании заводила строку снапшота, а не падала."""
+    from app.repositories.forensic_repository import _forensic_sector_bucket
+    res = await db.execute(text(
+        "SELECT c.code, COALESCE(c.name_short, c.name_ru) AS name, "
+        "       s.code AS sc, s.name_ru AS sn "
+        "FROM companies c LEFT JOIN sectors s ON s.id = c.sector_id "
+        "WHERE c.is_active = true AND lower(c.code) = :code LIMIT 1"
+    ), {"code": code.lower()})
+    row = res.first()
+    if not row:
+        return None
+    cc, name, sc, sn = row
+    return {"k": cc.strip().lower(), "n": name or cc,
+            "s": _forensic_sector_bucket(sc, sn)}
+
+
 async def apply(db, *, sub: ModerationSubmission, user: User) -> dict[str, Any]:
     if not sub.proposed_value:
         raise ValueError("proposed_value is empty")
@@ -87,12 +105,16 @@ async def apply(db, *, sub: ModerationSubmission, user: User) -> dict[str, Any]:
         raise ValueError(f"invalid year in payload: {year!r}")
 
     snap = await _load_snapshot(db)
-    if not snap:
-        raise ValueError("procurement snapshot not initialised — no data to patch")
 
     co = next((c for c in snap if isinstance(c, dict) and (c.get("k") or "").lower() == code), None)
     if co is None:
-        raise ValueError(f"company '{code}' not found in snapshot")
+        # Строки ещё нет — заводим её для активной компании канона (одобренная
+        # правка по новой компании не должна падать «not found in snapshot»).
+        ac = await _active_company(db, code)
+        if ac is None:
+            raise ValueError(f"company '{code}' not found and is not an active company")
+        co = {"k": ac["k"], "n": ac["n"], "s": ac["s"], "years": []}
+        snap.append(co)
 
     # Meta fields (None = skip; explicit empty-string clears)
     for src_key, dst_key in [

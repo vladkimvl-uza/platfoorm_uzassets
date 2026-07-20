@@ -86,8 +86,19 @@ class ForensicService:
             # Каноничные имена из таблицы Company (переопределяют запечённые в
             # снапшоте, чтобы forensic показывал те же названия, что /admin/companies).
             name_map = await self.uow.forensic.names_by_code()
+            # Активные компании из канона — динамический ростер: новая компания
+            # видна пустой строкой даже без данных снапшота.
+            active = await self.uow.forensic.active_companies()
 
-        if not snap:
+        # Мёрж: к строкам снапшота добавляем недостающие активные компании.
+        existing = {(c.get("k") or "").strip().lower()
+                    for c in snap if isinstance(c, dict)}
+        merged: list[dict[str, Any]] = list(snap)
+        for ac in active:
+            if ac["k"] not in existing:
+                merged.append({"k": ac["k"], "n": ac["n"], "s": ac["s"], "years": []})
+
+        if not merged:
             return {
                 "companies": [],
                 "kpis": {
@@ -100,7 +111,7 @@ class ForensicService:
 
         companies: list[dict[str, Any]] = []
         plan_approved = forensic_done = with_auditor = 0
-        for raw in snap:
+        for raw in merged:
             if not isinstance(raw, dict):
                 continue
             if allowed_codes is not None:
@@ -150,21 +161,23 @@ class ForensicService:
     ) -> dict[str, Any]:
         async with self.uow:
             snap = await self.uow.forensic.load_snapshot()
-            if not snap:
-                raise HTTPException(
-                    http_status.HTTP_404_NOT_FOUND,
-                    "Procurement snapshot not initialised",
-                )
             co = next(
                 (c for c in snap
                  if isinstance(c, dict) and (c.get("k") or "").lower() == code.lower()),
                 None,
             )
             if co is None:
-                raise HTTPException(
-                    http_status.HTTP_404_NOT_FOUND,
-                    f"Company '{code}' not found in snapshot",
-                )
+                # Нет строки — создаём её для любой активной компании канона
+                # (так правки по новой компании не падают 404, а заводят строку).
+                active = await self.uow.forensic.active_companies()
+                ac = next((a for a in active if a["k"] == code.lower()), None)
+                if ac is None:
+                    raise HTTPException(
+                        http_status.HTTP_404_NOT_FOUND,
+                        f"Company '{code}' not found",
+                    )
+                co = {"k": ac["k"], "n": ac["n"], "s": ac["s"], "years": []}
+                snap.append(co)
 
             if payload.plan_status is not None:
                 co["plan"] = payload.plan_status
@@ -299,6 +312,7 @@ class ForensicService:
         async with self.uow:
             snap = await self.uow.forensic.load_snapshot()
             by_code = {(c.get("k") or "").lower(): c for c in snap if isinstance(c, dict)}
+            active_by_code = {a["k"]: a for a in await self.uow.forensic.active_companies()}
 
             inserted = updated = skipped = 0
 
@@ -316,8 +330,16 @@ class ForensicService:
                 code_lc = str(code_v).strip().lower()
                 co = by_code.get(code_lc)
                 if co is None:
-                    skipped += 1
-                    continue
+                    # Новой активной компании заводим строку снапшота (иначе строки
+                    # импорта по ней молча терялись). Незнакомые коды — пропуск.
+                    ac = active_by_code.get(code_lc)
+                    if ac is None:
+                        skipped += 1
+                        continue
+                    co = {"k": ac["k"], "n": ac["n"], "s": ac["s"], "years": []}
+                    snap.append(co)
+                    by_code[code_lc] = co
+                    inserted += 1
 
                 year_v = cell(col_year)
                 try:
