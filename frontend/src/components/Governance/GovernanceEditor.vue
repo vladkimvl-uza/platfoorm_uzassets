@@ -177,14 +177,15 @@ const showMemberForm = ref(false);
 const mForm = reactive({
   full_name: "", position: "", role_type: "" as RoleType | "",
   is_independent: false, is_woman: false, is_foreign: false,
-  appointed_date: "", term_end_date: "", bio: "",
+  appointed_date: "", term_end_date: "", email: "", phone: "", bio: "",
 });
 
 function openAddMember(): void {
   editingMember.value = null;
   Object.assign(mForm, {
     full_name: "", position: "", role_type: "", is_independent: false,
-    is_woman: false, is_foreign: false, appointed_date: "", term_end_date: "", bio: "",
+    is_woman: false, is_foreign: false, appointed_date: "", term_end_date: "",
+    email: "", phone: "", bio: "",
   });
   err.value = null; showMemberForm.value = true;
 }
@@ -194,7 +195,8 @@ function openEditMember(m: BoardMemberBrief): void {
     full_name: m.full_name || "", position: m.position || "",
     role_type: (m.role_type || "") as RoleType | "",
     is_independent: !!m.is_independent, is_woman: !!m.is_woman, is_foreign: !!m.is_foreign,
-    appointed_date: m.appointed_date || "", term_end_date: m.term_end_date || "", bio: m.bio || "",
+    appointed_date: m.appointed_date || "", term_end_date: m.term_end_date || "",
+    email: (m as any).email || "", phone: (m as any).phone || "", bio: m.bio || "",
   });
   err.value = null; showMemberForm.value = true;
 }
@@ -214,6 +216,8 @@ async function saveMember(): Promise<void> {
     is_foreign: mForm.is_foreign,
     appointed_date: mForm.appointed_date || null,
     term_end_date: mForm.term_end_date || null,
+    email: mForm.email.trim() || null,
+    phone: mForm.phone.trim() || null,
     bio: mForm.bio.trim() || null,
   };
   try {
@@ -349,6 +353,14 @@ const ROLE_OPTIONS = computed(() => ROLE_TYPE_META);
               <label class="ge-field">
                 <span class="ge-label">Срок до</span>
                 <input type="date" class="ge-in" v-model="mForm.term_end_date" :disabled="saving" />
+              </label>
+              <label class="ge-field">
+                <span class="ge-label">Email</span>
+                <input type="email" class="ge-in" v-model="mForm.email" :disabled="saving" placeholder="name@company.uz" />
+              </label>
+              <label class="ge-field">
+                <span class="ge-label">Телефон</span>
+                <input type="tel" class="ge-in" v-model="mForm.phone" :disabled="saving" placeholder="+998 90 123 45 67" />
               </label>
             </div>
             <div class="ge-checks">

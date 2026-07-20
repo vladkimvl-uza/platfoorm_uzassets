@@ -313,6 +313,8 @@ class GovernanceService:
                 is_foreign=payload.is_foreign,
                 appointed_date=payload.appointed_date,
                 term_end_date=payload.term_end_date,
+                email=payload.email,
+                phone=payload.phone,
                 bio=payload.bio,
             )
             self.uow.governance.add(m)
@@ -338,7 +340,8 @@ class GovernanceService:
             for field in (
                 "full_name", "position", "role_type",
                 "is_independent", "is_woman", "is_foreign",
-                "appointed_date", "term_end_date", "bio",
+                "appointed_date", "term_end_date",
+                "email", "phone", "bio",
             ):
                 v = getattr(payload, field)
                 if v is not None:

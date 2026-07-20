@@ -106,6 +106,14 @@ const tags = computed(() => {
         </div>
 
         <div class="bmh-meta">
+          <div v-if="member.email" class="bmh-meta-row">
+            <span class="bmh-meta-l">Email</span>
+            <span class="bmh-meta-v bmh-meta-v--trunc">{{ member.email }}</span>
+          </div>
+          <div v-if="member.phone" class="bmh-meta-row">
+            <span class="bmh-meta-l">Телефон</span>
+            <span class="bmh-meta-v">{{ member.phone }}</span>
+          </div>
           <div class="bmh-meta-row">
             <span class="bmh-meta-l">Назначен</span>
             <span class="bmh-meta-v">{{ member.appointed }}</span>
@@ -154,8 +162,9 @@ const tags = computed(() => {
   display: flex; flex-direction: column; gap: 6px;
 }
 .bmh-meta-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
-.bmh-meta-l { font-size: 11px; color: var(--t3, #94A3B8); }
+.bmh-meta-l { font-size: 11px; color: var(--t3, #94A3B8); flex-shrink: 0; }
 .bmh-meta-v { font-size: 12px; font-weight: 500; color: var(--t1, #1A1730); font-variant-numeric: tabular-nums; }
+.bmh-meta-v--trunc { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bmh-cta {
   display: flex; align-items: center; justify-content: center; gap: 5px;
   margin-top: 13px; padding-top: 11px; border-top: 1px solid var(--line, #ECEAF4);

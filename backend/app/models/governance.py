@@ -91,6 +91,10 @@ class BoardMember(Base, UUIDMixin, TimestampMixin):
     appointed_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     term_end_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
 
+    # Контактные данные (email + телефон) — профиль + редактор корп. управления.
+    email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    phone: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+
     bio: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     extra: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
 

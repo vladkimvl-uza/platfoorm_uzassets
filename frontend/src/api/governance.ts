@@ -104,6 +104,8 @@ export interface BoardMemberBrief {
   is_foreign: boolean | null;
   appointed_date: string | null;
   term_end_date: string | null;
+  email: string | null;
+  phone: string | null;
   bio: string | null;
 }
 
@@ -178,6 +180,8 @@ export interface BoardMemberCreatePayload {
   is_foreign?: boolean | null;
   appointed_date?: string | null;
   term_end_date?: string | null;
+  email?: string | null;
+  phone?: string | null;
   bio?: string | null;
 }
 

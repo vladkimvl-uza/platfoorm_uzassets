@@ -110,6 +110,8 @@ class BoardMemberBrief(BaseModel):
     is_foreign: Optional[bool] = None
     appointed_date: Optional[date] = None
     term_end_date: Optional[date] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
     bio: Optional[str] = None
 
 
@@ -123,6 +125,8 @@ class BoardMemberCreate(BaseModel):
     is_foreign: Optional[bool] = None
     appointed_date: Optional[date] = None
     term_end_date: Optional[date] = None
+    email: Optional[str] = Field(None, max_length=255)
+    phone: Optional[str] = Field(None, max_length=64)
     bio: Optional[str] = None
 
 
@@ -135,6 +139,8 @@ class BoardMemberUpdate(BaseModel):
     is_foreign: Optional[bool] = None
     appointed_date: Optional[date] = None
     term_end_date: Optional[date] = None
+    email: Optional[str] = Field(None, max_length=255)
+    phone: Optional[str] = Field(None, max_length=64)
     bio: Optional[str] = None
 
 

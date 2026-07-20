@@ -1604,6 +1604,8 @@ interface BoardMemberView {
   termEnd: string;
   appointedISO: string | null;
   termEndISO: string | null;
+  email: string | null;
+  phone: string | null;
   initials: string;
 }
 
@@ -1629,13 +1631,18 @@ const boardMembersByRole = computed<BoardMemberView[]>(() => {
         roleType: role,
         roleLabel: meta?.label || "Член совета",
         roleColor: meta?.color || "#94A3B8",
-        isIndependent: !!m.is_independent,
+        // Эффективная независимость: флаг ЛИБО роль «independent» (иначе цифры
+        // расходятся с KPI-карточкой «Независимые»). Единый источник для полоски,
+        // бейджа и модалки.
+        isIndependent: !!m.is_independent || role === "independent",
         isWoman: !!m.is_woman,
         isForeign: !!m.is_foreign,
         appointed: m.appointed_date ? fmtDate(m.appointed_date) : "—",
         termEnd: m.term_end_date ? fmtDate(m.term_end_date) : "—",
         appointedISO: m.appointed_date || null,
         termEndISO: m.term_end_date || null,
+        email: m.email || null,
+        phone: m.phone || null,
         initials: getInitials(m.full_name || ""),
       } as BoardMemberView;
     })
@@ -1655,7 +1662,7 @@ const boardComposition = computed(() => {
   const n = members.length;
   if (n === 0) return null;
   const pct = (cnt: number) => Math.round((cnt / n) * 100);
-  const indep = members.filter(m => m.isIndependent).length;
+  const indep = members.filter(m => m.isIndependent).length;  // isIndependent уже эффективная
   const women = members.filter(m => m.isWoman).length;
   const foreign = members.filter(m => m.isForeign).length;
   // Средний срок в совете (лет) по тем, у кого есть дата назначения.
@@ -3708,7 +3715,7 @@ function onEditorClose() {
                       <span class="cw-gov-role-pill" :style="`background: ${m.roleColor}22; color: ${m.roleColor}`">
                         {{ m.roleLabel }}
                       </span>
-                      <span v-if="m.isIndependent" class="cw-gov-badge">Независимый</span>
+                      <span v-if="m.isIndependent && m.roleType !== 'independent'" class="cw-gov-badge">Независимый</span>
                       <span v-if="m.isWoman" class="cw-gov-badge">♀</span>
                       <span v-if="m.isForeign" class="cw-gov-badge">Иностранец</span>
                     </div>

@@ -25,6 +25,8 @@ export interface BoardMemberProfile {
   termEnd: string;
   appointedISO: string | null;
   termEndISO: string | null;
+  email?: string | null;
+  phone?: string | null;
 }
 
 const props = defineProps<{
@@ -104,6 +106,8 @@ const facts = computed(() => {
     { label: "Гражданство", on: m.isForeign, onText: "Иностранный", offText: "Резидент РУз", neutral: true },
   ];
 });
+
+const hasContact = computed(() => !!(props.member?.email || props.member?.phone));
 </script>
 
 <template>
@@ -133,6 +137,24 @@ const facts = computed(() => {
           <div class="bmp-pos-l">Должность</div>
           <div class="bmp-pos-v">{{ member.position }}</div>
         </div>
+      </div>
+
+      <!-- Контакты -->
+      <div v-if="hasContact" class="bmp-contact" style="--d:1">
+        <a v-if="member.email" class="bmp-contact-row" :href="`mailto:${member.email}`">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
+          <div>
+            <div class="bmp-contact-l">Email</div>
+            <div class="bmp-contact-v">{{ member.email }}</div>
+          </div>
+        </a>
+        <a v-if="member.phone" class="bmp-contact-row" :href="`tel:${member.phone}`">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.1-8.6A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.4-1.2a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></svg>
+          <div>
+            <div class="bmp-contact-l">Телефон</div>
+            <div class="bmp-contact-v">{{ member.phone }}</div>
+          </div>
+        </a>
       </div>
 
       <!-- Состав-факты -->
@@ -222,6 +244,22 @@ const facts = computed(() => {
 .bmp-pos svg { width: 22px; height: 22px; color: var(--p, #7C6FF7); flex-shrink: 0; }
 .bmp-pos-l { font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--t3, #94A3B8); }
 .bmp-pos-v { font-size: 14px; font-weight: 500; color: var(--t1, #1A1730); margin-top: 2px; }
+
+.bmp-contact { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.bmp-contact-row {
+  display: flex; align-items: center; gap: 11px; text-decoration: none;
+  padding: 11px 13px; border-radius: 12px;
+  background: var(--bg2, #F8FAFC); border: 1px solid var(--line, #ECEAF4);
+  transition: border-color .16s, box-shadow .16s, transform .16s;
+}
+.bmp-contact-row:hover {
+  border-color: rgba(124, 111, 247, .4);
+  box-shadow: 0 6px 16px -10px rgba(40, 32, 80, .28);
+  transform: translateY(-1px);
+}
+.bmp-contact-row svg { width: 19px; height: 19px; color: var(--p, #7C6FF7); flex-shrink: 0; }
+.bmp-contact-l { font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: var(--t3, #94A3B8); }
+.bmp-contact-v { font-size: 13px; font-weight: 500; color: var(--t1, #1A1730); margin-top: 2px; word-break: break-all; }
 
 .bmp-facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .bmp-fact {

@@ -240,6 +240,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_agency_rating_history(conn)
             await _seed_company_inns(conn)
             await _patch_committee_meetings(conn)
+            await _patch_board_member_contacts(conn)
             await _patch_financial_unit_scale(conn)
             await _patch_hlf_backfill_ifrs_lines(conn)
             await _patch_soe_retained_earnings_seed(conn)
@@ -1436,6 +1437,17 @@ async def _patch_company_ownership_entity(conn) -> None:
     Не сидим значениями (нет достоверной привязки) — заполняется вручную."""
     await conn.execute(text(
         "ALTER TABLE companies ADD COLUMN IF NOT EXISTS ownership_entity VARCHAR(128)"
+    ))
+
+
+async def _patch_board_member_contacts(conn) -> None:
+    """Контактные данные члена совета директоров (email + телефон). Additive,
+    idempotent — показываются в профиле и правятся в редакторе корп. управления."""
+    await conn.execute(text(
+        "ALTER TABLE board_members ADD COLUMN IF NOT EXISTS email VARCHAR(255)"
+    ))
+    await conn.execute(text(
+        "ALTER TABLE board_members ADD COLUMN IF NOT EXISTS phone VARCHAR(64)"
     ))
 
 
