@@ -31,14 +31,17 @@ async function load() {
   if (!props.companyId) { files.value = []; return; }
   loading.value = true;
   try {
-    const r = await api.get(`/attachments/company/${props.companyId}`, { params: { category: props.category } });
+    // Отчёты привязаны к году: показываем только за выбранный FY (бэкенд фильтрует).
+    const r = await api.get(`/attachments/company/${props.companyId}`, {
+      params: { category: props.category, year: props.year ?? undefined },
+    });
     files.value = Array.isArray(r.data) ? r.data : [];
   } catch {
     files.value = [];
   } finally { loading.value = false; }
 }
 onMounted(load);
-watch(() => [props.companyId, props.category], load);
+watch(() => [props.companyId, props.category, props.year], load);
 
 // ─── тип файла: расширение (из имени) + цвет (из mime) ───
 const KIND_COLOR: Record<string, string> = {
@@ -116,7 +119,7 @@ const heading = computed(() => props.title || "Загруженные отчёт
   <div class="fru">
     <div class="fru-hd">
       <div class="fru-t">{{ heading }}<span v-if="files.length" class="fru-n">{{ files.length }}</span></div>
-      <div class="fru-s">исходные файлы отчётности · Excel, PDF, Word и др.</div>
+      <div class="fru-s"><template v-if="year">за FY {{ year }} · </template>Excel, PDF, Word и др.</div>
     </div>
 
     <!-- зона загрузки -->

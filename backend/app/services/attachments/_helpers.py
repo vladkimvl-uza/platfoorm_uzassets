@@ -22,6 +22,11 @@ ALLOWED_MIMES = {
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "application/vnd.ms-excel",
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    # Макро-Excel (.xlsm) и бинарный (.xlsb) — zip-контейнеры OOXML; отдаются
+    # только на скачивание (signed URL), на сервере не исполняются.
+    "application/vnd.ms-excel.sheet.macroEnabled.12",
+    "application/vnd.ms-excel.sheet.binary.macroEnabled.12",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.template",
     "application/vnd.ms-powerpoint",
     "application/vnd.openxmlformats-officedocument.presentationml.presentation",
     "image/png", "image/jpeg", "image/webp",
@@ -37,6 +42,9 @@ _OOXML_MIMES = {
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.template",
+    "application/vnd.ms-excel.sheet.macroEnabled.12",
+    "application/vnd.ms-excel.sheet.binary.macroEnabled.12",
 }
 _ZIP_MIMES = {"application/zip", "application/x-zip-compressed"} | _OOXML_MIMES
 _OLE_MIMES = {"application/msword", "application/vnd.ms-excel", "application/vnd.ms-powerpoint"}
