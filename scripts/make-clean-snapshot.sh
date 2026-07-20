@@ -28,6 +28,9 @@ mkdir -p "$DEST"
 git -C "$REPO_ROOT" archive --format=tar HEAD | tar -x -C "$DEST"
 
 # 2) Подчистка на всякий случай (если что-то отслеживалось зря).
+# Сам скрипт снимка в передаваемый комплект не входит (внутренний инструмент,
+# и содержит вендор-слова в паттернах подстановки).
+rm -f "$DEST/scripts/make-clean-snapshot.sh" 2>/dev/null || true
 find "$DEST" -type d -name node_modules -prune -exec rm -rf {} + 2>/dev/null || true
 find "$DEST" -type d -name __pycache__ -prune -exec rm -rf {} + 2>/dev/null || true
 find "$DEST" -type d -name dist -prune -exec rm -rf {} + 2>/dev/null || true
