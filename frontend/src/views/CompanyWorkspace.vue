@@ -81,6 +81,8 @@ import ESGEditor from "@/components/ESG/ESGEditor.vue";
 import ESGMaturityProfilePanel from "@/components/ESG/ESGMaturityProfilePanel.vue";
 import ESGSwotPanel from "@/components/ESG/ESGSwotPanel.vue";
 import UzaSegment from "@/components/UZA/UzaSegment.vue";
+import UnitCostCompanyPanel from "@/components/UnitCost/UnitCostCompanyPanel.vue";
+import { unitCostApi, type UCOverview, type UCCompany } from "@/api/unitCost";
 import CompanyEmployeesTab from "@/components/Company/CompanyEmployeesTab.vue";
 import CompanyEmployeesSummary from "@/components/Company/CompanyEmployeesSummary.vue";
 import InvestProjectsView from "@/views/InvestProjects.vue";
@@ -254,7 +256,7 @@ function repSubBtn(active: boolean): string {
     : "background:transparent;color:var(--t2,#475569);");
 }
 const VALID_TABS = ["overview", "people", "work", "kanban", "list", "pmo", "notes", "reporting",
-                    "ifrs", "nsbu", "hlf", "bp", "credit", "invest",
+                    "ifrs", "nsbu", "hlf", "bp", "unitcost", "credit", "invest",
                     "kpi", "procurement",
                     "governance", "consultants", "esg"] as const;
 type TabKey = typeof VALID_TABS[number];
@@ -315,6 +317,7 @@ const TABS: TabDef[] = [
   { key: "nsbu",        label: "НСБУ",         group: "finance",  fullPageRoute: "/financials" },
   { key: "hlf",         label: "Фин. отчётность", group: "finance", fullPageRoute: "/financials" },
   { key: "bp",          label: "Бизнес-план",  group: "finance",  fullPageRoute: "/business-plan" },
+  { key: "unitcost",    label: "Себестоимость", group: "finance", fullPageRoute: "/unit-cost" },
   // Hidden per user request 2026-05-25 — раскомментировать для возврата
   // { key: "credit",      label: "Кредит",       group: "finance",  fullPageRoute: "/credit-portfolio" },
   // { key: "invest",      label: "Инвест-проекты", group: "finance", fullPageRoute: "/invest-projects" },
@@ -391,6 +394,7 @@ function loadActiveTab() {
   else if (t === "governance") loadGovernance();
   else if (t === "esg") loadEsg();
   else if (t === "consultants") loadConsultantsPerCompany();
+  else if (t === "unitcost") loadUnitCost();
   else if (t === "credit") loadCredit();
   else if (t === "procurement") loadProc();
   else if (t === "ifrs" || t === "nsbu") loadFinReports();
@@ -425,6 +429,7 @@ watch(code, () => {
   procLoadedFor.value = "";
   finLoadedFor.value = "";
   creditLoadedFor.value = "";
+  ucLoadedFor.value = "";
   loadAll().then(() => {
     nextTick(() => animateCounters());
     loadTopFinSnapshot();
@@ -867,6 +872,52 @@ async function onEsgPanelChanged(): Promise<void> {
   esgLoadedFor.value = "";
   await loadEsg();
 }
+
+// =====================================================================
+// Удельная себестоимость — срез компании из /unit-cost (общий бэкенд →
+// синхронно: правки видны и в дашборде, и здесь). overview даёт весь
+// портфель за год/квартал, берём свою компанию по коду.
+// =====================================================================
+const ucRaw = ref<UCOverview | null>(null);
+const ucLoading = ref(false);
+const ucError = ref<string | null>(null);
+const ucLoadedFor = ref<string>("");        // "code:year:quarter"
+const ucQuarter = ref<string>("annual");
+const UC_QUARTERS = [
+  { value: "annual", label: "Год" },
+  { value: "q1", label: "I кв" },
+  { value: "q2", label: "II кв" },
+  { value: "q3", label: "III кв" },
+  { value: "q4", label: "IV кв" },
+];
+async function loadUnitCost(): Promise<void> {
+  if (!company.value) return;
+  const key = `${code.value}:${year.value}:${ucQuarter.value}`;
+  if (ucLoadedFor.value === key) return;
+  ucLoading.value = true;
+  ucError.value = null;
+  try {
+    ucRaw.value = await unitCostApi.overview(year.value, ucQuarter.value);
+    ucLoadedFor.value = key;
+  } catch (e: any) {
+    ucError.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить себестоимость";
+  } finally {
+    ucLoading.value = false;
+  }
+}
+const ucCompany = computed<UCCompany | null>(() => {
+  const list = ucRaw.value?.companies || [];
+  const c = code.value;
+  return list.find((x) => String(x.code || "").toLowerCase() === c) || null;
+});
+const ucPrices = computed(() => ucRaw.value?.energyPrices || {});
+const ucWorld = computed(() => ucRaw.value?.world || null);
+const ucFuelLabels = computed(() => ucRaw.value?.fuel_labels || {});
+async function onUnitCostSaved(): Promise<void> {
+  ucLoadedFor.value = "";
+  await loadUnitCost();       // рефетч (синк с /unit-cost — общий бэкенд)
+}
+watch(ucQuarter, () => { if (activeTab.value === "unitcost") loadUnitCost(); });
 
 async function loadConsultantsPerCompany() {
   if (!company.value) return;
@@ -1323,6 +1374,7 @@ watch(activeTab, (tab) => {
   if (tab === "governance") loadGovernance();
   if (tab === "esg") loadEsg();
   if (tab === "consultants") loadConsultantsPerCompany();
+  if (tab === "unitcost") loadUnitCost();
   if (tab === "credit") loadCredit();
   if (tab === "procurement") loadProc();
   if (tab === "ifrs" || tab === "nsbu") loadFinReports();
@@ -1342,6 +1394,7 @@ watch(year, () => {
   consPerCompanyLoadedFor.value = "";
   procLoadedFor.value = "";
   finLoadedFor.value = "";
+  ucLoadedFor.value = "";
   loadActiveTab();
 });
 
@@ -3777,6 +3830,32 @@ function onEditorClose() {
             :company-id="company.id"
             :can-edit="esgPerm.canEdit.value"
             @changed="onEsgPanelChanged"
+          />
+        </div>
+
+        <!-- ═══ UNIT COST TAB — срез компании из /unit-cost (общий бэкенд → синк) ═══ -->
+        <div v-else-if="activeTab === 'unitcost'" :key="'unitcost'" class="cw-uc-scroll">
+          <div class="cw-uc-bar">
+            <div class="cw-uc-bar-t">Удельная себестоимость <span>факт · норма расхода · энергоёмкость по продуктам</span></div>
+            <UzaSegment v-model="ucQuarter" :options="UC_QUARTERS" size="sm" />
+          </div>
+
+          <UzaStateBlock v-if="ucLoading" state="loading" text="Загрузка себестоимости…" />
+          <UzaStateBlock v-else-if="ucError" state="error" variant="block" title="Ошибка загрузки" :text="ucError" retry @retry="loadUnitCost" />
+          <UzaStateBlock v-else-if="company && !ucCompany" state="empty" variant="block"
+            title="Данных по себестоимости нет"
+            text="Для этой компании ещё не заведены продукты и удельный расход. Откройте модуль «Удельная себестоимость» и заполните данные." />
+
+          <UnitCostCompanyPanel
+            v-else-if="company && ucCompany"
+            variant="embedded"
+            :company="ucCompany"
+            :prices="ucPrices"
+            :world="ucWorld"
+            :fuel-labels="ucFuelLabels"
+            :year="year"
+            :quarter="ucQuarter"
+            @saved="onUnitCostSaved"
           />
         </div>
 
@@ -6639,6 +6718,40 @@ function onEditorClose() {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+/* Удельная себестоимость — вкладка (общая панель с /unit-cost) */
+.cw-uc-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.cw-uc-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.cw-uc-bar-t {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--p-deep, #534AB7);
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.cw-uc-bar-t span {
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--t3, #94A3B8);
+  font-size: 10.5px;
 }
 
 .cw-esg-pillars {

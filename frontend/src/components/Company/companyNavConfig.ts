@@ -12,7 +12,7 @@
 export type TabId =
   | 'overview' | 'people'
   | 'work' | 'kanban' | 'list' | 'notes' | 'pmo' | 'reporting'
-  | 'ifrs' | 'nsbu' | 'hlf' | 'bp' | 'credit'
+  | 'ifrs' | 'nsbu' | 'hlf' | 'bp' | 'unitcost' | 'credit'
   | 'invest' | 'kpi' | 'procurement'
   | 'governance' | 'consultants' | 'esg';
 
@@ -51,6 +51,7 @@ export const COMPANY_TABS: TabConfig[] = [
   { id: 'nsbu',        label: 'НСБУ',           groupId: 'finance' },
   { id: 'hlf',         label: 'Фин. отчётность', groupId: 'finance' },
   { id: 'bp',          label: 'Бизнес-план',    groupId: 'finance' },
+  { id: 'unitcost',    label: 'Себестоимость',  groupId: 'finance' },
   // 2026-05-26: 'credit' и 'invest' скрыты по запросу — раскомментировать для возврата
   // { id: 'credit',      label: 'Кредит',         groupId: 'finance' },
   // { id: 'invest',      label: 'Инвест-проекты', groupId: 'performance' },
@@ -81,6 +82,7 @@ export const MOCK_INDICATORS: Record<TabId, TabIndicators> = {
   nsbu:        {},
   hlf:         {},
   bp:          {},
+  unitcost:    {},
   credit:      {},
   invest:      {},
   kpi:         {},
