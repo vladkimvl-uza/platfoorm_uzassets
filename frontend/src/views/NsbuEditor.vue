@@ -1533,7 +1533,7 @@ function formatHistoryDate(iso: string | null): string {
 
 .ne-row-label { padding: 5px 10px; font-size: 11px; color: var(--t2, #475569); white-space: nowrap; }
 .ne-nsbu-code { font-family: monospace; font-size: 9px; color: var(--t3, #94A3B8); margin-right: 6px; }
-.ne-auto-badge { font-size: 8px; color: var(--amber); background: var(--amber)15; padding: 1px 5px; border-radius: 3px; margin-right: 4px; font-weight: 600; }
+.ne-auto-badge { font-size: 8px; color: var(--amber); background: color-mix(in srgb, var(--amber) 15%, transparent); padding: 1px 5px; border-radius: 3px; margin-right: 4px; font-weight: 600; }
 .ne-custom-badge { font-size: 8px; color: var(--p-deep); background: rgba(127, 119, 221, .12); padding: 1px 5px; border-radius: 3px; margin-right: 4px; font-weight: 600; }
 .ne-canon-badge { font-size: 8px; color: #0F6E56; background: rgba(29, 158, 117, .12); padding: 1px 5px; border-radius: 3px; margin-right: 4px; font-weight: 600; cursor: pointer; font-family: monospace; }
 .ne-canon-badge:hover { background: rgba(29, 158, 117, .22); }
@@ -1567,7 +1567,7 @@ function formatHistoryDate(iso: string | null): string {
 
 .ne-group-hdr { padding: 9px 10px 3px; font-size: 9px; font-weight: 600; color: #7F77DD; text-transform: uppercase; letter-spacing: .06em; background: linear-gradient(to right, #F5F3FF 0%, #FAFBFF 100%); border-bottom: 1px solid #E0E7FF; }
 
-.ne-formula-editor { padding: 10px 16px; background: #FFFBF0; border-top: 1px solid var(--amber)40; border-bottom: 1px solid var(--amber)40; display: flex; gap: 8px; align-items: center; }
+.ne-formula-editor { padding: 10px 16px; background: #FFFBF0; border-top: 1px solid color-mix(in srgb, var(--amber) 40%, transparent); border-bottom: 1px solid color-mix(in srgb, var(--amber) 40%, transparent); display: flex; gap: 8px; align-items: center; }
 .ne-formula-lbl { font-size: 10px; color: #D97706; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
 .ne-formula-inp { flex: 1; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--amber); font-family: monospace; font-size: 11px; outline: none; }
 

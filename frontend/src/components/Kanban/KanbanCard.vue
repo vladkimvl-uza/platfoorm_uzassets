@@ -78,13 +78,6 @@ const consultantCodes = computed<string[]>(() => {
 });
 
 // ── Assignee avatar ───────────────────────────────────────────────────
-const _AV_COLORS = ["#5B8DEF", "#34A853", "#D97706", "#AF52DE", "#00BCD4", "#E67E22", "#1ABC9C", "#8E44AD", "#2ECC71", "#3498DB"];
-const avatarColor = computed(() => {
-  const n = props.task.assignee_name || props.task.assignee_email || "?";
-  let h = 0;
-  for (let i = 0; i < n.length; i++) h = (h * 31 + n.charCodeAt(i)) | 0;
-  return _AV_COLORS[Math.abs(h) % _AV_COLORS.length];
-});
 const avatarInitials = computed(() => {
   const n = props.task.assignee_name || props.task.assignee_email || "?";
   return n.split(/\s+/).map((w) => w[0] || "").join("").slice(0, 2).toUpperCase();
@@ -239,7 +232,6 @@ function onDragStart(ev: DragEvent) {
         <span
           v-if="task.assignee_name || task.assignee_email"
           class="kc-av"
-          :style="{ background: avatarColor }"
           :title="task.assignee_name || task.assignee_email || ''"
         >{{ avatarInitials }}</span>
       </div>
@@ -285,20 +277,20 @@ function onDragStart(ev: DragEvent) {
   text-decoration-color: rgba(30, 42, 74, .35);
 }
 
-/* left color stripe */
+/* top color accent (эталон: верхняя полоса, не левая) */
 .kc-stripe {
   position: absolute;
   top: 0;
-  bottom: 0;
   left: 0;
-  width: 3px;
+  right: 0;
+  height: 3px;
   background: var(--stripe);
   border-top-left-radius: 8px;
-  border-bottom-left-radius: 8px;
+  border-top-right-radius: 8px;
 }
 
 .kc-body {
-  padding: 9px 11px 9px 13px;
+  padding: 11px 11px 9px 11px;
   display: flex;
   flex-direction: column;
   gap: 5px;
@@ -450,7 +442,9 @@ function onDragStart(ev: DragEvent) {
 .kc-av {
   width: 20px;
   height: 20px;
-  border-radius: 50%;
+  border-radius: 6px;
+  /* Единый пурпур-лёд градиент (эталон аватаров), без радужного хэша. */
+  background: linear-gradient(135deg, #8B7FF0, #7F77DD 55%, #6C5CE7);
   display: inline-flex;
   align-items: center;
   justify-content: center;

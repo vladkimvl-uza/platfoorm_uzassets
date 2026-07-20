@@ -245,6 +245,9 @@ const iconPath = (k: string) => NOTIF_ICON_PATHS[k] || NOTIF_ICON_PATHS.bell;
   display: inline-flex; align-items: center; gap: 5px;
 }
 .ni-btn-ghost { background: transparent; color: var(--t3, #5F5E5A); border: 0.5px solid rgba(0,0,0,.12); }
+/* Ghost-кнопка в тёмном топбаре — светлый вариант (иначе тёмный текст на тёмном фоне). */
+.ni-topbar .ni-btn-ghost { background: rgba(255,255,255,.1); color: #fff; border-color: rgba(255,255,255,.18); }
+.ni-topbar .ni-btn-ghost:hover { background: rgba(255,255,255,.18); }
 
 .ni-filterbar {
   background: var(--bg2, #FAFAFC);

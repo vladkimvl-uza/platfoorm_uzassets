@@ -324,8 +324,8 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onEsc));
 }
 .cq-top-row::before {
   content: ""; position: absolute;
-  left: 6px; top: 6px; bottom: 6px;
-  width: 4px; border-radius: 4px;
+  left: 0; right: 0; top: 0;
+  height: 3px; border-radius: 6px 6px 0 0;
   background: var(--stripe-color, #7F77DD);
   pointer-events: none;
 }

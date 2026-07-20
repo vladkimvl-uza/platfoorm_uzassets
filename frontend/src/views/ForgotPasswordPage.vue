@@ -445,9 +445,9 @@ function parseErr(e: unknown, fallback: string): string {
 }
 .fp-input:focus {
   outline: none;
-  border-color: rgba(20, 184, 166, 0.65);
+  border-color: #7C6FF7;
   background: var(--bg1, #fff);
-  box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.18);
+  box-shadow: 0 0 0 3px rgba(124, 111, 247, 0.16);
 }
 .fp-input:disabled { opacity: 0.5; }
 .fp-input-err { border-color: var(--sev-high) !important; }
@@ -501,7 +501,7 @@ function parseErr(e: unknown, fallback: string): string {
   margin-top: 6px;
   height: 50px;
   border-radius: 12px;
-  background: linear-gradient(90deg, #14B8A6 0%, #4F46E5 100%);
+  background: linear-gradient(135deg, #8B7FFF 0%, #6C5CE7 100%);
   background-size: 200% 100%; background-position: 0% 50%;
   color: #fff; font-size: 15px; font-weight: 600;
   border: none; cursor: pointer;
@@ -543,7 +543,7 @@ function parseErr(e: unknown, fallback: string): string {
   display: flex; align-items: center; justify-content: center;
   border-radius: 50%;
   background: rgba(20, 184, 166, 0.12);
-  color: #14B8A6;
+  color: #6C5CE7;
   animation: fpPop 0.4s cubic-bezier(.34, 1.4, .64, 1) both;
 }
 @keyframes fpPop { 0% { transform: scale(0); } 100% { transform: scale(1); } }

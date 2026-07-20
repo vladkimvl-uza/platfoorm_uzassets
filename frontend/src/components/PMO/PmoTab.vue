@@ -561,7 +561,9 @@ const fmtD = (s: string | null) =>
 /* KPI-лента */
 .pmo-kpis { display: grid; grid-template-columns: repeat(6, 1fr); margin-bottom: 12px; animation: pgFadeUp .4s var(--ease-out) both; }
 @keyframes pgFadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-.pmo-kpi { padding: 12px 14px; }
+.pmo-kpi { padding: 12px 14px; position: relative; overflow: hidden; }
+/* Верхняя акцент-полоса (эталон KPI-карточек). */
+.pmo-kpi::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--accent, #7F77DD); opacity: .85; }
 .pmo-kpi-l { font-size: var(--fs-2xs, 9px); text-transform: uppercase; letter-spacing: .06em; color: var(--t3, #94a3b8); font-weight: 600; }
 .pmo-kpi-v { font-size: var(--fs-xl, 18px); font-weight: 400; color: var(--t1, #1e2a4a); margin-top: 4px; font-variant-numeric: tabular-nums; }
 

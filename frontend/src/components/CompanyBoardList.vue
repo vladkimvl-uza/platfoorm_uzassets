@@ -1487,24 +1487,22 @@ function clearFilters() {
     0 4px 16px rgba(124, 111, 247, 0.18),
     0 0 0 0.5px rgba(124, 111, 247, 0.14) inset;
 }
-/* Левый accent-индикатор группы-проекта (правило bordered-lists дизайн-системы).
-   Вертикальная полоса var(--bl-accent) слева — мягкий сигнал группировки,
-   не путать со старым горизонтальным top-stripe (был убран как шум). */
+/* Верхний accent-индикатор группы-проекта (эталон top-accent, не левая полоса). */
 .bl-row-project::before {
   content: "";
   position: absolute;
-  left: 0;
-  top: 5px;
-  bottom: 5px;
-  width: 3px;
-  border-radius: 0 3px 3px 0;
+  left: 8px;
+  right: 8px;
+  top: 0;
+  height: 3px;
+  border-radius: 0 0 3px 3px;
   background: var(--bl-accent, #7F77DD);
   opacity: 0.7;
-  transition: opacity 0.15s, width 0.15s;
+  transition: opacity 0.15s, height 0.15s;
 }
 .bl-row-project:hover::before {
   opacity: 1;
-  width: 4px;
+  height: 4px;
 }
 
 /* Task — лёгкий полупрозрачный белый */
