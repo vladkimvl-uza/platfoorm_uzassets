@@ -1487,23 +1487,8 @@ function clearFilters() {
     0 4px 16px rgba(124, 111, 247, 0.18),
     0 0 0 0.5px rgba(124, 111, 247, 0.14) inset;
 }
-/* Верхний accent-индикатор группы-проекта (эталон top-accent, не левая полоса). */
-.bl-row-project::before {
-  content: "";
-  position: absolute;
-  left: 8px;
-  right: 8px;
-  top: 0;
-  height: 3px;
-  border-radius: 0 0 3px 3px;
-  background: var(--bl-accent, #7F77DD);
-  opacity: 0.7;
-  transition: opacity 0.15s, height 0.15s;
-}
-.bl-row-project:hover::before {
-  opacity: 1;
-  height: 4px;
-}
+/* Группа-проект: без акцент-полосы (по прямому фидбэку — верхняя полоса убрана
+   как шум; сигнал группировки даёт фон/типографика строки). */
 
 /* Task — лёгкий полупрозрачный белый */
 .bl-row-task {
