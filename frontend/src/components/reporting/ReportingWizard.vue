@@ -15,7 +15,7 @@
  * ничего не обрезается. Глобальное скрытие #app на печати гейтится классом
  * body.rw-printing — чтобы не ломать другие печати в приложении.
  */
-import { ref, computed, onMounted, nextTick } from "vue";
+import { ref, computed, onMounted, watch, nextTick } from "vue";
 import minfinLogoUrl from "@/assets/minfin-logo.png";
 import uzassetsLogoUrl from "@/assets/uzassets-logo-wide.png";
 import { directionsApi, type DirectionBrief } from "@/api/directions";
@@ -135,6 +135,9 @@ async function loadSaved() {
   }
 }
 onMounted(loadSaved);
+// Смена компании/года → перечитываем отчёт нужного года (иначе сохраняли
+// устаревшие страницы не в тот год и не грузили реальный отчёт года).
+watch(() => [props.companyCode, props.year], () => { pages.value = [blankNarrative()]; loadSaved(); });
 
 async function saveReport() {
   if (saving.value) return;

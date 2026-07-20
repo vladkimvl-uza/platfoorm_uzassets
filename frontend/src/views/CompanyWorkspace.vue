@@ -3044,7 +3044,7 @@ function onEditorClose() {
                   :key="t.id"
                   :task="t"
                   :overdue="isOverdueTask(t)"
-                  @click="openTaskEditor({ id: (t as any).project_id || t.id, kind: 'project' })"
+                  @click="openTaskEditor({ id: t.id, kind: 'task' })"
                   @dragstart="onTaskDragStart"
                 />
               </div>
@@ -3078,7 +3078,7 @@ function onEditorClose() {
                   :key="t.id"
                   :task="t"
                   :overdue="false"
-                  @click="openTaskEditor({ id: (t as any).project_id || t.id, kind: 'project' })"
+                  @click="openTaskEditor({ id: t.id, kind: 'task' })"
                   @dragstart="onTaskDragStart"
                 />
               </div>
@@ -3101,7 +3101,7 @@ function onEditorClose() {
                   :key="t.id"
                   :task="t"
                   :overdue="true"
-                  @click="openTaskEditor({ id: (t as any).project_id || t.id, kind: 'project' })"
+                  @click="openTaskEditor({ id: t.id, kind: 'task' })"
                   @dragstart="onTaskDragStart"
                 />
               </div>
@@ -3493,7 +3493,7 @@ function onEditorClose() {
 
           <UzaStateBlock v-else-if="govError" state="error" variant="block" title="Ошибка загрузки" :text="govError" retry @retry="loadGovernance" />
 
-          <UzaStateBlock v-else-if="!govDetail && govMembers.length === 0" state="empty" variant="block" title="Данные не введены" :text="`Для ${company.name_short || company.name_ru} в ${year} году данные о корп. управлении отсутствуют.`">
+          <UzaStateBlock v-else-if="!(govDetail?.data || govDetail?.governance_data) && govMembers.length === 0" state="empty" variant="block" title="Данные не введены" :text="`Для ${company.name_short || company.name_ru} в ${year} году данные о корп. управлении отсутствуют.`">
             <template #actions>
               <button v-if="govPerm.canEdit.value" class="cw-cta-btn" @click="openGovEditor">Ввести данные</button>
               <RouterLink v-else to="/governance" class="cw-cta-btn">Открыть редактор →</RouterLink>
@@ -4151,11 +4151,8 @@ function onEditorClose() {
                   {{ fmt.fmtPercent(procCompanyKpis.medianDev, { decimals: 1, signed: true }) }}
                 </div>
               </div>
-              <div v-if="procCompanyRow" class="cw-proc-kpi-divider"></div>
-              <div v-if="procCompanyRow" class="cw-proc-kpi">
-                <div class="cw-proc-kpi-label">Ранг в портфеле</div>
-                <div class="cw-proc-kpi-value">#{{ procCompanyRow.rank }}</div>
-              </div>
+              <!-- «Ранг в портфеле» удалён: aggregate вызывался с company_id и
+                   ранжировал список из одной компании → всегда #1 (ложь). -->
             </div>
 
             <!-- Best / Worst categories -->

@@ -516,6 +516,11 @@ class FinancialsIfrsService:
                 http_status.HTTP_404_NOT_FOUND,
                 f"Company '{code}' not found",
             )
+        scope_ids = await allowed_company_ids(db, user)
+        if scope_ids is not None and co.id not in scope_ids:
+            raise HTTPException(
+                http_status.HTTP_403_FORBIDDEN, "No access",
+            )
         q = await db.execute(
             select(AuditLog)
             .where(
