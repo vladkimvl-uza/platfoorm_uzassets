@@ -75,6 +75,7 @@ import CompanyTabBar from "@/components/Company/CompanyTabBar.vue";
 import HighLevelFinancials from "@/components/Financials/HighLevelFinancials.vue";
 import FinReportUpload from "@/components/Financials/FinReportUpload.vue";
 import GovernanceEditor from "@/components/Governance/GovernanceEditor.vue";
+import BoardMemberProfileModal from "@/components/Governance/BoardMemberProfileModal.vue";
 import ESGEditor from "@/components/ESG/ESGEditor.vue";
 import CompanyEmployeesTab from "@/components/Company/CompanyEmployeesTab.vue";
 import CompanyEmployeesSummary from "@/components/Company/CompanyEmployeesSummary.vue";
@@ -1600,6 +1601,8 @@ interface BoardMemberView {
   isForeign: boolean;
   appointed: string;
   termEnd: string;
+  appointedISO: string | null;
+  termEndISO: string | null;
   initials: string;
 }
 
@@ -1630,6 +1633,8 @@ const boardMembersByRole = computed<BoardMemberView[]>(() => {
         isForeign: !!m.is_foreign,
         appointed: m.appointed_date ? fmtDate(m.appointed_date) : "—",
         termEnd: m.term_end_date ? fmtDate(m.term_end_date) : "—",
+        appointedISO: m.appointed_date || null,
+        termEndISO: m.term_end_date || null,
         initials: getInitials(m.full_name || ""),
       } as BoardMemberView;
     })
@@ -1640,6 +1645,47 @@ const boardMembersByRole = computed<BoardMemberView[]>(() => {
       return a.fullName.localeCompare(b.fullName, "ru");
     });
 });
+
+// Аналитика состава совета — доли + средний срок в совете (для полосок под KPI).
+// Считаем от фактического числа членов (нет данных ≠ 0% — при пустом совете
+// блок не показываем через v-if на длину boardMembersByRole).
+const boardComposition = computed(() => {
+  const members = boardMembersByRole.value;
+  const n = members.length;
+  if (n === 0) return null;
+  const pct = (cnt: number) => Math.round((cnt / n) * 100);
+  const indep = members.filter(m => m.isIndependent).length;
+  const women = members.filter(m => m.isWoman).length;
+  const foreign = members.filter(m => m.isForeign).length;
+  // Средний срок в совете (лет) по тем, у кого есть дата назначения.
+  const now = Date.now();
+  const tenures: number[] = [];
+  for (const m of members) {
+    if (!m.appointedISO) continue;
+    const t = new Date(m.appointedISO).getTime();
+    if (!isFinite(t)) continue;
+    const yrs = (now - t) / (365.25 * 24 * 3600 * 1000);
+    if (yrs >= 0) tenures.push(yrs);
+  }
+  const avgTenure = tenures.length ? tenures.reduce((a, b) => a + b, 0) / tenures.length : null;
+  return {
+    bars: [
+      { label: "Независимость", pct: pct(indep), count: indep, color: "#1D9E75" },
+      { label: "Женщины", pct: pct(women), count: women, color: "#A855F7" },
+      { label: "Иностранцы", pct: pct(foreign), count: foreign, color: "#0E7490" },
+    ],
+    avgTenure,
+    total: n,
+  };
+});
+
+// Всплывающий профиль члена совета (новая модалка BoardMemberProfileModal).
+const boardMemberModalOpen = ref(false);
+const selectedBoardMember = ref<BoardMemberView | null>(null);
+function openBoardMember(m: BoardMemberView) {
+  selectedBoardMember.value = m;
+  boardMemberModalOpen.value = true;
+}
 
 // =====================================================================
 // ESG computed views
@@ -3545,14 +3591,43 @@ function onEditorClose() {
             <!-- KPI grid -->
             <div class="cw-gov-kpis">
               <div
-                v-for="kpi in govKpis"
+                v-for="(kpi, ki) in govKpis"
                 :key="kpi.label"
                 class="cw-gov-kpi-card"
-                :style="`--accent: ${kpi.color}`"
+                :style="`--accent: ${kpi.color}; --d: ${ki}`"
               >
                 <div class="cw-gov-kpi-label">{{ kpi.label }}</div>
                 <div class="cw-gov-kpi-value">{{ kpi.value }}</div>
                 <div v-if="kpi.unit" class="cw-gov-kpi-unit">{{ kpi.unit }}</div>
+              </div>
+            </div>
+
+            <!-- Аналитика состава совета — доли + средний срок -->
+            <div v-if="boardComposition" class="cw-gov-section">
+              <div class="cw-section-label">Состав и разнообразие совета</div>
+              <div class="cw-gov-comp">
+                <div
+                  v-for="(b, bi) in boardComposition.bars"
+                  :key="b.label"
+                  class="cw-gov-comp-bar"
+                  :style="`--d: ${bi}`"
+                >
+                  <div class="cw-gov-comp-hd">
+                    <span class="cw-gov-comp-l">{{ b.label }}</span>
+                    <span class="cw-gov-comp-v" :style="`color: ${b.color}`">
+                      {{ b.pct }}<span class="cw-gov-comp-pc">%</span>
+                      <span class="cw-gov-comp-cnt">· {{ b.count }} из {{ boardComposition.total }}</span>
+                    </span>
+                  </div>
+                  <div class="cw-gov-comp-track">
+                    <div class="cw-gov-comp-fill" :style="`width: ${b.pct}%; background: ${b.color}; --d: ${bi}`"></div>
+                  </div>
+                </div>
+                <div v-if="boardComposition.avgTenure != null" class="cw-gov-comp-tenure">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                  Средний срок в совете:
+                  <b>{{ boardComposition.avgTenure < 1 ? '<1' : boardComposition.avgTenure.toFixed(1) }} {{ boardComposition.avgTenure >= 1 && boardComposition.avgTenure < 2 ? 'года' : 'лет' }}</b>
+                </div>
               </div>
             </div>
 
@@ -3579,9 +3654,15 @@ function onEditorClose() {
               </div>
               <div class="cw-gov-members">
                 <div
-                  v-for="m in boardMembersByRole"
+                  v-for="(m, mi) in boardMembersByRole"
                   :key="m.id"
-                  class="cw-gov-member"
+                  class="cw-gov-member cw-gov-member--click"
+                  :style="`--d: ${mi}`"
+                  role="button"
+                  tabindex="0"
+                  @click="openBoardMember(m)"
+                  @keydown.enter.prevent="openBoardMember(m)"
+                  @keydown.space.prevent="openBoardMember(m)"
                 >
                   <div class="cw-gov-avatar" :style="`background: ${m.roleColor}`">
                     {{ m.initials }}
@@ -3601,6 +3682,7 @@ function onEditorClose() {
                       Назначен: {{ m.appointed }} · до {{ m.termEnd }}
                     </div>
                   </div>
+                  <svg class="cw-gov-member-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
                 </div>
               </div>
             </div>
@@ -4657,6 +4739,14 @@ function onEditorClose() {
       :members="govMembers"
       @close="govEditorOpen = false"
       @saved="onGovEditorSaved"
+    />
+
+    <!-- Всплывающий профиль члена совета директоров -->
+    <BoardMemberProfileModal
+      :open="boardMemberModalOpen"
+      :member="selectedBoardMember as any"
+      :company-name="company?.name_short || company?.name_ru || ''"
+      @close="boardMemberModalOpen = false"
     />
 
     <!-- ESG editor modal — метрики (E/S/G) + риски, синк с /esg -->
@@ -6384,6 +6474,12 @@ function onEditorClose() {
   gap: 4px;
   box-shadow: 0 2px 8px rgba(15, 23, 60, 0.04);
   animation: kpiSumIn 0.4s var(--ease-standard) both;
+  animation-delay: calc(var(--d, 0) * 45ms);
+  transition: transform .16s var(--ease-standard), box-shadow .16s;
+}
+.cw-gov-kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px -10px rgba(40, 32, 80, 0.22);
 }
 .cw-gov-kpi-label {
   font-size: 9.5px;
@@ -6455,11 +6551,71 @@ function onEditorClose() {
   padding: 12px;
   background: var(--uza-bg2);
   border-radius: 10px;
-  transition: background 200ms;
+  transition: background 200ms, transform .16s var(--ease-standard), box-shadow .16s, border-color .16s;
+  border: 1px solid transparent;
+  animation: cwGovMemberIn .4s var(--ease-standard) both;
+  animation-delay: calc(var(--d, 0) * 45ms);
 }
 .cw-gov-member:hover {
   background: var(--uza-bg3);
 }
+@keyframes cwGovMemberIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* Кликабельная карточка члена совета → всплывающий профиль */
+.cw-gov-member--click { cursor: pointer; position: relative; }
+.cw-gov-member--click:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px -12px rgba(40, 32, 80, 0.28);
+  border-color: rgba(124, 111, 247, 0.35);
+}
+.cw-gov-member--click:focus-visible {
+  outline: none;
+  border-color: var(--p, #7C6FF7);
+  box-shadow: 0 0 0 3px rgba(124, 111, 247, 0.18);
+}
+.cw-gov-member-chev {
+  width: 16px; height: 16px; flex-shrink: 0; align-self: center;
+  color: var(--uza-bg4, #C9C6DA);
+  opacity: 0; transform: translateX(-4px);
+  transition: opacity .16s, transform .16s, color .16s;
+}
+.cw-gov-member--click:hover .cw-gov-member-chev,
+.cw-gov-member--click:focus-visible .cw-gov-member-chev {
+  opacity: 1; transform: translateX(0); color: var(--p, #7C6FF7);
+}
+
+/* Аналитика состава совета — полоски долей */
+.cw-gov-comp { display: flex; flex-direction: column; gap: 13px; }
+.cw-gov-comp-bar {
+  animation: cwGovMemberIn .42s var(--ease-standard) both;
+  animation-delay: calc(var(--d, 0) * 70ms);
+}
+.cw-gov-comp-hd {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  margin-bottom: 6px;
+}
+.cw-gov-comp-l { font-size: 12px; font-weight: 500; color: var(--uza-navy); }
+.cw-gov-comp-v {
+  font-size: 15px; font-weight: 400; font-variant-numeric: tabular-nums; letter-spacing: -.01em;
+}
+.cw-gov-comp-pc { font-size: 11px; margin-left: 1px; }
+.cw-gov-comp-cnt { font-size: 11px; font-weight: 400; color: var(--uza-gray); margin-left: 6px; }
+.cw-gov-comp-track {
+  height: 7px; border-radius: 999px; overflow: hidden; background: var(--uza-bg3, #EEEDF4);
+}
+.cw-gov-comp-fill {
+  height: 100%; border-radius: 999px; transform-origin: left;
+  animation: cwGovBarFill .8s var(--ease-standard) both;
+  animation-delay: calc(0.2s + var(--d, 0) * 70ms);
+}
+@keyframes cwGovBarFill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.cw-gov-comp-tenure {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 12px; color: var(--uza-gray); margin-top: 3px;
+  padding-top: 11px; border-top: 1px dashed var(--uza-border);
+}
+.cw-gov-comp-tenure svg { width: 15px; height: 15px; color: var(--p, #7C6FF7); }
+.cw-gov-comp-tenure b { color: var(--uza-navy); font-weight: 500; }
 .cw-gov-avatar {
   width: 40px;
   height: 40px;
