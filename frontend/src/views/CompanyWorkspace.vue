@@ -86,7 +86,6 @@ import UnitCostCompanyPanel from "@/components/UnitCost/UnitCostCompanyPanel.vue
 import { unitCostApi, type UCOverview, type UCCompany } from "@/api/unitCost";
 import CompanyEmployeesTab from "@/components/Company/CompanyEmployeesTab.vue";
 import CompanyEmployeesSummary from "@/components/Company/CompanyEmployeesSummary.vue";
-import InvestProjectsView from "@/views/InvestProjects.vue";
 import KanbanCard from "@/components/Kanban/KanbanCard.vue";
 import TaskProjectEditor from "@/components/TaskProjectEditor.vue";
 import BpEditor from "@/components/BusinessPlan/BpEditor.vue";
@@ -257,7 +256,7 @@ function repSubBtn(active: boolean): string {
     : "background:transparent;color:var(--t2,#475569);");
 }
 const VALID_TABS = ["overview", "people", "work", "kanban", "list", "pmo", "notes", "reporting",
-                    "ifrs", "nsbu", "hlf", "bp", "unitcost", "credit", "invest",
+                    "ifrs", "nsbu", "hlf", "bp", "unitcost", "credit",
                     "kpi", "procurement",
                     "governance", "consultants", "esg"] as const;
 type TabKey = typeof VALID_TABS[number];
@@ -2631,10 +2630,9 @@ const tabIndicators = computed(() => ({
   nsbu:        {},
   hlf:         {},
   bp:          {},
-  // credit + invest скрыты на уровне COMPANY_TABS — индикаторы держим
-  // для совместимости с typing'ом, но они никогда не отрисуются.
+  // credit скрыт на уровне COMPANY_TABS — индикатор держим для
+  // совместимости с typing'ом, но он никогда не отрисуется.
   credit:      {},
-  invest:      {},
   kpi:         {},
   procurement: {},
   governance:  {},
@@ -4013,14 +4011,6 @@ function onEditorClose() {
               </div>
             </div>
           </template>
-        </div>
-
-        <!-- ═══ INVEST PROJECTS TAB — embedded reuse of InvestProjects view ═══ -->
-        <div v-else-if="activeTab === 'invest'" :key="'invest'" class="cw-invest-scroll">
-          <InvestProjectsView
-            embedded
-            :company-name="company.name_short || company.name_ru"
-          />
         </div>
 
         <!-- ═══ PROCUREMENT TAB — real implementation ═══ -->
@@ -7114,11 +7104,6 @@ function onEditorClose() {
 /* ═══ CREDIT PORTFOLIO VIEW                                         ═══ */
 /* ═══════════════════════════════════════════════════════════════════ */
 
-.cw-invest-scroll {
-  flex: 1;
-  overflow-y: auto;
-  /* Embedded InvestProjects has its own internal padding & layout */
-}
 .cw-cred-scroll {
   flex: 1;
   overflow-y: auto;

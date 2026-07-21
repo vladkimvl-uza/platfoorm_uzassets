@@ -375,13 +375,6 @@ const router = createRouter({
             next(false);
           },
         },
-        // UAP-specific airport-style FinModel v1 (миграция 1:1 из легасиа)
-        {
-          path: "finmodel/uap/v1",
-          name: "finmodel-uap-v1",
-          component: () => import("@/views/finmodel/FinModelUapV1.vue"),
-          meta: { title: "FinModel · Uzbekistan Airports v1", requiresPermission: "finmodel.view" },
-        },
         {
           path: "business-plan",
           name: "business-plan",
@@ -415,7 +408,9 @@ const router = createRouter({
           // Чтобы вернуть локальный модуль — удалить `beforeEnter`.
           path: "invest-projects",
           name: "invest-projects",
-          component: () => import("@/views/InvestProjects.vue"),
+          // Локальный модуль удалён (был мёртвым кодом); beforeEnter редиректит
+          // на внешний дашборд, компонент никогда не монтируется.
+          component: { render: () => null },
           meta: { title: "Инвест-проекты", requiresPermission: "investment.view" },
           beforeEnter: (_to, _from, next) => {
             // assign() (push) — оставляет current entry в history,
