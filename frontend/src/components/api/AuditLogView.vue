@@ -2,6 +2,7 @@
 import { onMounted, ref, watch } from "vue";
 import BIcon from "@/components/broadcasts/BIcon.vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
+import ModalShell from "@/components/ModalShell.vue";
 import { auditApi, httpStatusColor, type AuditEvent } from "@/api/partners";
 
 const events = ref<AuditEvent[]>([]);
@@ -155,18 +156,17 @@ function fmtRel(iso: string): string {
       </tbody>
     </table>
 
-    <!-- Detail modal -->
-    <div v-if="detailOpen" class="al-modal-bg" @click.self="detailOpen = null">
-      <div class="al-modal">
-        <div class="al-modal-hd">
-          <div>
-            <code class="al-ac" style="font-size: 11px;">{{ detailOpen.action }}</code>
-            <span v-if="detailOpen.is_critical" class="al-crit-mark" style="margin-left: 6px;">!</span>
-          </div>
-          <span style="font-size: 10px; color: var(--color-text-tertiary);">{{ detailOpen.id.slice(0, 8) }}</span>
+    <!-- Detail modal — канон ModalShell -->
+    <ModalShell :open="!!detailOpen" size="md" @close="detailOpen = null">
+      <template v-if="detailOpen" #header>
+        <div style="display:flex; align-items:center; gap:8px; width:100%;">
+          <code class="al-ac" style="font-size: 11px;">{{ detailOpen.action }}</code>
+          <span v-if="detailOpen.is_critical" class="al-crit-mark">!</span>
+          <span style="font-size: 10px; color: var(--color-text-tertiary); margin-left:auto;">{{ detailOpen.id.slice(0, 8) }}</span>
         </div>
-        <div class="al-modal-body">
-          <div class="al-detail-grid">
+      </template>
+      <template v-if="detailOpen">
+        <div class="al-detail-grid">
             <div><span>Время</span><code>{{ fmtTime(detailOpen.created_at) }}</code></div>
             <div><span>Actor</span><code>{{ detailOpen.actor_email || (detailOpen.api_key_id ? `API key ${detailOpen.api_key_id.slice(0,8)}` : "—") }}</code></div>
             <div><span>Модуль</span><code>{{ detailOpen.module || "—" }}</code></div>
@@ -176,12 +176,11 @@ function fmtRel(iso: string): string {
             <div><span>IP</span><code>{{ detailOpen.ip_address || "—" }}</code></div>
             <div><span>Длительность</span><code>{{ detailOpen.duration_ms !== null ? `${detailOpen.duration_ms}ms` : "—" }}</code></div>
           </div>
-        </div>
-        <div class="al-modal-footer">
-          <button class="al-btn" @click="detailOpen = null">Закрыть</button>
-        </div>
-      </div>
-    </div>
+      </template>
+      <template #footer>
+        <button class="al-btn" @click="detailOpen = null">Закрыть</button>
+      </template>
+    </ModalShell>
   </div>
 </template>
 

@@ -17,6 +17,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
+import ModalShell from "@/components/ModalShell.vue";
 import {
   auditApi,
   actionMeta,
@@ -542,17 +543,15 @@ function clearFilters() {
       </div>
     </div>
 
-    <!-- ═══ Drill modal ═══ -->
-    <div v-if="drillEvent" class="au-modal-back" @click.self="closeDrill">
-      <div class="au-modal">
-        <div class="au-modal-hd">
-          <div>
-            <div class="au-modal-eyebrow">Событие · {{ drillEvent.action }}</div>
-            <div class="au-modal-ttl">{{ drillEvent.entity_label || drillEvent.http_path }}</div>
-          </div>
-          <button class="au-close" @click="closeDrill">×</button>
+    <!-- ═══ Drill modal — канон ModalShell ═══ -->
+    <ModalShell :open="!!drillEvent" size="md" @close="closeDrill">
+      <template v-if="drillEvent" #header>
+        <div>
+          <div class="au-modal-eyebrow">Событие · {{ drillEvent.action }}</div>
+          <div class="au-modal-ttl">{{ drillEvent.entity_label || drillEvent.http_path }}</div>
         </div>
-        <div class="au-modal-body">
+      </template>
+        <div v-if="drillEvent" class="au-modal-body">
           <div class="au-kv">
             <div class="au-kv-l">Кто</div>
             <div class="au-kv-v">{{ drillEvent.actor_email || "—" }} <span v-if="drillEvent.actor_role" class="role">{{ drillEvent.actor_role }}</span></div>
@@ -581,8 +580,7 @@ function clearFilters() {
             <pre>{{ JSON.stringify(drillEvent.payload, null, 2) }}</pre>
           </div>
         </div>
-      </div>
-    </div>
+    </ModalShell>
   </div>
 </template>
 

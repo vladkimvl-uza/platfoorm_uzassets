@@ -18,6 +18,7 @@ import DOMPurify from "dompurify";
 import type { SectorBucket } from "./financialsHelpers";
 import { fmtCompact, fmtPctSigned } from "./financialsHelpers";
 import CompanyAvatar from "@/components/CompanyAvatar.vue";
+import ModalShell from "@/components/ModalShell.vue";
 import { runForecast, type ForecastModel } from "@/utils/forecast";
 import { api } from "@/api/client";
 
@@ -420,18 +421,12 @@ function cellValue(c: SectorBucket["companies"][number], y: number): number | nu
         </template>
       </div>
 
-      <Teleport to="body">
-        <div v-if="rationaleOpen" class="fst-ra-back" @click.self="rationaleOpen = false" role="dialog" aria-modal="true">
-          <div class="fst-ra-card">
-            <div class="fst-ra-hd">
-              <span>Что ИИ учёл при прогнозе</span>
-              <button class="fst-ra-x" type="button" @click="rationaleOpen = false" aria-label="Закрыть">×</button>
-            </div>
-            <div class="fst-ra-body fst-ra-md" v-html="rationaleHtml"></div>
-            <div class="fst-ra-foot">Прогноз — расчётная оценка ИИ (история компаний + цены на сырьё, курсы, макропоказатели, геополитика через web). Проверяйте перед использованием.</div>
-          </div>
-        </div>
-      </Teleport>
+      <ModalShell :open="rationaleOpen" size="md" title="Что ИИ учёл при прогнозе" @close="rationaleOpen = false">
+        <div class="fst-ra-body fst-ra-md" v-html="rationaleHtml"></div>
+        <template #footer>
+          <div class="fst-ra-foot">Прогноз — расчётная оценка ИИ (история компаний + цены на сырьё, курсы, макропоказатели, геополитика через web). Проверяйте перед использованием.</div>
+        </template>
+      </ModalShell>
     </div>
 
     <!-- Горизонтальный скролл (моб.): шапка + строки скроллятся по X синхронно,
