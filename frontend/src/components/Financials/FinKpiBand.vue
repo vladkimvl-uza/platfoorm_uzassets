@@ -17,6 +17,7 @@ import { fmtBigNumber, fmtPctSigned, ensureFinancialsCss } from "./financialsHel
 import { fmtSubsidySum } from "@/api/subsidies";
 import { useFormatters } from "@/composables/useFormatters";
 import Odometer from "@/components/Odometer.vue";
+import { useStandardsCompliance } from "@/composables/useStandardsCompliance";
 
 const fmt = useFormatters();
 
@@ -51,6 +52,18 @@ const unitSuffix = computed(() => `${props.unit === "bln" ? "млрд" : "млн
 // Hidden per user request 2026-05-23 — оставлено `&& false`
 // (а не удалено) чтобы быстро вернуть, сняв флаг.
 const showStandardsCard = computed(() => props.standard === "IFRS" && false);
+
+// Реальные данные «внедрения стандартов» (было захардкожено 4/22, 8/22 = фабрикация).
+// МСФО = дата публикации в /ifrs-report-history; forensic = 'Завершён'+аудитор+годы.
+// Карта пока скрыта (showStandardsCard) → грузим лениво только когда показана.
+const _std = useStandardsCompliance();
+const stdMsfo = computed(() => _std.msfoIds.value.size);
+const stdForensic = computed(() => _std.forensicCodes.value.size);
+const stdTotal = computed(() => props.totalCompanies || 0);
+const stdMsfoPct = computed(() => stdTotal.value ? Math.round(stdMsfo.value / stdTotal.value * 100) : 0);
+const stdForensicPct = computed(() => stdTotal.value ? Math.round(stdForensic.value / stdTotal.value * 100) : 0);
+const stdAttention = computed(() => Math.max(0, stdTotal.value - stdMsfo.value));
+onMounted(() => { if (showStandardsCard.value) void _std.load(); });
 
 const opProfitTxt = computed(() =>
   props.kpis ? `Опер. прибыль ${fmtBigNumber(props.kpis.totalOpProfit, props.unit)}` : "—",
@@ -175,12 +188,12 @@ const lossOutOf = computed(() =>
             <circle cx="19" cy="19" r="15" fill="none" stroke="#F1F5F9" stroke-width="3.5"/>
             <circle cx="19" cy="19" r="15" fill="none" stroke="#1D9E75" stroke-width="3.5"
                     stroke-linecap="round"
-                    :stroke-dasharray="`${(0.18 * 94)} 94`"
+                    :stroke-dasharray="`${(stdMsfoPct / 100 * 94)} 94`"
                     transform="rotate(-90 19 19)"/>
-            <text x="19" y="22" text-anchor="middle" font-size="9" font-weight="600" fill="#1D9E75">18%</text>
+            <text x="19" y="22" text-anchor="middle" font-size="9" font-weight="600" fill="#1D9E75">{{ stdMsfoPct }}%</text>
           </svg>
           <div class="fkb-std-info">
-            <div class="fkb-std-num">4<span class="fkb-std-tot">/22</span></div>
+            <div class="fkb-std-num">{{ stdMsfo }}<span class="fkb-std-tot">/{{ stdTotal }}</span></div>
             <div class="fkb-std-name">МСФО</div>
           </div>
         </div>
@@ -189,17 +202,17 @@ const lossOutOf = computed(() =>
             <circle cx="19" cy="19" r="15" fill="none" stroke="#F1F5F9" stroke-width="3.5"/>
             <circle cx="19" cy="19" r="15" fill="none" stroke="#EF9F27" stroke-width="3.5"
                     stroke-linecap="round"
-                    :stroke-dasharray="`${(0.36 * 94)} 94`"
+                    :stroke-dasharray="`${(stdForensicPct / 100 * 94)} 94`"
                     transform="rotate(-90 19 19)"/>
-            <text x="19" y="22" text-anchor="middle" font-size="9" font-weight="600" fill="#EF9F27">36%</text>
+            <text x="19" y="22" text-anchor="middle" font-size="9" font-weight="600" fill="#EF9F27">{{ stdForensicPct }}%</text>
           </svg>
           <div class="fkb-std-info">
-            <div class="fkb-std-num">8<span class="fkb-std-tot">/22</span></div>
+            <div class="fkb-std-num">{{ stdForensic }}<span class="fkb-std-tot">/{{ stdTotal }}</span></div>
             <div class="fkb-std-name">Forensic</div>
           </div>
         </div>
       </div>
-      <div class="fkb-sub" style="color:#D97706">19 требуют внимания</div>
+      <div class="fkb-sub" style="color:#D97706">{{ stdAttention }} требуют внимания</div>
     </div>
   </div>
 </template>

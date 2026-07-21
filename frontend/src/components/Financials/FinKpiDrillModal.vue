@@ -26,6 +26,7 @@ import type {
 import type { CompanyListItem, SectorBrief } from "@/api/companies";
 import { fmtBigNumber } from "./financialsHelpers";
 import { useFormatters } from "@/composables/useFormatters";
+import { useStandardsCompliance } from "@/composables/useStandardsCompliance";
 const fmt = useFormatters();
 
 type KpiId = "revenue" | "opMargin" | "ebitda" | "netMargin" | "loss" | "standards";
@@ -187,24 +188,41 @@ const countLossMakers = computed<number>(() => {
   return n;
 });
 
-// ─── Standards (hardcoded for now — matches FinKpiBand hardcoded values) ───
-// TODO: wire to real backend flag (e.g. is_audited per standard)
-const msfoCount = computed(() => 4);
-const msfoTotal = computed(() => 22);
-const forensicCount = computed(() => 8);
-const forensicTotal = computed(() => 22);
-const inProgressCount = computed(() => 5);
-const noAuditCount = computed(() => Math.max(0, msfoTotal.value - msfoCount.value - inProgressCount.value));
-
-// For demo: hardcoded standards flags by company_code
-// (in production these would come from a /financials/standards-status endpoint)
-const STANDARDS_STATUS: Record<string, { msfo: "yes" | "in_progress" | "no"; forensic: "yes" | "no" }> = {
-  ngmk:  { msfo: "yes",         forensic: "yes" },
-  agmk:  { msfo: "yes",         forensic: "yes" },
-  ung:   { msfo: "in_progress", forensic: "yes" },
-  uneg:  { msfo: "in_progress", forensic: "yes" },
-  // ... rest default to no/no
-};
+// ─── Standards — РЕАЛЬНЫЕ данные (было: захардкоженные 4/22, 8/22 + demo-map
+// STANDARDS_STATUS = фабрикация). МСФО = дата публикации в /ifrs-report-history;
+// forensic = 'Завершён'+аудитор+годы. Счётчики — в пределах ПОРТФЕЛЯ (summary.items). ───
+const _std = useStandardsCompliance();
+const _codeById = computed<Map<string, string>>(() => {
+  const m = new Map<string, string>();
+  for (const c of props.companies) {
+    const id = (c as { id?: string }).id;
+    const code = (c as { code?: string }).code;
+    if (id && code) m.set(String(id), code.toLowerCase());
+  }
+  return m;
+});
+const _msfoCodes = computed<Set<string>>(() => {
+  const out = new Set<string>();
+  for (const id of _std.msfoIds.value) {
+    const code = _codeById.value.get(id);
+    if (code) out.add(code);
+  }
+  return out;
+});
+const _portfolioCodes = computed<string[]>(() =>
+  props.summary.items.map(it => (it.company_code || "").toLowerCase()).filter(Boolean));
+function _stdOf(code: string): { msfo: "yes" | "no"; forensic: "yes" | "no" } {
+  const c = code.toLowerCase();
+  return {
+    msfo: _msfoCodes.value.has(c) ? "yes" : "no",
+    forensic: _std.forensicCodes.value.has(c) ? "yes" : "no",
+  };
+}
+const msfoTotal = computed(() => _portfolioCodes.value.length || props.companies.length);
+const forensicTotal = computed(() => msfoTotal.value);
+const msfoCount = computed(() => _portfolioCodes.value.filter(c => _msfoCodes.value.has(c)).length);
+const forensicCount = computed(() => _portfolioCodes.value.filter(c => _std.forensicCodes.value.has(c)).length);
+const noAuditCount = computed(() => Math.max(0, msfoTotal.value - msfoCount.value));
 
 // ─── Sector breakdown (financial mode: 4 mini-KPIs) ───
 interface SectorBucket { code: string; label: string; color: string; sum: number; }
@@ -326,7 +344,7 @@ const allCompanyRows = computed<CompanyRow[]>(() => {
     } else {
       value = y.profit ?? 0;
     }
-    const std = STANDARDS_STATUS[it.company_code.toLowerCase()] || { msfo: "no" as const, forensic: "no" as const };
+    const std = _stdOf(it.company_code);
     rows.push({
       code:      it.company_code,
       name:      it.company_name_short || it.company_name || it.company_code,
@@ -416,6 +434,7 @@ onMounted(() => {
   prevOverflow = document.body.style.overflow;
   document.body.style.overflow = "hidden";
   window.addEventListener("keydown", onKey);
+  if (props.kpi === "standards") void _std.load();   // реальные МСФО/forensic-данные
 });
 onUnmounted(() => {
   document.body.style.overflow = prevOverflow;
@@ -507,8 +526,8 @@ const countWithData = computed(() => {
                   </div>
                 </template>
                 <template v-else-if="kpi === 'standards'">
-                  <div>Цель: 18 МСФО к 2027</div>
-                  <div style="color:#A32D2D">отставание {{ noAuditCount }} компаний</div>
+                  <div>{{ msfoCount }} МСФО · {{ forensicCount }} forensic из {{ msfoTotal }}</div>
+                  <div style="color:#A32D2D">без аудированной МСФО: {{ noAuditCount }}</div>
                 </template>
                 <div class="ddm-h-year">{{ year }} · FY · {{ standard }}</div>
               </div>
@@ -533,15 +552,11 @@ const countWithData = computed(() => {
               <template v-if="kpi === 'standards'">
                 <div class="ddm-mini" style="--kc:#1D9E75; --ki:0;">
                   <div class="ddm-mk-l">МСФО внедрено</div>
-                  <div class="ddm-mk-v">{{ msfoCount }}<span class="ddm-mk-u">из {{ msfoTotal }} · {{ Math.round(msfoCount/msfoTotal*100) }}%</span></div>
+                  <div class="ddm-mk-v">{{ msfoCount }}<span class="ddm-mk-u">из {{ msfoTotal }} · {{ msfoTotal ? Math.round(msfoCount/msfoTotal*100) : 0 }}%</span></div>
                 </div>
                 <div class="ddm-mini" style="--kc:#EF9F27; --ki:1;">
                   <div class="ddm-mk-l">Forensic-аудит</div>
-                  <div class="ddm-mk-v">{{ forensicCount }}<span class="ddm-mk-u">из {{ forensicTotal }} · {{ Math.round(forensicCount/forensicTotal*100) }}%</span></div>
-                </div>
-                <div class="ddm-mini" style="--kc:#7F77DD; --ki:2;">
-                  <div class="ddm-mk-l">В процессе перехода</div>
-                  <div class="ddm-mk-v">{{ inProgressCount }}<span class="ddm-mk-u">компаний</span></div>
+                  <div class="ddm-mk-v">{{ forensicCount }}<span class="ddm-mk-u">из {{ forensicTotal }} · {{ forensicTotal ? Math.round(forensicCount/forensicTotal*100) : 0 }}%</span></div>
                 </div>
                 <div class="ddm-mini" style="--kc:#E24B4A; --ki:3;">
                   <div class="ddm-mk-l">Без аудита</div>
