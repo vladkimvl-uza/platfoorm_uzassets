@@ -558,10 +558,12 @@ async function loadDirs() {
   loading.dirs = true;
   errors.dirs = null;
   try {
-    // Параллельно: проекты + задачи компании
+    // Параллельно: проекты + задачи компании + прогрев каталога направлений
+    // (иначе merged соберётся до загрузки стора и цвета возьмутся хардкодные).
     const [projRes, taskRes] = await Promise.all([
       api.get(`/projects?company_id=${props.companyId}&limit=500`),
       api.get(`/tasks?company_id=${props.companyId}&limit=500`),
+      directionsStore.ensureLoaded(),
     ]);
     let projects = _arr(projRes.data);
     let tasks = _arr(taskRes.data);
@@ -589,7 +591,9 @@ async function loadDirs() {
       // Средний прогресс по направлению — ВЗВЕШЕННО по статусу (0/25/50/75/100),
       // как канон utils/progress, по всем работам (проекты+задачи), а не done/total.
       const pPct = computeProgress([...pSlice, ...tSlice] as any).pct;
-      return { id: dir.id, label: dir.label, color: _dirColor(dir.id, dir.color), pPct, pDone, pTotal, tDone, tTotal };
+      // color — хардкод-фолбэк; фактический цвет резолвится в шаблоне через
+      // _dirColor(d.id) РЕАКТИВНО (стор мог ещё не загрузиться на момент сборки).
+      return { id: dir.id, label: dir.label, color: dir.color, pPct, pDone, pTotal, tDone, tTotal };
     }).filter((d) => d.pTotal > 0 || d.tTotal > 0)
       .sort((a, b) => b.pPct - a.pPct);
 
@@ -1374,7 +1378,7 @@ watch(
               class="cox-dir-row"
               :title="`${d.label}: проекты ${d.pDone}/${d.pTotal} (${d.pPct}%) · задачи ${d.tDone}/${d.tTotal}`"
             >
-              <span class="cox-dir-stripe" :style="{ background: d.color }"></span>
+              <span class="cox-dir-stripe" :style="{ background: _dirColor(d.id, d.color) }"></span>
               <span class="cox-dir-name">{{ d.label }}</span>
               <span class="cox-dir-bar">
                 <span class="cox-dir-bar-fill"
