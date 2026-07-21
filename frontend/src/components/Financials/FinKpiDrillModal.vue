@@ -9,7 +9,7 @@
  *     • Hero + chip-summary + 4 mini-KPI по секторам
  *     • Динамика 2021-2027 (bar chart, план как пунктир)
  *     • Список топ-компаний (отсортирован по value desc)
- *   Mode B (status):    loss | standards
+ *   Mode B (status):    loss
  *     • Hero + chip-summary + 4 mini-KPI по статусам
  *     • Status filter chips (Все / МСФО / Forensic / требуют внимания)
  *     • Список компаний со status-badges
@@ -26,11 +26,9 @@ import type {
 import type { CompanyListItem, SectorBrief } from "@/api/companies";
 import { fmtBigNumber } from "./financialsHelpers";
 import { useFormatters } from "@/composables/useFormatters";
-import { useStandardsCompliance } from "@/composables/useStandardsCompliance";
 const fmt = useFormatters();
 
-type KpiId = "revenue" | "opMargin" | "ebitda" | "netMargin" | "loss" | "standards";
-type StatusFilter = "all" | "msfo" | "forensic" | "attention";
+type KpiId = "revenue" | "opMargin" | "ebitda" | "netMargin" | "loss";
 
 const props = defineProps<{
   kpi: KpiId;
@@ -48,7 +46,7 @@ const router = useRouter();
 
 // ─── Mode detection ───
 const mode = computed<"financial" | "status">(() =>
-  props.kpi === "loss" || props.kpi === "standards" ? "status" : "financial",
+  props.kpi === "loss" ? "status" : "financial",
 );
 
 // ─── KPI config (label, accent, hero metric, hero unit, etc.) ───
@@ -63,7 +61,6 @@ const KPI_CONFIG: Record<KpiId, {
   ebitda:    { label: "FINANCIAL KPI · EBITDA",          title: "EBITDA портфеля",               accent: "#EF9F27", metric: "ebitda",    heroUnit: "value", showMargin: "ebitdaMargin" },
   netMargin: { label: "FINANCIAL KPI · ЧИСТАЯ МАРЖА",    title: "Чистая маржа портфеля",         accent: "#378ADD", metric: "netMargin", heroUnit: "pct",   showMargin: "netMargin" },
   loss:      { label: "STATUS · УБЫТОЧНЫЕ",              title: "Убыточные компании портфеля",   accent: "#E24B4A", metric: null,        heroUnit: "count", showMargin: null },
-  standards: { label: "COMPLIANCE · ВНЕДРЕНИЕ СТАНДАРТОВ", title: "Внедрение стандартов",        accent: "#534AB7", metric: null,        heroUnit: "count", showMargin: null },
 };
 
 const cfg = computed(() => KPI_CONFIG[props.kpi]);
@@ -116,7 +113,6 @@ const heroValue = computed<number>(() => {
     case "ebitda":    return t.ebitda || 0;
     case "netMargin": return revenue ? ((t.profit || 0) / revenue) * 100 : 0;
     case "loss":      return countLossMakers.value;
-    case "standards": return msfoCount.value + forensicCount.value;
   }
   return 0;
 });
@@ -187,42 +183,6 @@ const countLossMakers = computed<number>(() => {
   }
   return n;
 });
-
-// ─── Standards — РЕАЛЬНЫЕ данные (было: захардкоженные 4/22, 8/22 + demo-map
-// STANDARDS_STATUS = фабрикация). МСФО = дата публикации в /ifrs-report-history;
-// forensic = 'Завершён'+аудитор+годы. Счётчики — в пределах ПОРТФЕЛЯ (summary.items). ───
-const _std = useStandardsCompliance();
-const _codeById = computed<Map<string, string>>(() => {
-  const m = new Map<string, string>();
-  for (const c of props.companies) {
-    const id = (c as { id?: string }).id;
-    const code = (c as { code?: string }).code;
-    if (id && code) m.set(String(id), code.toLowerCase());
-  }
-  return m;
-});
-const _msfoCodes = computed<Set<string>>(() => {
-  const out = new Set<string>();
-  for (const id of _std.msfoIds.value) {
-    const code = _codeById.value.get(id);
-    if (code) out.add(code);
-  }
-  return out;
-});
-const _portfolioCodes = computed<string[]>(() =>
-  props.summary.items.map(it => (it.company_code || "").toLowerCase()).filter(Boolean));
-function _stdOf(code: string): { msfo: "yes" | "no"; forensic: "yes" | "no" } {
-  const c = code.toLowerCase();
-  return {
-    msfo: _msfoCodes.value.has(c) ? "yes" : "no",
-    forensic: _std.forensicCodes.value.has(c) ? "yes" : "no",
-  };
-}
-const msfoTotal = computed(() => _portfolioCodes.value.length || props.companies.length);
-const forensicTotal = computed(() => msfoTotal.value);
-const msfoCount = computed(() => _portfolioCodes.value.filter(c => _msfoCodes.value.has(c)).length);
-const forensicCount = computed(() => _portfolioCodes.value.filter(c => _std.forensicCodes.value.has(c)).length);
-const noAuditCount = computed(() => Math.max(0, msfoTotal.value - msfoCount.value));
 
 // ─── Sector breakdown (financial mode: 4 mini-KPIs) ───
 interface SectorBucket { code: string; label: string; color: string; sum: number; }
@@ -324,8 +284,6 @@ interface CompanyRow {
   marginPct: number | null; // for financial
   sharePct: number | null; // for financial (% of portfolio)
   loss: number | null; // for loss mode
-  msfo: "yes" | "in_progress" | "no" | "na"; // for standards mode
-  forensic: "yes" | "no" | "na"; // for standards mode
 }
 
 const allCompanyRows = computed<CompanyRow[]>(() => {
@@ -344,7 +302,6 @@ const allCompanyRows = computed<CompanyRow[]>(() => {
     } else {
       value = y.profit ?? 0;
     }
-    const std = _stdOf(it.company_code);
     rows.push({
       code:      it.company_code,
       name:      it.company_name_short || it.company_name || it.company_code,
@@ -353,8 +310,6 @@ const allCompanyRows = computed<CompanyRow[]>(() => {
       marginPct,
       sharePct:  null, // computed below
       loss:      y.profit ?? null,
-      msfo:      std.msfo,
-      forensic:  std.forensic,
     });
   }
   // sharePct
@@ -368,23 +323,11 @@ const allCompanyRows = computed<CompanyRow[]>(() => {
 });
 
 // Filtered rows per kpi
-const statusFilter = ref<StatusFilter>("all");
-
 const filteredRows = computed<CompanyRow[]>(() => {
   let rows = allCompanyRows.value.slice();
   if (props.kpi === "loss") {
     rows = rows.filter(r => r.loss != null && r.loss < 0);
     rows.sort((a, b) => (a.loss ?? 0) - (b.loss ?? 0)); // most negative first
-  } else if (props.kpi === "standards") {
-    if (statusFilter.value === "msfo")      rows = rows.filter(r => r.msfo === "yes");
-    if (statusFilter.value === "forensic")  rows = rows.filter(r => r.forensic === "yes");
-    if (statusFilter.value === "attention") rows = rows.filter(r => r.msfo === "no" || r.forensic === "no");
-    rows.sort((a, b) => {
-      const score = (r: CompanyRow) =>
-        (r.msfo === "yes" ? 2 : r.msfo === "in_progress" ? 1 : 0) +
-        (r.forensic === "yes" ? 2 : 0);
-      return score(b) - score(a);
-    });
   } else {
     // financial: sort by |value| desc
     rows.sort((a, b) => Math.abs(b.value) - Math.abs(a.value));
@@ -434,7 +377,6 @@ onMounted(() => {
   prevOverflow = document.body.style.overflow;
   document.body.style.overflow = "hidden";
   window.addEventListener("keydown", onKey);
-  if (props.kpi === "standards") void _std.load();   // реальные МСФО/forensic-данные
 });
 onUnmounted(() => {
   document.body.style.overflow = prevOverflow;
@@ -474,8 +416,7 @@ const summaryChip = computed(() => {
   if (props.kpi === "loss") {
     return `${heroValue.value} убыточных · ${countWithData.value} прибыльных · YoY к ${props.year - 1}`;
   }
-  // standards
-  return `${msfoCount.value} МСФО · ${forensicCount.value} FORENSIC · ${noAuditCount.value} компаний требуют внимания`;
+  return "";
 });
 
 const countWithData = computed(() => {
@@ -525,10 +466,6 @@ const countWithData = computed(() => {
                     {{ heroValue > 0 ? "требуется внимание" : "все прибыльные" }}
                   </div>
                 </template>
-                <template v-else-if="kpi === 'standards'">
-                  <div>{{ msfoCount }} МСФО · {{ forensicCount }} forensic из {{ msfoTotal }}</div>
-                  <div style="color:#A32D2D">без аудированной МСФО: {{ noAuditCount }}</div>
-                </template>
                 <div class="ddm-h-year">{{ year }} · FY · {{ standard }}</div>
               </div>
             </div>
@@ -549,21 +486,7 @@ const countWithData = computed(() => {
           <!-- ─── Status mode: 4 status mini-KPIs ─── -->
           <div v-if="mode === 'status'" class="ddm-sect ddm-row" style="--si:1;">
             <div class="ddm-mini-grid">
-              <template v-if="kpi === 'standards'">
-                <div class="ddm-mini" style="--kc:#1D9E75; --ki:0;">
-                  <div class="ddm-mk-l">МСФО внедрено</div>
-                  <div class="ddm-mk-v">{{ msfoCount }}<span class="ddm-mk-u">из {{ msfoTotal }} · {{ msfoTotal ? Math.round(msfoCount/msfoTotal*100) : 0 }}%</span></div>
-                </div>
-                <div class="ddm-mini" style="--kc:#EF9F27; --ki:1;">
-                  <div class="ddm-mk-l">Forensic-аудит</div>
-                  <div class="ddm-mk-v">{{ forensicCount }}<span class="ddm-mk-u">из {{ forensicTotal }} · {{ forensicTotal ? Math.round(forensicCount/forensicTotal*100) : 0 }}%</span></div>
-                </div>
-                <div class="ddm-mini" style="--kc:#E24B4A; --ki:3;">
-                  <div class="ddm-mk-l">Без аудита</div>
-                  <div class="ddm-mk-v">{{ noAuditCount }}<span class="ddm-mk-u">компаний</span></div>
-                </div>
-              </template>
-              <template v-else-if="kpi === 'loss'">
+              <template v-if="kpi === 'loss'">
                 <div class="ddm-mini" style="--kc:#E24B4A; --ki:0;">
                   <div class="ddm-mk-l">Убыточных компаний</div>
                   <div class="ddm-mk-v">{{ countLossMakers }}<span class="ddm-mk-u">из {{ countWithData }} с данными</span></div>
@@ -607,23 +530,10 @@ const countWithData = computed(() => {
           <div class="ddm-sect ddm-row" :style="`--si:${mode === 'financial' ? 3 : 2};`">
             <div class="ddm-l-sec">
               <span>
-                <template v-if="kpi === 'standards'">Компании · {{ filteredRows.length }} <span v-if="filteredRows.length !== allCompanyRows.length">из {{ allCompanyRows.length }}</span></template>
-                <template v-else-if="kpi === 'loss'">Убыточные компании · {{ filteredRows.length }}</template>
+                <template v-if="kpi === 'loss'">Убыточные компании · {{ filteredRows.length }}</template>
                 <template v-else>Топ компаний по {{ cfg.heroUnit === "pct" ? "марже" : "значению" }}</template>
               </span>
-
-              <!-- Status filters for standards -->
-              <div v-if="kpi === 'standards'" class="ddm-fltr">
-                <span :class="['ddm-fltr-chip', { active: statusFilter === 'all' }]"
-                      @click="statusFilter = 'all'">Все</span>
-                <span :class="['ddm-fltr-chip', { active: statusFilter === 'msfo' }]"
-                      @click="statusFilter = 'msfo'">МСФО</span>
-                <span :class="['ddm-fltr-chip', { active: statusFilter === 'forensic' }]"
-                      @click="statusFilter = 'forensic'">Forensic</span>
-                <span :class="['ddm-fltr-chip', { active: statusFilter === 'attention' }]"
-                      @click="statusFilter = 'attention'">Требуют внимания</span>
-              </div>
-              <span v-else class="side">{{ filteredRows.length }} компаний</span>
+              <span class="side">{{ filteredRows.length }} компаний</span>
             </div>
 
             <div v-if="!visibleRows.length" class="ddm-empty">
@@ -660,35 +570,6 @@ const countWithData = computed(() => {
                   <span class="ddm-itm-val" style="color:#A32D2D">{{ fmtRowValue(r) }}</span>
                   <span class="ddm-itm-meta">{{ sectorLabel(r.sector) }}</span>
                   <span class="ddm-itm-status" style="color:#A32D2D">убыток</span>
-                </template>
-
-                <!-- Standards mode columns -->
-                <template v-else>
-                  <span class="ddm-std-badge"
-                        :class="{
-                          'std-yes': r.msfo === 'yes',
-                          'std-prog': r.msfo === 'in_progress',
-                          'std-no': r.msfo === 'no',
-                        }">
-                    <template v-if="r.msfo === 'yes'">✓ МСФО</template>
-                    <template v-else-if="r.msfo === 'in_progress'">в процессе</template>
-                    <template v-else>— нет</template>
-                  </span>
-                  <span class="ddm-std-badge"
-                        :class="{
-                          'std-yes': r.forensic === 'yes',
-                          'std-no': r.forensic === 'no',
-                        }">
-                    <template v-if="r.forensic === 'yes'">✓ Forensic</template>
-                    <template v-else>— нет</template>
-                  </span>
-                  <span class="ddm-itm-status"
-                        :style="{ color: r.msfo === 'yes' && r.forensic === 'yes' ? '#0F6E56' :
-                                          r.msfo === 'no' && r.forensic === 'no' ? '#A32D2D' : '#534AB7' }">
-                    <template v-if="r.msfo === 'yes' && r.forensic === 'yes'">полное соответствие</template>
-                    <template v-else-if="r.msfo === 'no' && r.forensic === 'no'">критическое отставание</template>
-                    <template v-else>переход требует ⚠</template>
-                  </span>
                 </template>
               </div>
             </div>
@@ -758,11 +639,6 @@ const countWithData = computed(() => {
 .ddm-l-sec { font-size: 10px; color: var(--t3, var(--t-muted)); text-transform: uppercase; letter-spacing: .07em; font-weight: 500; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .ddm-l-sec .side { font-size: 9.5px; color: #B4B2A9; text-transform: none; letter-spacing: .02em; font-weight: 400; }
 
-.ddm-fltr { display: flex; gap: 4px; }
-.ddm-fltr-chip { padding: 2px 8px; border-radius: 999px; font-size: 10px; letter-spacing: 0; text-transform: none; cursor: pointer; font-weight: 500; color: var(--t3, var(--t-muted)); background: transparent; transition: all .14s; }
-.ddm-fltr-chip:hover { color: var(--t1, #1E2A4A); }
-.ddm-fltr-chip.active { background: rgba(127, 119, 221, .10); color: var(--p-deep); }
-
 /* Trend chart */
 .ddm-trend { background: var(--bg2, #FAFAFC); border-radius: 9px; padding: 12px 14px; display: flex; align-items: flex-end; gap: 10px; min-height: 110px; position: relative; }
 .ddm-trend-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; }
@@ -784,7 +660,6 @@ const countWithData = computed(() => {
 .ddm-bord-row.grid-ebitda,
 .ddm-bord-row.grid-netMargin { grid-template-columns: 42px 1fr 100px 90px 70px; }
 .ddm-bord-row.grid-loss { grid-template-columns: 42px 1fr 120px 100px 70px; }
-.ddm-bord-row.grid-standards { grid-template-columns: 42px 1fr 80px 80px 130px; }
 
 .ddm-code-pill { display: inline-flex; align-items: center; justify-content: center; font-size: 8.5px; font-weight: 500; padding: 1px 5px; background: rgba(127, 119, 221, .10); color: var(--p-deep); border-radius: 999px; letter-spacing: .04em; }
 .svg-ic { stroke: currentColor; stroke-width: 1.9; fill: none; stroke-linecap: round; stroke-linejoin: round; }
@@ -793,12 +668,6 @@ const countWithData = computed(() => {
 .ddm-itm-meta { color: var(--t3, var(--t-muted)); font-size: 10px; text-align: right; font-feature-settings: "tnum"; }
 .ddm-itm-share { text-align: right; font-size: 10px; font-weight: 500; color: var(--p-deep); }
 .ddm-itm-status { font-size: 10px; font-weight: 500; text-align: right; }
-
-/* Standards badges */
-.ddm-std-badge { text-align: center; font-size: 10px; font-weight: 500; padding: 2px 7px; border-radius: 999px; }
-.ddm-std-badge.std-yes { color: #0F6E56; background: rgba(29, 158, 117, .10); }
-.ddm-std-badge.std-prog { color: var(--p-deep); background: rgba(127, 119, 221, .10); }
-.ddm-std-badge.std-no { color: var(--sev-critical); background: rgba(226, 75, 74, .10); }
 
 .ddm-show-more { text-align: center; padding: 8px 0 0; font-size: 10.5px; color: var(--p-deep); cursor: pointer; font-weight: 500; transition: color .14s; }
 .ddm-show-more:hover { color: #3C3489; }
@@ -829,8 +698,7 @@ const countWithData = computed(() => {
   .ddm-bord-row.grid-opMargin,
   .ddm-bord-row.grid-ebitda,
   .ddm-bord-row.grid-netMargin,
-  .ddm-bord-row.grid-loss,
-  .ddm-bord-row.grid-standards { grid-template-columns: 42px 1fr 80px; }
+  .ddm-bord-row.grid-loss { grid-template-columns: 42px 1fr 80px; }
   .ddm-bord-row .ddm-itm-share,
   .ddm-bord-row .ddm-itm-status,
   .ddm-bord-row .ddm-itm-meta { display: none; }

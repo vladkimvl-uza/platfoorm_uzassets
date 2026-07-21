@@ -139,26 +139,6 @@
               Аналитика портфеля — компании, финансы, рейтинги, задачи, ESG, корп. управление.
               Все ответы строятся на данных вашей платформы.
             </p>
-            <!-- Quick-prompt buttons hidden per user request 2026-05-23.
-                 Чтобы вернуть — снять `v-if="false"`. -->
-            <div v-if="false" class="ai-page-suggestions">
-              <button
-                v-for="(s, idx) in suggestions"
-                :key="s"
-                class="ai-page-sug"
-                :style="{ animationDelay: `${idx * 50}ms` }"
-                type="button"
-                :disabled="!health?.enabled"
-                @click="onSuggest(s)"
-              >
-                <span>{{ s }}</span>
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
-                     stroke="currentColor" stroke-width="2"
-                     stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M5 12h14M12 5l7 7-7 7"/>
-                </svg>
-              </button>
-            </div>
           </div>
         </div>
 
@@ -296,15 +276,6 @@ const convLoading = ref(false);
 const settingsOpen = ref(false);
 const bodyRef = ref<HTMLElement | null>(null);
 
-const suggestions = [
-  "Сводка по портфелю за 2026",
-  "Просроченные задачи на сегодня",
-  "Сравни 2025 vs 2026 по выполнению задач",
-  "Топ-5 отстающих компаний",
-  "Кредитный портфель — крупнейшие займы в USD",
-  "Какие Big4 работают по нашим проектам?",
-];
-
 async function loadHealth() {
   try { health.value = await getHealth(); } catch { health.value = null; }
 }
@@ -353,8 +324,6 @@ async function onSubmit(text: string) {
   scrollBottom();
   loadConversations();
 }
-
-async function onSuggest(text: string) { await onSubmit(text); }
 
 async function onContinue() {
   await chat.continueResponse();
@@ -556,51 +525,6 @@ onMounted(async () => {
   line-height: 1.6;
   margin: 0;
 }
-.ai-page-suggestions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin-top: 24px;
-}
-@media (max-width: 600px) { .ai-page-suggestions { grid-template-columns: 1fr; } }
-
-.ai-page-sug {
-  padding: 12px 14px;
-  background: var(--ai-glass-bg-strong);
-  -webkit-backdrop-filter: var(--ai-glass-blur);
-          backdrop-filter: var(--ai-glass-blur);
-  border: 1px solid var(--ai-glass-border);
-  border-radius: var(--ai-radius-md);
-  font-size: 12.5px;
-  color: var(--uza-navy);
-  cursor: pointer;
-  text-align: left;
-  transition: all 0.18s var(--ai-easing-soft);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  opacity: 0;
-  animation: ai-sug-in 0.5s var(--ai-easing) both;
-}
-@keyframes ai-sug-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-.ai-page-sug svg { color: rgba(30, 42, 74, 0.4); transition: all 0.15s; flex-shrink: 0; }
-.ai-page-sug:hover:not(:disabled) {
-  background: white;
-  border-color: rgba(127, 119, 221, 0.32);
-  color: var(--uza-purple);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(127, 119, 221, 0.12);
-}
-.ai-page-sug:hover:not(:disabled) svg {
-  color: var(--uza-purple);
-  transform: translateX(2px);
-}
-.ai-page-sug:disabled { opacity: 0.5; cursor: not-allowed; }
-
 /* Messages container */
 .ai-page-msgs {
   display: flex;

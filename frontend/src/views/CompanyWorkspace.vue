@@ -319,9 +319,6 @@ const TABS: TabDef[] = [
   { key: "hlf",         label: "Фин. отчётность", group: "finance", fullPageRoute: "/financials" },
   { key: "bp",          label: "Бизнес-план",  group: "finance",  fullPageRoute: "/business-plan" },
   { key: "unitcost",    label: "Себестоимость", group: "finance", fullPageRoute: "/unit-cost" },
-  // Hidden per user request 2026-05-25 — раскомментировать для возврата
-  // { key: "credit",      label: "Кредит",       group: "finance",  fullPageRoute: "/credit-portfolio" },
-  // { key: "invest",      label: "Инвест-проекты", group: "finance", fullPageRoute: "/invest-projects" },
   // Операции
   { key: "kpi",         label: "KPI",          group: "ops",      fullPageRoute: "/kpi" },
   { key: "procurement", label: "Закупки",      group: "ops",      fullPageRoute: "/procurement/analysis" },
@@ -1514,25 +1511,6 @@ const kpiManagerViews = computed<KpiManagerView[]>(() => {
     };
   });
 });
-
-const kpiOverallPct = computed(() => {
-  let totW = 0, sumW = 0;
-  let anyFact = false;
-  kpiManagerViews.value.forEach(m => {
-    totW += m.totalWeight;
-    sumW += m.weightedSum;
-    if (m.hasFact) anyFact = true;
-  });
-  if (!anyFact || totW === 0) return null;
-  return Math.round((sumW / totW) * 100);
-});
-
-const kpiTotalIndicators = computed(() =>
-  kpiManagerViews.value.reduce((acc, m) => acc + m.indicators.length, 0)
-);
-const kpiAttentionTotal = computed(() =>
-  kpiManagerViews.value.reduce((acc, m) => acc + m.attentionCount, 0)
-);
 
 function pctColor(pct: number | null): string {
   if (pct === null) return "#94A3B8";
@@ -3490,113 +3468,6 @@ function onEditorClose() {
             />
           </template>
 
-          <!-- Legacy summary header block (kept as reference, replaced by KpiCompanyDashboard).
-               Если KpiCompanyDashboard окажется неудобным — вернуть этот блок и удалить
-               <KpiCompanyDashboard> выше. Не удаляю чтобы быстро откатить если нужно. -->
-          <template v-if="false">
-            <!-- Summary header -->
-            <div class="cw-kpi-summary">
-              <div class="cw-kpi-sum-stat">
-                <div class="cw-kpi-sum-label">Общее выполнение</div>
-                <div class="cw-kpi-sum-value" :style="`color: ${pctColor(kpiOverallPct)}`">
-                  {{ kpiOverallPct === null ? "—" : kpiOverallPct + "%" }}
-                </div>
-              </div>
-              <div class="cw-kpi-sum-divider"></div>
-              <div class="cw-kpi-sum-stat">
-                <div class="cw-kpi-sum-label">Менеджеров</div>
-                <div class="cw-kpi-sum-value">{{ kpiManagerViews.length }}</div>
-              </div>
-              <div class="cw-kpi-sum-divider"></div>
-              <div class="cw-kpi-sum-stat">
-                <div class="cw-kpi-sum-label">Индикаторов</div>
-                <div class="cw-kpi-sum-value">{{ kpiTotalIndicators }}</div>
-              </div>
-              <div class="cw-kpi-sum-divider"></div>
-              <div class="cw-kpi-sum-stat">
-                <div class="cw-kpi-sum-label">Требуют внимания</div>
-                <div class="cw-kpi-sum-value" :class="{ 'cw-kpi-attention': kpiAttentionTotal > 0 }">
-                  {{ kpiAttentionTotal }}
-                </div>
-              </div>
-            </div>
-
-            <!-- Manager cards -->
-            <div class="cw-kpi-managers">
-              <div v-for="mgr in kpiManagerViews" :key="mgr.id" class="cw-kpi-mgr">
-                <div class="cw-kpi-mgr-header">
-                  <div class="cw-kpi-mgr-titles">
-                    <div class="cw-kpi-mgr-short">{{ mgr.shortTitle }}</div>
-                    <div v-if="mgr.title !== mgr.shortTitle" class="cw-kpi-mgr-full">{{ mgr.title }}</div>
-                  </div>
-                  <div class="cw-kpi-mgr-pct" :style="`color: ${pctColor(mgr.hasFact ? mgr.pct : null)}`">
-                    {{ mgr.hasFact ? mgr.pct + "%" : "—" }}
-                  </div>
-                </div>
-
-                <div class="cw-kpi-mgr-meta">
-                  {{ mgr.indicators.length }} индикаторов · вес: {{ mgr.totalWeight }}
-                  <span v-if="mgr.attentionCount > 0" class="cw-kpi-mgr-attn">
-                    · {{ mgr.attentionCount }} требуют внимания
-                  </span>
-                </div>
-
-                <!-- Indicators list -->
-                <div class="cw-kpi-ind-list">
-                  <div
-                    v-for="(ind, idx) in mgr.indicators"
-                    :key="idx"
-                    class="cw-kpi-ind"
-                    :class="{ 'cw-kpi-ind-attn': ind.isAttention, 'cw-kpi-ind-nofact': !ind.hasFact }"
-                  >
-                    <div class="cw-kpi-ind-row1">
-                      <div class="cw-kpi-ind-name" :title="ind.name">{{ ind.name }}</div>
-                      <div class="cw-kpi-ind-weight">{{ ind.weight }}</div>
-                    </div>
-                    <div class="cw-kpi-ind-row2">
-                      <div class="cw-kpi-ind-vals">
-                        <span class="cw-kpi-ind-plan">План: {{ fmtKpiUnit(ind.plan, ind.unit) }}</span>
-                        <span class="cw-kpi-ind-fact" :class="{ 'no-fact': !ind.hasFact }">
-                          Факт: {{ ind.hasFact ? fmtKpiUnit(ind.fact, ind.unit) : "не введён" }}
-                        </span>
-                      </div>
-                      <div v-if="ind.hasFact" class="cw-kpi-ind-pct" :style="`color: ${pctColor(ind.pct)}`">
-                        {{ Math.round(ind.pct!) }}%
-                      </div>
-                    </div>
-                    <div
-                      class="cw-kpi-ind-bar-wrap"
-                      :title="ind.hasFact
-                        ? `План: ${fmtKpiUnit(ind.plan, ind.unit)} · Факт: ${fmtKpiUnit(ind.fact, ind.unit)} · ${Math.round(ind.pct!)}% · Δ ${fmtKpiUnit((ind.fact ?? 0) - (ind.plan ?? 0), ind.unit)}`
-                        : `План: ${fmtKpiUnit(ind.plan, ind.unit)} · факт не введён`"
-                    >
-                      <div
-                        class="cw-kpi-ind-bar"
-                        :style="`width: ${ind.hasFact ? Math.min(100, ind.pct!) : 0}%; background: ${pctColor(ind.pct)}`"
-                      ></div>
-                    </div>
-
-                    <!-- Sprint B · Baseline (prev year fact) — shown when current year has no fact -->
-                    <div
-                      v-if="!ind.hasFact && kpiBaselineYear !== null && kpiBaselineIndex[mgr.id] && kpiBaselineIndex[mgr.id][ind.name] && kpiBaselineIndex[mgr.id][ind.name].fact !== null"
-                      class="cw-kpi-ind-baseline"
-                    >
-                      <span class="cw-kpi-ind-baseline-tag">baseline {{ kpiBaselineYear }}</span>
-                      <span class="cw-kpi-ind-baseline-val">
-                        {{ fmtKpiUnit(kpiBaselineIndex[mgr.id][ind.name].fact, ind.unit) }}
-                      </span>
-                      <span
-                        v-if="ind.plan != null && ind.plan !== 0 && kpiBaselineIndex[mgr.id][ind.name].fact != null"
-                        class="cw-kpi-ind-baseline-vs"
-                      >
-                        план {{ year }} — {{ fmt.fmtPercent((ind.plan! - kpiBaselineIndex[mgr.id][ind.name].fact!) / Math.abs(kpiBaselineIndex[mgr.id][ind.name].fact!) * 100, { decimals: 0, signed: true }) }}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </template>
         </div>
 
         <!-- ═══ BUSINESS PLAN TAB — real implementation ═══ -->

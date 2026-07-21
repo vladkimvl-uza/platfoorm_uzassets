@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import ExecDashCreditBlock from '@/components/Dashboard/ExecDashCreditBlock.vue'
 /**
  * ExecutiveDashboard — главный view для /executive-dashboard.
  *
@@ -18,7 +17,6 @@ import ExecDashBottomMetrics from "@/components/ExecDash/ExecDashBottomMetrics.v
 import ExecDashRatings from "@/components/ExecDash/ExecDashRatings.vue";
 import ExecDashExecutionChart from "@/components/ExecDash/ExecDashExecutionChart.vue";
 import ExecDashFinanceBlock from "@/components/ExecDash/ExecDashFinanceBlock.vue";
-import ExecDashEconomicEffectBlock from "@/components/ExecDash/ExecDashEconomicEffectBlock.vue";
 import ExecDashBPTrackerBlock from "@/components/ExecDash/ExecDashBPTrackerBlock.vue";
 import ExecDashProductionBlock from "@/components/ExecDash/ExecDashProductionBlock.vue";
 import ExecDashKpiBlock from "@/components/ExecDash/ExecDashKpiBlock.vue";
@@ -104,14 +102,6 @@ useAiPageContext({
 
         <!-- Row 2.5: Финансы · МСФО (Pack 3) -->
         <ExecDashFinanceBlock v-reveal="0" />
-        <!-- Hidden per user request 2026-05-25 — /credit-scenario/overview
-             возвращает 500. Снять v-if="false" после починки бэка. -->
-        <ExecDashCreditBlock v-if="false" />
-
-        <!-- Row 2.55: Экономический эффект (Pack 5)
-             Hidden per user request 2026-05-23 — оставлено с v-if="false"
-             чтобы быстро вернуть, сняв флаг. -->
-        <ExecDashEconomicEffectBlock v-if="false" />
 
         <!-- Row 2.6: BP-трекер (Pack 5) -->
         <ExecDashBPTrackerBlock v-reveal="0" />

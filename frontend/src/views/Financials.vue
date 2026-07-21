@@ -104,7 +104,7 @@ const errorMsg  = ref<string | null>(null);
 const drillCompanyCode = ref<string | null>(null);
 
 // ── Pack 7.48: KPI drill state ────────────────────────────────────────────
-type KpiDrillId = "revenue" | "opMargin" | "ebitda" | "netMargin" | "loss" | "standards";
+type KpiDrillId = "revenue" | "opMargin" | "ebitda" | "netMargin" | "loss";
 const kpiDrill = ref<KpiDrillId | null>(null);
 function openKpiDrill(kpi: KpiDrillId) { kpiDrill.value = kpi; }
 

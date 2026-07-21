@@ -229,14 +229,6 @@ async function submit() {
                   :class="{ active: scope_type === 'sector' }"
                   @click="scope_type = 'sector'"
                 >Сектор</button>
-                <button
-                  type="button"
-                  class="ctb-chip"
-                  :class="{ active: scope_type === 'companies' }"
-                  @click="scope_type = 'companies'"
-                  disabled
-                  title="Скоро"
-                >Список SOE</button>
               </div>
             </div>
 

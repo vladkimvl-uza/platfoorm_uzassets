@@ -600,31 +600,6 @@ function exitImpersonate() {
               </span>
             </RouterLink>
 
-            <!-- FinModel · UAP v1 — airport-style 1:1 миграция из легасиа -->
-            <!-- Hidden per user request 2026-05-23 — оставлено
-                 `false && …` чтобы быстро вернуть, сняв флаг. -->
-            <RouterLink
-              v-if="false && can('finmodel.view')"
-              to="/finmodel/uap/v1"
-              class="sb-item sb-sub"
-              active-class="active"
-            >
-              <span class="sb-sub-dot" style="background: #534AB7"></span>
-              <span class="sb-name">UAP · airport-style</span>
-              <span
-                style="
-                  margin-left: 6px;
-                  padding: 1px 5px;
-                  background: rgba(127, 119, 221, 0.18);
-                  color: #534AB7;
-                  border-radius: 4px;
-                  font-size: 9px;
-                  font-weight: 700;
-                  letter-spacing: 0.04em;
-                "
-              >v1</span>
-            </RouterLink>
-
             <RouterLink v-if="can('credit.view')" to="/credit-portfolio" class="sb-item sb-sub" active-class="active" target="_blank" rel="noopener">
               <span class="sb-sub-dot"></span>
               <span class="sb-name">Кредитный портфель</span>

@@ -24,8 +24,6 @@
       <h2 class="dp-h2">Real-time WebSocket (альтернатива)</h2>
       <p>Если webhook overkill — есть live WS-канал <code>/api/ws/companies</code> и <code>/api/ws/companies/&#123;id&#125;</code> с тем же набором событий <code>field_update</code>. Подключение JWT-auth, экспоненциальный re-connect.</p>
     </section>
-
-    <p class="dp-stub">📝 Полная настройка webhook subscriptions — в Developer Console (скоро).</p>
   </article>
 </template>
 
@@ -37,5 +35,4 @@
 .dp-section { margin: 18px 0; }
 .dp-section code { font-family: ui-monospace, Menlo, monospace; background: rgba(127,119,221,.08); color: var(--p-deep); padding: 1px 5px; border-radius: 4px; font-size: 11.5px; }
 .dp-list { padding-left: 20px; font-size: 13px; color: #444; line-height: 1.7; }
-.dp-stub { font-size: 12px; color: var(--t3, var(--t-muted)); padding: 12px; background: rgba(127,119,221,.04); border-radius: 8px; border: 1px dashed rgba(127,119,221,.3); margin-top: 24px; }
 </style>

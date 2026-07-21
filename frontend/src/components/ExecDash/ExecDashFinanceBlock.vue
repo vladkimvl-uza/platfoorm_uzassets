@@ -727,15 +727,6 @@ onBeforeUnmount(() => {
         <UzaSegment :options="FIN_STD_OPTS" :model-value="fin.standard.value"
                     @update:model-value="(v) => fin.setStandard(v as any)" />
 
-        <button v-if="fin.viewMode.value === 'company'" class="ed-fin-pdf-btn" disabled title="Экспорт в PDF — в разработке">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-            <polyline points="7 10 12 15 17 10"/>
-            <line x1="12" y1="15" x2="12" y2="3"/>
-          </svg>
-          PDF
-        </button>
-
         <div class="ed-fin-pdrop" ref="pdropRoot">
           <button class="ed-fin-pdrop-btn" type="button" aria-haspopup="menu" :aria-expanded="pdropOpen" @click.stop="togglePdrop">
             {{ unitLabel }} {{ currencyLabel }}
@@ -1364,26 +1355,6 @@ onBeforeUnmount(() => {
   font-style: italic;
   font-weight: 500;
 }
-
-/* PDF кнопка */
-.ed-fin-pdf-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  background: rgba(15, 23, 60, 0.05);
-  border: none;
-  border-radius: 7px;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--t1, #1E2A4A);
-  padding: 6px 10px;
-  cursor: pointer;
-  font-family: inherit;
-}
-.ed-fin-pdf-btn:hover:not(:disabled) { background: rgba(127, 119, 221, 0.08); color: #5B54B8; }
-.ed-fin-pdf-btn svg { color: var(--t3, var(--t-muted)); }
-.ed-fin-pdf-btn:hover:not(:disabled) svg { color: #5B54B8; }
-.ed-fin-pdf-btn:disabled { opacity: 0.5; cursor: not-allowed; color: var(--t3, var(--t-muted)); }
 
 .ed-fin-tbl-empty { padding: 28px; text-align: center; color: var(--t3, var(--t-muted)); font-size: 11.5px; }
 

@@ -364,7 +364,9 @@ const router = createRouter({
           // Чтобы вернуть локальный модуль — удалить `beforeEnter`.
           path: "finmodel",
           name: "finmodel",
-          component: () => import("@/views/finmodel/FinModelPage.vue"),
+          // Локальный модуль удалён (был мёртвым кодом); beforeEnter редиректит
+          // на внешний дашборд, компонент никогда не монтируется.
+          component: { render: () => null },
           meta: { title: "Финансовая модель", requiresPermission: "finmodel.view" },
           beforeEnter: (_to, _from, next) => {
             window.location.assign(
@@ -391,7 +393,9 @@ const router = createRouter({
           // Чтобы вернуть локальный модуль — удалить `beforeEnter`.
           path: "credit-portfolio",
           name: "credit-portfolio",
-          component: () => import("@/views/CreditPortfolio.vue"),
+          // Локальный модуль удалён (был мёртвым кодом); beforeEnter редиректит
+          // на внешний дашборд, компонент никогда не монтируется.
+          component: { render: () => null },
           meta: { title: "Кредитный портфель", requiresPermission: "credit.view" },
           beforeEnter: (_to, _from, next) => {
             // assign() (push), не replace() — так current history entry

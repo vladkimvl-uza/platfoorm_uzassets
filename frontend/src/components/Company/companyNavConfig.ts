@@ -52,9 +52,6 @@ export const COMPANY_TABS: TabConfig[] = [
   { id: 'hlf',         label: 'Фин. отчётность', groupId: 'finance' },
   { id: 'bp',          label: 'Бизнес-план',    groupId: 'finance' },
   { id: 'unitcost',    label: 'Себестоимость',  groupId: 'finance' },
-  // 2026-05-26: 'credit' и 'invest' скрыты по запросу — раскомментировать для возврата
-  // { id: 'credit',      label: 'Кредит',         groupId: 'finance' },
-  // { id: 'invest',      label: 'Инвест-проекты', groupId: 'performance' },
 
   { id: 'kpi',         label: 'KPI',            groupId: 'performance' },
   { id: 'procurement', label: 'Закупки',        groupId: 'performance' },

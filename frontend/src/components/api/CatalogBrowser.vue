@@ -171,9 +171,6 @@ async function copyCurl(e: CatalogEndpoint) {
               </div>
 
               <div class="cb-actions">
-                <button class="cb-btn" disabled title="Pack 12.3">
-                  <BIcon name="player-play" :size="14" /> Try it out
-                </button>
                 <button class="cb-btn" @click="copyCurl(e)">
                   <BIcon name="terminal-2" :size="14" /> Скопировать curl
                 </button>

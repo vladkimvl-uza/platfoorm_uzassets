@@ -17,7 +17,6 @@ import { fmtBigNumber, fmtPctSigned, ensureFinancialsCss } from "./financialsHel
 import { fmtSubsidySum } from "@/api/subsidies";
 import { useFormatters } from "@/composables/useFormatters";
 import Odometer from "@/components/Odometer.vue";
-import { useStandardsCompliance } from "@/composables/useStandardsCompliance";
 
 const fmt = useFormatters();
 
@@ -35,7 +34,7 @@ const props = defineProps<{
 }>();
 
 // Pack 7.48: drill-down events
-type KpiId = "revenue" | "opMargin" | "ebitda" | "netMargin" | "loss" | "standards";
+type KpiId = "revenue" | "opMargin" | "ebitda" | "netMargin" | "loss";
 const emit = defineEmits<{
   (e: "drill", kpi: KpiId): void;
   (e: "open-subsidies"): void;
@@ -48,22 +47,6 @@ const subsidiesFmt = computed(() => fmtSubsidySum(props.subsidiesTotal ?? null))
 onMounted(ensureFinancialsCss);
 
 const unitSuffix = computed(() => `${props.unit === "bln" ? "млрд" : "млн"} ${props.currency}`);
-
-// Hidden per user request 2026-05-23 — оставлено `&& false`
-// (а не удалено) чтобы быстро вернуть, сняв флаг.
-const showStandardsCard = computed(() => props.standard === "IFRS" && false);
-
-// Реальные данные «внедрения стандартов» (было захардкожено 4/22, 8/22 = фабрикация).
-// МСФО = дата публикации в /ifrs-report-history; forensic = 'Завершён'+аудитор+годы.
-// Карта пока скрыта (showStandardsCard) → грузим лениво только когда показана.
-const _std = useStandardsCompliance();
-const stdMsfo = computed(() => _std.msfoIds.value.size);
-const stdForensic = computed(() => _std.forensicCodes.value.size);
-const stdTotal = computed(() => props.totalCompanies || 0);
-const stdMsfoPct = computed(() => stdTotal.value ? Math.round(stdMsfo.value / stdTotal.value * 100) : 0);
-const stdForensicPct = computed(() => stdTotal.value ? Math.round(stdForensic.value / stdTotal.value * 100) : 0);
-const stdAttention = computed(() => Math.max(0, stdTotal.value - stdMsfo.value));
-onMounted(() => { if (showStandardsCard.value) void _std.load(); });
 
 const opProfitTxt = computed(() =>
   props.kpis ? `Опер. прибыль ${fmtBigNumber(props.kpis.totalOpProfit, props.unit)}` : "—",
@@ -98,7 +81,7 @@ const lossOutOf = computed(() =>
     <span class="fkb-cover-note">YoY рассчитан по like-for-like basket (только компании с данными в обоих годах)</span>
   </div>
 
-  <div class="fkb-grid kpi-rail" :class="{ 'fkb-grid-6': showStandardsCard }">
+  <div class="fkb-grid kpi-rail">
     <!-- 1. Совокупная выручка -->
     <div class="fkb-card fkb-card-clickable" style="--accent:#1D9E75; --d:0ms;"
          @click="drill('revenue')">
@@ -177,43 +160,6 @@ const lossOutOf = computed(() =>
     </div>
 
     <!-- Субсидии переехали в фискальный ряд (FinFiscalBand) под полосой -->
-
-    <!-- 8. Внедрение стандартов (IFRS only) -->
-    <div v-if="showStandardsCard" class="fkb-card fkb-card-clickable" style="--accent:#534AB7; --d:400ms;"
-         @click="drill('standards')">
-      <div class="fkb-lbl">Внедрение стандартов</div>
-      <div class="fkb-std-row">
-        <div class="fkb-std-mini">
-          <svg width="38" height="38" viewBox="0 0 38 38">
-            <circle cx="19" cy="19" r="15" fill="none" stroke="#F1F5F9" stroke-width="3.5"/>
-            <circle cx="19" cy="19" r="15" fill="none" stroke="#1D9E75" stroke-width="3.5"
-                    stroke-linecap="round"
-                    :stroke-dasharray="`${(stdMsfoPct / 100 * 94)} 94`"
-                    transform="rotate(-90 19 19)"/>
-            <text x="19" y="22" text-anchor="middle" font-size="9" font-weight="600" fill="#1D9E75">{{ stdMsfoPct }}%</text>
-          </svg>
-          <div class="fkb-std-info">
-            <div class="fkb-std-num">{{ stdMsfo }}<span class="fkb-std-tot">/{{ stdTotal }}</span></div>
-            <div class="fkb-std-name">МСФО</div>
-          </div>
-        </div>
-        <div class="fkb-std-mini">
-          <svg width="38" height="38" viewBox="0 0 38 38">
-            <circle cx="19" cy="19" r="15" fill="none" stroke="#F1F5F9" stroke-width="3.5"/>
-            <circle cx="19" cy="19" r="15" fill="none" stroke="#EF9F27" stroke-width="3.5"
-                    stroke-linecap="round"
-                    :stroke-dasharray="`${(stdForensicPct / 100 * 94)} 94`"
-                    transform="rotate(-90 19 19)"/>
-            <text x="19" y="22" text-anchor="middle" font-size="9" font-weight="600" fill="#EF9F27">{{ stdForensicPct }}%</text>
-          </svg>
-          <div class="fkb-std-info">
-            <div class="fkb-std-num">{{ stdForensic }}<span class="fkb-std-tot">/{{ stdTotal }}</span></div>
-            <div class="fkb-std-name">Forensic</div>
-          </div>
-        </div>
-      </div>
-      <div class="fkb-sub" style="color:#D97706">{{ stdAttention }} требуют внимания</div>
-    </div>
   </div>
 </template>
 
@@ -355,22 +301,4 @@ const lossOutOf = computed(() =>
   font-variant-numeric: tabular-nums;
 }
 
-/* Standards card layout (6th card, IFRS only) */
-.fkb-std-row {
-  display: flex; gap: 12px; align-items: center;
-  margin-top: 2px; margin-bottom: 4px;
-}
-.fkb-std-mini {
-  display: flex; align-items: center; gap: 6px;
-}
-.fkb-std-info { display: flex; flex-direction: column; gap: 1px; }
-.fkb-std-num {
-  font-size: 16px; font-weight: 600; color: var(--t1, #1E2A4A);
-  letter-spacing: -0.02em; line-height: 1;
-}
-.fkb-std-tot { font-size: 11px; color: var(--t3, var(--t3)); font-weight: 400; }
-.fkb-std-name {
-  font-size: 9.5px; color: var(--t3, var(--t3));
-  text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600;
-}
 </style>
