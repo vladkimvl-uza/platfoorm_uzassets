@@ -22,6 +22,15 @@ import { useFormatters } from "@/composables/useFormatters";
 // Injected from CompanyWorkspace — opens the overdue drill modal on click
 const openOverdueModal = inject<(() => void) | null>("openOverdueModal", null);
 import { api } from "@/api/client";
+import { computeProgress } from "@/utils/progress";
+import { useDirectionsStore } from "@/stores/directions";
+
+// Единый источник цветов направлений = каталог (стор), чтобы полоски «по
+// направлениям» совпадали с цветами из /admin (Каталоги), а не с легаси-хардкодом.
+const directionsStore = useDirectionsStore();
+function _dirColor(id: string, fallback: string): string {
+  return directionsStore.byCode.get(String(id).toLowerCase())?.color || fallback;
+}
 
 const fmt = useFormatters();
 
@@ -42,7 +51,8 @@ const DIRS: { id: string; label: string; color: string }[] = [
 const _DIRS_BY_ID = new Map(DIRS.map((d) => [d.id, d]));
 function _dirMeta(direction: string): { id: string; label: string; color: string } {
   const key = String(direction || "").toLowerCase();
-  return _DIRS_BY_ID.get(key) || { id: key, label: direction || "Без направления", color: "#94A3B8" };
+  const base = _DIRS_BY_ID.get(key) || { id: key, label: direction || "Без направления", color: "#94A3B8" };
+  return { ...base, color: _dirColor(key, base.color) };   // цвет — из каталога
 }
 
 interface Props {
@@ -146,8 +156,15 @@ const PERIODS: Period[] = ["Y", "Q1", "Q2", "Q3", "Q4"];
 
 const kpiYear = ref<number>(props.year);
 const bpYear  = ref<number>(props.year);
-const kpiPeriod = ref<Period>("Y");
-const bpPeriod  = ref<Period>("Y");
+// «Актуальный» период по умолчанию = последний ЗАВЕРШЁННЫЙ квартал (у текущего
+// ещё нет полного факта). Напр. в июле (кал. Q3) → Q2. В Q1 остаёмся на Q1.
+function _defaultPeriod(): Period {
+  const q = Math.floor(new Date().getMonth() / 3) + 1;   // 1..4 текущий кал. квартал
+  const prev = q - 1;
+  return (prev >= 1 ? `Q${prev}` : "Q1") as Period;
+}
+const kpiPeriod = ref<Period>(_defaultPeriod());
+const bpPeriod  = ref<Period>(_defaultPeriod());
 watch(() => props.year, (y) => { kpiYear.value = y; bpYear.value = y; });
 
 const KPI_MIN_YEAR = 2020;
@@ -240,8 +257,8 @@ interface BpData {
 }
 const bpData = ref<BpData | null>(null);
 
-// ─── BP widget view-mode: All / Доходы / Расходы ────────────────
-const bpView = ref<"all" | "income" | "expenses">("all");
+// ─── BP widget view-mode: Доходы / Расходы (по умолчанию Доходы) ──
+const bpView = ref<"all" | "income" | "expenses">("income");
 function setBpView(v: "all" | "income" | "expenses") { bpView.value = v; }
 const bpDisplayedMetrics = computed(() => {
   const d = bpData.value;
@@ -569,8 +586,10 @@ async function loadDirs() {
       const tDone = tSlice.filter((t: any) => _isDoneStatus(t.status)).length;
       const pTotal = pSlice.length;
       const tTotal = tSlice.length;
-      const pPct = pTotal ? Math.round((pDone / pTotal) * 100) : 0;
-      return { id: dir.id, label: dir.label, color: dir.color, pPct, pDone, pTotal, tDone, tTotal };
+      // Средний прогресс по направлению — ВЗВЕШЕННО по статусу (0/25/50/75/100),
+      // как канон utils/progress, по всем работам (проекты+задачи), а не done/total.
+      const pPct = computeProgress([...pSlice, ...tSlice] as any).pct;
+      return { id: dir.id, label: dir.label, color: _dirColor(dir.id, dir.color), pPct, pDone, pTotal, tDone, tTotal };
     }).filter((d) => d.pTotal > 0 || d.tTotal > 0)
       .sort((a, b) => b.pPct - a.pPct);
 
@@ -1180,6 +1199,7 @@ async function loadAll() {
 let nowTickInterval: number | null = null;
 onMounted(() => {
   loadAll();
+  directionsStore.ensureLoaded();   // цвета направлений из каталога
   nowTickInterval = window.setInterval(() => {
     nowTick.value = Date.now();
   }, 60_000);
@@ -1692,10 +1712,6 @@ watch(
               данные за {{ bpData.fallbackYear }}
             </span>
             <span class="cox-bp-view-switcher">
-              <button class="cox-bp-view-btn"
-                      :class="{ active: bpView === 'all' }"
-                      @click="setBpView('all')"
-                      title="Выручка / Опер. прибыль / Чистая прибыль">Все</button>
               <button class="cox-bp-view-btn cox-bp-view-btn-inc"
                       :class="{ active: bpView === 'income' }"
                       @click="setBpView('income')"
