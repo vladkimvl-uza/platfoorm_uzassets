@@ -98,6 +98,10 @@ class FinancialsIndicatorsService:
             "code": co.code,
             "inn": co.inn,
             "indicators": _clean_indicators(extra.get("indicators")),
+            # employees_count — уровень-компании фолбэк «Сотрудники» (как на карточке,
+            # когда годовой indicators.headcount не заполнен). Раньше не отдавался →
+            # внешняя система не могла подтянуть численность.
+            "employees_count": getattr(co, "employees_count", None),
             "updated_at": extra.get("indicators_updated_at"),
             "updated_by": extra.get("indicators_updated_by"),
         }

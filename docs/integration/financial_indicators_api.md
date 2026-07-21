@@ -97,8 +97,13 @@ curl -sk -X POST https://<хост>/api/auth/login \
 | Спонсорство (по годам) | `sponsorship` | число (млрд UZS) | `companies.extra.indicators` | `GET …/indicators` | `PUT …/indicators` |
 | Налоги (по годам) | `taxes` | число (млрд UZS) | `companies.extra.indicators` | `GET …/indicators` | `PUT …/indicators` |
 | Численность (по годам) | `headcount` | число (чел.) | `companies.extra.indicators` | `GET …/indicators` | `PUT …/indicators` |
+| Сотрудники (штат компании, одно число) | `employees_count` | число (чел.) | `companies.employees_count` | `GET …/indicators` → `employees_count` | правится в карточке компании |
 
 Эндпоинт: `…/indicators` = `/financials/companies/{code}/indicators`.
+
+> **«Сотрудники» на карточке** = годовой `headcount` за выбранный год, а если он
+> не заполнен — фолбэк на `employees_count` (штат компании). Поэтому для численности
+> читайте оба: `indicators.headcount[<год>]`, иначе `employees_count`.
 
 ### 1.2. Значения финансовой отчётности (по годам, зависят от стандарта)
 
@@ -127,9 +132,21 @@ curl -sk -X POST https://<хост>/api/auth/login \
 | Финансовый долг / Total debt | `debt` | оба · Баланс |
 | Совокупный доход (ОПД) | `total_comprehensive_income` | МСФО · ОПД |
 | CFO / CFI / CFF | `cfo` / `cfi` / `cff` | МСФО · ДДС |
-| Free Cash Flow | `freeCashFlow` | МСФО · ДДС |
+| Капзатраты (CapEx) | `cfi_capex` (закупка ОС) | МСФО · ДДС |
+| Free Cash Flow (**вычисляется**) | `freeCashFlow` = `cfo` − \|CapEx\| | МСФО · ДДС |
 
 Полный перечень `field id` приходит ключами в `values` ответа `…/ifrs-editor` / `…/nsbu-editor`.
+
+> **FCF — не хранимое поле, а формула:** `FCF = CFO − |CapEx|`, где `CFO` = «Operating
+> Cash Flow», `CapEx` = закупка ОС («Purchase of PP&E») из раздела **ДДС**. В `values`
+> отдельного ключа `freeCashFlow` нет — внешняя система считает его сама из `cfo` и
+> `cfi_capex`. Если ДДС у компании не заполнен (как у ряда компаний) — FCF отсутствует
+> («нет данных»), ровно как и на карточке платформы.
+>
+> **Пустые значения — это не ошибка API.** `sponsorship` / `taxes` / `headcount` и
+> строки ДДС отсутствуют в ответе, если данные ещё не внесены на платформе (тогда на
+> карточке «нет данных»). Внешняя система должна корректно обрабатывать отсутствие
+> года/поля; наполнение — на стороне платформы (редакторы отчётности/индикаторов).
 
 ---
 
