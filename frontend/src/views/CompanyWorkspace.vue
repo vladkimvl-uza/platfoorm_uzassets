@@ -3976,7 +3976,7 @@ function onEditorClose() {
                         :key="p.id"
                         class="cw-cons2-project"
                         :title="p.title"
-                        @click.stop="openTaskEditor({ id: p.id, kind: 'project' })"
+                        @click.stop="openTaskEditor({ id: p.id, kind: 'task' })"
                       >
                         <span class="cw-cons2-project-status" :style="`color: ${getStatusColor(p.status)}`" v-html="getStatusShortLabel(p.status)"></span>
                         <span class="cw-cons2-project-title">{{ p.title }}</span>
@@ -3994,57 +3994,6 @@ function onEditorClose() {
               </div>
             </div>
 
-            <!-- ─── COLLAPSIBLE FULL DIRECTORY ─── -->
-            <div class="cw-cons-dir-section">
-              <button class="cw-cons-dir-toggle" @click="toggleConsDirectory()">
-                <span class="cw-cons-dir-toggle-icon" :class="{ open: consDirectoryExpanded }">›</span>
-                <span>Полный справочник консультантов в системе</span>
-                <span v-if="consDirectoryLoaded" class="cw-cons-dir-count">{{ consDirectoryByGroup.total }}</span>
-              </button>
-
-              <div v-if="consDirectoryExpanded" class="cw-cons-dir-body">
-                <UzaStateBlock v-if="consDirectoryLoading" state="loading" text="Загрузка справочника…" />
-
-                <UzaStateBlock v-else-if="consDirectoryError" state="error" variant="block" :text="consDirectoryError" />
-
-                <template v-else>
-                  <div v-if="consDirectoryByGroup.big4.length > 0" class="cw-cons-group">
-                    <div class="cw-section-label">Big 4 · {{ consDirectoryByGroup.big4.length }}</div>
-                    <div class="cw-cons-grid">
-                      <div
-                        v-for="c in consDirectoryByGroup.big4"
-                        :key="c.id"
-                        class="cw-cons-card"
-                        :style="`--accent: ${c.color_hex || '#7F77DD'}`"
-                      >
-                        <div class="cw-cons-abbr">{{ c.abbr || c.code.toUpperCase() }}</div>
-                        <div class="cw-cons-name">{{ c.name_ru }}</div>
-                        <div v-if="c.name_en" class="cw-cons-name-en">{{ c.name_en }}</div>
-                        <div class="cw-cons-tag-big4">Big 4</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div v-if="consDirectoryByGroup.other.length > 0" class="cw-cons-group" style="margin-top: 16px">
-                    <div class="cw-section-label">Другие · {{ consDirectoryByGroup.other.length }}</div>
-                    <div class="cw-cons-grid">
-                      <div
-                        v-for="c in consDirectoryByGroup.other"
-                        :key="c.id"
-                        class="cw-cons-card"
-                        :style="`--accent: ${c.color_hex || '#94A3B8'}`"
-                      >
-                        <div class="cw-cons-abbr">{{ c.abbr || c.code.toUpperCase() }}</div>
-                        <div class="cw-cons-name">{{ c.name_ru }}</div>
-                        <div v-if="c.name_en" class="cw-cons-name-en">{{ c.name_en }}</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <UzaStateBlock v-if="consDirectoryByGroup.total === 0" state="empty" variant="block" title="Справочник пуст" text="Консультанты не добавлены в систему." />
-                </template>
-              </div>
-            </div>
           </template>
         </div>
 
