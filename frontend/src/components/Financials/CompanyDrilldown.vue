@@ -683,7 +683,8 @@ const auditLine = computed<string>(() => {
 // ─── Actions ────────────────────────────────────────────────────────────
 function onOpenEditor() {
   const routeName = localStandard.value === "IFRS" ? "financials-edit-ifrs" : "financials-edit-nsbu";
-  router.push({ name: routeName });
+  // Передаём компанию → редактор открывается сразу на ней (а не на первой в списке).
+  router.push({ name: routeName, query: { company: props.companyCode } });
   emit("close");
 }
 

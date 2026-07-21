@@ -19,7 +19,7 @@
  *   shape: { values, customFields, renames, formulaOverrides, manualFlags, savedAt }
  */
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from "vue";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 import { companiesApi, type CompanyListItem } from "@/api/companies";
 import { financialsApi, type PortfolioSummaryResponse } from "@/api/financials";
 import {
@@ -36,6 +36,7 @@ const _perm = usePermissions("financials");
 const emit = defineEmits<{ close: [] }>();
 
 const router = useRouter();
+const route = useRoute();
 const toast = useToast();
 const { confirmDialog } = useConfirm();
 
@@ -617,7 +618,11 @@ async function loadCompanies() {
       }
     }
     if (companies.value.length && !selectedCode.value) {
-      await selectCompany(companies.value[0].code);
+      // Предвыбор компании из ?company= (открытие «в редакторе» из воркспейса),
+      // иначе — первая в списке.
+      const q = String(route.query.company || "").toLowerCase();
+      const match = q && companies.value.find((c) => c.code.toLowerCase() === q);
+      await selectCompany(match ? match.code : companies.value[0].code);
     }
   } catch (e) {
     console.error("[NsbuEditor] load companies failed:", e);
@@ -811,10 +816,12 @@ async function close() {
   const anyDirty = Object.values(companyStates).some((s) => s.dirty);
   if (anyDirty && !(await confirmDialog({ message: "Есть несохранённые изменения. Закрыть всё равно?", danger: true }))) return;
   emit("close");
-  // If we're accessed via route, navigate back to financials
+  // Если открыт как отдельная страница-роут — возвращаемся ТУДА, откуда пришли
+  // (воркспейс компании / financials), а не жёстко на /financials.
   try {
     if (router.currentRoute.value.name === "financials-edit-nsbu") {
-      router.push({ name: "financials" });
+      if (window.history.length > 1) router.back();
+      else router.push({ name: "financials" });
     }
   } catch { /* noop */ }
 }
