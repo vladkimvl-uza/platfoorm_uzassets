@@ -945,9 +945,9 @@ function clearFilters() {
               <span
                 v-if="directionInfo(g.project)"
                 class="bl-dir-label"
-                :style="{ color: directionInfo(g.project)!.color }"
               >
-                {{ directionInfo(g.project)!.label }}
+                <span class="bl-dir-dot" :style="{ background: directionInfo(g.project)!.color }"></span>
+                <span class="bl-dir-txt">{{ directionInfo(g.project)!.label }}</span>
               </span>
               <span v-else-if="canEditRows" class="bl-cell-add">+ направление</span>
             </div>
@@ -1075,9 +1075,9 @@ function clearFilters() {
               <span
                 v-if="directionInfo(t)"
                 class="bl-dir-label"
-                :style="{ color: directionInfo(t)!.color }"
               >
-                {{ directionInfo(t)!.label }}
+                <span class="bl-dir-dot" :style="{ background: directionInfo(t)!.color }"></span>
+                <span class="bl-dir-txt">{{ directionInfo(t)!.label }}</span>
               </span>
               <span v-else-if="canEditRows" class="bl-cell-add">+ направление</span>
             </div>
@@ -1652,11 +1652,22 @@ function clearFilters() {
   min-width: 0;
 }
 .bl-dir-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
+}
+/* Цвет направления — только в точке; название нейтральное (не «светофорит») */
+.bl-dir-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.bl-dir-txt {
+  color: var(--t1, #1E2A4A);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
 }
 
 /* Consultant badge — 11px / 700 / pad 2-6 / radius 4 (легаси line 54568) */

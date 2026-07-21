@@ -16,7 +16,9 @@ defineProps<{
           :style="{ background: direction.color }"></span>
     <span v-else-if="(variant || 'bar') === 'dot'" class="dir-dot"
           :style="{ background: direction.color }"></span>
-    <span class="dir-label" :style="(variant || 'bar') !== 'pill' ? { color: direction.color } : {}">
+    <!-- bar/dot: НЕЙТРАЛЬНЫЙ текст + цвет только в акценте (полоска/точка) — иначе
+         разноцветные названия «светофорят». pill остаётся цветным чипом. -->
+    <span class="dir-label" :style="(variant || 'bar') === 'pill' ? {} : { color: 'var(--t1, #1E2A4A)' }">
       {{ direction.label }}
     </span>
   </div>

@@ -201,7 +201,7 @@ function onDragStart(ev: DragEvent) {
 
       <!-- meta row: direction · consultant · quarterly-dots · date · avatar -->
       <div class="kc-row-meta">
-        <span v-if="dir" class="kc-dir" :style="{ color: dir.color }" :title="dir.label">
+        <span v-if="dir" class="kc-dir" :title="dir.label">
           <span class="kc-dir-bullet" :style="{ background: dir.color }"></span>
           {{ dir.short }}
         </span>
@@ -386,6 +386,7 @@ function onDragStart(ev: DragEvent) {
   font-weight: 600;
   letter-spacing: 0.04em;
   flex-shrink: 0;
+  color: var(--t2, #4B5468);   /* нейтральный текст; цвет направления — в буллете */
 }
 .kc-dir-bullet {
   width: 5px;
