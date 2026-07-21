@@ -5,6 +5,7 @@ import { calendarApi } from "@/api/calendar";
 import { companiesApi } from "@/api/companies";
 import { useEntityEditor } from "@/composables/useEntityEditor";
 import { useToast } from "@/composables/useToast";
+import ModalShell from "@/components/ModalShell.vue";
 
 const { openTask, openProject } = useEntityEditor();
 const toast = useToast();
@@ -93,41 +94,36 @@ async function copyIcal() {
       <CompanyCalendar :company-id="selectedCompany" @open-entity="onOpen" />
     </div>
 
-    <!-- iCal modal -->
-    <Transition name="gc-modal">
-      <div v-if="icalOpen" class="gc-overlay" @click.self="icalOpen = false">
-        <div class="gc-modal" role="dialog" aria-modal="true" aria-label="Подписка в календаре">
-          <div class="gc-modal-head">
-            <div class="gc-modal-ic">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            </div>
-            <span>Подписка в календаре</span>
-            <button class="gc-modal-x" @click="icalOpen = false">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
+    <!-- iCal modal — канон ModalShell -->
+    <ModalShell :open="icalOpen" size="sm" @close="icalOpen = false">
+      <template #header>
+        <div class="gc-modal-head-l">
+          <div class="gc-modal-ic">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
           </div>
-          <p class="gc-modal-text">
-            Добавьте эту ссылку как <b>подписку на календарь</b> в Outlook / Google Calendar / Apple Calendar —
-            дедлайны будут появляться и обновляться автоматически.
-          </p>
-          <div v-if="icalError" class="gc-ical-err">
-            Не удалось получить ссылку подписки.
-            <button class="gc-copy" @click="openIcal">Повторить</button>
-          </div>
-          <div v-else-if="!icalUrl" class="gc-ical-err">Загрузка ссылки…</div>
-          <div v-else class="gc-url-row">
-            <input class="gc-url" :value="icalUrl" readonly aria-label="Ссылка подписки iCal" @focus="($event.target as HTMLInputElement).select()" />
-            <button class="gc-copy" :class="{ done: copied }" @click="copyIcal">
-              <svg v-if="copied" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-              {{ copied ? "Скопировано" : "Копировать" }}
-            </button>
-          </div>
-          <div class="gc-hint">
-            Google: «Другие календари → Добавить по URL». Outlook: «Добавить календарь → Подписаться из интернета».
-          </div>
+          <span>Подписка в календаре</span>
         </div>
+      </template>
+      <p class="gc-modal-text">
+        Добавьте эту ссылку как <b>подписку на календарь</b> в Outlook / Google Calendar / Apple Calendar —
+        дедлайны будут появляться и обновляться автоматически.
+      </p>
+      <div v-if="icalError" class="gc-ical-err">
+        Не удалось получить ссылку подписки.
+        <button class="gc-copy" @click="openIcal">Повторить</button>
       </div>
-    </Transition>
+      <div v-else-if="!icalUrl" class="gc-ical-err">Загрузка ссылки…</div>
+      <div v-else class="gc-url-row">
+        <input class="gc-url" :value="icalUrl" readonly aria-label="Ссылка подписки iCal" @focus="($event.target as HTMLInputElement).select()" />
+        <button class="gc-copy" :class="{ done: copied }" @click="copyIcal">
+          <svg v-if="copied" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          {{ copied ? "Скопировано" : "Копировать" }}
+        </button>
+      </div>
+      <div class="gc-hint">
+        Google: «Другие календари → Добавить по URL». Outlook: «Добавить календарь → Подписаться из интернета».
+      </div>
+    </ModalShell>
   </div>
 </template>
 
@@ -172,13 +168,8 @@ async function copyIcal() {
 }
 
 /* Modal */
-.gc-overlay { position: fixed; inset: 0; background: rgba(15,18,40,.45); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); z-index: 9000; display: flex; align-items: center; justify-content: center; padding: 16px; }
-.gc-modal { width: 100%; max-width: 480px; background: #fff; border-radius: 14px; padding: 20px 22px 22px; box-shadow: 0 24px 64px rgba(15,23,60,.22); }
-.gc-modal-head { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 600; color: var(--t1, #1E2A4A); margin-bottom: 12px; }
+.gc-modal-head-l { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 500; color: var(--t1, #1E2A4A); }
 .gc-modal-ic { width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: rgba(127,119,221,.12); color: var(--p-deep, #534AB7); flex-shrink: 0; }
-.gc-modal-head > span { flex: 1; }
-.gc-modal-x { width: 28px; height: 28px; border: none; background: transparent; color: var(--t3, #94A3B8); cursor: pointer; border-radius: 8px; display: flex; align-items: center; justify-content: center; transition: background .14s, color .14s; }
-.gc-modal-x:hover { background: rgba(15,23,60,.06); color: var(--t1, #1E2A4A); }
 .gc-modal-text { font-size: 13px; line-height: 1.55; color: var(--t2, #475569); margin: 0 0 14px; }
 .gc-url-row { display: flex; gap: 8px; }
 .gc-ical-err { font-size: 12.5px; color: var(--t3, #94A3B8); display: flex; align-items: center; gap: 10px; padding: 4px 0; }
@@ -187,13 +178,6 @@ async function copyIcal() {
 .gc-copy:hover { background: #178B66; transform: translateY(-1px); }
 .gc-copy.done { background: #15805C; }
 .gc-hint { font-size: 11px; color: var(--t3, #94A3B8); margin-top: 11px; line-height: 1.5; }
-.gc-modal-enter-active, .gc-modal-leave-active { transition: opacity .22s; }
-.gc-modal-enter-active .gc-modal { transition: transform .34s var(--ease); }
-.gc-modal-leave-active .gc-modal { transition: transform .2s; }
-.gc-modal-enter-from { opacity: 0; }
-.gc-modal-enter-from .gc-modal { transform: translateY(16px) scale(.96); }
-.gc-modal-leave-to { opacity: 0; }
-.gc-modal-leave-to .gc-modal { transform: scale(.98); }
 
 @keyframes gcFade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes gcUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }

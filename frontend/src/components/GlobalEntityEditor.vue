@@ -9,6 +9,8 @@
  */
 import { useEntityEditor } from "@/composables/useEntityEditor";
 import TaskProjectEditor from "@/components/TaskProjectEditor.vue";
+import ModalShell from "@/components/ModalShell.vue";
+import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 
 const { state, close } = useEntityEditor();
 
@@ -23,13 +25,10 @@ function onSaved() {
     <div class="gee-spinner" />
   </div>
 
-  <!-- Ошибка загрузки (невалидный id и т.п.) -->
-  <div v-else-if="state.open && state.error" class="gee-loading" @click.self="close">
-    <div class="gee-error">
-      <span>{{ state.error }}</span>
-      <button class="gee-error-btn" @click="close">Закрыть</button>
-    </div>
-  </div>
+  <!-- Ошибка загрузки (невалидный id и т.п.) — канон ModalShell + UzaStateBlock -->
+  <ModalShell v-else-if="state.open && !!state.error" :open="true" size="sm" title="Ошибка" @close="close">
+    <UzaStateBlock state="error" variant="block" :text="state.error || ''" />
+  </ModalShell>
 
   <!-- Сам редактор (self-contained .editor-backdrop, position:fixed z-index:1000) -->
   <!-- Просмотр/редактирование существующей сущности -->
@@ -75,34 +74,5 @@ function onSaved() {
 }
 @keyframes gee-spin {
   to { transform: rotate(360deg); }
-}
-.gee-error {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  align-items: center;
-  background: #fff;
-  border-radius: 14px;
-  padding: 24px 28px;
-  font-size: 13px;
-  color: var(--t1, #1e2a4a);
-  box-shadow: 0 24px 64px rgba(15, 23, 60, 0.2);
-  max-width: 360px;
-  text-align: center;
-}
-.gee-error-btn {
-  padding: 7px 18px;
-  font-size: 12px;
-  font-weight: 500;
-  border: 1px solid rgba(15, 23, 60, 0.12);
-  background: var(--bg1, #fff);
-  color: var(--t1, #1e2a4a);
-  border-radius: 8px;
-  cursor: pointer;
-}
-.gee-error-btn:hover {
-  background: rgba(127, 119, 221, 0.06);
-  border-color: #7f77dd;
-  color: #7f77dd;
 }
 </style>
