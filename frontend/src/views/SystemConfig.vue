@@ -31,6 +31,7 @@ import { systemConfigApi, type YearlyRate } from "@/api/systemConfig";
 import { useCurrencyConverter } from "@/composables/useCurrencyConverter";
 import { useIsAdmin } from "@/composables/useIsAdmin";
 import { parseDecimal } from "@/utils/parseDecimal";
+import ModalShell from "@/components/ModalShell.vue";
 import ScenariosTab from "@/components/SystemConfig/ScenariosTab.vue";
 import CreditNagruzkaTab from "@/components/SystemConfig/CreditNagruzkaTab.vue";
 import ElasticityProjectsTab from "@/components/SystemConfig/ElasticityProjectsTab.vue";
@@ -548,13 +549,7 @@ function previewUsd(amount: number, year: number): string {
     </footer>
 
     <!-- ─── Add modal ─── -->
-    <Teleport to="body">
-      <div v-if="addOpen" class="sc-modal-bd" @click.self="closeAdd">
-        <div class="sc-modal">
-          <button class="sc-modal-x" @click="closeAdd" aria-label="Закрыть">
-            <svg viewBox="0 0 14 14" class="sc-svg" width="13" height="13"><path d="M3.5 3.5l7 7M10.5 3.5l-7 7"/></svg>
-          </button>
-          <h2 class="sc-modal-h">Добавить год в реестр</h2>
+    <ModalShell :open="addOpen" size="md" title="Добавить год в реестр" @close="closeAdd">
           <div class="sc-form">
             <label class="sc-fld">
               <span class="sc-fld-l">Год</span>
@@ -592,33 +587,26 @@ function previewUsd(amount: number, year: number): string {
             </label>
             <div v-if="addError" class="sc-alert sc-alert-bad">{{ addError }}</div>
           </div>
-          <div class="sc-modal-ftr">
-            <button class="sc-btn sc-btn-g" @click="closeAdd" :disabled="addSubmitting">Отмена</button>
-            <button class="sc-btn sc-btn-p" @click="submitAdd" :disabled="addSubmitting">
-              {{ addSubmitting ? "Создание…" : "Создать" }}
-            </button>
-          </div>
-        </div>
-      </div>
-    </Teleport>
+      <template #footer>
+        <button class="sc-btn sc-btn-g" @click="closeAdd" :disabled="addSubmitting">Отмена</button>
+        <button class="sc-btn sc-btn-p" @click="submitAdd" :disabled="addSubmitting">
+          {{ addSubmitting ? "Создание…" : "Создать" }}
+        </button>
+      </template>
+    </ModalShell>
 
     <!-- ─── Delete confirm ─── -->
-    <Teleport to="body">
-      <div v-if="confirmDelete != null" class="sc-modal-bd" @click.self="confirmDelete = null">
-        <div class="sc-modal sc-modal-sm">
-          <h2 class="sc-modal-h">Удалить год {{ confirmDelete }}?</h2>
+    <ModalShell :open="confirmDelete != null" size="sm" :title="'Удалить год ' + (confirmDelete ?? '') + '?'" @close="confirmDelete = null">
           <p class="sc-modal-text">
             Эта операция необратима. Если на этот год есть рейтинги, финансовые
             данные или другие записи — удаление будет отклонено сервером.
             Обычно безопаснее обнулить значения вместо удаления.
           </p>
-          <div class="sc-modal-ftr">
-            <button class="sc-btn sc-btn-g" @click="confirmDelete = null">Отмена</button>
-            <button class="sc-btn sc-btn-d" @click="doDelete">Удалить</button>
-          </div>
-        </div>
-      </div>
-    </Teleport>
+      <template #footer>
+        <button class="sc-btn sc-btn-g" @click="confirmDelete = null">Отмена</button>
+        <button class="sc-btn sc-btn-d" @click="doDelete">Удалить</button>
+      </template>
+    </ModalShell>
   </div>
 </template>
 
