@@ -622,7 +622,8 @@ const tweenedDeferredTasks = useNumberTween(
               </div>
             </div>
             <div class="donut-legend">
-              <div v-for="(s, si) in data.statuses" :key="s.id" class="legend-row"
+              <div v-for="(s, si) in data.statuses.filter(x => (statusEntity === 'projects' ? x.projects_count : x.tasks_count) > 0)"
+                   :key="s.id" class="legend-row"
                    :class="{ 'is-overdue': s.id==='overdue', 'is-active': hoveredStatus && hoveredStatus.id===s.id }"
                    :style="{ '--si': si }"
                    @mouseenter="onLegendEnter(s)" @mouseleave="onLegendLeave()">

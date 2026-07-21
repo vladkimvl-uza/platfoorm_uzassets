@@ -43,6 +43,9 @@ class Direction(Base, UUIDMixin, TimestampMixin):
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     is_custom: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    # Цвет направления (#RRGGBB) — ПЕРСИСТ в БД (раньше жил в in-memory dict и
+    # сбрасывался при рестарте бэкенда). NULL → дефолт из каталога в сервисе.
+    color: Mapped[Optional[str]] = mapped_column(String(9), nullable=True)
 
     companies: Mapped[list["CompanyDirection"]] = relationship(back_populates="direction")
 

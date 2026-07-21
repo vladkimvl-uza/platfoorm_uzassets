@@ -60,7 +60,7 @@ def _serialize(d: Direction) -> dict:
         "name_uz": d.name_uz,
         "name_en": d.name_en,
         "description": d.description,
-        "color": _DIR_COLORS.get(d.code, "#7F77DD"),
+        "color": d.color or _DIR_COLORS.get(d.code, "#7F77DD"),
         "sort_order": d.sort_order,
         "is_custom": d.is_custom,
         "is_canonical": d.code in _CANONICAL_CODES,
@@ -130,12 +130,11 @@ class DirectionsService:
             description=payload.description,
             sort_order=payload.sort_order,
             is_custom=True,
+            color=payload.color,   # ПЕРСИСТ в БД
         )
         repo.add(d)
         await db.commit()
         await repo.refresh(d)
-        if payload.color:
-            _DIR_COLORS[code] = payload.color
         return _serialize(d)
 
     async def update_direction(
@@ -153,11 +152,8 @@ class DirectionsService:
                 http_status.HTTP_404_NOT_FOUND, "Direction not found"
             )
         changes = payload.model_dump(exclude_unset=True)
-        color = changes.pop("color", None)
         for k, v in changes.items():
-            setattr(d, k, v)
-        if color:
-            _DIR_COLORS[d.code] = color
+            setattr(d, k, v)   # включая color → ПЕРСИСТ в БД (переживает рестарт)
         await db.commit()
         await repo.refresh(d)
         return _serialize(d)

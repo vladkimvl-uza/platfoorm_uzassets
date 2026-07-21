@@ -246,6 +246,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_soe_retained_earnings_seed(conn)
             await _patch_company_ownership_entity(conn)
             await _patch_year_registry_gdp(conn)
+            await _patch_direction_color(conn)
             await _bump_alembic(conn)
     except Exception as e:
         # Never crash the app on a self-heal failure - just log and continue.
@@ -1619,6 +1620,26 @@ async def _patch_user_permission_grant(conn) -> None:
         "CREATE INDEX IF NOT EXISTS ix_user_perm_grant_user "
         "ON user_permission_grant (user_id)",
     ))
+
+
+async def _patch_direction_color(conn) -> None:
+    """Персист цвета направления (#RRGGBB) в БД — раньше жил в in-memory dict и
+    сбрасывался при каждом рестарте бэкенда. Бэкфилл каталожными дефолтами по
+    коду только там, где ещё NULL (ручные правки не затираем)."""
+    await conn.execute(text(
+        "ALTER TABLE directions ADD COLUMN IF NOT EXISTS color VARCHAR(9)"
+    ))
+    _defaults = {
+        "strategy": "#1e2787", "finance": "#D97706", "procurement": "#3B6D11",
+        "orgdev": "#534AB7", "digital": "#1D9E75", "operations": "#EF4444",
+        "governance": "#72243E", "esg": "#1D9E75", "pr": "#D4537E",
+        "pmo": "#2563EB", "analytics": "#7C3AED",
+    }
+    for _code, _color in _defaults.items():
+        await conn.execute(
+            text("UPDATE directions SET color = :c WHERE code = :code AND color IS NULL"),
+            {"c": _color, "code": _code},
+        )
 
 
 async def _patch_users_welcome_seen(conn) -> None:
