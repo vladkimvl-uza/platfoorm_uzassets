@@ -17,6 +17,7 @@
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import SidebarBurger from "@/components/SidebarBurger.vue";
+import ModalShell from "@/components/ModalShell.vue";
 import { useSavedFilter } from "@/composables/useSavedFilter";
 import {
   governanceApi,
@@ -922,17 +923,14 @@ onMounted(() => { load(); loadCommittees(); void companiesStore.ensureLoaded(); 
 
         </div>
 
-        <!-- ═══ KPI drill modal (legacy _govKpiDetail) ═══ -->
-        <Transition name="uza-fade">
-          <div v-if="kpiDrill" class="gv-modal-bg" @click.self="kpiDrill = null">
-            <div class="gv-modal-card">
-              <div class="gv-modal-h">
-                <div>
-                  <div class="gv-modal-t">{{ kpiDrillTitle }}</div>
-                  <div class="gv-modal-s">{{ kpiDrillRows.length }} {{ kpiDrillRows.length === 1 ? 'компания' : 'компаний' }}</div>
-                </div>
-                <button class="gv-modal-x" @click="kpiDrill = null">✕</button>
-              </div>
+        <!-- ═══ KPI drill modal — канон ModalShell ═══ -->
+        <ModalShell :open="!!kpiDrill" size="md" @close="kpiDrill = null">
+          <template #header>
+            <div>
+              <div class="gv-modal-t">{{ kpiDrillTitle }}</div>
+              <div class="gv-modal-s">{{ kpiDrillRows.length }} {{ kpiDrillRows.length === 1 ? 'компания' : 'компаний' }}</div>
+            </div>
+          </template>
               <div class="gv-modal-body">
                 <table class="gv-modal-tbl">
                   <tbody>
@@ -954,9 +952,7 @@ onMounted(() => { load(); loadCommittees(); void companiesStore.ensureLoaded(); 
                   </tbody>
                 </table>
               </div>
-            </div>
-          </div>
-        </Transition>
+        </ModalShell>
 
         <!-- Per-company drill modal (existing component) -->
         <GovCompanyDetailModal

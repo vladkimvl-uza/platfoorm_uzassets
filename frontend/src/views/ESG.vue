@@ -19,6 +19,7 @@ import { useSavedFilter } from "@/composables/useSavedFilter";
 import { useToast } from "@/composables/useToast";
 import SidebarBurger from "@/components/SidebarBurger.vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
+import ModalShell from "@/components/ModalShell.vue";
 import {
   esgApi,
   type AgencyRatingCell,
@@ -914,17 +915,14 @@ onMounted(() => { load(); loadMaturity(); loadSwot(); });
 
         </div>
 
-        <!-- KPI drill modal -->
-        <Transition name="uza-fade">
-          <div v-if="kpiDrill" class="ev-modal-bg" @click.self="kpiDrill = null">
-            <div class="ev-modal-card">
-              <div class="ev-modal-h">
-                <div>
-                  <div class="ev-modal-t">{{ kpiDrillTitle }}</div>
-                  <div class="ev-modal-s">{{ kpiDrillRows.length }} {{ kpiDrillRows.length === 1 ? 'запись' : 'записей' }}</div>
-                </div>
-                <button class="ev-modal-x" @click="kpiDrill = null">✕</button>
-              </div>
+        <!-- KPI drill modal — канон ModalShell -->
+        <ModalShell :open="!!kpiDrill" size="md" @close="kpiDrill = null">
+          <template #header>
+            <div>
+              <div class="ev-modal-t">{{ kpiDrillTitle }}</div>
+              <div class="ev-modal-s">{{ kpiDrillRows.length }} {{ kpiDrillRows.length === 1 ? 'запись' : 'записей' }}</div>
+            </div>
+          </template>
               <div class="ev-modal-body">
                 <table class="ev-modal-tbl">
                   <tbody>
@@ -950,9 +948,7 @@ onMounted(() => { load(); loadMaturity(); loadSwot(); });
                   </tbody>
                 </table>
               </div>
-            </div>
-          </div>
-        </Transition>
+        </ModalShell>
 
         <!-- Per-company drill modal (existing) -->
         <ESGCompanyDetailModal

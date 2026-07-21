@@ -24,6 +24,7 @@ const openOverdueModal = inject<(() => void) | null>("openOverdueModal", null);
 import { api } from "@/api/client";
 import { computeProgress } from "@/utils/progress";
 import { useDirectionsStore } from "@/stores/directions";
+import ModalShell from "@/components/ModalShell.vue";
 
 // Единый источник цветов направлений = каталог (стор), чтобы полоски «по
 // направлениям» совпадали с цветами из /admin (Каталоги), а не с легаси-хардкодом.
@@ -1554,17 +1555,8 @@ watch(
       </div>
     </section>
 
-    <!-- ─── Модалка «Вся активность» ─── -->
-    <div
-      v-if="activityModalOpen"
-      class="cox-act-modal-backdrop"
-      @click.self="closeActivityModal"
-    >
-      <div class="cox-act-modal">
-        <header class="cox-act-modal-h">
-          <div class="cox-act-modal-title">Активность · последние 14 дней</div>
-          <button class="cox-act-modal-close" @click="closeActivityModal" aria-label="Закрыть">×</button>
-        </header>
+    <!-- ─── Модалка «Вся активность» — канон ModalShell ─── -->
+    <ModalShell :open="activityModalOpen" size="md" title="Активность · последние 14 дней" @close="closeActivityModal">
         <div class="cox-act-modal-body">
           <ul v-if="activityAll.length > 0" class="cox-act-full-list">
             <li
@@ -1595,8 +1587,7 @@ watch(
           </ul>
           <div v-else class="cox-empty-line">Нет активности</div>
         </div>
-      </div>
-    </div>
+    </ModalShell>
 
     <!-- ============================================================ -->
     <!-- 6-7. Grid 2: KPI · {year} | Бизнес-план · {year} -->
@@ -2943,58 +2934,8 @@ watch(
   box-shadow: 0 1px 2px rgba(15, 23, 60, .06);
 }
 
-.cox-act-modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 18, 40, 0.45);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  animation: coxFadeUp .2s ease-out;
-}
-.cox-act-modal {
-  background: var(--bg1, #fff);
-  border-radius: 14px;
-  width: min(640px, 92vw);
-  max-height: 80dvh;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 24px 64px rgba(15, 23, 60, .18), 0 8px 24px rgba(15, 23, 60, .08);
-  animation: coxFadeUp .25s var(--ease-standard);
-}
-.cox-act-modal-h {
-  padding: 14px 18px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-bottom: 0.5px solid #F1EFE8;
-}
-.cox-act-modal-title {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--t1, #1E2A4A);
-  letter-spacing: -.01em;
-}
-.cox-act-modal-close {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  font-size: 20px;
-  color: var(--t3, var(--t-muted));
-  line-height: 1;
-  padding: 2px 6px;
-  border-radius: 6px;
-  font-family: inherit;
-}
-.cox-act-modal-close:hover { background: var(--bg2, #FAFAFC); color: var(--t1, #1E2A4A); }
-.cox-act-modal-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 8px 14px 14px;
-}
+/* модалка «Вся активность» — chrome теперь у ModalShell; здесь только тело */
+.cox-act-modal-body { display: flex; flex-direction: column; }
 
 .cox-act-full-list {
   list-style: none;
