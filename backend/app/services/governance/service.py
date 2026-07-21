@@ -122,6 +122,25 @@ class GovernanceService:
                 if existing is None or (d.year or 0) > (existing.year or 0):
                     by_co[d.company_id] = d
 
+            # Committee-meeting evidence per company (за год данных компании).
+            # Аудит governance «флаг≠работа»: KPI-плитки комитетов считаем по ФАКТУ
+            # (комитет заявлен флагом И были заседания в этом году), а не по одному
+            # булеву флагу. Headline-балл (legacy 0..1200) и ранги не трогаем.
+            cm_rows = await self.uow.governance.list_committee_meetings(
+                scope_company_ids=scope_company_ids,
+            )
+            cm_by_co: dict[UUID, list] = {}
+            for m in cm_rows:
+                if m.company_id in active_ids:
+                    cm_by_co.setdefault(m.company_id, []).append(m)
+            cm_agg_by_co: dict[UUID, dict] = {}
+            for _cid, _d in by_co.items():
+                _rows = [r for r in cm_by_co.get(_cid, []) if r.year == _d.year]
+                cm_agg_by_co[_cid] = _aggregate_committee_meetings(_rows)
+
+            def _cm_met(cid: UUID, field: str) -> bool:
+                return (cm_agg_by_co.get(cid, {}).get(field) or 0) > 0
+
             # Rankings
             rankings: list[GovernanceCompanyScore] = []
             co_lookup = {co.id: co for co in companies}
@@ -160,12 +179,24 @@ class GovernanceService:
                     avg_foreign_pct=round(sum(fpcts) / len(fpcts), 1) if fpcts else None,
                     avg_attendance_pct=round(sum(attns) / len(attns), 1) if attns else None,
                     avg_meetings_per_year=round(sum(meets) / len(meets), 1) if meets else None,
-                    committees_audit_count=sum(1 for d in by_co.values() if d.has_audit_committee),
+                    # Флаг И есть заседания за год (флаг≠работа): комитет без единого
+                    # заседания больше не засчитывается как действующий.
+                    committees_audit_count=sum(
+                        1 for cid, d in by_co.items()
+                        if d.has_audit_committee and _cm_met(cid, "audit_mtg")),
                     # «Назначения и вознаграждения» — ОДИН комитет (nomination||remuneration);
                     # оба поля отражают его (раньше считали раздельно → колонки NULL → всегда 0).
-                    committees_remuneration_count=sum(1 for d in by_co.values() if (d.has_nomination_committee or d.has_remuneration_committee)),
-                    committees_nomination_count=sum(1 for d in by_co.values() if (d.has_nomination_committee or d.has_remuneration_committee)),
-                    committees_strategy_count=sum(1 for d in by_co.values() if d.has_strategy_committee),
+                    committees_remuneration_count=sum(
+                        1 for cid, d in by_co.items()
+                        if (d.has_nomination_committee or d.has_remuneration_committee)
+                        and _cm_met(cid, "nomrem_mtg")),
+                    committees_nomination_count=sum(
+                        1 for cid, d in by_co.items()
+                        if (d.has_nomination_committee or d.has_remuneration_committee)
+                        and _cm_met(cid, "nomrem_mtg")),
+                    committees_strategy_count=sum(
+                        1 for cid, d in by_co.items()
+                        if d.has_strategy_committee and _cm_met(cid, "strategy_mtg")),
                 )
             else:
                 kpis = GovernanceOverviewKpis(total_companies=len(companies))
