@@ -8,11 +8,14 @@
  * та же методика, что и дашборд /soe-health). Сдержанный дизайн по
  * фидбэку: цвет несут только зоны риска, не «светофорим» всё.
  */
-import { computed, onMounted } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useExecutiveDashboard } from "@/composables/useExecutiveDashboard";
 import { useNumberTween } from "@/composables/useNumberTween";
 import { ensureFinancialsCss } from "@/components/Financials/financialsHelpers";
+import { api } from "@/api/client";
+import SoeHealthDrillModal from "@/components/Financials/SoeHealthDrillModal.vue";
+import type { SoeCompany } from "@/components/Financials/SoeHealthBoard.vue";
 
 const exec = useExecutiveDashboard();
 const router = useRouter();
@@ -44,6 +47,30 @@ const worst = computed(() => block.value?.worst || []);
 const best = computed(() => block.value?.best || []);
 
 const tAvg = useNumberTween(() => Number(block.value?.avg) || 0, { duration: 900 });
+
+// ── Drill: клик по компании → полный премиум-разбор здоровья (SoeHealthDrillModal).
+// Компактный exec-блок не содержит коэффициентов/Z-Score → ленивно тянем полный
+// overview SOE Health и открываем ту же модалку, что и на /soe-health board.
+const ovCache = ref<{ zones: any[]; companies: SoeCompany[]; year: number; standard: string } | null>(null);
+const drillCompany = ref<SoeCompany | null>(null);
+const drillLoadingCode = ref<string | null>(null);
+async function openDrill(c: { code: string }) {
+  drillLoadingCode.value = c.code;
+  try {
+    if (!ovCache.value) {
+      const r = await api.get("/financials/soe-health", {
+        params: { year: block.value?.year, standard: block.value?.standard },
+      });
+      ovCache.value = r.data;
+    }
+    const full = (ovCache.value?.companies || []).find((x) => x.code === c.code);
+    if (full) drillCompany.value = full;
+  } catch { /* тихо — модалка просто не откроется */ }
+  finally { drillLoadingCode.value = null; }
+}
+function onRowKey(e: KeyboardEvent, c: { code: string }) {
+  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openDrill(c); }
+}
 
 function fmtDelta(v: number | null | undefined): string {
   if (v == null || isNaN(v)) return "";
@@ -162,8 +189,11 @@ function openBoard() {
       <div class="ehl-cols">
         <div class="ehl-col">
           <div class="ehl-col-t" style="color:#E24B4A">↓ Тянут вниз</div>
-          <div v-for="(c, i) in worst" :key="c.code" class="ehl-row"
-               :style="{ '--d': (i * 60) + 'ms' }">
+          <div v-for="(c, i) in worst" :key="c.code" class="ehl-row ehl-row-click"
+               :class="{ 'is-loading': drillLoadingCode === c.code }"
+               :style="{ '--d': (i * 60) + 'ms' }"
+               role="button" tabindex="0" :title="'Открыть разбор здоровья: ' + c.name"
+               @click="openDrill(c)" @keydown="onRowKey($event, c)">
             <span class="ehl-dot" :style="{ background: c.zone_color }" />
             <span class="ehl-name" :title="c.name">{{ c.name }}</span>
             <span v-if="c.delta != null" class="ehl-delta" :style="{ color: deltaColor(c.delta) }">
@@ -171,14 +201,21 @@ function openBoard() {
             </span>
             <span class="ehl-score" :style="{ color: c.zone_color, background: c.zone_color + '18' }">
               {{ c.overall.toFixed(1) }}
+            </span>
+            <span class="ehl-row-arr" aria-hidden="true">
+              <svg v-if="drillLoadingCode !== c.code" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+              <span v-else class="ehl-row-spin" />
             </span>
           </div>
           <div v-if="!worst.length" class="ehl-none">нет компаний в зонах риска</div>
         </div>
         <div class="ehl-col">
           <div class="ehl-col-t" style="color:#1D9E75">↑ Опора портфеля</div>
-          <div v-for="(c, i) in best" :key="c.code" class="ehl-row"
-               :style="{ '--d': (i * 60) + 'ms' }">
+          <div v-for="(c, i) in best" :key="c.code" class="ehl-row ehl-row-click"
+               :class="{ 'is-loading': drillLoadingCode === c.code }"
+               :style="{ '--d': (i * 60) + 'ms' }"
+               role="button" tabindex="0" :title="'Открыть разбор здоровья: ' + c.name"
+               @click="openDrill(c)" @keydown="onRowKey($event, c)">
             <span class="ehl-dot" :style="{ background: c.zone_color }" />
             <span class="ehl-name" :title="c.name">{{ c.name }}</span>
             <span v-if="c.delta != null" class="ehl-delta" :style="{ color: deltaColor(c.delta) }">
@@ -187,11 +224,25 @@ function openBoard() {
             <span class="ehl-score" :style="{ color: c.zone_color, background: c.zone_color + '18' }">
               {{ c.overall.toFixed(1) }}
             </span>
+            <span class="ehl-row-arr" aria-hidden="true">
+              <svg v-if="drillLoadingCode !== c.code" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+              <span v-else class="ehl-row-spin" />
+            </span>
           </div>
           <div v-if="!best.length" class="ehl-none">—</div>
         </div>
       </div>
     </template>
+
+    <!-- Премиум-разбор здоровья компании — та же модалка, что на /soe-health -->
+    <SoeHealthDrillModal
+      :open="!!drillCompany"
+      :company="drillCompany"
+      :zones="ovCache?.zones || zones"
+      :year="ovCache?.year ?? block?.year ?? 0"
+      :standard="ovCache?.standard ?? block?.standard ?? ''"
+      @close="drillCompany = null"
+    />
   </section>
 </template>
 
@@ -274,6 +325,23 @@ function openBoard() {
 .ehl-row { display: flex; align-items: center; gap: 8px; padding: 6px 0;
   animation: ehlRowIn .4s var(--ease-standard, ease) var(--d, 0ms) both; }
 @keyframes ehlRowIn { from { opacity: 0; transform: translateX(-4px); } to { opacity: 1; transform: translateX(0); } }
+/* Кликабельная строка компании → drill здоровья (премиум-аффорданс) */
+.ehl-row-click { cursor: pointer; border-radius: 8px; padding: 6px 8px; margin: 0 -8px;
+  transition: background .15s var(--ease-standard, ease), transform .15s var(--ease-standard, ease); }
+.ehl-row-click:hover { background: rgba(127, 119, 221, .08); transform: translateX(2px); }
+.ehl-row-click:active { transform: translateX(2px) scale(.995); }
+.ehl-row-click:focus-visible { outline: 2px solid rgba(124, 111, 247, .5); outline-offset: 1px; }
+.ehl-row-click.is-loading { background: rgba(127, 119, 221, .06); }
+.ehl-row-arr { margin-left: 1px; width: 13px; height: 13px; flex-shrink: 0; display: inline-flex;
+  align-items: center; justify-content: center; color: var(--p, #7C6FF7);
+  opacity: 0; transform: translateX(-3px);
+  transition: opacity .16s, transform .16s; }
+.ehl-row-click:hover .ehl-row-arr,
+.ehl-row-click:focus-visible .ehl-row-arr { opacity: .9; transform: translateX(0); }
+.ehl-row-click.is-loading .ehl-row-arr { opacity: 1; transform: none; }
+.ehl-row-spin { width: 12px; height: 12px; border: 2px solid rgba(124, 111, 247, .25);
+  border-top-color: #7C6FF7; border-radius: 50%; animation: ehlSpin .7s linear infinite; }
+@keyframes ehlSpin { to { transform: rotate(360deg); } }
 .ehl-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 .ehl-name { font-size: 12.5px; font-weight: 500; color: var(--t1, #1E2A4A);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
