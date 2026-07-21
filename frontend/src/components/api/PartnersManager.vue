@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from "vue";
 import BIcon from "@/components/broadcasts/BIcon.vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
+import ModalShell from "@/components/ModalShell.vue";
 import {
   partnersApi, partnerStatusPill, partnerTierColor, PARTNER_KIND_LABELS,
   type IntegrationPartner, type LinkedResource, type PartnerKind,
@@ -305,9 +306,7 @@ const totalResources = computed(() => {
     </div>
 
     <!-- ───── Modal: create ───── -->
-    <div v-if="showCreate" class="pt-modal-bg" @click.self="showCreate = false">
-      <div class="pt-modal" style="max-width: 640px;">
-        <div class="pt-modal-hd">Новый партнёр</div>
+    <ModalShell :open="showCreate" size="lg" title="Новый партнёр" @close="showCreate = false">
         <div class="pt-modal-body">
           <div class="pt-mgrid">
             <div class="pt-field">
@@ -377,18 +376,16 @@ const totalResources = computed(() => {
             <textarea v-model="newPartner.notes" rows="2"></textarea>
           </div>
         </div>
-        <div class="pt-modal-footer">
-          <button class="pt-btn pt-btn-ghost" @click="showCreate = false">Отмена</button>
-          <button class="pt-btn pt-btn-primary" @click="submitCreate">Создать</button>
-        </div>
-      </div>
-    </div>
+      <template #footer>
+        <button class="pt-btn pt-btn-ghost" @click="showCreate = false">Отмена</button>
+        <button class="pt-btn pt-btn-primary" @click="submitCreate">Создать</button>
+      </template>
+    </ModalShell>
 
     <!-- ───── Modal: edit (compact) ───── -->
-    <div v-if="showEdit && selected" class="pt-modal-bg" @click.self="showEdit = false">
-      <div class="pt-modal" style="max-width: 580px;">
-        <div class="pt-modal-hd">Изменить · {{ selected.name }}</div>
-        <div class="pt-modal-body">
+    <ModalShell :open="!!(showEdit && selected)" size="md"
+                :title="selected ? 'Изменить · ' + selected.name : ''" @close="showEdit = false">
+        <div class="pt-modal-body" v-if="selected">
           <div class="pt-field">
             <label>Имя</label>
             <input v-model="editingDraft.name"/>
@@ -429,28 +426,27 @@ const totalResources = computed(() => {
             <textarea v-model="editingDraft.notes" rows="3"></textarea>
           </div>
         </div>
-        <div class="pt-modal-footer">
-          <button class="pt-btn pt-btn-ghost" @click="showEdit = false">Отмена</button>
-          <button class="pt-btn pt-btn-primary" @click="saveEdit">Сохранить</button>
-        </div>
-      </div>
-    </div>
+      <template #footer>
+        <button class="pt-btn pt-btn-ghost" @click="showEdit = false">Отмена</button>
+        <button class="pt-btn pt-btn-primary" @click="saveEdit">Сохранить</button>
+      </template>
+    </ModalShell>
 
     <!-- ───── Modal: delete ───── -->
-    <div v-if="showDelete" class="pt-modal-bg" @click.self="showDelete = null">
-      <div class="pt-modal">
-        <div class="pt-modal-hd" style="color: #A32D2D;">Удалить "{{ showDelete.name }}"?</div>
-        <div class="pt-modal-body">
+    <ModalShell :open="!!showDelete" size="sm" @close="showDelete = null">
+      <template v-if="showDelete" #header>
+        <h2 style="margin:0; font-size:15px; font-weight:500; color:#A32D2D;">Удалить "{{ showDelete.name }}"?</h2>
+      </template>
+      <div class="pt-modal-body" v-if="showDelete">
           <div style="font-size: 11.5px; color: var(--color-text-secondary);">
             Связанные ресурсы (SA, API, webhooks) НЕ удаляются — у них просто отвяжется partner_id.
           </div>
         </div>
-        <div class="pt-modal-footer">
-          <button class="pt-btn pt-btn-ghost" @click="showDelete = null">Отмена</button>
-          <button class="pt-btn pt-btn-danger" @click="confirmDelete">Удалить</button>
-        </div>
-      </div>
-    </div>
+      <template #footer>
+        <button class="pt-btn pt-btn-ghost" @click="showDelete = null">Отмена</button>
+        <button class="pt-btn pt-btn-danger" @click="confirmDelete">Удалить</button>
+      </template>
+    </ModalShell>
 
   </div>
 </template>
