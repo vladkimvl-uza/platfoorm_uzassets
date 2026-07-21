@@ -270,15 +270,17 @@ function doLogout() {
         </a>
       </div>
 
-      <!-- uz-assets.uz link -->
+      <!-- uz-assets.uz — премиум брендовая ссылка -->
       <div class="home-foot-link">
-        <a href="https://uz-assets.uz/uz/" target="_blank" rel="noopener">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <a href="https://uz-assets.uz/" target="_blank" rel="noopener" title="Официальный сайт UzAssets">
+          <span class="home-foot-glow"></span>
+          <svg class="home-foot-globe" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
             <circle cx="12" cy="12" r="10"/>
             <path d="M2 12h20"/>
             <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
           </svg>
-          uz-assets.uz
+          <span class="home-foot-dom">uz-assets.uz</span>
+          <svg class="home-foot-ext" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M7 7h10v10"/></svg>
         </a>
       </div>
     </div>
@@ -761,20 +763,46 @@ function doLogout() {
 
 .home-foot-link {
   text-align: center;
-  padding: 24px 0 8px;
+  padding: 28px 0 12px;
 }
 .home-foot-link a {
-  font-size: 11px;
-  color: var(--t3, #94A3B8);
-  text-decoration: none;
+  position: relative;
+  overflow: hidden;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  transition: color 0.15s;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--p-deep, #534AB7);
+  text-decoration: none;
+  padding: 8px 14px 8px 12px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(139,127,255,.09), rgba(108,92,231,.06));
+  border: 1px solid rgba(124,111,247,.22);
+  box-shadow: 0 1px 2px rgba(83,74,183,.05);
+  transition: transform .18s var(--ease-standard, ease), box-shadow .18s, border-color .18s, background .18s, color .18s;
 }
 .home-foot-link a:hover {
-  color: #7C6FF7;
+  color: #6C5CE7;
+  border-color: rgba(124,111,247,.45);
+  background: linear-gradient(135deg, rgba(139,127,255,.16), rgba(108,92,231,.10));
+  transform: translateY(-1px);
+  box-shadow: 0 8px 22px -8px rgba(108,92,231,.42);
 }
+.home-foot-globe { color: #7C6FF7; flex-shrink: 0; }
+.home-foot-dom { position: relative; z-index: 1; }
+.home-foot-ext { opacity: .5; flex-shrink: 0; transition: transform .18s, opacity .18s; }
+.home-foot-link a:hover .home-foot-ext { opacity: .9; transform: translate(1px,-1px); }
+/* мягкий блик-свип на hover */
+.home-foot-glow {
+  position: absolute; inset: 0;
+  background: linear-gradient(120deg, transparent 32%, rgba(255,255,255,.55) 50%, transparent 68%);
+  transform: translateX(-130%);
+  transition: transform .65s var(--ease-standard, ease);
+  pointer-events: none;
+}
+.home-foot-link a:hover .home-foot-glow { transform: translateX(130%); }
 
 /* Responsive — 1:1 legacy breakpoints */
 @media (max-width: 1024px) {

@@ -118,6 +118,7 @@ const statusFilter = ref<string>("");
 const onlyOverdue = ref(false);
 // «Только отслеживаемые» — фильтр по подпискам текущего юзера
 const onlyWatched = ref(false);
+const onlyCarried = ref(false);   // только перенесённые с прошлого года
 const watchedSet = ref<Set<string>>(new Set());
 function _watchOk(x: { id: string }, type: "project" | "task"): boolean {
   return !onlyWatched.value || watchedSet.value.has(`${type}:${x.id}`);
@@ -567,6 +568,11 @@ function transferBadge(t: any): { text: string; tone: "from" | "to"; year: numbe
   return null;
 }
 
+// «Перенесён С предыдущего года» = входящий линк из прошлого (tone 'from').
+function _isCarriedFrom(t: any): boolean {
+  return transferBadge(t)?.tone === "from";
+}
+
 // ─── Текущий статус (health) — цвет/подпись точки в списке ───
 const _HEALTH: Record<string, { c: string; l: string }> = {
   on_track: { c: "#1D9E75", l: "В графике" },
@@ -682,6 +688,7 @@ function _passes(t: ProjectItem | TaskItem): boolean {
     if (t.status !== statusFilter.value) return false;
   }
   if (onlyOverdue.value && !isOverdue(t)) return false;
+  if (onlyCarried.value && !_isCarriedFrom(t)) return false;
   return true;
 }
 
@@ -737,6 +744,7 @@ const counts = computed(() => {
     c[s] = all.filter((x) => x.status === s).length;
   }
   c["overdue"] = all.filter(isOverdue).length;
+  c["carried"] = all.filter((x) => _isCarriedFrom(x)).length;
   c["all"] = all.length;
   return c;
 });
@@ -801,6 +809,7 @@ function clearFilters() {
   statusFilter.value = "";
   onlyOverdue.value = false;
   onlyWatched.value = false;
+  onlyCarried.value = false;
 }
 </script>
 
@@ -863,6 +872,17 @@ function clearFilters() {
           </button>
           <button
             class="bl-chip bl-chip-status"
+            :class="{ active: onlyCarried }"
+            :style="{ '--chip-color': '#7C6FF7' }"
+            title="Показать только перенесённые с прошлого года"
+            @click="onlyCarried = !onlyCarried"
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:2px"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 5 5v2a5 5 0 0 1-5 5H8"/></svg>
+            Перенесённые
+            <span class="bl-chip-count">{{ counts["carried"] || 0 }}</span>
+          </button>
+          <button
+            class="bl-chip bl-chip-status"
             :class="{ active: onlyWatched }"
             :style="{ '--chip-color': '#7F77DD' }"
             title="Показать только отслеживаемые"
@@ -871,7 +891,7 @@ function clearFilters() {
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:2px"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
             Отслеживаемые
           </button>
-          <button v-if="dirFilter || statusFilter || onlyWatched" class="bl-clear" @click="clearFilters">
+          <button v-if="dirFilter || statusFilter || onlyWatched || onlyCarried" class="bl-clear" @click="clearFilters">
             × Сбросить
           </button>
         </div>

@@ -2986,7 +2986,7 @@ function onEditorClose() {
           <!-- Премиум-ссылка на сайт компании -->
           <a v-if="companyWebsite" :href="companyWebsite" target="_blank" rel="noopener noreferrer"
              class="cw-site-link" :title="'Открыть сайт: ' + companyWebsite">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+            <svg class="cw-site-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
             <span class="cw-site-host">{{ websiteHost }}</span>
             <svg class="cw-site-ext" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M7 7h10v10"/></svg>
           </a>
@@ -4805,27 +4805,34 @@ function onEditorClose() {
 }
 
 /* Премиум-ссылка на сайт компании */
+/* Ссылка на сайт компании — премиум frosted-glass чип на ТЁМНОМ топбаре
+   (светлый текст + мягкий брендовый акцент глобуса), хорошо читается. */
 .cw-site-link {
   display: inline-flex; align-items: center; gap: 6px;
-  height: 24px; padding: 0 10px;
+  height: 26px; padding: 0 11px 0 9px;
   border-radius: 999px;
-  background: linear-gradient(135deg, rgba(110,97,232,.10), rgba(83,74,183,.10));
-  border: 1px solid rgba(110,97,232,.22);
-  color: var(--p-deep, #534AB7);
-  font-size: 11px; font-weight: 600; text-decoration: none;
+  background: rgba(255,255,255,.09);
+  border: 1px solid rgba(255,255,255,.16);
+  color: rgba(255,255,255,.92);
+  font-size: 11.5px; font-weight: 600; text-decoration: none;
   max-width: 220px; white-space: nowrap;
-  transition: background .16s, border-color .16s, transform .16s, box-shadow .16s;
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
+  transition: background .16s, border-color .16s, transform .16s, box-shadow .16s, color .16s;
 }
 .cw-site-link:hover {
-  background: linear-gradient(135deg, rgba(110,97,232,.18), rgba(83,74,183,.16));
-  border-color: rgba(110,97,232,.45);
+  background: rgba(255,255,255,.16);
+  border-color: rgba(179,168,255,.55);
+  color: #fff;
   transform: translateY(-1px);
-  box-shadow: 0 6px 16px -8px rgba(83,74,183,.5);
+  box-shadow: 0 8px 20px -8px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.14);
 }
 .cw-site-link svg { width: 13px; height: 13px; flex-shrink: 0; }
-.cw-site-host { overflow: hidden; text-overflow: ellipsis; }
-.cw-site-ext { opacity: .55; width: 11px !important; height: 11px !important; }
-.cw-site-link:hover .cw-site-ext { opacity: .9; }
+.cw-site-globe { color: #B3A8FF; }   /* мягкий брендовый акцент — заметно, не кричит */
+.cw-site-link:hover .cw-site-globe { color: #CFC7FF; }
+.cw-site-host { overflow: hidden; text-overflow: ellipsis; letter-spacing: .01em; }
+.cw-site-ext { opacity: .6; width: 11px !important; height: 11px !important; transition: transform .16s, opacity .16s; }
+.cw-site-link:hover .cw-site-ext { opacity: .95; transform: translate(1px,-1px); }
 
 /* Refresh spin animation */
 @keyframes cwSpin { to { transform: rotate(360deg); } }
