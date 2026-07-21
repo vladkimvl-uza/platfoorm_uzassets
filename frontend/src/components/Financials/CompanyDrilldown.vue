@@ -22,14 +22,19 @@ import { usePermissions } from "@/composables/usePermissions";
 import { useAuthStore } from "@/stores/auth";
 import type { CompanyListItem, SectorBrief } from "@/api/companies";
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   companyCode: string;
   companies: CompanyListItem[];
   sectors: SectorBrief[];
   standard: "IFRS" | "NSBU";
   year: number;
   currency: string;
-}>();
+  // embedded: встроен во вкладку воркспейса (без модального chrome; стандарт и
+  // год задаёт воркспейс — вкладка ifrs/nsbu + степпер года, поэтому свои
+  // селекторы стандарта/года в шапке скрываем).
+  variant?: "modal" | "embedded";
+}>(), { variant: "modal" });
+const isEmbedded = computed(() => props.variant === "embedded");
 
 const emit = defineEmits<{ (e: "close"): void; }>();
 
@@ -689,7 +694,7 @@ function close() {
 </script>
 
 <template>
-  <EntityDrillShell :accent="statusBorder" :max-width="980" stripe="left" align="start" @close="close">
+  <EntityDrillShell :accent="statusBorder" :max-width="980" stripe="left" align="start" :embedded="isEmbedded" @close="close">
 
       <!-- Header -->
       <div class="cdrl-hdr">
@@ -723,7 +728,9 @@ function close() {
                     @click="startEditInn">{{ inn || "—" }}</button>
           </div>
         </div>
-        <div class="cdrl-hdr-right">
+        <!-- В embedded стандарт задаёт вкладка (ifrs/nsbu), год — степпер воркспейса,
+             поэтому свои селекторы прячем; в модалке — как было. -->
+        <div v-if="!isEmbedded" class="cdrl-hdr-right">
           <div class="cdrl-seg" role="group" aria-label="Стандарт">
             <button type="button" :class="{ on: localStandard === 'IFRS' }" @click="localStandard = 'IFRS'">МСФО</button>
             <button type="button" :class="{ on: localStandard === 'NSBU' }" @click="localStandard = 'NSBU'">НСБУ</button>
@@ -731,6 +738,12 @@ function close() {
           <select v-model.number="localYear" class="cdrl-sel" title="Финансовый год">
             <option v-for="y in yearOptions" :key="y" :value="y">FY {{ y }}</option>
           </select>
+          <span class="cdrl-pill-static">{{ currency }}</span>
+          <span v-if="localStandard === 'IFRS'" class="cdrl-pill-static">Cons</span>
+        </div>
+        <!-- embedded: компактный статус-бейдж стандарта/года (read-only, из вкладки) -->
+        <div v-else class="cdrl-hdr-right">
+          <span class="cdrl-pill-static">FY {{ localYear }}</span>
           <span class="cdrl-pill-static">{{ currency }}</span>
           <span v-if="localStandard === 'IFRS'" class="cdrl-pill-static">Cons</span>
         </div>

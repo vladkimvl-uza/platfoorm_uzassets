@@ -74,6 +74,7 @@ import CompanyBoardList from "@/components/CompanyBoardList.vue";
 import CompanyTabBar from "@/components/Company/CompanyTabBar.vue";
 import HighLevelFinancials from "@/components/Financials/HighLevelFinancials.vue";
 import FinReportUpload from "@/components/Financials/FinReportUpload.vue";
+import CompanyDrilldown from "@/components/Financials/CompanyDrilldown.vue";
 import GovernanceEditor from "@/components/Governance/GovernanceEditor.vue";
 import BoardMemberProfileModal from "@/components/Governance/BoardMemberProfileModal.vue";
 import BoardMemberHoverCard, { type HoverAnchor } from "@/components/Governance/BoardMemberHoverCard.vue";
@@ -918,6 +919,23 @@ async function onUnitCostSaved(): Promise<void> {
   await loadUnitCost();       // рефетч (синк с /unit-cost — общий бэкенд)
 }
 watch(ucQuarter, () => { if (activeTab.value === "unitcost") loadUnitCost(); });
+
+// ── Финансы (ifrs/nsbu): встроенный разбор компании как в /financials ──
+// CompanyDrilldown ищет компанию в массиве по коду и берёт сектор из sectors;
+// отдаём срез из одной компании воркспейса (код форсим к каноничному lower).
+const finDrillCompanies = computed(() => {
+  if (!company.value) return [];
+  const s: any = sector.value;
+  return [{
+    ...company.value,
+    code: code.value,
+    // подстраховка сектора (акцент/лейбл в drill), если getOne их не отдал
+    sector_code: company.value.sector_code ?? s?.code,
+    sector_color: company.value.sector_color ?? s?.color_hex,
+    sector_name: company.value.sector_name ?? s?.name_ru,
+  }];
+});
+const finDrillSectors = computed(() => (sector.value ? [sector.value] : []));
 
 async function loadConsultantsPerCompany() {
   if (!company.value) return;
@@ -4422,154 +4440,31 @@ function onEditorClose() {
 
         <!-- ═══ FINANCIALS TAB (МСФО + НСБУ — shared logic via financialsStandard) ═══ -->
         <div v-else-if="activeTab === 'ifrs' || activeTab === 'nsbu'" :key="activeTab" class="cw-fin-scroll">
-          <UzaStateBlock v-if="finLoading" state="loading" :text="`Загрузка отчётности по ${finStandardLabel}…`" />
+          <!-- Полный разбор компании как в /financials (KPI + ОФР/ОПД/Баланс/ДДС,
+               редактирование по годам), но только данные этой компании. Общий
+               компонент CompanyDrilldown с /financials → синхронно. Стандарт
+               задаёт вкладка (ifrs→МСФО / nsbu→НСБУ), год — степпер воркспейса. -->
+          <CompanyDrilldown
+            v-if="company"
+            variant="embedded"
+            :company-code="code"
+            :companies="finDrillCompanies"
+            :sectors="finDrillSectors"
+            :standard="activeTab === 'ifrs' ? 'IFRS' : 'NSBU'"
+            :year="year"
+            currency="UZS"
+          />
 
-          <UzaStateBlock v-else-if="finError" state="error" variant="block" title="Ошибка загрузки" :text="finError" retry @retry="loadFinReports" />
-
-          <UzaStateBlock v-else-if="finReports.length === 0" state="empty" variant="block" :title="`Отчётность по ${finStandardLabel} не загружена`" :text="`Для ${company.name_short || company.name_ru} нет ни одного отчёта по ${finStandardLabel} (ни за один год).`">
-            <template #actions>
-              <RouterLink to="/financials" class="cw-cta-btn">
-                Открыть редактор отчётности →
-              </RouterLink>
-            </template>
-          </UzaStateBlock>
-
-          <template v-else>
-            <!-- Год-fallback: данных за выбранный FY нет → показан ближайший -->
-            <div v-if="finShownYear && finShownYear !== year" class="cw-fin-year-notice">
-              За <b>{{ year }}</b> год отчётности по {{ finStandardLabel }} нет —
-              показаны данные за <b>{{ finShownYear }}</b> (последний доступный).
-            </div>
-
-            <!-- Sprint A · Sticky KPI-strip (Revenue / EBITDA / NP / ROE / ROA / D-E / ER) -->
-            <section v-if="finKpis.length > 0" class="cw-fin-kpi-strip">
-              <div
-                v-for="k in finKpis"
-                :key="k.key"
-                class="cw-fin-kpi-tile"
-                :class="`cw-fin-kpi-${k.tone}`"
-              >
-                <div class="cw-fin-kpi-label">{{ k.label }}</div>
-                <div class="cw-fin-kpi-value">
-                  {{ fmtFinKpi(k.value, k.unit) }}
-                  <span v-if="k.unit !== '%' && k.unit !== 'x'" class="cw-fin-kpi-unit">{{ k.unit }}</span>
-                </div>
-                <div v-if="k.hint" class="cw-fin-kpi-hint">{{ k.hint }}</div>
-              </div>
-            </section>
-
-            <!-- Report type switcher (BS / PL / CF) -->
-            <div class="cw-fin-type-bar">
-              <div class="cw-fin-type-label">Отчёт:</div>
-              <button
-                v-for="t in finAvailableTypes"
-                :key="t.type"
-                class="cw-fin-type-btn"
-                :class="{
-                  active: finReportType === t.type,
-                  disabled: !t.available,
-                }"
-                :disabled="!t.available"
-                @click="t.available && selectFinReportType(t.type)"
-              >
-                {{ t.label }}
-                <span v-if="!t.available" class="cw-fin-type-na">нет данных</span>
-              </button>
-            </div>
-
-            <!-- Ручная загрузка исходных файлов отчётности (Excel/PDF/…) -->
-            <FinReportUpload
-              v-if="company?.id"
-              class="cw-fin-upload"
-              :company-id="company.id"
-              :category="activeTab + '_report'"
-              :year="year"
-              :can-edit="companiesPerm.canEdit.value"
-              :title="'Загруженные отчёты ' + finStandardLabel"
-            />
-
-            <!-- Loading full report -->
-            <UzaStateBlock v-if="finFullLoading" state="loading" text="Загрузка строк отчёта…" />
-
-            <!-- Full report -->
-            <template v-else-if="finFullReport">
-              <!-- Metadata strip -->
-              <div class="cw-fin-meta">
-                <div class="cw-fin-meta-item">
-                  <div class="cw-fin-meta-label">Стандарт</div>
-                  <div class="cw-fin-meta-value">{{ finStandardLabel }}</div>
-                </div>
-                <div class="cw-fin-meta-divider"></div>
-                <div class="cw-fin-meta-item">
-                  <div class="cw-fin-meta-label">Период</div>
-                  <div class="cw-fin-meta-value">
-                    {{ finFullReport.year }}{{ finFullReport.quarter ? ` · Q${finFullReport.quarter}` : "" }}
-                  </div>
-                </div>
-                <div class="cw-fin-meta-divider"></div>
-                <div class="cw-fin-meta-item">
-                  <div class="cw-fin-meta-label">Валюта</div>
-                  <div class="cw-fin-meta-value">{{ finFullReport.currency }}</div>
-                </div>
-                <div class="cw-fin-meta-divider"></div>
-                <div class="cw-fin-meta-item">
-                  <div class="cw-fin-meta-label">Ед. изм.</div>
-                  <div class="cw-fin-meta-value">{{ getUnitScaleLabel(finFullReport.unit_scale) }}</div>
-                </div>
-                <div class="cw-fin-meta-divider"></div>
-                <div class="cw-fin-meta-item">
-                  <div class="cw-fin-meta-label">Источник</div>
-                  <div class="cw-fin-meta-value cw-fin-meta-source" :title="finFullReport.source">
-                    {{ fmtSourceLabel(finFullReport.source) }}
-                  </div>
-                </div>
-                <div class="cw-fin-meta-divider"></div>
-                <div class="cw-fin-meta-item">
-                  <div class="cw-fin-meta-label">Обновлено</div>
-                  <div class="cw-fin-meta-value">{{ fmtFinUpdated(finFullReport.updated_at) }}</div>
-                </div>
-                <div v-if="finFullReport.is_audited" class="cw-fin-audited-badge">
-                  <span><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><polyline points="20 6 9 17 4 12"/></svg></span> Аудитировано
-                </div>
-              </div>
-
-              <!-- Lines table -->
-              <div v-if="finLinesView.length > 0" class="cw-fin-table">
-                <div class="cw-fin-table-header">
-                  <div class="cw-fin-th cw-fin-th-name">Строка</div>
-                  <div class="cw-fin-th cw-fin-th-value">
-                    Значение, {{ getUnitScaleLabel(finFullReport.unit_scale) }} {{ finFullReport.currency }}
-                  </div>
-                </div>
-                <div
-                  v-for="line in finLinesView"
-                  :key="line.line_code"
-                  class="cw-fin-row"
-                  :class="{
-                    'cw-fin-row-subtotal': line.is_subtotal,
-                    'cw-fin-row-calculated': line.is_calculated,
-                    'cw-fin-row-zero': line.valueNum === 0 && !line.is_subtotal,
-                  }"
-                  :style="`--depth: ${line.depth}`"
-                >
-                  <div class="cw-fin-cell-name">
-                    <span v-if="line.line_code" class="cw-fin-code">{{ line.line_code }}</span>
-                    <span class="cw-fin-name">{{ line.line_name }}</span>
-                    <span v-if="line.is_calculated" class="cw-fin-calc-mark" title="Вычисляется">∑</span>
-                  </div>
-                  <div class="cw-fin-cell-value" :class="{ 'cw-fin-value-negative': line.valueNum < 0 }">
-                    {{ fmtFinValue(line.valueNum, finFullReport.unit_scale) }}
-                  </div>
-                </div>
-              </div>
-
-              <!-- Notes -->
-              <div v-if="finFullReport.notes" class="cw-fin-section">
-                <div class="cw-section-label">Примечания</div>
-                <p class="cw-fin-notes">{{ finFullReport.notes }}</p>
-              </div>
-            </template>
-          </template>
+          <!-- Исходные файлы отчётности (Excel/PDF) — доп. к разбору -->
+          <FinReportUpload
+            v-if="company?.id"
+            class="cw-fin-upload"
+            :company-id="company.id"
+            :category="activeTab + '_report'"
+            :year="year"
+            :can-edit="companiesPerm.canEdit.value"
+            :title="'Загруженные исходные отчёты ' + finStandardLabel"
+          />
         </div>
 
         <!-- ═══ HLF TAB — Финансовая отчётность по компаниям (Pack 7.66) ═══ -->

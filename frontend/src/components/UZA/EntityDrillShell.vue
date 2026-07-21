@@ -23,8 +23,11 @@ const props = withDefaults(
     maxWidth?: number;        // макс. ширина карточки, px
     stripe?: "top" | "left";  // позиция акцент-полосы
     align?: "center" | "start"; // вертикальное выравнивание карточки
+    // embedded: тот же контент, но в потоке страницы (без оверлея/телепорта/
+    // крестика/скролл-лока) — чтобы drill встраивался во вкладку воркспейса 1:1.
+    embedded?: boolean;
   }>(),
-  { accent: "#7F77DD", maxWidth: 820, stripe: "top", align: "center" },
+  { accent: "#7F77DD", maxWidth: 820, stripe: "top", align: "center", embedded: false },
 );
 
 const emit = defineEmits<{ close: [] }>();
@@ -42,18 +45,26 @@ function onKey(e: KeyboardEvent) {
 
 let prevOverflow = "";
 onMounted(() => {
+  if (props.embedded) return;   // встроенный режим — без блокировки скролла/Esc
   prevOverflow = document.body.style.overflow;
   document.body.style.overflow = "hidden";
   window.addEventListener("keydown", onKey);
 });
 onBeforeUnmount(() => {
+  if (props.embedded) return;
   document.body.style.overflow = prevOverflow;
   window.removeEventListener("keydown", onKey);
 });
 </script>
 
 <template>
-  <Teleport to="body">
+  <!-- Встроенный режим: тело в потоке страницы, без модального chrome -->
+  <div v-if="embedded" class="eds-embed" :style="{ '--sc': accent }">
+    <slot />
+  </div>
+
+  <!-- Модальный режим (по умолчанию) -->
+  <Teleport v-else to="body">
     <Transition name="eds-fade">
       <div class="eds-bd" :class="`eds-al-${align}`" @click="onBackdrop" role="dialog" aria-modal="true">
         <div
@@ -87,6 +98,16 @@ onBeforeUnmount(() => {
 }
 .eds-al-center { align-items: center; }
 .eds-al-start  { align-items: flex-start; }
+
+/* Встроенный режим — карточка в потоке страницы (тень мягче, без анимации входа) */
+.eds-embed {
+  position: relative;
+  background: var(--bg1, #fff);
+  border-radius: 16px;
+  border: 0.5px solid var(--uza-border, #ECEAF5);
+  box-shadow: 0 2px 10px rgba(15, 23, 60, 0.05);
+  overflow: hidden;
+}
 
 .eds-card {
   position: relative;
