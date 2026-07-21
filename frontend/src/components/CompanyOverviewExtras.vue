@@ -18,6 +18,7 @@
 import { ref, computed, reactive, watch, onMounted, onBeforeUnmount, inject } from "vue";
 import { useRouter } from "vue-router";
 import { useFormatters } from "@/composables/useFormatters";
+import { useCurrencyConverter } from "@/composables/useCurrencyConverter";
 
 // Injected from CompanyWorkspace — opens the overdue drill modal on click
 const openOverdueModal = inject<(() => void) | null>("openOverdueModal", null);
@@ -34,6 +35,11 @@ function _dirColor(id: string, fallback: string): string {
 }
 
 const fmt = useFormatters();
+// Курс USD — из живого источника (year_registry / admin), не хардкод: иначе
+// экономический эффект здесь конвертировался по своим цифрам, расходясь со
+// всеми модулями на useCurrencyConverter. getUsdRate сам покрывает пропуски
+// года (ближайший ранний) и дефолт-фолбэк (канон ЦБУ).
+const converter = useCurrencyConverter();
 
 // DIRS catalog 1:1 with легаси (frontend/legacy/index.html line 6753)
 const DIRS: { id: string; label: string; color: string }[] = [
@@ -363,18 +369,10 @@ function fmtBp(v: number | null | undefined): string {
 // ============================================================
 // LOADERS
 // ============================================================
-// USD rate -- упрощённо хардкод для 2025-2026 (в легасие _eeGetUsdRate(year))
-// TODO: брать из year_registry endpoint когда будет
-const USD_RATES: Record<number, number> = {
-  2024: 12700,
-  2025: 12750,
-  2026: 13000,
-  2027: 13200,
-};
 const _SANITY_CAP_PER_TASK = 100e12; // 100 трлн UZS
 
 function _getUsdRate(year: number): number {
-  return USD_RATES[year] || 12800;
+  return converter.getUsdRate(year);   // живой курс (year_registry) вместо хардкода
 }
 
 // Точная копия _eeExtractEffect из легасиа

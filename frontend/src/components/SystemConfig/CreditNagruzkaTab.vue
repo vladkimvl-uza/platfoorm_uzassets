@@ -302,7 +302,7 @@
           <tbody>
             <tr v-for="r in ratios" :key="r.company_id">
               <td>{{ r.company_name }}</td>
-              <td class="r"><b>{{Number(r.debt_to_ebitda || 0).toFixed(2) }}×</b></td>
+              <td class="r"><b>{{ r.debt_to_ebitda != null ? Number(r.debt_to_ebitda).toFixed(2) + '×' : '—' }}</b></td>
               <td><span class="cnt-tag" :class="`cnt-tag-${r.risk_zone}`">{{ r.risk_zone }}</span></td>
             </tr>
           </tbody>
