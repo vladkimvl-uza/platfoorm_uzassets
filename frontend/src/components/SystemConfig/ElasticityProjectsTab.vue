@@ -312,10 +312,7 @@
     </template>
 
     <!-- ═══════════ MODAL: Add Coefficient ═══════════ -->
-    <Teleport to="body">
-      <div v-if="modalCoef" class="ep-modal-bg" @click.self="modalCoef=false">
-        <div class="ep-modal">
-          <h3>Новый коэффициент</h3>
+    <ModalShell :open="modalCoef" size="md" title="Новый коэффициент" @close="modalCoef=false">
           <div class="ep-modal-grid">
             <label class="ep-field">
               <span class="ep-field-l">Макрофактор *</span>
@@ -359,19 +356,14 @@
               <input type="text" v-model="newCoef.notes" class="ep-input" />
             </label>
           </div>
-          <div class="ep-modal-foot">
-            <button class="ep-btn" @click="modalCoef=false">Отмена</button>
-            <button class="ep-btn ep-btn-p" @click="saveNewCoef" :disabled="!newCoef.macro_factor || !newCoef.target_metric">Сохранить</button>
-          </div>
-        </div>
-      </div>
-    </Teleport>
+      <template #footer>
+        <button class="ep-btn" @click="modalCoef=false">Отмена</button>
+        <button class="ep-btn ep-btn-p" @click="saveNewCoef" :disabled="!newCoef.macro_factor || !newCoef.target_metric">Сохранить</button>
+      </template>
+    </ModalShell>
 
     <!-- ═══════════ MODAL: Add Project Effect ═══════════ -->
-    <Teleport to="body">
-      <div v-if="modalEffect" class="ep-modal-bg" @click.self="modalEffect=false">
-        <div class="ep-modal">
-          <h3>Новый эффект проекта</h3>
+    <ModalShell :open="modalEffect" size="md" title="Новый эффект проекта" @close="modalEffect=false">
           <div class="ep-modal-grid">
             <label class="ep-field ep-field-wide">
               <span class="ep-field-l">Проект *</span>
@@ -421,19 +413,18 @@
               <input type="text" v-model="newEffect.notes" class="ep-input" />
             </label>
           </div>
-          <div class="ep-modal-foot">
-            <button class="ep-btn" @click="modalEffect=false">Отмена</button>
-            <button class="ep-btn ep-btn-p" @click="saveNewEffect" :disabled="!newEffect.project_id || !newEffect.target_metric">Сохранить</button>
-          </div>
-        </div>
-      </div>
-    </Teleport>
+      <template #footer>
+        <button class="ep-btn" @click="modalEffect=false">Отмена</button>
+        <button class="ep-btn ep-btn-p" @click="saveNewEffect" :disabled="!newEffect.project_id || !newEffect.target_metric">Сохранить</button>
+      </template>
+    </ModalShell>
 
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, reactive, watch } from "vue"
+import ModalShell from "@/components/ModalShell.vue"
 import * as api from "@/api/elasticity"
 import { getAuthHeaders } from "@/api/_base"
 import { useConfirm } from "@/composables/useConfirm"
