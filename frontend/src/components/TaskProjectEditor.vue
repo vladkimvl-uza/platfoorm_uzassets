@@ -320,16 +320,12 @@ const computedProgress = computed(() => {
   if (props.kind === "project") {
     return Math.round(Number((props.entity as any)?.progress_percent) || 0);
   }
-  // Задача: «Завершено» = 100%, остальные статусы в счёт не идут (0%).
-  if (formStatus.value === "done") return 100;
-  if (formStatus.value === "quarterly") {
-    // Self-progress кварталов: все 4 закрыты = 100%.
-    const q = formQuarters.value;
-    let n = 0;
-    if (q.q1) n++; if (q.q2) n++; if (q.q3) n++; if (q.q4) n++;
-    return n * 25;
-  }
-  return 0;
+  // Задача: прогресс ПО СТАТУСУ (канон 0/25/50/75/100 — new/init/active/review/
+  // done), quarterly — по числу закрытых кварталов, monthly/ongoing исключены
+  // (0% в баре). Единый источник — utils/progress (тот же taskPct, что и statusPct
+  // и агрегаты проектов), иначе бар расходился со статусом (active показывал 0%).
+  const p = taskPct({ status: formStatus.value, quarters: formQuarters.value as any });
+  return p === null ? 0 : p;
 });
 
 const accessBannerText = computed(() => {
