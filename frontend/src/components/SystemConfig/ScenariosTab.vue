@@ -26,6 +26,7 @@ import { computed, onMounted, ref } from "vue";
 import { useScenarios } from "@/composables/useScenarios";
 import { useIsAdmin } from "@/composables/useIsAdmin";
 import { parseDecimal } from "@/utils/parseDecimal";
+import ModalShell from "@/components/ModalShell.vue";
 import type { ScenarioOverride } from "@/api/scenarios";
 import InfoTooltip from "./InfoTooltip.vue";
 
@@ -662,13 +663,7 @@ function getOverride(id: string, year: number): ScenarioOverride | null {
     </template>
 
     <!-- ─── Add scenario modal ─── -->
-    <Teleport to="body">
-      <div v-if="addOpen" class="st-modal-bd" @click.self="closeAdd">
-        <div class="st-modal">
-          <button class="st-modal-x" @click="closeAdd" aria-label="Закрыть">
-            <svg viewBox="0 0 14 14" class="st-svg" width="13" height="13"><path d="M3.5 3.5l7 7M10.5 3.5l-7 7"/></svg>
-          </button>
-          <h2 class="st-modal-h">Создать кастомный сценарий</h2>
+    <ModalShell :open="addOpen" size="md" title="Создать кастомный сценарий" @close="closeAdd">
           <div class="st-form">
             <label class="st-fld">
               <span class="st-fld-l">
@@ -712,33 +707,26 @@ function getOverride(id: string, year: number): ScenarioOverride | null {
             </label>
             <div v-if="addError" class="st-alert st-alert-bad">{{ addError }}</div>
           </div>
-          <div class="st-modal-ftr">
-            <button class="st-btn st-btn-g" @click="closeAdd" :disabled="addSubmitting">Отмена</button>
-            <button class="st-btn st-btn-p" @click="submitAdd" :disabled="addSubmitting">
-              {{ addSubmitting ? "Создание…" : "Создать" }}
-            </button>
-          </div>
-        </div>
-      </div>
-    </Teleport>
+      <template #footer>
+        <button class="st-btn st-btn-g" @click="closeAdd" :disabled="addSubmitting">Отмена</button>
+        <button class="st-btn st-btn-p" @click="submitAdd" :disabled="addSubmitting">
+          {{ addSubmitting ? "Создание…" : "Создать" }}
+        </button>
+      </template>
+    </ModalShell>
 
     <!-- ─── Delete confirm ─── -->
-    <Teleport to="body">
-      <div v-if="confirmDeleteId" class="st-modal-bd" @click.self="confirmDeleteId = null">
-        <div class="st-modal st-modal-sm">
-          <h2 class="st-modal-h">Удалить сценарий?</h2>
+    <ModalShell :open="!!confirmDeleteId" size="sm" title="Удалить сценарий?" @close="confirmDeleteId = null">
           <p class="st-modal-text">
             Все отклонения (override'ы) этого сценария будут удалены безвозвратно.
             Если на сценарий ссылаются какие-то отчёты — удаление будет отклонено.
             Обычно безопаснее очистить override'ы а сам сценарий оставить.
           </p>
-          <div class="st-modal-ftr">
-            <button class="st-btn st-btn-g" @click="confirmDeleteId = null">Отмена</button>
-            <button class="st-btn st-btn-d" @click="doDelete">Удалить</button>
-          </div>
-        </div>
-      </div>
-    </Teleport>
+      <template #footer>
+        <button class="st-btn st-btn-g" @click="confirmDeleteId = null">Отмена</button>
+        <button class="st-btn st-btn-d" @click="doDelete">Удалить</button>
+      </template>
+    </ModalShell>
   </div>
 </template>
 
