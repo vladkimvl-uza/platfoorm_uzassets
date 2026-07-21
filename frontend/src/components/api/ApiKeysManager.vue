@@ -2,6 +2,7 @@
 import { onMounted, ref } from "vue";
 import BIcon from "@/components/broadcasts/BIcon.vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
+import ModalShell from "@/components/ModalShell.vue";
 import { useConfirm } from "@/composables/useConfirm";
 import {
   apiCatalogApi, apiKeysApi,
@@ -286,9 +287,7 @@ function fmtRel(iso: string | null): string {
     </div>
 
     <!-- ───── Modal: create SA ───── -->
-    <div v-if="showSaCreate" class="km-modal-bg" @click.self="showSaCreate = false">
-      <div class="km-modal">
-        <div class="km-modal-hd">Новый service account</div>
+    <ModalShell :open="showSaCreate" size="md" title="Новый service account" @close="showSaCreate = false">
         <div class="km-modal-body">
           <div class="km-field">
             <label>Email (идентификатор)</label>
@@ -303,17 +302,16 @@ function fmtRel(iso: string | null): string {
             <textarea v-model="newSa.description" rows="2" placeholder="Контактное лицо, контракт, цель интеграции"></textarea>
           </div>
         </div>
-        <div class="km-modal-footer">
-          <button class="km-btn km-btn-ghost" @click="showSaCreate = false">Отмена</button>
-          <button class="km-btn km-btn-primary" @click="createServiceAccount">Создать</button>
-        </div>
-      </div>
-    </div>
+      <template #footer>
+        <button class="km-btn km-btn-ghost" @click="showSaCreate = false">Отмена</button>
+        <button class="km-btn km-btn-primary" @click="createServiceAccount">Создать</button>
+      </template>
+    </ModalShell>
 
     <!-- ───── Modal: create key ───── -->
-    <div v-if="showKeyCreate" class="km-modal-bg" @click.self="showKeyCreate = false">
-      <div class="km-modal" style="max-width: 640px;">
-        <div class="km-modal-hd">Выпуск API ключа для {{ selectedSa?.full_name || selectedSa?.email }}</div>
+    <ModalShell :open="showKeyCreate" size="lg"
+                :title="'Выпуск API ключа для ' + (selectedSa?.full_name || selectedSa?.email || '')"
+                @close="showKeyCreate = false">
         <div class="km-modal-body">
           <div class="km-field-grid">
             <div class="km-field">
@@ -361,22 +359,20 @@ function fmtRel(iso: string | null): string {
             </div>
           </div>
         </div>
-        <div class="km-modal-footer">
-          <button class="km-btn km-btn-ghost" @click="showKeyCreate = false">Отмена</button>
-          <button class="km-btn km-btn-primary" @click="submitKeyCreate">
-            <BIcon name="key" :size="14" /> Выпустить
-          </button>
-        </div>
-      </div>
-    </div>
+      <template #footer>
+        <button class="km-btn km-btn-ghost" @click="showKeyCreate = false">Отмена</button>
+        <button class="km-btn km-btn-primary" @click="submitKeyCreate">
+          <BIcon name="key" :size="14" /> Выпустить
+        </button>
+      </template>
+    </ModalShell>
 
-    <!-- ───── Modal: plaintext token display ───── -->
-    <div v-if="plaintextDisplay" class="km-modal-bg">
-      <div class="km-modal" style="max-width: 580px;">
-        <div class="km-modal-hd" style="background: linear-gradient(90deg, rgba(29,158,117,.1), transparent); color: #0F6E56;">
-          <BIcon name="check" :size="14" /> Ключ выпущен — сохраните токен СЕЙЧАС
-        </div>
-        <div class="km-modal-body">
+    <!-- ───── Modal: plaintext token display (без закрытия по фону) ───── -->
+    <ModalShell :open="!!plaintextDisplay" size="md" :close-on-overlay="false" @close="plaintextDisplay = null">
+      <template v-if="plaintextDisplay" #header>
+        <h2 style="margin:0; font-size:15px; font-weight:500; color:#0F6E56; display:flex; align-items:center; gap:6px;"><BIcon name="check" :size="14" /> Ключ выпущен — сохраните токен СЕЙЧАС</h2>
+      </template>
+      <div class="km-modal-body" v-if="plaintextDisplay">
           <div class="km-amber-banner">
             <b>Полный токен показывается ОДИН раз.</b> После закрытия окна его восстановить нельзя — только выпустить новый.
           </div>
@@ -392,17 +388,17 @@ function fmtRel(iso: string | null): string {
             Env: {{ plaintextDisplay.environment }}
           </div>
         </div>
-        <div class="km-modal-footer">
-          <button class="km-btn km-btn-primary" @click="plaintextDisplay = null">Я сохранил — закрыть</button>
-        </div>
-      </div>
-    </div>
+      <template #footer>
+        <button class="km-btn km-btn-primary" @click="plaintextDisplay = null">Я сохранил — закрыть</button>
+      </template>
+    </ModalShell>
 
     <!-- ───── Modal: revoke key ───── -->
-    <div v-if="revokeTarget" class="km-modal-bg" @click.self="revokeTarget = null">
-      <div class="km-modal">
-        <div class="km-modal-hd" style="color: #A32D2D;">Отозвать ключ "{{ revokeTarget.name }}"</div>
-        <div class="km-modal-body">
+    <ModalShell :open="!!revokeTarget" size="sm" @close="revokeTarget = null">
+      <template v-if="revokeTarget" #header>
+        <h2 style="margin:0; font-size:15px; font-weight:500; color:#A32D2D;">Отозвать ключ "{{ revokeTarget.name }}"</h2>
+      </template>
+      <div class="km-modal-body" v-if="revokeTarget">
           <div style="font-size: 11.5px; color: var(--color-text-secondary); margin-bottom: 9px;">
             После отзыва все запросы с этим токеном начнут получать 401. Действие необратимо.
           </div>
@@ -411,14 +407,13 @@ function fmtRel(iso: string | null): string {
             <textarea v-model="revokeReason" rows="2" placeholder="Скомпрометирован / не используется / истек контракт..."></textarea>
           </div>
         </div>
-        <div class="km-modal-footer">
-          <button class="km-btn km-btn-ghost" @click="revokeTarget = null">Отмена</button>
-          <button class="km-btn" style="background: #E24B4A; color: #fff;" @click="confirmRevoke">
-            <BIcon name="shield-x" :size="14" /> Отозвать
-          </button>
-        </div>
-      </div>
-    </div>
+      <template #footer>
+        <button class="km-btn km-btn-ghost" @click="revokeTarget = null">Отмена</button>
+        <button class="km-btn" style="background: #E24B4A; color: #fff;" @click="confirmRevoke">
+          <BIcon name="shield-x" :size="14" /> Отозвать
+        </button>
+      </template>
+    </ModalShell>
 
   </div>
 </template>
