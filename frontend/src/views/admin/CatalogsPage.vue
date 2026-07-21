@@ -10,6 +10,7 @@
  */
 import { ref, onMounted, computed } from "vue";
 import { directionsApi, type DirectionBrief } from "@/api/directions";
+import ModalShell from "@/components/ModalShell.vue";
 import { consultantsApi, type ConsultantBrief } from "@/api/consultants";
 import { useDirectionsStore } from "@/stores/directions";
 import { useToast } from "@/composables/useToast";
@@ -347,12 +348,9 @@ onMounted(() => {
     </section>
 
     <!-- ════════════ Direction editor modal ════════════ -->
-    <div v-if="dirEditorOpen" class="cat-modal-bg" @click.self="dirEditorOpen = false">
-      <div class="cat-modal">
-        <header class="cat-modal-head">
-          <h2>{{ dirEditor.isNew ? "Новое направление" : "Редактирование направления" }}</h2>
-          <button class="cat-x" @click="dirEditorOpen = false">×</button>
-        </header>
+    <ModalShell :open="dirEditorOpen" size="md"
+                :title="dirEditor.isNew ? 'Новое направление' : 'Редактирование направления'"
+                @close="dirEditorOpen = false">
         <div class="cat-modal-body">
           <label class="cat-fld">
             <span>Название (RU) *</span>
@@ -387,20 +385,16 @@ onMounted(() => {
             </label>
           </div>
         </div>
-        <footer class="cat-modal-foot">
-          <button class="cat-btn-ghost" @click="dirEditorOpen = false">Отмена</button>
-          <button class="cat-btn-primary" @click="saveDir">Сохранить</button>
-        </footer>
-      </div>
-    </div>
+      <template #footer>
+        <button class="cat-btn-ghost" @click="dirEditorOpen = false">Отмена</button>
+        <button class="cat-btn-primary" @click="saveDir">Сохранить</button>
+      </template>
+    </ModalShell>
 
     <!-- ════════════ Consultant editor modal ════════════ -->
-    <div v-if="consEditorOpen" class="cat-modal-bg" @click.self="consEditorOpen = false">
-      <div class="cat-modal">
-        <header class="cat-modal-head">
-          <h2>{{ consEditor.isNew ? "Новый консультант" : "Редактирование консультанта" }}</h2>
-          <button class="cat-x" @click="consEditorOpen = false">×</button>
-        </header>
+    <ModalShell :open="consEditorOpen" size="md"
+                :title="consEditor.isNew ? 'Новый консультант' : 'Редактирование консультанта'"
+                @close="consEditorOpen = false">
         <div class="cat-modal-body">
           <label class="cat-fld">
             <span>Название (RU) *</span>
@@ -435,12 +429,11 @@ onMounted(() => {
             </label>
           </div>
         </div>
-        <footer class="cat-modal-foot">
-          <button class="cat-btn-ghost" @click="consEditorOpen = false">Отмена</button>
-          <button class="cat-btn-primary" @click="saveCons">Сохранить</button>
-        </footer>
-      </div>
-    </div>
+      <template #footer>
+        <button class="cat-btn-ghost" @click="consEditorOpen = false">Отмена</button>
+        <button class="cat-btn-primary" @click="saveCons">Сохранить</button>
+      </template>
+    </ModalShell>
   </div>
 </template>
 

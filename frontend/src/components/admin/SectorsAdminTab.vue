@@ -6,6 +6,7 @@ import {
   type SectorAdmin,
 } from "@/api/companiesAdminV2";
 import { useConfirm } from "@/composables/useConfirm";
+import ModalShell from "@/components/ModalShell.vue";
 
 const { confirmDialog } = useConfirm();
 
@@ -202,9 +203,7 @@ function gradientCss(s: SectorAdmin | null): string {
     </div>
 
     <!-- Create modal -->
-    <div v-if="showCreate" class="sa-modal-back" @click.self="showCreate = false">
-      <div class="sa-modal">
-        <div class="sa-modal-hd">Новый сектор</div>
+    <ModalShell :open="showCreate" size="md" title="Новый сектор" @close="showCreate = false">
         <div class="sa-modal-body">
           <div class="sa-f">
             <label>Code (latin)</label>
@@ -224,12 +223,11 @@ function gradientCss(s: SectorAdmin | null): string {
             </div>
           </div>
         </div>
-        <div class="sa-modal-foot">
-          <button class="sa-btn sa-btn-ghost" @click="showCreate = false">Отмена</button>
-          <button class="sa-btn sa-btn-primary" @click="createSector" :disabled="!createForm.code || !createForm.name_ru">Создать</button>
-        </div>
-      </div>
-    </div>
+      <template #footer>
+        <button class="sa-btn sa-btn-ghost" @click="showCreate = false">Отмена</button>
+        <button class="sa-btn sa-btn-primary" @click="createSector" :disabled="!createForm.code || !createForm.name_ru">Создать</button>
+      </template>
+    </ModalShell>
   </div>
 </template>
 
