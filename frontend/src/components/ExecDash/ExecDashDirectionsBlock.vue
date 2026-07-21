@@ -9,13 +9,21 @@
  *   - Прогресс-бар 44px шириной
  *   - %, projects done/total, tasks done/total
  */
-import { computed, ref } from "vue";
+import { computed, ref, onMounted } from "vue";
 import { useExecutiveDashboard } from "@/composables/useExecutiveDashboard";
 import DirectionDrillModal from "@/components/UZA/DirectionDrillModal.vue";
 import { pctColor as pctColorBase } from "@/utils/pctColor";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
+import { useDirectionsStore } from "@/stores/directions";
 
 const exec = useExecutiveDashboard();
+// Цвет направления — из каталога (стор), чтобы совпадал с /admin (бэкенд-блок
+// шлёт легаси-хардкод). id направления = его код.
+const directionsStore = useDirectionsStore();
+onMounted(() => directionsStore.ensureLoaded());
+function dirColor(d: { id: string; color: string }): string {
+  return directionsStore.byCode.get(String(d.id).toLowerCase())?.color || d.color;
+}
 
 const directions = computed(() => exec.data.value?.directions || []);
 
@@ -33,7 +41,7 @@ const drillColor = ref<string>("");
 function openDrill(d: { id: string; label: string; color: string }) {
   drillCode.value = d.id;
   drillLabel.value = d.label;
-  drillColor.value = d.color;
+  drillColor.value = dirColor(d);
 }
 function closeDrill() {
   drillCode.value = null;
@@ -106,7 +114,7 @@ function fmtCell(done: number, total: number): { text: string; color: string } {
           @click="openDrill(d)"
           @keydown="onRowKeydown($event, d)"
         >
-          <div class="edd-bar" :style="{ background: d.color }" />
+          <div class="edd-bar" :style="{ background: dirColor(d) }" />
           <span class="edd-label" :title="d.label">{{ d.label }}</span>
 
           <div class="edd-cell edd-cell-progress">
