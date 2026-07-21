@@ -10,6 +10,7 @@
 import { ref, computed, onMounted } from "vue";
 import { api } from "@/api/client";
 import { useToast } from "@/composables/useToast";
+import ModalShell from "@/components/ModalShell.vue";
 import EptLogo from "@/components/EptLogo.vue";
 
 interface Co { id: string; code: string; name: string; }
@@ -337,17 +338,13 @@ async function submit() {
     </div>
 
     <!-- ПРЕВЬЮ для других дашбордов (распознано, авто-создание пока не подключено) -->
-    <Teleport to="body">
-      <Transition name="pb-modal">
-        <div v-if="previewRows" class="pb-back" @click.self="previewRows = null">
-          <div class="pb-mod wide">
-            <div class="pb-mod-h">
-              <div class="pb-mod-t">Распознан дашборд: «{{ previewRows.target_label }}»
-                <span v-if="previewRows.confidence" class="pb-conf">{{ Math.round(previewRows.confidence * 100) }}%</span>
-              </div>
-              <button class="pb-x" @click="previewRows = null"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
-            </div>
-            <div class="pb-mod-b">
+    <ModalShell :open="!!previewRows" size="xl" @close="previewRows = null">
+      <template v-if="previewRows" #header>
+        <div class="pb-mod-t">Распознан дашборд: «{{ previewRows.target_label }}»
+          <span v-if="previewRows.confidence" class="pb-conf">{{ Math.round(previewRows.confidence * 100) }}%</span>
+        </div>
+      </template>
+      <template v-if="previewRows">
               <p v-if="previewRows.supported" class="pb-mod-hint">
                 ИИ отнёс документ к дашборду <b>«{{ previewRows.target_label }}»</b> и распознал
                 <b>{{ previewRows.rows.length }}</b> строк. Проверьте/отредактируйте и нажмите
@@ -370,8 +367,8 @@ async function submit() {
                   </tbody>
                 </table>
               </div>
-            </div>
-            <div class="pb-mod-f">
+      </template>
+      <template v-if="previewRows" #footer>
               <button class="pb-add" @click="addPreviewRow"><span>＋ Строка</span></button>
               <span class="pb-mod-spacer" />
               <template v-if="previewRows.supported && previewRows.target === 'kpi'">
@@ -394,27 +391,20 @@ async function submit() {
                 </button>
               </template>
               <button class="pb-cancel" @click="previewRows = null">Закрыть</button>
-            </div>
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
+      </template>
+    </ModalShell>
 
     <!-- PASTE -->
-    <Teleport to="body">
-      <Transition name="pb-modal">
-        <div v-if="pasteFor" class="pb-back" @click.self="pasteFor = null">
-          <div class="pb-mod">
-            <div class="pb-mod-h"><div class="pb-mod-t">Вставить списком</div><button class="pb-x" @click="pasteFor = null"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div>
-            <div class="pb-mod-b">
-              <p class="pb-mod-hint">Каждая строка станет отдельной задачей.</p>
-              <textarea v-model="pasteText" rows="10" class="pb-area" placeholder="Разработать стратегию&#10;Привлечь консультанта&#10;Провести инвентаризацию&#10;…"></textarea>
-            </div>
-            <div class="pb-mod-f"><button class="pb-cancel" @click="pasteFor = null">Отмена</button><button class="pb-save" @click="applyPaste">Добавить</button></div>
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
+    <ModalShell :open="!!pasteFor" size="md" title="Вставить списком" @close="pasteFor = null">
+      <div class="pb-mod-b">
+        <p class="pb-mod-hint">Каждая строка станет отдельной задачей.</p>
+        <textarea v-model="pasteText" rows="10" class="pb-area" placeholder="Разработать стратегию&#10;Привлечь консультанта&#10;Провести инвентаризацию&#10;…"></textarea>
+      </div>
+      <template #footer>
+        <button class="pb-cancel" @click="pasteFor = null">Отмена</button>
+        <button class="pb-save" @click="applyPaste">Добавить</button>
+      </template>
+    </ModalShell>
   </div>
 </template>
 
