@@ -45,19 +45,25 @@ def _is_number(v: Any) -> bool:
         return False
 
 
-def _has_plan_number(co: dict) -> bool:
-    """Есть ли РЕАЛЬНОЕ число плана (H-1/H-2): в years[].plan, legacy yP*, или в
-    самом поле plan (7 флагманов хранят число в статус-поле). Честный признак
-    «план заведён», в отличие от строкового статуса без единой суммы."""
-    if _is_number(co.get("plan")):
-        return True
-    for yr in (co.get("years") or []):
-        if isinstance(yr, dict) and _is_number(yr.get("plan")):
-            return True
-    for f in ("yP24", "yP25", "yP26"):
-        if _is_number(co.get(f)):
-            return True
-    return False
+_AFFIRMATIVE_PLAN_PREFIX = "утверждён"
+
+
+def _plan_approved(co: dict) -> bool:
+    """План закупок УТВЕРЖДЁН (H-1/H-2, честный признак): число>0 в поле plan
+    (7 флагманов держат сумму в статус-поле) ИЛИ строковый статус, начинающийся
+    с «Утверждён» (в т.ч. «Утверждён №9/25.03.2025»). Пусто / «Не утверждён» /
+    «План закупок отсутствует» / «В процессе» / 0 / <0 — НЕ утверждён.
+    NB: yP24/25/26 и years[].plan — это СУММЫ плана (сколько), НЕ признак
+    утверждения; раньше их наличие ошибочно засчитывалось как «утверждён», из-за
+    чего KPI «планов утверждено» и красный бейдж «Не утверждён» в таблице
+    противоречили друг другу (флаг≠факт)."""
+    plan = co.get("plan")
+    if _is_number(plan):
+        try:
+            return float(str(plan).replace(" ", "").replace(",", ".")) > 0
+        except (TypeError, ValueError):
+            return False
+    return isinstance(plan, str) and plan.strip().lower().startswith(_AFFIRMATIVE_PLAN_PREFIX)
 
 
 def _forensic_really_done(co: dict) -> bool:
@@ -133,9 +139,10 @@ class ForensicService:
                 enriched["n"] = name_map[code]
             enriched["sector_color"] = SECTOR_COLOR.get(sector, SECTOR_COLOR["other"])
 
-            # H-1/H-2: «план утверждён» = есть реальное число плана (не строковый
-            # статус без суммы; и ловит 7 флагманов с числом в поле plan).
-            if _has_plan_number(raw):
+            # H-1/H-2: «план утверждён» = число>0 в поле plan (7 флагманов держат
+            # сумму в статус-поле) ИЛИ статус начинается с «Утверждён». Согласовано
+            # с фронтом (planBadge/planFilter) — один предикат, без противоречия.
+            if _plan_approved(raw):
                 plan_approved += 1
             # H-3: форензик «завершён» только с аудитором и годами.
             if _forensic_really_done(raw):

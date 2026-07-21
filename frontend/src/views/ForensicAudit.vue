@@ -66,7 +66,7 @@ interface ProcCompany {
   q4P25?: number | null; q4F25?: number | null;
   yP26?: number | null;
 
-  plan?: string;
+  plan?: string | number | null;   // строковый статус ИЛИ (7 флагманов) числовая сумма плана
   forensic?: string;
   auditor?: string;
   aYears?: string;
@@ -215,10 +215,14 @@ function _isNum(v: unknown): boolean {
   if (v == null || v === "") return false;
   return Number.isFinite(Number(String(v).replace(/\s/g, "").replace(",", ".")));
 }
-function hasPlanNumber(c: ProcCompany): boolean {
-  if (_isNum(c.plan)) return true;
-  if (Array.isArray(c.years) && c.years.some(y => _isNum((y as Record<string, unknown>).plan))) return true;
-  return _isNum(c.yP24) || _isNum(c.yP25) || _isNum(c.yP26);
+const _AFFIRMATIVE_PLAN = "утверждён";
+function planApproved(plan: unknown): boolean {
+  // Зеркалит backend _plan_approved: план УТВЕРЖДЁН = число>0 в поле plan (7
+  // флагманов держат сумму в статус-поле) ИЛИ строковый статус, начинающийся с
+  // «Утверждён» (в т.ч. «Утверждён №9/25.03.2025»). yP24/25/26 и years[].plan —
+  // это СУММЫ плана (сколько), НЕ признак утверждения.
+  if (_isNum(plan)) return Number(String(plan).replace(/\s/g, "").replace(",", ".")) > 0;
+  return typeof plan === "string" && plan.trim().toLowerCase().startsWith(_AFFIRMATIVE_PLAN);
 }
 function forensicDone(c: ProcCompany): boolean {
   return c.forensic === "Завершён" && !!(c.auditor || "").trim() && !!(c.aYears || "").trim();
@@ -247,7 +251,7 @@ const totals = computed(() => {
   const tPall = D.value.reduce((s, c) => s + (gP(c) || 0), 0);
   const kPlan = Math.round((hasFact.value ? tP : tPall) / 1000);
   const kFact = hasFact.value ? Math.round(tF / 1000) : 0;
-  const appr = D.value.filter(hasPlanNumber).length;         // H-7: честный признак, как топбар
+  const appr = D.value.filter(c => planApproved(c.plan)).length;   // H-7: тот же предикат, что бейдж/фильтр/бэкенд
   const fDn  = D.value.filter(forensicDone).length;
   const withAud = D.value.filter(c => (c.auditor || "").trim()).length;
   return { tP, tF, avgP, kPlan, kFact, appr, fDn, withAud, count: D.value.length };
@@ -274,7 +278,13 @@ const availableYears = computed<number[]>(() => {
 // ─── Plan / Forensic table data with filters ─────────────────────
 const planRows = computed(() => {
   let rows = sortedD.value;
-  if (planFilter.value) rows = rows.filter(c => c.plan === planFilter.value);
+  // Один предикат с бейджем/KPI: «Утверждён» = planApproved; «Не утверждён» =
+  // есть статус-значение, но не утверждён (компании без плана «—» не попадают ни в один).
+  if (planFilter.value === "Утверждён") {
+    rows = rows.filter(c => planApproved(c.plan));
+  } else if (planFilter.value === "Не утверждён") {
+    rows = rows.filter(c => c.plan != null && c.plan !== "" && !planApproved(c.plan));
+  }
   return rows;
 });
 
@@ -345,9 +355,14 @@ const BADGE_STYLES: Record<string, BadgeStyle> = {
   noplan:      { bg: "var(--bg3)",           fg: "var(--t3)" },
 };
 
-function planBadge(plan: string | undefined): { text: string; style: BadgeStyle } {
-  if (!plan) return { text: "—", style: BADGE_STYLES.noplan };
-  if (plan === "Утверждён") return { text: "Утверждён", style: BADGE_STYLES.approved };
+function planBadge(plan: string | number | undefined | null): { text: string; style: BadgeStyle } {
+  if (plan == null || plan === "") return { text: "—", style: BADGE_STYLES.noplan };
+  if (planApproved(plan)) {
+    // сохраняем номер приказа, если он есть в строковом статусе («Утверждён №9/…»)
+    const text = typeof plan === "string" && plan.trim().length > "Утверждён".length
+      ? plan.trim() : "Утверждён";
+    return { text, style: BADGE_STYLES.approved };
+  }
   return { text: "Не утверждён", style: BADGE_STYLES.notApproved };
 }
 function forensicBadge(f: string | undefined): { text: string; style: BadgeStyle } {
