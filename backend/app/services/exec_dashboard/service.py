@@ -83,6 +83,14 @@ class ExecDashboardService:
             co_to_board = await self.uow.exec_dashboard.boards_by_company()
             tasks = await self.uow.exec_dashboard.list_tasks_for_year(year)
             projects = await self.uow.exec_dashboard.list_projects_for_year(year)
+            # Деактивированные компании: list_companies уже фильтрует is_active, но
+            # задачи/проекты тянутся портфельно (по году) БЕЗ этого фильтра, поэтому
+            # bottom-metrics (len задач/проектов) и направления считали строки
+            # отключённых компаний (напр. «Тест»). Отсекаем их ВЕЗДЕ, до всех блоков.
+            _inactive_ids = await self.uow.exec_dashboard.inactive_company_ids()
+            if _inactive_ids:
+                tasks = [t for t in tasks if t.company_id not in _inactive_ids]
+                projects = [p for p in projects if getattr(p, "company_id", None) not in _inactive_ids]
             # RBAC scope: list_tasks/projects_for_year НЕ скоупятся в репозитории —
             # фильтруем по разрешённым компаниям, иначе счётчики (len) показывают
             # ВЕСЬ портфель скоупленному пользователю (баг: общее число задач/проектов).
@@ -197,6 +205,12 @@ class ExecDashboardService:
                 for cand in _past + _future:
                     c_tasks = await self.uow.exec_dashboard.list_tasks_for_year(cand)
                     c_projs = await self.uow.exec_dashboard.list_projects_for_year(cand)
+                    if _inactive_ids:
+                        c_tasks = [t for t in c_tasks if t.company_id not in _inactive_ids]
+                        c_projs = [
+                            p for p in c_projs
+                            if getattr(p, "company_id", None) not in _inactive_ids
+                        ]
                     if _scope is not None:
                         c_tasks = [t for t in c_tasks if t.company_id in _scope]
                         c_projs = [

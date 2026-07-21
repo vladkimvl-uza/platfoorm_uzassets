@@ -45,6 +45,16 @@ class ExecDashboardRepository:
             ]
         return all_companies
 
+    async def inactive_company_ids(self) -> set[UUID]:
+        """ID деактивированных компаний — для отсечения их задач/проектов из
+        портфельных счётчиков (list_tasks/projects_for_year тянут ВЕСЬ год без
+        фильтра is_active, поэтому bottom-metrics/направления считали строки
+        отключённых компаний, напр. «Тест»)."""
+        rows = await self.session.execute(
+            select(Company.id).where(Company.is_active.is_(False))
+        )
+        return {cid for (cid,) in rows.all()}
+
     # ─── boards mapping ───────────────────────────────────────────
 
     async def boards_by_company(self) -> dict[UUID, UUID]:
