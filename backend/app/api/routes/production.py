@@ -7,13 +7,14 @@ bp.* (это фасет БП). Хранение — JSONB snapshot (см. produc
   GET  /production/available                     — доступные (year, period)
   GET  /production/companies/{code}?year=&period= — одна компания (карточка БП)
   PUT  /production/companies/{code}              — правка одной компании (редактор)
+  POST /production/import?year=&period=          — bulk-импорт «Свода» (xlsx)
 """
 from __future__ import annotations
 
 import logging
 from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi import status as http_status
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -117,3 +118,27 @@ async def update_production_company(
             content={"queued": True, "submission_id": str(sub.id), "status": sub.status},
         )
     return await service.upsert_company(code, payload)
+
+
+@router.post("/import")
+async def import_production_xlsx(
+    service: ProductionServiceDep,
+    file: UploadFile = File(...),
+    year: int = 2026,
+    period: str = "h1",
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Bulk-импорт «Свода бизнес-плана» (лист на компанию). Как forensic
+    import-excel — только для админ-периметра (кросс-компанийная запись,
+    минуя модерацию); темп/исполнение из файла игнорируются, пересчёт в сервисе."""
+    if not await has_effective_permission(db, user, "bp.edit"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "bp.edit required")
+    if not has_unrestricted_view(user):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Admin scope required for bulk import")
+    if not file.filename or not file.filename.lower().endswith((".xlsx", ".xls")):
+        raise HTTPException(http_status.HTTP_400_BAD_REQUEST, "Expected .xlsx or .xls file")
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(http_status.HTTP_400_BAD_REQUEST, "Empty file")
+    return await service.import_xlsx(raw, year=year, period=period)

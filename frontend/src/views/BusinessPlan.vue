@@ -106,6 +106,7 @@
     <!-- Body (производственные показатели) -->
     <div v-else class="bp-prod-wrap">
       <BpProductionDashboard :key="prodReloadKey"
+                             :can-import="canEdit"
                              @drill="prodDrill = $event"
                              @edit="prodEdit = $event" />
     </div>

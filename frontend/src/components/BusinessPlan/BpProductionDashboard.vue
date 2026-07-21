@@ -11,10 +11,12 @@ import CompanyAvatar from "@/components/CompanyAvatar.vue";
 import UzaSegment from "@/components/UZA/UzaSegment.vue";
 import UzaYearStepper from "@/components/UZA/UzaYearStepper.vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
+import ForensicUploadModal from "@/components/Procurement/ForensicUploadModal.vue";
 import { useCountUpScan } from "@/composables/useCountUp";
 import { useProductionData } from "@/composables/useProductionData";
 import type { ProdCompany } from "@/api/production";
 
+defineProps<{ canImport?: boolean }>();
 const emit = defineEmits<{
   (e: "drill", p: { company: ProdCompany; year: number; period: string }): void;
   (e: "edit", p: { company: ProdCompany; year: number; period: string }): void;
@@ -22,6 +24,23 @@ const emit = defineEmits<{
 function ctx(c: ProdCompany) { return { company: c, year: st.year.value, period: st.period.value }; }
 
 const st = useProductionData();
+
+// ─── Excel-импорт «Свода» (лист на компанию) ──────────────────
+const uploadOpen = ref(false);
+const importEndpoint = computed(
+  () => `/production/import?year=${st.year.value}&period=${st.period.value}`,
+);
+function prodImportResult(data: unknown): string {
+  const d = (data || {}) as {
+    matched?: number; with_data?: number; lines_total?: number; unmatched?: string[];
+  };
+  const un = d.unmatched?.length ? ` · не распознано листов: ${d.unmatched.length}` : "";
+  return `Загружено: ${d.matched ?? 0} компаний · ${d.with_data ?? 0} с данными · ${d.lines_total ?? 0} строк${un}`;
+}
+async function onImported() {
+  await st.loadAvailable();
+  await st.load();
+}
 
 const PERIOD_OPTS = [
   { value: "h1", label: "1 полугодие" },
@@ -186,7 +205,22 @@ watch([() => st.data.value, filtered], async () => { await nextTick(); rescan();
                   @update:model-value="(v) => st.setPeriod(v as string)" label="Период" />
       <UzaYearStepper :years="st.availableYears.value" :model-value="st.year.value"
                       @update:model-value="(v) => st.setYear(v)" prefix="FY " label="Год" />
+      <button v-if="canImport" class="pd-import" @click="uploadOpen = true" title="Импорт «Свода» из Excel">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Импорт
+      </button>
     </div>
+
+    <ForensicUploadModal
+      v-if="uploadOpen"
+      :endpoint="importEndpoint"
+      title="Импорт производственного «Свода» · Excel"
+      :description="`Файл с листом на компанию (натура + деньги: база → план → ожидаемое). Загрузится в период FY ${st.year.value} · ${st.period.value.toUpperCase()}.`"
+      :sheet-match="null"
+      :format-result="prodImportResult"
+      @uploaded="onImported"
+      @close="uploadOpen = false"
+    />
 
     <UzaStateBlock v-if="st.loading.value && !st.data.value" state="loading" variant="text" loadingText="Загрузка…" />
     <UzaStateBlock v-else-if="st.error.value" state="error" variant="block" :text="st.error.value" />
@@ -420,6 +454,15 @@ watch([() => st.data.value, filtered], async () => { await nextTick(); rescan();
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
   padding: 12px 20px; border-bottom: 0.5px solid var(--border-hard, rgba(0,0,0,.06));
 }
+.pd-import {
+  margin-left: auto; display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 13px; border-radius: 999px;
+  border: 1px solid rgba(127,119,221,.28); background: var(--bg1, #fff);
+  font: 600 12px inherit; color: var(--p-deep, #534AB7);
+  cursor: pointer; transition: all .14s;
+}
+.pd-import:hover { background: rgba(127,119,221,.08); border-color: #7F77DD; }
+.pd-import svg { opacity: .85; }
 .pd-body { padding: 14px 20px 24px; }
 
 /* Filters */
