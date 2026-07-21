@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from "vue";
 import BIcon from "@/components/broadcasts/BIcon.vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
+import ModalShell from "@/components/ModalShell.vue";
 import {
   externalApis, statusPill, AUTH_LABELS,
   type AuthKind, type EnvKind, type ExternalApi, type ExtCatalogSummary, type ExtEndpoint, type ExtStatus,
@@ -355,9 +356,7 @@ function pasteSpec() {
     </div>
 
     <!-- ───── Modal: create ───── -->
-    <div v-if="showCreate" class="xa-modal-bg" @click.self="showCreate = false">
-      <div class="xa-modal" style="max-width: 640px;">
-        <div class="xa-modal-hd">Новый внешний API</div>
+    <ModalShell :open="showCreate" size="lg" title="Новый внешний API" @close="showCreate = false">
         <div class="xa-modal-body">
           <div class="xa-mgrid">
             <div class="xa-field">
@@ -426,17 +425,16 @@ function pasteSpec() {
             <textarea v-model="newApi.notes" rows="2" placeholder="Особенности интеграции, ответственный, …"></textarea>
           </div>
         </div>
-        <div class="xa-modal-footer">
-          <button class="xa-btn xa-btn-ghost" @click="showCreate = false">Отмена</button>
-          <button class="xa-btn xa-btn-primary" @click="submitCreate">Создать</button>
-        </div>
-      </div>
-    </div>
+      <template #footer>
+        <button class="xa-btn xa-btn-ghost" @click="showCreate = false">Отмена</button>
+        <button class="xa-btn xa-btn-primary" @click="submitCreate">Создать</button>
+      </template>
+    </ModalShell>
 
     <!-- ───── Modal: upload spec ───── -->
-    <div v-if="showSpecUpload" class="xa-modal-bg" @click.self="showSpecUpload = false">
-      <div class="xa-modal" style="max-width: 760px;">
-        <div class="xa-modal-hd">Загрузить OpenAPI спецификацию для {{ selected?.name }}</div>
+    <ModalShell :open="showSpecUpload" size="xl"
+                :title="'Загрузить OpenAPI спецификацию для ' + (selected?.name || '')"
+                @close="showSpecUpload = false">
         <div class="xa-modal-body">
           <div style="font-size: 11.5px; color: var(--color-text-secondary); margin-bottom: 8px;">
             Вставьте JSON OpenAPI 3.x документа (или Swagger 2.0). Спецификация хранится локально, не запрашивается у источника.
@@ -451,30 +449,29 @@ function pasteSpec() {
             <textarea v-model="specText" rows="14" style="font-family: var(--font-mono, monospace); font-size: 10.5px;" placeholder='{"openapi":"3.0.3","info":{"title":"...","version":"1.0"},"paths":{...}}'></textarea>
           </div>
         </div>
-        <div class="xa-modal-footer">
-          <button class="xa-btn xa-btn-ghost" @click="showSpecUpload = false; specText = ''">Отмена</button>
-          <button class="xa-btn xa-btn-primary" :disabled="!specText.trim()" @click="uploadSpec">
-            <BIcon name="upload" :size="14" /> Загрузить
-          </button>
-        </div>
-      </div>
-    </div>
+      <template #footer>
+        <button class="xa-btn xa-btn-ghost" @click="showSpecUpload = false; specText = ''">Отмена</button>
+        <button class="xa-btn xa-btn-primary" :disabled="!specText.trim()" @click="uploadSpec">
+          <BIcon name="upload" :size="14" /> Загрузить
+        </button>
+      </template>
+    </ModalShell>
 
     <!-- ───── Modal: delete ───── -->
-    <div v-if="showDelete" class="xa-modal-bg" @click.self="showDelete = null">
-      <div class="xa-modal">
-        <div class="xa-modal-hd" style="color: #A32D2D;">Удалить "{{ showDelete.name }}"?</div>
-        <div class="xa-modal-body">
+    <ModalShell :open="!!showDelete" size="sm" @close="showDelete = null">
+      <template v-if="showDelete" #header>
+        <h2 style="margin:0; font-size:15px; font-weight:500; color:#A32D2D;">Удалить "{{ showDelete.name }}"?</h2>
+      </template>
+      <div class="xa-modal-body" v-if="showDelete">
           <div style="font-size: 11.5px; color: var(--color-text-secondary);">
             Запись и загруженный OpenAPI будут удалены. Webhook-подписки и API-ключи не затрагиваются.
           </div>
         </div>
-        <div class="xa-modal-footer">
-          <button class="xa-btn xa-btn-ghost" @click="showDelete = null">Отмена</button>
-          <button class="xa-btn xa-btn-danger" @click="confirmDelete">Удалить</button>
-        </div>
-      </div>
-    </div>
+      <template #footer>
+        <button class="xa-btn xa-btn-ghost" @click="showDelete = null">Отмена</button>
+        <button class="xa-btn xa-btn-danger" @click="confirmDelete">Удалить</button>
+      </template>
+    </ModalShell>
 
   </div>
 </template>
