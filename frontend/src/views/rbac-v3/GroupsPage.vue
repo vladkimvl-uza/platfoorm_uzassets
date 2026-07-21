@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
+import ModalShell from '@/components/ModalShell.vue';
 import { groupsApi, rbacV3Api, rolesApi, permissionsApi, permissionsToLevels, levelsToPermissions } from '@/api/rbacV3';
 import type { RbacV3Group, RbacV3GroupDetail, RbacV3UserBrief, RbacV3Role, RbacV3GroupGrant, RbacV3Permission } from '@/api/rbacV3';
 import type { AccessLevel } from '@/composables/usePermissions';
@@ -419,9 +420,7 @@ const byDept = computed(() => {
     </div>
 
     <!-- Member picker modal -->
-    <div v-if="showMemberPicker" class="rv3-modal-bd" @click.self="showMemberPicker = false">
-      <div class="rv3-modal">
-        <div class="rv3-modal-hd">Добавить участника</div>
+    <ModalShell :open="showMemberPicker" size="md" title="Добавить участника" @close="showMemberPicker = false">
         <div class="rv3-edit-label" style="margin-top:4px">Роль в этой группе</div>
         <select v-model="pickerRoleCode" class="rv3-input" style="margin-bottom:10px">
           <option v-for="r in allRoles" :key="r.code" :value="r.code">{{ r.name_ru }}</option>
@@ -437,16 +436,13 @@ const byDept = computed(() => {
           </div>
           <div v-if="availableMembers.length === 0" class="rv3-empty">никого не найдено</div>
         </div>
-        <div style="display:flex;justify-content:flex-end;margin-top:14px;">
-          <button class="rv3-btn rv3-btn-ghost" @click="showMemberPicker = false">Закрыть</button>
-        </div>
-      </div>
-    </div>
+      <template #footer>
+        <button class="rv3-btn rv3-btn-ghost" @click="showMemberPicker = false">Закрыть</button>
+      </template>
+    </ModalShell>
 
     <!-- Create group modal -->
-    <div v-if="showCreate" class="rv3-modal-bd" @click.self="showCreate = false">
-      <div class="rv3-modal">
-        <div class="rv3-modal-hd">Новая группа</div>
+    <ModalShell :open="showCreate" size="md" title="Новая группа" @close="showCreate = false">
         <div class="rv3-edit-label" style="margin-top:8px">Код (slug)</div>
         <input v-model="newGroup.code" class="rv3-input" placeholder="legal / finance / mining_team" />
         <div class="rv3-edit-label" style="margin-top:8px">Название</div>
@@ -455,14 +451,13 @@ const byDept = computed(() => {
         <input v-model="newGroup.department" class="rv3-input" placeholder="Юр.управление" />
         <div class="rv3-edit-label" style="margin-top:8px">Описание (опционально)</div>
         <textarea v-model="newGroup.description" class="rv3-textarea" />
-        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
-          <button class="rv3-btn rv3-btn-ghost" @click="showCreate = false">Отмена</button>
-          <button class="rv3-save" :disabled="saving" @click="onCreate">
-            {{ saving ? 'Создание...' : 'Создать' }}
-          </button>
-        </div>
-      </div>
-    </div>
+      <template #footer>
+        <button class="rv3-btn rv3-btn-ghost" @click="showCreate = false">Отмена</button>
+        <button class="rv3-save" :disabled="saving" @click="onCreate">
+          {{ saving ? 'Создание...' : 'Создать' }}
+        </button>
+      </template>
+    </ModalShell>
   </div>
 </template>
 
