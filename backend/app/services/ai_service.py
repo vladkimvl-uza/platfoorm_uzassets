@@ -204,7 +204,7 @@ async def stream_chat_with_tools(
     tool_dispatcher,                       # async callable: (name, args, db) -> dict
     model: Optional[str] = None,
     max_tokens: int = 16000,
-    temperature: float = 0.25,
+    temperature: Optional[float] = 0.25,
     max_turns: int = DEFAULT_MAX_TURNS,
 ) -> AsyncGenerator[bytes, None]:
     """
@@ -239,16 +239,22 @@ async def stream_chat_with_tools(
     # Working copy of messages (we'll append assistant + tool_result rounds)
     convo: list[dict[str, Any]] = [dict(m) for m in messages]
 
-    for turn in range(max_turns):
+    # `temperature` депрекейтнут у новых моделей (Opus 4.8) → 400. Держим значение
+    # в локале: авто-лечение (ниже) убирает его и повторяет ТОТ ЖЕ турн, а снятие
+    # сохраняется на все последующие турны. Зеркалит complete_once (там же 400-heal).
+    send_temperature = temperature
+    turn = 0
+    while turn < max_turns:
         payload = {
             "model": _resolve_model(model),
             "max_tokens": max_tokens,
-            "temperature": temperature,
             "system": system,
             "messages": convo,
             "tools": tools,
             "stream": True,
         }
+        if send_temperature is not None:
+            payload["temperature"] = send_temperature
 
         # Accumulate response: text parts, tool_use blocks
         assistant_blocks: list[dict] = []  # for sending back as assistant turn
@@ -260,6 +266,13 @@ async def stream_chat_with_tools(
             async with client.stream("POST", _API_URL, json=payload, headers=headers) as resp:
                 if resp.status_code != 200:
                     err_text = await resp.aread()
+                    # Авто-лечение депрекейта `temperature` у новых моделей (Opus 4.8):
+                    # убрать параметр и повторить ТОТ ЖЕ турн один раз, без event: error.
+                    # (send_temperature=None → повторный 400 сюда уже не попадёт.)
+                    if (resp.status_code == 400 and send_temperature is not None
+                            and b"temperature" in err_text):
+                        send_temperature = None
+                        continue
                     err = {
                         "type": "error",
                         "error": {
@@ -428,6 +441,7 @@ async def stream_chat_with_tools(
             })
 
         convo.append({"role": "user", "content": tool_result_blocks})
+        turn += 1
 
     # Loop exhausted
     err = {
