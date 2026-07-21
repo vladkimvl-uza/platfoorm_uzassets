@@ -946,6 +946,7 @@ async function loadConsultantsPerCompany() {
   try {
     consPerCompany.value = await consultantsApi.byCompany(company.value.id, year.value);
     consPerCompanyLoadedFor.value = key;
+    nextTick(() => animateCounters());   // count-up KPI-бэнда после загрузки данных
   } catch (e: any) {
     consPerCompanyError.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить консультантов компании";
     consPerCompany.value = null;
@@ -1993,6 +1994,18 @@ const consPerCompanyKpis = computed(() => {
     completionPct,
   };
 });
+
+// Консультанты компании, сгруппированные Big4 → Другие (список как в /consultants);
+// внутри группы — по числу задач ↓ (самые загруженные сверху).
+const companyConsBig4 = computed(() =>
+  (consPerCompany.value?.consultants || [])
+    .filter(c => c.is_big4).sort((a, b) => b.task_count - a.task_count));
+const companyConsOther = computed(() =>
+  (consPerCompany.value?.consultants || [])
+    .filter(c => !c.is_big4).sort((a, b) => b.task_count - a.task_count));
+// Раскрытая строка (инлайн-список задач консультанта).
+const expandedCons = ref<string | null>(null);
+function toggleConsRow(id: string) { expandedCons.value = expandedCons.value === id ? null : id; }
 
 // Directory grouping (for the collapsible secondary section showing all consultants)
 const consDirectoryByGroup = computed(() => {
@@ -3885,28 +3898,23 @@ function onEditorClose() {
           <UzaStateBlock v-else-if="consPerCompanyError" state="error" variant="block" title="Ошибка загрузки" :text="consPerCompanyError" retry @retry="loadConsultantsPerCompany" />
 
           <template v-else>
-            <!-- KPI strip — top stats -->
-            <div v-if="consPerCompanyKpis" class="cw-cons-kpis">
-              <div class="cw-cons-kpi">
-                <div class="cw-cons-kpi-label">Консультантов</div>
-                <div class="cw-cons-kpi-value">{{ consPerCompanyKpis.consultants }}</div>
+            <!-- KPI-бэнд (эталон, как в /consultants): top-accent + count-up + shimmer -->
+            <div v-if="consPerCompanyKpis" class="cw-cons2-kpis kpi-rail">
+              <div class="kpi2 fin-shimmer" style="--kpi2-accent:#3B82F6; --kpi2-d:0ms">
+                <div class="kpi2-lbl">Консультантов</div>
+                <div class="kpi2-val"><span :data-countup="consPerCompanyKpis.consultants">{{ consPerCompanyKpis.consultants }}</span></div>
               </div>
-              <div class="cw-cons-kpi-divider"></div>
-              <div class="cw-cons-kpi">
-                <div class="cw-cons-kpi-label">Из них Big 4</div>
-                <div class="cw-cons-kpi-value">{{ consPerCompanyKpis.big4 }}</div>
+              <div class="kpi2 fin-shimmer" style="--kpi2-accent:#7F77DD; --kpi2-d:80ms">
+                <div class="kpi2-lbl">Из них Big 4</div>
+                <div class="kpi2-val"><span :data-countup="consPerCompanyKpis.big4">{{ consPerCompanyKpis.big4 }}</span></div>
               </div>
-              <div class="cw-cons-kpi-divider"></div>
-              <div class="cw-cons-kpi">
-                <div class="cw-cons-kpi-label">Назначений</div>
-                <div class="cw-cons-kpi-value">{{ consPerCompanyKpis.assignments }}</div>
+              <div class="kpi2 fin-shimmer" style="--kpi2-accent:#EF9F27; --kpi2-d:160ms">
+                <div class="kpi2-lbl">Назначений</div>
+                <div class="kpi2-val"><span :data-countup="consPerCompanyKpis.assignments">{{ consPerCompanyKpis.assignments }}</span></div>
               </div>
-              <div class="cw-cons-kpi-divider"></div>
-              <div class="cw-cons-kpi">
-                <div class="cw-cons-kpi-label">Выполнение задач</div>
-                <div class="cw-cons-kpi-value" :style="`color: ${pctColor(consPerCompanyKpis.completionPct)}`">
-                  {{ consPerCompanyKpis.completionPct }}%
-                </div>
+              <div class="kpi2 fin-shimmer" style="--kpi2-accent:#1D9E75; --kpi2-d:240ms">
+                <div class="kpi2-lbl">Среднее выполнение</div>
+                <div class="kpi2-val" :style="`color:${pctColor(consPerCompanyKpis.completionPct)}`"><span :data-countup="consPerCompanyKpis.completionPct">{{ consPerCompanyKpis.completionPct }}</span><span class="cw-cons2-pctsign">%</span></div>
               </div>
             </div>
 
@@ -3923,65 +3931,66 @@ function onEditorClose() {
               </p>
             </UzaStateBlock>
 
-            <!-- Per-company consultants cards (rich) -->
-            <div v-else class="cw-cons-cards">
-              <div
-                v-for="c in (consPerCompany?.consultants || [])"
-                :key="c.id"
-                class="cw-cons-card-rich"
-                :style="`--accent: ${c.color || '#7F77DD'}`"
-              >
-                <!-- Header -->
-                <div class="cw-cons-rich-header">
-                  <div class="cw-cons-rich-abbr">{{ c.abbr || c.code.toUpperCase() }}</div>
-                  <div class="cw-cons-rich-titles">
-                    <div class="cw-cons-rich-name">
-                      {{ c.name }}
-                      <span v-if="c.is_big4" class="cw-cons-rich-big4">Big 4</span>
-                    </div>
-                    <div class="cw-cons-rich-stats">
-                      <span class="cw-cons-rich-stat">{{ c.task_count }} {{ c.task_count === 1 ? 'задача' : 'задач' }}</span>
-                      <span class="cw-cons-rich-stat">·</span>
-                      <span class="cw-cons-rich-stat" style="color: var(--uza-teal)"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px"><polyline points="20 6 9 17 4 12"/></svg>{{ c.task_done }}</span>
-                      <span v-if="c.task_overdue > 0" class="cw-cons-rich-stat" style="color: var(--uza-red)">
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px"><path d="M10.3 4 2 18.3a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 4a2 2 0 0 0-3.4 0z"/><line x1="12" y1="9.5" x2="12" y2="13.5"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>{{ c.task_overdue }} просрочено
-                      </span>
-                    </div>
-                  </div>
-                  <div class="cw-cons-rich-pct" :style="`color: ${pctColor(c.completion_pct)}`">
-                    {{ c.completion_pct }}%
-                  </div>
-                </div>
-
-                <!-- Sources tags -->
-                <div v-if="c.sources.length > 0" class="cw-cons-rich-sources">
-                  <span
-                    v-for="src in c.sources"
-                    :key="src"
-                    class="cw-cons-rich-source"
-                  >
-                    {{ getSourceLabel(src) }}
-                  </span>
-                </div>
-
-                <!-- Sample projects -->
-                <div v-if="c.projects.length > 0" class="cw-cons-rich-projects">
-                  <div class="cw-cons-rich-projects-label">
-                    {{ c.task_count > 5 ? `Последние 5 из ${c.task_count} задач` : 'Задачи' }}
-                  </div>
+            <!-- Список консультантов компании — карточка + строки как в /consultants -->
+            <div v-else class="cw-cons2-card">
+              <div class="cw-cons2-h">
+                <span class="cw-cons2-t">Консультанты компании</span>
+                <span class="cw-cons2-hsub">{{ company.name_short || company.name_ru }} · FY {{ year }}</span>
+              </div>
+              <div class="cw-cons2-lhead">
+                <span>КОНСУЛЬТАНТ</span><span>ПРОГРЕСС</span><span class="r">ЗАДАЧИ</span><span class="r">ПРОСРОЧЕНО</span>
+              </div>
+              <div class="cw-cons2-lbody">
+                <template v-for="(c, i) in [...companyConsBig4, ...companyConsOther]" :key="c.id">
                   <div
-                    v-for="p in c.projects"
-                    :key="p.id"
-                    class="cw-cons-rich-project"
-                    @click="openTaskEditor({ id: p.id, kind: 'project' })"
-                    :title="p.title"
+                    class="cw-cons2-row"
+                    :class="{ big4: c.is_big4, open: expandedCons === c.id }"
+                    :style="{ '--stripe-color': c.color || '#888', animationDelay: (i * 30) + 'ms' }"
+                    role="button" tabindex="0"
+                    :title="c.projects.length ? 'Показать задачи' : ''"
+                    @click="toggleConsRow(c.id)"
+                    @keydown.enter="toggleConsRow(c.id)"
+                    @keydown.space.prevent="toggleConsRow(c.id)"
                   >
-                    <span class="cw-cons-rich-project-status" :style="`color: ${getStatusColor(p.status)}`"
-                          v-html="getStatusShortLabel(p.status)"></span>
-                    <span class="cw-cons-rich-project-title">{{ p.title }}</span>
-                    <span v-if="p.due_date" class="cw-cons-rich-project-date">{{ fmtDate(p.due_date) }}</span>
+                    <span v-if="c.is_big4" class="cw-cons2-stripe" :style="{ background: c.color || '#888' }" />
+                    <div class="cw-cons2-name">
+                      <span v-if="c.projects.length" class="cw-cons2-chevron" :class="{ open: expandedCons === c.id }"></span>
+                      <span class="cw-cons2-name-t">{{ c.name }}</span>
+                      <span v-if="c.is_big4" class="cw-cons2-big4"
+                            :style="{ background: (c.color || '#888') + '15', color: c.color || '#888', borderColor: (c.color || '#888') + '25' }">Big 4</span>
+                    </div>
+                    <div class="cw-cons2-bar-wrap">
+                      <div class="cw-cons2-bar"><div class="cw-cons2-bar-fill" :style="{ width: c.completion_pct + '%', background: pctColor(c.completion_pct) }" /></div>
+                      <span class="cw-cons2-pct-v" :style="{ color: pctColor(c.completion_pct) }">{{ c.completion_pct }}%</span>
+                    </div>
+                    <div class="cw-cons2-num r">{{ c.task_done }} / {{ c.task_count }}</div>
+                    <div class="cw-cons2-overdue r" :style="{ color: c.task_overdue > 0 ? '#993D3D' : 'var(--t3,#888780)' }">
+                      {{ c.task_overdue > 0 ? c.task_overdue : '—' }}
+                    </div>
                   </div>
-                </div>
+                  <!-- инлайн-раскрытие: задачи консультанта -->
+                  <transition name="cw-cons2-exp">
+                    <div v-if="expandedCons === c.id && c.projects.length" class="cw-cons2-projects">
+                      <div
+                        v-for="p in c.projects"
+                        :key="p.id"
+                        class="cw-cons2-project"
+                        :title="p.title"
+                        @click.stop="openTaskEditor({ id: p.id, kind: 'project' })"
+                      >
+                        <span class="cw-cons2-project-status" :style="`color: ${getStatusColor(p.status)}`" v-html="getStatusShortLabel(p.status)"></span>
+                        <span class="cw-cons2-project-title">{{ p.title }}</span>
+                        <span v-if="p.due_date" class="cw-cons2-project-date">{{ fmtDate(p.due_date) }}</span>
+                      </div>
+                      <div v-if="c.task_count > c.projects.length" class="cw-cons2-project-more">
+                        показаны {{ c.projects.length }} из {{ c.task_count }} задач
+                      </div>
+                    </div>
+                  </transition>
+
+                  <div v-if="c.is_big4 && i === companyConsBig4.length - 1 && companyConsOther.length"
+                       :key="c.id + '-sep'" class="cw-cons2-seclabel">Другие консультанты</div>
+                </template>
               </div>
             </div>
 
@@ -6882,6 +6891,79 @@ function onEditorClose() {
   flex-direction: column;
   gap: 16px;
 }
+
+/* ═══ Consultants tab v2 — дизайн как в /consultants ═══ */
+.cw-cons2-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+@media (max-width: 720px) { .cw-cons2-kpis { grid-template-columns: repeat(2, 1fr); } }
+.cw-cons2-pctsign { font-size: 16px; color: var(--t3, #94A3B8); font-weight: 400; margin-left: 1px; }
+
+.cw-cons2-card {
+  background: var(--bg1, #fff);
+  border: 1px solid rgba(0, 0, 0, .05);
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: cvCardIn .5s var(--ease-standard, ease) both;
+}
+@keyframes cvCardIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.cw-cons2-h {
+  padding: 12px 16px;
+  border-bottom: 0.5px solid rgba(0, 0, 0, .06);
+  display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+}
+.cw-cons2-t { font-size: 13px; font-weight: 600; color: var(--t1, #1E2A4A); text-transform: uppercase; letter-spacing: .04em; }
+.cw-cons2-hsub { font-size: 11px; color: var(--t3, #94A3B8); }
+
+.cw-cons2-lhead {
+  display: grid; grid-template-columns: minmax(0, 1.9fr) 1.2fr 0.8fr 0.95fr; column-gap: 14px;
+  padding: 8px 16px; border-bottom: 0.5px solid rgba(0, 0, 0, .04);
+  font-size: 10px; font-weight: 600; color: var(--t3, #94A3B8); letter-spacing: .06em; text-transform: uppercase;
+}
+.cw-cons2-lhead .r { text-align: right; }
+
+.cw-cons2-row {
+  display: grid; grid-template-columns: minmax(0, 1.9fr) 1.2fr 0.8fr 0.95fr; align-items: center; column-gap: 14px;
+  padding: 8px 16px 8px 18px; border-bottom: 0.5px solid rgba(0, 0, 0, .04);
+  cursor: pointer; transition: background .12s; position: relative; overflow: hidden;
+  animation: cvRowIn .3s cubic-bezier(.34, 1.1, .64, 1) both;
+}
+@keyframes cvRowIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+.cw-cons2-row:hover { background: rgba(127, 119, 221, .04); }
+.cw-cons2-row.open { background: rgba(127, 119, 221, .05); }
+.cw-cons2-stripe { position: absolute; left: 0; top: 0; bottom: 0; width: 2.5px; }
+
+.cw-cons2-name { display: flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; }
+.cw-cons2-chevron { width: 6px; height: 6px; border-right: 1.5px solid var(--t3, #94A3B8); border-bottom: 1.5px solid var(--t3, #94A3B8); transform: rotate(-45deg); transition: transform .2s; flex-shrink: 0; }
+.cw-cons2-chevron.open { transform: rotate(45deg); }
+.cw-cons2-name-t { font-size: 13px; font-weight: 500; color: var(--t1, #1E2A4A); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cw-cons2-big4 { font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 3px; border: 0.5px solid; letter-spacing: .03em; flex-shrink: 0; }
+
+.cw-cons2-bar-wrap { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.cw-cons2-bar { flex: 1; height: 4px; border-radius: 3px; background: rgba(0, 0, 0, .05); overflow: hidden; }
+.cw-cons2-bar-fill { height: 100%; border-radius: 3px; transition: width .5s var(--ease-standard, ease); }
+.cw-cons2-pct-v { font-size: 12px; font-weight: 600; flex-shrink: 0; font-feature-settings: 'tnum'; min-width: 36px; text-align: right; }
+.cw-cons2-num, .cw-cons2-overdue { font-size: 13px; font-feature-settings: 'tnum'; }
+.cw-cons2-num { color: var(--t3, #5F5E5A); font-weight: 500; }
+.cw-cons2-num.r, .cw-cons2-overdue.r { text-align: right; }
+.cw-cons2-overdue { font-weight: 600; }
+.cw-cons2-seclabel { padding: 10px 16px 4px; font-size: 10px; font-weight: 600; color: var(--t3, #94A3B8); text-transform: uppercase; letter-spacing: .06em; }
+
+/* инлайн-раскрытие задач консультанта */
+.cw-cons2-projects { background: var(--bg2, #FAFAFD); border-bottom: 0.5px solid rgba(0, 0, 0, .04); padding: 4px 16px 8px 30px; }
+.cw-cons2-project { display: grid; grid-template-columns: 16px 1fr max-content; align-items: center; gap: 8px; padding: 5px 0; cursor: pointer; border-radius: 6px; transition: background .12s; }
+.cw-cons2-project:hover { background: rgba(127, 119, 221, .06); }
+.cw-cons2-project-status { display: inline-flex; }
+.cw-cons2-project-title { font-size: 12px; color: var(--t2, #4B5468); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cw-cons2-project-date { font-size: 10.5px; color: var(--t3, #94A3B8); font-variant-numeric: tabular-nums; }
+.cw-cons2-project-more { font-size: 10.5px; color: var(--t3, #94A3B8); font-style: italic; padding: 4px 0 2px; }
+.cw-cons2-exp-enter-active, .cw-cons2-exp-leave-active { transition: all .2s var(--ease-standard, ease); overflow: hidden; }
+.cw-cons2-exp-enter-from, .cw-cons2-exp-leave-to { opacity: 0; max-height: 0; }
+.cw-cons2-exp-enter-to, .cw-cons2-exp-leave-from { opacity: 1; max-height: 500px; }
 
 /* ─── KPI strip ─── */
 .cw-cons-kpis {
