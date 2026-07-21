@@ -5,6 +5,7 @@ import { companiesApi } from "@/api/companies";
 import { useCompaniesStore } from "@/stores/companies";
 import { usePortfolioYearStore } from "@/stores/portfolioYear";
 import CompanyAvatar from "@/components/CompanyAvatar.vue";
+import ModalShell from "@/components/ModalShell.vue";
 import CompanyTicker from "@/components/UZA/CompanyTicker.vue";
 import SectorChip from "@/components/UZA/SectorChip.vue";
 import type {
@@ -647,16 +648,10 @@ async function submitDeleteSector() {
 
     <!-- ============================== DIALOGS ============================== -->
     <!-- COMPANY: Create/Edit -->
-    <div v-if="showCreateCompany || showEditCompany"
-         class="fixed inset-0 bg-slate-900/45 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-         @click.self="closeCompanyModal"
-         @keydown.esc="closeCompanyModal"
-         @keydown.enter="onCompanyModalEnter">
-      <div class="bg-white rounded-2xl p-6 max-w-2xl w-full max-h-[90dvh] overflow-y-auto">
-        <div class="uza-section-label mb-3">
-          {{ showCreateCompany ? "Новая компания" : `Редактирование: ${editingCompany?.name_short || editingCompany?.code}` }}
-        </div>
-        <div class="space-y-3">
+    <ModalShell :open="showCreateCompany || showEditCompany" size="lg"
+                :title="showCreateCompany ? 'Новая компания' : ('Редактирование: ' + (editingCompany?.name_short || editingCompany?.code || ''))"
+                @close="closeCompanyModal">
+        <div class="space-y-3" @keydown.enter="onCompanyModalEnter">
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="block text-xs text-slate-600 mb-1">Тикер (lowercase)</label>
@@ -728,25 +723,21 @@ async function submitDeleteSector() {
           </div>
 
           <div v-if="formError" class="text-uza-red text-xs">{{ formError }}</div>
-          <div class="flex gap-2 justify-end pt-2">
-            <button @click="closeCompanyModal"
-                    class="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-uza-pill">Отмена</button>
-            <button @click="showCreateCompany ? submitCreateCompany() : submitEditCompany()"
-                    :disabled="formSubmitting || !companyForm.code || !companyForm.name_ru"
-                    class="px-4 py-2 text-sm bg-uza-purple text-white rounded-uza-pill hover:bg-uza-purple/90 disabled:opacity-40">
-              {{ formSubmitting ? "Сохранение…" : (showCreateCompany ? "Создать" : "Сохранить") }}
-            </button>
-          </div>
         </div>
-      </div>
-    </div>
+      <template #footer>
+        <button @click="closeCompanyModal"
+                class="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-uza-pill">Отмена</button>
+        <button @click="showCreateCompany ? submitCreateCompany() : submitEditCompany()"
+                :disabled="formSubmitting || !companyForm.code || !companyForm.name_ru"
+                class="px-4 py-2 text-sm bg-uza-purple text-white rounded-uza-pill hover:bg-uza-purple/90 disabled:opacity-40">
+          {{ formSubmitting ? "Сохранение…" : (showCreateCompany ? "Создать" : "Сохранить") }}
+        </button>
+      </template>
+    </ModalShell>
 
     <!-- COMPANY: Delete confirmation -->
-    <div v-if="showDeleteCompany"
-         class="fixed inset-0 bg-slate-900/45 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-         @click.self="showDeleteCompany = false">
-      <div class="bg-white rounded-2xl p-6 max-w-md w-full">
-        <div class="uza-section-label mb-1">Удаление компании</div>
+    <ModalShell :open="showDeleteCompany" size="sm" title="Удаление компании"
+                @close="showDeleteCompany = false">
         <div class="text-sm text-slate-700 mb-4">
           {{ editingCompany?.name_short || editingCompany?.code }} ({{ editingCompany?.code }})
         </div>
@@ -775,27 +766,22 @@ async function submitDeleteSector() {
             </div>
           </label>
           <div v-if="formError" class="text-uza-red text-xs">{{ formError }}</div>
-          <div class="flex gap-2 justify-end pt-2">
-            <button @click="showDeleteCompany = false"
-                    class="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-uza-pill">Отмена</button>
-            <button @click="submitDeleteCompany" :disabled="formSubmitting"
-                    class="px-4 py-2 text-sm rounded-uza-pill text-white disabled:opacity-40"
-                    :class="deleteCascade ? 'bg-uza-red hover:bg-red-700' : 'bg-uza-amber hover:bg-amber-600'">
-              {{ formSubmitting ? "Удаление…" : (deleteCascade ? "Удалить полностью" : "Деактивировать") }}
-            </button>
-          </div>
         </div>
-      </div>
-    </div>
+      <template #footer>
+        <button @click="showDeleteCompany = false"
+                class="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-uza-pill">Отмена</button>
+        <button @click="submitDeleteCompany" :disabled="formSubmitting"
+                class="px-4 py-2 text-sm rounded-uza-pill text-white disabled:opacity-40"
+                :class="deleteCascade ? 'bg-uza-red hover:bg-red-700' : 'bg-uza-amber hover:bg-amber-600'">
+          {{ formSubmitting ? "Удаление…" : (deleteCascade ? "Удалить полностью" : "Деактивировать") }}
+        </button>
+      </template>
+    </ModalShell>
 
     <!-- SECTOR: Create/Edit -->
-    <div v-if="showCreateSector || showEditSector"
-         class="fixed inset-0 bg-slate-900/45 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-         @click.self="showCreateSector = false; showEditSector = false">
-      <div class="bg-white rounded-2xl p-6 max-w-md w-full">
-        <div class="uza-section-label mb-3">
-          {{ showCreateSector ? "Новый сектор" : `Редактирование: ${editingSector?.name_ru}` }}
-        </div>
+    <ModalShell :open="showCreateSector || showEditSector" size="sm"
+                :title="showCreateSector ? 'Новый сектор' : ('Редактирование: ' + (editingSector?.name_ru || ''))"
+                @close="showCreateSector = false; showEditSector = false">
         <div class="space-y-3">
           <div>
             <label class="block text-xs text-slate-600 mb-1">Код (latin lowercase)</label>
@@ -833,42 +819,37 @@ async function submitDeleteSector() {
             </div>
           </div>
           <div v-if="formError" class="text-uza-red text-xs">{{ formError }}</div>
-          <div class="flex gap-2 justify-end pt-2">
-            <button @click="showCreateSector = false; showEditSector = false"
-                    class="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-uza-pill">Отмена</button>
-            <button @click="showCreateSector ? submitCreateSector() : submitEditSector()"
-                    :disabled="formSubmitting || !sectorForm.code || !sectorForm.name_ru"
-                    class="px-4 py-2 text-sm bg-uza-purple text-white rounded-uza-pill hover:bg-uza-purple/90 disabled:opacity-40">
-              {{ formSubmitting ? "Сохранение…" : (showCreateSector ? "Создать" : "Сохранить") }}
-            </button>
-          </div>
         </div>
-      </div>
-    </div>
+      <template #footer>
+        <button @click="showCreateSector = false; showEditSector = false"
+                class="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-uza-pill">Отмена</button>
+        <button @click="showCreateSector ? submitCreateSector() : submitEditSector()"
+                :disabled="formSubmitting || !sectorForm.code || !sectorForm.name_ru"
+                class="px-4 py-2 text-sm bg-uza-purple text-white rounded-uza-pill hover:bg-uza-purple/90 disabled:opacity-40">
+          {{ formSubmitting ? "Сохранение…" : (showCreateSector ? "Создать" : "Сохранить") }}
+        </button>
+      </template>
+    </ModalShell>
 
     <!-- SECTOR: Delete confirmation -->
-    <div v-if="showDeleteSector"
-         class="fixed inset-0 bg-slate-900/45 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-         @click.self="showDeleteSector = false">
-      <div class="bg-white rounded-2xl p-6 max-w-md w-full">
-        <div class="uza-section-label mb-1">Удаление сектора</div>
+    <ModalShell :open="showDeleteSector" size="sm" title="Удаление сектора"
+                @close="showDeleteSector = false">
         <div class="text-sm text-slate-700 mb-3">
           {{ editingSector?.name_ru }} (<code>{{ editingSector?.code }}</code>)
         </div>
         <div class="text-xs text-slate-500 mb-3">
           Удаление возможно только если сектор не содержит активных компаний.
         </div>
-        <div v-if="formError" class="text-uza-red text-xs mb-3">{{ formError }}</div>
-        <div class="flex gap-2 justify-end">
-          <button @click="showDeleteSector = false"
-                  class="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-uza-pill">Отмена</button>
-          <button @click="submitDeleteSector" :disabled="formSubmitting"
-                  class="px-4 py-2 text-sm bg-uza-red text-white rounded-uza-pill hover:bg-red-700 disabled:opacity-40">
-            {{ formSubmitting ? "Удаление…" : "Удалить" }}
-          </button>
-        </div>
-      </div>
-    </div>
+        <div v-if="formError" class="text-uza-red text-xs">{{ formError }}</div>
+      <template #footer>
+        <button @click="showDeleteSector = false"
+                class="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-uza-pill">Отмена</button>
+        <button @click="submitDeleteSector" :disabled="formSubmitting"
+                class="px-4 py-2 text-sm bg-uza-red text-white rounded-uza-pill hover:bg-red-700 disabled:opacity-40">
+          {{ formSubmitting ? "Удаление…" : "Удалить" }}
+        </button>
+      </template>
+    </ModalShell>
   </div>
 </template>
 
