@@ -142,11 +142,35 @@ async def update_me(
                 raw = "https://" + raw
             setattr(u, f, raw)
     # Компания: юзер задаёт ОДИН раз (first-time). Повторно — игнор (только админ).
+    # Аудит RBAC (follow-up): self-set organization_id даёт per-company scope БЕЗ
+    # ceiling (онбординг). Решение владельца — оставить self-service, но (1) валидировать
+    # существование компании (раньше принимался любой UUID) и (2) писать аудит-запись
+    # для прослеживаемости. Активацию scope не откладываем (не ломаем онбординг).
+    org_self_set = False
     if "organization_id" in data and data["organization_id"] and not u.org_profile_set:
+        from app.models.company import Company
+        exists = (await db.execute(
+            select(Company.id).where(Company.id == data["organization_id"])
+        )).scalar_one_or_none()
+        if exists is None:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Компания не найдена")
         u.organization_id = data["organization_id"]
         u.org_profile_set = True
+        org_self_set = True
     await db.commit()
     await db.refresh(u)
+    if org_self_set:
+        try:
+            from app.core.audit_chain import append_audit_entry
+            await append_audit_entry(
+                db, actor_id=str(u.id), actor_email=u.email,
+                action="auth.me.org_self_set",
+                entity_type="user", entity_id=str(u.id),
+                notes=f"organization_id={u.organization_id} (self-service онбординг, без ceiling)",
+            )
+            await db.commit()
+        except Exception:  # noqa: BLE001 — аудит не должен ломать сам профиль-апдейт
+            pass
     return await _enrich_org(service.me(u), u, db)
 
 
