@@ -735,7 +735,7 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
 .ph-hero-r { padding: 22px 28px; display: flex; flex-direction: column; justify-content: center; gap: 12px; background: #fff; }
 .ph-gap-head { display: flex; align-items: baseline; justify-content: space-between; }
 .ph-gap-head span { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--t3); }
-.ph-gap-head b { font-size: 22px; font-weight: 700; color: #1E2A4A; font-variant-numeric: tabular-nums; }
+.ph-gap-head b { font-size: 22px; font-weight: 500; color: #1E2A4A; font-variant-numeric: tabular-nums; }
 .ph-gap-bar { position: relative; height: 12px; border-radius: 7px; background: #F0F1F6; }
 .ph-gap-fill { position: absolute; left: 0; top: 0; height: 100%; border-radius: 7px; background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.30) 0%, rgba(255, 255, 255, 0) 55%); transition: width .8s var(--ease-out); }
 .ph-hero.crit .ph-gap-fill { background-color: #E2807F; } .ph-hero.warn .ph-gap-fill { background-color: #EFB373; } .ph-hero.good .ph-gap-fill { background-color: #7C6FF7; } .ph-hero.ok .ph-gap-fill { background-color: #5DC093; } .ph-hero.na .ph-gap-fill { background-color: #B8B7B0; }
@@ -773,7 +773,7 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
 .ph-verdict { display: grid; grid-template-columns: 1fr 1.4fr; gap: 0; background: linear-gradient(135deg,#fff,#FBFAFF); border: 1px solid var(--bd); border-radius: 16px; box-shadow: var(--sh); overflow: hidden; margin-bottom: 16px; }
 .ph-vd-main { padding: 22px 26px; border-right: 1px solid var(--line); }
 .ph-vd-label { font-size: 10px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--t3); }
-.ph-vd-num { font-size: 56px; font-weight: 700; letter-spacing: -.045em; line-height: 1; margin-top: 8px; font-variant-numeric: tabular-nums; }
+.ph-vd-num { font-size: 56px; font-weight: 400; letter-spacing: -.045em; line-height: 1; margin-top: 8px; font-variant-numeric: tabular-nums; }
 .ph-vd-num small { font-size: 24px; }
 .ph-vd-sub { font-size: 12px; color: var(--t3); margin-top: 8px; }
 .ph-vd-plan { padding: 22px 26px; display: flex; flex-direction: column; justify-content: center; gap: 10px; }
