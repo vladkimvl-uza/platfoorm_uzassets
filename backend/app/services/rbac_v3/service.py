@@ -169,6 +169,100 @@ class RbacV3Service:
             role_codes=[],
         )
 
+    async def _ensure_group_membership_within_ceiling(
+        self, db: AsyncSession, repo: RbacV3Repository, actor: User, g: Group,
+    ) -> None:
+        """P0 (аудит RBAC): вступление в группу расширяет доступ участника ДВУМЯ
+        путями, которые role-ceiling (role_permission_codes) не покрывает:
+          1) Group.company_id — само членство даёт видимость этой компании
+             (allowed_company_ids, Pack 147 / rbac_scope_c3), даже без грантов →
+             горизонтальная эскалация scope (выход из своей компании);
+          2) GroupPermissionGrant группы — эффективны глобально на уровне проверки
+             права (scope живёт только на гранте) → вертикальная эскалация прав.
+        Поэтому не-owner не может добавить участника (в т.ч. себя) в группу, чьи
+        company_id / гранты несут право или scope сверх его собственных — иначе
+        self/сообщник получает их через членство. Owner/super — без ограничений.
+        Зеркалит ceiling из set_group_permissions + company-scope из access.py."""
+        if actor.is_owner or is_super_admin(actor):
+            return
+        from app.core.access import allowed_company_ids
+        allowed = await allowed_company_ids(db, actor)   # None = все компании
+        allowed_str = None if allowed is None else {str(x) for x in allowed}
+
+        # (1) company_id самой группы: членство даёт доступ к этой компании.
+        # allowed_str is None = актор видит все компании (companies.view_all) → ок.
+        if allowed_str is not None and getattr(g, "company_id", None) is not None:
+            if str(g.company_id) not in allowed_str:
+                raise HTTPException(
+                    http_status.HTTP_403_FORBIDDEN,
+                    "Группа привязана к компании вне вашего доступа — управлять её "
+                    "участниками может owner или администратор с доступом к этой компании.",
+                )
+
+        # (2) гранты группы: право/scope сверх собственных.
+        grants = await repo.list_group_grants(g.id)
+        if not grants:
+            return
+        from datetime import UTC, datetime
+        now = datetime.now(UTC)
+        actor_codes = set(await repo.effective_permission_codes(actor.id))
+        for gr in grants:
+            if getattr(gr, "grant_type", "grant") == "deny":
+                continue   # deny (понижение) не эскалация
+            exp = getattr(gr, "expires_at", None)
+            if exp is not None and exp < now:
+                continue   # истёкший grant прав не даёт — не блокируем (как access.py)
+            c = gr.permission_code
+            if c == "admin" or c.startswith("admin.") or c not in actor_codes:
+                raise HTTPException(
+                    http_status.HTTP_403_FORBIDDEN,
+                    f"Группа несёт право сверх ваших ({c}) — добавление участников "
+                    "в неё доступно только owner или администратору с этим правом.",
+                )
+            sc = getattr(gr, "scope_companies", None)
+            if sc and allowed_str is not None:
+                excess = {str(x) for x in sc} - allowed_str
+                if excess:
+                    raise HTTPException(
+                        http_status.HTTP_403_FORBIDDEN,
+                        "Группа даёт доступ к компаниям вне вашего scope: "
+                        + ", ".join(sorted(excess)),
+                    )
+
+    async def _ensure_assigned_scope_within_ceiling(
+        self, db: AsyncSession, actor: User, *,
+        organization_id=None, allowed_sectors=None,
+    ) -> None:
+        """P0 (аудит RBAC): company/sector-scope, назначаемый пользователю напрямую
+        (User.organization_id + User.allowed_sectors), эффективен как per-company
+        доступ (allowed_company_ids: organization_id → одна компания, allowed_sectors
+        → все компании сектора). Не-owner не может выдать (СЕБЕ или другому) scope
+        сверх собственного — иначе self/сообщник выходит за пределы своей компании.
+        Применяется в create_user/update_user. Вызывать до записи полей."""
+        if actor.is_owner or is_super_admin(actor):
+            return
+        from app.core.access import allowed_company_ids
+        allowed = await allowed_company_ids(db, actor)
+        if allowed is None:
+            return   # актор видит все компании (companies.view_all) → любой scope в пределах
+        allowed_str = {str(x) for x in allowed}
+        # organization_id: назначаемая компания должна быть в доступе актора
+        if organization_id is not None and str(organization_id) not in allowed_str:
+            raise HTTPException(
+                http_status.HTTP_403_FORBIDDEN,
+                "Нельзя назначить пользователю компанию вне вашего доступа.",
+            )
+        # allowed_sectors: только подмножество собственных секторов актора (иначе
+        # company-scoped админ выдал бы себе целый сектор = все его компании)
+        if allowed_sectors:
+            actor_sectors = {str(s) for s in (getattr(actor, "allowed_sectors", None) or [])}
+            excess = {str(s) for s in allowed_sectors} - actor_sectors
+            if excess:
+                raise HTTPException(
+                    http_status.HTTP_403_FORBIDDEN,
+                    "Нельзя выдать секторы вне ваших: " + ", ".join(sorted(excess)),
+                )
+
     # ─── Overview ─────────────────────────────────────────────────
 
     async def overview(self, db: AsyncSession, user: User) -> RBACOverview:
@@ -571,6 +665,12 @@ class RbacV3Service:
                         http_status.HTTP_403_FORBIDDEN,
                         "Назначаемые роли несут права сверх ваших: " + ", ".join(excess),
                     )
+        # P0 ceiling: не выдать создаваемому пользователю company/sector-scope сверх своего
+        await self._ensure_assigned_scope_within_ceiling(
+            db, user,
+            organization_id=payload.organization_id,
+            allowed_sectors=payload.allowed_sectors,
+        )
         new_user = User(
             email=payload.email.lower(),
             full_name=payload.full_name,
@@ -647,6 +747,9 @@ class RbacV3Service:
             if payload.is_active is False:
                 must_revoke = True
         if payload.organization_id is not None and payload.organization_id != u.organization_id:
+            # P0 ceiling: не назначить компанию вне доступа актора (в т.ч. себе)
+            await self._ensure_assigned_scope_within_ceiling(
+                db, user, organization_id=payload.organization_id)
             u.organization_id = payload.organization_id
             changes.append(f"organization_id={payload.organization_id}")
         if payload.allowed_companies is not None:
@@ -654,6 +757,9 @@ class RbacV3Service:
         if payload.allowed_sectors is not None:
             new_sectors = payload.allowed_sectors or None
             if (u.allowed_sectors or None) != new_sectors:
+                # P0 ceiling: не выдать секторы вне собственных (в т.ч. себе)
+                await self._ensure_assigned_scope_within_ceiling(
+                    db, user, allowed_sectors=new_sectors)
                 u.allowed_sectors = new_sectors
                 changes.append(f"allowed_sectors={payload.allowed_sectors}")
         if payload.role_codes is not None:
@@ -758,9 +864,42 @@ class RbacV3Service:
                 f"Unknown role code: {payload.role_code!r}",
             )
         existing = await repo.get_membership(user_id, group_id)
+        if existing and existing.role_id == role.id:
+            return await self.get_user(user_id, db, user)   # no-op, роль не меняется
+
+        # P0 (аудит RBAC): membership — единственный оставшийся путь назначения
+        # роли БЕЗ privilege-ceiling. Без этих guard'ов scoped-админ с admin.users
+        # создаёт группу и самоназначает роль 'admin' (или роль с правами сверх
+        # своих) → получает admin.* в обход упрочнённых update_user/create_user.
+        # Зеркалим ceiling из update_user.
+        _ensure_can_manage_target(user, u)   # не-owner не трогает OWNER-аккаунт
+        if not user.is_owner and not is_super_admin(user):
+            # роль 'admin' = супер-админ (глобальный bypass) — назначает только owner
+            if role.code == "admin":
+                raise HTTPException(
+                    http_status.HTTP_403_FORBIDDEN,
+                    "Только owner может назначить роль 'admin' (супер-администратор).",
+                )
+            # нельзя менять собственные членства/роли (самоэскалация через свой аккаунт)
+            if u.id == user.id:
+                raise HTTPException(
+                    http_status.HTTP_403_FORBIDDEN,
+                    "Нельзя изменять собственные членства — попросите owner или другого администратора.",
+                )
+            # ceiling: назначаемая роль не несёт прав сверх эффективных прав актора
+            actor_codes = set(await repo.effective_permission_codes(user.id))
+            role_perms = set(await repo.role_permission_codes(role.id))
+            excess = [c for c in sorted(role_perms)
+                      if c == "admin" or c.startswith("admin.") or c not in actor_codes]
+            if excess:
+                raise HTTPException(
+                    http_status.HTTP_403_FORBIDDEN,
+                    "Роль несёт права сверх ваших: " + ", ".join(excess),
+                )
+        # Scope/гранты самой группы (company_id + GroupPermissionGrant) — не покрыто role-ceiling
+        await self._ensure_group_membership_within_ceiling(db, repo, user, g)
+
         if existing:
-            if existing.role_id == role.id:
-                return await self.get_user(user_id, db, user)
             existing.role_id = role.id
         else:
             repo.add(UserGroupRole(
@@ -1080,7 +1219,22 @@ class RbacV3Service:
         g = await repo.get_group(group_id)
         if not g:
             raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Group not found")
-        for k, v in payload.model_dump(exclude_unset=True).items():
+        fields = payload.model_dump(exclude_unset=True)
+        # P0 (аудит RBAC): смена company_id перепривязывает группу к другой компании
+        # → все её участники (в т.ч. сам актор, если он в группе) получают доступ к
+        # этой компании через allowed_company_ids. Не-owner не может увести группу в
+        # компанию вне своего доступа (горизонтальная эскалация scope).
+        if ("company_id" in fields and fields["company_id"] is not None
+                and fields["company_id"] != g.company_id
+                and not user.is_owner and not is_super_admin(user)):
+            from app.core.access import allowed_company_ids
+            allowed = await allowed_company_ids(db, user)
+            if allowed is not None and str(fields["company_id"]) not in {str(x) for x in allowed}:
+                raise HTTPException(
+                    http_status.HTTP_403_FORBIDDEN,
+                    "Нельзя привязать группу к компании вне вашего доступа.",
+                )
+        for k, v in fields.items():
             setattr(g, k, v)
         await db.commit()
         await append_audit_entry(
@@ -1150,6 +1304,43 @@ class RbacV3Service:
                 http_status.HTTP_400_BAD_REQUEST,
                 f"Unknown role codes: {sorted(unknown_roles)}",
             )
+
+        # P0 (аудит RBAC): та же дыра, что в upsert_user_membership — set_group_members
+        # тоже пишет UserGroupRole без privilege-ceiling. Без этого scoped-админ с
+        # admin.users создаёт группу и выдаёт себе/сообщнику роль 'admin' (или роль с
+        # правами сверх своих) → admin.* глобально (роль-права эффективны без scope).
+        # Ceiling'а достаточно: он ограничивает роль правами актора, поэтому GAIN
+        # невозможен даже для self — блокировать себя целиком (как в upsert) не нужно,
+        # иначе сломается штатная правка ростера группы, где актор сам в участниках.
+        if not user.is_owner and not is_super_admin(user):
+            actor_codes = set(await repo.effective_permission_codes(user.id))
+            role_perms_cache: dict[str, set[str]] = {}
+            for uid, rc in assignments:
+                if rc == "admin":
+                    raise HTTPException(
+                        http_status.HTTP_403_FORBIDDEN,
+                        "Только owner может назначить роль 'admin' (супер-администратор).",
+                    )
+                target = await repo.get_user_by_id(uid)
+                if target is not None:
+                    _ensure_can_manage_target(user, target)   # не-owner не трогает OWNER
+                if rc not in role_perms_cache:
+                    role_perms_cache[rc] = set(
+                        await repo.role_permission_codes(role_id_by_code[rc])
+                    )
+                excess = [c for c in sorted(role_perms_cache[rc])
+                          if c == "admin" or c.startswith("admin.") or c not in actor_codes]
+                if excess:
+                    raise HTTPException(
+                        http_status.HTTP_403_FORBIDDEN,
+                        f"Роль '{rc}' несёт права сверх ваших: " + ", ".join(excess),
+                    )
+            # Scope/гранты самой группы (company_id + GroupPermissionGrant) — не покрыто
+            # role-ceiling: закрывает горизонтальную (выход из своей компании через
+            # Group.company_id) и вертикальную (жирный grant) self-эскалацию, без
+            # блокировки штатной правки ростера группы своей компании.
+            await self._ensure_group_membership_within_ceiling(db, repo, user, g)
+
         await repo.clear_group_members(group_id)
         for uid, rc in assignments:
             repo.add(UserGroupRole(
