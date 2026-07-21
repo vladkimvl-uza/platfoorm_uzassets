@@ -256,7 +256,16 @@ async def compute_el_aggregate(
         if debt <= 0:
             continue
 
-        overdue_days = 0  # TODO: compute from loan_repayments if status=overdue
+        # Просрочка по СРОКУ (maturity-proxy, как в credit_portfolio_helpers /
+        # risk_metrics / credit_scenario.service): заём с наступившим сроком
+        # погашения и остатком долга просрочен на (сегодня - date_due) дней. True
+        # per-payment DPD в данных не captured — это консервативный прокси, чтобы
+        # EL не обнулял делинквентность молча (>90д → +20% PD в формуле).
+        overdue_days = (
+            (today - loan.date_due).days
+            if (loan.date_due and loan.date_due < today)
+            else 0
+        )
         days_to_maturity = (
             (loan.date_due - today).days if loan.date_due else 9999
         )
