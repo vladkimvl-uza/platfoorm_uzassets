@@ -49,6 +49,7 @@ import {
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
 import NoteAssigneePicker from "@/components/NoteAssigneePicker.vue";
+import ModalShell from "@/components/ModalShell.vue";
 
 const { confirmDialog } = useConfirm();
 const toast = useToast();
@@ -1363,30 +1364,9 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
     <!-- ============================================================ -->
     <!-- MODAL -->
     <!-- ============================================================ -->
-    <Teleport to="body">
-      <Transition name="cn-modal">
-        <div
-          v-if="modalOpen"
-          class="cn-modal-backdrop"
-          @click.self="closeModal"
-        >
-          <div class="cn-modal" @click.stop>
-            <div class="cn-modal-head">
-              <h3>
-                {{ modalMode === "create" ? "Новая запись" : "Редактирование записи" }}
-              </h3>
-              <button class="cn-icon-btn" @click="closeModal" title="Закрыть">
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                  <path
-                    d="M3 3 L13 13 M13 3 L3 13"
-                    stroke="currentColor"
-                    stroke-width="1.6"
-                    stroke-linecap="round"
-                  />
-                </svg>
-              </button>
-            </div>
-
+    <ModalShell :open="modalOpen" size="lg"
+                :title="modalMode === 'create' ? 'Новая запись' : 'Редактирование записи'"
+                @close="closeModal">
             <div class="cn-modal-body">
               <!-- Kind chips -->
               <div class="cn-field">
@@ -1708,24 +1688,21 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
               <div v-if="modalError" class="cn-error">{{ modalError }}</div>
             </div>
 
-            <div class="cn-modal-foot">
-              <button class="cn-btn-secondary" @click="closeModal">
-                Отмена
-              </button>
-              <button
-                class="cn-btn-primary"
-                :disabled="modalSubmitting || !form.body.trim()"
-                @click="submit"
-              >
-                <span v-if="modalSubmitting">Сохраняем...</span>
-                <span v-else-if="modalMode === 'create'">Создать</span>
-                <span v-else>Сохранить</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
+      <template #footer>
+        <button class="cn-btn-secondary" @click="closeModal">
+          Отмена
+        </button>
+        <button
+          class="cn-btn-primary"
+          :disabled="modalSubmitting || !form.body.trim()"
+          @click="submit"
+        >
+          <span v-if="modalSubmitting">Сохраняем...</span>
+          <span v-else-if="modalMode === 'create'">Создать</span>
+          <span v-else>Сохранить</span>
+        </button>
+      </template>
+    </ModalShell>
   </div>
 </template>
 
