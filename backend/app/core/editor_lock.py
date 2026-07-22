@@ -32,7 +32,7 @@ from typing import Optional
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-# 64-zero placeholder — used when the scope is empty (no rows yet).
+# 16-zero placeholder — used when the scope is empty (no rows yet).
 EMPTY_TOKEN = "0" * 16
 
 
@@ -49,6 +49,26 @@ def token_from_timestamps(timestamps: Iterable[Optional[datetime]]) -> str:
         return EMPTY_TOKEN
     h = hashlib.sha1("|".join(valid).encode("utf-8")).hexdigest()
     return h[:16]
+
+
+def token_from_isos(*iso_strings: Optional[str]) -> str:
+    """Token for a single-blob editor (e.g. HLF): hash the blob's stored ISO
+    timestamp(s). Pass EVERY timestamp that a write to the blob bumps — e.g. both
+    a manual-save `updated_at` and a re-import `imported_at` — so ANY writer
+    (save OR import) moves the token and a concurrent editor's save 409s instead
+    of silently clobbering. Pure — the caller already has the blob loaded, no DB
+    round-trip. Empty/unparseable are skipped; none present → EMPTY_TOKEN. Both
+    GET and PUT parse the SAME stored strings the same way, so the token is stable
+    across a no-op load→save (order-independent via token_from_timestamps)."""
+    stamps: list[Optional[datetime]] = []
+    for iso in iso_strings:
+        if not iso:
+            continue
+        try:
+            stamps.append(datetime.fromisoformat(iso))
+        except (ValueError, TypeError):
+            continue
+    return token_from_timestamps(stamps)
 
 
 async def compute_kpi_editor_token(db: AsyncSession, *, company_id, year: int) -> str:

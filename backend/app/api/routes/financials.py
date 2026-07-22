@@ -661,10 +661,13 @@ async def import_hlf_file(
 async def get_company_hlf(
     code: str,
     service: FinancialsHlfServiceDep,
+    response: Response,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> dict:
-    return await service.get_company_hlf(code, db, user)
+    result = await service.get_company_hlf(code, db, user)
+    response.headers["X-Editor-Token"] = result.pop("_editor_token", EMPTY_TOKEN)
+    return result
 
 
 @router.put("/companies/{code}/hlf")
@@ -672,7 +675,11 @@ async def save_company_hlf(
     code: str,
     payload: HlfSavePayload,
     service: FinancialsHlfServiceDep,
+    response: Response,
+    if_match: Optional[str] = Header(None, alias="If-Match"),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> dict:
-    return await service.save_company_hlf(code, payload, db, user)
+    result = await service.save_company_hlf(code, payload, db, user, expected_token=if_match)
+    response.headers["X-Editor-Token"] = result.pop("_editor_token", EMPTY_TOKEN)
+    return result

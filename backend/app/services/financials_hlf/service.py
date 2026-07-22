@@ -16,6 +16,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.access import allowed_company_ids
+from app.core.editor_lock import check_editor_token, token_from_isos
 from app.core.security import has_effective_permission
 from app.models.user import User
 from app.repositories.financials_repository import FinancialsRepository
@@ -355,6 +356,11 @@ class FinancialsHlfService:
             "code": co.code,
             "company_name": co.name_short or co.name_ru,
             "hlf": hlf,
+            # Токен свёртывает updated_at (ручное сохранение) И imported_at (реимпорт)
+            # — чтобы реимпорт тоже двигал токен и не затирался открытым редактором.
+            "_editor_token": token_from_isos(
+                (hlf or {}).get("updated_at"), (hlf or {}).get("imported_at"),
+            ),
         }
 
     async def save_company_hlf(
@@ -363,6 +369,8 @@ class FinancialsHlfService:
         payload: HlfSavePayload,
         db: AsyncSession,
         user: User,
+        *,
+        expected_token: Optional[str] = None,
     ) -> dict:
         if not await has_effective_permission(db, user, "financials.edit"):
             raise HTTPException(
@@ -383,6 +391,18 @@ class FinancialsHlfService:
         now_iso = datetime.utcnow().isoformat()
         extra = dict(co.extra or {})
         existing = extra.get("hlf", {}) or {}
+
+        # Optimistic-lock: HLF save is a FULL-BLOB replace (last-writer-wins), so
+        # a concurrent editor would silently wipe the other's entire statement.
+        # Recompute the token from the pre-write updated_at and 409 on mismatch,
+        # BEFORE the overwrite. No-op when the caller sent no token (legacy).
+        check_editor_token(
+            scope_name=f"financials/hlf/{code}",
+            expected_token=expected_token,
+            current_token=token_from_isos(
+                existing.get("updated_at"), existing.get("imported_at"),
+            ),
+        )
         extra["hlf"] = {
             **existing,
             "currency": payload.currency,
@@ -402,4 +422,7 @@ class FinancialsHlfService:
             "sections_count": len(payload.sections),
             "rows_count": total_rows,
             "updated_at": now_iso,
+            # Re-issue (matches a subsequent GET: updated_at=now_iso + preserved
+            # imported_at via {**existing}) — same editor saves again w/o reload.
+            "_editor_token": token_from_isos(now_iso, existing.get("imported_at")),
         }

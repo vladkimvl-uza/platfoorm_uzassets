@@ -66,6 +66,9 @@ const collapsedSec = ref<Set<string>>(new Set());
 const editMode     = ref(false);
 const dirty        = ref(false);
 const saving       = ref(false);
+// Optimistic-lock: HLF save — full-blob replace; токен из X-Editor-Token на load,
+// эхом If-Match на save → 409 если кто-то сохранил, пока редактировали.
+const editorToken  = ref<string | null>(null);
 const showAddYear  = ref(false);
 const newYearValue = ref<number>(new Date().getFullYear());
 const importLoading = ref(false);
@@ -523,6 +526,7 @@ async function load() {
     const { api } = await import("@/api/client");
     const resp = await api.get(`/financials/companies/${selectedCode.value}/hlf`);
     data.value = resp.data?.hlf || null;
+    editorToken.value = (resp.headers["x-editor-token"] as string) || null;  // axios lowercases keys
     collapsedSec.value = new Set();
     dirty.value = false;
   } catch (e: unknown) {
@@ -552,17 +556,30 @@ async function save() {
       });
     }
     const { api } = await import("@/api/client");
-    await api.put(`/financials/companies/${selectedCode.value}/hlf`, {
-      years: data.value.years,
-      sections: data.value.sections,
-      currency: data.value.currency || "UZS",
-      unit: data.value.unit || "bln",
-    });
+    const resp = await api.put(
+      `/financials/companies/${selectedCode.value}/hlf`,
+      {
+        years: data.value.years,
+        sections: data.value.sections,
+        currency: data.value.currency || "UZS",
+        unit: data.value.unit || "bln",
+      },
+      editorToken.value ? { headers: { "If-Match": editorToken.value } } : undefined,
+    );
     dirty.value = false;
+    const newTok = resp.headers?.["x-editor-token"] as string | undefined;
+    if (newTok) editorToken.value = newTok;  // re-issue → keep saving without reload
     // Успех = бэкенд закоммитил (API 2xx). Подтверждаем визуально.
     toast.success("Финансовая отчётность сохранена");
   } catch (e: unknown) {
-    const err = e as { response?: { data?: { detail?: string } }; message?: string };
+    const err = e as { response?: { status?: number; data?: { detail?: string } }; message?: string };
+    // Конфликт: кто-то сохранил, пока редактировали. Не сбрасываем dirty →
+    // правки на экране целы; просим перезагрузить, чтобы не затереть чужое.
+    if (err?.response?.status === 409) {
+      error.value = "Данные изменились, пока вы редактировали. Перезагрузите, чтобы не затереть чужие правки.";
+      toast.error("Конфликт: отчётность изменена. Перезагрузите, чтобы увидеть актуальные данные.");
+      return;
+    }
     const reason = err?.response?.data?.detail || err?.message || "неизвестная ошибка";
     error.value = `Не сохранено: ${reason}`;
     toast.error(`Отчётность не сохранена: ${reason}`);
