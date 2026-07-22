@@ -14,9 +14,7 @@ import ipaddress
 import os
 
 from slowapi import Limiter
-from slowapi.errors import RateLimitExceeded
 from starlette.requests import Request
-from starlette.responses import JSONResponse
 
 from app.config import settings
 
@@ -80,17 +78,3 @@ limiter = Limiter(
     default_limits=[settings.RATE_LIMIT_API],
     enabled=settings.RATE_LIMIT_ENABLED,
 )
-
-
-async def rate_limit_exceeded_handler(
-    request: Request, exc: RateLimitExceeded
-) -> JSONResponse:
-    """Return a clean 429 response without leaking limiter internals."""
-    return JSONResponse(
-        status_code=429,
-        content={
-            "detail": "Too many requests",
-            "retry_after_seconds": int(exc.detail.split(" per ")[1].split(" ")[0]) if " per " in str(exc.detail) else 60,
-        },
-        headers={"Retry-After": "60"},
-    )

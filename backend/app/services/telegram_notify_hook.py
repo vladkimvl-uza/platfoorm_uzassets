@@ -7,43 +7,12 @@ import logging
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.config import settings
-from app.models.mfa import OutboxType, TelegramOutbox, UserTelegramPref
 from app.models.notification import Notification
 from app.models.user import User
-from app.services import mfa_service, tg_banner
+from app.services import tg_banner
 
 log = logging.getLogger(__name__)
-
-
-# Map Notification.type → pref field on UserTelegramPref
-TYPE_TO_PREF_FIELD: dict[str, str] = {
-    # Moderation cluster
-    "moderation.pending":          "type_moderation",
-    "moderation.approved":         "type_moderation",
-    "moderation.rejected":         "type_moderation",
-    "moderation.review_requested": "type_moderation",
-    "moderation.escalated":        "type_moderation",
-    "moderation.expired":          "type_moderation",
-    # Interactions
-    "mention":         "type_mentions",
-    "assignment":      "type_assignments",
-    "comment.replied": "type_mentions",
-    # Deadlines
-    "deadline.approaching": "type_deadlines",
-    "deadline.missed":      "type_deadlines",
-    # KPI / audit / RBAC
-    "kpi.target.missed":   "type_system",
-    "kpi.achieved":        "type_system",
-    "audit.security_flag": "type_system",
-    "rbac.changed":        "type_system",
-    # System
-    "system.announcement": "type_system",
-    "data.imported":       "type_system",
-    "report.ready":        "type_system",
-}
 
 
 PRIORITY_MARKERS = {
@@ -261,65 +230,3 @@ def _build_inline_buttons(notif: Notification) -> Optional[list]:
     return [
         [{"text": "Открыть в платформе →", "url": link}],
     ]
-
-
-async def forward_notification_to_telegram(
-    db: AsyncSession,
-    notif: Notification,
-) -> bool:
-    """Enqueue notification into telegram_outbox if user prefs allow.
-
-    Returns True if enqueued, False otherwise. Never raises.
-    """
-    try:
-        user = await db.get(User, notif.recipient_user_id)
-        if user is None:
-            return False
-        if not getattr(user, "telegram_chat_id_encrypted", None):
-            return False
-
-        pref: UserTelegramPref = await mfa_service.get_or_create_pref(db, str(user.id))
-
-        pref_field = TYPE_TO_PREF_FIELD.get(notif.type, "type_system")
-        severity = notif.priority or "normal"
-
-        routed = mfa_service.should_route_to_telegram(
-            pref=pref, pref_field=pref_field, severity=severity,
-        )
-        if not routed:
-            return False
-        # Per-type opt-out из настроек уведомлений (channels.telegram).
-        from app.services.notifications_service import user_wants_telegram
-        if not await user_wants_telegram(db, user.id, notif.type):
-            return False
-
-        source_user = None
-        if notif.source_user_id:
-            source_user = await db.get(User, notif.source_user_id)
-
-        ob = TelegramOutbox(
-            user_id=user.id,
-            type=OutboxType.NOTIFICATION,
-            payload=_build_payload(notif, source_user),
-            inline_buttons=_build_inline_buttons(notif),
-        )
-        db.add(ob)
-        await db.commit()
-
-        log.info(
-            "tg-forward: notif=%s type=%s priority=%s -> outbox=%s user=%s",
-            notif.id, notif.type, notif.priority, ob.id, user.email,
-        )
-        return True
-
-    except Exception as e:
-        log.warning(
-            "tg-forward failed for notif=%s type=%s: %s",
-            getattr(notif, "id", "?"), getattr(notif, "type", "?"), e,
-            exc_info=True,
-        )
-        try:
-            await db.rollback()
-        except Exception:
-            pass
-        return False

@@ -63,55 +63,6 @@ def is_enabled() -> bool:
     return bool(get_api_key()) and bool(_API_URL) and bool(_VERSION_HEADER)
 
 
-# ──────────────────────────── Single-turn (legacy, no tools) ────────────────────────────
-
-async def stream_chat(
-    *,
-    system: str,
-    messages: list[dict[str, Any]],
-    model: Optional[str] = None,
-    max_tokens: int = 16000,
-    temperature: float = 0.25,
-) -> AsyncGenerator[bytes, None]:
-    """Stream chat completion from LLM. Yields raw SSE chunks."""
-    api_key = get_api_key()
-    if not api_key:
-        raise RuntimeError("LLM API key not configured")
-
-    payload = {
-        "model": _resolve_model(model),
-        "max_tokens": max_tokens,
-        "temperature": temperature,
-        "system": system,
-        "messages": messages,
-        "stream": True,
-    }
-
-    headers = {
-        "x-api-key": api_key,
-        _VERSION_HEADER: _API_VERSION,
-        "content-type": "application/json",
-    }
-
-    async with httpx.AsyncClient(timeout=180.0) as client:
-        async with client.stream("POST", _API_URL, json=payload, headers=headers) as resp:
-            if resp.status_code != 200:
-                err_text = await resp.aread()
-                err = {
-                    "type": "error",
-                    "error": {
-                        "status": resp.status_code,
-                        "message": err_text.decode("utf-8", errors="replace"),
-                    },
-                }
-                yield f"event: error\ndata: {json.dumps(err, ensure_ascii=False)}\n\n".encode("utf-8")
-                return
-
-            async for chunk in resp.aiter_bytes():
-                if chunk:
-                    yield chunk
-
-
 async def complete_once(
     *,
     system: str,

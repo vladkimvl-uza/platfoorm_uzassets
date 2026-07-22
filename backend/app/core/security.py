@@ -399,18 +399,6 @@ def require_role(*role_codes: str):
     return _dep
 
 
-def require_owner():
-    """Dependency: only the platform owner may proceed."""
-    async def _dep(user: User = Depends(get_current_user)) -> User:
-        if not user.is_owner:
-            raise HTTPException(
-                status.HTTP_403_FORBIDDEN,
-                "Owner-only operation",
-            )
-        return user
-    return _dep
-
-
 # =====================================================================
 # Optional: get user but allow anonymous (returns None instead of 401)
 # =====================================================================
