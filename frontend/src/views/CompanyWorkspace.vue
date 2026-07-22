@@ -67,6 +67,7 @@ import {
   type FinancialLineEdit,
 } from "@/api/financials";
 import { computeProgress, EXCLUDED_FROM_PCT } from "@/utils/progress";
+import { kpiCompletionRatio, kpiWeightedRatio } from "@/utils/kpiRatio";
 import CompanyNotesTab from "@/components/CompanyNotesTab.vue";
 import CompanyCalendar from "@/components/Company/CompanyCalendar.vue";
 import CompanyOverviewExtras from "@/components/CompanyOverviewExtras.vue";
@@ -1474,17 +1475,20 @@ const kpiManagerViews = computed<KpiManagerView[]>(() => {
         ? maybeNum((ind as any).bp_plan_resolved) : maybeNum(ind.plan_year);
       const fact = (linked && (ind as any).bp_fact_resolved != null)
         ? maybeNum((ind as any).bp_fact_resolved) : maybeNum(ind.fact_year);
-      const indHasFact = fact !== null && plan !== null && plan !== 0;
-      let ratio: number | null = null;
+      // P0 аудита: единый direction-aware расчёт (utils/kpiRatio) вместо инлайна
+      // Math.min(2, fact/plan) — иначе для 'down'-KPI перерасход рисовался как
+      // достижение >100%, расходясь с модулем /kpi. Пол/потолок — во взвешенной
+      // сводке (kpiWeightedRatio: пол 0, потолок 150%, как co_pct на бэке).
+      const ratio = kpiCompletionRatio(plan, fact, ind.direction);
+      const indHasFact = ratio !== null;
       if (indHasFact) {
-        ratio = Math.min(2, fact! / plan!);  // cap at 200%
-        weightedSum += ratio * w;
+        weightedSum += kpiWeightedRatio(ratio) * w;
         totalWeight += w;
         hasFact = true;
       } else if (plan !== null) {
         totalWeight += w;
       }
-      const isAttention = indHasFact && ratio! < 0.90 && w >= 15;
+      const isAttention = indHasFact && ratio < 0.90 && w >= 15;
       if (isAttention) attentionCount++;
       return {
         name: ind.name || "",

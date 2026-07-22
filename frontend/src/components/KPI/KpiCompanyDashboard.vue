@@ -24,6 +24,7 @@ import {
 import { useFormatters } from "@/composables/useFormatters";
 import { useToast } from "@/composables/useToast";
 import ModalShell from "@/components/ModalShell.vue";
+import { kpiCompletionRatio, kpiWeightedRatio } from "@/utils/kpiRatio";
 
 const fmt = useFormatters();
 
@@ -96,12 +97,8 @@ function indCompletion(ind: KpiIndicator, p: string): number | null {
     }
     if (had && sp !== 0) { plan = sp; fact = sf; } else { return null; }
   }
-  if (plan == null || fact == null) return null;
-  // Направление + guard отрицательного/нулевого плана (как kpi_ratio на бэке):
-  // отрицательный план (плановый убыток) инвертировал бы знак (−187%) — не оцениваем.
-  const dir = ind.direction === "down" ? "down" : "up";
-  if (dir === "down") return (plan <= 0 || fact <= 0) ? null : plan / fact;
-  return plan <= 0 ? null : fact / plan;
+  // Направление + guard плана/факта — единый источник utils/kpiRatio (P0 аудита).
+  return kpiCompletionRatio(plan, fact, ind.direction);
 }
 
 /** Выполнение по компании в целом — плоско взвешенно по ВСЕМ KPI всех
@@ -115,7 +112,7 @@ function companyOverallPct(p: string): number | null {
       const r = indCompletion(ind, p);
       if (r == null) continue;
       sumW += w;
-      sumWtd += Math.max(0, Math.min(r, 1.5)) * w;
+      sumWtd += kpiWeightedRatio(r) * w;
     }
   }
   return sumW > 0 ? sumWtd / sumW : null;
@@ -129,7 +126,7 @@ function mgrOverallPct(m: KpiManager, p: string): number | null {
     const r = indCompletion(ind, p);
     if (r == null) continue;
     sumW += w;
-    sumWtd += Math.min(r, 1.5) * w;
+    sumWtd += kpiWeightedRatio(r) * w;
   }
   return sumW > 0 ? sumWtd / sumW : null;
 }
