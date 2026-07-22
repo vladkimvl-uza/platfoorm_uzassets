@@ -374,9 +374,12 @@ function openKpi(): void {
 .ed-kpi-hero-top { display: flex; align-items: center; gap: 14px; }
 .ed-kpi-big { display: flex; align-items: baseline; }
 .ed-kpi-big-v {
-  font-size: 46px;
-  font-weight: 300;
-  letter-spacing: -0.04em;
+  /* Канон exec-hero-числа (как ExecDashProductionBlock/BPTracker и [[platform_ui_etalon]]):
+     52px / weight 400. Раньше было 46px/300 — единственный блок с weight 300,
+     из-за чего число выглядело «другим шрифтом» рядом с соседними блоками. */
+  font-size: 52px;
+  font-weight: 400;
+  letter-spacing: -0.03em;
   line-height: 1;
   font-variant-numeric: tabular-nums;
   transition: color 0.3s;
@@ -443,7 +446,7 @@ function openKpi(): void {
 
 /* ═══ SKELETON ═══ */
 .ed-kpi-skel { padding: 6px 0 4px; }
-.ed-kpi-skel-big { width: 160px; height: 46px; border-radius: 8px; background: rgba(15, 23, 60, 0.06); margin-bottom: 12px; animation: kpiSkel 1.2s ease-in-out infinite; }
+.ed-kpi-skel-big { width: 160px; height: 52px; border-radius: 8px; background: rgba(15, 23, 60, 0.06); margin-bottom: 12px; animation: kpiSkel 1.2s ease-in-out infinite; }
 .ed-kpi-skel-line { width: 70%; height: 13px; border-radius: 5px; background: rgba(15, 23, 60, 0.05); margin-bottom: 16px; animation: kpiSkel 1.2s ease-in-out infinite; }
 .ed-kpi-skel-bar { width: 100%; height: 12px; border-radius: 6px; background: rgba(15, 23, 60, 0.05); animation: kpiSkel 1.2s ease-in-out infinite; }
 @keyframes kpiSkel { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
