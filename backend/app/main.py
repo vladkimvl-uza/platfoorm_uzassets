@@ -510,6 +510,15 @@ try:
 except Exception as _e:  # noqa: BLE001
     logger.warning(f"  [SKIP] company_library ws_router: {_e}")
 
+# Notifications live-push WebSocket (/notifications/ws) — mounted WITHOUT
+# _ACTIVITY_DEP: capture_activity needs a Request, absent in WebSocket scope.
+try:
+    from app.api.routes.notifications import ws_router as _notif_ws_router
+    app.include_router(_notif_ws_router)
+    logger.info("  [OK]   app.api.routes.notifications.ws_router (WebSocket /notifications/ws)")
+except Exception as _e:  # noqa: BLE001
+    logger.warning(f"  [SKIP] notifications ws_router: {_e}")
+
 
 # ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ Top-level endpoints ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ╨а╨Ж╨▓╨В╤Ь╨атАЪ
 @app.get("/")

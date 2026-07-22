@@ -57,6 +57,12 @@ from app.services.notifications_service import (
 from pydantic import BaseModel  # noqa: E402
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
+# Separate router for the WebSocket, mounted in main.py WITHOUT the router-level
+# capture_activity dependency: that dep declares `request: Request`, which FastAPI
+# cannot resolve in a WebSocket scope → every /notifications/ws connect raised
+# "capture_activity() missing 'request'" and the live-push socket 500'd (client
+# fell back to polling). Mirrors app.api.routes.company_library.ws_router.
+ws_router = APIRouter()
 log = logging.getLogger(__name__)
 
 
@@ -452,7 +458,7 @@ async def post_ws_ticket(user: User = Depends(get_current_user)):
     return {"ticket": app_jwt.create_ws_ticket(subject=str(user.id)), "expires_in": 30}
 
 
-@router.websocket("/ws")
+@ws_router.websocket("/notifications/ws")
 async def websocket_endpoint(ws: WebSocket):
     """Live-уведомления через WS. Клиент предлагает субпротоколы
     ["uza-ws-ticket-v1", "<ws_ticket>"] — тикет из POST /ws-ticket."""
