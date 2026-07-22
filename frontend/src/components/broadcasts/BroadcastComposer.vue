@@ -269,7 +269,9 @@ const targetCount = computed(() => preview.value?.total ?? 0);
           <div class="bc-chips">
             <button class="bc-chip" :class="{ active: draft.schedule_mode === 'oneshot' }" @click="setScheduleMode('oneshot')">Однократно</button>
             <button class="bc-chip" :class="{ active: draft.schedule_mode === 'interval' }" @click="setScheduleMode('interval')">Повторяющееся</button>
-            <button class="bc-chip" :class="{ active: draft.schedule_mode === 'cron' }" @click="setScheduleMode('cron')">Cron</button>
+            <button class="bc-chip" disabled
+                    title="Cron-режим не реализован в планировщике — используйте «Повторяющееся»"
+                    style="opacity:.45;cursor:not-allowed;">Cron</button>
           </div>
 
           <div v-if="draft.schedule_mode === 'oneshot'" class="bc-sched-block">
@@ -349,11 +351,11 @@ const targetCount = computed(() => preview.value?.total ?? 0);
           <div class="bc-field">
             <label>Режим</label>
             <div class="bc-chips">
-              <button v-for="m in (['none','click','text','select','yesno','file'] as AckMode[])" :key="m"
+              <button v-for="m in (['none','click','text','select','yesno'] as AckMode[])" :key="m"
                       class="bc-chip"
                       :class="{ active: draft.ack_mode === m }"
                       @click="setAckMode(m)">
-                {{ ({ none: "Не требуется", click: "Click", text: "Текст", select: "Список", yesno: "Yes/No", file: "Файл" } as Record<string,string>)[m] }}
+                {{ ({ none: "Не требуется", click: "Click", text: "Текст", select: "Список", yesno: "Yes/No" } as Record<string,string>)[m] }}
               </button>
             </div>
           </div>

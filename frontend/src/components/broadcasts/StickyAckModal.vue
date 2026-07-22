@@ -4,7 +4,7 @@
  *
  * Mount once in AppShell. Polls GET /broadcasts/sticky every 30s.
  * If any item exists with acknowledged_at=null and is_sticky=true, blocks
- * UI until user submits ack (text/select/yesno/click/file) or postpones 1h.
+ * UI until user submits ack (text/select/yesno/click) or postpones 1h.
  */
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { broadcastsApi, PRIORITY_PILL, type StickyNotification, type AckPayload } from "@/api/admin_broadcasts";
@@ -96,12 +96,10 @@ async function submitAck(value?: "yes" | "no") {
         return;
       }
       payload.response_value = v;
-    } else if (mode === "file") {
-      error.value = "Загрузка файлов ещё не подключена";
-      submitting.value = false;
-      return;
     }
-    // mode === "click" or "none" → empty payload
+    // mode === "click" / "none" (or legacy "file", which is no longer offered) →
+    // empty payload. Legacy file-mode broadcasts confirm with a plain click so
+    // recipients are never permanently stuck on an unimplemented upload.
 
     await broadcastsApi.ack(current.value.id, payload);
     // Remove from queue
@@ -204,9 +202,6 @@ const remaining = computed(() => queue.value.filter((n) => !postponedIds.value.h
               </button>
             </div>
 
-            <div v-else-if="current.ack_mode === 'file'" class="sam-hint">
-              Загрузка файлов ещё не подключена.
-            </div>
           </div>
         </div>
 

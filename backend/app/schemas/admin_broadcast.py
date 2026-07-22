@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Any, Literal, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 AckMode = Literal["none", "click", "text", "select", "yesno", "file"]
 ScheduleMode = Literal["oneshot", "interval", "cron"]
@@ -72,12 +72,35 @@ class TemplateBase(BaseModel):
     schedule_end_at:   Optional[datetime] = None
 
 
+def _reject_unhonored_geo_targeting(model: "TemplateBase") -> "TemplateBase":
+    """resolve_recipients() has no user↔company/sector link, so these fields are
+    silently ignored at dispatch. Reject them on write (422) instead of letting an
+    admin believe a broadcast is scoped to a subset when it is not. Applied only to
+    write schemas — TemplateRead must still deserialize any legacy rows.
+    """
+    if model.target_company_ids:
+        raise ValueError(
+            "target_company_ids не поддерживается: у пользователей нет прямой связи "
+            "с компанией. Используйте группы/роли или target_filter_expr.",
+        )
+    if model.target_sector_ids:
+        raise ValueError(
+            "target_sector_ids не поддерживается: используйте группы/роли или "
+            "target_filter_expr.",
+        )
+    return model
+
+
 class TemplateCreate(TemplateBase):
-    pass
+    @model_validator(mode="after")
+    def _check_targeting(self) -> "TemplateCreate":
+        return _reject_unhonored_geo_targeting(self)  # type: ignore[return-value]
 
 
 class TemplateUpdate(TemplateBase):
-    pass
+    @model_validator(mode="after")
+    def _check_targeting(self) -> "TemplateUpdate":
+        return _reject_unhonored_geo_targeting(self)  # type: ignore[return-value]
 
 
 class TemplateRead(TemplateBase):

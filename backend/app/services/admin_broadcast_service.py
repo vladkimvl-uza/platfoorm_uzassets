@@ -135,7 +135,14 @@ def compute_next_run_at(
             return None
         return utc_candidate
 
-    # cron mode — minimal support: not implemented fully, fallback to interval if cron present
+    # cron mode — not implemented in the scheduler. Return None (never runs) but
+    # log loudly so an activated cron template does not silently sit dormant.
+    if getattr(template, "schedule_mode", None) == "cron":
+        log.warning(
+            "broadcast '%s' (%s) uses schedule_mode=cron which is not implemented "
+            "in the scheduler — it will NOT run. Convert to interval+weekdays.",
+            getattr(template, "name", "?"), getattr(template, "id", "?"),
+        )
     return None
 
 
@@ -203,8 +210,16 @@ async def resolve_recipients(
         )).scalars().all()
         for u in rows: user_ids.add(u.id)
 
-    # company / sector targeting — placeholder for future user.company_id link
-    # (currently no direct user-company FK in the platform; skipped silently)
+    # company / sector targeting — no direct user↔company FK in the platform, so
+    # these fields cannot be resolved and are ignored. Writes are rejected at the
+    # schema (422); this warns for any legacy row that still carries them.
+    if template.target_company_ids or template.target_sector_ids:
+        log.warning(
+            "broadcast '%s' (%s) has target_company_ids/target_sector_ids set but "
+            "they are not resolvable (no user↔company link) — recipients NOT scoped "
+            "by them.",
+            getattr(template, "name", "?"), getattr(template, "id", "?"),
+        )
 
     if not user_ids:
         return []
