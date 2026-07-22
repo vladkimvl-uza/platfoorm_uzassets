@@ -7,6 +7,7 @@ import ModalShell from "@/components/ModalShell.vue";
 import CompanyAvatar from "@/components/CompanyAvatar.vue";
 import { usePermissions } from "@/composables/usePermissions";
 import type { ProdCompany, ProdLine } from "@/api/production";
+import { execCol as pctCol, execZone as pctZone } from "@/utils/execBand";
 
 const props = defineProps<{ company: ProdCompany; year: number; period: string }>();
 const emit = defineEmits<{ (e: "close"): void; (e: "edit"): void }>();
@@ -25,18 +26,8 @@ function fmtN(v: number | null | undefined): string {
   const abs = Math.abs(v);
   return v.toLocaleString("ru", { maximumFractionDigits: abs >= 1000 ? 0 : abs >= 10 ? 1 : 2 });
 }
-function pctCol(p: number | null | undefined): string {
-  if (p == null) return "var(--t3, #94A3B8)";
-  if (p > 110) return "#7C3AED";
-  if (p >= 90) return "#1D9E75";
-  if (p >= 75) return "#D97706";
-  return "#993D3D";
-}
-function pctZone(p: number | null | undefined): string {
-  if (p == null) return "";
-  if (p > 110) return "переисполнение — проверить единицы/двойной ввод";
-  if (p >= 90) return "в норме"; if (p >= 75) return "отставание"; return "критично";
-}
+// P0 аудита: пороги исполнения — единый канон execBand (80/50, >110), импортом
+// pctCol/pctZone. Раньше инлайн 90/75 с врущим комментарием «mirror forensic».
 function execText(l: ProdLine): string {
   if (l.execState === "pct") return (l.execPct ?? 0) + "%";
   if (l.execState === "nofact") return "факт —";

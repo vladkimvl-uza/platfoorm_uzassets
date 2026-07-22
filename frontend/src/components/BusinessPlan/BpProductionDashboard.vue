@@ -15,6 +15,7 @@ import ForensicUploadModal from "@/components/Procurement/ForensicUploadModal.vu
 import { useCountUpScan } from "@/composables/useCountUp";
 import { useProductionData } from "@/composables/useProductionData";
 import type { ProdCompany } from "@/api/production";
+import { execCol as pctCol, execZone as pctZone } from "@/utils/execBand";
 
 defineProps<{ canImport?: boolean }>();
 const emit = defineEmits<{
@@ -79,16 +80,10 @@ function fmtTrln(v: number | null | undefined): number {
   return Math.round(v / 100) / 10;
 }
 
-// ─── execution zones (mirror forensic pctCol/pctZone) ─────────
-function pctCol(p: number | null | undefined): string {
-  if (p == null) return "var(--t3, #94A3B8)";
-  if (p > 110) return "#7C3AED"; if (p >= 90) return "#1D9E75"; if (p >= 75) return "#D97706"; return "#993D3D";
-}
-function pctZone(p: number | null | undefined): string {
-  if (p == null) return "";
-  if (p > 110) return "переисполнение — проверить единицы/двойной ввод";
-  if (p >= 90) return "в норме"; if (p >= 75) return "отставание"; return "критично";
-}
+// ─── execution zones ──────────────────────────────────────────
+// P0 аудита: пороги исполнения — единый платформенный канон execBand (80/50,
+// >110 переисполнение), pctCol/pctZone импортированы. Раньше был инлайн 90/75 с
+// врущим комментарием «mirror forensic» (форензик давно на 80/50) → расхождение.
 function growthCol(g: number | null | undefined): string {
   if (g == null) return "var(--t3, #94A3B8)";
   if (g >= 100) return "#1D9E75"; if (g >= 85) return "#D97706"; return "#993D3D";
