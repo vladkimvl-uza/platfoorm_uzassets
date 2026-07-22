@@ -23,6 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from pydantic import BaseModel
 
+from app.core.progress import NON_OVERDUE_STATUSES
 from app.core.security import require_permission
 from app.database import get_db
 from app.models.company import Company, Direction, Sector
@@ -159,7 +160,7 @@ async def _aggregate_entity(db: AsyncSession, model, year: int, granularity: str
 
     today = datetime.now(UTC).date()
     overdue = (await db.execute(
-        select(func.count()).where(base, model.due_date < today, model.status != "done"),
+        select(func.count()).where(base, model.due_date < today, model.status.notin_(tuple(NON_OVERDUE_STATUSES))),
     )).scalar() or 0
 
     return {
@@ -350,7 +351,7 @@ async def period_tasks(
         completed = await _rows([Task.status == "done", done_date >= start])
     else:
         completed = await _rows([Task.status == "done", done_date >= start, done_date <= end])
-    overdue = await _rows([Task.status != "done", Task.due_date.is_not(None),
+    overdue = await _rows([Task.status.notin_(tuple(NON_OVERDUE_STATUSES)), Task.due_date.is_not(None),
                            Task.due_date >= start, Task.due_date <= end, Task.due_date < today])
     return {"completed": completed, "overdue": overdue}
 
@@ -498,7 +499,7 @@ async def _compute_state(db: AsyncSession, year: int,
     prow = (await db.execute(select(
         func.count().label("total"),
         func.count().filter(Project.status == "done").label("done"),
-        func.count().filter(and_(Project.due_date < today, Project.status != "done")).label("overdue"),
+        func.count().filter(and_(Project.due_date < today, Project.status.notin_(tuple(NON_OVERDUE_STATUSES)))).label("overdue"),
     ).where(pbase))).first()
 
     # per-company задачи (взвешенный прогресс)

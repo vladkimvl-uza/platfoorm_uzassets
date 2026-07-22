@@ -13,6 +13,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.progress import is_task_overdue
 from app.models.company import Company
 from app.models.pmo import RaidItem, StatusReport
 from app.schemas.pmo import HealthProject, HealthResponse
@@ -76,7 +77,7 @@ async def compute_health(db: AsyncSession, company_code: str, today: date) -> Op
     projects: list[HealthProject] = []
 
     def build_card(pid: Optional[UUID], title: str, prog: int, slip: int, tasks) -> HealthProject:
-        overdue = sum(1 for t in tasks if t.due and t.due < today and t.status != "done")
+        overdue = sum(1 for t in tasks if is_task_overdue(t.status, t.due, today=today))
         blocked = sum(1 for t in tasks if t.blocked)
         rs = raids_for(pid)
         open_risks = len(rs)

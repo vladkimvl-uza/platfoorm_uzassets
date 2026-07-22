@@ -14,7 +14,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.progress import task_pct, weighted_pct
+from app.core.progress import is_task_overdue, task_pct, weighted_pct
 from app.models.company import Company
 from app.models.project import Project
 from app.models.task import Task, TaskDependency
@@ -207,7 +207,7 @@ async def build_schedule(
         portfolio_slip = max((b.slip_days for b in bars), default=0)
     overdue_count = sum(
         1 for b in bars
-        if b.kind == "task" and b.due and b.due < today and b.status != "done"
+        if b.kind == "task" and is_task_overdue(b.status, b.due, today=today)
     )
     blocked_count = sum(1 for b in bars if b.blocked)
 

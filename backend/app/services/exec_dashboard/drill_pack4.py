@@ -28,6 +28,8 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.progress import is_task_overdue
+
 from app.services.exec_dashboard.blocks_pack4 import _DIRS
 from app.schemas.executive_dashboard import (
     ExecDirectionDrillCompany,
@@ -40,9 +42,7 @@ _DIR_BY_CODE: dict[str, dict[str, str]] = {d["id"]: d for d in _DIRS}
 
 
 def _is_overdue(due: Optional[date], status: str) -> bool:
-    if not due or status == "done":
-        return False
-    return due < date.today()
+    return is_task_overdue(status, due)
 
 
 def _date_to_str(d: Optional[date]) -> Optional[str]:

@@ -9,6 +9,7 @@ from uuid import UUID
 from sqlalchemy import asc, desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.progress import NON_OVERDUE_STATUSES
 from app.models.board import Board
 from app.models.company import Company
 from app.models.project import Project, ProjectComment
@@ -114,7 +115,7 @@ class ProjectsRepository:
         if assignee_email:
             q = q.where(func.lower(Project.assignee_email) == assignee_email.lower())
         if only_overdue:
-            q = q.where(Project.due_date < date.today(), Project.status != "done")
+            q = q.where(Project.due_date < date.today(), Project.status.notin_(tuple(NON_OVERDUE_STATUSES)))
         if has_economic_effect:
             ee_key = Project.extra["economicEffect"]
             q = q.where(

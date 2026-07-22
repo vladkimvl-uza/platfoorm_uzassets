@@ -14,7 +14,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.progress import task_pct, weighted_pct
+from app.core.progress import is_task_overdue, task_pct, weighted_pct
 from app.models.company import Company, Direction, Sector
 from app.models.project import Project
 from app.models.task import Task
@@ -40,11 +40,13 @@ def _eoq(d: date) -> date:
     return date(d.year, qm, calendar.monthrange(d.year, qm)[1])
 
 
-def _deadline_state(due: Optional[date], today: date, eom: date, eoq: date) -> str:
+def _deadline_state(due: Optional[date], status: Optional[str], today: date, eom: date, eoq: date) -> str:
     if due is None:
         return "none"
-    if due < today:
+    if is_task_overdue(status, due, today=today):
         return "overdue"
+    if due < today:
+        return "none"
     if due <= eom:
         return "month"
     if due <= eoq:
@@ -66,7 +68,7 @@ async def build_project_tasks(
             assignee_name=t.assignee_name,
             progress_percent=task_pct(t.status, t.extra) or 0,
             due_date=t.due_date,
-            deadline_state=_deadline_state(t.due_date, today, eom, eoq),
+            deadline_state=_deadline_state(t.due_date, t.status, today, eom, eoq),
         )
         for t in rows
     ]
@@ -146,7 +148,7 @@ async def build_exec_overview(
     total = overdue = due_month = 0
     for p in projects:
         # завершённые/перенесённые — без дедлайн-срочности (не «просрочено», в конец)
-        st = "none" if p.status in _CLOSED else _deadline_state(p.due_date, today, eom, eoq)
+        st = "none" if p.status in _CLOSED else _deadline_state(p.due_date, p.status, today, eom, eoq)
         total += 1
         if st == "overdue":
             overdue += 1

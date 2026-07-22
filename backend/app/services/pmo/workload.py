@@ -13,6 +13,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.progress import is_task_overdue
 from app.models.company import Company
 from app.models.task import Task
 from app.schemas.pmo import WorkloadPerson, WorkloadResponse
@@ -83,7 +84,7 @@ async def compute_workload(
         if is_open:
             p["open"] += 1
             p["load"] += int(t.weight or 1)
-            if t.due_date and t.due_date < today:
+            if is_task_overdue(t.status, t.due_date, today=today):
                 p["overdue"] += 1
 
     out = [

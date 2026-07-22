@@ -25,7 +25,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.access import allowed_company_ids
-from app.core.progress import task_weight
+from app.core.progress import is_task_overdue, task_weight
 from app.models.company import Company, Sector
 from app.models.project import Project, ProjectComment
 from app.models.task import Task, TaskComment
@@ -103,7 +103,7 @@ async def build_exec_brief_context(
             tasks_by_pid.setdefault(t.project_id, []).append(t)
 
     def task_overdue(t: Task) -> bool:
-        return bool(t.due_date and t.due_date < today and t.status not in _DONE)
+        return is_task_overdue(t.status, t.due_date, today=today)
 
     def is_open(t: Task) -> bool:
         # «Открытая» = ещё не завершена и не бессрочная (monthly/ongoing исключены).
@@ -135,7 +135,7 @@ async def build_exec_brief_context(
         }
 
     def proj_overdue(p: Project) -> bool:
-        return bool(p.due_date and p.due_date < today and p.status not in _DONE)
+        return is_task_overdue(p.status, p.due_date, today=today)
 
     stats_by_pid = {p.id: task_stats(tasks_by_pid.get(p.id, [])) for p in projects}
 

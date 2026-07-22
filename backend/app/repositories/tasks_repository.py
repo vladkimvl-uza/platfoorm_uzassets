@@ -9,6 +9,7 @@ from uuid import UUID
 from sqlalchemy import asc, desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.progress import NON_OVERDUE_STATUSES
 from app.models.board import Board
 from app.models.company import Company
 from app.models.project import Project
@@ -171,7 +172,7 @@ class TasksRepository:
         if only_overdue:
             q = q.where(
                 Task.due_date.is_not(None),
-                Task.status != "done",
+                Task.status.notin_(tuple(NON_OVERDUE_STATUSES)),
                 Task.due_date < date.today(),
             )
         if search:
