@@ -133,10 +133,13 @@ class ConsultantsService:
             board_ids = {row[6] for row in t_rows if row[6]}
             b_rows = await r.boards_with_company(list(board_ids))
             co_ids = {row[2] for row in b_rows if row[2]}
-            co_to_sector_color = await r.company_sector_colors(list(co_ids))
-            # имена компаний: прямой Task.company_id (row[9]) + через доску
+            # имена/цвета компаний: прямой Task.company_id (row[9]) + через доску.
+            # Раньше цвета брались только по board-компаниям → компании задач БЕЗ
+            # доски рисовались серым в heatmap. Теперь по объединению.
             direct_co_ids = {row[9] for row in t_rows if row[9]}
-            company_names = await r.company_names(list(co_ids | direct_co_ids))
+            all_co_ids = co_ids | direct_co_ids
+            co_to_sector_color = await r.company_sector_colors(list(all_co_ids))
+            company_names = await r.company_names(list(all_co_ids))
             boards_data = {
                 bid: {
                     "id": str(bid), "name": bname,
@@ -218,11 +221,23 @@ class ConsultantsService:
             })
         cons_stats.sort(key=lambda x: (-x["is_big4"], -x["tasks_total"]))
 
-        # ── Heatmap boards × consultants ──
+        # ── Heatmap: КОМПАНИЯ × консультанты ──
+        # Раньше строка = ДОСКА → компания с N досок давала N строк, а задачи БЕЗ
+        # доски (прямой Task.company_id) вообще выпадали из heatmap. Теперь агрегируем
+        # по РАЗРЕШЁННОЙ компании (_company_of: прямая ЛИБО через доску) — доски одной
+        # компании сворачиваются в одну строку, задачи без доски учитываются.
+        # NB: ключ строки исторически называется "board", но НЕСЁТ company-данные
+        # (id/name/sector_color компании); фронт рендерит r.board.name = имя компании,
+        # drill фильтрует по company_id (task.company_id уже разрешён на бэке).
         visible_cons_ids = [c["id"] for c in cons_stats]
+        company_of_tid = {tid: _company_of(task_by_id[tid]) for tid in consulted_task_ids}
+        heat_company_ids = sorted(
+            {cid for cid in company_of_tid.values() if cid is not None},
+            key=lambda cid: (company_names.get(cid) or ""),
+        )
         heatmap_rows: list[dict] = []
         g_max = 0
-        for board_uuid, b_data in boards_data.items():
+        for co_id in heat_company_ids:
             row_counts: list[int] = []
             any_cell = False
             for cid_str in visible_cons_ids:
@@ -232,7 +247,7 @@ class ConsultantsService:
                     cid_uuid = cid_str
                 count = sum(
                     1 for tid in cid_to_tids.get(cid_uuid, set())
-                    if task_by_id[tid]["board_id"] == board_uuid
+                    if company_of_tid.get(tid) == co_id
                 )
                 if count > 0:
                     any_cell = True
@@ -240,8 +255,15 @@ class ConsultantsService:
                     g_max = count
                 row_counts.append(count)
             if any_cell:
-                heatmap_rows.append({"board": b_data, "counts": row_counts})
-        heatmap_rows.sort(key=lambda r: r["board"]["name"])
+                heatmap_rows.append({
+                    "board": {
+                        "id": str(co_id),
+                        "name": company_names.get(co_id) or "—",
+                        "sector_color": co_to_sector_color.get(co_id, "#888"),
+                        "company_id": str(co_id),
+                    },
+                    "counts": row_counts,
+                })
         heatmap = {
             "consultants": [
                 {"id": c["id"], "code": c["code"], "name": c["name"],

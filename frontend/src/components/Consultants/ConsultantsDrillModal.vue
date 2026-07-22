@@ -4,7 +4,7 @@
  *
  * Three modes via `kind` prop:
  *   • consultant  — shows summary + companies + directions + tasks for one consultant
- *   • cell        — shows tasks at intersection (board × consultant) from heatmap
+ *   • cell        — shows tasks at intersection (company × consultant) from heatmap
  *   • direction   — shows summary + consultants + tasks for one direction
  *
  * All data filtered client-side from the overview payload (consulted_tasks list).
@@ -86,10 +86,13 @@ const filteredTasks = computed<TaskRow[]>(() => {
     return props.allTasks.filter(t => t.consultants.some(c => c.code === code));
   }
   if (props.kind === "cell" && props.cellBoard && props.cellConsultant) {
-    const bid = props.cellBoard.id;
+    // heatmap теперь агрегирован по КОМПАНИИ: cellBoard.id = company_id, а не board_id.
+    // task.company_id уже разрешён на бэке (прямой ИЛИ через доску) → фильтруем по нему,
+    // иначе задачи без доски (и других досок той же компании) выпали бы из ячейки.
+    const cid = props.cellBoard.id;
     const code = props.cellConsultant.code;
     return props.allTasks.filter(
-      t => t.board_id === bid && t.consultants.some(c => c.code === code),
+      t => t.company_id === cid && t.consultants.some(c => c.code === code),
     );
   }
   if (props.kind === "direction" && props.direction) {
