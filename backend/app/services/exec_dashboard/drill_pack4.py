@@ -148,6 +148,7 @@ async def build_direction_drill(
             "projects": [], "tasks": [],
             "projects_total": 0, "projects_done": 0,
             "tasks_total": 0, "tasks_done": 0, "tasks_overdue": 0,
+            "tasks_wsum": 0.0, "tasks_wcount": 0,
         })
         b["projects_total"] += 1
         if p.status == "done":
@@ -162,6 +163,7 @@ async def build_direction_drill(
             assignee_name=p.assignee_name,
         ))
 
+    from app.core.progress import task_weight as _task_weight
     for t in all_tasks:
         if t.company_id is None:
             continue
@@ -169,10 +171,17 @@ async def build_direction_drill(
             "projects": [], "tasks": [],
             "projects_total": 0, "projects_done": 0,
             "tasks_total": 0, "tasks_done": 0, "tasks_overdue": 0,
+            "tasks_wsum": 0.0, "tasks_wcount": 0,
         })
         b["tasks_total"] += 1
         if t.status == "done":
             b["tasks_done"] += 1
+        # Взвешенный прогресс — тот же расчёт, что плитка направления
+        # (core.progress.task_weight): monthly/ongoing исключены (weight None).
+        _w = _task_weight(t.status, getattr(t, "extra", None))
+        if _w is not None:
+            b["tasks_wsum"] += _w
+            b["tasks_wcount"] += 1
         overdue = _is_overdue(t.due_date, t.status or "new")
         if overdue:
             b["tasks_overdue"] += 1
@@ -224,7 +233,12 @@ async def build_direction_drill(
     tasks_total = sum(c.tasks_total for c in companies_out)
     tasks_done = sum(c.tasks_done for c in companies_out)
     tasks_overdue = sum(c.tasks_overdue for c in companies_out)
-    progress_pct = round(tasks_done / tasks_total * 100) if tasks_total else 0
+    # Заголовочный прогресс — ВЗВЕШЕННЫЙ (как плитка направления, которая открывает
+    # этот дрилл), а не сырой done/total: иначе клик по плитке 75% показывал 40% в
+    # модалке. monthly/ongoing исключены из знаменателя (tasks_wcount).
+    tasks_wsum = sum(b["tasks_wsum"] for b in by_co.values())
+    tasks_wcount = sum(b["tasks_wcount"] for b in by_co.values())
+    progress_pct = round(tasks_wsum / tasks_wcount * 100) if tasks_wcount else 0
 
     # Distinct assignees across all projects + tasks
     assignees: set = set()

@@ -151,9 +151,9 @@ def _compute_governance_score(
       base    = board_size * 30                            (max ~270 при 9 чел)
       indep   = independent_directors_count * 50           (max ~250 при 5 нез.)
       women   = women_directors_count * 25                 (max ~75 при 3 жен.)
-      commit  = (audit + remun + nom + strat) * 50         (max 200)
+      commit  = committees_present * 50                    (max 250, набор из 5)
       meetings= min(meetings_per_year, 24) * 10            (max 240)
-    Итого: max ~1035, типично 500-900.
+    Итого: max ~1085, типично 500-900.
     """
     if payload and isinstance(payload, dict) and isinstance(payload.get("score"), int | float):
         return int(payload["score"])
@@ -161,7 +161,19 @@ def _compute_governance_score(
     bs = board_size or 0
     ind = indep or 0
     wm = women or 0
-    cm = (1 if audit else 0) + (1 if remun else 0) + (1 if nom else 0) + (1 if strat else 0)
+    # Канонический набор комитетов (governance/_helpers.committees_present):
+    # nomination‖remuneration = ОДИН комитет + Антикор + Введение (из payload).
+    # Раньше здесь был pre-fix баг — nom+remun считались как 2, anticorr/induction
+    # игнорировались → exec-балл расходился с /governance для editor-компаний без
+    # хранимого payload['score'].
+    pl = payload if isinstance(payload, dict) else {}
+    cm = (
+        (1 if audit else 0)
+        + (1 if strat else 0)
+        + (1 if (nom or remun) else 0)
+        + (1 if pl.get("anticorr") else 0)
+        + (1 if pl.get("induction") else 0)
+    )
     mt = min(meetings or 0, 24)
 
     score = bs * 30 + ind * 50 + wm * 25 + cm * 50 + mt * 10
@@ -277,11 +289,13 @@ async def build_governance_block(
     total = len(companies)
     avg_score = round(sum(c.score for c in companies) / total)
     top_score = max(c.score for c in companies)
-    total_members = sum(c.board_size for c in companies)
-    total_indep = sum(c.independent_count for c in companies)
-    total_women = sum(c.women_count for c in companies)
-    avg_indep_pct = round(total_indep / total_members * 100) if total_members > 0 else 0
-    avg_women_pct = round(total_women / total_members * 100) if total_members > 0 else 0
+    # «Независ.%»/«Женщин%» — среднее ПО-КОМПАНИЙНЫХ долей (как /governance
+    # get_overview: mean-of-ratios по компаниям с советом), а не пул Σ/Σ — иначе
+    # одинаково подписанные плитки exec и модуля расходились при разных размерах советов.
+    _indep_pcts = [c.indep_pct for c in companies if c.board_size > 0]
+    _women_pcts = [c.women_pct for c in companies if c.board_size > 0]
+    avg_indep_pct = round(sum(_indep_pcts) / len(_indep_pcts)) if _indep_pcts else 0
+    avg_women_pct = round(sum(_women_pcts) / len(_women_pcts)) if _women_pcts else 0
 
     # Top-7
     companies.sort(key=lambda c: -c.score)
