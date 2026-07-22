@@ -81,6 +81,11 @@ export interface NotificationAuditDetail {
 // ─── REST API ────────────────────────────────────────────────
 
 export const notificationsApi = {
+  // 30-сек тикет для WS-хендшейка (вместо access-JWT в URL). Authorization — авто.
+  async wsTicket(): Promise<{ ticket: string; expires_in: number }> {
+    const r = await api.post<{ ticket: string; expires_in: number }>("/notifications/ws-ticket");
+    return r.data;
+  },
   async feed(params: {
     unread_only?: boolean;
     types?: string[];

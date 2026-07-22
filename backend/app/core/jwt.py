@@ -92,6 +92,17 @@ def create_access_token(
     )
 
 
+def create_ws_ticket(*, subject: str, expires_seconds: int = 30) -> str:
+    """Короткоживущий (30с) тикет для аутентификации WebSocket-хендшейка вместо
+    передачи access-JWT в URL (утечка в логи/history/Referer). Отдельный
+    type='ws_ticket' — не подменяется access-токеном и наоборот (expected_type)."""
+    return _create_token(
+        subject=subject,
+        token_type="ws_ticket",
+        expires_delta=timedelta(seconds=expires_seconds),
+    )
+
+
 def create_refresh_token(*, subject: str, jti: str | None = None) -> tuple[str, str]:
     """Sign a refresh token. Returns (token, jti).
     Caller stores SHA-256(jti) in `user_sessions.refresh_token_hash`."""

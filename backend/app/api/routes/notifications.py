@@ -441,11 +441,31 @@ async def post_test(
 
 # ─── WebSocket ────────────────────────────────────────────────────
 
-@router.websocket("/ws/{token}")
-async def websocket_endpoint(ws: WebSocket, token: str):
-    """Live notifications via WS. Token in URL path (browser can't set headers)."""
+_WS_TICKET_PROTO = "uza-ws-ticket-v1"
+
+
+@router.post("/ws-ticket")
+async def post_ws_ticket(user: User = Depends(get_current_user)):
+    """Выдаёт 30-сек тикет для WS уведомлений. Аутентификация — обычный
+    Authorization-заголовок. Тикет уходит в Sec-WebSocket-Protocol (не в URL) →
+    не попадает в логи/history/Referer (в отличие от access-JWT в пути)."""
+    return {"ticket": app_jwt.create_ws_ticket(subject=str(user.id)), "expires_in": 30}
+
+
+@router.websocket("/ws")
+async def websocket_endpoint(ws: WebSocket):
+    """Live-уведомления через WS. Клиент предлагает субпротоколы
+    ["uza-ws-ticket-v1", "<ws_ticket>"] — тикет из POST /ws-ticket."""
+    protos = ws.scope.get("subprotocols") or []
+    ticket = protos[1] if len(protos) >= 2 and protos[0] == _WS_TICKET_PROTO else None
+    if not ticket:
+        try:
+            await ws.close(code=4401)
+        except Exception:
+            pass
+        return
     try:
-        payload = app_jwt.decode_token(token, expected_type="access")
+        payload = app_jwt.decode_token(ticket, expected_type="ws_ticket")
         user_id = UUID(payload["sub"])
     except Exception:
         try:
@@ -454,7 +474,7 @@ async def websocket_endpoint(ws: WebSocket, token: str):
             pass
         return
 
-    await ws.accept()
+    await ws.accept(subprotocol=_WS_TICKET_PROTO)
     await notifications_ws_manager.connect(user_id, ws)
 
     try:

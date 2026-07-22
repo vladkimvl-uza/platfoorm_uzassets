@@ -2,7 +2,8 @@
  * Notifications store (Pack 11.0).
  *
  * Live channel:
- *   1. Primary — WebSocket /notifications/ws/{access_token}
+ *   1. Primary — WebSocket /notifications/ws (auth = 30s ws-ticket в Sec-WebSocket-Protocol,
+ *      тикет из POST /notifications/ws-ticket; JWT в URL больше не передаётся)
  *   2. Fallback — polling /notifications/unread-count every 30s if WS not connected
  *
  * Auto-reconnect with exponential backoff (1s → 30s cap).
@@ -195,7 +196,7 @@ export const useNotificationsStore = defineStore("notifications", {
     },
 
     // ─── WebSocket ───────────────────────────────────────
-    _connectWebSocket() {
+    async _connectWebSocket() {
       if (!_shouldRun) return;
       const auth = useAuthStore();
       if (!auth.accessToken) {
@@ -204,13 +205,24 @@ export const useNotificationsStore = defineStore("notifications", {
       }
       this._disconnectWebSocket();
 
+      // Тикет вместо JWT в URL: получаем по authenticated REST, шлём в субпротоколе.
+      let ticket: string;
+      try {
+        ticket = (await notificationsApi.wsTicket()).ticket;
+      } catch (e) {
+        console.warn("[notifications] ws-ticket fetch failed", e);
+        this._scheduleReconnect();
+        return;
+      }
+      if (!_shouldRun) return;   // мог остановиться, пока ждали тикет
+
       const base = import.meta.env.VITE_API_BASE_URL || "/api";
       const wsProto = location.protocol === "https:" ? "wss:" : "ws:";
       const wsHost = base.startsWith("http") ? base.replace(/^https?:/, wsProto) : `${wsProto}//${location.host}${base}`;
-      const url = `${wsHost}${WS_PATH}/${encodeURIComponent(auth.accessToken)}`;
+      const url = `${wsHost}${WS_PATH}`;   // без токена в URL
 
       try {
-        _ws = new WebSocket(url);
+        _ws = new WebSocket(url, ["uza-ws-ticket-v1", ticket]);
       } catch (e) {
         console.warn("[notifications] WS construction failed", e);
         this._scheduleReconnect();
