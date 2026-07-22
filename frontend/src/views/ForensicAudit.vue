@@ -274,7 +274,10 @@ const totals = computed(() => {
   const appr = D.value.filter(c => planApproved(c.plan)).length;   // H-7: тот же предикат, что бейдж/фильтр/бэкенд
   const fDn  = D.value.filter(forensicDone).length;
   const withAud = D.value.filter(c => (c.auditor || "").trim()).length;
-  return { tP, tF, avgP, kPlan, kFact, appr, fDn, withAud, count: D.value.length };
+  // M-5: composite avgP считается только по компаниям с фактом (wd) — исключать
+  // «нет факта» правильно (иначе «не отчитались» = «0% исполнения»), но охват
+  // нужно РАСКРЫТЬ, иначе «95%» читается как «все 22 на 95%». covN = сколько вошло.
+  return { tP, tF, avgP, covN: wd.length, kPlan, kFact, appr, fDn, withAud, count: D.value.length };
 });
 
 // Человекочитаемая метка среза (год+период) — общая для computed и тоста fallback.
@@ -807,6 +810,11 @@ onBeforeUnmount(() => {
                   <div class="kpi2-lbl">Исполнение</div>
                   <div class="kpi2-val pr-comp-pct" :style="{ color: hasFact ? pctCol(totals.avgP) : 'var(--t3)' }">
                     <span :data-countup="hasFact ? totals.avgP : 0">{{ hasFact ? totals.avgP : 0 }}</span><span class="pr-comp-pct-sign">%</span>
+                  </div>
+                  <!-- M-5: охват composite — по скольким компаниям с фактом считалось -->
+                  <div v-if="hasFact && totals.covN < totals.count" class="pr-comp-unit"
+                       :title="'Сводное исполнение считается только по компаниям с заведённым фактом. Остальные (' + (totals.count - totals.covN) + ') — план без факта, в среднее не входят.'">
+                    по {{ totals.covN }} из {{ totals.count }}
                   </div>
                 </div>
               </div>
