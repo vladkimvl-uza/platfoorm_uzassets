@@ -342,13 +342,16 @@ async def build_bp_tracker_block(
             continue
 
         plan = bp_plan_map.get(co_id)
-        # fact priority: NSBU (фактический stmt), then BP fact (manual entry)
-        fact = nsbu_curr.get(co_id)
+        # fact priority: РУЧНОЙ BP-факт первым, NSBU — только автоподстановка при
+        # пустом факте (канон bp_kpi_helpers.bp_compute: NSBU-autofill только когда
+        # stored fact is None). Раньше здесь было NSBU-first → сводная цифра
+        # исполнения БП у министра расходилась с тем, что введено в BP-редакторе.
+        fact = bp_fact_map.get(co_id)
         if fact is None:
-            fact = bp_fact_map.get(co_id)
-        prev_fact = nsbu_prev.get(co_id)
+            fact = nsbu_curr.get(co_id)
+        prev_fact = bp_prev_fact_map.get(co_id)
         if prev_fact is None:
-            prev_fact = bp_prev_fact_map.get(co_id)
+            prev_fact = nsbu_prev.get(co_id)
 
         if fact is None and plan is None and prev_fact is None:
             continue
@@ -555,7 +558,10 @@ async def build_bp_tracker_block(
     else:
         head_sub = f"Недостаточно данных по {metric_label.lower()} в портфеле"
 
-    standard_used = "BP" if mode == "plan-fact" else "NSBU"
+    # Источник факта теперь РУЧНОЙ BP-факт первым в ОБОИХ режимах (NSBU — только
+    # автоподстановка при пустом), поэтому и yoy-режим маркируем "BP", а не "NSBU"
+    # (прежняя метка противоречила бы новому приоритету источника).
+    standard_used = "BP" if mode in ("plan-fact", "yoy") else "NSBU"
 
     return ExecBPBlock(
         year=year,
