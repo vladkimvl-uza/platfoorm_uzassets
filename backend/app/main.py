@@ -267,7 +267,11 @@ app.add_middleware(
     allow_origins=_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "X-Request-ID", "X-Api-Key"],
+    # If-Match carries the editor optimistic-lock token on PUTs; X-Editor-Token
+    # returns the fresh token on GET/PUT. Both must be allowed/exposed or the
+    # BP/KPI/financials editor locks silently degrade to no-check cross-origin.
+    allow_headers=["Authorization", "Content-Type", "X-Request-ID", "X-Api-Key", "If-Match"],
+    expose_headers=["X-Editor-Token"],
 )
 
 # ─── Defense-in-depth middlewares (audit P2) ─────────────────────────
