@@ -277,13 +277,15 @@ const totals = computed(() => {
   return { tP, tF, avgP, kPlan, kFact, appr, fDn, withAud, count: D.value.length };
 });
 
-const periodLabel = computed(() => {
-  const yr = yearFilter.value, per = periodFilter.value;
+// Человекочитаемая метка среза (год+период) — общая для computed и тоста fallback.
+function fmtPeriod(yr: number, per: Period): string {
   if (per === "year") return `годовой ${yr}`;
   if (per === "9m")   return `9 мес ${yr}`;
   if (per.startsWith("q")) return `${per.toUpperCase()} ${yr}`;
   return String(yr);
-});
+}
+
+const periodLabel = computed(() => fmtPeriod(yearFilter.value, periodFilter.value));
 
 const availableYears = computed<number[]>(() => {
   const yrs = new Set<number>([2024, 2025, 2026]);
@@ -663,6 +665,7 @@ async function load() {
     // isn't empty on first paint. Tries the user's current year first, then
     // walks through available years from newest to oldest.
     if (!chartData.value.length) {
+      const prevYear = yearFilter.value, prevPer = periodFilter.value;
       const yrsToTry = [yearFilter.value, ...availableYears.value.slice().reverse().filter(y => y !== yearFilter.value)];
       const pers: Period[] = ["year", "9m", "q4", "q3", "q2", "q1"];
       outer: for (const y of yrsToTry) {
@@ -690,6 +693,11 @@ async function load() {
             break outer;
           }
         }
+      }
+      // M-12 ([[feedback_everywhere_rule]]): не менять срез молча — чипы года/периода
+      // «прыгнули» бы без объяснения. Явно сообщаем о подмене.
+      if (yearFilter.value !== prevYear || periodFilter.value !== prevPer) {
+        toast.info(`Нет данных за ${fmtPeriod(prevYear, prevPer)} — показан ${fmtPeriod(yearFilter.value, periodFilter.value)}`);
       }
     }
 
