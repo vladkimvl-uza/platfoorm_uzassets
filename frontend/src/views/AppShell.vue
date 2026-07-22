@@ -797,7 +797,6 @@ function exitImpersonate() {
             <RouterLink to="/admin/rbac" class="sb-item sb-item-admin sb-sub" active-class="active">
               <span class="sb-sub-dot"></span>
               <span class="sb-name">Доступы</span>
-              <span style="margin-left:auto;padding:1px 6px;background:#1D9E75;color:#fff;border-radius:7px;font-size:8.5px;font-weight:500;letter-spacing:.05em;">NEW</span>
             </RouterLink>
 
             <!-- Pack 148-followup: Moderation -->
@@ -1841,25 +1840,6 @@ function exitImpersonate() {
 }
 .sb-item:hover .sb-ext-badge { color: rgba(255, 255, 255, 0.72); }
 .sb-item.active .sb-ext-badge { color: rgba(255, 255, 255, 0.85); }
-
-/* NEW badge for newly-added sidebar items (Pack 8.0 — Инвест-проекты) */
-.sb-new-badge {
-  font-size: 8.5px;
-  background: #7F77DD;
-  color: #fff;
-  padding: 1px 5px;
-  border-radius: 8px;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  margin-left: auto;
-  flex-shrink: 0;
-  animation: sbNewBadgePulse 2.8s ease-in-out infinite;
-}
-@keyframes sbNewBadgePulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(127, 119, 221, 0.55); }
-  50% { box-shadow: 0 0 0 4px rgba(127, 119, 221, 0); }
-}
-.sb-item.sb-new.active .sb-new-badge { background: var(--bg1, #fff); color: #7F77DD; }
 
 /* Admin */
 .sb-admin-divider {

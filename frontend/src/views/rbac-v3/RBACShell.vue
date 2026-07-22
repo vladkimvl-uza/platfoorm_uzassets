@@ -63,7 +63,6 @@ function onUserCreated(userId: string) {
           <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="8" y1="3" x2="8" y2="13"/><line x1="3" y1="8" x2="13" y2="8"/></svg>
           Пригласить
         </button>
-        <span class="rv3-new-badge">NEW</span>
       </div>
     </div>
     <div class="rv3-content">
@@ -129,12 +128,5 @@ function onUserCreated(userId: string) {
   transition: background .12s;
 }
 .rv3-invite-btn:hover { background: #178760; }
-.rv3-new-badge {
-  padding: 2px 7px;
-  background: var(--green);
-  color: #fff;
-  border-radius: 8px;
-  font-size: 9.5px; font-weight: 500; letter-spacing: .06em;
-}
 .rv3-content { flex: 1; }
 </style>
