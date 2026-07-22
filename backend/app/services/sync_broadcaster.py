@@ -39,21 +39,32 @@ GLOBAL_SCOPE = "global"
 class SyncBroadcaster:
     def __init__(self) -> None:
         self.connections: dict[str, set[WebSocket]] = defaultdict(set)
+        # Per-connection company-scope: None = unrestricted (see all companies),
+        # set[str] = only these company-id strings. Snapshotted from the ws_ticket
+        # at connect. A field_update is delivered to a connection ONLY if its
+        # company_id is in the allowed set (or the set is None). Closes the
+        # cross-company leak where a company-scoped user on the global stream
+        # received EVERY company's live financial/rating values.
+        self.allowed: dict[WebSocket, Optional[set[str]]] = {}
         self._lock = asyncio.Lock()
 
     async def connect(
-        self, ws: WebSocket, scope: str, *, subprotocol: Optional[str] = None,
+        self, ws: WebSocket, scope: str, *,
+        subprotocol: Optional[str] = None,
+        allowed_codes: Optional[set[str]] = None,
     ) -> None:
         # subprotocol echoes the negotiated Sec-WebSocket-Protocol back to the
         # browser so a ticket-authenticated handshake completes.
         await ws.accept(subprotocol=subprotocol)
         async with self._lock:
             self.connections[scope].add(ws)
+            self.allowed[ws] = allowed_codes
         log.info("ws connect scope=%s total=%s", scope, len(self.connections[scope]))
 
     async def disconnect(self, ws: WebSocket, scope: str) -> None:
         async with self._lock:
             self.connections[scope].discard(ws)
+            self.allowed.pop(ws, None)
 
     async def broadcast_field_update(
         self,
@@ -78,10 +89,17 @@ class SyncBroadcaster:
         }
         payload = json.dumps(message, default=str, ensure_ascii=False)
 
+        cid = str(company_id)
         sent = 0
         dead: list[tuple[str, WebSocket]] = []
         for scope in (GLOBAL_SCOPE, company_id):
             for ws in list(self.connections.get(scope, ())):
+                # Per-company scope: skip connections not permitted to see this
+                # company (None = unrestricted). Applied uniformly — a per-company
+                # subscriber was already access-checked on connect, so it passes.
+                allowed = self.allowed.get(ws)
+                if allowed is not None and cid not in allowed:
+                    continue
                 try:
                     await ws.send_text(payload)
                     sent += 1
@@ -93,6 +111,7 @@ class SyncBroadcaster:
             async with self._lock:
                 for scope, ws in dead:
                     self.connections[scope].discard(ws)
+                    self.allowed.pop(ws, None)  # keep the scope map from lingering
         return sent
 
     async def broadcast_raw(self, scope: str, message: dict) -> int:

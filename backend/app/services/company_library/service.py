@@ -214,13 +214,17 @@ class CompanyLibraryService:
         self, *,
         sector: Optional[str], search: Optional[str], view_id: Optional[UUID],
         limit: int, offset: int, user_id: UUID,
+        allowed_ids: Optional[list[UUID]] = None,
     ) -> LibraryListResponse:
         async with self.uow:
             r = self.uow.company_library
             companies = await r.list_companies(
                 sector=sector, search=search, limit=limit, offset=offset,
+                allowed_ids=allowed_ids,
             )
-            total = await r.count_companies(sector=sector, search=search)
+            total = await r.count_companies(
+                sector=sector, search=search, allowed_ids=allowed_ids,
+            )
             fields_def = await self._list_applicable_fields(sector_code=sector)
             prefetch = await self._prefetch([c.id for c in companies])
             views = await r.list_views(user_id)

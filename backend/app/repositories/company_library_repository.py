@@ -27,9 +27,13 @@ class CompanyLibraryRepository:
         self, *,
         sector: Optional[str], search: Optional[str],
         limit: int, offset: int,
+        allowed_ids: Optional[list[UUID]] = None,
     ):
         q = select(Company).options(selectinload(Company.sector))
         q = q.where(Company.is_active.is_(True))
+        # Per-company scope: None = all; [] / [ids] = restrict (empty → no rows).
+        if allowed_ids is not None:
+            q = q.where(Company.id.in_(allowed_ids))
         if sector:
             from app.models.sector import Sector
             q = q.join(Sector, Sector.id == Company.sector_id).where(Sector.code == sector)
@@ -45,9 +49,12 @@ class CompanyLibraryRepository:
 
     async def count_companies(
         self, *, sector: Optional[str], search: Optional[str],
+        allowed_ids: Optional[list[UUID]] = None,
     ) -> int:
         q = select(sa_func.count(Company.id))
         q = q.where(Company.is_active.is_(True))
+        if allowed_ids is not None:
+            q = q.where(Company.id.in_(allowed_ids))
         if sector:
             from app.models.sector import Sector
             q = q.join(Sector, Sector.id == Company.sector_id).where(Sector.code == sector)

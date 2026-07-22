@@ -92,15 +92,22 @@ def create_access_token(
     )
 
 
-def create_ws_ticket(*, subject: str, expires_seconds: int = 30) -> str:
+def create_ws_ticket(
+    *, subject: str, expires_seconds: int = 30, extra_claims: dict | None = None,
+) -> str:
     """Короткоживущий (30с) тикет для аутентификации WebSocket-хендшейка вместо
     передачи access-JWT в URL (утечка в логи/history/Referer). Отдельный
-    type='ws_ticket' — не подменяется access-токеном и наоборот (expected_type)."""
+    type='ws_ticket' — не подменяется access-токеном и наоборот (expected_type).
+
+    extra_claims — доп. клеймы (напр. `scp` = список company-id для scope-фильтрации
+    стрима). TTL тикета 30с ограничивает только его погашение; попав в WS-сессию,
+    клеймы действуют всю её жизнь (снимок на момент выпуска, ре-проверки в открытом
+    сокете нет — скоуп обновится только при переподключении)."""
     return _create_token(
         subject=subject,
         token_type="ws_ticket",
         expires_delta=timedelta(seconds=expires_seconds),
-        extra_claims=None,
+        extra_claims=extra_claims,
     )
 
 

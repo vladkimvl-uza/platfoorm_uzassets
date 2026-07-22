@@ -33,7 +33,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import jwt as app_jwt
-from app.core.access import ensure_company_access
+from app.core.access import allowed_company_ids, ensure_company_access
 from app.core.security import get_current_user, require_permission
 from app.database import get_db
 from app.dependencies.company_library import CompanyLibraryServiceDep
@@ -70,11 +70,15 @@ async def list_library(
     view_id: Optional[UUID] = Query(None),
     limit: int = Query(50, ge=1, le=500),
     offset: int = Query(0, ge=0),
+    db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> LibraryListResponse:
+    # Per-company scope: библиотека несёт фин/рейтинг/kpi-колонки всех компаний —
+    # company-scoped юзер не должен видеть чужие (тот же scope, что и WS-стрим).
+    allowed = await allowed_company_ids(db, user)
     return await service.list_library(
         sector=sector, search=search, view_id=view_id,
-        limit=limit, offset=offset, user_id=user.id,
+        limit=limit, offset=offset, user_id=user.id, allowed_ids=allowed,
     )
 
 
@@ -82,8 +86,10 @@ async def list_library(
 async def get_library_detail(
     company_id: UUID,
     service: CompanyLibraryServiceDep,
+    db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> LibraryCompanyDetail:
+    await ensure_company_access(db, user, company_id)
     return await service.get_library_detail(company_id)
 
 
@@ -129,8 +135,10 @@ async def get_library_activity(
     company_id: UUID,
     service: CompanyLibraryServiceDep,
     limit: int = Query(10, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> list[LibraryActivityEntry]:
+    await ensure_company_access(db, user, company_id)
     return await service.get_activity(company_id, limit=limit)
 
 
@@ -286,35 +294,59 @@ _WS_TICKET_PROTO = "uza-ws-ticket-v1"
 
 
 @router.post("/companies/ws-ticket")
-async def post_company_ws_ticket(user: User = Depends(get_current_user)):
-    """Mint a 30-sec ticket for the company-library sync WebSockets."""
-    return {"ticket": app_jwt.create_ws_ticket(subject=str(user.id)), "expires_in": 30}
+async def post_company_ws_ticket(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Mint a 30-sec ticket for the company-library sync WebSockets.
+
+    Embeds the user's per-company scope (`scp`) so the stream delivers ONLY the
+    companies they may see — a company-scoped user must not receive other
+    companies' live financial/rating field updates over the global socket.
+    scope None (unrestricted) → no `scp` claim; a list (incl. empty) → restricted.
+    """
+    scope = await allowed_company_ids(db, user)
+    extra = None if scope is None else {"scp": [str(x) for x in scope]}
+    return {
+        "ticket": app_jwt.create_ws_ticket(subject=str(user.id), extra_claims=extra),
+        "expires_in": 30,
+    }
 
 
-async def _ws_ticket_ok(ws: WebSocket) -> bool:
-    """Validate the ws_ticket from Sec-WebSocket-Protocol. On failure, close the
-    handshake with 4401 and return False. Never raises."""
+async def _ws_ticket_payload(ws: WebSocket) -> Optional[dict]:
+    """Validate the ws_ticket from Sec-WebSocket-Protocol and return its decoded
+    payload (carrying the `scp` scope claim). On failure close 4401 → None. Never raises."""
     protos = ws.scope.get("subprotocols") or []
     ticket = protos[1] if len(protos) >= 2 and protos[0] == _WS_TICKET_PROTO else None
     if ticket:
         try:
-            app_jwt.decode_token(ticket, expected_type="ws_ticket")
-            return True
+            return app_jwt.decode_token(ticket, expected_type="ws_ticket")
         except Exception:
             pass
     try:
         await ws.close(code=4401)
     except Exception:
         pass
-    return False
+    return None
+
+
+def _scope_from_payload(payload: dict) -> Optional[set[str]]:
+    """`scp` absent/None → unrestricted (None); list → allowed company-id set."""
+    scp = payload.get("scp")
+    return None if scp is None else {str(x) for x in scp}
 
 
 @ws_router.websocket("/ws/companies")
 async def ws_companies_global(ws: WebSocket) -> None:
-    """Subscribe to ALL company field updates (auth required)."""
-    if not await _ws_ticket_ok(ws):
+    """Subscribe to field updates for the companies the user may see (auth required).
+    The global stream is filtered per-connection by the ticket's `scp` scope."""
+    payload = await _ws_ticket_payload(ws)
+    if payload is None:
         return
-    await broadcaster.connect(ws, GLOBAL_SCOPE, subprotocol=_WS_TICKET_PROTO)
+    allowed = _scope_from_payload(payload)
+    await broadcaster.connect(
+        ws, GLOBAL_SCOPE, subprotocol=_WS_TICKET_PROTO, allowed_codes=allowed,
+    )
     try:
         while True:
             try:
@@ -327,10 +359,20 @@ async def ws_companies_global(ws: WebSocket) -> None:
 
 @ws_router.websocket("/ws/companies/{company_id}")
 async def ws_company_scoped(ws: WebSocket, company_id: str) -> None:
-    """Subscribe to updates for one company only (auth required)."""
-    if not await _ws_ticket_ok(ws):
+    """Subscribe to updates for one company only (auth + per-company scope)."""
+    payload = await _ws_ticket_payload(ws)
+    if payload is None:
         return
-    await broadcaster.connect(ws, company_id, subprotocol=_WS_TICKET_PROTO)
+    allowed = _scope_from_payload(payload)
+    if allowed is not None and company_id not in allowed:
+        try:
+            await ws.close(code=4403)
+        except Exception:
+            pass
+        return
+    await broadcaster.connect(
+        ws, company_id, subprotocol=_WS_TICKET_PROTO, allowed_codes=allowed,
+    )
     try:
         while True:
             try:
