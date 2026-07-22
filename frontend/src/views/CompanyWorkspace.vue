@@ -35,6 +35,7 @@ import { companiesApi } from "@/api/companies";
 
 const notifStore = useNotificationsStore();
 import { ratingsApi, type AgencyRatingBrief } from "@/api/ratings";
+import { companyLibraryApi } from "@/api/companyLibrary";
 import { projectsApi, type ProjectBrief } from "@/api/projects";
 import { tasksApi, type TaskBrief } from "@/api/tasks";
 import { kpiApi, bpApi, BP_FIELDS, BP_PERIODS, type KpiManager, type BpComputed, type BpPeriod } from "@/api/bpKpi";
@@ -2818,11 +2819,23 @@ async function reloadRatings(): Promise<void> {
 // чтобы карточки синхронизировались во всех открытых вью без перезагрузки.
 let _ratingsWs: WebSocket | null = null;
 let _ratingsWsClosed = false;
-function connectRatingsSync(): void {
+async function connectRatingsSync(): Promise<void> {
+  if (_ratingsWsClosed) return;
+  // Сокет требует аутентификации: тикет по authenticated REST → в субпротокол.
+  let ticket: string;
+  try {
+    ticket = (await companyLibraryApi.wsTicket()).ticket;
+  } catch {
+    if (!_ratingsWsClosed) setTimeout(connectRatingsSync, 4000);
+    return;
+  }
   if (_ratingsWsClosed) return;
   try {
     const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
-    _ratingsWs = new WebSocket(`${proto}//${window.location.host}/api/ws/companies`);
+    _ratingsWs = new WebSocket(
+      `${proto}//${window.location.host}/api/ws/companies`,
+      ["uza-ws-ticket-v1", ticket],
+    );
     _ratingsWs.onmessage = (ev) => {
       try {
         const m = JSON.parse(ev.data) as {

@@ -152,6 +152,13 @@ export const companyLibraryApi = {
     }).then(r => r.data);
   },
 
+  // 30-сек тикет для sync-WebSocket (уходит в субпротокол, не в URL).
+  wsTicket() {
+    return api.post<{ ticket: string; expires_in: number }>(
+      "/companies/ws-ticket",
+    ).then(r => r.data);
+  },
+
   activity(companyId: string, limit = 10) {
     return api.get<LibraryActivityEntry[]>(
       `/library/companies/${companyId}/activity`, { params: { limit } },

@@ -164,7 +164,13 @@ export const useCompanyLibraryStore = defineStore("companyLibrary", () => {
     }
   }
 
-  function connectWebSocket() {
+  function _scheduleWsReconnect() {
+    const delay = Math.min(30_000, 1_000 * Math.pow(2, wsReconnectAttempt));
+    wsReconnectAttempt++;
+    wsReconnectTimer = setTimeout(connectWebSocket, delay);
+  }
+
+  async function connectWebSocket() {
     if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
       return;
     }
@@ -172,9 +178,22 @@ export const useCompanyLibraryStore = defineStore("companyLibrary", () => {
       clearTimeout(wsReconnectTimer);
       wsReconnectTimer = null;
     }
+    // Сокет несёт живые фин/рейтинг-значения → требует аутентификации. Тикет
+    // получаем по authenticated REST и передаём в субпротоколе (не в URL).
+    let ticket: string;
+    try {
+      ticket = (await companyLibraryApi.wsTicket()).ticket;
+    } catch {
+      wsConnected.value = false;
+      _scheduleWsReconnect();
+      return;
+    }
     try {
       const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
-      ws = new WebSocket(`${proto}//${window.location.host}/api/ws/companies`);
+      ws = new WebSocket(
+        `${proto}//${window.location.host}/api/ws/companies`,
+        ["uza-ws-ticket-v1", ticket],
+      );
       ws.onopen = () => {
         wsConnected.value = true;
         wsReconnectAttempt = 0;
@@ -192,9 +211,7 @@ export const useCompanyLibraryStore = defineStore("companyLibrary", () => {
         wsConnected.value = false;
         ws = null;
         // Reconnect with exponential back-off up to 30s
-        const delay = Math.min(30_000, 1_000 * Math.pow(2, wsReconnectAttempt));
-        wsReconnectAttempt++;
-        wsReconnectTimer = setTimeout(connectWebSocket, delay);
+        _scheduleWsReconnect();
       };
     } catch {
       wsConnected.value = false;

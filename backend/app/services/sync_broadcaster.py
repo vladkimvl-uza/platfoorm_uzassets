@@ -41,8 +41,12 @@ class SyncBroadcaster:
         self.connections: dict[str, set[WebSocket]] = defaultdict(set)
         self._lock = asyncio.Lock()
 
-    async def connect(self, ws: WebSocket, scope: str) -> None:
-        await ws.accept()
+    async def connect(
+        self, ws: WebSocket, scope: str, *, subprotocol: Optional[str] = None,
+    ) -> None:
+        # subprotocol echoes the negotiated Sec-WebSocket-Protocol back to the
+        # browser so a ticket-authenticated handshake completes.
+        await ws.accept(subprotocol=subprotocol)
         async with self._lock:
             self.connections[scope].add(ws)
         log.info("ws connect scope=%s total=%s", scope, len(self.connections[scope]))

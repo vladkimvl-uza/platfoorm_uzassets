@@ -32,6 +32,7 @@ from fastapi import APIRouter, Depends, Query, Request, Response, WebSocket, Web
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import jwt as app_jwt
 from app.core.access import ensure_company_access
 from app.core.security import get_current_user, require_permission
 from app.database import get_db
@@ -272,14 +273,48 @@ async def delete_tab(
 
 # ─── WebSocket endpoints ─────────────────────────────────────────
 # Separate router so the WS endpoints don't appear in the OpenAPI HTTP table.
+#
+# These streams carry live financial/rating field values, so the socket must be
+# authenticated. Browsers can't set an Authorization header on a WS handshake, so
+# the client first calls POST /companies/ws-ticket (with its normal bearer token)
+# to mint a 30-sec ws_ticket, then offers it as the 2nd Sec-WebSocket-Protocol
+# value — keeping it out of the URL/logs (mirrors the /notifications/ws pattern).
 
 ws_router = APIRouter()
+
+_WS_TICKET_PROTO = "uza-ws-ticket-v1"
+
+
+@router.post("/companies/ws-ticket")
+async def post_company_ws_ticket(user: User = Depends(get_current_user)):
+    """Mint a 30-sec ticket for the company-library sync WebSockets."""
+    return {"ticket": app_jwt.create_ws_ticket(subject=str(user.id)), "expires_in": 30}
+
+
+async def _ws_ticket_ok(ws: WebSocket) -> bool:
+    """Validate the ws_ticket from Sec-WebSocket-Protocol. On failure, close the
+    handshake with 4401 and return False. Never raises."""
+    protos = ws.scope.get("subprotocols") or []
+    ticket = protos[1] if len(protos) >= 2 and protos[0] == _WS_TICKET_PROTO else None
+    if ticket:
+        try:
+            app_jwt.decode_token(ticket, expected_type="ws_ticket")
+            return True
+        except Exception:
+            pass
+    try:
+        await ws.close(code=4401)
+    except Exception:
+        pass
+    return False
 
 
 @ws_router.websocket("/ws/companies")
 async def ws_companies_global(ws: WebSocket) -> None:
-    """Subscribe to ALL company field updates."""
-    await broadcaster.connect(ws, GLOBAL_SCOPE)
+    """Subscribe to ALL company field updates (auth required)."""
+    if not await _ws_ticket_ok(ws):
+        return
+    await broadcaster.connect(ws, GLOBAL_SCOPE, subprotocol=_WS_TICKET_PROTO)
     try:
         while True:
             try:
@@ -292,8 +327,10 @@ async def ws_companies_global(ws: WebSocket) -> None:
 
 @ws_router.websocket("/ws/companies/{company_id}")
 async def ws_company_scoped(ws: WebSocket, company_id: str) -> None:
-    """Subscribe to updates for one company only."""
-    await broadcaster.connect(ws, company_id)
+    """Subscribe to updates for one company only (auth required)."""
+    if not await _ws_ticket_ok(ws):
+        return
+    await broadcaster.connect(ws, company_id, subprotocol=_WS_TICKET_PROTO)
     try:
         while True:
             try:
