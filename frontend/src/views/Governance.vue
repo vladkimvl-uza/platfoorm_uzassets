@@ -162,8 +162,13 @@ const totals = computed(() => {
   const totalWomen   = rows.reduce((s, r) => s + (r.women_count ?? 0), 0);
   const dnoCount     = rows.filter(r => !!r.has_dno_insurance).length;
   const cosCount     = rows.length;
-  const weightedWomenPct = totalMembers > 0 ? Math.round(totalWomen / totalMembers * 100) : 0;
-  const indepPct = totalMembers > 0 ? Math.round(totalIndep / totalMembers * 100) : 0;
+  // P1 аудита: доли независимых/женщин — mean-of-ratios из бэк-summary (kpis),
+  // а НЕ pooled-пересчёт totalX/totalMembers по возможно-урезанным rankings.
+  // Единый источник с бэком (governance/service) и exec-дашбордом
+  // (см. exec_dashboard_consistency): каждая компания весит одинаково.
+  const k = overview.value?.kpis;
+  const weightedWomenPct = Math.round(k?.avg_women_pct ?? 0);
+  const indepPct = Math.round(k?.avg_independent_pct ?? 0);
 
   // Заседания НС — суммарно и в среднем на компанию (по компаниям с данными).
   const meetingCos    = rows.filter(r => (r.meetings_per_year ?? 0) > 0).length;
