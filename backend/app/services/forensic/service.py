@@ -194,7 +194,13 @@ class ForensicService:
                 snap.append(co)
 
             if payload.plan_status is not None:
-                co["plan"] = payload.plan_status
+                # Data-safety: 7 флагманов держат ЧИСЛОВУЮ сумму плана в поле plan.
+                # Не затираем её нечисловым статусом (иначе _plan_approved теряет
+                # сумму, а форензик — план). Пишем, только если текущее не число ИЛИ
+                # входящее само числовое.
+                _cur_plan = co.get("plan")
+                if not _is_number(_cur_plan) or _is_number(payload.plan_status):
+                    co["plan"] = payload.plan_status
             if payload.forensic_status is not None:
                 co["forensic"] = payload.forensic_status
             if payload.auditor is not None:
@@ -388,6 +394,11 @@ class ForensicService:
                     v = cell(src)
                     if v is not None and str(v).strip() != "":
                         new_val = str(v).strip()
+                        # Data-safety: 3-й write-путь. Не затираем числовую сумму
+                        # плана флагмана текстовым статусом из «Свода» (тот же гард,
+                        # что update_company и moderation_apply — все три пути защищены).
+                        if field == "plan" and _is_number(co.get("plan")) and not _is_number(new_val):
+                            continue
                         if co.get(field) != new_val:
                             co[field] = new_val
                             had_change = True

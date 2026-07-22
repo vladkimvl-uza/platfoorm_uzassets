@@ -31,6 +31,17 @@ _YEAR_FIELDS = ("plan", "fact", "n9p", "n9f",
                 "q1p", "q1f", "q2p", "q2f", "q3p", "q3f", "q4p", "q4f")
 
 
+def _is_number(v: Any) -> bool:
+    """Mirror forensic.service._is_number — «1 234,5» style tolerant."""
+    if v is None or v == "":
+        return False
+    try:
+        float(str(v).replace(" ", "").replace(",", "."))
+        return True
+    except (TypeError, ValueError):
+        return False
+
+
 async def _load_snapshot(db) -> list[dict]:
     res = await db.execute(text("SELECT value FROM system_config WHERE key = :k LIMIT 1"), {"k": _SNAPSHOT_KEY})
     row = res.first()
@@ -124,8 +135,13 @@ async def apply(db, *, sub: ModerationSubmission, user: User) -> dict[str, Any]:
         ("audit_years",     "aYears"),
     ]:
         v = payload.get(src_key)
-        if v is not None:
-            co[dst_key] = v
+        if v is None:
+            continue
+        # Data-safety: не затираем числовую сумму плана флагмана строковым статусом
+        # (то же, что в forensic.service.update_company — оба write-пути защищены).
+        if dst_key == "plan" and _is_number(co.get("plan")) and not _is_number(v):
+            continue
+        co[dst_key] = v
 
     # Year-level numeric fields
     yf = payload.get("year_fields") or {}
