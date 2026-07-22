@@ -289,6 +289,28 @@ async def _forward_notification_email(
     t.add_done_callback(_EMAIL_BG_TASKS.discard)
 
 
+def _safe_link_url(url: Optional[str]) -> Optional[str]:
+    """Sanitize a notification link_url before it becomes a CLICKABLE target
+    (in-app link / Telegram inline button / e-mail button). Уведомление —
+    доверенный канал: непроверенный link_url = вектор stored-XSS (javascript:/
+    data:) и фишинга (//evil, произвольный внешний хост через доверенную кнопку).
+    Whitelist: только внутренний относительный путь ('/...') или абсолютный
+    http(s). Всё прочее (javascript:/data:/vbscript:/file:/protocol-relative
+    '//host'/голое слово) → None (кнопка не рисуется)."""
+    if not url:
+        return None
+    s = url.strip()
+    if not s:
+        return None
+    # Внутренний путь — самый частый кейс; НЕ protocol-relative '//host'.
+    if s.startswith("/") and not s.startswith("//"):
+        return s
+    low = s.lower()
+    if low.startswith("https://") or low.startswith("http://"):
+        return s
+    return None
+
+
 async def notify(
     db: AsyncSession,
     *,
@@ -317,6 +339,10 @@ async def notify(
     """
     if not await _user_wants_in_app(db, recipient_id, type):
         return None
+
+    # Санитизируем ДО создания строки — покрывает in-app + e-mail forward (ниже) +
+    # TG forward (читает n.link_url). broadcast() идёт через notify() → тоже покрыт.
+    link_url = _safe_link_url(link_url)
 
     prio = _resolve_priority(type, priority)
 

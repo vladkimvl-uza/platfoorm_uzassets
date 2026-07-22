@@ -35,7 +35,7 @@ from app.models.admin_broadcast import (
 )
 from app.models.notification import NOTIFICATION_TYPES, Notification
 from app.models.user import Group, Role, User
-from app.services.notifications_service import notifications_ws_manager
+from app.services.notifications_service import _safe_link_url, notifications_ws_manager
 
 log = logging.getLogger(__name__)
 
@@ -267,6 +267,11 @@ async def dispatch_template(
 
     delivered = 0
     ws_pushes: list[tuple[UUID, dict]] = []
+    # Санитизируем link_url ОДИН раз (одинаков для всех получателей): этот путь
+    # создаёт Notification напрямую, минуя notify(), поэтому свой guard —
+    # админ-шаблон не должен внести javascript:/data:/внешний фишинг-хост в
+    # sticky-кнопку/TG/email (тот же класс, что notify._safe_link_url).
+    safe_link = _safe_link_url(template.link_url)
 
     for u in recipients:
         notif = Notification(
@@ -277,7 +282,7 @@ async def dispatch_template(
             title=template.title,
             body=template.body,
             payload={"broadcast": True, "template_name": template.name},
-            link_url=template.link_url,
+            link_url=safe_link,
             source_module="broadcast",
             source_entity_id=str(template.id),
             source_user_id=template.created_by_id,
