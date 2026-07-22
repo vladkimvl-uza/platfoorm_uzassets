@@ -28,7 +28,8 @@ import logging
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Response, WebSocket, WebSocketDisconnect, status
+from fastapi import APIRouter, Depends, Query, Request, Response, WebSocket, WebSocketDisconnect, status
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.access import ensure_company_access
@@ -93,16 +94,30 @@ async def write_library_field(
     company_id: UUID,
     field_code: str,
     body: FieldWriteRequest,
+    request: Request,
     service: CompanyLibraryServiceDep,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(require_permission("companies.edit")),
-) -> FieldWriteResponse:
-    # P0 (аудит /ratings): раньше единственной зависимостью был get_current_user —
-    # любой аутентифицированный юзер мог писать поля (в т.ч. рейтинги) ЛЮБОЙ
-    # компании в обход ratings.edit/scope/модерации. Теперь: право companies.edit
-    # + per-company scope.
+    user: User = Depends(get_current_user),
+):
+    # P0 (аудит /ratings): право проверяется ПОСЛОЙНО в сервисе (ratings-поля →
+    # ratings.edit + модерация как канон-путь /ratings; прочие поля → companies.edit),
+    # раньше endpoint-wide companies.edit пускал рейтинги мимо ratings.edit/модерации.
+    # api_key — чтобы сервис сохранил scope-ceiling API-ключа (как require_permission).
     await ensure_company_access(db, user, company_id)
-    return await service.write_field(company_id, field_code, body, user=user)
+    result = await service.write_field(
+        company_id, field_code, body, user=user, db=db,
+        api_key=getattr(request.state, "api_key", None),
+    )
+    if getattr(result, "queued", False):
+        return JSONResponse(
+            status_code=status.HTTP_202_ACCEPTED,
+            content={
+                "queued": True, "submission_id": str(result.submission_id),
+                "status": result.status,
+                "message": "Изменение отправлено на модерацию",
+            },
+        )
+    return result
 
 
 @router.get(

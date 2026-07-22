@@ -57,6 +57,14 @@ from app.uow.ports import UnitOfWorkABC
 log = logging.getLogger(__name__)
 
 
+class _QueuedResult:
+    """Сигнал роуту: правка ушла на модерацию (202), а не записана напрямую."""
+    def __init__(self, submission_id, status: str) -> None:
+        self.queued = True
+        self.submission_id = submission_id
+        self.status = status
+
+
 class CompanyLibraryService:
     def __init__(self, uow: UnitOfWorkABC) -> None:
         self.uow = uow
@@ -312,9 +320,10 @@ class CompanyLibraryService:
 
     async def write_field(
         self, company_id: UUID, field_code: str, body: FieldWriteRequest,
-        *, user,
-    ) -> FieldWriteResponse:
+        *, user, db, api_key=None,
+    ):
         new_value = body.value
+        queued_result: Optional[_QueuedResult] = None
         async with self.uow:
             r = self.uow.company_library
             co = await r.get_company(company_id)
@@ -331,6 +340,25 @@ class CompanyLibraryService:
             src = fdef.source_module
             rating_row = None          # затронутая строка рейтинга (для истории)
             rating_action: Optional[str] = None
+
+            # P0 (аудит /ratings): право per-source. ratings-поля → ratings.edit
+            # (+ модерация как канон-путь /ratings); всё прочее → companies.edit.
+            from app.core.security import has_effective_permission
+            required_perm = "ratings.edit" if src == "ratings" else "companies.edit"
+            if not await has_effective_permission(db, user, required_perm):
+                raise HTTPException(
+                    http_status.HTTP_403_FORBIDDEN,
+                    f"Permission required: {required_perm}",
+                )
+            # Scope-ceiling API-ключа (как в require_permission): ключ не может писать
+            # сверх своих scopes, даже если у сервис-аккаунта есть право.
+            if api_key is not None:
+                from app.services.api_key_service import check_scope
+                if not check_scope(api_key, required_perm):
+                    raise HTTPException(
+                        http_status.HTTP_403_FORBIDDEN,
+                        f"API key scope missing: {required_perm}",
+                    )
 
             if src is None or src == "library":
                 cd = dict(co.custom_data or {})
@@ -354,9 +382,16 @@ class CompanyLibraryService:
                     )
 
             elif src == "ratings":
-                routed_to, rating_row, rating_action = await self._write_rating(
-                    r, company_id, field_code, new_value,
+                # Через модерацию (канон-путь /ratings). gate_or_apply: queued → 202
+                # (применит moderation_apply/ratings.py); write-through (owner/bypass/
+                # нет правила) → прямая запись + история как раньше.
+                gated = await self._gate_rating_write(
+                    db, r, user, company_id, field_code, new_value,
                 )
+                if isinstance(gated, _QueuedResult):
+                    queued_result = gated
+                else:
+                    routed_to, rating_row, rating_action = gated
 
             elif src in ("finmodel", "financials"):
                 routed_to = await self._write_financial(
@@ -392,6 +427,10 @@ class CompanyLibraryService:
                     score=rating_row.score, rating_date_text=rating_row.rating_date_text,
                     rating_date=rating_row.rating_date, report_url=rating_row.report_url,
                 )
+
+        # Правка ушла на модерацию — прямой записи/аудита/истории нет (сделает apply).
+        if queued_result is not None:
+            return queued_result
 
         # Audit + broadcast (post-commit, best-effort)
         try:
@@ -448,6 +487,62 @@ class CompanyLibraryService:
             source_module=source_module,
             updated_at=now, routed_to=routed_to,
         )
+
+    async def _gate_rating_write(
+        self, db, r, user, company_id: UUID, field_code: str, new_value: Any,
+    ):
+        """Гейтит запись рейтинга через модерацию (module="ratings"). Возвращает
+        _QueuedResult (ушло на модерацию) ИЛИ tuple _write_rating (write-through /
+        no-op). Payload — в форме AgencyRatingCreate/Update, чтобы moderation_apply/
+        ratings.py применил его без изменений."""
+        agency_map = {
+            "rating_fitch":  "Fitch",
+            "rating_sp":     "S&P",
+            "rating_moodys": "Moody's",
+            "rating_esg":    "Sustainable Fitch",
+        }
+        if field_code not in agency_map:
+            raise HTTPException(
+                http_status.HTTP_400_BAD_REQUEST,
+                f"Unknown ratings field '{field_code}'",
+            )
+        from app.models.agency_rating import is_esg_agency
+        agency_name = agency_map[field_code]
+        is_esg = is_esg_agency(agency_name)
+        new_str = "" if new_value is None else str(new_value).strip()
+        existing = await r.latest_agency_rating(company_id, agency_name)
+
+        # no-op: нечего создавать — обычный ответ (без модерации/записи)
+        if existing is None and not new_str:
+            return ("agency_ratings (no-op)", None, None)
+
+        if existing is None:
+            action, entity_id = "create", None
+            payload = {
+                "company_id": str(company_id), "agency": agency_name,
+                "rating": None if is_esg else (new_str[:16] or None),
+                "score":  (new_str[:16] or None) if is_esg else None,
+                "rating_date": datetime.now(UTC).date().isoformat(),
+            }
+            diff = f"Новый рейтинг от {agency_name}: {new_str or '—'}"
+        else:
+            action, entity_id = "update", str(existing.id)
+            payload = ({"score": new_str[:16] or None} if is_esg
+                       else {"rating": new_str[:16] or None})
+            payload["rating_date"] = datetime.now(UTC).date().isoformat()
+            diff = f"Обновление рейтинга {agency_name}"
+
+        from app.services.moderation_service import gate_or_apply
+        queued, sub = await gate_or_apply(
+            db, user=user, module="ratings", action=action,
+            entity_id=entity_id, entity_label=f"Рейтинг {agency_name}",
+            company_id=company_id, sector_id=None, year=None,
+            payload=payload, diff_summary=diff,
+        )
+        if queued:
+            return _QueuedResult(sub.id, sub.status)
+        # write-through (owner / bypass / нет правила) — прямая запись как раньше
+        return await self._write_rating(r, company_id, field_code, new_value)
 
     async def _write_rating(
         self, r, company_id: UUID, field_code: str, new_value: Any,
