@@ -80,23 +80,55 @@ async def compute_bp_editor_token(db: AsyncSession, *, company_id, year: int) ->
 
 
 async def compute_financials_editor_token(
-    db: AsyncSession, *, company_id, year: int, standard: str | None = None,
+    db: AsyncSession,
+    *,
+    company_id,
+    standard: str,
+    consolidated: Optional[bool] = None,
+    quarter: Optional[int] = None,
+    schema_updated_at: Optional[str] = None,
 ) -> str:
-    """Token for financials editor scope = (company, year[, standard]) over FinancialLine.
+    """Scope token for the IFRS / NSBU editors.
 
-    Walks Reports → Lines because FinancialLine doesn't carry year directly.
+    An editor save spans MANY report rows (one per year × report_type) for a
+    (company, standard, is_consolidated?, quarter?) slice, so there is no single
+    row updated_at to key on. Basis = max(FinancialLine.updated_at) over that
+    slice, FOLDED with the ISO `updatedAt` string persisted in
+    company.extra[schema_key] — because the editor's schema customization
+    (customFields / renames / formulaOverrides / manualFlags) lives in
+    company.extra, NOT in FinancialLine; without folding it in, a concurrent
+    schema-only save would be silently clobbered instead of conflicting.
+
+    The slice filters MUST mirror each editor's get_schema query exactly, or the
+    GET token would differ from the pre-write PUT token → permanent false 409:
+      - IFRS: standard="IFRS", consolidated=<bool>, quarter=_period_to_quarter(period)
+      - NSBU: standard="NSBU", consolidated=None (no is_consolidated filter), quarter=None
+    Both always filter is_detailed == False. `consolidated=None` means "do not
+    filter is_consolidated"; `quarter=None` means "filter quarter IS NULL".
     """
     from app.models.financial import FinancialLine, FinancialReport
     q = (
         select(func.max(FinancialLine.updated_at))
         .join(FinancialReport, FinancialReport.id == FinancialLine.report_id)
         .where(FinancialReport.company_id == company_id)
-        .where(FinancialReport.year == year)
+        .where(FinancialReport.standard == standard)
+        .where(FinancialReport.is_detailed.is_(False))
     )
-    if standard:
-        q = q.where(FinancialReport.standard == standard)
+    if consolidated is not None:
+        q = q.where(FinancialReport.is_consolidated.is_(consolidated))
+    if quarter is None:
+        q = q.where(FinancialReport.quarter.is_(None))
+    else:
+        q = q.where(FinancialReport.quarter == quarter)
     mx = (await db.execute(q)).scalar()
-    return token_from_timestamps([mx])
+
+    timestamps: list[Optional[datetime]] = [mx]
+    if schema_updated_at:
+        try:
+            timestamps.append(datetime.fromisoformat(schema_updated_at))
+        except (ValueError, TypeError):
+            pass
+    return token_from_timestamps(timestamps)
 
 
 # ─── Conflict signaling ───────────────────────────────────────────────

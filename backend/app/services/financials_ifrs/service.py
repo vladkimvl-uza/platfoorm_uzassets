@@ -31,6 +31,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.access import allowed_company_ids
 from app.core.audit_chain import append_audit_entry
+from app.core.editor_lock import check_editor_token, compute_financials_editor_token
 from app.core.security import has_effective_permission
 from app.models.audit import AuditLog
 from app.models.financial import FinancialLine, FinancialReport
@@ -246,6 +247,12 @@ class FinancialsIfrsService:
                 audit_meta_latest = fr.extra.get("audit")
                 audit_year_latest = fr.year
 
+        editor_token = await compute_financials_editor_token(
+            db, company_id=co.id, standard="IFRS",
+            consolidated=consolidated, quarter=quarter,
+            schema_updated_at=schema.get("updatedAt"),
+        )
+
         return {
             "code": co.code,
             "period": period,
@@ -260,6 +267,7 @@ class FinancialsIfrsService:
             "audit_meta": audit_meta_latest,
             "updatedAt": schema.get("updatedAt"),
             "updatedBy": schema.get("updatedBy"),
+            "_editor_token": editor_token,
         }
 
     async def save(
@@ -268,6 +276,8 @@ class FinancialsIfrsService:
         payload: IfrsEditorSavePayload,
         db: AsyncSession,
         user: User,
+        *,
+        expected_token: Optional[str] = None,
     ) -> dict:
         if not await has_effective_permission(db, user, "financials.edit"):
             raise HTTPException(
@@ -290,9 +300,24 @@ class FinancialsIfrsService:
         quarter = _period_to_quarter(payload.period)
         now_iso = datetime.now(UTC).isoformat()
 
+        # 0. Optimistic-lock: recompute the current token from the SAME slice the
+        # GET emitted (reading the pre-write schema updatedAt) and 409 on mismatch,
+        # BEFORE any write below. No-op when the caller sent no token (legacy).
+        schema_key = self._schema_key(payload.period, payload.consolidated)
+        prev_schema = (co.extra or {}).get(schema_key, {}) if co.extra else {}
+        current_token = await compute_financials_editor_token(
+            db, company_id=co.id, standard="IFRS",
+            consolidated=payload.consolidated, quarter=quarter,
+            schema_updated_at=prev_schema.get("updatedAt"),
+        )
+        check_editor_token(
+            scope_name=f"financials/ifrs/{code}/{payload.period}/"
+                       f"{'c' if payload.consolidated else 's'}",
+            expected_token=expected_token, current_token=current_token,
+        )
+
         # 1. Persist customization (per-scope slot)
         extra = dict(co.extra or {})
-        schema_key = self._schema_key(payload.period, payload.consolidated)
         extra[schema_key] = {
             "customFields": [cf.model_dump() for cf in payload.customFields],
             "renames": payload.renames,
@@ -491,6 +516,14 @@ class FinancialsIfrsService:
             pass
 
         await db.commit()
+
+        # Re-issue a fresh token (schema updatedAt just bumped to now_iso, lines
+        # committed) so the same open editor can keep saving without a reload.
+        new_token = await compute_financials_editor_token(
+            db, company_id=co.id, standard="IFRS",
+            consolidated=payload.consolidated, quarter=quarter,
+            schema_updated_at=now_iso,
+        )
         return {
             "ok": True,
             "saved_at": now_iso,
@@ -500,6 +533,7 @@ class FinancialsIfrsService:
             "reports_updated": reports_updated,
             "lines_upserted": lines_upserted,
             "lines_deleted": lines_deleted,
+            "_editor_token": new_token,
         }
 
     async def get_history(

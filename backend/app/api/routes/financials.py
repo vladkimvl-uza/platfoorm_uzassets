@@ -19,12 +19,13 @@ Anti-loss protocol on PUT:
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Header, Query, Request, Response
 from fastapi import status as http_status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.editor_lock import EMPTY_TOKEN
 from app.core.security import get_current_user
 from app.database import get_db
 from app.dependencies.financials_detailed import FinancialsDetailedServiceDep
@@ -461,10 +462,13 @@ async def portfolio_summary(
 async def get_nsbu_editor_schema(
     code: str,
     service: FinancialsNsbuServiceDep,
+    response: Response,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> dict:
-    return await service.get_schema(code, db, user)
+    result = await service.get_schema(code, db, user)
+    response.headers["X-Editor-Token"] = result.pop("_editor_token", EMPTY_TOKEN)
+    return result
 
 
 @router.put("/companies/{code}/nsbu-editor")
@@ -472,10 +476,14 @@ async def save_nsbu_editor(
     code: str,
     payload: NsbuEditorSavePayload,
     service: FinancialsNsbuServiceDep,
+    response: Response,
+    if_match: Optional[str] = Header(None, alias="If-Match"),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> dict:
-    return await service.save(code, payload, db, user)
+    result = await service.save(code, payload, db, user, expected_token=if_match)
+    response.headers["X-Editor-Token"] = result.pop("_editor_token", EMPTY_TOKEN)
+    return result
 
 
 @router.get("/companies/{code}/nsbu-editor/history")
@@ -518,14 +526,17 @@ async def parse_nsbu_editor_excel(
 async def get_ifrs_editor_schema(
     code: str,
     service: FinancialsIfrsServiceDep,
+    response: Response,
     period: str = Query("FY", description="FY | Q1 | H1 | 9M"),
     consolidated: bool = Query(True),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> dict:
-    return await service.get_schema(
+    result = await service.get_schema(
         code, db, user, period=period, consolidated=consolidated,
     )
+    response.headers["X-Editor-Token"] = result.pop("_editor_token", EMPTY_TOKEN)
+    return result
 
 
 @router.put("/companies/{code}/ifrs-editor")
@@ -533,10 +544,14 @@ async def save_ifrs_editor(
     code: str,
     payload: IfrsEditorSavePayload,
     service: FinancialsIfrsServiceDep,
+    response: Response,
+    if_match: Optional[str] = Header(None, alias="If-Match"),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> dict:
-    return await service.save(code, payload, db, user)
+    result = await service.save(code, payload, db, user, expected_token=if_match)
+    response.headers["X-Editor-Token"] = result.pop("_editor_token", EMPTY_TOKEN)
+    return result
 
 
 # ─── Company indicators: ИНН + годовые KPI (sponsorship/taxes/headcount) ──────

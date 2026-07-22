@@ -29,6 +29,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.access import allowed_company_ids
 from app.core.audit_chain import append_audit_entry
+from app.core.editor_lock import check_editor_token, compute_financials_editor_token
 from app.core.security import has_effective_permission
 from app.models.audit import AuditLog
 from app.models.financial import FinancialLine, FinancialReport
@@ -151,6 +152,12 @@ class FinancialsNsbuService:
                 continue
             values.setdefault(fl.line_code, {})[str(fr.year)] = v
 
+        editor_token = await compute_financials_editor_token(
+            db, company_id=co.id, standard="NSBU",
+            consolidated=None, quarter=None,
+            schema_updated_at=schema.get("updatedAt"),
+        )
+
         return {
             "code": co.code,
             "values": values,
@@ -160,6 +167,7 @@ class FinancialsNsbuService:
             "manualFlags": schema.get("manualFlags", {}),
             "updatedAt": schema.get("updatedAt"),
             "updatedBy": schema.get("updatedBy"),
+            "_editor_token": editor_token,
         }
 
     async def save(
@@ -168,6 +176,8 @@ class FinancialsNsbuService:
         payload: NsbuEditorSavePayload,
         db: AsyncSession,
         user: User,
+        *,
+        expected_token: Optional[str] = None,
     ) -> dict:
         if not await has_effective_permission(db, user, "financials.edit"):
             raise HTTPException(
@@ -188,6 +198,20 @@ class FinancialsNsbuService:
             )
 
         now_iso = datetime.now(UTC).isoformat()
+
+        # 0. Optimistic-lock: recompute the current token from the SAME slice the
+        # GET emitted (reading the pre-write schema updatedAt) and 409 on mismatch,
+        # BEFORE any write below. No-op when the caller sent no token (legacy).
+        prev_schema = (co.extra or {}).get("nsbu_editor_schema", {}) if co.extra else {}
+        current_token = await compute_financials_editor_token(
+            db, company_id=co.id, standard="NSBU",
+            consolidated=None, quarter=None,
+            schema_updated_at=prev_schema.get("updatedAt"),
+        )
+        check_editor_token(
+            scope_name=f"financials/nsbu/{code}",
+            expected_token=expected_token, current_token=current_token,
+        )
 
         # 1. Persist customization to company.extra.nsbu_editor_schema
         extra = dict(co.extra or {})
@@ -368,6 +392,14 @@ class FinancialsNsbuService:
             pass
 
         await db.commit()
+
+        # Re-issue a fresh token (schema updatedAt just bumped to now_iso, lines
+        # committed) so the same open editor can keep saving without a reload.
+        new_token = await compute_financials_editor_token(
+            db, company_id=co.id, standard="NSBU",
+            consolidated=None, quarter=None,
+            schema_updated_at=now_iso,
+        )
         return {
             "ok": True,
             "saved_at": now_iso,
@@ -375,6 +407,7 @@ class FinancialsNsbuService:
             "reports_updated": reports_updated,
             "lines_upserted": lines_upserted,
             "lines_deleted": lines_deleted,
+            "_editor_token": new_token,
         }
 
     async def get_history(
