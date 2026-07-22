@@ -58,6 +58,7 @@ interface CompanyState {
   manualFlags: Record<string, Record<number, boolean>>; // [field][year] = true if manually overridden
   savedAt?: number;
   dirty: boolean;
+  editorToken?: string | null; // optimistic-lock scope token (X-Editor-Token) from last GET/PUT
 }
 const companyStates = reactive<Record<string, CompanyState>>({});
 const loadingCompany = ref(false);
@@ -652,7 +653,11 @@ async function selectCompany(code: string) {
   // Pack 7.52: load customization (custom fields/renames/formula overrides) from backend
   try {
     const { api } = await import("@/api/client");
-    const { data } = await api.get(`/financials/companies/${code}/nsbu-editor`);
+    const resp = await api.get(`/financials/companies/${code}/nsbu-editor`);
+    const data = resp.data;
+    // Optimistic-lock baseline for this company slice. Axios lowercases header
+    // keys. Echoed back as If-Match on the next save.
+    state.editorToken = (resp.headers["x-editor-token"] as string) || null;
     if (data) {
       // Авторитетные значения среза (уже в млрд) заменяют FY-портфельные — иначе
       // редактор показывал/сохранял не тот слой (тот же дефект, что в МСФО-редакторе).
@@ -719,9 +724,16 @@ async function saveCurrent() {
     };
     // Use raw api client (no wrapper exists for this endpoint yet)
     const { api } = await import("@/api/client");
-    const resp = await api.put(`/financials/companies/${selectedCode.value}/nsbu-editor`, payload);
+    const resp = await api.put(
+      `/financials/companies/${selectedCode.value}/nsbu-editor`,
+      payload,
+      state.editorToken ? { headers: { "If-Match": state.editorToken } } : undefined,
+    );
     state.dirty = false;
     state.savedAt = Date.now();
+    // Store the re-issued token so the same open editor can save again w/o reload.
+    const newTok = resp.headers?.["x-editor-token"] as string | undefined;
+    if (newTok) state.editorToken = newTok;
     // Verify after save: re-read the schema (defense-in-depth, mem #10 pattern)
     try {
       const verify = await api.get(`/financials/companies/${selectedCode.value}/nsbu-editor`);
@@ -737,7 +749,14 @@ async function saveCurrent() {
     // Invalidate portfolio cache so dashboards reflect saved changes next load
     portfolioCache.value = null;
   } catch (e: unknown) {
-    const err = e as { response?: { data?: { detail?: string } }; message?: string };
+    const err = e as { response?: { status?: number; data?: { detail?: string } }; message?: string };
+    // Optimistic-lock conflict: keep dirty + localStorage backup (never wiped on
+    // this path) so the user's edits survive; ask them to reload the editor.
+    if (err?.response?.status === 409) {
+      toast.error("Конфликт: данные изменились, пока вы редактировали. Перезагрузите редактор, чтобы не затереть чужие правки.");
+      console.warn("[NsbuEditor] save conflict (409):", e);
+      return;
+    }
     const msg = err?.response?.data?.detail || err?.message || "Не удалось сохранить";
     toast.error(`Ошибка сохранения: ${msg}`);
     console.error("[NsbuEditor] save failed:", e);
