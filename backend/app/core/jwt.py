@@ -100,6 +100,7 @@ def create_ws_ticket(*, subject: str, expires_seconds: int = 30) -> str:
         subject=subject,
         token_type="ws_ticket",
         expires_delta=timedelta(seconds=expires_seconds),
+        extra_claims=None,
     )
 
 
@@ -202,7 +203,7 @@ def _create_token(
     subject: str,
     token_type: str,
     expires_delta: timedelta,
-    extra_claims: dict | None,
+    extra_claims: dict | None = None,
 ) -> str:
     if not _PRIVATE_KEY:
         raise RuntimeError("JWT signing key not configured")
