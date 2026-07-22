@@ -18,8 +18,9 @@ from typing import Any, Optional
 from uuid import UUID
 
 from fastapi import WebSocket
-from sqlalchemy import and_, func, or_, select, update
+from sqlalchemy import and_, event, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session as _SyncSession
 
 from app.models.notification import NOTIFICATION_TYPES, Notification, NotificationPreference
 from app.models.user import Group, Role, User
@@ -124,6 +125,84 @@ async def _user_wants_in_app(db: AsyncSession, user_id: UUID, notif_type: str) -
 
 # Удерживаем ссылки на фоновые email-таски, чтобы их не собрал GC.
 _EMAIL_BG_TASKS: set = set()
+
+
+# ════════════════════════════════════════════════════════════
+#   WS-пуш строго ПОСЛЕ commit (иначе — фантомные уведомления)
+# ════════════════════════════════════════════════════════════
+# notify() часто НЕ владеет commit'ом (его делает роут или get_db). Раньше WS
+# событие notification.new слалось inline до коммита → при rollback клиент уже
+# знал о несуществующей строке. Решение: буферим пуши на сессии (session.info) и
+# отправляем их из SQLAlchemy-события after_commit; on after_rollback — сбрасываем.
+_WS_BG_TASKS: set = set()
+
+
+def _buffer_ws_push(db: AsyncSession, recipient_id: UUID, n: Notification) -> None:
+    """Ставит notification.new в очередь на сессии — отправится только after_commit."""
+    payload = {
+        "event": "notification.new",
+        "notification": {
+            "id":           str(n.id),
+            "created_at":   n.created_at.isoformat(),
+            "type":         n.type,
+            "priority":     n.priority,
+            "title":        n.title,
+            "body":         n.body,
+            "payload":      n.payload,
+            "link_url":     n.link_url,
+            "source_module": n.source_module,
+            "source_entity_id": n.source_entity_id,
+            "source_user_id": str(n.source_user_id) if n.source_user_id else None,
+            "is_read":      False,
+            "is_archived":  False,
+        },
+        "timestamp":     datetime.now(UTC).isoformat(),
+    }
+    db.info.setdefault("pending_ws", []).append((recipient_id, payload))
+
+
+async def _flush_ws(pending: list) -> None:
+    recipients: set = set()
+    for uid, payload in pending:            # notification.new — по одному на строку
+        recipients.add(uid)
+        try:
+            await notifications_ws_manager.send_to_user(uid, payload)
+        except Exception as e:
+            log.warning("WS notification.new failed user=%s: %s", uid, e)
+    if not recipients:
+        return
+    # unread_count — по одному на получателя, из СВЕЖЕЙ (закоммиченной) сессии
+    from app.database import AsyncSessionLocal
+    async with AsyncSessionLocal() as db2:
+        for uid in recipients:
+            try:
+                cnt = await unread_count(db2, uid)
+                await notifications_ws_manager.send_to_user(uid, {
+                    "event":        "notification.unread_count",
+                    "unread_count": cnt,
+                    "timestamp":    datetime.now(UTC).isoformat(),
+                })
+            except Exception as e:
+                log.warning("WS unread_count failed user=%s: %s", uid, e)
+
+
+@event.listens_for(_SyncSession, "after_commit")
+def _dispatch_pending_ws(session) -> None:
+    pending = session.info.pop("pending_ws", None)
+    if not pending:
+        return
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        return
+    t = loop.create_task(_flush_ws(pending))
+    _WS_BG_TASKS.add(t)
+    t.add_done_callback(_WS_BG_TASKS.discard)
+
+
+@event.listens_for(_SyncSession, "after_rollback")
+def _drop_pending_ws(session) -> None:
+    session.info.pop("pending_ws", None)     # откат → никаких фантомных пушей
 
 
 # Типы, у которых e-mail ВЫКЛЮЧЕН по умолчанию (слишком шумно для почты).
@@ -261,6 +340,9 @@ async def notify(
     )
     db.add(n)
     await db.flush()
+    # Буферим WS-пуш ДО собственного commit — отправит after_commit-листенер
+    # (для commit=False — на коммите роута/get_db). Никогда не шлём до коммита.
+    _buffer_ws_push(db, recipient_id, n)
 
     if commit:
         await db.commit()
@@ -283,37 +365,7 @@ async def notify(
                 logging.getLogger(__name__).warning('email-forward failed: %s', _e)
         await db.refresh(n)
 
-    # Best-effort WS push (failure shouldn't break notify())
-    try:
-        await notifications_ws_manager.send_to_user(recipient_id, {
-            "event": "notification.new",
-            "notification": {
-                "id":           str(n.id),
-                "created_at":   n.created_at.isoformat(),
-                "type":         n.type,
-                "priority":     n.priority,
-                "title":        n.title,
-                "body":         n.body,
-                "payload":      n.payload,
-                "link_url":     n.link_url,
-                "source_module": n.source_module,
-                "source_entity_id": n.source_entity_id,
-                "source_user_id": str(n.source_user_id) if n.source_user_id else None,
-                "is_read":      False,
-                "is_archived":  False,
-            },
-            "timestamp":     datetime.now(UTC).isoformat(),
-        })
-        # Also push updated count
-        cnt = await unread_count(db, recipient_id)
-        await notifications_ws_manager.send_to_user(recipient_id, {
-            "event":        "notification.unread_count",
-            "unread_count": cnt,
-            "timestamp":    datetime.now(UTC).isoformat(),
-        })
-    except Exception as e:
-        log.warning("WS push failed for user=%s type=%s: %s", recipient_id, type, e)
-
+    # WS-пуш выполнит after_commit-листенер из session.info (см. _buffer_ws_push).
     return n
 
 
