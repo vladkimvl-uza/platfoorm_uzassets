@@ -383,9 +383,15 @@ export const bpApi = {
     return data;
   },
 
-  async getRaw(companyId: string, year: number): Promise<Record<string, Record<string, BpCell>>> {
-    const { data } = await api.get(`/bp/raw/${companyId}/${year}`);
-    return data;
+  async getRaw(companyId: string, year: number): Promise<{
+    data: Record<string, Record<string, BpCell>>;
+    editorToken: string | null;
+  }> {
+    const resp = await api.get(`/bp/raw/${companyId}/${year}`);
+    return {
+      data: resp.data,
+      editorToken: (resp.headers["x-editor-token"] as string) || null,
+    };
   },
 
   async upsertCell(payload: BpRecordUpsert): Promise<{ ok: boolean }> {
@@ -393,9 +399,21 @@ export const bpApi = {
     return data;
   },
 
-  async bulkUpsert(records: BpRecordUpsert[]): Promise<{ upserted: number } | ModerationQueuedTag> {
-    const { data } = await api.post("/bp/bulk-upsert", { records });
-    return data;
+  async bulkUpsert(
+    records: BpRecordUpsert[],
+    editorToken?: string | null,
+  ): Promise<{ upserted: number; editorToken: string | null } | ModerationQueuedTag> {
+    // If-Match — optimistic-lock (409 EditorConflict, если кто-то сохранил параллельно)
+    const resp = await api.post(
+      "/bp/bulk-upsert",
+      { records },
+      editorToken ? { headers: { "If-Match": editorToken } } : undefined,
+    );
+    if (resp.data && resp.data.queued) return resp.data as ModerationQueuedTag;
+    return {
+      upserted: resp.data.upserted,
+      editorToken: (resp.headers["x-editor-token"] as string) || null,
+    };
   },
 
   async deleteYear(companyId: string, year: number): Promise<void> {

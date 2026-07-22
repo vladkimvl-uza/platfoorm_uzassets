@@ -132,7 +132,7 @@ export function useBusinessPlanData() {
       return;
     }
     try {
-      rawRecords.value = await bpApi.getRaw(selectedCompanyId.value, selectedYear.value);
+      rawRecords.value = (await bpApi.getRaw(selectedCompanyId.value, selectedYear.value)).data;
     } catch (e) {
       _logErr("raw", e);
     }

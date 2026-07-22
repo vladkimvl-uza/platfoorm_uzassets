@@ -277,6 +277,7 @@ const error = ref<string | null>(null);
 const nsbuFacts = ref<Record<string, number | null>>({});
 const nsbuSource = ref<Record<string, "nsbu" | "ytd">>({});
 const loadFailed = ref(false);   // загрузка упала → НЕ давать сохранять (иначе затрём данные)
+const editorToken = ref<string | null>(null);   // optimistic-lock: токен состояния (company, year)
 const nsbuCount = computed(() =>
   Object.values(nsbuFacts.value).filter(v => v != null).length
 );
@@ -393,7 +394,8 @@ function computeHh(col: "plan" | "expect" | "fact"): number | null {
 async function load() {
   error.value = null; loadFailed.value = false;
   try {
-    const raw = await bpApi.getRaw(props.companyId, props.year);
+    const { data: raw, editorToken: tok } = await bpApi.getRaw(props.companyId, props.year);
+    editorToken.value = tok;   // запомним для If-Match при сохранении
 
     // Build full new state — avoids any nested reactivity edge cases by
     // replacing data.value wholesale (single ref write triggers re-render)
@@ -474,7 +476,7 @@ async function save() {
       saving.value = false;
       return;
     }
-    const resp = await bpApi.bulkUpsert(records);
+    const resp = await bpApi.bulkUpsert(records, editorToken.value);
     if (isModerationQueued(resp)) {
       // Gated. Interceptor has shown a toast — just close.
       dirty.value = false;
@@ -482,6 +484,7 @@ async function save() {
     } else {
       // Успех = бэкенд закоммитил запись (API ответил 2xx). Подтверждаем визуально.
       dirty.value = false;
+      editorToken.value = (resp as any)?.editorToken ?? null;   // перевыдан — работаем дальше
       lastSaved.value = new Date().toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
       const n = (resp as any)?.upserted;
       toast.success(typeof n === "number" ? `Сохранено · ${n} ячеек записано` : "Бизнес-план сохранён");
@@ -489,6 +492,12 @@ async function save() {
     }
   } catch (e: any) {
     console.error("[BP editor] save failed:", e);
+    // 409 EditorConflict — кто-то сохранил параллельно; данные устарели.
+    if (e?.response?.status === 409) {
+      error.value = "Кто-то сохранил изменения, пока вы редактировали. Перезагрузите редактор.";
+      toast.error("Конфликт: данные изменились. Перезагрузите редактор, чтобы не затереть чужие правки.");
+      return;
+    }
     // Показываем РЕАЛЬНУЮ причину, а не общий текст.
     const reason = e?.response?.data?.detail || e?.message || "неизвестная ошибка";
     error.value = `Не сохранено: ${reason}`;

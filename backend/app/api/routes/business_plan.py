@@ -13,11 +13,12 @@ import logging
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response
 from fastapi import status as http_status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
+from app.core.editor_lock import check_editor_token, compute_bp_editor_token
 from app.core.access import (
     allowed_company_ids,
     ensure_company_access,
@@ -134,6 +135,7 @@ async def get_raw_records(
     company_id: UUID,
     year: int,
     service: BpServiceDep,
+    response: Response,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -143,6 +145,10 @@ async def get_raw_records(
     if not await has_effective_permission(db, user, "bp.view"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "bp.view required")
     await ensure_company_access(db, user, company_id)
+    # Optimistic-lock: токен состояния (company, year) — редактор вернёт его в
+    # If-Match при сохранении; расхождение → 409 (кто-то сохранил параллельно).
+    response.headers["X-Editor-Token"] = await compute_bp_editor_token(
+        db, company_id=company_id, year=year)
     return await service.get_raw_records(company_id, year)
 
 
@@ -207,8 +213,10 @@ async def bulk_upsert(
     payload: BpBulkUpsert,
     service: BpServiceDep,
     request: Request,
+    response: Response,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
+    if_match: Optional[str] = Header(None, alias="If-Match"),
 ):
     """Editor save: replace many cells in one transaction.
 
@@ -226,6 +234,15 @@ async def bulk_upsert(
     # Moderation gate (uses first record's company_id for rule matching)
     from app.services.moderation_service import gate_or_apply
     first = payload.records[0] if payload.records else None
+
+    # Optimistic-lock: если редактор прислал If-Match — сверяем со свежим токеном
+    # (company, year) первой записи ДО записи/модерации. Расхождение → 409.
+    if first is not None:
+        current_tok = await compute_bp_editor_token(
+            db, company_id=first.company_id, year=first.year)
+        check_editor_token(
+            scope_name=f"bp/{first.company_id}/{first.year}",
+            expected_token=if_match, current_token=current_tok)
     queued, sub = await gate_or_apply(
         db, user=user,
         module="business_plan", action="bulk_upsert",
@@ -248,6 +265,9 @@ async def bulk_upsert(
     if first:
         request.state.activity_summary = f"Обновлено {len(payload.records)} показателей за {first.year}"
         request.state.activity_entity = "Бизнес-план"
+        # Перевыдаём токен — редактор продолжает работу без перезагрузки.
+        response.headers["X-Editor-Token"] = await compute_bp_editor_token(
+            db, company_id=first.company_id, year=first.year)
     return {"upserted": n}
 
 
