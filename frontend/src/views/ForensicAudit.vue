@@ -31,6 +31,9 @@ import { useFormatters } from "@/composables/useFormatters";
 import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
+// M-6: единый канон цвета/зоны исполнения (тот же порог, что был локально в
+// таблице; редактор ForensicEditModal импортирует тот же helper — конец расхождения).
+import { execCol as pctCol, execZone as pctZone } from "@/utils/execBand";
 
 const fmt = useFormatters();
 const toast = useToast();
@@ -244,7 +247,11 @@ const hasFact = computed(() => D.value.some(c => gF(c) != null));
 
 // Totals
 const totals = computed(() => {
-  const wd = D.value.filter(c => gP(c) && gF(c));
+  // H-4: считаем среднее исполнение по тем же строкам, что показывают %:
+  // план>0 И факт заведён (в т.ч. факт=0 → 0%). Прежний `gP(c) && gF(c)` ронял
+  // строки с записанным фактом 0 (в таблице красное 0%, а из среднего пропадали →
+  // среднее было завышено). Теперь дисплей и агрегат сходятся.
+  const wd = D.value.filter(c => gPctState(c) === "pct");
   const tP = wd.reduce((s, c) => s + (gP(c) || 0), 0);
   const tF = wd.reduce((s, c) => s + (gF(c) || 0), 0);
   const avgP = tP ? Math.round(tF / tP * 1000) / 10 : 0;
@@ -314,23 +321,6 @@ function fN(v: number | null | undefined): string {
   if (v >= 1000) return fmt.fmtNumber(Math.round(v));
   if (v < 10)    return fmt.fmtNumber(v, { decimals: 1 });
   return fmt.fmtNumber(Math.round(v));
-}
-function pctCol(p: number | null): string {
-  if (p == null) return "var(--t3)";
-  // H-5: переисполнение >110% — ОТДЕЛЬНАЯ зона (не зелёный «отлично»): 2-3× превышение
-  // плана — красный флаг форензика (ошибка ввода/единиц/перерасход), а не достижение.
-  if (p > 110) return "#7C3AED";
-  if (p >= 80) return "#1D9E75";
-  if (p >= 50) return "#D97706";
-  return "#993D3D";
-}
-// H-5: подпись зоны исполнения (для бейджа/подсказки).
-function pctZone(p: number | null): string {
-  if (p == null) return "";
-  if (p > 110) return "переисполнение — проверить единицы/двойной ввод";
-  if (p >= 80) return "в норме";
-  if (p >= 50) return "отставание";
-  return "критично";
 }
 function cleanAud(a: string | undefined): string {
   return a ? a.replace(/\s*до\s+\d{2}\.\d{2}\.\d{4}/, "") : "—";
@@ -435,7 +425,10 @@ async function onEditSaved(patches: { company: ProcCompany; year: number }[]) {
     const yr = company.years?.find(y => y.y === year);
     const payload: Record<string, unknown> = {
       year,
-      plan_status:     company.plan ?? null,
+      // Data-safety: 7 флагманов держат ЧИСЛОВУЮ сумму плана в поле plan. Никогда
+      // не отправляем число как plan_status (строка) — иначе бэк 422'ит (тихий
+      // failed++) либо затирает сумму статус-строкой. Число → null (не трогаем поле).
+      plan_status:     typeof company.plan === "string" ? company.plan : null,
       forensic_status: company.forensic ?? null,
       auditor:         company.auditor ?? null,
       audit_years:     company.aYears ?? null,
@@ -771,9 +764,7 @@ onBeforeUnmount(() => {
             <!-- Composite: План | Факт | Исполнение -->
             <div
               class="kpi2 fin-shimmer pr-kpi-composite"
-              :style="{ '--kpi2-accent': hasFact
-                  ? (totals.avgP >= 80 ? '#1D9E75' : totals.avgP >= 50 ? '#EF9F27' : '#E24B4A')
-                  : '#7F77DD', '--kpi2-d': '0ms' }"
+              :style="{ '--kpi2-accent': hasFact ? pctCol(totals.avgP) : '#7F77DD', '--kpi2-d': '0ms' }"
             >
               <div class="pr-comp-grid">
                 <div class="pr-comp-cell">

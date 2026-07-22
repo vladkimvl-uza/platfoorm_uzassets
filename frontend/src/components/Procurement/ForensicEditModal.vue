@@ -13,6 +13,8 @@
  */
 import { ref, computed, watch } from "vue";
 import { useConfirm } from "@/composables/useConfirm";
+import { useToast } from "@/composables/useToast";
+import { execCol } from "@/utils/execBand";
 
 interface YearRow {
   y: number;
@@ -31,7 +33,9 @@ interface ProcCompany {
   k: string;
   s: string;
   sector_color?: string;
-  plan?: string;
+  // 7 флагманов держат в поле plan ЧИСЛОВУЮ сумму плана (а не статус-строку) —
+  // тип должен это отражать, иначе TS прячет число и <select> его затирает.
+  plan?: string | number | null;
   forensic?: string;
   auditor?: string;
   aYears?: string;
@@ -52,6 +56,7 @@ const emit = defineEmits<{
 }>();
 
 const { confirmDialog } = useConfirm();
+const toast = useToast();
 
 // Local working copy (deep clone)
 const working = ref<ProcCompany[]>(JSON.parse(JSON.stringify(props.companies)));
@@ -125,19 +130,27 @@ const totalChanges = computed(() =>
   working.value.reduce((s, _, i) => s + changedCount(i), 0),
 );
 
-// Execution % for header indicator
-function executionPct(c: ProcCompany): number | null {
+// H-4: единый tri-state (как gPct/gPctState в таблице). 9-мес приоритетнее, если
+// план 9-мес заведён; иначе годовой. Факт=0 при плане>0 → 0% (провал, красным),
+// а не «—» (нет данных). Прежний `yr.plan && yr.fact` ронял записанный факт=0 в null.
+function execBasis(c: ProcCompany): { p: number | null; f: number | null } {
   const yr = c.years?.find(y => y.y === props.year);
-  if (!yr) return null;
-  if (yr.n9p && yr.n9f) return Math.round((yr.n9f / yr.n9p) * 1000) / 10;
-  if (yr.plan && yr.fact) return Math.round((yr.fact / yr.plan) * 1000) / 10;
-  return null;
+  if (!yr) return { p: null, f: null };
+  const has9 = yr.n9p != null;
+  return has9
+    ? { p: yr.n9p ?? null, f: yr.n9f ?? null }
+    : { p: yr.plan ?? null, f: yr.fact ?? null };
 }
-function pctColor(p: number | null): string {
-  if (p == null) return "#888780";
-  if (p >= 70) return "#1D9E75";
-  if (p >= 40) return "#EF9F27";
-  return "#E24B4A";
+function executionPct(c: ProcCompany): number | null {
+  const { p, f } = execBasis(c);
+  if (p == null || p === 0 || f == null) return null;
+  return Math.round((f / p) * 1000) / 10;
+}
+function execState(c: ProcCompany): "pct" | "nofact" | "noplan" {
+  const { p, f } = execBasis(c);
+  if (p == null || p === 0) return "noplan";
+  if (f == null) return "nofact";
+  return "pct";
 }
 
 function numInput(yr: YearRow, key: keyof YearRow) {
@@ -152,8 +165,57 @@ function setNum(yr: YearRow, key: keyof YearRow, val: string) {
   (yr as unknown as Record<string, number | null>)[key as string] = n;
 }
 
-function save() {
-  // Find which companies have any change
+// M-11: жёсткая валидация — только заведомо невалидный ввод (отрицательные/
+// не-числа). Переисполнение (факт>план) НЕ ошибка: это отдельная красная зона
+// >110% (H-5), реальный сигнал форензика, а не невалидные данные.
+const _NUM_FIELDS: (keyof YearRow)[] = [
+  "plan", "fact", "n9p", "n9f", "q1p", "q1f", "q2p", "q2f", "q3p", "q3f", "q4p", "q4f",
+];
+function validate(): string | null {
+  for (const c of working.value) {
+    const yr = c.years?.find(y => y.y === props.year);
+    if (!yr) continue;
+    for (const f of _NUM_FIELDS) {
+      const v = yr[f];
+      if (v != null && (!Number.isFinite(v as number) || (v as number) < 0)) {
+        return `${c.n}: недопустимое значение в поле «${f}» (год ${props.year}) — суммы не бывают отрицательными.`;
+      }
+    }
+  }
+  return null;
+}
+
+async function save() {
+  // Anti-wipe: не эмитим сохранение поверх непрогруженного списка.
+  if (!props.companies.length) {
+    toast.error("Список компаний не загружен — сохранение отменено.");
+    return;
+  }
+  const err = validate();
+  if (err) { toast.error(err); return; }
+  // Мягкая проверка ТОЛЬКО по ИЗМЕНЁННЫМ компаниям: собираем все расхождения
+  // «сумма кварталов ≠ годовой план (>5%)» в ОДНО подтверждение (не дёргаем по
+  // одной за компанию и не теряем весь батч из-за отмены по строке, которую юзер
+  // даже не открывал; квартальная разбивка может законно вестись отдельно от года).
+  const offenders: string[] = [];
+  working.value.forEach((c, i) => {
+    if (changedCount(i) === 0) return;
+    const yr = c.years?.find(y => y.y === props.year);
+    if (!yr || yr.plan == null || yr.plan === 0) return;
+    const qs = [yr.q1p, yr.q2p, yr.q3p, yr.q4p];
+    if (!qs.every(x => x != null)) return;
+    const sum = qs.reduce((s: number, x) => s + (x || 0), 0);
+    if (Math.abs(sum - yr.plan) / yr.plan > 0.05) {
+      offenders.push(`${c.n}: кварталы ${Math.round(sum)} ≠ год ${Math.round(yr.plan)}`);
+    }
+  });
+  if (offenders.length) {
+    const ok = await confirmDialog({
+      message: `Сумма квартальных планов ≠ годовому плану (>5%):\n\n${offenders.join("\n")}\n\nСохранить всё равно?`,
+      danger: true,
+    });
+    if (!ok) return;
+  }
   const patches: { company: ProcCompany; year: number }[] = [];
   working.value.forEach((c, i) => {
     if (changedCount(i) > 0) patches.push({ company: c, year: props.year });
@@ -196,8 +258,10 @@ function save() {
               <span class="pe-co-name">{{ c.n }}</span>
               <span class="pe-co-sec">{{ SECTOR_LABELS_RU[c.s] || c.s }}</span>
               <span v-if="changedCount(i) > 0" class="pe-co-changed">{{ changedCount(i) }} изм.</span>
-              <span class="pe-co-pct" :style="{ color: pctColor(executionPct(c)) }">
-                {{ executionPct(c) != null ? executionPct(c) + '%' : '—' }}
+              <span class="pe-co-pct" :style="{ color: execCol(executionPct(c)) }">
+                <template v-if="execState(c) === 'pct'">{{ executionPct(c) }}%</template>
+                <span v-else-if="execState(c) === 'nofact'" title="План есть, факт не заведён">факт —</span>
+                <span v-else style="color:var(--t3)">—</span>
               </span>
             </div>
 
@@ -254,11 +318,17 @@ function save() {
                 <div class="pe-grid cols-2">
                   <div class="pe-fld">
                     <div class="pe-fld-l">Статус плана</div>
-                    <select class="pe-fld-i text" v-model="c.plan">
+                    <!-- Флагман (числовая сумма плана): показываем read-only, чтобы
+                         <select> не превратил число в статус-строку и не затёр сумму. -->
+                    <select v-if="typeof c.plan !== 'number'" class="pe-fld-i text" v-model="c.plan">
                       <option value="">—</option>
                       <option value="Утверждён">Утверждён</option>
                       <option value="Не утверждён">Не утверждён</option>
                     </select>
+                    <div v-else class="pe-fld-i text" style="opacity:.7"
+                         title="Числовой план (флагман) — план утверждён на эту сумму; редактируется как «План год», не как статус">
+                      Утверждён · {{ c.plan }}
+                    </div>
                   </div>
                   <div class="pe-fld">
                     <div class="pe-fld-l">Статус форензика</div>
