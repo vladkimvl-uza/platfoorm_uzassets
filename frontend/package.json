@@ -8,6 +8,7 @@
     "build": "vue-tsc -b && vite build",
     "preview": "vite preview",
     "type-check": "vue-tsc --noEmit",
+    "type-check:budget": "node scripts/tsc-budget.mjs",
     "lint": "eslint . --fix",
     "lint:check": "eslint .",
     "sdk:types": "openapi-typescript http://localhost:8000/api-catalog/openapi.json -o src/sdk/types.generated.ts",

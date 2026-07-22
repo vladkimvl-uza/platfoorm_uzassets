@@ -19,10 +19,12 @@ jobs:
       - name: Install deps
         working-directory: frontend
         run: npm ci
-      - name: Type-check (vue-tsc)
+      - name: Type-error budget gate (vue-tsc -b)
         working-directory: frontend
-        # Non-blocking: в кодовой базе ~40+ накопленных тип-ошибок (legacy:
-        # CreditPortfolio/ExecDash/Financials…). Гейт показывает их в логах,
-        # но не валит деплой. Снять continue-on-error после разбора долга.
-        continue-on-error: true
-        run: npx vue-tsc --noEmit -p tsconfig.app.json
+        # Бюджет-гейт на АВТОРИТЕТНОМ `vue-tsc -b` (сильный build-режим, в отличие
+        # от слабого --noEmit, который на этом проекте почти ничего не ловит).
+        # Падает ТОЛЬКО при РОСТЕ ошибок сверх зафиксированного бюджета (56 на
+        # 2026-07-22, аудит здоровья кода) — останавливает накопление, не требуя
+        # разовой зачистки всех. Бюджет только снижать; цель — 0, затем блокировка
+        # на нуле. См. frontend/scripts/tsc-budget.mjs.
+        run: node scripts/tsc-budget.mjs
