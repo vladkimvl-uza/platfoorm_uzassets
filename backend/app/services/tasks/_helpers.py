@@ -1,10 +1,9 @@
 """Pure-function helpers для Tasks services: ORM → DTO mapping."""
 from __future__ import annotations
 
-from datetime import date
 from typing import Optional
 
-from app.core.progress import task_pct
+from app.core.progress import is_task_overdue, task_pct
 from app.models.task import Task
 from app.schemas.task import TaskBrief
 
@@ -21,7 +20,7 @@ def task_to_brief(
     null → пользователь видел «не сохранилось». Также project_id нужен
     для роутинга в editor «Открыть проект».
     """
-    is_overdue = bool(t.due_date and t.status != "done" and t.due_date < date.today())
+    is_overdue = is_task_overdue(t.status, t.due_date)
     extra = t.extra or {}
     return TaskBrief(
         id=t.id, num=t.num, title=t.title,

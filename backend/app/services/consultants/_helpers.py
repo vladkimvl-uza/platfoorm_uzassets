@@ -6,6 +6,7 @@ from datetime import UTC, date, datetime
 from typing import Optional
 from uuid import uuid4
 
+from app.core.progress import is_task_overdue
 from app.models.consultant import Consultant
 
 # Direction labels — mirrors legacy DIRS array
@@ -29,11 +30,6 @@ DIR_ID_TO_COLOR = {d["id"]: d["color"] for d in DIRS}
 CODE_RE = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
 
 
-# Статусы без точки завершения / завершённые — не бывают «просрочены»
-# (1:1 с фронтом ConsultantsDrillModal.isOverdue).
-_NON_OVERDUE_STATUSES = frozenset({"done", "quarterly", "monthly", "ongoing"})
-
-
 def is_overdue(due: Optional[date]) -> bool:
     if not due:
         return False
@@ -41,13 +37,10 @@ def is_overdue(due: Optional[date]) -> bool:
 
 
 def is_overdue_task(status: Optional[str], due: Optional[date]) -> bool:
-    """Просрочена ли задача С УЧЁТОМ статуса: рекуррентные (quarterly/monthly/
-    ongoing) и завершённые не имеют финального дедлайна → не просрочены.
-    Единый предикат для overview/by_company (раньше бэк считал recurring
-    просроченными, а фронт-дрилл — нет, отсюда расхождение чисел)."""
-    if status in _NON_OVERDUE_STATUSES:
-        return False
-    return is_overdue(due)
+    """Просрочена ли задача С УЧЁТОМ статуса. Делегирует единому канону
+    core.progress.is_task_overdue (рекуррентные/завершённые не просрочены).
+    P0 аудита: раньше набор статусов дублировался в нескольких модулях."""
+    return is_task_overdue(status, due)
 
 
 def slugify_consultant(name: str) -> str:

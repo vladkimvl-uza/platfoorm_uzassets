@@ -17,10 +17,17 @@
 """
 from __future__ import annotations
 
+from datetime import date
 from typing import Any, Iterable, Optional, Tuple
 
 # Статусы без точки завершения — исключаются из процента целиком.
 EXCLUDED_FROM_PCT = frozenset({"monthly", "ongoing"})
+
+# Статусы без финального дедлайна → задача не бывает «просрочена»: завершённые
+# (done) + рекуррентные (quarterly/monthly/ongoing повторяются каждый период).
+# Единый набор для всех модулей — раньше tasks/ai считали recurring просроченными,
+# а consultants/фронт-дрилл нет (аудит здоровья кода, P0).
+NON_OVERDUE_STATUSES = frozenset({"done", "quarterly", "monthly", "ongoing"})
 
 # Статус → доля выполнения (0..1). quarterly считается отдельно по кварталам.
 _STATUS_WEIGHT: dict[str, float] = {
@@ -90,3 +97,16 @@ def compute_done_total(items: Iterable[Tuple[Optional[str], Any]]) -> Tuple[int,
         if w >= 1.0:
             done += 1
     return done, total
+
+
+def is_task_overdue(
+    status: Optional[str], due: Optional[date], *, today: Optional[date] = None
+) -> bool:
+    """Единый предикат просрочки задачи. Рекуррентные (quarterly/monthly/ongoing)
+    и завершённые статусы не имеют финального дедлайна → не просрочены. Иначе
+    просрочена, если due-дата прошла."""
+    if due is None:
+        return False
+    if (status or "").lower() in NON_OVERDUE_STATUSES:
+        return False
+    return due < (today if today is not None else date.today())

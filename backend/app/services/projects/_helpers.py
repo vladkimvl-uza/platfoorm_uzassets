@@ -1,9 +1,9 @@
 """Pure helpers for Projects domain (no DB / no IO)."""
 from __future__ import annotations
 
-from datetime import date
 from typing import Any, Optional
 
+from app.core.progress import is_task_overdue
 from app.models.project import Project
 from app.schemas.project import ProjectBrief
 
@@ -56,7 +56,7 @@ def project_to_brief(
     """2026-05-26: добавлены linked_year / linked_project_id — без них
     save «Перенос FY+1» уходил в DB, но rehydrate возвращал null →
     UI показывал «не сохранилось»."""
-    is_overdue = bool(p.due_date and p.status != "done" and p.due_date < date.today())
+    is_overdue = is_task_overdue(p.status, p.due_date)
     extra = p.extra or {}
     return ProjectBrief(
         id=p.id, num=p.num, title=p.title,

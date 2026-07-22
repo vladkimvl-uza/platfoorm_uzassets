@@ -20,6 +20,8 @@ from typing import Any, Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.progress import is_task_overdue
+
 
 # ─────────────────────── Static knowledge blocks ───────────────────────
 
@@ -908,7 +910,9 @@ def _is_overdue(deadline: Any, status: Optional[str]) -> bool:
         d = deadline.date() if isinstance(deadline, datetime) else deadline
         if not isinstance(d, date):
             return False
-        return d < datetime.now(timezone.utc).date()
+        # P0 аудита: единый предикат — исключает и рекуррентные (quarterly/
+        # monthly/ongoing), которые раньше тут считались просроченными.
+        return is_task_overdue(status, d)
     except Exception:
         return False
 
