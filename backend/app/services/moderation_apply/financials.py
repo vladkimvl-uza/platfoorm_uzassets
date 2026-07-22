@@ -10,6 +10,7 @@ Submission shape:
 """
 from __future__ import annotations
 
+from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy import delete, select
@@ -24,6 +25,46 @@ from app.services.moderation_service import register_apply_handler
 async def apply(db, *, sub: ModerationSubmission, user: User) -> dict:
     if not sub.proposed_value:
         raise ValueError("proposed_value is empty")
+
+    # ── Точечная запись ОДНОЙ строки из Company Library (mirrors _write_financial).
+    # Отдельное действие, чтобы apply НЕ делал full-replace (иначе одна правка через
+    # библиотеку затёрла бы все остальные строки отчёта). value уже unit-scaled.
+    if (sub.action or "").lower() == "library_line":
+        pv = dict(sub.proposed_value)
+        report_id_str = pv.get("report_id") or sub.target_entity_id
+        line_code = pv.get("line_code")
+        if not report_id_str or not line_code:
+            raise ValueError("library_line requires report_id + line_code")
+        try:
+            report_id = UUID(report_id_str)
+        except Exception as e:
+            raise ValueError(f"invalid report_id: {report_id_str}") from e
+        report = (await db.execute(
+            select(FinancialReport).where(FinancialReport.id == report_id)
+        )).scalar_one_or_none()
+        if report is None:
+            raise ValueError(f"Financial report {report_id} no longer exists")
+        raw = pv.get("value")
+        value = None if raw is None else Decimal(str(raw))
+        ln = (await db.execute(
+            select(FinancialLine).where(
+                FinancialLine.report_id == report_id,
+                FinancialLine.line_code == line_code,
+            )
+        )).scalar_one_or_none()
+        if ln is None:
+            db.add(FinancialLine(
+                report_id=report_id, line_code=line_code,
+                line_name=pv.get("line_name") or line_code,
+                value=value, is_subtotal=False, is_calculated=False,
+                sort_order=0, indent_level=0,
+            ))
+        else:
+            ln.value = value
+        await db.commit()
+        return {"action": "library_line", "report_id": str(report_id), "line_code": line_code}
+
+    # ── Полный save-report (action="save_report" / legacy): delete-and-replace ──
     pv = dict(sub.proposed_value)
     report_id_str = pv.pop("report_id", None) or sub.target_entity_id
     if not report_id_str:

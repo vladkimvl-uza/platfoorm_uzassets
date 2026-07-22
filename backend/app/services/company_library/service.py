@@ -394,9 +394,15 @@ class CompanyLibraryService:
                     routed_to, rating_row, rating_action = gated
 
             elif src in ("finmodel", "financials"):
-                routed_to = await self._write_financial(
-                    r, company_id, field_code, new_value,
+                # Через модерацию (как и рейтинги) — action="library_line", одна строка,
+                # чтобы apply не затирал остальные строки отчёта. queued → 202.
+                gated = await self._gate_financial_write(
+                    db, r, user, company_id, field_code, new_value,
                 )
+                if isinstance(gated, _QueuedResult):
+                    queued_result = gated
+                else:
+                    routed_to = gated
 
             elif src == "kpi":
                 raise HTTPException(
@@ -594,17 +600,66 @@ class CompanyLibraryService:
             row.rating_date = datetime.now(UTC).date()
             return "agency_ratings (update)", row, "update"
 
+    _FIN_LINE_MAP = {
+        "revenue":     ("PL", LINE_REVENUE[0]),
+        "ebitda":      ("PL", LINE_EBITDA[0]),
+        "net_profit":  ("PL", LINE_PROFIT[0]),
+        "total_debt":  ("BS", LINE_DEBT[0]),
+        "total_assets":("BS", LINE_ASSETS[0]),
+        "equity":      ("BS", LINE_EQUITY[0]),
+    }
+
+    async def _gate_financial_write(
+        self, db, r, user, company_id: UUID, field_code: str, new_value: Any,
+    ):
+        """Гейтит запись фин-строки через модерацию (module="financials",
+        action="library_line"). queued → _QueuedResult; иначе write-through через
+        _write_financial. Payload — ОДНА строка со scaled-значением (как хранит
+        _write_financial), чтобы apply не затирал остальные строки отчёта."""
+        if field_code not in self._FIN_LINE_MAP:
+            raise HTTPException(
+                http_status.HTTP_400_BAD_REQUEST,
+                f"Field '{field_code}' is not writable through the library "
+                "(use FinModel editor for derived metrics)",
+            )
+        rtype, line_code = self._FIN_LINE_MAP[field_code]
+        rep = await r.get_latest_ifrs_report(company_id, rtype)
+        if rep is None:
+            raise HTTPException(
+                http_status.HTTP_409_CONFLICT,
+                f"Нет IFRS {rtype} отчёта для компании. "
+                "Создайте через FinModel editor сначала.",
+            )
+        scale = rep.unit_scale or 1
+        try:
+            scaled_val = (float(new_value) / scale) if new_value is not None else None
+        except (TypeError, ValueError):
+            raise HTTPException(http_status.HTTP_400_BAD_REQUEST, "value must be numeric")
+
+        payload = {
+            "report_id": str(rep.id),
+            "line_code": line_code,
+            "line_name": line_code,
+            "value": None if scaled_val is None else str(scaled_val),  # scaled, JSON-safe
+        }
+        from app.services.moderation_service import gate_or_apply
+        queued, sub = await gate_or_apply(
+            db, user=user, module="financials", action="library_line",
+            entity_id=str(rep.id),
+            entity_label=f"Финпоказатель {field_code} · {rtype} y{rep.year}",
+            company_id=company_id, sector_id=None, year=rep.year,
+            payload=payload,
+            diff_summary=f"{field_code} → {new_value if new_value is not None else '—'}",
+        )
+        if queued:
+            return _QueuedResult(sub.id, sub.status)
+        # write-through (owner / bypass / нет правила) — прямая запись как раньше
+        return await self._write_financial(r, company_id, field_code, new_value)
+
     async def _write_financial(
         self, r, company_id: UUID, field_code: str, new_value: Any,
     ) -> str:
-        line_map = {
-            "revenue":     ("PL", LINE_REVENUE[0]),
-            "ebitda":      ("PL", LINE_EBITDA[0]),
-            "net_profit":  ("PL", LINE_PROFIT[0]),
-            "total_debt":  ("BS", LINE_DEBT[0]),
-            "total_assets":("BS", LINE_ASSETS[0]),
-            "equity":      ("BS", LINE_EQUITY[0]),
-        }
+        line_map = self._FIN_LINE_MAP
         if field_code not in line_map:
             raise HTTPException(
                 http_status.HTTP_400_BAD_REQUEST,
