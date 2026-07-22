@@ -111,6 +111,28 @@ export const useNotificationsStore = defineStore("notifications", {
       }
     },
 
+    // per-category счётчики (module/company/type/priority) — единая точка инк/дек.
+    // Симметрия WS↔read обязательна: без неё markRead гасит только общий счётчик,
+    // а пока WS подключён, refreshCount (авторитетная сверка) не зовётся → бейджи
+    // модулей/компаний overcount'ят всю сессию.
+    _incCategories(n: Notification) {
+      if (n.priority) this.unreadByPriority[n.priority] = (this.unreadByPriority[n.priority] || 0) + 1;
+      if (n.type) this.unreadByType[n.type] = (this.unreadByType[n.type] || 0) + 1;
+      const m = (n as any).source_module;
+      if (m) this.unreadByModule[m] = (this.unreadByModule[m] || 0) + 1;
+      const cid = (n as any).company_id;
+      if (cid) this.unreadByCompany[cid] = (this.unreadByCompany[cid] || 0) + 1;
+    },
+    _decCategories(n: Notification) {
+      const dec = (map: Record<string, number>, k?: string | null) => {
+        if (k && map[k] > 0) map[k]--;
+      };
+      dec(this.unreadByPriority, n.priority);
+      dec(this.unreadByType, n.type);
+      dec(this.unreadByModule, (n as any).source_module);
+      dec(this.unreadByCompany, (n as any).company_id);
+    },
+
     async markRead(id: string) {
       // Optimistic + точный откат при ошибке (не полагаемся только на refreshCount,
       // которая тоже может упасть в офлайне → счётчик остался бы рассинхронным).
@@ -121,6 +143,7 @@ export const useNotificationsStore = defineStore("notifications", {
         item.is_read = true;
         item.read_at = new Date().toISOString();
         if (this.unreadCount > 0) this.unreadCount--;
+        this._decCategories(item);   // симметрично _handleEvent: гасим и per-category
       }
       try { await notificationsApi.readOne(id); }
       catch (e) {
@@ -129,6 +152,7 @@ export const useNotificationsStore = defineStore("notifications", {
           item.is_read = false;
           item.read_at = null;
           this.unreadCount = prevCount;
+          this._incCategories(item);   // откат per-category
         }
       }
     },
@@ -294,19 +318,7 @@ export const useNotificationsStore = defineStore("notifications", {
           this.recent.unshift(n);
           if (this.recent.length > 30) this.recent.pop();
         }
-        if (!n.is_read) this.unreadCount++;
-        if (n.priority) {
-          this.unreadByPriority[n.priority] = (this.unreadByPriority[n.priority] || 0) + 1;
-        }
-        if (n.type) this.unreadByType[n.type] = (this.unreadByType[n.type] || 0) + 1;
-        if ((n as any).source_module) {
-          const m = (n as any).source_module;
-          this.unreadByModule[m] = (this.unreadByModule[m] || 0) + 1;
-        }
-        if ((n as any).company_id) {
-          const cid = (n as any).company_id;
-          this.unreadByCompany[cid] = (this.unreadByCompany[cid] || 0) + 1;
-        }
+        if (!n.is_read) { this.unreadCount++; this._incCategories(n); }
         if (_toastCb) {
           try { _toastCb(n); } catch (e) { console.warn("[notifications] toast cb failed", e); }
         }
