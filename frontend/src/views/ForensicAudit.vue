@@ -136,38 +136,45 @@ const _PER_FRACTION: Record<Period, number> = {
   year: 1, "9m": 0.75, q1: 0.25, q2: 0.25, q3: 0.25, q4: 0.25,
 };
 
-function gP(c: ProcCompany): number | null {
+// Возвращает план И признак «оценка» — значение синтезировано из годового × долю
+// периода (квартальный/9-мес план НЕ заведён). M-4: такую оценку нельзя показывать
+// как заведённый квартальный план (руководство приняло бы прикидку за факт-план).
+function _plan(c: ProcCompany): { v: number | null; est: boolean } {
   const yr = yearFilter.value, per = periodFilter.value;
   const yObj = _getYr(c, yr);
-  // 1) Exact stored value from years[] if present
+  // 1) Точное сохранённое значение периода из years[]
   if (yObj) {
     const v = yObj[_PLAN_FIELD[per]] as number | null | undefined;
-    if (v != null) return v;
+    if (v != null) return { v, est: false };
   }
-  // 2) Legacy per-year fields (kept for older snapshots)
+  // 2) Legacy per-year поля (старые снапшоты) — тоже точные
   if (yr === 2024) {
-    if (per === "year" && c.yP24 != null) return c.yP24;
-    if (per === "9m"   && c.nP24 != null) return c.nP24;
+    if (per === "year" && c.yP24 != null) return { v: c.yP24, est: false };
+    if (per === "9m"   && c.nP24 != null) return { v: c.nP24, est: false };
   } else if (yr === 2025) {
-    if (per === "year" && c.yP25 != null) return c.yP25;
-    if (per === "9m"   && c.nP25 != null) return c.nP25;
-    if (per === "q1"   && c.q1P25 != null) return c.q1P25;
-    if (per === "q2"   && c.q2P25 != null) return c.q2P25;
-    if (per === "q3"   && c.q3P25 != null) return c.q3P25;
-    if (per === "q4"   && c.q4P25 != null) return c.q4P25;
+    if (per === "year" && c.yP25 != null) return { v: c.yP25, est: false };
+    if (per === "9m"   && c.nP25 != null) return { v: c.nP25, est: false };
+    if (per === "q1"   && c.q1P25 != null) return { v: c.q1P25, est: false };
+    if (per === "q2"   && c.q2P25 != null) return { v: c.q2P25, est: false };
+    if (per === "q3"   && c.q3P25 != null) return { v: c.q3P25, est: false };
+    if (per === "q4"   && c.q4P25 != null) return { v: c.q4P25, est: false };
   } else if (yr === 2026) {
-    if (per === "year" && c.yP26 != null) return c.yP26;
+    if (per === "year" && c.yP26 != null) return { v: c.yP26, est: false };
   }
-  // 3) Derive from annual if quarterly/9m missing
-  //    (legacy fell back to yP26 / 4 only when years[] absent — we extend
-  //    to ALSO use years[year].plan when present, so Q1 2026 shows something
-  //    even if quarterly breakdown wasn't entered.)
+  // 3) Оценка: годовой × доля периода (квартальной/9-мес разбивки нет).
   const annual = (yObj?.plan as number | null | undefined) ??
                  (yr === 2024 ? c.yP24 : yr === 2025 ? c.yP25 : yr === 2026 ? c.yP26 : null);
   if (annual != null && per !== "year") {
-    return Math.round(annual * _PER_FRACTION[per]);
+    return { v: Math.round(annual * _PER_FRACTION[per]), est: true };
   }
-  return null;
+  return { v: null, est: false };
+}
+function gP(c: ProcCompany): number | null {
+  return _plan(c).v;
+}
+// M-4: true, когда план — синтетическая оценка (год ÷ период), не заведённый квартальный.
+function gPisEstimate(c: ProcCompany): boolean {
+  return _plan(c).est;
 }
 
 function gF(c: ProcCompany): number | null {
@@ -244,6 +251,12 @@ const sortedD = computed(() => {
 const chartData = computed(() => sortedD.value.filter(c => gP(c) != null));
 
 const hasFact = computed(() => D.value.some(c => gF(c) != null));
+
+// M-4: текущий срез (квартал/9-мес) содержит синтетические планы (год÷период) →
+// пометить агрегат, чтобы сводная цифра не читалась как заведённый план.
+const anyEstimatedPlan = computed(
+  () => periodFilter.value !== "year" && D.value.some(c => gPisEstimate(c)),
+);
 
 // Totals
 const totals = computed(() => {
@@ -770,7 +783,10 @@ onBeforeUnmount(() => {
                 <div class="pr-comp-cell">
                   <div class="kpi2-lbl">План</div>
                   <div class="kpi2-val"><span :data-countup="totals.kPlan">{{ totals.kPlan }}</span></div>
-                  <div class="pr-comp-unit">трлн сум</div>
+                  <div class="pr-comp-unit"
+                       :title="anyEstimatedPlan ? 'Включает оценочные квартальные планы (год÷период): квартальная разбивка заведена не по всем компаниям' : ''">
+                    <span v-if="anyEstimatedPlan">≈ </span>трлн сум
+                  </div>
                 </div>
                 <div class="pr-comp-divider"></div>
                 <div class="pr-comp-cell">
@@ -907,9 +923,13 @@ onBeforeUnmount(() => {
                           {{ planBadge(c.plan).text }}
                         </span>
                       </td>
-                      <td class="rt num muted">{{ fN(gP(c)) }}</td>
+                      <td class="rt num muted"
+                          :title="gPisEstimate(c) ? 'Оценка: годовой план ÷ доля периода (квартальный план не заведён)' : ''">
+                        <span v-if="gPisEstimate(c)" style="color:var(--t3);font-weight:400" title="оценка">≈</span>{{ fN(gP(c)) }}
+                      </td>
                       <td class="rt num muted">{{ fN(gF(c)) }}</td>
-                      <td class="rt num" :style="{ color: pctCol(gPct(c)), fontWeight: 600 }" :title="pctZone(gPct(c))">
+                      <td class="rt num" :style="{ color: pctCol(gPct(c)), fontWeight: 600 }"
+                          :title="pctZone(gPct(c)) + (gPisEstimate(c) && gPctState(c) === 'pct' ? ' · % от оценочного плана (год÷период)' : '')">
                         <!-- H-4: 0% (факт=0 при плане) красным; «факт —» когда план есть, а факта нет; «—» когда плана нет -->
                         <template v-if="gPctState(c) === 'pct'">{{ gPct(c) }}%</template>
                         <span v-else-if="gPctState(c) === 'nofact'" class="pr-nofact" title="План есть, факт не заведён">факт —</span>
