@@ -24,10 +24,11 @@
             <span class="kpai-seg-lbl">Охват</span>
             <div class="kpai-seg">
               <button :class="{ on: scope === 'portfolio' }" :disabled="loading" @click="setScope('portfolio')">Весь портфель</button>
-              <button :class="{ on: scope === 'company' }" :disabled="loading || !selectedCompany" @click="setScope('company')">
-                Только «{{ selectedCompany?.company_name_ru || 'компания' }}»
-              </button>
+              <button :class="{ on: scope === 'company' }" :disabled="loading" @click="setScope('company')">Одна компания</button>
             </div>
+            <select v-if="scope === 'company'" v-model="pickedId" :disabled="loading" @change="onPickCompany" class="kpai-co-select">
+              <option v-for="c in companies" :key="c.company_id" :value="c.company_id">{{ c.company_name_ru }}</option>
+            </select>
           </div>
           <div class="kpai-seg-row">
             <span class="kpai-seg-lbl">Режим</span>
@@ -43,7 +44,19 @@
         <div class="kpai-body">
           <div v-if="loading" class="kpai-loading"><span class="kpai-spin"></span><span>{{ step }}</span></div>
           <div v-else-if="error" class="kpai-error">{{ error }}</div>
-          <div v-else-if="html" class="kpai-md" v-html="html"></div>
+          <template v-else-if="html">
+            <div v-if="chartRows.length" class="kpai-chart">
+              <div class="kpai-chart-title">Выполнение{{ scope === 'company' ? ' по показателям' : ' по компаниям' }}, %</div>
+              <div v-for="(r, i) in chartRows" :key="i" class="kpai-bar-row">
+                <span class="kpai-bar-lbl" :title="r.label">{{ r.label }}</span>
+                <div class="kpai-bar-track">
+                  <div class="kpai-bar-fill" :style="{ width: Math.min(r.value, 150) / 1.5 + '%', background: barColor(r.value) }"></div>
+                </div>
+                <span class="kpai-bar-val">{{ r.value }}%</span>
+              </div>
+            </div>
+            <div class="kpai-md" v-html="html"></div>
+          </template>
           <div v-else class="kpai-empty">
             <b>Выберите охват и режим, затем запустите анализ.</b>
             <span>ИИ разберёт исполнение KPI, свяжет их с финансовыми показателями (через привязку к строкам ОФР) и — в режиме «Прогноз» — предскажет будущие KPI и предложит новые.</span>
@@ -73,7 +86,8 @@ type IndOut = {
   quarters: Record<string, QOut>;
 };
 type MgrOut = { title: string; role: string | null; indicators: IndOut[] };
-type SavedRec = { raw: string; doneAt: string; year: number };
+type ChartRow = { label: string; value: number };
+type SavedRec = { raw: string; doneAt: string; year: number; chart?: ChartRow[] };
 
 const props = defineProps<{ companies: Co[]; year: number; period: string; selectedId: string | null }>();
 
@@ -83,7 +97,14 @@ const loading = ref(false);
 const error = ref("");
 const html = ref("");
 const rawMd = ref("");   // сырой Markdown ответа — для копирования и выгрузки в Excel
+const chartRows = ref<ChartRow[]>([]);   // данные графика выполнения
 const doneAt = ref("");
+
+function barColor(pct: number): string {
+  if (pct >= 100) return "#1D9E75";
+  if (pct >= 75) return "#D97706";
+  return "#E24B4A";
+}
 const step = ref("");
 const scope = ref<"portfolio" | "company">("portfolio");
 const mode = ref<Mode>("performance");
@@ -96,14 +117,17 @@ const MODES: { id: Mode; label: string; hint: string }[] = [
 ];
 const MODE_LABEL: Record<Mode, string> = { performance: "Исполнение", correlation: "KPI↔Финансы", forecast: "Прогноз" };
 
-const selectedCompany = computed(() => props.companies.find(c => c.company_id === props.selectedId) || null);
+const pickedId = ref<string | null>(props.selectedId || (props.companies[0]?.company_id ?? null));
+const selectedCompany = computed(() => props.companies.find(c => c.company_id === pickedId.value) || null);
 const titleText = computed(() => scope.value === "company"
   ? (selectedCompany.value?.company_name_ru || "Компания")
   : "Все компании портфеля");
 
 function savedKey(m: Mode = mode.value): string {
-  return scope.value === "company" && props.selectedId ? `${m}__${props.selectedId}` : m;
+  return scope.value === "company" && pickedId.value ? `${m}__${pickedId.value}` : m;
 }
+// Смена компании в дропдауне — подставить её сохранённый анализ.
+function onPickCompany(): void { applyMode(mode.value); }
 
 async function fetchSaved(): Promise<void> {
   try {
@@ -115,8 +139,8 @@ async function fetchSaved(): Promise<void> {
 function applyMode(m: Mode): void {
   mode.value = m;
   const o = saved.value[savedKey(m)];
-  if (o?.raw) { rawMd.value = o.raw; html.value = renderMarkdown(o.raw); doneAt.value = o.doneAt || ""; }
-  else { rawMd.value = ""; html.value = ""; doneAt.value = ""; }
+  if (o?.raw) { rawMd.value = o.raw; html.value = renderMarkdown(o.raw); doneAt.value = o.doneAt || ""; chartRows.value = o.chart || []; }
+  else { rawMd.value = ""; html.value = ""; doneAt.value = ""; chartRows.value = []; }
   error.value = "";
 }
 
@@ -159,7 +183,12 @@ function exportExcel(): void {
   XLSX.writeFile(wb, `KPI_${MODE_LABEL[mode.value]}_${scopeName}_${props.year}.xlsx`);
 }
 function setMode(m: Mode): void { if (!loading.value) applyMode(m); }
-function setScope(s: "portfolio" | "company"): void { if (loading.value) return; scope.value = s; applyMode(mode.value); }
+function setScope(s: "portfolio" | "company"): void {
+  if (loading.value) return;
+  scope.value = s;
+  if (s === "company" && !pickedId.value) pickedId.value = props.companies[0]?.company_id ?? null;
+  applyMode(mode.value);
+}
 
 async function openModal(): Promise<void> {
   open.value = true;
@@ -169,7 +198,7 @@ async function openModal(): Promise<void> {
 
 async function saveResult(raw: string): Promise<void> {
   const key = savedKey();
-  const rec: SavedRec = { raw, doneAt: doneAt.value, year: props.year };
+  const rec: SavedRec = { raw, doneAt: doneAt.value, year: props.year, chart: chartRows.value };
   saved.value = { ...saved.value, [key]: rec };
   try {
     const { api } = await import("@/api/client");
@@ -222,6 +251,20 @@ async function run(): Promise<void> {
       error.value = "Нет KPI-данных за этот год. Заведите показатели в редакторе.";
       loading.value = false; return;
     }
+    // График выполнения: по показателям (компания) или взвешенно по компаниям (портфель)
+    const cr: ChartRow[] = [];
+    if (single) {
+      for (const r of kpi_rows) for (const m of r.managers) for (const ind of m.indicators)
+        if (ind.pct != null) cr.push({ label: ind.name, value: ind.pct });
+    } else {
+      for (const r of kpi_rows) {
+        let sw = 0, swtd = 0;
+        for (const m of r.managers) for (const ind of m.indicators)
+          if (ind.pct != null && ind.weight > 0) { sw += ind.weight; swtd += Math.max(0, Math.min(ind.pct, 150)) * ind.weight; }
+        if (sw > 0) cr.push({ label: r.name, value: Math.round(swtd / sw) });
+      }
+    }
+    chartRows.value = cr.sort((a, b) => b.value - a.value).slice(0, 20);
     step.value = "Подтягиваю финансы (HLF) для связки KPI↔финансы…";
     const fin_rows = (await Promise.all(cos.map(async (co) => {
       if (!co.company_code) return null;
@@ -310,6 +353,19 @@ async function run(): Promise<void> {
   font-size: 13px; font-weight: 650; color: #fff; background: linear-gradient(135deg, #7C6FF7, #6355E0);
 }
 .kpai-run:disabled { opacity: .6; cursor: default; }
+.kpai-co-select {
+  height: 32px; padding: 0 10px; border: 1px solid var(--line, #ECECF3); border-radius: 9px;
+  background: #fff; font-size: 13px; color: var(--ink, #1A1A26); max-width: 300px;
+}
+
+.kpai-chart { margin-bottom: 18px; padding: 14px 16px; background: #FAFAFD; border: 1px solid var(--line, #ECECF3); border-radius: 12px; }
+.kpai-chart-title { font-size: 12px; letter-spacing: .04em; text-transform: uppercase; color: #8A90A0; font-weight: 600; margin-bottom: 10px; }
+.kpai-bar-row { display: grid; grid-template-columns: 200px 1fr 46px; align-items: center; gap: 10px; margin: 5px 0; font-size: 12.5px; }
+.kpai-bar-lbl { color: var(--ink2, #2C2C3A); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kpai-bar-track { height: 12px; background: #ECECF3; border-radius: 6px; overflow: hidden; }
+.kpai-bar-fill { height: 100%; border-radius: 6px; transition: width .5s ease; }
+.kpai-bar-val { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; color: var(--ink2, #2C2C3A); }
+@media (max-width: 620px) { .kpai-bar-row { grid-template-columns: 116px 1fr 40px; } }
 
 .kpai-body { padding: 18px 24px 26px; overflow-y: auto; }
 .kpai-loading { display: flex; align-items: center; gap: 12px; color: #6E6D80; font-size: 14px; padding: 30px 0; }
