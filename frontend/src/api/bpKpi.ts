@@ -238,6 +238,38 @@ export interface KpiManager {
   indicators: KpiIndicator[];
 }
 
+// ─── Прогноз KPI (детерминированный движок core/forecast) ─────────
+export interface ForecastPoint {
+  period: string;                 // 'q3' | 'q4' | '2027'
+  value: number | null;
+  low: number | null;
+  high: number | null;
+}
+export interface ForecastBlock {
+  method: string;                 // 'pace'|'seasonal'|'run_rate'|'plan'|'actual'|'ols'|'cagr'|'none'
+  confidence: string;             // 'high'|'medium'|'low'|'none'
+  points_used: number;
+  note: string;
+  expected_year: number | null;
+  projections: ForecastPoint[];
+}
+export interface ForecastSeriesPoint { year: number; fact: number | null; plan: number | null; }
+export interface IndicatorForecast {
+  name: string; unit: string | null; direction: string; weight: number;
+  bp_metric_key: string | null; manager: string; role: string | null;
+  plan_year: number | null; fact_year: number | null;
+  q_plan: (number | null)[]; q_fact: (number | null)[];
+  quarterly: ForecastBlock; annual: ForecastBlock; history: ForecastSeriesPoint[];
+}
+export interface ManagerForecast { title: string; role: string | null; indicators: IndicatorForecast[]; }
+export interface CompanyForecast {
+  company_id: string; company_code: string | null; company_name: string;
+  base_year: number; horizon: number; future_years: number[];
+  managers: ManagerForecast[];
+  completion: ForecastBlock | null; completion_history: ForecastSeriesPoint[];
+  note: string;
+}
+
 export interface KpiIndicatorUpsert {
   sort_order?: number;
   name: string;
@@ -485,6 +517,14 @@ export const kpiApi = {
 
   async deleteYear(companyId: string, year: number): Promise<void> {
     await api.delete(`/kpi/${companyId}/${year}`);
+  },
+
+  /** Детерминированный прогноз KPI компании (кварталы + будущие годы). */
+  async getForecast(companyId: string, baseYear: number, horizon = 2): Promise<CompanyForecast> {
+    const { data } = await api.get<CompanyForecast>(
+      `/kpi/${companyId}/forecast/${baseYear}`, { params: { horizon } },
+    );
+    return data;
   },
 
   async getSummary(year: number, period: KpiPeriod | "annual"): Promise<KpiSummary> {

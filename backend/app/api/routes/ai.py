@@ -607,9 +607,46 @@ async def ai_kpi_analysis(
     # Модельный прогноз (детерминированный движок core/forecast) — ОПОРА для
     # forecast-режима: числа воспроизводимы, ИИ их интерпретирует/корректирует,
     # а не выдумывает. Фронт присылает результат GET /kpi/{co}/forecast.
+    def _fc_ind_seg(ind: dict) -> str:
+        u = ind.get("unit") or ""
+        qf = ind.get("quarterly") or {}
+        af = ind.get("annual") or {}
+        seg = [f"- {ind.get('name') or '—'}"]
+        if qf.get("expected_year") is not None:
+            seg.append(f"ожид. итог года {_num(qf.get('expected_year'), u)} [{qf.get('method')}/{qf.get('confidence')}]")
+        qproj = qf.get("projections") or []
+        if qproj:
+            seg.append("остаток кв.: " + ", ".join(
+                f"{str(p.get('period')).upper()} {_num(p.get('value'), u)}" for p in qproj))
+        aproj = af.get("projections") or []
+        if aproj:
+            seg.append("будущие годы: " + ", ".join(
+                f"{p.get('period')} {_num(p.get('value'), u)} [{_num(p.get('low'), u)}…{_num(p.get('high'), u)}]"
+                for p in aproj) + f" [{af.get('method')}/{af.get('confidence')}]")
+        return "; ".join(seg)
+
     def _fmt_forecast(fc: dict) -> str:
         if not fc:
             return ""
+        # Портфельная форма: {portfolio: [{name, completion, indicators:[...]}]}
+        if fc.get("portfolio"):
+            plines: list[str] = []
+            for co in fc["portfolio"]:
+                comp = co.get("completion") or {}
+                head = f"• {co.get('name') or '—'}"
+                if comp.get("projections"):
+                    head += " — прогноз выполнения: " + ", ".join(
+                        f"{p.get('period')}: {_num(p.get('value'), '%')}" for p in comp["projections"]
+                    ) + f" [{comp.get('confidence')}]"
+                plines.append(head)
+                for ind in (co.get("indicators") or [])[:6]:
+                    plines.append("  " + _fc_ind_seg(ind))
+            if not plines:
+                return ""
+            return (
+                "\n\nМОДЕЛЬНЫЙ ПРОГНОЗ ПО ПОРТФЕЛЮ (детерминированный движок — ОПОРА; "
+                "числа воспроизводимы, коридор [low…high]):\n" + "\n".join(plines)
+            )
         lines: list[str] = []
         comp = fc.get("completion") or {}
         if comp.get("projections"):
@@ -617,22 +654,7 @@ async def ai_kpi_analysis(
             lines.append(f"Сводное выполнение компании (тренд, надёжность {comp.get('confidence')}): {cp}")
         for mgr in fc.get("managers") or []:
             for ind in mgr.get("indicators") or []:
-                u = ind.get("unit") or ""
-                qf = ind.get("quarterly") or {}
-                af = ind.get("annual") or {}
-                seg = [f"- {ind.get('name') or '—'}"]
-                if qf.get("expected_year") is not None:
-                    seg.append(f"ожид. итог года {_num(qf.get('expected_year'), u)} [{qf.get('method')}/{qf.get('confidence')}]")
-                qproj = qf.get("projections") or []
-                if qproj:
-                    seg.append("остаток кв.: " + ", ".join(
-                        f"{str(p.get('period')).upper()} {_num(p.get('value'), u)}" for p in qproj))
-                aproj = af.get("projections") or []
-                if aproj:
-                    seg.append("будущие годы: " + ", ".join(
-                        f"{p.get('period')} {_num(p.get('value'), u)} [{_num(p.get('low'), u)}…{_num(p.get('high'), u)}]"
-                        for p in aproj) + f" [{af.get('method')}/{af.get('confidence')}]")
-                lines.append("; ".join(seg))
+                lines.append(_fc_ind_seg(ind))
         if not lines:
             return ""
         return (

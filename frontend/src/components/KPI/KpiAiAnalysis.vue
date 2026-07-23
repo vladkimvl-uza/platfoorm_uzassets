@@ -45,7 +45,52 @@
           <div v-if="loading" class="kpai-loading"><span class="kpai-spin"></span><span>{{ step }}</span></div>
           <div v-else-if="error" class="kpai-error">{{ error }}</div>
           <template v-else-if="html">
-            <div v-if="chartRows.length" class="kpai-chart">
+            <!-- Режим «Прогноз»: траектория выполнения + модельная таблица движка -->
+            <template v-if="mode === 'forecast'">
+              <div v-if="fcTrend.length" class="kpai-chart">
+                <div class="kpai-chart-title">Прогноз сводного выполнения «{{ fcScopeName }}», % (история → прогноз)</div>
+                <div v-for="(t, i) in fcTrend" :key="i" class="kpai-bar-row">
+                  <span class="kpai-bar-lbl">{{ t.label }}<span v-if="t.projected" class="kpai-fc-tag">прогноз</span></span>
+                  <div class="kpai-bar-track">
+                    <div class="kpai-bar-fill" :class="{ proj: t.projected }"
+                         :style="{ width: Math.min(t.value / fcTrendMax * 100, 100) + '%', background: barColor(t.value) }"></div>
+                  </div>
+                  <span class="kpai-bar-val">{{ t.value }}%</span>
+                </div>
+              </div>
+              <div v-if="fcView.length" class="kpai-fc">
+                <div class="kpai-chart-title">Модельный прогноз (движок){{ fcScopeName ? ' · ' + fcScopeName : '' }}</div>
+                <div class="kpai-fc-scroll">
+                  <table class="kpai-fc-tbl">
+                    <thead><tr>
+                      <th>{{ fcScopeName === 'Портфель' ? 'Компания' : 'Показатель' }}</th>
+                      <th>Тек. факт</th>
+                      <th v-if="fcScopeName !== 'Портфель'">Ожид. {{ fcBaseYear }}</th>
+                      <th v-for="y in fcYears" :key="y">{{ y }}</th>
+                      <th>Метод</th>
+                    </tr></thead>
+                    <tbody>
+                      <tr v-for="(r, i) in fcView" :key="i">
+                        <td class="kpai-fc-nm">{{ r.name }}<span v-if="r.manager" class="kpai-fc-mgr">{{ r.manager }}</span></td>
+                        <td>{{ fcFmt(r.fact, r.unit) }}</td>
+                        <td v-if="fcScopeName !== 'Портфель'">{{ fcFmt(r.expected, r.unit) }}</td>
+                        <td v-for="y in fcYears" :key="y">
+                          <template v-if="r.byYear[y]">
+                            <span class="kpai-fc-v">{{ fcFmt(r.byYear[y].value, r.unit) }}</span>
+                            <span v-if="r.byYear[y].low != null" class="kpai-fc-band">{{ fcFmt(r.byYear[y].low, r.unit) }}…{{ fcFmt(r.byYear[y].high, r.unit) }}</span>
+                          </template>
+                          <template v-else>—</template>
+                        </td>
+                        <td><span class="kpai-fc-conf" :class="'c-' + r.confidence">{{ fcMethodLabel(r.method) }}</span></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div class="kpai-fc-note">Числа — детерминированный движок (воспроизводимо); коридор [low…high] — неопределённость прогноза. ИИ ниже интерпретирует и корректирует их.</div>
+              </div>
+            </template>
+            <!-- Прочие режимы: график выполнения -->
+            <div v-else-if="chartRows.length" class="kpai-chart">
               <div class="kpai-chart-title">Выполнение{{ scope === 'company' ? ' по показателям' : ' по компаниям' }}, %</div>
               <div v-for="(r, i) in chartRows" :key="i" class="kpai-bar-row">
                 <span class="kpai-bar-lbl" :title="r.label">{{ r.label }}</span>
@@ -71,6 +116,7 @@
 import { ref, computed } from "vue";
 import * as XLSX from "xlsx";
 import { kpiApi } from "@/api/bpKpi";
+import type { CompanyForecast } from "@/api/bpKpi";
 import { kpiCompletionRatio } from "@/utils/kpiRatio";
 import { renderMarkdown } from "@/utils/renderMarkdown";
 import { extractHlfHeadline, HLF_LABELS } from "@/utils/hlfHeadline";
@@ -87,7 +133,16 @@ type IndOut = {
 };
 type MgrOut = { title: string; role: string | null; indicators: IndOut[] };
 type ChartRow = { label: string; value: number };
-type SavedRec = { raw: string; doneAt: string; year: number; chart?: ChartRow[] };
+// Строка модельного прогноза (движок): значение + коридор по будущим годам.
+type FcCell = { value: number | null; low: number | null; high: number | null };
+type FcRow = {
+  name: string; manager: string; unit: string | null;
+  fact: number | null; expected: number | null;
+  byYear: Record<string, FcCell>; method: string; confidence: string;
+};
+type FcTrend = { label: string; value: number; projected: boolean; low?: number; high?: number };
+type FcSaved = { view: FcRow[]; years: string[]; trend: FcTrend[]; baseYear: number; scopeName: string };
+type SavedRec = { raw: string; doneAt: string; year: number; chart?: ChartRow[]; fc?: FcSaved };
 
 const props = defineProps<{ companies: Co[]; year: number; period: string; selectedId: string | null }>();
 
@@ -100,11 +155,75 @@ const rawMd = ref("");   // сырой Markdown ответа — для копи
 const chartRows = ref<ChartRow[]>([]);   // данные графика выполнения
 const doneAt = ref("");
 
+// ─── Модельный прогноз (детерминированный движок) ─────────────────
+const fcView = ref<FcRow[]>([]);         // строки таблицы прогноза
+const fcYears = ref<string[]>([]);       // столбцы будущих лет
+const fcTrend = ref<FcTrend[]>([]);      // траектория сводного выполнения (компания)
+const fcBaseYear = ref<number>(0);
+const fcScopeName = ref<string>("");
+
 function barColor(pct: number): string {
   if (pct >= 100) return "#1D9E75";
   if (pct >= 75) return "#D97706";
   return "#E24B4A";
 }
+// Компактное число с единицей (для таблицы прогноза).
+function fcFmt(v: number | null | undefined, unit: string | null): string {
+  if (v == null) return "—";
+  const u = unit || "";
+  if (u === "%") return `${Math.round(v)}%`;
+  const a = Math.abs(v);
+  const s = a >= 1000 ? Math.round(v).toLocaleString("ru-RU").replace(/,/g, " ")
+    : a >= 10 ? v.toFixed(0) : v.toFixed(1).replace(/\.0$/, "");
+  return `${s}${u ? " " + u : ""}`;
+}
+const FC_METHOD: Record<string, string> = {
+  pace: "темп", seasonal: "сезон", run_rate: "run-rate", plan: "план",
+  actual: "факт", ols: "тренд", cagr: "CAGR", none: "нет данных",
+};
+function fcMethodLabel(m: string): string { return FC_METHOD[m] || m; }
+
+function buildForecastView(fc: CompanyForecast): void {
+  const yset = new Set<string>();
+  const rows: FcRow[] = [];
+  for (const m of fc.managers) for (const ind of m.indicators) {
+    const byYear: Record<string, FcCell> = {};
+    for (const p of ind.annual.projections) { byYear[p.period] = { value: p.value, low: p.low, high: p.high }; yset.add(p.period); }
+    const useAnnual = ind.annual.method !== "none";
+    rows.push({
+      name: ind.name, manager: ind.manager, unit: ind.unit,
+      fact: ind.fact_year, expected: ind.quarterly.expected_year, byYear,
+      method: useAnnual ? ind.annual.method : ind.quarterly.method,
+      confidence: useAnnual ? ind.annual.confidence : ind.quarterly.confidence,
+    });
+  }
+  const trend: FcTrend[] = [];
+  for (const h of fc.completion_history) if (h.fact != null) trend.push({ label: String(h.year), value: Math.round(h.fact), projected: false });
+  if (fc.completion) for (const p of fc.completion.projections) if (p.value != null)
+    trend.push({ label: p.period, value: Math.round(p.value), projected: true, low: p.low ?? undefined, high: p.high ?? undefined });
+  fcView.value = rows; fcYears.value = Array.from(yset).sort();
+  fcTrend.value = trend; fcBaseYear.value = fc.base_year; fcScopeName.value = fc.company_name;
+}
+
+function buildPortfolioForecastView(all: CompanyForecast[], baseYear: number): void {
+  const yset = new Set<string>();
+  const rows: FcRow[] = [];
+  for (const f of all) {
+    const byYear: Record<string, FcCell> = {};
+    if (f.completion) for (const p of f.completion.projections) { byYear[p.period] = { value: p.value, low: p.low, high: p.high }; yset.add(p.period); }
+    const lastHist = [...f.completion_history].reverse().find(h => h.fact != null);
+    rows.push({
+      name: f.company_name, manager: "", unit: "%",
+      fact: lastHist?.fact ?? null, expected: null, byYear,
+      method: f.completion?.method || "none", confidence: f.completion?.confidence || "none",
+    });
+  }
+  fcView.value = rows.sort((a, b) => (b.fact ?? -1) - (a.fact ?? -1));
+  fcYears.value = Array.from(yset).sort();
+  fcTrend.value = []; fcBaseYear.value = baseYear; fcScopeName.value = "Портфель";
+}
+function resetForecastView(): void { fcView.value = []; fcYears.value = []; fcTrend.value = []; }
+const fcTrendMax = computed(() => Math.max(120, ...fcTrend.value.map(t => t.high ?? t.value)));
 const step = ref("");
 const scope = ref<"portfolio" | "company">("portfolio");
 const mode = ref<Mode>("performance");
@@ -139,8 +258,15 @@ async function fetchSaved(): Promise<void> {
 function applyMode(m: Mode): void {
   mode.value = m;
   const o = saved.value[savedKey(m)];
-  if (o?.raw) { rawMd.value = o.raw; html.value = renderMarkdown(o.raw); doneAt.value = o.doneAt || ""; chartRows.value = o.chart || []; }
-  else { rawMd.value = ""; html.value = ""; doneAt.value = ""; chartRows.value = []; }
+  if (o?.raw) {
+    rawMd.value = o.raw; html.value = renderMarkdown(o.raw); doneAt.value = o.doneAt || ""; chartRows.value = o.chart || [];
+    if (o.fc) {
+      fcView.value = o.fc.view || []; fcYears.value = o.fc.years || []; fcTrend.value = o.fc.trend || [];
+      fcBaseYear.value = o.fc.baseYear || props.year; fcScopeName.value = o.fc.scopeName || "";
+    } else resetForecastView();
+  } else {
+    rawMd.value = ""; html.value = ""; doneAt.value = ""; chartRows.value = []; resetForecastView();
+  }
   error.value = "";
 }
 
@@ -156,6 +282,26 @@ async function copyAnswer(): Promise<void> {
 function exportExcel(): void {
   if (!rawMd.value) return;
   const wb = XLSX.utils.book_new();
+  // Лист «Модель прогноза» — детерминированные проекции движка (первым листом).
+  if (mode.value === "forecast" && fcView.value.length) {
+    const isPort = fcScopeName.value === "Портфель";
+    const head = [isPort ? "Компания" : "Показатель", ...(isPort ? [] : ["Руководитель"]),
+      "Тек. факт", ...(isPort ? [] : [`Ожид. ${fcBaseYear.value}`]), ...fcYears.value, "Метод", "Надёжность"];
+    const aoa: (string | number)[][] = [head];
+    for (const r of fcView.value) {
+      const row: (string | number)[] = [r.name];
+      if (!isPort) row.push(r.manager || "");
+      row.push(fcFmt(r.fact, r.unit));
+      if (!isPort) row.push(fcFmt(r.expected, r.unit));
+      for (const y of fcYears.value) {
+        const c = r.byYear[y];
+        row.push(c ? (c.low != null ? `${fcFmt(c.value, r.unit)} [${fcFmt(c.low, r.unit)}…${fcFmt(c.high, r.unit)}]` : fcFmt(c.value, r.unit)) : "—");
+      }
+      row.push(fcMethodLabel(r.method), r.confidence);
+      aoa.push(row);
+    }
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), "Модель прогноза");
+  }
   const lines = rawMd.value.replace(/\r\n/g, "\n").split("\n");
   const tables: string[][][] = [];
   let cur: string[][] | null = null;
@@ -199,6 +345,12 @@ async function openModal(): Promise<void> {
 async function saveResult(raw: string): Promise<void> {
   const key = savedKey();
   const rec: SavedRec = { raw, doneAt: doneAt.value, year: props.year, chart: chartRows.value };
+  if (mode.value === "forecast" && fcView.value.length) {
+    rec.fc = {
+      view: fcView.value, years: fcYears.value, trend: fcTrend.value,
+      baseYear: fcBaseYear.value, scopeName: fcScopeName.value,
+    };
+  }
   saved.value = { ...saved.value, [key]: rec };
   try {
     const { api } = await import("@/api/client");
@@ -274,11 +426,41 @@ async function run(): Promise<void> {
         return ext ? { code: co.company_code, name: co.company_name_ru, kpis: ext.kpis } : null;
       } catch { return null; }
     }))).filter((r): r is NonNullable<typeof r> => r != null);
+
+    // Модельный прогноз (детерминированный движок) — опора для режима «Прогноз».
+    let forecastPayload: unknown = null;
+    if (mode.value === "forecast") {
+      step.value = "Считаю модельный прогноз (кварталы + будущие годы)…";
+      try {
+        if (single) {
+          const fc = await kpiApi.getForecast(single.company_id, props.year, 3);
+          buildForecastView(fc);
+          forecastPayload = fc;
+        } else {
+          const fcs = (await Promise.all(props.companies.map(async (c) => {
+            try { return await kpiApi.getForecast(c.company_id, props.year, 3); } catch { return null; }
+          }))).filter((x): x is CompanyForecast => x != null);
+          buildPortfolioForecastView(fcs, props.year);
+          forecastPayload = {
+            portfolio: fcs.map(f => ({
+              name: f.company_name, completion: f.completion,
+              indicators: f.managers.flatMap(m => m.indicators.map(i => ({
+                name: i.name, unit: i.unit, manager: i.manager,
+                quarterly: i.quarterly, annual: i.annual,
+              }))).slice(0, 10),
+            })),
+          };
+        }
+      } catch { resetForecastView(); }
+    } else {
+      resetForecastView();
+    }
+
     step.value = "ИИ анализирует KPI и связь с финансами…";
     const resp = await api.post("/ai/kpi-analysis", {
       year: props.year, period: props.period, mode: mode.value,
       focus: single ? single.company_name_ru : null,
-      kpi_rows, fin_rows, fin_labels: HLF_LABELS,
+      kpi_rows, fin_rows, fin_labels: HLF_LABELS, forecast: forecastPayload,
     }, { timeout: 235000 });
     const raw = (resp.data?.analysis || "") as string;
     if (!raw) { error.value = "ИИ вернул пустой ответ."; loading.value = false; return; }
@@ -366,6 +548,29 @@ async function run(): Promise<void> {
 .kpai-bar-fill { height: 100%; border-radius: 6px; transition: width .5s ease; }
 .kpai-bar-val { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; color: var(--ink2, #2C2C3A); }
 @media (max-width: 620px) { .kpai-bar-row { grid-template-columns: 116px 1fr 40px; } }
+
+.kpai-bar-fill.proj { opacity: .55; background-image: repeating-linear-gradient(45deg, rgba(255,255,255,.35) 0 5px, transparent 5px 10px); }
+.kpai-fc-tag { margin-left: 6px; font-size: 9.5px; letter-spacing: .04em; text-transform: uppercase; color: #7C6FF7; font-weight: 700; }
+
+/* ─── Модельная таблица прогноза ─── */
+.kpai-fc { margin-bottom: 18px; }
+.kpai-fc-scroll { overflow-x: auto; border: 1px solid var(--line, #ECECF3); border-radius: 12px; }
+.kpai-fc-tbl { border-collapse: collapse; width: 100%; font-size: 12px; min-width: 520px; }
+.kpai-fc-tbl th, .kpai-fc-tbl td { padding: 7px 10px; text-align: right; border-bottom: 1px solid var(--line, #ECECF3); white-space: nowrap; }
+.kpai-fc-tbl th:first-child, .kpai-fc-tbl td:first-child { text-align: left; }
+.kpai-fc-tbl thead th { background: #F7F7FB; font-weight: 650; color: #5A6172; position: sticky; top: 0; }
+.kpai-fc-tbl tbody tr:last-child td { border-bottom: none; }
+.kpai-fc-tbl tbody tr:hover td { background: #FAFAFD; }
+.kpai-fc-nm { display: flex; flex-direction: column; gap: 1px; }
+.kpai-fc-mgr { font-size: 10.5px; color: #9AA3B2; }
+.kpai-fc-v { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--ink, #1A1A26); }
+.kpai-fc-band { display: block; font-size: 10px; color: #A0A6B4; font-variant-numeric: tabular-nums; }
+.kpai-fc-conf { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 10.5px; font-weight: 600; }
+.kpai-fc-conf.c-high { background: #E3F5EC; color: #157A48; }
+.kpai-fc-conf.c-medium { background: #FEF2E0; color: #B4690E; }
+.kpai-fc-conf.c-low { background: #FCE9E8; color: #C0392B; }
+.kpai-fc-conf.c-none { background: #EEF0F4; color: #8A90A0; }
+.kpai-fc-note { margin-top: 8px; font-size: 11.5px; line-height: 1.5; color: #8A90A0; }
 
 .kpai-body { padding: 18px 24px 26px; overflow-y: auto; }
 .kpai-loading { display: flex; align-items: center; gap: 12px; color: #6E6D80; font-size: 14px; padding: 30px 0; }
