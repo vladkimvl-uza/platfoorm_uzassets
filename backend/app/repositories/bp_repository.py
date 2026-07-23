@@ -61,6 +61,24 @@ class BpRepository:
             q = q.where(BpRecord.company_id.in_(scope_company_ids))
         return [r[0] for r in (await self.session.execute(q)).all()]
 
+    async def years_for_company(self, company_id: UUID) -> list[int]:
+        """Отсортированные годы, за которые у компании есть BP-записи (для рядов прогноза)."""
+        res = await self.session.execute(
+            select(BpRecord.year)
+            .where(BpRecord.company_id == company_id)
+            .distinct()
+            .order_by(BpRecord.year)
+        )
+        return [int(y) for (y,) in res.all()]
+
+    async def get_company(self, company_id: UUID) -> Optional[Company]:
+        res = await self.session.execute(
+            select(Company)
+            .options(selectinload(Company.sector))
+            .where(Company.id == company_id)
+        )
+        return res.scalar_one_or_none()
+
     # ─── raw records (editor) ─────────────────────────────────────
 
     async def list_records_for_year(

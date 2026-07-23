@@ -339,7 +339,7 @@ async def ai_forecast(
 # Портфельный артефакт, ОБЩИЙ для всех: один сгенерировал → все видят последний
 # результат до новой генерации. Хранится в system_config под ключом
 # ai_saved:<kind>:<scope> (scope = роль/вкладка для hlf, 'default' для прогноза).
-_SAVED_KINDS = {"forecast", "hlf", "kpi"}
+_SAVED_KINDS = {"forecast", "hlf", "kpi", "bp"}
 
 
 @router.get("/saved/{kind}")
@@ -765,6 +765,206 @@ async def ai_kpi_analysis(
         )
     except Exception as e_web:  # noqa: BLE001
         logger.warning("KPI analysis web call failed, fallback no-web: %s", e_web)
+        try:
+            text = await complete_once(
+                system=system, prompt=prompt, model="ai-deep", max_tokens=6000,
+                temperature=None, timeout=100.0,
+            )
+        except Exception as e2:  # noqa: BLE001
+            raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"AI analysis failed: {e2}")
+    return {"analysis": (text or "").strip()}
+
+
+@router.post("/bp-analysis")
+async def ai_bp_analysis(
+    payload: dict,
+    user: User = Depends(require_ai_access),
+    db: AsyncSession = Depends(get_db),
+):
+    """ИИ-анализ Бизнес-плана: исполнение план/ожидаемое/факт (ОФР + производство),
+    связь производство↔финансы, прогноз будущих целей БП.
+
+    Фронт присылает финансовую матрицу БП (метрики ОФР план/ожид./факт + источник
+    факта) и — опционально — производственную матрицу (натура+деньги по продуктам)
+    и детерминированный прогноз движка. Режимы: performance | linkage | forecast."""
+    if not is_enabled():
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "AI is not configured")
+    if not await _assistant_active(db) and not getattr(user, "is_owner", False):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "ИИ-ассистент деактивирован владельцем")
+    year = payload.get("year")
+    period = str(payload.get("period") or "annual")
+    mode = str(payload.get("mode") or "performance").lower()
+    focus = str(payload.get("focus") or "").strip()
+    bp_rows = payload.get("bp_rows") or []
+    prod_rows = payload.get("prod_rows") or []
+    if not bp_rows and not prod_rows:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Нет данных бизнес-плана для анализа")
+
+    def _num(v, unit: str = "") -> str:
+        if v is None:
+            return "—"
+        try:
+            x = float(v)
+        except (TypeError, ValueError):
+            return str(v)
+        if unit == "%":
+            return f"{x:.0f}%"
+        s = f"{x:,.1f}".rstrip("0").rstrip(".").replace(",", " ")
+        return f"{s} {unit}".strip()
+
+    # Финансовый БП: компания → метрики ОФР (план/ожидаемое/факт + источник факта).
+    _SRC = {"nsbu": "НСБУ", "ytd": "Σкв"}
+    bp_blocks: list[str] = []
+    for r in bp_rows:
+        nm = r.get("name") or r.get("code") or "—"
+        block = [f"## {nm}"]
+        for mt in (r.get("metrics") or []):
+            dr = "↓затраты, меньше=лучше" if str(mt.get("dir")) == "down" else "↑больше=лучше"
+            src = mt.get("fact_source")
+            srcs = f" [факт: {_SRC.get(src, src)}]" if src else ""
+            block.append(
+                f"- {mt.get('label') or mt.get('key')}: план {_num(mt.get('plan'))}, "
+                f"ожидаемое {_num(mt.get('expect'))}, факт {_num(mt.get('fact'))}{srcs} ({dr})"
+            )
+        bp_blocks.append("\n".join(block))
+    bp_text = "\n\n".join(bp_blocks)
+
+    # Производственный план: компания → продукты (натура + деньги, план/ожид./факт).
+    prod_text = ""
+    if prod_rows:
+        pblocks: list[str] = []
+        for r in prod_rows:
+            nm = r.get("name") or r.get("code") or "—"
+            head = f"## {nm} (производство)"
+            ex = r.get("exec_pct")
+            if ex is not None:
+                head += f" — исполнение {_num(ex, '%')}"
+            lines = [head]
+            for ln in (r.get("lines") or [])[:12]:
+                u = ln.get("unit") or ""
+                parts = []
+                if ln.get("planN") is not None or ln.get("factN") is not None:
+                    parts.append(f"натура: план {_num(ln.get('planN'), u)} / ожид. {_num(ln.get('expN'), u)} / факт {_num(ln.get('factN'), u)}")
+                if ln.get("planM") is not None or ln.get("factM") is not None:
+                    parts.append(f"деньги (млрд сум): план {_num(ln.get('planM'))} / ожид. {_num(ln.get('expM'))} / факт {_num(ln.get('factM'))}")
+                exl = ln.get("execPct")
+                exs = f"; исполнение {_num(exl, '%')}" if exl is not None else ""
+                lines.append(f"- {ln.get('name') or '—'}: " + "; ".join(parts) + exs)
+            pblocks.append("\n".join(lines))
+        prod_text = (
+            "\n\nПРОИЗВОДСТВЕННЫЙ ПЛАН (натуральный объём + деньги; исполнение >110% = зона "
+            "переисполнения — проверь единицы/двойной ввод):\n" + "\n\n".join(pblocks)
+        )
+
+    # Грудинг: детерминированный прогноз БП (метрики ОФР по годам + кварталы).
+    def _fmt_bp_forecast(fc: dict) -> str:
+        def _one(company: dict) -> list[str]:
+            out: list[str] = []
+            for mt in (company.get("metrics") or []):
+                af = mt.get("annual") or {}
+                aproj = af.get("projections") or []
+                if not aproj and mt.get("fact") is None and mt.get("expect") is None:
+                    continue
+                seg = [f"- {mt.get('label') or mt.get('key')}: тек. факт {_num(mt.get('fact'))}, ожид. {_num(mt.get('expect'))}"]
+                if aproj:
+                    parts = []
+                    for p in aproj:
+                        b = f"{p.get('period')} {_num(p.get('value'))} [{_num(p.get('low'))}…{_num(p.get('high'))}]"
+                        qs = p.get("quarters")
+                        if qs:
+                            b += " (кв.: " + ", ".join(f"Q{i + 1} {_num(qs[i])}" for i in range(min(4, len(qs)))) + ")"
+                        parts.append(b)
+                    seg.append("будущие годы: " + ", ".join(parts) + f" [{af.get('method')}/{af.get('confidence')}]")
+                out.append("; ".join(seg))
+            return out
+        if not fc:
+            return ""
+        if fc.get("portfolio"):
+            lines: list[str] = []
+            for co in fc["portfolio"]:
+                lines.append(f"• {co.get('company_name') or co.get('name') or '—'}")
+                lines.extend("  " + x for x in _one(co)[:8])
+            body = "\n".join(lines)
+        else:
+            body = "\n".join(_one(fc))
+        if not body:
+            return ""
+        return (
+            "\n\nМОДЕЛЬНЫЙ ПРОГНОЗ БП (детерминированный движок — ОПОРА; числа воспроизводимы, "
+            "коридор [low…high], кварталы будущих лет — по сезонности плана):\n" + body
+        )
+
+    forecast_text = _fmt_bp_forecast(payload.get("forecast") or {}) if mode == "forecast" else ""
+
+    _common = (
+        "Используй web_search для отраслевых бенчмарков, цен на продукцию секторов и макро "
+        "Узбекистана. ФОРМАТ: строгий деловой Markdown с секциями. Числовые сравнения, разбор "
+        "и ПРОГНОЗЫ оформляй ТАБЛИЦАМИ (Markdown |стб|стб|) — обязательно для читаемости и "
+        "выгрузки в Excel. БЕЗ эмодзи. Деньги — в млрд сум. По-русски. Не выдумывай — опирайся "
+        "на данные. Всегда различай ПЛАН / ОЖИДАЕМОЕ / ФАКТ и учитывай тип метрики (↑больше=лучше "
+        "/ ↓затраты=меньше=лучше)."
+    )
+    _persona = {
+        "performance": (
+            "Ты — финансовый контролёр. Разбери ИСПОЛНЕНИЕ бизнес-плана (план vs ожидаемое vs "
+            "факт) по ОФР и производству:\n"
+            "- кто в графике / в риске / провалил — по выручке, операционной и чистой прибыли "
+            "(с числами и % исполнения);\n"
+            "- дрейф доли затрат (себестоимость и расходы периода к выручке) план vs факт;\n"
+            "- качество факта: помечай источник [НСБУ] (закрытый год) vs [Σкв] vs ручной;\n"
+            "- по производству — исполнение по продуктам, зоны переисполнения >110%.\n"
+            "Заверши ПЛАНОМ: что чинить в первую очередь и почему."
+        ),
+        "linkage": (
+            "Ты — аналитик FP&A. Найди связь ПРОИЗВОДСТВО↔ФИНАНСЫ:\n"
+            "- переводится ли натуральный объём (тонны/кВт·ч/шт) и производственная выручка в "
+            "финансовые выручку/маржу/прибыль как запланировано;\n"
+            "- где ОБЪЁМ растёт, а выручка/прибыль ОТСТАЮТ — раздели эффект цены, курса и "
+            "себестоимости; где overpar в производстве НЕ отражён в прибыли;\n"
+            "- сформулируй гипотезы и подтверждай числами. Дай карту «производство → "
+            "финансовый результат» и укажи, где план по объёму и план по деньгам рассинхронены."
+        ),
+        "forecast": (
+            "Ты — стратег-прогнозист бизнес-плана. Спрогнозируй БУДУЩИЕ ЦЕЛИ БП (метрики ОФР по "
+            "годам и кварталам) и предложи реалистичные плановые ориентиры.\n"
+            "ОПОРА: блок «МОДЕЛЬНЫЙ ПРОГНОЗ БП» — детерминированные проекции движка (тренд по "
+            "годам с коридором, кварталы по сезонности). Бери его числа как базовый сценарий, НЕ "
+            "переизобретай; интерпретируй и КОРРЕКТИРУЙ факторами, ЯВНО поясняя расхождения.\n"
+            "0) ВНЕШНИЕ И ВНУТРЕННИЕ ФАКТОРЫ (ОБЯЗАТЕЛЬНЫЙ раздел ПЕРЕД таблицами, web_search) — "
+            "ТАБЛИЦЕЙ: Фактор | Состояние/прогноз | Влияние на БП (+/−) | Учтён. Разбери:\n"
+            "  ВНЕШНИЕ: мировые цены на профильное сырьё/продукцию (золото, серебро, медь, уран, "
+            "нефть Brent/Urals, газ, металлы, хлопок, удобрения — по сектору); курс UZS/USD и "
+            "девальвация; санкции и геополитика (экспортные рынки, логистика, вторичные санкции); "
+            "мировой спрос и цены конкурентов; мировые ставки.\n"
+            "  ВНУТРЕННИЕ: макро РУз (ВВП, инфляция, ставка ЦБ), тарифы на энергию/газ, налоги и "
+            "таможня, субсидии и госзаказ, курсовая политика, инвестпрограмма/локализация.\n"
+            "1) ПРОГНОЗ МЕТРИК ОФР ПО ГОДАМ — ТАБЛИЦЕЙ: Метрика | Тек. факт | Ожидаемое | "
+            "Прогноз (базовый) | Пессим. | Оптим. | Надёжность | Драйверы. Соотноси с коридором "
+            "[low…high] модели по каждому будущему году.\n"
+            "2) ПРОГНОЗ ПО КВАРТАЛАМ — ТАБЛИЦЕЙ: Метрика | Год | Q1 | Q2 | Q3 | Q4 | Итог года "
+            "(бери квартальную разбивку модели, скорректируй сезонность где нужно).\n"
+            "3) РЕКОМЕНДОВАННЫЕ ЦЕЛИ ПЛАНА на следующий год — ТАБЛИЦЕЙ: Метрика | Тек. факт/ожид. "
+            "| Рекомендуемый план | Обоснование. Реалистичные, но амбициозные ориентиры с "
+            "учётом факторов.\n"
+            "Кратко прокомментируй ключевые прогнозы и расхождения с моделью."
+        ),
+    }
+    system = _persona.get(mode, _persona["performance"]) + "\n" + _common
+    scope_line = f"Компания: {focus}. " if focus else f"Компаний в выборке: {len(bp_rows) or len(prod_rows)}. "
+    prompt = (
+        f"{scope_line}Год: {year}, период: {period}.\n\n"
+        "ФИНАНСОВЫЙ БИЗНЕС-ПЛАН (ОФР) — план / ожидаемое / факт по метрикам:\n\n"
+        f"{bp_text}{prod_text}{forecast_text}"
+    )
+    _web = WEB_SEARCH_TOOL_DEEP if mode == "forecast" else WEB_SEARCH_TOOL
+    _to = 225.0 if mode == "forecast" else 200.0
+    try:
+        text = await complete_once(
+            system=system, prompt=prompt, model="ai-deep", max_tokens=8000,
+            temperature=None, tools=[_web], timeout=_to,
+        )
+    except Exception as e_web:  # noqa: BLE001
+        logger.warning("BP analysis web call failed, fallback no-web: %s", e_web)
         try:
             text = await complete_once(
                 system=system, prompt=prompt, model="ai-deep", max_tokens=6000,

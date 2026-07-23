@@ -25,9 +25,10 @@ from app.core.access import (
     has_unrestricted_view,
 )
 from app.core.security import has_effective_permission
-from app.dependencies.bp import BpServiceDep
+from app.dependencies.bp import BpForecastServiceDep, BpServiceDep
 from app.models.bp_kpi import BP_METRICS
 from app.models.user import User
+from app.schemas.bp_forecast import BpCompanyForecast
 from app.schemas.bp_kpi import (
     BpAttentionIssue,
     BpAvailableCompany,
@@ -150,6 +151,28 @@ async def get_raw_records(
     response.headers["X-Editor-Token"] = await compute_bp_editor_token(
         db, company_id=company_id, year=year)
     return await service.get_raw_records(company_id, year)
+
+
+# ─── Прогноз БП (детерминированный движок; ПЕРЕД catch-all) ───────
+
+@router.get("/forecast/{company_id}/{base_year}", response_model=BpCompanyForecast)
+async def forecast_company(
+    company_id: UUID,
+    base_year: int,
+    service: BpForecastServiceDep,
+    horizon: int = 2,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Прогноз финансовых метрик БП на будущие годы + кварталы (сезонность).
+
+    Детерминированный движок core/forecast по годовому ряду факта/ожидаемого.
+    Числа воспроизводимы; ИИ-слой (/ai/bp-analysis mode=forecast) берёт их опорой.
+    Путь с literal `forecast` — чтобы не коллидировать с /{company_id}/{year}/{period}."""
+    if not await has_effective_permission(db, user, "bp.view"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "bp.view required")
+    await ensure_company_access(db, user, company_id)
+    return await service.forecast_company(company_id, base_year, horizon)
 
 
 # ─── Computed (catch-all) ────────────────────────────────────────
