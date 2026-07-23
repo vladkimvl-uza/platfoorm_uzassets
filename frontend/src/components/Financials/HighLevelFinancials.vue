@@ -263,13 +263,17 @@ const anRaw = ref("");
 const anYear = ref<number | null>(null);
 const anCount = ref(0);
 const anScenario = ref<AnScenario>("cfo");
-// Охват анализа: весь портфель (все компании) ИЛИ только выбранная компания.
+// Охват анализа: весь портфель (все компании) ИЛИ одна компания.
 const anScope = ref<"portfolio" | "company">("portfolio");
+// Компания для анализа — выбор ПРЯМО В МОДАЛКЕ (независимо от компании страницы).
+const anPickedCode = ref<string>(selectedCode.value);
+const anSingleCompany = computed(() =>
+  displayCompanies.value.find(c => c.code === anPickedCode.value) || null);
 // Ключ хранилища сохранённого анализа: роль (портфель) или роль+код компании
 // (чтобы у каждой компании и портфеля был свой сохранённый анализ на роль).
 function anSavedKey(sc: AnScenario = anScenario.value): string {
-  return anScope.value === "company" && selectedCode.value
-    ? `${sc}__${selectedCode.value}` : sc;
+  return anScope.value === "company" && anPickedCode.value
+    ? `${sc}__${anPickedCode.value}` : sc;
 }
 const anMatrix = ref<AnRow[]>([]);
 const anDefs = ref<AnDef[]>([]);
@@ -327,6 +331,13 @@ function applyScenario(sc: AnScenario): void {
 function setAnScope(s: "portfolio" | "company"): void {
   if (anLoading.value) return;
   anScope.value = s;
+  if (s === "company" && !anPickedCode.value)
+    anPickedCode.value = selectedCode.value || displayCompanies.value[0]?.code || "";
+  applyScenario(anScenario.value);
+}
+// Смена компании прямо в модалке → подставить её сохранённый анализ.
+function onAnPickCompany(): void {
+  if (anLoading.value) return;
   applyScenario(anScenario.value);
 }
 
@@ -349,12 +360,19 @@ async function saveAnalysis(): Promise<void> {
 }
 async function openAnalysis() {
   anOpen.value = true;
+  // Подставляем компанию, выбранную на странице, как компанию анализа по умолчанию.
+  if (selectedCode.value && displayCompanies.value.some(c => c.code === selectedCode.value))
+    anPickedCode.value = selectedCode.value;
+  else if (!displayCompanies.value.some(c => c.code === anPickedCode.value))
+    anPickedCode.value = displayCompanies.value[0]?.code || "";
   await fetchSaved();
   if (!anLoading.value) applyScenario(anScenario.value);
 }
 
 function latestDataYearIdx(hlf: HlfData): number {
-  const rows = hlf.sections.flatMap(s => s.rows);
+  // _secYears обязателен, иначе rowValueForYear → null для всех строк и цикл ниже
+  // всегда падает в fallback (последний год, который может быть пустым).
+  const rows = hlf.sections.flatMap(s => s.rows.map(r => ({ ...r, _secYears: s.years })));
   const rev = matchRow(rows, "revenue") || matchRow(rows, "net_profit") || matchRow(rows, "total_assets");
   // ВАЖНО: возвращаем индекс в ГЛОБАЛЬНОМ hlf.years (buildKpis индексирует свои
   // values именно по нему через rowValueForYear), а НЕ позицию в row.values.
@@ -493,7 +511,7 @@ async function runAnalysis() {
   anError.value = "";
   anHtml.value = "";
   anRaw.value = "";
-  const _single = anScope.value === "company" && selectedCompany.value ? selectedCompany.value : null;
+  const _single = anScope.value === "company" && anSingleCompany.value ? anSingleCompany.value : null;
   startTicker([_single
     ? `Загружаю отчётность: ${_single.name_short || _single.code}…`
     : "Загружаю отчётность всех компаний портфеля…"]);
@@ -1495,23 +1513,29 @@ const kpiCards = computed(() => kpis.value.map(k => ({
         <header class="hlf-an-hd">
           <div class="hlf-an-hd-txt">
             <div class="hlf-an-eyebrow">ИИ-АНАЛИЗ {{ anScope === 'company' ? 'КОМПАНИИ' : 'ПОРТФЕЛЯ' }}</div>
-            <h2 class="hlf-an-title">Высокоуровневые показатели — {{ anScope === 'company' ? (selectedCompany?.name_short || selectedCompany?.name_ru || selectedCompany?.code || 'компания') : 'все компании' }}</h2>
+            <h2 class="hlf-an-title">Высокоуровневые показатели — {{ anScope === 'company' ? (anSingleCompany?.name_short || anSingleCompany?.name_ru || anSingleCompany?.code || 'компания') : 'все компании' }}</h2>
             <div v-if="anYear && !anLoading && anHtml" class="hlf-an-sub">{{ anScope === 'company' ? '1 компания' : anCount + ' компаний' }} · {{ anYear }}<span v-if="anDoneAt"> · {{ anDoneAt }}</span></div>
           </div>
           <button class="hlf-an-x" @click="anOpen = false" aria-label="Закрыть">×</button>
         </header>
 
-        <!-- Охват: весь портфель / только выбранная компания -->
+        <!-- Охват: весь портфель / одна компания (выбор прямо здесь) -->
         <div class="hlf-an-scen">
           <span class="hlf-an-scen-lbl">Охват</span>
           <div class="hlf-an-scen-seg">
             <button class="hlf-an-scen-opt" :class="{ on: anScope === 'portfolio' }"
                     :disabled="anLoading" @click="setAnScope('portfolio')">Весь портфель</button>
             <button class="hlf-an-scen-opt" :class="{ on: anScope === 'company' }"
-                    :disabled="anLoading || !selectedCompany" @click="setAnScope('company')">
-              Только «{{ selectedCompany?.name_short || selectedCompany?.code || 'компания' }}»
+                    :disabled="anLoading || !displayCompanies.length" @click="setAnScope('company')">
+              Одна компания
             </button>
           </div>
+          <select v-if="anScope === 'company'" v-model="anPickedCode" @change="onAnPickCompany"
+                  :disabled="anLoading" class="hlf-an-co-select" aria-label="Компания для анализа">
+            <option v-for="c in displayCompanies" :key="c.code" :value="c.code">
+              {{ c.name_short || c.name_ru || c.code }}
+            </option>
+          </select>
         </div>
 
         <!-- Сценарий анализа: senior CFO / инвестор / акционер -->
@@ -2255,6 +2279,10 @@ const kpiCards = computed(() => kpis.value.map(k => ({
 .hlf-an-scen-opt:hover:not(.on) { background: rgba(127, 119, 221, 0.08); color: var(--p-deep); }
 .hlf-an-scen-opt.on { background: var(--bg1, #fff); color: var(--p-deep, #534AB7); box-shadow: 0 1px 2px rgba(15, 23, 60, 0.10); }
 .hlf-an-scen-opt:disabled { opacity: .6; cursor: default; }
+.hlf-an-co-select { padding: 6px 10px; font-size: 11.5px; font-weight: 500; font-family: inherit; color: var(--t1, #2A2F45); background: var(--bg1, #fff); border: 1px solid var(--border-hard); border-radius: 8px; cursor: pointer; max-width: 240px; transition: border-color .12s ease; }
+.hlf-an-co-select:hover:not(:disabled) { border-color: var(--p-deep, #534AB7); }
+.hlf-an-co-select:focus-visible { outline: none; border-color: var(--p-deep, #534AB7); box-shadow: 0 0 0 3px rgba(127, 119, 221, 0.18); }
+.hlf-an-co-select:disabled { opacity: .6; cursor: default; }
 .hlf-an-run { margin-left: auto; padding: 6px 16px; font-size: 12px; font-weight: 500; border: none; border-radius: 9px; color: #fff; background: linear-gradient(135deg, #8B7FF0, #6C5CE7); box-shadow: 0 2px 8px rgba(108, 92, 231, 0.28); cursor: pointer; font-family: inherit; transition: filter .12s ease; }
 .hlf-an-run:hover:not(:disabled) { filter: brightness(1.06); }
 .hlf-an-run:disabled { opacity: .6; cursor: default; box-shadow: none; }
