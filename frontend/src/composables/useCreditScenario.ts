@@ -110,14 +110,18 @@ export function useCreditScenario() {
       summary.value = await api.fetchStateSummary(scope.value, activeScenarioId.value)
     } catch (e: any) {
       console.error("[useCreditScenario] loadSummary:", e)
+      // P1 аудита (тихие сбои): не молчать на load — иначе пустой дашборд
+      // неотличим от «данных нет». Зеркалит поведение save-путей файла.
+      error.value = `Не удалось загрузить сводку: ${e?.message || e}`
     }
   }
 
   async function loadRatios(topN = 6) {
     try {
       ratios.value = await api.fetchDebtRatios(scope.value, topN)
-    } catch (e) {
+    } catch (e: any) {
       console.error("[useCreditScenario] loadRatios:", e)
+      error.value = `Не удалось загрузить коэффициенты долга: ${e?.message || e}`
     }
   }
 
@@ -125,8 +129,9 @@ export function useCreditScenario() {
     if (!activeScenarioId.value) return
     try {
       forecast.value = await api.fetchRepaymentForecast(scope.value, yearsBack, yearsForward, activeScenarioId.value)
-    } catch (e) {
+    } catch (e: any) {
       console.error("[useCreditScenario] loadForecast:", e)
+      error.value = `Не удалось загрузить прогноз погашения: ${e?.message || e}`
     }
   }
 
@@ -134,8 +139,9 @@ export function useCreditScenario() {
     if (!activeScenarioId.value) return
     try {
       topLoans.value = await api.fetchTopLoans(scope.value, topN, activeScenarioId.value)
-    } catch (e) {
+    } catch (e: any) {
       console.error("[useCreditScenario] loadTopLoans:", e)
+      error.value = `Не удалось загрузить крупнейшие займы: ${e?.message || e}`
     }
   }
 
