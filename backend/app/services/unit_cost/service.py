@@ -28,6 +28,8 @@ from fastapi import HTTPException
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.repositories.snapshot_store import SnapshotStore
+
 _KEY = "raw_snapshot.unitCostData"
 _SEED_PATH = Path(__file__).with_name("seed_data.json")
 
@@ -108,27 +110,18 @@ class UnitCostService:
         return f"{int(year)}-{q}"
 
     async def _read_raw(self, db: AsyncSession) -> dict[str, Any]:
-        row = (await db.execute(
-            text("SELECT value FROM system_config WHERE key = :k LIMIT 1"), {"k": _KEY},
-        )).first()
-        if not row or not row[0]:
-            return {}
-        v = row[0]
-        if isinstance(v, str):
-            try:
-                v = json.loads(v)
-            except json.JSONDecodeError:
-                return {}
+        v = await SnapshotStore(db).load(_KEY)
         return v if isinstance(v, dict) else {}
 
     async def _write_raw(self, db: AsyncSession, data: dict[str, Any]) -> None:
-        await db.execute(text(
-            "INSERT INTO system_config (id, key, value, description, is_secret, created_at, updated_at) "
-            "VALUES (gen_random_uuid(), :k, CAST(:v AS jsonb), :d, FALSE, NOW(), NOW()) "
-            "ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()"
-        ), {"k": _KEY, "v": json.dumps(data, ensure_ascii=False),
-            "d": "Удельная себестоимость: цены/продукты по периодам (год+квартал)"})
-        await db.commit()
+        # P1 аудита: общий SnapshotStore + БЕЗ db.commit() — коммитом владеет
+        # get_db на конце запроса (все роуты unit_cost на Depends(get_db)).
+        # Раньше commit в СЕРВИСЕ нарушал 10-слойную архитектуру + сырой text()
+        # дублировался с forensic/production.
+        await SnapshotStore(db).save(
+            _KEY, data,
+            "Удельная себестоимость: цены/продукты по периодам (год+квартал)",
+        )
 
     async def load_raw(self, db: AsyncSession) -> dict[str, Any]:
         """Весь снапшот; миграция старого ПЛОСКОГО формата → {periods:{...}}."""
