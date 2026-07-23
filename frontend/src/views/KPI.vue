@@ -19,6 +19,14 @@
         <UzaYearStepper tone="dark" label="Год" :years="state.availableYears.value"
                         :model-value="state.selectedYear.value" @update:model-value="(v) => state.setYear(v)" />
 
+        <!-- ИИ-анализ KPI (исполнение / связь с финансами / прогноз) -->
+        <KpiAiAnalysis
+          :companies="state.companies.value"
+          :year="state.selectedYear.value"
+          :period="state.selectedPeriod.value"
+          :selected-id="state.selectedCompanyId.value"
+        />
+
         <!-- Menu -->
         <div class="kpi-menu-wrap">
           <button class="kpi-menu-btn" @click="menuOpen = !menuOpen">⋯</button>
@@ -138,6 +146,7 @@ import KpiSummaryDashboard from "@/components/KPI/KpiSummaryDashboard.vue";
 import KpiCompanyDashboard from "@/components/KPI/KpiCompanyDashboard.vue";
 import KpiEditor from "@/components/KPI/KpiEditor.vue";
 import KpiDrillModal from "@/components/KPI/KpiDrillModal.vue";
+import KpiAiAnalysis from "@/components/KPI/KpiAiAnalysis.vue";
 import AddCompanyModal from "@/components/AddCompanyModal.vue";
 import UzaSegment from "@/components/UZA/UzaSegment.vue";
 import UzaYearStepper from "@/components/UZA/UzaYearStepper.vue";

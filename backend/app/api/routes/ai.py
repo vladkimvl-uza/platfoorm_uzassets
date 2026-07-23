@@ -332,7 +332,7 @@ async def ai_forecast(
 # Портфельный артефакт, ОБЩИЙ для всех: один сгенерировал → все видят последний
 # результат до новой генерации. Хранится в system_config под ключом
 # ai_saved:<kind>:<scope> (scope = роль/вкладка для hlf, 'default' для прогноза).
-_SAVED_KINDS = {"forecast", "hlf"}
+_SAVED_KINDS = {"forecast", "hlf", "kpi"}
 
 
 @router.get("/saved/{kind}")
@@ -501,6 +501,143 @@ async def ai_hlf_analysis(
         )
     except Exception as e_web:  # noqa: BLE001
         logger.warning("HLF analysis web call failed, fallback no-web: %s", e_web)
+        try:
+            text = await complete_once(
+                system=system, prompt=prompt, model="ai-deep", max_tokens=6000,
+                temperature=None, timeout=100.0,
+            )
+        except Exception as e2:  # noqa: BLE001
+            raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"AI analysis failed: {e2}")
+    return {"analysis": (text or "").strip()}
+
+
+@router.post("/kpi-analysis")
+async def ai_kpi_analysis(
+    payload: dict,
+    user: User = Depends(require_ai_access),
+    db: AsyncSession = Depends(get_db),
+):
+    """ИИ-анализ KPI: исполнение показателей, связь KPI↔финансы, прогноз будущих KPI.
+
+    Фронт присылает KPI-матрицу (индикаторы: план/факт/выполнение/направление/вес +
+    ключ связи bp_metric_key со строкой ОФР) и — опционально — финансовую матрицу
+    (HLF) тех же компаний для связки KPI↔финансы. Режим mode: performance |
+    correlation | forecast. Deep-тир + web-поиск, как /ai/hlf-analysis."""
+    if not is_enabled():
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "AI is not configured")
+    if not await _assistant_active(db) and not getattr(user, "is_owner", False):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "ИИ-ассистент деактивирован владельцем")
+    year = payload.get("year")
+    period = str(payload.get("period") or "year")
+    mode = str(payload.get("mode") or "performance").lower()
+    focus = str(payload.get("focus") or "").strip()
+    kpi_rows = payload.get("kpi_rows") or []
+    fin_rows = payload.get("fin_rows") or []
+    fin_labels: dict = payload.get("fin_labels") or {}
+    fin_units: dict = payload.get("fin_units") or {}
+    if not kpi_rows:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Нет KPI-данных для анализа")
+
+    def _num(v, unit: str = "") -> str:
+        if v is None:
+            return "—"
+        try:
+            x = float(v)
+        except (TypeError, ValueError):
+            return str(v)
+        if unit == "%":
+            return f"{x:.0f}%"
+        s = f"{x:,.1f}".rstrip("0").rstrip(".").replace(",", " ")
+        return f"{s} {unit}".strip()
+
+    # KPI-матрица текстом: по компаниям → индикаторы
+    kpi_blocks: list[str] = []
+    for r in kpi_rows:
+        nm = r.get("name") or r.get("code") or "—"
+        lines = [f"### {nm}"]
+        for ind in (r.get("indicators") or []):
+            unit = ind.get("unit") or ""
+            pct = ind.get("pct")
+            pct_s = f"{float(pct):.0f}%" if pct is not None else "—"
+            dr = "↓меньше=лучше" if str(ind.get("dir")) == "down" else "↑больше=лучше"
+            w = ind.get("weight")
+            w_s = f", вес {w}" if w not in (None, "") else ""
+            bp = ind.get("bp_key")
+            link = f" [фин.метрика ОФР: {bp}]" if bp else ""
+            lines.append(
+                f"- {ind.get('name') or '—'}: план {_num(ind.get('plan'), unit)}, "
+                f"факт {_num(ind.get('fact'), unit)}, выполнение {pct_s} ({dr}{w_s}){link}"
+            )
+        kpi_blocks.append("\n".join(lines))
+    kpi_text = "\n\n".join(kpi_blocks)
+
+    # Финансовый контекст (HLF-матрица тех же компаний), если прислан
+    fin_text = ""
+    if fin_rows and fin_labels:
+        fblocks = []
+        for key, label in fin_labels.items():
+            u = fin_units.get(key, "")
+            vals = "; ".join(
+                f"{fr.get('name') or fr.get('code')} {_num((fr.get('kpis') or {}).get(key), u)}"
+                for fr in fin_rows
+            )
+            fblocks.append(f"- {label}: {vals}")
+        fin_text = (
+            "\n\nФИНАНСОВЫЙ КОНТЕКСТ (высокоуровневые фин-показатели тех же компаний — "
+            "для связки KPI↔финансы):\n" + "\n".join(fblocks)
+        )
+
+    _common_fmt = (
+        "Используй web_search для отраслевых бенчмарков, цен на продукцию секторов и макро "
+        "Узбекистана. ФОРМАТ: строгий деловой Markdown — заголовки, списки, при уместности "
+        "таблицы. БЕЗ эмодзи. Числа с единицами. По-русски. Не выдумывай — опирайся на данные. "
+        "ОБЯЗАТЕЛЬНО учитывай НАПРАВЛЕНИЕ (↑больше=лучше / ↓меньше=лучше) и ВЕС показателя."
+    )
+    _persona = {
+        "performance": (
+            "Ты — директор по стратегии и эффективности. Разбери ИСПОЛНЕНИЕ KPI компаний:\n"
+            "- кто на цели / в риске / провалил (с числами план-факт-выполнение), с учётом веса "
+            "и направления;\n"
+            "- ключевые провалы (высокий вес × большой разрыв) и достижения;\n"
+            "- связь операционных KPI с финансовым результатом (по пометкам [фин.метрика ОФР] и "
+            "финансовому контексту): где операционные метрики отражаются в выручке/марже/прибыли.\n"
+            "Заверши ПЛАНОМ: что чинить в первую очередь и почему."
+        ),
+        "correlation": (
+            "Ты — аналитик данных / контроллер. Найди ВЗАИМОСВЯЗИ между операционными KPI и "
+            "финансовыми показателями компаний:\n"
+            "- какие KPI ДРАЙВЯТ финансовый результат (выручку, маржу, EBITDA, прибыль, ROE) — "
+            "формулируй гипотезы и подтверждай цифрами из данных;\n"
+            "- где операционные KPI ОПЕРЕЖАЮТ или ОТСТАЮТ от финансовых (лид/лаг-индикаторы);\n"
+            "- отдели корреляцию от причинности; отметь неочевидные связки между компаниями/"
+            "секторами. Опирайся на пометки [фин.метрика ОФР:key] (прямая связь KPI↔строка ОФР) "
+            "и финансовый контекст. Дай карту «KPI → финансовый эффект»."
+        ),
+        "forecast": (
+            "Ты — стратег-прогнозист. Спрогнозируй БУДУЩИЕ KPI компаний (следующий период/год):\n"
+            "1) ПРОГНОЗ КЛЮЧЕВЫХ СУЩЕСТВУЮЩИХ KPI: по трендам план-факт, финансовой траектории и "
+            "отраслевым/макро-факторам (web) — ожидаемое значение, диапазон (пессим./базовый/"
+            "оптим.), обоснование драйверов и рисков;\n"
+            "2) НОВЫЕ KPI: предложи 3-5 СОДЕРЖАТЕЛЬНЫХ показателей, которых сейчас НЕТ, но которые "
+            "стоит начать отслеживать — с чётким определением, единицей, направлением, целевым "
+            "значением и СВЯЗЬЮ с финансовым результатом, под специфику сектора/компании.\n"
+            "Опирайся на текущие KPI и финансовый контекст; используй web для отраслевых практик."
+        ),
+    }
+    system = _persona.get(mode, _persona["performance"]) + "\n" + _common_fmt
+    scope_line = f"Компания: {focus}. " if focus else f"Компаний в выборке: {len(kpi_rows)}. "
+    prompt = (
+        f"{scope_line}Год: {year}, период: {period}.\n\n"
+        "KPI-показатели компаний (план / факт / выполнение / направление / вес / связь с ОФР):\n\n"
+        f"{kpi_text}{fin_text}"
+    )
+    try:
+        text = await complete_once(
+            system=system, prompt=prompt, model="ai-deep", max_tokens=8000,
+            temperature=None, tools=[WEB_SEARCH_TOOL], timeout=200.0,
+        )
+    except Exception as e_web:  # noqa: BLE001
+        logger.warning("KPI analysis web call failed, fallback no-web: %s", e_web)
         try:
             text = await complete_once(
                 system=system, prompt=prompt, model="ai-deep", max_tokens=6000,
