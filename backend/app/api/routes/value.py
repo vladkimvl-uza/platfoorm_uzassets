@@ -77,6 +77,30 @@ async def summary(
     return await service.summary(scope_company_ids=await _scope(db, user))
 
 
+@router.post("/generate")
+async def generate_opportunities(
+    service: ValueServiceDep,
+    request: Request,
+    year: int,
+    quarter: str = "annual",
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Авто-выявление возможностей ценности из детекторов (перерасход к норме +
+    отклонения бизнес-плана). Дедуп по fingerprint — повтор не создаёт дублей."""
+    await _require(db, user, "value.edit")
+    out = await service.generate(
+        year=year, quarter=quarter,
+        user_id=user.id, user_name=_user_name(user),
+        scope_company_ids=await _scope(db, user),
+    )
+    request.state.activity_summary = (
+        f"Авто-выявление возможностей за {year}: создано {out.get('created', 0)}"
+    )
+    request.state.activity_entity = "Реестр ценности"
+    return out
+
+
 @router.post("", response_model=ValueOpportunityRead)
 async def create_opportunity(
     payload: ValueOpportunityCreate,

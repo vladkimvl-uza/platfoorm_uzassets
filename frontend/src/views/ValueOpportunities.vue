@@ -16,6 +16,13 @@ import {
   type ValueStatus, type ValueSource, type ValueKind,
 } from "@/api/valueOpportunities";
 
+const GEN_YEARS = (() => {
+  const cur = new Date().getFullYear();
+  const out: number[] = [];
+  for (let y = cur; y >= cur - 3; y--) out.push(y);
+  return out;
+})();
+
 const auth = useAuthStore();
 const toast = useToast();
 const canEdit = computed(() => auth.hasPermission("value.edit"));
@@ -125,6 +132,24 @@ async function setStatus(r: ValueOpportunity, s: ValueStatus) {
   catch { toast.error("Не удалось изменить статус"); }
 }
 
+// ─── Авто-выявление из детекторов ───
+const genYear = ref<number>(GEN_YEARS[0]);
+const generating = ref(false);
+async function generate() {
+  if (generating.value) return;
+  generating.value = true;
+  try {
+    const r = await valueApi.generate(genYear.value);
+    if (r.created > 0) toast.success(`Выявлено ${r.created} возможностей за ${r.year} (пропущено ${r.skipped_existing} уже в реестре)`);
+    else if (r.scanned > 0) toast.success(`Новых возможностей нет — все ${r.scanned} уже в реестре`);
+    else toast.success(`За ${r.year} детекторы не нашли возможностей`);
+    await load();
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { detail?: string } } };
+    toast.error(err?.response?.data?.detail || "Не удалось выявить возможности");
+  } finally { generating.value = false; }
+}
+
 // ─── Delete ───
 const deleting = ref<ValueOpportunity | null>(null);
 async function confirmDelete() {
@@ -145,10 +170,21 @@ async function confirmDelete() {
         <div class="vo-title">Реестр возможностей ценности</div>
         <div class="vo-sub">Экономия, рост и предотвращённые риски по компаниям — от выявления до реализации</div>
       </div>
-      <button v-if="canEdit" class="vo-add" @click="openCreate">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        Добавить
-      </button>
+      <div v-if="canEdit" class="vo-tb-actions">
+        <div class="vo-gen">
+          <select v-model.number="genYear" class="vo-gen-yr" :disabled="generating" aria-label="Год выявления">
+            <option v-for="y in GEN_YEARS" :key="y" :value="y">{{ y }}</option>
+          </select>
+          <button class="vo-gen-btn" :disabled="generating" @click="generate" title="Авто-выявление из «Удельной себестоимости» и «Бизнес-плана»">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v4M3 5h4M6 17v4M4 19h4M13 3l2.5 6.5L22 12l-6.5 2.5L13 21l-2.5-6.5L4 12l6.5-2.5z"/></svg>
+            {{ generating ? "Сканирую…" : "Выявить" }}
+          </button>
+        </div>
+        <button class="vo-add" @click="openCreate">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Добавить
+        </button>
+      </div>
     </div>
 
     <div class="vo-body">
@@ -328,6 +364,13 @@ async function confirmDelete() {
 .vo-eyebrow { font-size: 11px; letter-spacing: .14em; opacity: .7; font-weight: 600; }
 .vo-title { font-size: 21px; font-weight: 650; margin-top: 2px; }
 .vo-sub { font-size: 12.5px; opacity: .75; margin-top: 3px; }
+.vo-tb-actions { display: flex; align-items: center; gap: 10px; }
+.vo-gen { display: inline-flex; align-items: center; gap: 0; }
+.vo-gen-yr { height: 38px; padding: 0 8px; border: 1px solid rgba(255,255,255,.25); border-right: none; border-radius: 10px 0 0 10px; background: rgba(255,255,255,.12); color: #fff; font-size: 13px; cursor: pointer; }
+.vo-gen-yr option { color: #1E2A4A; }
+.vo-gen-btn { display: inline-flex; align-items: center; gap: 6px; height: 38px; padding: 0 14px; border: 1px solid rgba(255,255,255,.25); border-radius: 0 10px 10px 0; background: rgba(255,255,255,.12); color: #fff; font-weight: 600; font-size: 13px; cursor: pointer; }
+.vo-gen-btn:hover:not(:disabled) { background: rgba(255,255,255,.22); }
+.vo-gen-btn:disabled, .vo-gen-yr:disabled { opacity: .6; cursor: default; }
 .vo-add { display: inline-flex; align-items: center; gap: 6px; height: 38px; padding: 0 16px; border: none; border-radius: 10px; background: #fff; color: #4B3F9E; font-weight: 650; font-size: 13.5px; cursor: pointer; }
 .vo-add:hover { background: #F0EEFF; }
 

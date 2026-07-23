@@ -186,6 +186,17 @@ class ValueService:
             co = await self.uow.value.company_for(opp.company_id) if opp.company_id else None
             return _to_read(opp, co)
 
+    async def generate(
+        self, *, year: int, quarter: str = "annual",
+        user_id: UUID, user_name: str, scope_company_ids=None,
+    ) -> dict:
+        """Авто-выявление возможностей из детекторов (unit_cost + business_plan)."""
+        from app.services.value.generator import generate_value_opportunities
+        return await generate_value_opportunities(
+            self.uow, year=year, quarter=quarter,
+            user_id=user_id, user_name=user_name, scope_company_ids=scope_company_ids,
+        )
+
     async def delete(self, opp_id: UUID, *, scope_company_ids=None) -> bool:
         async with self.uow:
             opp = await self.uow.value.get(opp_id)

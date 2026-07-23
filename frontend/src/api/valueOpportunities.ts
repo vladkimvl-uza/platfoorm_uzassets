@@ -55,10 +55,17 @@ export interface ValueOpportunityInput {
   target_date?: string | null;
 }
 
+export interface ValueGenerateResult {
+  created: number; skipped_existing: number; scanned: number;
+  by_source: Record<string, number>; year: number;
+}
+
 export const valueApi = {
   list: (params?: { status?: string; source?: string; company_id?: string }) =>
     api.get<ValueOpportunity[]>("/value", { params }).then((r) => r.data),
   summary: () => api.get<ValueSummary>("/value/summary").then((r) => r.data),
+  generate: (year: number, quarter = "annual") =>
+    api.post<ValueGenerateResult>("/value/generate", null, { params: { year, quarter } }).then((r) => r.data),
   create: (body: ValueOpportunityInput) =>
     api.post<ValueOpportunity>("/value", body).then((r) => r.data),
   update: (id: string, body: Partial<ValueOpportunityInput>) =>
