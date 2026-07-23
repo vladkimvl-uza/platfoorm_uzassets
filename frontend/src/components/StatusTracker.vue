@@ -21,8 +21,10 @@ import {
   type StatusHealth,
 } from "@/api/statusUpdates";
 import { useConfirm } from "@/composables/useConfirm";
+import { useToast } from "@/composables/useToast";
 
 const { confirmDialog } = useConfirm();
+const toast = useToast();
 
 const props = defineProps<{
   entityType: "project" | "task";
@@ -153,8 +155,10 @@ async function save() {
     draftText.value = "";
     try { localStorage.removeItem(`uz_status_draft_${props.entityType}_${props.entityId}`); } catch { /* ignore */ }
     setTimeout(() => { justAddedId.value = null; }, 1600);
-  } catch (e) {
-    /* оставляем композер открытым, бэкап цел */
+  } catch {
+    // P1 аудита (тихие сбои): не молчать — раньше сбой был неотличим от успеха.
+    // Композер и localStorage-бэкап целы, юзер может повторить.
+    toast.error("Не удалось сохранить статус — попробуйте ещё раз (черновик сохранён)");
   } finally { saving.value = false; }
 }
 
@@ -166,7 +170,7 @@ async function removeEntry(e: StatusUpdate) {
   try {
     await statusUpdatesApi.remove(e.id);
     entries.value = entries.value.filter((x) => x.id !== e.id);
-  } catch { /* ignore */ }
+  } catch { toast.error("Не удалось удалить запись статуса"); }
 }
 
 function fmtDateFull(iso: string): string {

@@ -324,7 +324,12 @@ async function saveAnalysis(): Promise<void> {
   try {
     const { api } = await import("@/api/client");
     await api.put(`/ai/saved/hlf/${anScenario.value}`, { payload });
-  } catch { /* кэш в памяти уже обновлён — игнор сетевой ошибки */ }
+  } catch {
+    // P1 аудита (тихие сбои): в памяти обновлено, но на сервере НЕ сохранено —
+    // после reload анализ исчезнет. Тост (не anError: он в шаблоне перекрыл бы
+    // сам анализ, т.к. v-else-if anError идёт раньше anHtml).
+    toast.error("Анализ не сохранён на сервере — при обновлении страницы он исчезнет. Повторите.");
+  }
 }
 async function openAnalysis() {
   anOpen.value = true;
