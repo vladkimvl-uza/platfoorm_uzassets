@@ -286,6 +286,36 @@ export interface ExecHealthBlock {
   requested_year?: number | null;
 }
 
+// ─── Прогноз KPI (детерминированный движок core/forecast) ───
+export interface ExecKpiForecastCompany {
+  company_id: string;
+  name: string;
+  sector_color?: string | null;
+  current?: number | null;
+  forecast?: number | null;
+  low?: number | null;
+  high?: number | null;
+  delta?: number | null;
+  method: string;
+  confidence: string;
+  forecast_year?: number | null;
+}
+export interface ExecKpiForecastBlock {
+  year: number;
+  forecast_year: number;
+  has_data: boolean;
+  avg_forecast?: number | null;
+  avg_current?: number | null;
+  improving: number;
+  declining: number;
+  at_risk: number;
+  scored_count: number;
+  total_companies: number;
+  companies: ExecKpiForecastCompany[];
+  risks: ExecKpiForecastCompany[];
+  leaders: ExecKpiForecastCompany[];
+}
+
 // ─── Top-level payload ───
 export interface ExecutiveDashboardData {
   year: number;
@@ -316,6 +346,9 @@ export interface ExecutiveDashboardData {
 
   // Row 2.8 — Здоровье портфеля
   health: ExecHealthBlock | null;
+
+  // Row 2.9 — Прогноз KPI
+  kpi_forecast: ExecKpiForecastBlock | null;
 
   available_years: number[];
   available_sectors: ExecAvailableSector[];

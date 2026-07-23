@@ -20,6 +20,7 @@ import ExecDashFinanceBlock from "@/components/ExecDash/ExecDashFinanceBlock.vue
 import ExecDashBPTrackerBlock from "@/components/ExecDash/ExecDashBPTrackerBlock.vue";
 import ExecDashProductionBlock from "@/components/ExecDash/ExecDashProductionBlock.vue";
 import ExecDashKpiBlock from "@/components/ExecDash/ExecDashKpiBlock.vue";
+import ExecDashKpiForecastBlock from "@/components/ExecDash/ExecDashKpiForecastBlock.vue";
 import ExecDashTaxContributionBlock from "@/components/ExecDash/ExecDashTaxContributionBlock.vue";
 import ExecDashHealthBlock from "@/components/ExecDash/ExecDashHealthBlock.vue";
 import ExecDashDirectionsBlock from "@/components/ExecDash/ExecDashDirectionsBlock.vue";
@@ -111,6 +112,9 @@ useAiPageContext({
 
         <!-- Row 2.65: Общее выполнение KPI (срез из модуля KPI) -->
         <ExecDashKpiBlock v-reveal="0" />
+
+        <!-- Row 2.66: Прогноз KPI (детерминированный движок core/forecast) -->
+        <ExecDashKpiForecastBlock v-reveal="0" />
 
         <!-- Row 2.7: Налоговый вклад (Pack 5) -->
         <ExecDashTaxContributionBlock v-reveal="0" />

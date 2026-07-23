@@ -380,6 +380,36 @@ class ExecHealthBlock(BaseModel):
     requested_year: Optional[int] = None   # year-fallback: исходно выбранный год
 
 
+class ExecKpiForecastCompany(BaseModel):
+    company_id: str
+    name: str
+    sector_color: Optional[str] = None
+    current: Optional[float] = None       # текущее сводное выполнение %
+    forecast: Optional[float] = None      # прогноз на ближайший будущий год %
+    low: Optional[float] = None
+    high: Optional[float] = None
+    delta: Optional[float] = None         # forecast − current
+    method: str = "none"
+    confidence: str = "none"
+    forecast_year: Optional[int] = None
+
+
+class ExecKpiForecastBlock(BaseModel):
+    year: int
+    forecast_year: int                    # ближайший будущий год прогноза
+    has_data: bool = False
+    avg_forecast: Optional[float] = None  # средний прогноз выполнения по портфелю
+    avg_current: Optional[float] = None
+    improving: int = 0
+    declining: int = 0
+    at_risk: int = 0                      # прогноз < 75%
+    scored_count: int = 0                 # компаний с прогнозом
+    total_companies: int = 0
+    companies: list[ExecKpiForecastCompany] = []   # все (для графика)
+    risks: list[ExecKpiForecastCompany] = []       # тянут вниз (внимание министра)
+    leaders: list[ExecKpiForecastCompany] = []
+
+
 # ─────────────────────────── Top-level payload ──────────────────────
 
 class ExecutiveDashboardData(BaseModel):
@@ -415,6 +445,9 @@ class ExecutiveDashboardData(BaseModel):
 
     # Row 2.8 — Здоровье портфеля (SOE Health Check · RAG)
     health: Optional[ExecHealthBlock] = None
+
+    # Row 2.9 — Прогноз KPI (детерминированный движок core/forecast)
+    kpi_forecast: Optional[ExecKpiForecastBlock] = None
 
     # Filters state
     available_years: List[int]

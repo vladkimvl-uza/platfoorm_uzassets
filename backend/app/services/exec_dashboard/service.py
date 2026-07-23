@@ -245,6 +245,19 @@ class ExecDashboardService:
             except Exception as e:
                 log.warning("[exec_dashboard] health block failed: %s", e)
 
+            # Row 2.9 — Прогноз KPI (детерминированный движок core/forecast).
+            # Изолируем: падение блока не валит весь дашборд.
+            kpi_forecast_out = None
+            try:
+                from app.services.exec_dashboard.blocks_kpi_forecast import (
+                    build_kpi_forecast_block,
+                )
+                kpi_forecast_out = await build_kpi_forecast_block(
+                    session, year, scope_ids=scope_company_ids,
+                )
+            except Exception as e:
+                log.warning("[exec_dashboard] kpi_forecast block failed: %s", e)
+
         title_sub = f"FY {year} · REVIEW · {total_companies} КОМПАНИЙ"
         row1_subtitle = (
             f"{len(tasks)} задач · "
@@ -271,6 +284,7 @@ class ExecDashboardService:
             bp_tracker=bp_tracker_out,
             tax_contribution=tax_contribution_out,
             health=health_out,
+            kpi_forecast=kpi_forecast_out,
             available_years=available_years,
             available_sectors=available_sectors_out,
         )
