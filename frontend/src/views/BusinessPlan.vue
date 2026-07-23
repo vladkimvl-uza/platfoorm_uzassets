@@ -15,8 +15,6 @@
       <div class="bp-tb-right">
         <UzaSegment tone="dark" label="Вкладка" :options="TOPTAB_OPTS"
                     :model-value="topTab" @update:model-value="(v) => topTab = v as 'financial' | 'production'" />
-        <BpAiAnalysis :companies="state.companies.value" :year="state.selectedYear.value"
-                      :period="state.selectedPeriod.value" :selected-id="state.selectedCompanyId.value" />
         <template v-if="topTab === 'financial'">
         <!-- Единые чипы + дропдаун года (UzaSegment / UzaSelect) -->
         <UzaSegment tone="dark" label="Вид" :options="VIEW_OPTS"
@@ -42,6 +40,10 @@
           </div>
         </div>
         </template>
+        <div class="bp-tb-ai">
+          <BpAiAnalysis :companies="state.companies.value" :year="state.selectedYear.value"
+                        :period="state.selectedPeriod.value" :selected-id="state.selectedCompanyId.value" />
+        </div>
       </div>
     </div>
 
@@ -395,7 +397,9 @@ onMounted(async () => {
    нехватке места уходит на аккуратный второй ряд целиком — без «лесенки».
    sm-чипы + меньшие гэпы поднимают порог, при котором всё влезает в один ряд. */
 .bp-tb-right { display: flex; gap: 8px; align-items: center; flex-wrap: nowrap; }
-@media (max-width: 900px) { .bp-tb-right { flex-wrap: wrap; } }
+/* Кнопка «Анализ ИИ» — отдельным действием у правого края, не в ряду чипов. */
+.bp-tb-ai { margin-left: auto; flex-shrink: 0; }
+@media (max-width: 900px) { .bp-tb-right { flex-wrap: wrap; } .bp-tb-ai { margin-left: 0; } }
 
 .bp-menu-wrap { position: relative; }
 .bp-menu-btn {
