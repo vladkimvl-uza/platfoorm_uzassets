@@ -12,7 +12,11 @@
             <h2 class="kpai-title">{{ titleText }}</h2>
             <div v-if="doneAt && !loading && html" class="kpai-sub">{{ MODE_LABEL[mode] }} · FY {{ year }} · {{ doneAt }}</div>
           </div>
-          <button class="kpai-x" @click="open = false" aria-label="Закрыть">×</button>
+          <div class="kpai-hd-actions">
+            <button v-if="html && !loading" class="kpai-act" @click="copyAnswer" title="Скопировать ответ">Копировать</button>
+            <button v-if="html && !loading" class="kpai-act kpai-act-xls" @click="exportExcel" title="Выгрузить таблицы в Excel">Excel</button>
+            <button class="kpai-x" @click="open = false" aria-label="Закрыть">×</button>
+          </div>
         </header>
 
         <div class="kpai-ctrls">
@@ -52,9 +56,11 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
+import * as XLSX from "xlsx";
 import { kpiApi } from "@/api/bpKpi";
 import { kpiCompletionRatio } from "@/utils/kpiRatio";
 import { renderMarkdown } from "@/utils/renderMarkdown";
+import { extractHlfHeadline, HLF_LABELS } from "@/utils/hlfHeadline";
 import { useToast } from "@/composables/useToast";
 
 type Mode = "performance" | "correlation" | "forecast";
@@ -76,6 +82,7 @@ const open = ref(false);
 const loading = ref(false);
 const error = ref("");
 const html = ref("");
+const rawMd = ref("");   // сырой Markdown ответа — для копирования и выгрузки в Excel
 const doneAt = ref("");
 const step = ref("");
 const scope = ref<"portfolio" | "company">("portfolio");
@@ -108,9 +115,48 @@ async function fetchSaved(): Promise<void> {
 function applyMode(m: Mode): void {
   mode.value = m;
   const o = saved.value[savedKey(m)];
-  if (o?.raw) { html.value = renderMarkdown(o.raw); doneAt.value = o.doneAt || ""; }
-  else { html.value = ""; doneAt.value = ""; }
+  if (o?.raw) { rawMd.value = o.raw; html.value = renderMarkdown(o.raw); doneAt.value = o.doneAt || ""; }
+  else { rawMd.value = ""; html.value = ""; doneAt.value = ""; }
   error.value = "";
+}
+
+// Копировать ответ (Markdown) в буфер обмена.
+async function copyAnswer(): Promise<void> {
+  if (!rawMd.value) return;
+  try { await navigator.clipboard.writeText(rawMd.value); toast.success("Анализ скопирован"); }
+  catch { toast.error("Не удалось скопировать"); }
+}
+
+// Выгрузка в Excel: каждая Markdown-таблица ответа → отдельный лист + лист с
+// полным текстом. Особенно полезно для прогнозов (структурированные таблицы).
+function exportExcel(): void {
+  if (!rawMd.value) return;
+  const wb = XLSX.utils.book_new();
+  const lines = rawMd.value.replace(/\r\n/g, "\n").split("\n");
+  const tables: string[][][] = [];
+  let cur: string[][] | null = null;
+  for (const ln of lines) {
+    if (/^\s*\|.*\|\s*$/.test(ln)) {
+      if (/^\s*\|[\s:|-]+\|\s*$/.test(ln)) continue;  // разделитель |---|
+      const row = ln.trim().replace(/^\||\|$/g, "").split("|").map(c =>
+        c.trim().replace(/\*\*/g, "").replace(/`/g, ""));
+      if (!cur) { cur = []; tables.push(cur); }
+      cur.push(row);
+    } else { cur = null; }
+  }
+  let sheetN = 0;
+  for (const t of tables) {
+    if (t.length < 2) continue;
+    sheetN++;
+    const ws = XLSX.utils.aoa_to_sheet(t);
+    XLSX.utils.book_append_sheet(wb, ws, `Таблица ${sheetN}`.slice(0, 31));
+  }
+  // Полный текст ответа отдельным листом (по строкам).
+  const textWs = XLSX.utils.aoa_to_sheet(lines.map(l => [l]));
+  textWs["!cols"] = [{ wch: 120 }];
+  XLSX.utils.book_append_sheet(wb, textWs, "Полный текст");
+  const scopeName = scope.value === "company" ? (selectedCompany.value?.company_name_ru || "company") : "портфель";
+  XLSX.writeFile(wb, `KPI_${MODE_LABEL[mode.value]}_${scopeName}_${props.year}.xlsx`);
 }
 function setMode(m: Mode): void { if (!loading.value) applyMode(m); }
 function setScope(s: "portfolio" | "company"): void { if (loading.value) return; scope.value = s; applyMode(mode.value); }
@@ -176,14 +222,24 @@ async function run(): Promise<void> {
       error.value = "Нет KPI-данных за этот год. Заведите показатели в редакторе.";
       loading.value = false; return;
     }
+    step.value = "Подтягиваю финансы (HLF) для связки KPI↔финансы…";
+    const fin_rows = (await Promise.all(cos.map(async (co) => {
+      if (!co.company_code) return null;
+      try {
+        const r = await api.get(`/financials/companies/${co.company_code}/hlf`);
+        const ext = extractHlfHeadline(r.data?.hlf || null);
+        return ext ? { code: co.company_code, name: co.company_name_ru, kpis: ext.kpis } : null;
+      } catch { return null; }
+    }))).filter((r): r is NonNullable<typeof r> => r != null);
     step.value = "ИИ анализирует KPI и связь с финансами…";
     const resp = await api.post("/ai/kpi-analysis", {
       year: props.year, period: props.period, mode: mode.value,
       focus: single ? single.company_name_ru : null,
-      kpi_rows,
+      kpi_rows, fin_rows, fin_labels: HLF_LABELS,
     }, { timeout: 235000 });
     const raw = (resp.data?.analysis || "") as string;
     if (!raw) { error.value = "ИИ вернул пустой ответ."; loading.value = false; return; }
+    rawMd.value = raw;
     html.value = renderMarkdown(raw);
     doneAt.value = new Date().toLocaleString("ru-RU");
     await saveResult(raw);
@@ -226,6 +282,14 @@ async function run(): Promise<void> {
 .kpai-eyebrow { font-size: 11px; letter-spacing: .14em; color: #7C6FF7; font-weight: 700; }
 .kpai-title { margin: 4px 0 0; font-size: 21px; font-weight: 650; color: var(--ink, #1A1A26); }
 .kpai-sub { margin-top: 5px; font-size: 12.5px; color: #8A90A0; }
+.kpai-hd-actions { display: flex; align-items: center; gap: 8px; }
+.kpai-act {
+  height: 30px; padding: 0 12px; border: 1px solid var(--line, #ECECF3); border-radius: 8px;
+  background: #fff; cursor: pointer; font-size: 12.5px; font-weight: 600; color: #5A6172;
+}
+.kpai-act:hover { border-color: #7C6FF7; color: #6355E0; }
+.kpai-act-xls { color: #1D7C4D; border-color: #C7E6D5; }
+.kpai-act-xls:hover { border-color: #1D9E75; color: #157A48; }
 .kpai-x {
   border: none; background: transparent; font-size: 24px; line-height: 1; color: #9AA3B2;
   cursor: pointer; padding: 0 4px;
