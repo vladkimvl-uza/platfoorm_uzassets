@@ -356,8 +356,15 @@ async function openAnalysis() {
 function latestDataYearIdx(hlf: HlfData): number {
   const rows = hlf.sections.flatMap(s => s.rows);
   const rev = matchRow(rows, "revenue") || matchRow(rows, "net_profit") || matchRow(rows, "total_assets");
+  // ВАЖНО: возвращаем индекс в ГЛОБАЛЬНОМ hlf.years (buildKpis индексирует свои
+  // values именно по нему через rowValueForYear), а НЕ позицию в row.values.
+  // Прежний код брал позицию в rev.values: у ряда с малым числом лет (напр.
+  // только 2024 → values длиной 1) возвращал 0, а buildKpis[0] = hlf.years[0] =
+  // старейший год (2021, обычно пусто) → все KPI null → «Нет данных для анализа».
   if (rev) {
-    for (let k = rev.values.length - 1; k >= 0; k--) if (rev.values[k] != null) return k;
+    for (let yi = hlf.years.length - 1; yi >= 0; yi--) {
+      if (rowValueForYear(rev, hlf.years[yi]) != null) return yi;
+    }
   }
   return Math.max(0, hlf.years.length - 1);
 }
