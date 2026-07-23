@@ -36,7 +36,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_user, get_db
 from app.core.access import allowed_company_ids, ensure_company_access, has_unrestricted_view
 from app.core.security import has_effective_permission
-from app.dependencies.kpi import KpiEditorServiceDep, KpiQueryServiceDep
+from app.dependencies.kpi import (
+    KpiEditorServiceDep,
+    KpiForecastServiceDep,
+    KpiQueryServiceDep,
+)
 from app.models.user import User
 from app.schemas.bp_kpi import (
     BpAvailableCompany,
@@ -47,6 +51,7 @@ from app.schemas.bp_kpi import (
     KpiManagerRead,
     KpiSummary,
 )
+from app.schemas.kpi_forecast import CompanyForecast
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/kpi", tags=["kpi"])
@@ -176,6 +181,28 @@ async def delete_year(
     await _require(db, user, "kpi.delete")
     await ensure_company_access(db, user, company_id)
     await service.delete_year(company_id, year)
+
+
+# ─── Прогноз KPI (детерминированный движок + грудинг ИИ) ──────────
+
+@router.get("/{company_id}/forecast/{base_year}", response_model=CompanyForecast)
+async def forecast_company(
+    company_id: UUID,
+    base_year: int,
+    service: KpiForecastServiceDep,
+    horizon: int = 2,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Прогноз KPI компании: по кварталам текущего года + на будущие годы.
+
+    Детерминированный движок (core/forecast): pace-adjusted план по кварталам,
+    OLS/CAGR-тренд на годы, коридор надёжности. Числа воспроизводимы; ИИ-слой
+    (/ai/kpi-analysis mode=forecast) получает их как опору. 3-сегментный путь —
+    чтобы не коллидировать с `/{company_id}/{year}`."""
+    await _require(db, user, "kpi.view")
+    await ensure_company_access(db, user, company_id)
+    return await service.forecast_company(company_id, base_year, horizon)
 
 
 # ─── Portfolio summary ────────────────────────────────────────────

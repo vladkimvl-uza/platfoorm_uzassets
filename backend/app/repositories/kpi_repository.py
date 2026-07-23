@@ -76,6 +76,34 @@ class KpiRepository:
         )
         return list(res.scalars().all())
 
+    async def years_for_company(self, company_id: UUID) -> list[int]:
+        """Отсортированные годы, за которые у компании заведены KPI (для рядов прогноза)."""
+        res = await self.session.execute(
+            select(KpiManager.year)
+            .where(KpiManager.company_id == company_id)
+            .distinct()
+            .order_by(KpiManager.year)
+        )
+        return [int(y) for (y,) in res.all()]
+
+    async def get_managers_for_years(
+        self, company_id: UUID, years: Sequence[int],
+    ) -> list[KpiManager]:
+        """Дерево руководителей+индикаторов компании за НЕСКОЛЬКО лет одним запросом
+        (для построения годовых рядов прогноза без N+1). Company+sector pre-loaded."""
+        if not years:
+            return []
+        res = await self.session.execute(
+            select(KpiManager)
+            .where(KpiManager.company_id == company_id, KpiManager.year.in_(list(years)))
+            .options(
+                selectinload(KpiManager.indicators),
+                selectinload(KpiManager.company).selectinload(Company.sector),
+            )
+            .order_by(KpiManager.year, KpiManager.sort_order)
+        )
+        return list(res.scalars().all())
+
     async def get_summary_managers(
         self, year: int, scope_company_ids: Optional[set[UUID]] = None,
     ) -> list[KpiManager]:
@@ -127,6 +155,14 @@ class KpiRepository:
         self.session.add(indicator)
 
     # ─── Company lookup для template loading ──────────────────────
+
+    async def get_company(self, company_id: UUID) -> Optional[Company]:
+        res = await self.session.execute(
+            select(Company)
+            .options(selectinload(Company.sector))
+            .where(Company.id == company_id)
+        )
+        return res.scalar_one_or_none()
 
     async def get_company_by_code(self, code: str) -> Optional[Company]:
         res = await self.session.execute(
