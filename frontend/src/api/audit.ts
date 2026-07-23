@@ -142,8 +142,10 @@ export interface AuditActivityModule {
 export interface AuditActivityRecent {
   desc: string; action: string; module: string | null; label: string | null;
   where?: string | null;   // конкретный раздел («Финансы · НСБУ»)
-  entity?: string | null;  // затронутая запись
+  entity?: string | null;  // ЦЕЛЬ: компания/запись (+год/период), напр. «НГМК · 2022»
   detail?: string | null;  // таблица + поля (для изменений)
+  notes?: string | null;   // примечание события (напр. «сессии отозваны»)
+  ip?: string | null;      // IP-адрес действия
   at: string; last_at: string; count: number; type: string;
 }
 export interface AuditCompanyRow {

@@ -511,6 +511,11 @@ function fmtClock(s: string): string {
 function fmtDay(s: string): string {
   return new Date(s).toLocaleDateString("ru", { day: "2-digit", month: "short" });
 }
+function fmtExact(s: string): string {
+  return new Date(s).toLocaleString("ru", {
+    day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", second: "2-digit",
+  });
+}
 function userBars(u: AuditUserRow) {
   const max = Math.max(1, u.changes, u.views, u.logins, u.deletions);
   return [
@@ -910,12 +915,15 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
                 <div v-for="(r, i) in activity.recent" :key="i" class="aud-ev aud-ev-flat">
                   <span class="aud-ev-dot" :style="{ background: TYPE_DOT[r.type] || '#94A3B8' }" />
                   <div class="aud-ev-main">
-                    <div class="aud-ev-line">{{ r.desc }}<span v-if="r.count > 1" class="aud-ev-x">×{{ r.count }}</span></div>
+                    <div class="aud-ev-line">{{ r.desc }}<span v-if="r.entity" class="aud-ev-target"> · {{ r.entity }}</span><span v-if="r.count > 1" class="aud-ev-x">×{{ r.count }}</span></div>
                     <!-- «что именно» — таблица + поля для изменений (до мелочей) -->
                     <div v-if="r.detail" class="aud-ev-detail">{{ r.detail }}</div>
+                    <div v-else-if="r.notes" class="aud-ev-detail">{{ r.notes }}</div>
                     <div class="aud-ev-meta">
                       <span v-if="r.where" class="aud-ev-where">{{ r.where }}</span>
-                      <span v-if="r.where"> · </span>{{ fmtRelative(r.last_at) }}
+                      <span v-if="r.where"> · </span>
+                      <span :title="fmtExact(r.last_at)">{{ fmtRelative(r.last_at) }}</span>
+                      <span v-if="r.ip" class="aud-ev-ip"> · {{ r.ip }}</span>
                     </div>
                   </div>
                 </div>
@@ -1111,6 +1119,8 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
 }
 .aud-ev-meta { font-size: 11.5px; color: #9AA3B2; margin-top: 3px; }
 .aud-ev-where { color: #7C6FF7; font-weight: 600; }
+.aud-ev-target { color: #0F6E56; font-weight: 600; }
+.aud-ev-ip { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; color: #B4BAC6; font-variant-numeric: tabular-nums; }
 
 .aud-modules { display: flex; flex-direction: column; gap: 4px; }
 .aud-mrow { display: grid; grid-template-columns: 160px 1fr 70px; align-items: center; gap: 12px; padding: 9px 10px; border-radius: 9px; }

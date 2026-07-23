@@ -802,6 +802,45 @@ def _type_of(action: str) -> str:
     return "other"
 
 
+# ─── Резолв ЦЕЛИ действия из http_path (какая компания/запись/период) ──────
+# Чтобы лента «Последние действия» показывала «просмотр: Финансы · НГМК · 2022»,
+# а не просто «просмотр: Финансы». Цель зашита в URL: код компании
+# (/financials/companies/ngmk/...) или UUID (/kpi/{uuid}/2022, /bp/{uuid}/...).
+_UUID_RE = re.compile(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
+_CODE_RE = re.compile(r"/compan(?:y|ies)/([a-z][a-z0-9_]*)")
+_YEAR_RE = re.compile(r"/((?:19|20)\d{2})(?:/(annual|q[1-4]|h[12]|9m|n9m))?")
+_PERIOD_LBL = {"annual": "год", "q1": "I кв", "q2": "II кв", "q3": "III кв", "q4": "IV кв",
+               "h1": "I пол", "h2": "II пол", "9m": "9 мес", "n9m": "9 мес"}
+
+
+def _path_refs(path: str | None) -> tuple[set[str], set[str]]:
+    if not path:
+        return set(), set()
+    return ({m.lower() for m in _CODE_RE.findall(path)},
+            {u.lower() for u in _UUID_RE.findall(path)})
+
+
+def _resolve_target(path: str | None, code2name: dict[str, str], id2name: dict[str, str]) -> str | None:
+    """Человеко-читаемая цель из http_path: имя компании (+ год/период) или None."""
+    if not path:
+        return None
+    name = None
+    m = _CODE_RE.search(path)
+    if m:
+        name = code2name.get(m.group(1).lower())
+    if not name:
+        um = _UUID_RE.search(path)
+        if um:
+            name = id2name.get(um.group(0).lower())
+    if not name:
+        return None
+    ym = _YEAR_RE.search(path)
+    if ym:
+        per = _PERIOD_LBL.get((ym.group(2) or "").lower())
+        return f"{name} · {ym.group(1)}{(' ' + per) if per else ''}"
+    return name
+
+
 async def aggregate_user_activity(
     db: AsyncSession,
     *,
@@ -877,30 +916,58 @@ async def aggregate_user_activity(
         key=lambda x: (-x["seconds"], -x["count"]),
     )
 
-    # схлопнутая лента последних действий (повтор desc+раздел → count).
-    # Теперь несём конкретный раздел (where) и — для изменений — «в какой
-    # таблице что именно» (detail): пользователь просил больше подробностей.
+    # ЦЕЛЬ действия (какая компания/запись/период) — резолвим из http_path, чтобы
+    # лента показывала «просмотр: Финансы · НГМК · 2022», а не просто «Финансы».
+    all_codes: set[str] = set()
+    all_ids: set[str] = set()
+    for r in rows:
+        c, u = _path_refs(r.http_path)
+        all_codes |= c
+        all_ids |= u
+    code2name: dict[str, str] = {}
+    id2name: dict[str, str] = {}
+    if all_codes or all_ids:
+        from app.models.company import Company as _Co
+        conds = []
+        if all_codes:
+            conds.append(func.lower(_Co.code).in_(all_codes))
+        if all_ids:
+            conds.append(_Co.id.in_(all_ids))
+        for cid, code, ns, nr in (await db.execute(
+            select(_Co.id, _Co.code, _Co.name_short, _Co.name_ru).where(or_(*conds))
+        )).all():
+            nm = ns or nr or code
+            if code:
+                code2name[code.lower()] = nm
+            id2name[str(cid).lower()] = nm
+
+    # схлопнутая лента последних действий (повтор desc+раздел+ЦЕЛЬ → count).
+    # Несём: конкретный раздел (where), цель (entity: компания/запись+год/период),
+    # «в какой таблице что именно» (detail для изменений), IP — все подробности.
     recent: list[dict[str, Any]] = []
     for r in reversed(rows):
         mod = r.module or _module_from_path_safe(r.http_path)
         desc = _humanize(r.action, mod, r.entity_label, r.notes, r.http_path)
         where = (_section_from_path(r.http_path) or MODULE_LABELS.get(mod or "", None)
                  or _section_from_action(r.action))
+        target = r.entity_label or _resolve_target(r.http_path, code2name, id2name)
         # «в какой таблице что именно» — только для изменений/удалений (не для просмотров)
         detail = (_change_where(mod, r.entity_type, r.entity_label, r.diff, r.http_path)
                   if _type_of(r.action) in ("changes", "deletions") else None)
-        # ключ схлопывания включает where+detail → не сливаем разные разделы/правки
+        ip = str(r.ip_address) if r.ip_address else None
+        # ключ схлопывания: desc+where+ЦЕЛЬ+detail → не сливаем разные компании/правки
         if (recent and recent[-1]["desc"] == desc and recent[-1]["where"] == where
-                and recent[-1]["detail"] == detail):
+                and recent[-1]["entity"] == target and recent[-1]["detail"] == detail):
             recent[-1]["count"] += 1
         else:
             recent.append({
                 "desc": desc, "action": r.action,
                 "module": mod, "label": MODULE_LABELS.get(mod or "", mod),
                 "where": where,                    # конкретный раздел
-                "entity": r.entity_label or None,  # затронутая запись
+                "entity": target,                  # ЦЕЛЬ: компания/запись (+год/период)
                 "detail": detail,                  # таблица + поля (для изменений)
                 "notes": (r.notes or None),
+                "ip": ip,                          # IP-адрес действия
                 "at": r.created_at, "last_at": r.created_at, "count": 1,
                 "type": _type_of(r.action),
             })
