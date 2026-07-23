@@ -15,6 +15,8 @@
       <div class="bp-tb-right">
         <UzaSegment tone="dark" label="Вкладка" :options="TOPTAB_OPTS"
                     :model-value="topTab" @update:model-value="(v) => topTab = v as 'financial' | 'production'" />
+        <BpAiAnalysis :companies="state.companies.value" :year="state.selectedYear.value"
+                      :period="state.selectedPeriod.value" :selected-id="state.selectedCompanyId.value" />
         <template v-if="topTab === 'financial'">
         <!-- Единые чипы + дропдаун года (UzaSegment / UzaSelect) -->
         <UzaSegment tone="dark" label="Вид" :options="VIEW_OPTS"
@@ -177,6 +179,7 @@ import UzaYearStepper from "@/components/UZA/UzaYearStepper.vue";
 import BpProductionDashboard from "@/components/BusinessPlan/BpProductionDashboard.vue";
 import ProductionDrillModal from "@/components/BusinessPlan/ProductionDrillModal.vue";
 import ProductionEditModal from "@/components/BusinessPlan/ProductionEditModal.vue";
+import BpAiAnalysis from "@/components/BusinessPlan/BpAiAnalysis.vue";
 import type { ProdCompany } from "@/api/production";
 import { usePermissions } from "@/composables/usePermissions";
 import { useAuthStore } from "@/stores/auth";

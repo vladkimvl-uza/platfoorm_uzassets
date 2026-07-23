@@ -189,6 +189,19 @@ export interface BpComment {
   updated_at: string;
 }
 
+// ─── Прогноз БП (детерминированный движок core/forecast) ───────────
+// Использует ForecastBlock/ForecastSeriesPoint, объявленные ниже (KPI-секция).
+export interface BpMetricForecast {
+  key: string; label: string; unit: string | null; direction: string;
+  plan: number | null; expect: number | null; fact: number | null;
+  annual: ForecastBlock; history: ForecastSeriesPoint[];
+}
+export interface BpCompanyForecast {
+  company_id: string; company_code: string | null; company_name: string;
+  base_year: number; horizon: number; future_years: number[];
+  metrics: BpMetricForecast[]; note: string;
+}
+
 // ─── KPI Types ─────────────────────────────────────────────────────
 
 export type KpiPeriod = "year" | "q1" | "q2" | "q3" | "q4";
@@ -414,6 +427,14 @@ export const bpApi = {
 
   async getComputed(companyId: string, year: number, period: BpPeriod): Promise<BpComputed> {
     const { data } = await api.get<BpComputed>(`/bp/${companyId}/${year}/${period}`);
+    return data;
+  },
+
+  /** Детерминированный прогноз финансовых метрик БП (годы + кварталы). */
+  async getForecast(companyId: string, baseYear: number, horizon = 2): Promise<BpCompanyForecast> {
+    const { data } = await api.get<BpCompanyForecast>(
+      `/bp/forecast/${companyId}/${baseYear}`, { params: { horizon } },
+    );
     return data;
   },
 
