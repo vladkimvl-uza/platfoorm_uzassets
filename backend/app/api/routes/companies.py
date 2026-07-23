@@ -302,15 +302,11 @@ async def create_company(
                 "Scoped users cannot create new companies. Contact an administrator.",
             )
 
-    detail, grp_code = await service.create_company(payload)
-
-    await append_audit_entry(
-        db, actor_id=str(user.id), actor_email=user.email,
-        action="companies.create",
-        entity_type="company", entity_id=str(detail.id),
-        notes=f"code={detail.code}, name_ru={detail.name_ru!r}, group={grp_code}",
+    # Домен + аудит теперь атомарны внутри сервиса (одна UoW-транзакция);
+    # роут больше не пишет аудит на отдельной сессии.
+    detail, _grp = await service.create_company(
+        payload, actor_id=str(user.id), actor_email=user.email,
     )
-    await db.commit()
     return detail
 
 
@@ -331,17 +327,10 @@ async def update_company(
             or await has_effective_permission(db, user, "admin.users")):
         raise HTTPException(403, "Permission required: companies.edit")
 
-    detail, changes = await service.update_company(
+    detail, _changes = await service.update_company(
         code, payload, scope_company_ids=await _scope(db, user),
+        actor_id=str(user.id), actor_email=user.email,
     )
-    if changes:
-        await append_audit_entry(
-            db, actor_id=str(user.id), actor_email=user.email,
-            action="companies.update",
-            entity_type="company", entity_id=str(detail.id),
-            notes=", ".join(changes)[:500],
-        )
-        await db.commit()
     return detail
 
 
@@ -359,25 +348,11 @@ async def delete_company(
             or await has_effective_permission(db, user, "admin.users")):
         raise HTTPException(403, "Permission required: companies.delete or admin.users")
 
-    co, label = await service.delete_company(
+    await service.delete_company(
         code, cascade=cascade, actor_is_owner=user.is_owner,
         scope_company_ids=await _scope(db, user),
+        actor_id=str(user.id), actor_email=user.email,
     )
-    if cascade:
-        await append_audit_entry(
-            db, actor_id=str(user.id), actor_email=user.email,
-            action="companies.delete_cascade",
-            entity_type="company", entity_id=str(co.id),
-            notes=f"HARD DELETE {label} + all dependents",
-        )
-    else:
-        await append_audit_entry(
-            db, actor_id=str(user.id), actor_email=user.email,
-            action="companies.deactivate",
-            entity_type="company", entity_id=str(co.id),
-            notes=f"soft-deactivated {label}",
-        )
-    await db.commit()
 
 
 @router.delete("/{code}/financials", status_code=204)
@@ -393,17 +368,11 @@ async def delete_company_financials(
     if not (user.is_owner or await has_effective_permission(db, user, "financials.edit")):
         raise HTTPException(403, "Permission required: financials.edit")
 
-    co_id, deleted = await service.delete_company_financials(
+    await service.delete_company_financials(
         code, standard=standard, year=year,
         scope_company_ids=await _scope(db, user),
+        actor_id=str(user.id), actor_email=user.email,
     )
-    await append_audit_entry(
-        db, actor_id=str(user.id), actor_email=user.email,
-        action="financials.delete_bulk",
-        entity_type="company", entity_id=str(co_id),
-        notes=f"company={code}, standard={standard or 'all'}, year={year or 'all'}, deleted={deleted}",
-    )
-    await db.commit()
 
 
 # ─── Sectors ──────────────────────────────────────────────────────

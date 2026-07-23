@@ -6,6 +6,8 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+
     from app.repositories.admin_broadcasts_repository import AdminBroadcastsRepository
     from app.repositories.ai_repository import AiRepository
     from app.repositories.api_catalog_repository import ApiCatalogRepository
@@ -98,4 +100,11 @@ class UnitOfWorkABC(ABC):
         """Push pending changes to DB without committing the transaction.
         Нужно когда service хочет получить auto-generated id'шку (RETURNING)
         перед side-effect'ом, но без финальной фиксации транзакции."""
+        raise NotImplementedError()
+
+    @property
+    def session(self) -> "AsyncSession":
+        """Raw session для сквозной инфры (аудит-цепочка), пишущей В ТОЙ ЖЕ
+        транзакции, что и домен. Не-абстрактный: конкретный UoW переопределяет,
+        Fake может не реализовывать, пока тест это не задействует."""
         raise NotImplementedError()

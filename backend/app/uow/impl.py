@@ -118,3 +118,12 @@ class UnitOfWork(UnitOfWorkABC):
         if self._session is None:
             raise RuntimeError("Session not initialised; use as `async with`")
         await self._session.flush()
+
+    @property
+    def session(self) -> AsyncSession:
+        """Raw session — для сквозной инфраструктуры (HMAC-цепочка аудита),
+        которой нужно писать В ТОЙ ЖЕ транзакции, что и доменная мутация
+        (иначе домен и аудит расщепляются на две сессии/транзакции)."""
+        if self._session is None:
+            raise RuntimeError("Session not initialised; use as `async with`")
+        return self._session

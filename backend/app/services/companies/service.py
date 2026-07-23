@@ -8,6 +8,7 @@ from uuid import UUID
 from fastapi import HTTPException
 from fastapi import status as http_status
 
+from app.core.audit_chain import append_audit_entry
 from app.models.board import Board
 from app.models.company import Company, Sector
 from app.models.user import Group
@@ -196,8 +197,12 @@ class CompaniesService:
     async def create_company(
         self,
         payload: CompanyCreatePayload,
+        *,
+        actor_id: str,
+        actor_email: str,
     ) -> tuple[CompanyDetail, str]:
-        """Returns (detail, group_code) — caller uses group_code for audit notes."""
+        """Атомарно создаёт компанию + пишет аудит В ТОЙ ЖЕ UoW-транзакции
+        (домен и аудит больше не расщеплены на две сессии/транзакции)."""
         async with self.uow:
             dup = await self.uow.companies.get_by_code_lite(payload.code)
             if dup:
@@ -249,6 +254,17 @@ class CompaniesService:
             await self.uow.companies.flush()
             await self.uow.companies.refresh(co)
 
+            # Аудит В ТОЙ ЖЕ транзакции: домен+аудит коммитятся вместе на __aexit__
+            # (раньше аудит писался на отдельной route-сессии после коммита домена
+            # → при сбое аудита компания оставалась без записи в журнале).
+            await append_audit_entry(
+                self.uow.session,
+                actor_id=actor_id, actor_email=actor_email,
+                action="companies.create",
+                entity_type="company", entity_id=str(co.id),
+                notes=f"code={co.code}, name_ru={co.name_ru!r}, group={grp_code}",
+            )
+
             # Re-fetch with sector eager-loaded for the response
             co_full = await self.uow.companies.get_by_code(co.code)
             assert co_full is not None
@@ -260,8 +276,11 @@ class CompaniesService:
         payload: CompanyUpdatePayload,
         *,
         scope_company_ids: Optional[Sequence[UUID]],
+        actor_id: str,
+        actor_email: str,
     ) -> tuple[CompanyDetail, list[str]]:
-        """Returns (detail, changes_list) — caller uses changes for audit notes."""
+        """Атомарно обновляет компанию + пишет аудит (при наличии изменений)
+        В ТОЙ ЖЕ UoW-транзакции. Returns (detail, changes_list)."""
         # Pre-clean payload
         if payload.name_ru is not None:
             nru = payload.name_ru.strip()
@@ -321,6 +340,14 @@ class CompaniesService:
 
             await self.uow.companies.flush()
             await self.uow.companies.refresh(co)
+            if changes:
+                await append_audit_entry(
+                    self.uow.session,
+                    actor_id=actor_id, actor_email=actor_email,
+                    action="companies.update",
+                    entity_type="company", entity_id=str(co.id),
+                    notes=", ".join(changes)[:500],
+                )
             co_full = await self.uow.companies.get_by_code(co.code)
             assert co_full is not None
             return _company_to_detail(co_full), changes
@@ -332,8 +359,12 @@ class CompaniesService:
         cascade: bool,
         actor_is_owner: bool,
         scope_company_ids: Optional[Sequence[UUID]],
+        actor_id: str,
+        actor_email: str,
     ) -> tuple[Company, str]:
-        """Returns (deleted_co_snapshot, audit_label)."""
+        """Атомарно удаляет/деактивирует компанию + пишет аудит В ТОЙ ЖЕ
+        транзакции (атомарность снимает гочу «фантомный удалён»: при сбое
+        откатывается и домен, и аудит). Returns (deleted_co_snapshot, audit_label)."""
         async with self.uow:
             co = await self.uow.companies.get_by_code_lite(code)
             if not co:
@@ -359,10 +390,24 @@ class CompaniesService:
                 snapshot_co.name_ru = co.name_ru
                 await self.uow.companies.delete(co)
                 await self.uow.companies.flush()
+                await append_audit_entry(
+                    self.uow.session,
+                    actor_id=actor_id, actor_email=actor_email,
+                    action="companies.delete_cascade",
+                    entity_type="company", entity_id=str(snapshot_co.id),
+                    notes=f"HARD DELETE {co_label} + all dependents",
+                )
                 return snapshot_co, co_label
             else:
                 co.is_active = False
                 await self.uow.companies.flush()
+                await append_audit_entry(
+                    self.uow.session,
+                    actor_id=actor_id, actor_email=actor_email,
+                    action="companies.deactivate",
+                    entity_type="company", entity_id=str(co.id),
+                    notes=f"soft-deactivated {co.code}",
+                )
                 return co, co.code
 
     async def delete_company_financials(
@@ -372,8 +417,11 @@ class CompaniesService:
         standard: Optional[str],
         year: Optional[int],
         scope_company_ids: Optional[Sequence[UUID]],
+        actor_id: str,
+        actor_email: str,
     ) -> tuple[UUID, int]:
-        """Returns (company_id, deleted_count) for audit logging."""
+        """Атомарно удаляет фин-отчёты + пишет аудит В ТОЙ ЖЕ транзакции.
+        Returns (company_id, deleted_count)."""
         async with self.uow:
             co = await self.uow.companies.get_by_code_lite(code)
             if not co:
@@ -389,6 +437,13 @@ class CompaniesService:
             for r in reports:
                 await self.uow.companies.delete(r)
             await self.uow.companies.flush()
+            await append_audit_entry(
+                self.uow.session,
+                actor_id=actor_id, actor_email=actor_email,
+                action="financials.delete_bulk",
+                entity_type="company", entity_id=str(co.id),
+                notes=f"company={code}, standard={standard or 'all'}, year={year or 'all'}, deleted={deleted}",
+            )
             return co.id, deleted
 
 
