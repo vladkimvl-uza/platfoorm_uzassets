@@ -99,7 +99,7 @@ const OWN_TOPBAR_PREFIXES = [
   "/soe-health", "/unit-cost",
   "/credit-portfolio", "/invest-projects", "/admin/rbac",
   "/esg", "/kpi", "/ratings", "/governance", "/consultants",
-  "/business-plan", "/procurement", "/value",
+  "/business-plan", "/procurement",
 ];
 const hasOwnTopbar = computed(() =>
   OWN_TOPBAR_PREFIXES.some(p => route.path === p || route.path.startsWith(p + "/"))
@@ -642,19 +642,6 @@ function exitImpersonate() {
           </svg>
           <span class="sb-name">Бизнес-план</span>
           <span v-if="secBadge(SB.bp)" class="sb-badge">{{ secBadge(SB.bp) }}</span>
-        </RouterLink>
-
-        <!-- 4.1 Реестр возможностей ценности (owner-настраиваемо) -->
-        <RouterLink v-if="can('value.view')" to="/value" class="sb-item" active-class="active">
-          <svg
-            width="16" height="16" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round"
-          >
-            <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
-            <polyline points="17 6 23 6 23 12" />
-          </svg>
-          <span class="sb-name">Реестр ценности</span>
         </RouterLink>
 
         <!-- 5. KPI -->

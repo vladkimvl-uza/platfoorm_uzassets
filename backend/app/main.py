@@ -451,7 +451,6 @@ ROUTER_MODULES = [
     "email_settings",      # SMTP / email-уведомления (admin-настройка)
     "custom_api",          # Конструктор API — пользовательские data-endpoint'ы
     "unit_cost",           # Удельная себестоимость продукции (энергоёмкость + статьи)
-    "value",               # Реестр возможностей ценности (экономия/рост/риск, owner-настраиваемо)
 ]
 
 mounted: list[str] = []

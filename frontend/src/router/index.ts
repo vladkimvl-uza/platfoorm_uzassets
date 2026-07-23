@@ -382,12 +382,6 @@ const router = createRouter({
           meta: { title: "Бизнес-план", requiresPermission: "bp.view" },
         },
         {
-          path: "value",
-          name: "value",
-          component: () => import("@/views/ValueOpportunities.vue"),
-          meta: { title: "Реестр возможностей ценности", requiresPermission: "value.view" },
-        },
-        {
           // Temp external redirect per user request 2026-05-23.
           // Чтобы вернуть локальный модуль — удалить `beforeEnter`.
           path: "credit-portfolio",

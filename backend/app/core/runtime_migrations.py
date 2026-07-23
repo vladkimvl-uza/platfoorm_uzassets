@@ -226,8 +226,6 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_notes_checklist(conn)
             await _patch_procurement_conclusion(conn)
             await _patch_subsidies(conn)
-            await _patch_value_opportunities(conn)
-            await _patch_value_perms(conn)
             await _patch_mfa_trusted_ips(conn)
             await _patch_overview_matrix(conn)
             await _patch_ifrs_report_history(conn)
@@ -654,69 +652,6 @@ async def _patch_subsidies(conn) -> None:
     ))
     await conn.execute(text(
         "CREATE INDEX IF NOT EXISTS ix_subsidies_company_year ON subsidies (company_id, year)"
-    ))
-
-
-async def _patch_value_opportunities(conn) -> None:
-    """Реестр возможностей ценности (additive, idempotent): выявленная экономия/
-    рост/риск по компании, с суммой, ответственным, статусом и трекингом
-    реализации. Источник — детектор (unit_cost/procurement/business_plan/kpi)
-    или ручной ввод."""
-    await conn.execute(text(
-        """
-        CREATE TABLE IF NOT EXISTS value_opportunities (
-            id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            company_id       UUID REFERENCES companies(id) ON DELETE CASCADE,
-            year             INTEGER,
-            source           VARCHAR(24)  NOT NULL DEFAULT 'manual',
-            kind             VARCHAR(16)  NOT NULL DEFAULT 'economy',
-            status           VARCHAR(16)  NOT NULL DEFAULT 'identified',
-            title            VARCHAR(300) NOT NULL,
-            description      TEXT,
-            value_amount     NUMERIC(28, 3),
-            realized_amount  NUMERIC(28, 3),
-            owner            VARCHAR(200),
-            target_date      DATE,
-            realized_at      TIMESTAMPTZ,
-            fingerprint      VARCHAR(200),
-            created_by       UUID REFERENCES users(id) ON DELETE SET NULL,
-            created_by_name  VARCHAR(255),
-            created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
-            updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
-        )
-        """,
-    ))
-    await conn.execute(text(
-        "CREATE INDEX IF NOT EXISTS ix_value_opportunities_company_id ON value_opportunities (company_id)"
-    ))
-    await conn.execute(text(
-        "CREATE INDEX IF NOT EXISTS ix_value_opportunities_status ON value_opportunities (status)"
-    ))
-    await conn.execute(text(
-        "CREATE INDEX IF NOT EXISTS ix_value_opportunities_fingerprint ON value_opportunities (fingerprint)"
-    ))
-    await conn.execute(text(
-        "CREATE INDEX IF NOT EXISTS ix_value_opportunities_company_status ON value_opportunities (company_id, status)"
-    ))
-
-
-async def _patch_value_perms(conn) -> None:
-    """Права модуля «Реестр возможностей ценности»: value.view / value.edit.
-
-    НАМЕРЕННО не выдаются ни одной роли — по умолчанию модуль виден только
-    владельцу (owner обходит проверку прав). Доступ другим настраивается точечно
-    через RBAC-админку (право появляется в каталоге, его можно выдать
-    пользователю/группе). Идемпотентно (ON CONFLICT DO NOTHING)."""
-    await conn.execute(text(
-        """
-        INSERT INTO permissions (id, code, name, module, action, created_at, updated_at)
-        VALUES
-            (gen_random_uuid(), 'value.view', 'Просмотр реестра возможностей ценности',
-             'value', 'view', now(), now()),
-            (gen_random_uuid(), 'value.edit', 'Управление реестром возможностей ценности',
-             'value', 'edit', now(), now())
-        ON CONFLICT (code) DO NOTHING
-        """
     ))
 
 

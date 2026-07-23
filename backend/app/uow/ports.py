@@ -41,7 +41,6 @@ if TYPE_CHECKING:
     from app.repositories.scenarios_repository import ScenariosRepository
     from app.repositories.system_config_repository import SystemConfigRepository
     from app.repositories.tasks_repository import TasksRepository
-    from app.repositories.value_repository import ValueRepository
 
 
 class UnitOfWorkABC(ABC):
@@ -79,7 +78,6 @@ class UnitOfWorkABC(ABC):
     scenarios: "ScenariosRepository"
     system_config: "SystemConfigRepository"
     tasks: "TasksRepository"
-    value: "ValueRepository"
 
     @abstractmethod
     async def __aenter__(self) -> "UnitOfWorkABC":
