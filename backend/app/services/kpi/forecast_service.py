@@ -19,7 +19,13 @@ from __future__ import annotations
 from typing import Optional
 from uuid import UUID
 
-from app.core.forecast import ForecastResult, forecast_annual, forecast_quarters
+from app.core.forecast import (
+    ForecastResult,
+    forecast_annual,
+    forecast_quarters,
+    seasonal_shares,
+    split_by_shares,
+)
 from app.schemas.kpi_forecast import (
     CompanyForecast,
     ForecastBlock,
@@ -56,15 +62,25 @@ def _f(x: object) -> Optional[float]:
         return None
 
 
-def _block(r: ForecastResult) -> ForecastBlock:
+def _block(
+    r: ForecastResult, shares: Optional[list[float]] = None,
+) -> ForecastBlock:
+    """ForecastResult → DTO. Если переданы сезонные доли `shares` — каждая годовая
+    проекция дополнительно раскладывается по кварталам (для будущих лет)."""
     d = r.to_dict()
+    pts: list[ForecastPoint] = []
+    for p in d["projections"]:
+        q = split_by_shares(p["value"], shares) if (shares and p["value"] is not None) else None
+        pts.append(ForecastPoint(
+            period=p["period"], value=p["value"], low=p["low"], high=p["high"], quarters=q,
+        ))
     return ForecastBlock(
         method=d["method"],
         confidence=d["confidence"],
         points_used=d["points_used"],
         note=d["note"],
         expected_year=d["expected_year"],
-        projections=[ForecastPoint(**p) for p in d["projections"]],
+        projections=pts,
     )
 
 
@@ -157,6 +173,21 @@ class KpiForecastService:
                                 svals.append(float(fact_o))
                     af = forecast_annual(syears, svals, horizon)
 
+                    # Сезонность для разбивки будущих ЛЕТ по кварталам. Приоритет:
+                    # план текущего года (намеренная сезонность) → средние план
+                    # прошлых лет → факт прошлых лет.
+                    shares = seasonal_shares([q_plan])
+                    if shares is None:
+                        hist_qp: list[list] = []
+                        hist_qf: list[list] = []
+                        for y in hist_years:
+                            oind = idx_by_year.get(y, {}).get(ikey)
+                            if oind is None:
+                                continue
+                            hist_qp.append([getattr(oind, f"q{i}_plan", None) for i in (1, 2, 3, 4)])
+                            hist_qf.append([getattr(oind, f"q{i}_fact", None) for i in (1, 2, 3, 4)])
+                        shares = seasonal_shares(hist_qp) or seasonal_shares(hist_qf)
+
                     plan_y, fact_y, _ = kpi_year_pair(ind)
                     inds_out.append(IndicatorForecast(
                         name=ind.name or "",
@@ -171,7 +202,7 @@ class KpiForecastService:
                         q_plan=[_f(x) for x in q_plan],
                         q_fact=[_f(x) for x in q_fact],
                         quarterly=_block(qf),
-                        annual=_block(af),
+                        annual=_block(af, shares),
                         history=hist,
                     ))
                 if inds_out:

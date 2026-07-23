@@ -16,6 +16,9 @@ class ForecastPoint(BaseModel):
     value: Optional[float] = None
     low: Optional[float] = None
     high: Optional[float] = None
+    # Разбивка годового значения по кварталам [q1..q4] (сезонность) — для
+    # годовых проекций будущих лет; None для квартальных точек текущего года.
+    quarters: Optional[list[Optional[float]]] = None
 
 
 class ForecastBlock(BaseModel):

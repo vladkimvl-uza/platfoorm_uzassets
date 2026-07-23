@@ -59,14 +59,30 @@
                 </div>
               </div>
               <div v-if="fcView.length" class="kpai-fc">
-                <div class="kpai-chart-title">Модельный прогноз (движок){{ fcScopeName ? ' · ' + fcScopeName : '' }}</div>
+                <div class="kpai-fc-head">
+                  <div class="kpai-chart-title">Модельный прогноз (движок){{ fcScopeName ? ' · ' + fcScopeName : '' }}</div>
+                  <div v-if="hasFcQuarters" class="kpai-fc-toggle">
+                    <div class="kpai-seg kpai-seg-sm">
+                      <button :class="{ on: fcTblMode === 'years' }" @click="setFcTblMode('years')">По годам</button>
+                      <button :class="{ on: fcTblMode === 'quarters' }" @click="setFcTblMode('quarters')">По кварталам</button>
+                    </div>
+                    <select v-if="fcTblMode === 'quarters'" v-model="fcQYear" class="kpai-co-select kpai-fc-yr" aria-label="Год для квартальной разбивки">
+                      <option v-for="y in fcYears" :key="y" :value="y">{{ y }} г.</option>
+                    </select>
+                  </div>
+                </div>
                 <div class="kpai-fc-scroll">
                   <table class="kpai-fc-tbl">
                     <thead><tr>
                       <th>{{ fcScopeName === 'Портфель' ? 'Компания' : 'Показатель' }}</th>
                       <th>Тек. факт</th>
-                      <th v-if="fcScopeName !== 'Портфель'">Ожид. {{ fcBaseYear }}</th>
-                      <th v-for="y in fcYears" :key="y">{{ y }}</th>
+                      <template v-if="fcTblMode === 'quarters'">
+                        <th v-for="q in FC_Q" :key="q">{{ q }} · {{ fcQYear }}</th>
+                      </template>
+                      <template v-else>
+                        <th v-if="fcScopeName !== 'Портфель'">Ожид. {{ fcBaseYear }}</th>
+                        <th v-for="y in fcYears" :key="y">{{ y }}</th>
+                      </template>
                       <th>Метод</th>
                     </tr></thead>
                     <tbody>
@@ -76,20 +92,31 @@
                           <span v-if="r.manager" class="kpai-fc-mgr">{{ r.manager }}</span>
                         </td>
                         <td>{{ fcCell(r.fact, r.unit) }}</td>
-                        <td v-if="fcScopeName !== 'Портфель'">{{ fcCell(r.expected, r.unit) }}</td>
-                        <td v-for="y in fcYears" :key="y">
-                          <template v-if="r.byYear[y]">
-                            <span class="kpai-fc-v">{{ fcCell(r.byYear[y].value, r.unit) }}</span>
-                            <span v-if="r.byYear[y].low != null" class="kpai-fc-band">{{ fcCell(r.byYear[y].low, r.unit) }}…{{ fcCell(r.byYear[y].high, r.unit) }}</span>
-                          </template>
-                          <template v-else>—</template>
-                        </td>
+                        <template v-if="fcTblMode === 'quarters'">
+                          <td v-for="(q, qi) in FC_Q" :key="q">
+                            <span class="kpai-fc-v">{{ fcCell(r.byYear[fcQYear]?.quarters?.[qi] ?? null, r.unit) }}</span>
+                          </td>
+                        </template>
+                        <template v-else>
+                          <td v-if="fcScopeName !== 'Портфель'">{{ fcCell(r.expected, r.unit) }}</td>
+                          <td v-for="y in fcYears" :key="y">
+                            <template v-if="r.byYear[y]">
+                              <span class="kpai-fc-v">{{ fcCell(r.byYear[y].value, r.unit) }}</span>
+                              <span v-if="r.byYear[y].low != null" class="kpai-fc-band">{{ fcCell(r.byYear[y].low, r.unit) }}…{{ fcCell(r.byYear[y].high, r.unit) }}</span>
+                            </template>
+                            <template v-else>—</template>
+                          </td>
+                        </template>
                         <td><span class="kpai-fc-conf" :class="'c-' + r.confidence">{{ fcMethodLabel(r.method) }}</span></td>
                       </tr>
                     </tbody>
                   </table>
                 </div>
-                <div class="kpai-fc-note">Числа — детерминированный движок (воспроизводимо); коридор [low…high] — неопределённость прогноза. ИИ ниже интерпретирует и корректирует их.</div>
+                <div class="kpai-fc-note">
+                  Числа — детерминированный движок (воспроизводимо); коридор [low…high] — неопределённость прогноза.
+                  <template v-if="fcTblMode === 'quarters'">Кварталы будущих лет — разбивка годового прогноза по сезонности показателя (план/факт прошлых лет).</template>
+                  ИИ ниже интерпретирует и корректирует их.
+                </div>
               </div>
             </template>
             <!-- Прочие режимы: график выполнения -->
@@ -136,8 +163,8 @@ type IndOut = {
 };
 type MgrOut = { title: string; role: string | null; indicators: IndOut[] };
 type ChartRow = { label: string; value: number };
-// Строка модельного прогноза (движок): значение + коридор по будущим годам.
-type FcCell = { value: number | null; low: number | null; high: number | null };
+// Строка модельного прогноза (движок): значение + коридор + квартальная разбивка.
+type FcCell = { value: number | null; low: number | null; high: number | null; quarters?: (number | null)[] | null };
 type FcRow = {
   name: string; manager: string; unit: string | null;
   fact: number | null; expected: number | null;
@@ -204,7 +231,7 @@ function buildForecastView(fc: CompanyForecast): void {
   const rows: FcRow[] = [];
   for (const m of fc.managers) for (const ind of m.indicators) {
     const byYear: Record<string, FcCell> = {};
-    for (const p of ind.annual.projections) { byYear[p.period] = { value: p.value, low: p.low, high: p.high }; yset.add(p.period); }
+    for (const p of ind.annual.projections) { byYear[p.period] = { value: p.value, low: p.low, high: p.high, quarters: p.quarters }; yset.add(p.period); }
     const useAnnual = ind.annual.method !== "none";
     rows.push({
       name: ind.name, manager: ind.manager, unit: ind.unit,
@@ -238,8 +265,22 @@ function buildPortfolioForecastView(all: CompanyForecast[], baseYear: number): v
   fcYears.value = Array.from(yset).sort();
   fcTrend.value = []; fcBaseYear.value = baseYear; fcScopeName.value = "Портфель";
 }
-function resetForecastView(): void { fcView.value = []; fcYears.value = []; fcTrend.value = []; }
+function resetForecastView(): void { fcView.value = []; fcYears.value = []; fcTrend.value = []; fcTblMode.value = "years"; }
 const fcTrendMax = computed(() => Math.max(120, ...fcTrend.value.map(t => t.high ?? t.value)));
+
+// Тоггл таблицы прогноза: по годам ↔ по кварталам выбранного будущего года.
+const fcTblMode = ref<"years" | "quarters">("years");
+const fcQYear = ref<string>("");
+// Кварталы доступны только когда движок дал сезонную разбивку (режим компании).
+const hasFcQuarters = computed(() =>
+  fcScopeName.value !== "Портфель" &&
+  fcView.value.some(r => fcYears.value.some(y => r.byYear[y]?.quarters)));
+function setFcTblMode(m: "years" | "quarters"): void {
+  fcTblMode.value = m;
+  if (m === "quarters" && (!fcQYear.value || !fcYears.value.includes(fcQYear.value)))
+    fcQYear.value = fcYears.value[0] || "";
+}
+const FC_Q = ["Q1", "Q2", "Q3", "Q4"];
 const step = ref("");
 const scope = ref<"portfolio" | "company">("portfolio");
 const mode = ref<Mode>("performance");
@@ -573,6 +614,12 @@ async function run(): Promise<void> {
 
 /* ─── Модельная таблица прогноза ─── */
 .kpai-fc { margin-bottom: 18px; }
+.kpai-fc-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.kpai-fc-head .kpai-chart-title { margin-bottom: 0; }
+.kpai-fc-toggle { display: flex; align-items: center; gap: 8px; }
+.kpai-seg-sm { padding: 2px; }
+.kpai-seg-sm button { padding: 4px 10px; font-size: 12px; }
+.kpai-fc-yr { height: 28px; padding: 0 8px; font-size: 12px; }
 .kpai-fc-scroll { overflow-x: auto; border: 1px solid var(--line, #ECECF3); border-radius: 12px; }
 .kpai-fc-tbl { border-collapse: collapse; width: 100%; font-size: 12px; min-width: 520px; }
 .kpai-fc-tbl th, .kpai-fc-tbl td { padding: 7px 10px; text-align: right; border-bottom: 1px solid var(--line, #ECECF3); white-space: nowrap; }

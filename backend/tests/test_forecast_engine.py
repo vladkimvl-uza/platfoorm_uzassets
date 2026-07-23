@@ -5,7 +5,12 @@
 """
 import pytest
 
-from app.core.forecast import forecast_annual, forecast_quarters
+from app.core.forecast import (
+    forecast_annual,
+    forecast_quarters,
+    seasonal_shares,
+    split_by_shares,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -133,6 +138,34 @@ def test_annual_corridor_widens_with_horizon():
     ]
     # коридор дальних лет шире ближних
     assert widths == sorted(widths)
+
+
+def test_seasonal_shares_even():
+    s = seasonal_shares([[25, 25, 25, 25], [10, 10, 10, 10]])
+    assert s == pytest.approx([0.25, 0.25, 0.25, 0.25])
+
+
+def test_seasonal_shares_skewed_h2():
+    # выпуск смещён во 2-е полугодие
+    s = seasonal_shares([[10, 20, 30, 40], [10, 20, 30, 40]])
+    assert s == pytest.approx([0.1, 0.2, 0.3, 0.4])
+
+
+def test_seasonal_shares_none_when_incomplete():
+    assert seasonal_shares([[10, 20, None, 40]]) is None
+    assert seasonal_shares([]) is None
+
+
+def test_split_by_shares_distributes_annual():
+    q = split_by_shares(1000, [0.1, 0.2, 0.3, 0.4])
+    assert q == pytest.approx([100, 200, 300, 400])
+    assert sum(q) == pytest.approx(1000)
+
+
+def test_split_by_shares_guards():
+    assert split_by_shares(None, [0.25] * 4) is None
+    assert split_by_shares(100, None) is None
+    assert split_by_shares(100, [0.5, 0.5]) is None
 
 
 def test_result_to_dict_shape():

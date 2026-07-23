@@ -118,6 +118,45 @@ def _fit_confidence(n: int, r2: float) -> str:
     return "low"
 
 
+# ─────────────────────── сезонность (для будущих лет) ─────────────────
+
+
+def seasonal_shares(history_quarters: list[list[Number]]) -> Optional[list[float]]:
+    """Средние доли кварталов по историческим годам (каждый ряд = [q1..q4]).
+
+    Возвращает [s1..s4] с суммой 1 (нормализовано), либо None если нет ни одного
+    полного знакопостоянного года. Используется, чтобы разложить прогноз ГОДА на
+    кварталы будущего года по типичной сезонности показателя.
+    """
+    acc = [0.0, 0.0, 0.0, 0.0]
+    n = 0
+    for row in history_quarters:
+        vals = [_fin(x) for x in (row or [])][:4]
+        if len(vals) < 4 or any(v is None for v in vals):
+            continue
+        tot = sum(v for v in vals if v is not None)
+        if tot <= 0:
+            continue
+        for i in range(4):
+            acc[i] += (vals[i] or 0.0) / tot
+        n += 1
+    if n == 0:
+        return None
+    shares = [a / n for a in acc]
+    s = sum(shares)
+    return [x / s for x in shares] if s > 0 else None
+
+
+def split_by_shares(
+    annual: Number, shares: Optional[list[float]],
+) -> Optional[list[Optional[float]]]:
+    """Разложить годовое значение по кварталам согласно долям [s1..s4]."""
+    a = _fin(annual)
+    if a is None or not shares or len(shares) != 4:
+        return None
+    return [a * s for s in shares]
+
+
 # ─────────────────────────── квартальный прогноз ──────────────────────
 
 

@@ -244,6 +244,7 @@ export interface ForecastPoint {
   value: number | null;
   low: number | null;
   high: number | null;
+  quarters?: (number | null)[] | null;   // [q1..q4] разбивка года (сезонность)
 }
 export interface ForecastBlock {
   method: string;                 // 'pace'|'seasonal'|'run_rate'|'plan'|'actual'|'ols'|'cagr'|'none'
