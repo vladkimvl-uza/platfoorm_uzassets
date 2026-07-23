@@ -224,6 +224,7 @@ export interface KpiIndicator {
   bp_source?: string | null;            // 'nsbu' | 'ytd' | 'bp_plan' | null
   bp_plan_resolved?: string | number | null;
   bp_fact_resolved?: string | number | null;
+  bp_expect_resolved?: string | number | null;   // «ожидаемое» из БП (annual)
 }
 
 export interface KpiManager {

@@ -197,6 +197,7 @@ class KpiIndicatorRead(BaseModel):
     bp_source: Optional[str] = None                  # 'nsbu' | 'ytd' | 'bp_plan' | None
     bp_plan_resolved: Optional[MoneyDecimal] = None
     bp_fact_resolved: Optional[MoneyDecimal] = None
+    bp_expect_resolved: Optional[MoneyDecimal] = None   # «ожидаемое» из BP (annual)
 
 
 class KpiIndicatorUpsert(BaseModel):

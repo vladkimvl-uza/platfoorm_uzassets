@@ -59,10 +59,14 @@ import { useToast } from "@/composables/useToast";
 
 type Mode = "performance" | "correlation" | "forecast";
 type Co = { company_id: string; company_name_ru: string; company_code: string | null };
+type QOut = { plan: number | null; fact: number | null; weight: number };
 type IndOut = {
-  name: string; unit: string | null; plan: number | null; fact: number | null;
-  pct: number | null; dir: string; weight: number; bp_key: string | null;
+  name: string; unit: string | null; dir: string; weight: number;
+  bp_key: string | null; bp_source: string | null;
+  plan: number | null; fact: number | null; expect: number | null; pct: number | null;
+  quarters: Record<string, QOut>;
 };
+type MgrOut = { title: string; role: string | null; indicators: IndOut[] };
 type SavedRec = { raw: string; doneAt: string; year: number };
 
 const props = defineProps<{ companies: Co[]; year: number; period: string; selectedId: string | null }>();
@@ -135,27 +139,36 @@ async function run(): Promise<void> {
   try {
     const { api } = await import("@/api/client");
     const cos: Co[] = single ? [single] : props.companies;
+    const num = (v: unknown): number | null =>
+      (v === null || v === undefined || v === "") ? null : Number(v);
     const built = await Promise.all(cos.map(async (co) => {
       try {
         const { managers } = await kpiApi.getCompanyYear(co.company_id, props.year);
-        const inds: IndOut[] = [];
+        const mgrsOut: MgrOut[] = [];
         for (const mgr of managers) {
+          const inds: IndOut[] = [];
           for (const ind of (mgr.indicators || [])) {
             const linked = !!ind.bp_metric_key;
-            const plan = linked && ind.bp_plan_resolved != null ? Number(ind.bp_plan_resolved)
-              : ind.plan_year != null ? Number(ind.plan_year) : null;
-            const fact = linked && ind.bp_fact_resolved != null ? Number(ind.bp_fact_resolved)
-              : ind.fact_year != null ? Number(ind.fact_year) : null;
+            const plan = linked && ind.bp_plan_resolved != null ? num(ind.bp_plan_resolved) : num(ind.plan_year);
+            const fact = linked && ind.bp_fact_resolved != null ? num(ind.bp_fact_resolved) : num(ind.fact_year);
+            const expect = num(ind.bp_expect_resolved);
             const ratio = kpiCompletionRatio(plan, fact, ind.direction);
+            const iq = ind as unknown as Record<string, string | number | null>;
+            const quarters: Record<string, QOut> = {};
+            for (const q of ["q1", "q2", "q3", "q4"]) {
+              const qp = num(iq[`${q}_plan`]);
+              const qf = num(iq[`${q}_fact`]);
+              if (qp != null || qf != null) quarters[q] = { plan: qp, fact: qf, weight: num(iq[`${q}_weight`]) ?? 0 };
+            }
             inds.push({
-              name: ind.name, unit: ind.unit, plan, fact,
-              pct: ratio != null ? Math.round(ratio * 100) : null,
-              dir: ind.direction || "up", weight: Number(ind.weight) || 0,
-              bp_key: ind.bp_metric_key || null,
+              name: ind.name, unit: ind.unit, dir: ind.direction || "up", weight: num(ind.weight) ?? 0,
+              bp_key: ind.bp_metric_key || null, bp_source: ind.bp_source || null,
+              plan, fact, expect, pct: ratio != null ? Math.round(ratio * 100) : null, quarters,
             });
           }
+          if (inds.length) mgrsOut.push({ title: mgr.title, role: mgr.role, indicators: inds });
         }
-        return inds.length ? { code: co.company_code, name: co.company_name_ru, indicators: inds } : null;
+        return mgrsOut.length ? { code: co.company_code, name: co.company_name_ru, managers: mgrsOut } : null;
       } catch { return null; }
     }));
     const kpi_rows = built.filter((r): r is NonNullable<typeof r> => r != null);

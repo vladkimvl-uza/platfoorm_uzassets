@@ -116,6 +116,7 @@ class KpiQueryService:
                         ir.bp_resolved = True
                         ir.bp_plan_resolved = cell.get("plan")
                         ir.bp_fact_resolved = cell.get("fact")
+                        ir.bp_expect_resolved = cell.get("expect")
                         src = cell.get("fact_source")
                         ir.bp_source = src or ("bp_plan" if cell.get("plan") is not None else None)
                         ir.direction = BP_METRIC_DIRECTION.get(k, ir.direction)

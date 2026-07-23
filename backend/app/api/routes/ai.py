@@ -550,25 +550,42 @@ async def ai_kpi_analysis(
         s = f"{x:,.1f}".rstrip("0").rstrip(".").replace(",", " ")
         return f"{s} {unit}".strip()
 
-    # KPI-матрица текстом: по компаниям → индикаторы
+    # KPI-матрица текстом: компания → РУКОВОДИТЕЛЬ (менеджер) → индикаторы.
+    # По каждому индикатору — годовой план/факт/ожидаемое + КВАРТАЛЬНЫЙ разрез,
+    # вес, направление, связь со строкой ОФР. Даём ИИ ВСЕ показатели и ВСЕХ
+    # руководителей — ничего не агрегируем и не отбрасываем.
     kpi_blocks: list[str] = []
     for r in kpi_rows:
         nm = r.get("name") or r.get("code") or "—"
-        lines = [f"### {nm}"]
-        for ind in (r.get("indicators") or []):
-            unit = ind.get("unit") or ""
-            pct = ind.get("pct")
-            pct_s = f"{float(pct):.0f}%" if pct is not None else "—"
-            dr = "↓меньше=лучше" if str(ind.get("dir")) == "down" else "↑больше=лучше"
-            w = ind.get("weight")
-            w_s = f", вес {w}" if w not in (None, "") else ""
-            bp = ind.get("bp_key")
-            link = f" [фин.метрика ОФР: {bp}]" if bp else ""
-            lines.append(
-                f"- {ind.get('name') or '—'}: план {_num(ind.get('plan'), unit)}, "
-                f"факт {_num(ind.get('fact'), unit)}, выполнение {pct_s} ({dr}{w_s}){link}"
-            )
-        kpi_blocks.append("\n".join(lines))
+        block = [f"## {nm}"]
+        managers = r.get("managers")
+        if managers is None and r.get("indicators"):  # обратная совместимость (плоский формат)
+            managers = [{"title": "—", "role": None, "indicators": r.get("indicators")}]
+        for mgr in (managers or []):
+            mrole = mgr.get("role")
+            block.append(f"### Руководитель: {mgr.get('title') or '—'}" + (f" ({mrole})" if mrole else ""))
+            for ind in (mgr.get("indicators") or []):
+                unit = ind.get("unit") or ""
+                dr = "↓меньше=лучше" if str(ind.get("dir")) == "down" else "↑больше=лучше"
+                w = ind.get("weight")
+                w_s = f", вес {w}" if w not in (None, "") else ""
+                bp = ind.get("bp_key")
+                link = f" [строка ОФР: {bp}]" if bp else ""
+                pct = ind.get("pct")
+                pct_s = f", выполнение {float(pct):.0f}%" if pct is not None else ""
+                parts = [f"план {_num(ind.get('plan'), unit)}", f"факт {_num(ind.get('fact'), unit)}"]
+                if ind.get("expect") is not None:
+                    parts.append(f"ожидаемое {_num(ind.get('expect'), unit)}")
+                qparts = []
+                for q in ("q1", "q2", "q3", "q4"):
+                    qc = (ind.get("quarters") or {}).get(q)
+                    if qc:
+                        qparts.append(f"{q.upper()} п{_num(qc.get('plan'), unit)}/ф{_num(qc.get('fact'), unit)}")
+                qline = ("; кварталы: " + ", ".join(qparts)) if qparts else ""
+                block.append(
+                    f"- {ind.get('name') or '—'}: " + ", ".join(parts) + f"{pct_s} ({dr}{w_s}){link}{qline}"
+                )
+        kpi_blocks.append("\n".join(block))
     kpi_text = "\n\n".join(kpi_blocks)
 
     # Финансовый контекст (HLF-матрица тех же компаний), если прислан
@@ -628,7 +645,9 @@ async def ai_kpi_analysis(
     scope_line = f"Компания: {focus}. " if focus else f"Компаний в выборке: {len(kpi_rows)}. "
     prompt = (
         f"{scope_line}Год: {year}, период: {period}.\n\n"
-        "KPI-показатели компаний (план / факт / выполнение / направление / вес / связь с ОФР):\n\n"
+        "KPI по компаниям, СГРУППИРОВАНЫ ПО РУКОВОДИТЕЛЯМ; по каждому показателю — "
+        "годовой план/факт/ожидаемое + квартальный разрез, выполнение, направление, "
+        "вес, связь со строкой ОФР:\n\n"
         f"{kpi_text}{fin_text}"
     )
     try:
