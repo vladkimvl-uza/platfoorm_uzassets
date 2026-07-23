@@ -119,6 +119,9 @@ from app.models.procurement import (
 # --- Subsidies registry (реестр субсидий) ---
 from app.models.subsidies import Subsidy
 
+# --- Value Opportunities registry (реестр возможностей ценности) ---
+from app.models.value import ValueOpportunity
+
 # --- Overview matrix config (настройка квартальной матрицы Сводного обзора) ---
 from app.models.overview_matrix import OverviewMatrixConfig
 

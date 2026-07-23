@@ -43,6 +43,7 @@ from app.repositories.ratings_repository import RatingsRepository
 from app.repositories.scenarios_repository import ScenariosRepository
 from app.repositories.system_config_repository import SystemConfigRepository
 from app.repositories.tasks_repository import TasksRepository
+from app.repositories.value_repository import ValueRepository
 from app.uow.ports import UnitOfWorkABC
 
 
@@ -90,6 +91,7 @@ class UnitOfWork(UnitOfWorkABC):
         self.scenarios = ScenariosRepository(self._session)
         self.system_config = SystemConfigRepository(self._session)
         self.tasks = TasksRepository(self._session)
+        self.value = ValueRepository(self._session)
         return self
 
     async def __aexit__(self, exc_type, exc_value, traceback) -> None:
