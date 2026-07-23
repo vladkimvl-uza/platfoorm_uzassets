@@ -247,6 +247,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_company_ownership_entity(conn)
             await _patch_year_registry_gdp(conn)
             await _patch_direction_color(conn)
+            await _patch_drop_value_module(conn)
             await _bump_alembic(conn)
     except Exception as e:
         # Never crash the app on a self-heal failure - just log and continue.
@@ -652,6 +653,20 @@ async def _patch_subsidies(conn) -> None:
     ))
     await conn.execute(text(
         "CREATE INDEX IF NOT EXISTS ix_subsidies_company_year ON subsidies (company_id, year)"
+    ))
+
+
+async def _patch_drop_value_module(conn) -> None:
+    """Одноразовая очистка удалённого модуля «Реестр возможностей ценности»:
+    дропаем таблицу и снимаем права value.view/value.edit (idempotent). Модуль
+    удалён из кода по решению владельца — убираем и осиротевшие DB-объекты."""
+    await conn.execute(text("DROP TABLE IF EXISTS value_opportunities CASCADE"))
+    await conn.execute(text(
+        "DELETE FROM role_permission WHERE permission_id IN "
+        "(SELECT id FROM permissions WHERE code IN ('value.view', 'value.edit'))"
+    ))
+    await conn.execute(text(
+        "DELETE FROM permissions WHERE code IN ('value.view', 'value.edit')"
     ))
 
 
