@@ -263,6 +263,14 @@ const anRaw = ref("");
 const anYear = ref<number | null>(null);
 const anCount = ref(0);
 const anScenario = ref<AnScenario>("cfo");
+// Охват анализа: весь портфель (все компании) ИЛИ только выбранная компания.
+const anScope = ref<"portfolio" | "company">("portfolio");
+// Ключ хранилища сохранённого анализа: роль (портфель) или роль+код компании
+// (чтобы у каждой компании и портфеля был свой сохранённый анализ на роль).
+function anSavedKey(sc: AnScenario = anScenario.value): string {
+  return anScope.value === "company" && selectedCode.value
+    ? `${sc}__${selectedCode.value}` : sc;
+}
 const anMatrix = ref<AnRow[]>([]);
 const anDefs = ref<AnDef[]>([]);
 const anDoneAt = ref<string>("");
@@ -303,7 +311,7 @@ async function fetchSaved(): Promise<void> {
 // Показать вкладку-роль: подставить её сохранённый анализ (или очистить, если нет).
 function applyScenario(sc: AnScenario): void {
   anScenario.value = sc;
-  const o = anSaved.value[sc];
+  const o = anSaved.value[anSavedKey(sc)];
   if (o?.raw) {
     anRaw.value = o.raw; anHtml.value = renderMd(o.raw);
     anYear.value = o.year ?? null; anCount.value = o.count ?? 0;
@@ -315,15 +323,23 @@ function applyScenario(sc: AnScenario): void {
   anError.value = "";
 }
 
+// Переключить охват (портфель ↔ компания) и подставить его сохранённый анализ.
+function setAnScope(s: "portfolio" | "company"): void {
+  if (anLoading.value) return;
+  anScope.value = s;
+  applyScenario(anScenario.value);
+}
+
 async function saveAnalysis(): Promise<void> {
   const payload: AnSavedRec = {
     raw: anRaw.value, year: anYear.value, count: anCount.value,
     doneAt: anDoneAt.value, matrix: anMatrix.value, defs: anDefs.value,
   };
-  anSaved.value = { ...anSaved.value, [anScenario.value]: payload };
+  const key = anSavedKey();
+  anSaved.value = { ...anSaved.value, [key]: payload };
   try {
     const { api } = await import("@/api/client");
-    await api.put(`/ai/saved/hlf/${anScenario.value}`, { payload });
+    await api.put(`/ai/saved/hlf/${key}`, { payload });
   } catch {
     // P1 аудита (тихие сбои): в памяти обновлено, но на сервере НЕ сохранено —
     // после reload анализ исчезнет. Тост (не anError: он в шаблоне перекрыл бы
@@ -470,10 +486,13 @@ async function runAnalysis() {
   anError.value = "";
   anHtml.value = "";
   anRaw.value = "";
-  startTicker(["Загружаю отчётность всех компаний портфеля…"]);
+  const _single = anScope.value === "company" && selectedCompany.value ? selectedCompany.value : null;
+  startTicker([_single
+    ? `Загружаю отчётность: ${_single.name_short || _single.code}…`
+    : "Загружаю отчётность всех компаний портфеля…"]);
   try {
     const { api } = await import("@/api/client");
-    const cos = displayCompanies.value;
+    const cos = _single ? [_single] : displayCompanies.value;
     const results = await Promise.all(cos.map(async (co) => {
       try {
         const resp = await api.get(`/financials/companies/${co.code}/hlf`);
@@ -506,6 +525,7 @@ async function runAnalysis() {
     startTicker(buildSteps(rows.map(r => r.name), defs.map(d => d.label)));
     const resp = await api.post("/ai/hlf-analysis", {
       year: maxYear || null, metric_labels, metric_units, rows, scenario: anScenario.value,
+      focus: _single ? (_single.name_short || _single.name_ru || _single.code) : null,
     }, { timeout: 235000 });
     const raw = resp.data?.analysis || "";
     anRaw.value = raw;
@@ -1464,12 +1484,25 @@ const kpiCards = computed(() => kpis.value.map(k => ({
       <div class="hlf-an-card">
         <header class="hlf-an-hd">
           <div class="hlf-an-hd-txt">
-            <div class="hlf-an-eyebrow">ИИ-АНАЛИЗ ПОРТФЕЛЯ</div>
-            <h2 class="hlf-an-title">Высокоуровневые показатели — все компании</h2>
-            <div v-if="anYear && !anLoading && anHtml" class="hlf-an-sub">{{ anCount }} компаний · {{ anYear }}<span v-if="anDoneAt"> · {{ anDoneAt }}</span></div>
+            <div class="hlf-an-eyebrow">ИИ-АНАЛИЗ {{ anScope === 'company' ? 'КОМПАНИИ' : 'ПОРТФЕЛЯ' }}</div>
+            <h2 class="hlf-an-title">Высокоуровневые показатели — {{ anScope === 'company' ? (selectedCompany?.name_short || selectedCompany?.name_ru || selectedCompany?.code || 'компания') : 'все компании' }}</h2>
+            <div v-if="anYear && !anLoading && anHtml" class="hlf-an-sub">{{ anScope === 'company' ? '1 компания' : anCount + ' компаний' }} · {{ anYear }}<span v-if="anDoneAt"> · {{ anDoneAt }}</span></div>
           </div>
           <button class="hlf-an-x" @click="anOpen = false" aria-label="Закрыть">×</button>
         </header>
+
+        <!-- Охват: весь портфель / только выбранная компания -->
+        <div class="hlf-an-scen">
+          <span class="hlf-an-scen-lbl">Охват</span>
+          <div class="hlf-an-scen-seg">
+            <button class="hlf-an-scen-opt" :class="{ on: anScope === 'portfolio' }"
+                    :disabled="anLoading" @click="setAnScope('portfolio')">Весь портфель</button>
+            <button class="hlf-an-scen-opt" :class="{ on: anScope === 'company' }"
+                    :disabled="anLoading || !selectedCompany" @click="setAnScope('company')">
+              Только «{{ selectedCompany?.name_short || selectedCompany?.code || 'компания' }}»
+            </button>
+          </div>
+        </div>
 
         <!-- Сценарий анализа: senior CFO / инвестор / акционер -->
         <div class="hlf-an-scen">
