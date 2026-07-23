@@ -511,7 +511,10 @@ async function runAnalysis() {
     let maxYear = 0;
     for (const { co, hlf } of results) {
       if (!hlf || !hlf.years?.length) continue;
-      const krows = hlf.sections.flatMap(s => s.rows);
+      // ВАЖНО: проставляем _secYears (как allRows()), иначе rowValueForYear →
+      // null для всех строк (он мапит год через годы секции) → buildKpis всё-null
+      // → пустые rows → «Нет данных». Раньше брались сырые s.rows без _secYears.
+      const krows = hlf.sections.flatMap(s => s.rows.map(r => ({ ...r, _secYears: s.years })));
       const ks = buildKpis(hlf.years, krows);
       const yi = latestDataYearIdx(hlf);
       const kobj: Record<string, number | null> = {};
