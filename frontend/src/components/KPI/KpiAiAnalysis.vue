@@ -5,7 +5,7 @@
 
   <Teleport to="body">
     <div v-if="open" class="kpai-back" @click.self="open = false" role="dialog" aria-modal="true">
-      <div class="kpai-card">
+      <div class="kpai-card" :class="{ 'kpai-wide': mode === 'forecast' && html }">
         <header class="kpai-hd">
           <div class="kpai-hd-txt">
             <div class="kpai-eyebrow">ИИ-АНАЛИЗ KPI · {{ scope === 'company' ? 'КОМПАНИЯ' : 'ПОРТФЕЛЬ' }}</div>
@@ -71,13 +71,16 @@
                     </tr></thead>
                     <tbody>
                       <tr v-for="(r, i) in fcView" :key="i">
-                        <td class="kpai-fc-nm">{{ r.name }}<span v-if="r.manager" class="kpai-fc-mgr">{{ r.manager }}</span></td>
-                        <td>{{ fcFmt(r.fact, r.unit) }}</td>
-                        <td v-if="fcScopeName !== 'Портфель'">{{ fcFmt(r.expected, r.unit) }}</td>
+                        <td class="kpai-fc-nm">
+                          <span class="kpai-fc-nm-t">{{ r.name }}<span v-if="fcUnit(r.unit)" class="kpai-fc-unit"> · {{ fcUnit(r.unit) }}</span></span>
+                          <span v-if="r.manager" class="kpai-fc-mgr">{{ r.manager }}</span>
+                        </td>
+                        <td>{{ fcCell(r.fact, r.unit) }}</td>
+                        <td v-if="fcScopeName !== 'Портфель'">{{ fcCell(r.expected, r.unit) }}</td>
                         <td v-for="y in fcYears" :key="y">
                           <template v-if="r.byYear[y]">
-                            <span class="kpai-fc-v">{{ fcFmt(r.byYear[y].value, r.unit) }}</span>
-                            <span v-if="r.byYear[y].low != null" class="kpai-fc-band">{{ fcFmt(r.byYear[y].low, r.unit) }}…{{ fcFmt(r.byYear[y].high, r.unit) }}</span>
+                            <span class="kpai-fc-v">{{ fcCell(r.byYear[y].value, r.unit) }}</span>
+                            <span v-if="r.byYear[y].low != null" class="kpai-fc-band">{{ fcCell(r.byYear[y].low, r.unit) }}…{{ fcCell(r.byYear[y].high, r.unit) }}</span>
                           </template>
                           <template v-else>—</template>
                         </td>
@@ -167,7 +170,7 @@ function barColor(pct: number): string {
   if (pct >= 75) return "#D97706";
   return "#E24B4A";
 }
-// Компактное число с единицей (для таблицы прогноза).
+// Компактное число с единицей (для Excel-выгрузки — там единица нужна в ячейке).
 function fcFmt(v: number | null | undefined, unit: string | null): string {
   if (v == null) return "—";
   const u = unit || "";
@@ -176,6 +179,19 @@ function fcFmt(v: number | null | undefined, unit: string | null): string {
   const s = a >= 1000 ? Math.round(v).toLocaleString("ru-RU").replace(/,/g, " ")
     : a >= 10 ? v.toFixed(0) : v.toFixed(1).replace(/\.0$/, "");
   return `${s}${u ? " " + u : ""}`;
+}
+// Ячейка таблицы — БЕЗ единицы (единица вынесена в название строки), чтобы
+// колонки не разъезжались; проценты оставляем со знаком «%» (коротко и понятно).
+function fcCell(v: number | null | undefined, unit: string | null): string {
+  if (v == null) return "—";
+  if ((unit || "") === "%") return `${Math.round(v)}%`;
+  const a = Math.abs(v);
+  return a >= 1000 ? Math.round(v).toLocaleString("ru-RU").replace(/,/g, " ")
+    : a >= 10 ? v.toFixed(0) : v.toFixed(1).replace(/\.0$/, "");
+}
+// Единица для подписи строки (проценты и пустые не дублируем).
+function fcUnit(unit: string | null): string {
+  return unit && unit !== "%" ? unit : "";
 }
 const FC_METHOD: Record<string, string> = {
   pace: "темп", seasonal: "сезон", run_rate: "run-rate", plan: "план",
@@ -499,7 +515,10 @@ async function run(): Promise<void> {
   width: min(900px, 100%); max-height: 88vh; display: flex; flex-direction: column;
   background: var(--surface, #fff); border-radius: 18px; overflow: hidden;
   box-shadow: 0 24px 64px -20px rgba(20, 20, 34, .5);
+  transition: width .2s ease;
 }
+/* Режим «Прогноз»: шире, чтобы таблица годов/кварталов помещалась без обрезки */
+.kpai-card.kpai-wide { width: min(1180px, 100%); }
 .kpai-hd {
   display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
   padding: 20px 24px 14px;
@@ -561,7 +580,9 @@ async function run(): Promise<void> {
 .kpai-fc-tbl thead th { background: #F7F7FB; font-weight: 650; color: #5A6172; position: sticky; top: 0; }
 .kpai-fc-tbl tbody tr:last-child td { border-bottom: none; }
 .kpai-fc-tbl tbody tr:hover td { background: #FAFAFD; }
-.kpai-fc-nm { display: flex; flex-direction: column; gap: 1px; }
+.kpai-fc-nm { display: flex; flex-direction: column; gap: 1px; max-width: 340px; }
+.kpai-fc-nm-t { white-space: normal; }
+.kpai-fc-unit { color: #9AA3B2; font-weight: 500; }
 .kpai-fc-mgr { font-size: 10.5px; color: #9AA3B2; }
 .kpai-fc-v { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--ink, #1A1A26); }
 .kpai-fc-band { display: block; font-size: 10px; color: #A0A6B4; font-variant-numeric: tabular-nums; }
