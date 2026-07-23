@@ -146,6 +146,10 @@ export interface AuditActivityRecent {
   detail?: string | null;  // таблица + поля (для изменений)
   notes?: string | null;   // примечание события (напр. «сессии отозваны»)
   ip?: string | null;      // IP-адрес действия
+  path?: string | null;    // точный URL запроса
+  method?: string | null;  // HTTP-метод
+  status?: number | null;  // HTTP-статус
+  dur_ms?: number | null;  // длительность запроса, мс
   at: string; last_at: string; count: number; type: string;
 }
 export interface AuditCompanyRow {

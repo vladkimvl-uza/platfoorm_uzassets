@@ -867,6 +867,7 @@ async def aggregate_user_activity(
             AuditLog.created_at, AuditLog.action, AuditLog.module,
             AuditLog.entity_label, AuditLog.entity_type, AuditLog.http_path,
             AuditLog.ip_address, AuditLog.notes, AuditLog.diff,
+            AuditLog.http_method, AuditLog.http_status, AuditLog.duration_ms,
         )
         .where(and_(*conds))
         .order_by(AuditLog.created_at.asc())
@@ -968,6 +969,10 @@ async def aggregate_user_activity(
                 "detail": detail,                  # таблица + поля (для изменений)
                 "notes": (r.notes or None),
                 "ip": ip,                          # IP-адрес действия
+                "path": r.http_path or None,       # точный URL запроса
+                "method": r.http_method or None,   # HTTP-метод (GET/POST/...)
+                "status": r.http_status,           # HTTP-статус (200/403/...)
+                "dur_ms": r.duration_ms,           # длительность запроса, мс
                 "at": r.created_at, "last_at": r.created_at, "count": 1,
                 "type": _type_of(r.action),
             })

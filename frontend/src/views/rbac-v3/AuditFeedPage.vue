@@ -925,6 +925,13 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
                       <span :title="fmtExact(r.last_at)">{{ fmtRelative(r.last_at) }}</span>
                       <span v-if="r.ip" class="aud-ev-ip"> · {{ r.ip }}</span>
                     </div>
+                    <!-- технический слой: точный запрос -->
+                    <div v-if="r.path || r.method" class="aud-ev-tech">
+                      <span v-if="r.method" class="aud-ev-meth">{{ r.method }}</span>
+                      <span v-if="r.path" class="aud-ev-path">{{ r.path }}</span>
+                      <span v-if="r.status != null" class="aud-ev-st" :class="{ bad: r.status >= 400 }">{{ r.status }}</span>
+                      <span v-if="r.dur_ms != null" class="aud-ev-dur">{{ r.dur_ms }} мс</span>
+                    </div>
                   </div>
                 </div>
                 <div v-if="!activity.recent.length" class="aud-empty-s">Нет записей за период</div>
@@ -1121,6 +1128,13 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
 .aud-ev-where { color: #7C6FF7; font-weight: 600; }
 .aud-ev-target { color: #0F6E56; font-weight: 600; }
 .aud-ev-ip { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; color: #B4BAC6; font-variant-numeric: tabular-nums; }
+.aud-ev-tech { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 3px;
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 11px; color: #9AA3B2; }
+.aud-ev-meth { color: #7C6FF7; font-weight: 700; }
+.aud-ev-path { color: #7A828F; word-break: break-all; }
+.aud-ev-st { font-weight: 700; color: #1D9E75; }
+.aud-ev-st.bad { color: #E24B4A; }
+.aud-ev-dur { color: #B4BAC6; }
 
 .aud-modules { display: flex; flex-direction: column; gap: 4px; }
 .aud-mrow { display: grid; grid-template-columns: 160px 1fr 70px; align-items: center; gap: 12px; padding: 9px 10px; border-radius: 9px; }
