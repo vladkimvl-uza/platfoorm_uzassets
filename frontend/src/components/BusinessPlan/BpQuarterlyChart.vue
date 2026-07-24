@@ -31,17 +31,26 @@ const n = computed(() => Math.max(1, rows.value.length));
 const slot = computed(() => plotW.value / n.value);
 
 let ro: ResizeObserver | null = null;
+let raf = 0;
 onMounted(() => {
   const el = chartEl.value;
   if (el && typeof ResizeObserver !== "undefined") {
     ro = new ResizeObserver((entries) => {
       const r = entries[0]?.contentRect;
-      if (r && r.width > 4 && r.height > 4) { W.value = Math.round(r.width); H.value = Math.round(r.height); }
+      if (!r || r.width <= 4 || r.height <= 4) return;
+      const w = Math.round(r.width), h = Math.round(r.height);
+      // Обновляем только при реальном изменении и на след. кадре — чтобы не
+      // ловить «ResizeObserver loop» и не дёргать viewBox на суб-пиксельный шум.
+      if (raf) cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        if (w !== W.value) W.value = w;
+        if (h !== H.value) H.value = h;
+      });
     });
     ro.observe(el);
   }
 });
-onUnmounted(() => { ro?.disconnect(); ro = null; });
+onUnmounted(() => { ro?.disconnect(); ro = null; if (raf) cancelAnimationFrame(raf); });
 
 // Нарастающий итог (факт → ожидание → план как оценка)
 const cumVals = computed(() => {
@@ -179,7 +188,12 @@ function tip(i: number) {
 .bqc-sw-cum { background: #EF9F27; border-radius: 50%; }
 
 .bqc-chart { position: relative; flex: 1; min-height: 220px; }
-.bqc-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+/* SVG вынесен из потока (absolute), чтобы НЕ участвовать в расчёте высоты
+   контейнера: иначе height:100% при неопределённой высоте родителя считался бы
+   из aspect-ratio viewBox, ResizeObserver писал бы её обратно в H → viewBox →
+   пересчёт → монотонный рост при смене масштаба/монитора. Теперь SVG просто
+   заполняет .bqc-chart, а высоту задаёт flex/min-height — петли нет. */
+.bqc-svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; overflow: visible; }
 
 .bqc-grp { cursor: pointer; }
 .bqc-slot { fill: transparent; rx: 8; transition: fill .14s; }
