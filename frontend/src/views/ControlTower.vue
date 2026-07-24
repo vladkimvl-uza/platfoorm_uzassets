@@ -15,7 +15,8 @@ import { useConfirm } from "@/composables/useConfirm";
 import EptLogo from "@/components/EptLogo.vue";
 import UzaSkeleton from "@/components/UZA/UzaSkeleton.vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
-import ModalShell from "@/components/ModalShell.vue";
+import CtPeriodDrill from "@/components/ControlTower/CtPeriodDrill.vue";
+import CtCompanyModal from "@/components/ControlTower/CtCompanyModal.vue";
 
 interface Co { company_id: string; code: string; name: string; sector: string; color: string; badge: string; score: number | null; prog?: number; plan?: number; oblig?: number | null; due?: number; due_done?: number; tasks_done: number; tasks_total: number; projects_done: number; projects_total: number; comments: number; tasks_done_snap?: number; projects_done_snap?: number; comments_snap?: number; }
 interface Current { label: string; at: string; period: string; score: number; fact_now: number | null; due_done: number; due_total: number; progress_now: number; plan_now: number; tasks_done: number; tasks_total: number; overdue: number; companies: Co[]; snap_label?: string; snap_at?: string; }
@@ -266,17 +267,9 @@ interface PTask { num: string | null; title: string; due_date: string | null; co
 const expandedPeriod = ref<number | null>(null);
 const periodDetails = ref<{ completed: PTask[]; overdue: PTask[] } | null>(null);
 const detailsLoading = ref(false);
-// Развёрнутые группы дрилла (по направлению) — для «+N ещё» → показать все.
-const expandedGroups = ref<Set<string>>(new Set());
-function toggleGroup(key: string) {
-  const s = new Set(expandedGroups.value);
-  if (s.has(key)) s.delete(key); else s.add(key);
-  expandedGroups.value = s;
-}
 async function togglePeriod(key: number) {
   const p = cumPeriods.value.find(x => x.key === key);
   if (p?.is_future) return;  // будущий период ещё не наступил — детали недоступны
-  expandedGroups.value = new Set();  // сброс развёрнутых групп при смене периода
   if (expandedPeriod.value === key) { expandedPeriod.value = null; return; }
   expandedPeriod.value = key;
   periodDetails.value = null; detailsLoading.value = true;
@@ -291,35 +284,13 @@ async function togglePeriod(key: number) {
   } finally { detailsLoading.value = false; }
 }
 // группировка задач по направлению
-function byDirection(tasks: PTask[]): { dir: string; items: PTask[] }[] {
-  const m = new Map<string, PTask[]>();
-  for (const t of tasks) { if (!m.has(t.direction)) m.set(t.direction, []); m.get(t.direction)!.push(t); }
-  return [...m.entries()].map(([dir, items]) => ({ dir, items })).sort((a, b) => b.items.length - a.items.length);
-}
 
 onMounted(() => { loadCumulative(); loadPortfolioCum(); });
 watch([year, granularity, dynCompany], () => { expandedPeriod.value = null; loadCumulative(); });
 watch([year, granularity], () => loadPortfolioCum());
 
 // Нормализуем выбранную компанию (Co из списка ИЛИ CoDelta из улучшились/провалились)
-const modalNums = computed(() => {
-  const c: any = modalCo.value;
-  if (!c) return null;
-  if (c.tasks_to !== undefined) {  // CoDelta
-    return {
-      tasks_now: c.tasks_to, tasks_snap: c.tasks_from, tasks_total: c.tasks_total,
-      projects_now: c.projects_to, projects_snap: c.projects_from, projects_total: c.projects_total,
-      comments_now: c.comments_to, comments_snap: c.comments_from,
-    };
-  }
-  return {  // Co (live-список)
-    tasks_now: c.tasks_done, tasks_snap: c.tasks_done_snap, tasks_total: c.tasks_total,
-    projects_now: c.projects_done, projects_snap: c.projects_done_snap, projects_total: c.projects_total,
-    comments_now: c.comments, comments_snap: c.comments_snap,
-  };
-});
-
-// ─── модалка + trail ──────────────────────────────────────────
+// ─── модалка + trail (сам UI — в CtCompanyModal.vue) ──────────
 const modalCo = ref<any | null>(null);
 const trail = ref<TrailItem[]>([]);
 const trailLoading = ref(false);
@@ -335,8 +306,6 @@ async function openCompany(c: any) {
   } finally { trailLoading.value = false; }
 }
 function closeModal() { modalCo.value = null; }
-function trailTime(ts: string): string { return new Date(ts).toLocaleString("ru-RU", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }); }
-function actionRu(a: string): string { return ({ status_changed: "сменил статус", field_updated: "обновил", created: "создал", archived: "архивировал" } as any)[a] || a; }
 
 // ─── Live: тихое авто-обновление (как в журнале аудита) ───
 let pollTimer: ReturnType<typeof setInterval> | null = null;
@@ -487,43 +456,7 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
             </div>
 
             <!-- ДЕТАЛИ ПЕРИОДА (дрилл по направлениям) -->
-            <div v-if="expandedPeriod" class="ph-pdrill">
-              <div v-if="detailsLoading" style="padding:14px 16px"><UzaSkeleton variant="rows" :rows="4" rowHeight="34px" /></div>
-              <template v-else-if="periodDetails">
-                <div class="ph-pdrill-cols">
-                  <div class="ph-pdrill-col">
-                    <div class="ph-pdrill-h ok">Завершено в периоде<span>{{ periodDetails.completed.length }}</span></div>
-                    <div v-if="!periodDetails.completed.length" class="ph-pdrill-e">нет завершённых</div>
-                    <div v-for="g in byDirection(periodDetails.completed)" :key="'c'+g.dir" class="ph-pdrill-g">
-                      <div class="ph-pdrill-dir">{{ g.dir }}<span>{{ g.items.length }}</span></div>
-                      <div v-for="(t,i) in (expandedGroups.has('c-'+g.dir) ? g.items : g.items.slice(0,8))" :key="i" class="ph-pdrill-t">
-                        <span class="ph-pdrill-bar ok"></span>
-                        <span class="ph-pdrill-tt"><b v-if="t.num">{{ t.num }}</b> {{ t.title }}</span>
-                        <span class="ph-pdrill-co">{{ t.company }}</span>
-                      </div>
-                      <button v-if="g.items.length > 8" class="ph-pdrill-more" @click="toggleGroup('c-'+g.dir)">
-                        {{ expandedGroups.has('c-'+g.dir) ? 'свернуть' : '+' + (g.items.length - 8) + ' ещё' }}
-                      </button>
-                    </div>
-                  </div>
-                  <div class="ph-pdrill-col">
-                    <div class="ph-pdrill-h od">Просрочено в периоде<span>{{ periodDetails.overdue.length }}</span></div>
-                    <div v-if="!periodDetails.overdue.length" class="ph-pdrill-e">нет просроченных</div>
-                    <div v-for="g in byDirection(periodDetails.overdue)" :key="'o'+g.dir" class="ph-pdrill-g">
-                      <div class="ph-pdrill-dir">{{ g.dir }}<span>{{ g.items.length }}</span></div>
-                      <div v-for="(t,i) in (expandedGroups.has('o-'+g.dir) ? g.items : g.items.slice(0,8))" :key="i" class="ph-pdrill-t">
-                        <span class="ph-pdrill-bar od"></span>
-                        <span class="ph-pdrill-tt"><b v-if="t.num">{{ t.num }}</b> {{ t.title }}</span>
-                        <span class="ph-pdrill-co">{{ t.company }}</span>
-                      </div>
-                      <button v-if="g.items.length > 8" class="ph-pdrill-more" @click="toggleGroup('o-'+g.dir)">
-                        {{ expandedGroups.has('o-'+g.dir) ? 'свернуть' : '+' + (g.items.length - 8) + ' ещё' }}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </template>
-            </div>
+            <CtPeriodDrill v-if="expandedPeriod" :details="periodDetails" :loading="detailsLoading" />
           </template>
           <div class="ph-dyn-foot">
             <span class="ph-dyn-trend" :class="trend.dir">
@@ -655,60 +588,9 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
       </template>
     </div>
 
-    <!-- МОДАЛКА — через ModalShell (a11y: role=dialog, aria-modal, Escape, focus-trap, возврат фокуса) -->
-    <ModalShell :open="!!modalCo" size="md" @close="closeModal">
-      <template #header>
-        <div v-if="modalCo" class="cmpcell"><div class="av lg" :style="{ background: modalCo.color }">{{ modalCo.badge }}</div><div><div class="ph-mod-name">{{ modalCo.name }}</div><div class="ph-mod-sec">{{ modalCo.sector }}</div></div></div>
-      </template>
-      <div v-if="modalCo" class="ph-mod-inner">
-            <div v-if="modalCo.delta != null" class="ph-mod-ab">
-              <div class="ph-ab-c"><div class="ph-ab-l">Было</div><div class="ph-ab-v" :style="{ color: progColor(modalCo.from) }">{{ modalCo.from }}%</div></div>
-              <div class="ph-ab-d" :class="modalCo.delta > 0 ? 'up' : modalCo.delta < 0 ? 'dn' : 'fl'"><div>{{ modalCo.delta > 0 ? '+' : '' }}{{ modalCo.delta }}</div><small>пп</small></div>
-              <div class="ph-ab-c"><div class="ph-ab-l">Стало</div><div class="ph-ab-v" :style="{ color: progColor(modalCo.to) }">{{ modalCo.to }}%</div></div>
-            </div>
-            <div v-else class="ph-mod-ab single">
-              <div class="ph-ab-c"><div class="ph-ab-l">Взвешенный прогресс</div><div class="ph-ab-v" :style="{ color: progColor(modalCo.score) }">{{ modalCo.score ?? '—' }}<template v-if="modalCo.score!=null">%</template></div></div>
-            </div>
-
-            <!-- конкретные цифры: завершено на момент среза vs сейчас -->
-            <div v-if="modalNums" class="ph-mod-nums">
-              <div class="ph-mn">
-                <span class="ph-mn-l">Задачи завершено</span>
-                <div class="ph-mn-v"><b>{{ modalNums.tasks_now }}</b><em>из {{ modalNums.tasks_total }}</em>
-                  <i v-if="hasSnap && modalNums.tasks_snap != null">было {{ modalNums.tasks_snap }}<u v-if="modalNums.tasks_now - modalNums.tasks_snap > 0"> +{{ modalNums.tasks_now - modalNums.tasks_snap }}</u></i>
-                </div>
-              </div>
-              <div class="ph-mn">
-                <span class="ph-mn-l">Проекты завершено</span>
-                <div class="ph-mn-v"><b>{{ modalNums.projects_now }}</b><em>из {{ modalNums.projects_total }}</em>
-                  <i v-if="hasSnap && modalNums.projects_snap != null">было {{ modalNums.projects_snap }}<u v-if="modalNums.projects_now - modalNums.projects_snap > 0"> +{{ modalNums.projects_now - modalNums.projects_snap }}</u></i>
-                </div>
-              </div>
-              <div class="ph-mn">
-                <span class="ph-mn-l">Комментарии</span>
-                <div class="ph-mn-v"><b>{{ modalNums.comments_now || 0 }}</b>
-                  <i v-if="hasSnap && modalNums.comments_snap != null">было {{ modalNums.comments_snap }}<u v-if="(modalNums.comments_now||0) - modalNums.comments_snap > 0"> +{{ (modalNums.comments_now||0) - modalNums.comments_snap }}</u></i>
-                </div>
-              </div>
-            </div>
-
-            <div class="ph-trail-head">Лента изменений<span>последние 120 дней</span></div>
-            <div class="ph-trail">
-              <UzaStateBlock v-if="trailLoading" state="loading" variant="text" />
-              <UzaStateBlock v-else-if="trailError" state="error" variant="block" :text="trailError" />
-              <UzaStateBlock v-else-if="!trail.length" state="empty" variant="inline" text="Изменений нет." />
-              <div v-for="(it,i) in trail" :key="i" class="ph-tr">
-                <div class="ph-tr-rail"><div class="ph-tr-dot" :style="{ background: it.is_critical ? '#E24B4A' : '#7C6FF7' }" /></div>
-                <div class="ph-tr-b">
-                  <div class="ph-tr-l"><b>{{ it.actor }}</b> {{ actionRu(it.action) }}<template v-if="it.field"> <span class="fld">{{ it.field }}</span></template></div>
-                  <div v-if="it.old_value || it.new_value" class="ph-tr-c"><span class="o">{{ it.old_value || '—' }}</span><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg><span class="n">{{ it.new_value || '—' }}</span></div>
-                  <div class="ph-tr-meta">{{ it.title }}</div>
-                </div>
-                <div class="ph-tr-t">{{ trailTime(it.ts) }}</div>
-              </div>
-            </div>
-      </div>
-    </ModalShell>
+    <!-- МОДАЛКА КОМПАНИИ — вынесена в CtCompanyModal.vue (a11y через ModalShell) -->
+    <CtCompanyModal :co="modalCo" :has-snap="hasSnap" :trail="trail"
+                    :loading="trailLoading" :error="trailError" @close="closeModal" />
   </div>
 </template>
 
@@ -878,24 +760,7 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
 .ph-dyn-co { font: 600 12px inherit; color: #1E2A4A; background: #fff; border: 1px solid var(--bd); border-radius: 9px; padding: 6px 10px; cursor: pointer; outline: none; max-width: 200px; }
 .ph-spark-dot.fut { opacity: .45; }
 
-/* Дрилл периода */
-.ph-pdrill { padding: 4px 18px 14px; }
-.ph-pdrill-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.ph-pdrill-col { background: #FAFAFD; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; min-height: 60px; }
-.ph-pdrill-h { display: flex; align-items: center; gap: 8px; font-size: 11.5px; font-weight: 600; padding-bottom: 8px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
-.ph-pdrill-h.ok { color: #0F6E56; } .ph-pdrill-h.od { color: #B23434; }
-.ph-pdrill-h span { margin-left: auto; font-size: 10.5px; background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 1px 9px; color: var(--t3); }
-.ph-pdrill-e { font-size: 11.5px; color: var(--t4); padding: 8px 2px; }
-.ph-pdrill-g { margin-bottom: 9px; }
-.ph-pdrill-dir { display: flex; align-items: center; gap: 7px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--p-deep); margin: 6px 0 4px; }
-.ph-pdrill-dir span { font-size: 9.5px; color: var(--t4); background: rgba(124,111,247,.10); border-radius: 7px; padding: 0 6px; }
-.ph-pdrill-t { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
-.ph-pdrill-bar { width: 3px; height: 16px; border-radius: 2px; flex-shrink: 0; } .ph-pdrill-bar.ok { background: #5DC093; } .ph-pdrill-bar.od { background: #E2807F; }
-.ph-pdrill-tt { flex: 1; min-width: 0; font-size: 11.5px; color: #28324A; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .ph-pdrill-tt b { color: var(--t3); font-weight: 600; margin-right: 4px; }
-.ph-pdrill-co { font-size: 10px; color: var(--t4); white-space: nowrap; flex-shrink: 0; max-width: 110px; overflow: hidden; text-overflow: ellipsis; }
-.ph-pdrill-more { font-size: 10.5px; color: var(--p-deep); padding: 3px 6px 3px 11px; border: 0; background: transparent; cursor: pointer; font-family: inherit; font-weight: 600; border-radius: 6px; }
-.ph-pdrill-more:hover { background: rgba(108,92,231,.08); text-decoration: underline; }
-.ph-pdrill-more:focus-visible { outline: 2px solid #7C6FF7; outline-offset: 1px; }
+/* Дрилл периода — вынесен в CtPeriodDrill.vue */
 .ph-dynp-top { height: 20px; display: flex; align-items: center; }
 .ph-dynp-delta { font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 999px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .ph-dynp-delta em { font-style: normal; font-weight: 500; font-size: 8.5px; opacity: .7; margin-left: 2px; }
@@ -925,7 +790,6 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
 .ph-co { display: grid; grid-template-columns: 28px 1fr auto auto; align-items: center; gap: 10px; padding: 9px 18px; cursor: pointer; transition: background .12s; }
 .ph-co:hover { background: #FAFAFF; }
 .av { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; font-size: 8.5px; font-weight: 700; color: #fff; box-shadow: inset 0 1px 1px rgba(255,255,255,.25),0 2px 6px rgba(15,23,60,.12); }
-.av.lg { width: 44px; height: 44px; border-radius: 13px; font-size: 13px; }
 .ph-co-m { min-width: 0; } .ph-co-n { font-size: 12px; font-weight: 500; color: #1E2A4A; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .ph-co-s { font-size: 10px; color: var(--t4); }
 .ph-co-p { display: flex; align-items: baseline; gap: 6px; font-variant-numeric: tabular-nums; } .ph-co-p .f { font-size: 10.5px; color: var(--t4); text-decoration: line-through; } .ph-co-p .t { font-size: 13px; font-weight: 700; }
 .ph-co-d { font-size: 12.5px; font-weight: 700; min-width: 32px; text-align: right; font-variant-numeric: tabular-nums; } .ph-co-d.up { color: #0F6E56; } .ph-co-d.dn { color: #B23434; }
@@ -940,51 +804,25 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
 .ph-co-nums { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 3px; font-size: 10.5px; color: var(--t4); }
 .ph-co-nums b { color: #475569; font-weight: 600; font-variant-numeric: tabular-nums; }
 .ph-co-nums i { font-style: normal; color: #0F6E56; font-weight: 600; margin-left: 3px; }
-/* modal concrete numbers */
-.ph-mod-nums { margin: 14px 22px 0; border: 1px solid var(--line); border-radius: 13px; overflow: hidden; }
-.ph-mn { display: flex; align-items: center; justify-content: space-between; padding: 11px 16px; border-bottom: 1px solid var(--line); }
-.ph-mn:last-child { border-bottom: 0; }
-.ph-mn-l { font-size: 11.5px; color: var(--t3); }
-.ph-mn-v { display: flex; align-items: baseline; gap: 6px; font-variant-numeric: tabular-nums; }
-.ph-mn-v b { font-size: 18px; font-weight: 700; color: #1E2A4A; }
-.ph-mn-v em { font-size: 11px; color: var(--t4); font-style: normal; }
-.ph-mn-v i { font-size: 10.5px; color: var(--t4); font-style: normal; margin-left: 6px; }
-.ph-mn-v i u { color: #0F6E56; font-weight: 600; text-decoration: none; }
 .ph-co2:hover { background: #FAFAFF; } .ph-co2:last-child { border-bottom: 0; }
 .ph-co-track { height: 7px; border-radius: 5px; background: #F0F1F6; overflow: hidden; } .ph-co-track > span { display: block; height: 100%; border-radius: 5px; transition: width .7s var(--ease-out); }
 .ph-co-pct { font-size: 13px; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
 .ph-co-cnt { font-size: 10.5px; color: var(--t4); text-align: right; font-variant-numeric: tabular-nums; }
 
-/* modal */
-.cmpcell { display: flex; align-items: center; gap: 12px; }
-.ph-mod-name { font-size: 16px; font-weight: 600; color: #1E2A4A; } .ph-mod-sec { font-size: 11px; color: var(--t3); margin-top: 2px; }
-.ph-mod-ab { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 16px; padding: 18px 22px; margin: 16px 22px 0; background: #FAFAFD; border: 1px solid var(--line); border-radius: 13px; }
-.ph-mod-ab.single { grid-template-columns: 1fr; }
-.ph-ab-c { text-align: center; } .ph-ab-l { font-size: 9.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--t4); } .ph-ab-l2 { font-size: 11px; color: var(--t3); margin-top: 4px; }
-.ph-ab-v { font-size: 34px; font-weight: 700; letter-spacing: -.035em; margin-top: 5px; font-variant-numeric: tabular-nums; line-height: 1; }
-.ph-ab-d { text-align: center; font-size: 19px; font-weight: 700; padding: 8px 14px; border-radius: 11px; font-variant-numeric: tabular-nums; } .ph-ab-d.up { background: #E3F8EE; color: #0F6E56; } .ph-ab-d.dn { background: #FCE7E7; color: #B23434; } .ph-ab-d.fl { background: #F1F2F6; color: var(--t3); } .ph-ab-d small { display: block; font-size: 8.5px; text-transform: uppercase; opacity: .7; }
-.ph-trail-head { display: flex; align-items: baseline; justify-content: space-between; padding: 18px 22px 10px; font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--t3); } .ph-trail-head span { font-size: 10px; font-weight: 500; color: var(--t4); text-transform: none; letter-spacing: 0; }
-.ph-trail { overflow-y: auto; padding: 0 22px 20px; }
-.ph-tr { display: flex; gap: 12px; padding: 12px 0; }
-.ph-tr-rail { position: relative; display: flex; justify-content: center; width: 8px; flex-shrink: 0; }
-.ph-tr-rail::before { content: ""; position: absolute; top: 14px; bottom: -12px; width: 1.5px; background: var(--line); } .ph-tr:last-child .ph-tr-rail::before { display: none; }
-.ph-tr-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 4px; box-shadow: 0 0 0 3px #fff; }
-.ph-tr-b { flex: 1; min-width: 0; }
-.ph-tr-l { font-size: 12.5px; color: #334155; } .ph-tr-l b { font-weight: 600; color: #1E2A4A; } .fld { color: var(--p-deep); font-weight: 600; }
-.ph-tr-c { display: inline-flex; align-items: center; gap: 8px; margin-top: 5px; font-size: 11.5px; } .ph-tr-c .o { color: var(--t4); text-decoration: line-through; } .ph-tr-c .n { color: #0F6E56; font-weight: 600; } .ph-tr-c svg { color: var(--t4); }
-.ph-tr-meta { font-size: 10.5px; color: var(--t4); margin-top: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ph-tr-t { font-size: 10.5px; color: var(--t4); white-space: nowrap; }
+/* модалка компании — вынесена в CtCompanyModal.vue */
 
-@media (max-width: 820px) {
-  .ph-hero { grid-template-columns: 1fr; } .ph-hero-l { border-right: 0; border-bottom: 1px solid var(--line); }
+@media (max-width: 1024px) {
   .ph-tiles { grid-template-columns: repeat(2,1fr); }
+  .ph-pdrill-cols { grid-template-columns: 1fr; }
+}
+@media (max-width: 768px) {
+  .ph-hero { grid-template-columns: 1fr; } .ph-hero-l { border-right: 0; border-bottom: 1px solid var(--line); }
   .ph-cols { grid-template-columns: 1fr; } .ph-col { border-right: 0; border-bottom: 1px solid var(--line); }
   .ph-card-h { flex-wrap: wrap; gap: 8px; }
-  .ph-pdrill-cols { grid-template-columns: 1fr; }
 }
 
 /* ─── Телефоны ─────────────────────────────────────────────────── */
-@media (max-width: 600px) {
+@media (max-width: 640px) {
   .ph-top { padding: 0 14px; height: auto; min-height: 56px; flex-wrap: wrap; gap: 8px; padding-top: 8px; padding-bottom: 8px; }
   .ph-top-r { gap: 6px; flex-wrap: wrap; width: 100%; }
   .ph-sel { padding: 8px 10px; font-size: 11px; flex: 1 1 auto; min-height: 38px; }
@@ -1017,7 +855,7 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
   .ph-closed-t b { color: #0F6E56; font-weight: 700; margin-right: 3px; }
   .ph-closed-co { font-size: 11px; color: var(--t3); white-space: nowrap; flex-shrink: 0; }
 }
-@media (max-width: 430px) {
+@media (max-width: 480px) {
   .ph-tiles { grid-template-columns: 1fr 1fr; gap: 8px; }
   .ph-hero-num small { font-size: 17px; }
   .ph-dyn { gap: 4px; }
