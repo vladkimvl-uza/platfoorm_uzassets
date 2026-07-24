@@ -70,6 +70,13 @@ def _as_uuid(v: str) -> UUID:
     except (ValueError, TypeError) as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Некорректный company_id") from e
 
+
+def _active_co(col):
+    """Условие: задача/проект принадлежит АКТИВНОЙ компании (исключаем
+    деактивированные/тестовые, напр. «Тест» — иначе их задачи завышают портфель
+    и висят в списке; exec-dashboard уже так фильтрует, мониторинг — нет)."""
+    return col.in_(select(Company.id).where(Company.is_active.is_(True)))
+
 _MONTHS = ["Янв", "Фев", "Мар", "Апр", "Май", "Июн",
            "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"]
 _MONTHS_FULL = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
@@ -298,7 +305,7 @@ async def cumulative_dynamics(
     """
     scope = await _scope_ids(db, user)
     base_conds = [Task.is_archived.is_(False), Task.portfolio_year == year, _eligible(Task),
-                  Task.company_id.is_not(None)]  # без «сиротских» — как в заголовке
+                  Task.company_id.is_not(None), _active_co(Task.company_id)]  # без сирот и неактивных
     if company_id:
         await ensure_company_access(db, user, _as_uuid(company_id))  # IDOR-guard
         base_conds.append(Task.company_id == company_id)
@@ -360,7 +367,8 @@ async def period_tasks(
     scope = await _scope_ids(db, user)
     start, end = _cum_period_bounds(year, granularity, period)
     today = datetime.now(UTC).date()
-    base_conds = [Task.is_archived.is_(False), Task.portfolio_year == year]
+    base_conds = [Task.is_archived.is_(False), Task.portfolio_year == year,
+                  _active_co(Task.company_id)]  # без неактивных/тестовых компаний
     if company_id:
         await ensure_company_access(db, user, _as_uuid(company_id))  # IDOR-guard
         base_conds.append(Task.company_id == company_id)
@@ -448,7 +456,8 @@ async def companies_timeline(
             Company.id, Company.code, Company.name_short, Company.name_ru,
             Sector.code.label("sec_code"), Sector.name_ru.label("sec_name"),
             Sector.color_hex.label("sec_color"), Sector.short_badge.label("sec_badge"),
-        ).join(Sector, Company.sector_id == Sector.id, isouter=True),
+        ).join(Sector, Company.sector_id == Sector.id, isouter=True)
+            .where(Company.is_active.is_(True)),
     )).all()
 
     short, full, n = _labels(granularity)
@@ -530,7 +539,7 @@ async def _compute_state(db: AsyncSession, year: int,
         # привязки к компании: иначе портфельный итог (tasks_total) не сходится
         # с суммой per-company списка (заголовок 1007 vs 1000 по компаниям).
         c = and_(model.is_archived.is_(False), model.portfolio_year == year,
-                 model.company_id.is_not(None))
+                 model.company_id.is_not(None), _active_co(model.company_id))
         if bounds:
             c = and_(c, model.due_date >= bounds[0], model.due_date <= bounds[1])
         if scope is not None:
@@ -601,7 +610,8 @@ async def _compute_state(db: AsyncSession, year: int,
     co_rows = (await db.execute(select(
         Company.id, Company.code, Company.name_short, Company.name_ru,
         Sector.name_ru.label("sec"), Sector.color_hex.label("color"), Sector.short_badge.label("badge"),
-    ).join(Sector, Company.sector_id == Sector.id, isouter=True))).all()
+    ).join(Sector, Company.sector_id == Sector.id, isouter=True)
+        .where(Company.is_active.is_(True)))).all()
 
     companies = []
     for c in co_rows:
@@ -719,7 +729,8 @@ async def _plan_quarters(db: AsyncSession, year: int) -> list[dict]:
     план = % задач, чей дедлайн ≤ конца квартала; факт = % из них выполнено.
     """
     base = and_(Task.is_archived.is_(False), Task.portfolio_year == year,
-                Task.due_date.is_not(None), _eligible(Task), Task.company_id.is_not(None))
+                Task.due_date.is_not(None), _eligible(Task), Task.company_id.is_not(None),
+                _active_co(Task.company_id))
     total = int((await db.execute(select(func.count()).where(base))).scalar() or 0)
     ends = [(1, "I"), (2, "II"), (3, "III"), (4, "IV")]
     out = []
