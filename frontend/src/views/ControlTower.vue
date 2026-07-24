@@ -17,9 +17,8 @@ import UzaSkeleton from "@/components/UZA/UzaSkeleton.vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import ModalShell from "@/components/ModalShell.vue";
 
-interface Quarter { q: number; label: string; plan_pct: number; fact_pct: number; }
 interface Co { company_id: string; code: string; name: string; sector: string; color: string; badge: string; score: number | null; prog?: number; plan?: number; oblig?: number | null; due?: number; due_done?: number; tasks_done: number; tasks_total: number; projects_done: number; projects_total: number; comments: number; tasks_done_snap?: number; projects_done_snap?: number; comments_snap?: number; }
-interface Current { label: string; at: string; period: string; score: number; fact_now: number | null; due_done: number; due_total: number; progress_now: number; plan_now: number; tasks_done: number; tasks_total: number; overdue: number; quarters: Quarter[]; companies: Co[]; snap_label?: string; snap_at?: string; }
+interface Current { label: string; at: string; period: string; score: number; fact_now: number | null; due_done: number; due_total: number; progress_now: number; plan_now: number; tasks_done: number; tasks_total: number; overdue: number; companies: Co[]; snap_label?: string; snap_at?: string; }
 interface CoDelta { company_id: string; code: string; name: string; sector: string; color: string; badge: string; from: number; to: number; delta: number; tasks_from: number; tasks_to: number; projects_from: number; projects_to: number; tasks_total: number; projects_total: number; comments_from: number; comments_to: number; projects_closed?: number; }
 interface ClosedProject { company_id: string | null; company: string; sector: string | null; color: string; badge: string | null; num: string | null; title: string; }
 interface Comparison { from: { label: string; at: string; score: number }; to: { label: string; at: string; score: number }; portfolio_delta: number | null; improved: CoDelta[]; fell: CoDelta[]; tasks_closed: number; comments_added: number; projects_closed?: number; closed_projects?: ClosedProject[]; }
@@ -267,9 +266,17 @@ interface PTask { num: string | null; title: string; due_date: string | null; co
 const expandedPeriod = ref<number | null>(null);
 const periodDetails = ref<{ completed: PTask[]; overdue: PTask[] } | null>(null);
 const detailsLoading = ref(false);
+// Развёрнутые группы дрилла (по направлению) — для «+N ещё» → показать все.
+const expandedGroups = ref<Set<string>>(new Set());
+function toggleGroup(key: string) {
+  const s = new Set(expandedGroups.value);
+  if (s.has(key)) s.delete(key); else s.add(key);
+  expandedGroups.value = s;
+}
 async function togglePeriod(key: number) {
   const p = cumPeriods.value.find(x => x.key === key);
   if (p?.is_future) return;  // будущий период ещё не наступил — детали недоступны
+  expandedGroups.value = new Set();  // сброс развёрнутых групп при смене периода
   if (expandedPeriod.value === key) { expandedPeriod.value = null; return; }
   expandedPeriod.value = key;
   periodDetails.value = null; detailsLoading.value = true;
@@ -489,12 +496,14 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
                     <div v-if="!periodDetails.completed.length" class="ph-pdrill-e">нет завершённых</div>
                     <div v-for="g in byDirection(periodDetails.completed)" :key="'c'+g.dir" class="ph-pdrill-g">
                       <div class="ph-pdrill-dir">{{ g.dir }}<span>{{ g.items.length }}</span></div>
-                      <div v-for="(t,i) in g.items.slice(0,8)" :key="i" class="ph-pdrill-t">
+                      <div v-for="(t,i) in (expandedGroups.has('c-'+g.dir) ? g.items : g.items.slice(0,8))" :key="i" class="ph-pdrill-t">
                         <span class="ph-pdrill-bar ok"></span>
                         <span class="ph-pdrill-tt"><b v-if="t.num">{{ t.num }}</b> {{ t.title }}</span>
                         <span class="ph-pdrill-co">{{ t.company }}</span>
                       </div>
-                      <div v-if="g.items.length > 8" class="ph-pdrill-more">+{{ g.items.length - 8 }} ещё</div>
+                      <button v-if="g.items.length > 8" class="ph-pdrill-more" @click="toggleGroup('c-'+g.dir)">
+                        {{ expandedGroups.has('c-'+g.dir) ? 'свернуть' : '+' + (g.items.length - 8) + ' ещё' }}
+                      </button>
                     </div>
                   </div>
                   <div class="ph-pdrill-col">
@@ -502,12 +511,14 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
                     <div v-if="!periodDetails.overdue.length" class="ph-pdrill-e">нет просроченных</div>
                     <div v-for="g in byDirection(periodDetails.overdue)" :key="'o'+g.dir" class="ph-pdrill-g">
                       <div class="ph-pdrill-dir">{{ g.dir }}<span>{{ g.items.length }}</span></div>
-                      <div v-for="(t,i) in g.items.slice(0,8)" :key="i" class="ph-pdrill-t">
+                      <div v-for="(t,i) in (expandedGroups.has('o-'+g.dir) ? g.items : g.items.slice(0,8))" :key="i" class="ph-pdrill-t">
                         <span class="ph-pdrill-bar od"></span>
                         <span class="ph-pdrill-tt"><b v-if="t.num">{{ t.num }}</b> {{ t.title }}</span>
                         <span class="ph-pdrill-co">{{ t.company }}</span>
                       </div>
-                      <div v-if="g.items.length > 8" class="ph-pdrill-more">+{{ g.items.length - 8 }} ещё</div>
+                      <button v-if="g.items.length > 8" class="ph-pdrill-more" @click="toggleGroup('o-'+g.dir)">
+                        {{ expandedGroups.has('o-'+g.dir) ? 'свернуть' : '+' + (g.items.length - 8) + ' ещё' }}
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -595,6 +606,8 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
             </div>
           </div>
           <div class="ph-co-list2">
+            <UzaStateBlock v-if="!sortedCompanies.length" state="empty" variant="inline"
+                           text="Нет компаний с данными за этот период." />
             <div v-for="c in sortedCompanies" :key="c.company_id" class="ph-co2"
                  :class="{ risk: isRisk(c) }" role="button" tabindex="0"
                  :aria-label="'Лента изменений: ' + c.name"
@@ -742,7 +755,7 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
 .ph-hero.crit .ph-hero-l { background: linear-gradient(135deg,#FFF6F6,#FFF0F0); }
 .ph-hero.warn .ph-hero-l { background: linear-gradient(135deg,#FFFBF3,#FEF6E9); }
 .ph-hero-eyebrow { font-size: 10px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--t3); }
-.ph-hero-num { font-size: 60px; font-weight: 400; letter-spacing: -.045em; line-height: 1; margin-top: 10px; font-variant-numeric: tabular-nums; display: flex; align-items: baseline; gap: 12px; }
+.ph-hero-num { font-size: clamp(40px, 6vw, 60px); font-weight: 400; letter-spacing: -.045em; line-height: 1; margin-top: 10px; font-variant-numeric: tabular-nums; display: flex; align-items: baseline; gap: 12px; }
 .ph-hero.crit .ph-hero-num { color: #E24B4A; } .ph-hero.warn .ph-hero-num { color: #C77A0A; } .ph-hero.good .ph-hero-num { color: #6C5CE7; } .ph-hero.ok .ph-hero-num { color: #1D9E75; } .ph-hero.na .ph-hero-num { color: #64748B; }
 .ph-hero-num small { font-size: 26px; }
 .ph-hero-chip { font-size: 12px; font-weight: 600; padding: 4px 12px; border-radius: 999px; letter-spacing: .01em; align-self: center; }
@@ -892,7 +905,9 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
 .ph-pdrill-bar { width: 3px; height: 16px; border-radius: 2px; flex-shrink: 0; } .ph-pdrill-bar.ok { background: #5DC093; } .ph-pdrill-bar.od { background: #E2807F; }
 .ph-pdrill-tt { flex: 1; min-width: 0; font-size: 11.5px; color: #28324A; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .ph-pdrill-tt b { color: var(--t3); font-weight: 600; margin-right: 4px; }
 .ph-pdrill-co { font-size: 10px; color: var(--t4); white-space: nowrap; flex-shrink: 0; max-width: 110px; overflow: hidden; text-overflow: ellipsis; }
-.ph-pdrill-more { font-size: 10.5px; color: var(--p-deep); padding: 3px 0 0 11px; }
+.ph-pdrill-more { font-size: 10.5px; color: var(--p-deep); padding: 3px 6px 3px 11px; border: 0; background: transparent; cursor: pointer; font-family: inherit; font-weight: 600; border-radius: 6px; }
+.ph-pdrill-more:hover { background: rgba(108,92,231,.08); text-decoration: underline; }
+.ph-pdrill-more:focus-visible { outline: 2px solid #7C6FF7; outline-offset: 1px; }
 .ph-dynp-top { height: 20px; display: flex; align-items: center; }
 .ph-dynp-delta { font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 999px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .ph-dynp-delta em { font-style: normal; font-weight: 500; font-size: 8.5px; opacity: .7; margin-left: 2px; }
@@ -991,7 +1006,7 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
   .ph-top-r { gap: 6px; flex-wrap: wrap; width: 100%; }
   .ph-sel { padding: 8px 10px; font-size: 11px; flex: 1 1 auto; min-height: 38px; }
   .ph-page { padding: 14px 12px 64px; }
-  .ph-hero-num { font-size: 44px; } .ph-hero-num small { font-size: 19px; }
+  .ph-hero-num small { font-size: 19px; }
   .ph-spark { margin-left: 12px !important; margin-right: 12px !important; }
   .ph-dyn { padding: 12px 12px 8px; gap: 6px; }
   .ph-dyn-hint { font-size: 11px; }
@@ -1021,7 +1036,7 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
 }
 @media (max-width: 430px) {
   .ph-tiles { grid-template-columns: 1fr 1fr; gap: 8px; }
-  .ph-hero-num { font-size: 38px; } .ph-hero-num small { font-size: 17px; }
+  .ph-hero-num small { font-size: 17px; }
   .ph-dyn { gap: 4px; }
   .ph-dynp-track { height: 76px; }
 }

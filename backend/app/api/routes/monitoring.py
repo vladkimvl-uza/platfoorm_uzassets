@@ -17,7 +17,7 @@ from datetime import UTC, date, datetime, timedelta
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import Float, and_, case, cast, extract, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -794,7 +794,6 @@ async def digest(
         "plan_now": round(_due_total / total * 100) if total else 0,  # доля наступивших сроков — справочно
         "tasks_done": done, "tasks_total": total,
         "overdue": to_state["overdue"],
-        "quarters": await _plan_quarters(db, year),
         "companies": sorted(to_state["companies"], key=lambda c: (c.get("score") if c.get("score") is not None else -1)),
     }
 
@@ -948,9 +947,11 @@ async def digest(
 @router.delete("/snapshot/{snap_id}", status_code=204)
 async def delete_snapshot(
     snap_id: str,
+    request: Request,
     db: AsyncSession = Depends(get_db),
-    _user: User = Depends(_require_monitoring),
+    user: User = Depends(_require_monitoring),
 ):
+    from app.core.security import is_super_admin
     try:
         sid = UUID(snap_id)
     except Exception as e:
@@ -958,6 +959,12 @@ async def delete_snapshot(
     s = await db.get(ProgressSnapshot, sid)
     if not s:
         raise HTTPException(404, "Снимок не найден")
+    # Owner-guard: удалять может владелец/супер-админ ИЛИ создатель среза. Авто-срезы
+    # (captured_by=None, база для сравнения у всех) — только владелец/супер-админ.
+    if not (is_super_admin(user) or (s.captured_by is not None and s.captured_by == user.id)):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Удалять срез может владелец, супер-админ или его автор")
+    request.state.activity_summary = f"Удалён срез прогресса «{s.label}» ({s.year})"
+    request.state.activity_entity = "Execution Summary"
     await db.delete(s)
     await db.commit()
 
