@@ -19,7 +19,7 @@ import ModalShell from "@/components/ModalShell.vue";
 
 interface Quarter { q: number; label: string; plan_pct: number; fact_pct: number; }
 interface Co { company_id: string; code: string; name: string; sector: string; color: string; badge: string; score: number | null; prog?: number; plan?: number; tasks_done: number; tasks_total: number; projects_done: number; projects_total: number; comments: number; tasks_done_snap?: number; projects_done_snap?: number; comments_snap?: number; }
-interface Current { label: string; at: string; period: string; score: number; fact_now: number; plan_now: number; tasks_done: number; tasks_total: number; overdue: number; quarters: Quarter[]; companies: Co[]; snap_label?: string; snap_at?: string; }
+interface Current { label: string; at: string; period: string; score: number; fact_now: number | null; due_done: number; due_total: number; progress_now: number; plan_now: number; tasks_done: number; tasks_total: number; overdue: number; quarters: Quarter[]; companies: Co[]; snap_label?: string; snap_at?: string; }
 interface CoDelta { company_id: string; code: string; name: string; sector: string; color: string; badge: string; from: number; to: number; delta: number; tasks_from: number; tasks_to: number; projects_from: number; projects_to: number; tasks_total: number; projects_total: number; comments_from: number; comments_to: number; projects_closed?: number; }
 interface ClosedProject { company_id: string | null; company: string; sector: string | null; color: string; badge: string | null; num: string | null; title: string; }
 interface Comparison { from: { label: string; at: string; score: number }; to: { label: string; at: string; score: number }; portfolio_delta: number | null; improved: CoDelta[]; fell: CoDelta[]; tasks_closed: number; comments_added: number; projects_closed?: number; closed_projects?: ClosedProject[]; }
@@ -155,22 +155,22 @@ const coDeltaMap = computed<Record<string, number>>(() => {
 // Сводный счётчик закрытых проектов в окне (для шапки «Улучшились»).
 const projectsClosed = computed(() => cmp.value?.projects_closed ?? 0);
 const closedProjects = computed(() => cmp.value?.closed_projects || []);
-const gap = computed(() => cur.value ? cur.value.fact_now - cur.value.plan_now : 0); // факт − план(должно)
+// Не выполнено обязательств (наступившие сроки без факта) — для правой части hero.
+const obligUnmet = computed(() => cur.value ? Math.max(0, cur.value.due_total - cur.value.due_done) : 0);
 
 // ─── редизайн: статус, зоны риска, сортировка ───
 const periodLabel = computed(() => PERIODS.find(p => p.v === period.value)?.l || "");
-// Статус портфеля — по разрыву факт vs «должно быть к сегодня» (план), а не абсолют.
+// Статус портфеля — по «исполнению обязательств» (fact_now = due_done/due_total),
+// самодостаточной 0-100 (без вычитания несопоставимых величин).
 const statusClass = computed(() => {
-  const c = cur.value;
-  if (!c || c.fact_now == null) return "na";
-  const g = c.fact_now - (c.plan_now ?? 0);
-  if (g >= 0) return "ok"; if (g >= -10) return "good"; if (g >= -25) return "warn"; return "crit";
+  const v = cur.value?.fact_now;
+  if (v == null) return "na";
+  if (v >= 90) return "ok"; if (v >= 75) return "good"; if (v >= 50) return "warn"; return "crit";
 });
 const statusWord = computed(() => {
-  const c = cur.value;
-  if (!c || c.fact_now == null) return "—";
-  const g = c.fact_now - (c.plan_now ?? 0);
-  if (g >= 0) return "в графике"; if (g >= -10) return "почти в графике"; if (g >= -25) return "отставание"; return "сильное отставание";
+  const v = cur.value?.fact_now;
+  if (v == null) return "нет наступивших сроков";
+  if (v >= 90) return "обязательства выполняются"; if (v >= 75) return "в целом по графику"; if (v >= 50) return "отставание"; return "сильное отставание";
 });
 // «Зона риска» = заметно отстаёт от собственного графика (план − факт > 25 пп).
 const RISK_BEHIND = 25;
@@ -352,29 +352,30 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
       <UzaStateBlock v-else-if="error" state="error" variant="block" :text="error" minHeight="180px" />
 
       <template v-else-if="cur">
-        <!-- HERO: исполнение vs план -->
+        <!-- HERO: исполнение обязательств (из наступивших сроков сколько выполнено) -->
         <div class="ph-hero" :class="statusClass">
           <div class="ph-hero-l">
-            <div class="ph-hero-eyebrow">Исполнение портфеля · {{ periodLabel }} · FY {{ year }}</div>
-            <div class="ph-hero-num">{{ cur.fact_now }}<small>%</small>
+            <div class="ph-hero-eyebrow">Исполнение обязательств · {{ periodLabel }} · FY {{ year }}</div>
+            <div class="ph-hero-num">{{ cur.fact_now ?? '—' }}<small v-if="cur.fact_now != null">%</small>
               <span class="ph-hero-chip">{{ statusWord }}</span>
             </div>
             <div class="ph-hero-sub">
-              взвешенный прогресс по статусам · {{ cur.tasks_done }} из {{ cur.tasks_total }} задач полностью завершено
+              <template v-if="cur.due_total">выполнено {{ cur.due_done }} из {{ cur.due_total }} задач с наступившим сроком</template>
+              <template v-else>сроков ещё не наступало · {{ cur.tasks_total }} задач в работе</template>
               <span v-if="period === 'all'" class="ph-hero-trend" :class="trend.dir">
                 {{ trend.dir === 'up' ? '↑' : trend.dir === 'down' ? '↓' : '→' }} {{ trendWord }}
               </span>
             </div>
           </div>
           <div class="ph-hero-r">
-            <div class="ph-gap-head"><span>Должно быть к сегодня</span><b>{{ cur.plan_now }}%</b></div>
+            <div class="ph-gap-head"><span>Взвешенный прогресс</span><b>{{ cur.progress_now }}%</b></div>
             <div class="ph-gap-bar">
-              <div class="ph-gap-fill" :style="{ width: min100(cur.fact_now) + '%' }" />
-              <div class="ph-gap-target" :style="{ left: min100(cur.plan_now) + '%' }"><i /><span>план</span></div>
+              <div class="ph-gap-fill" :style="{ width: min100(cur.fact_now ?? 0) + '%' }" />
             </div>
             <div class="ph-gap-foot">
-              <span class="ph-gap-delta" :class="gap >= 0 ? 'ok' : 'bad'">
-                {{ gap >= 0 ? '↑ опережение ' + gap + ' пп' : '↓ отставание ' + Math.abs(gap) + ' пп' }}
+              <span class="ph-gap-delta" :class="obligUnmet > 0 ? 'bad' : 'ok'">
+                <template v-if="obligUnmet > 0">{{ obligUnmet }} не выполнено в срок</template>
+                <template v-else>обязательства закрыты</template>
               </span>
               <span class="ph-gap-over"><b>{{ cur.overdue }}</b> просрочено</span>
             </div>

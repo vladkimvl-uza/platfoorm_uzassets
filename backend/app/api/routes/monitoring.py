@@ -297,7 +297,8 @@ async def cumulative_dynamics(
     Плюс per-period: завершено в периоде и просрочено.
     """
     scope = await _scope_ids(db, user)
-    base_conds = [Task.is_archived.is_(False), Task.portfolio_year == year, _eligible(Task)]
+    base_conds = [Task.is_archived.is_(False), Task.portfolio_year == year, _eligible(Task),
+                  Task.company_id.is_not(None)]  # без «сиротских» — как в заголовке
     if company_id:
         await ensure_company_access(db, user, _as_uuid(company_id))  # IDOR-guard
         base_conds.append(Task.company_id == company_id)
@@ -525,7 +526,11 @@ async def _compute_state(db: AsyncSession, year: int,
     due_cond = and_(Task.due_date.is_not(None), Task.due_date <= today)
 
     def _pbase(model):
-        c = and_(model.is_archived.is_(False), model.portfolio_year == year)
+        # company_id IS NOT NULL — исключаем «сиротские» задачи/проекты без
+        # привязки к компании: иначе портфельный итог (tasks_total) не сходится
+        # с суммой per-company списка (заголовок 1007 vs 1000 по компаниям).
+        c = and_(model.is_archived.is_(False), model.portfolio_year == year,
+                 model.company_id.is_not(None))
         if bounds:
             c = and_(c, model.due_date >= bounds[0], model.due_date <= bounds[1])
         if scope is not None:
@@ -711,7 +716,7 @@ async def _plan_quarters(db: AsyncSession, year: int) -> list[dict]:
     план = % задач, чей дедлайн ≤ конца квартала; факт = % из них выполнено.
     """
     base = and_(Task.is_archived.is_(False), Task.portfolio_year == year,
-                Task.due_date.is_not(None), _eligible(Task))
+                Task.due_date.is_not(None), _eligible(Task), Task.company_id.is_not(None))
     total = int((await db.execute(select(func.count()).where(base))).scalar() or 0)
     ends = [(1, "I"), (2, "II"), (3, "III"), (4, "IV")]
     out = []
@@ -764,20 +769,26 @@ async def digest(
         to_label, to_dt = "Сейчас", datetime.now(UTC)
 
     total, done = to_state["tasks_total"], to_state["tasks_done"]
-    # ЕДИНАЯ метрика «Исполнение портфеля» = ВЗВЕШЕННЫЙ прогресс по статусам
-    # (Σвес/Σeligible). Live → из tasks_wsum; снимок → реконструкция из per-company
-    # prog (_wscore). Та же формула в snapshot/comparison/brief — без трёх «процентов».
+    # ВЗВЕШЕННЫЙ прогресс по статусам (Σвес/Σeligible) — используется для сравнения
+    # снимков (portfolio_delta) и per-company score. Live → из tasks_wsum;
+    # снимок → реконструкция из per-company prog (_wscore).
     if "tasks_wsum" in to_state:
-        _fact = _wpct(to_state["tasks_wsum"], total)
+        _progress = _wpct(to_state["tasks_wsum"], total)
     else:
-        _fact = _wscore(to_state.get("companies") or []) or 0
-    # «Должно быть к сегодня» = доля задач, чей срок наступил (count-based, eligible).
-    _plan = round(to_state["due_total"] / total * 100) if total else 0
+        _progress = _wscore(to_state.get("companies") or []) or 0
+    # ГЛАВНАЯ метрика hero — «Исполнение обязательств»: из задач, чей срок УЖЕ
+    # наступил (due), сколько выполнено (due_done/due_total). Самодостаточна 0-100,
+    # не завышается будущей работой (решение владельца 2026-07-24). None, когда
+    # сроков ещё не наступало (честно «нет наступивших»).
+    _due_total, _due_done = to_state["due_total"], to_state["due_done"]
+    _oblig = round(_due_done / _due_total * 100) if _due_total else None
     current = {
         "label": to_label, "at": to_dt.isoformat(), "period": period,
-        "score": _fact,               # факт: взвешенный прогресс портфеля
-        "fact_now": _fact,
-        "plan_now": _plan,            # «должно быть к сегодня» — доля наступивших сроков
+        "score": _progress,                # взвешенный прогресс (сравнение/снимки/per-company)
+        "fact_now": _oblig,                # исполнение обязательств, % (главная метрика hero)
+        "due_done": _due_done, "due_total": _due_total,
+        "progress_now": _progress,         # взвешенный прогресс — справочно
+        "plan_now": round(_due_total / total * 100) if total else 0,  # доля наступивших сроков — справочно
         "tasks_done": done, "tasks_total": total,
         "overdue": to_state["overdue"],
         "quarters": await _plan_quarters(db, year),
