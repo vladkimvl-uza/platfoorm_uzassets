@@ -856,7 +856,7 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
 .ph-q-legend i { width: 11px; height: 11px; border-radius: 3px; } .lg-plan { background: repeating-linear-gradient(135deg,#D7D9E0 0 3px,#EAEBEF 3px 6px); } .lg-fact { background: #7C6FF7; }
 
 /* ─── ДИНАМИКА ─── */
-.ph-hero-trend { margin-left: 10px; font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: 999px; }
+.ph-hero-trend { margin-left: 10px; font-size: 11px; font-weight: 600; letter-spacing: normal; white-space: nowrap; padding: 2px 9px; border-radius: 999px; align-self: center; }
 .ph-hero-trend.up { color: #0F6E56; background: rgba(29,158,117,.10); } .ph-hero-trend.down { color: #B23434; background: rgba(226,75,74,.10); } .ph-hero-trend.flat { color: var(--t3); background: #F1F2F6; }
 .ph-spark { position: relative; height: 48px; margin: 16px 24px 0; }
 .ph-spark-svg { width: 100%; height: 100%; display: block; overflow: visible; }
