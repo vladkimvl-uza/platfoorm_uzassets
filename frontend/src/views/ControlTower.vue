@@ -18,7 +18,7 @@ import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import ModalShell from "@/components/ModalShell.vue";
 
 interface Quarter { q: number; label: string; plan_pct: number; fact_pct: number; }
-interface Co { company_id: string; code: string; name: string; sector: string; color: string; badge: string; score: number | null; prog?: number; plan?: number; tasks_done: number; tasks_total: number; projects_done: number; projects_total: number; comments: number; tasks_done_snap?: number; projects_done_snap?: number; comments_snap?: number; }
+interface Co { company_id: string; code: string; name: string; sector: string; color: string; badge: string; score: number | null; prog?: number; plan?: number; oblig?: number | null; due?: number; due_done?: number; tasks_done: number; tasks_total: number; projects_done: number; projects_total: number; comments: number; tasks_done_snap?: number; projects_done_snap?: number; comments_snap?: number; }
 interface Current { label: string; at: string; period: string; score: number; fact_now: number | null; due_done: number; due_total: number; progress_now: number; plan_now: number; tasks_done: number; tasks_total: number; overdue: number; quarters: Quarter[]; companies: Co[]; snap_label?: string; snap_at?: string; }
 interface CoDelta { company_id: string; code: string; name: string; sector: string; color: string; badge: string; from: number; to: number; delta: number; tasks_from: number; tasks_to: number; projects_from: number; projects_to: number; tasks_total: number; projects_total: number; comments_from: number; comments_to: number; projects_closed?: number; }
 interface ClosedProject { company_id: string | null; company: string; sector: string | null; color: string; badge: string | null; num: string | null; title: string; }
@@ -118,26 +118,23 @@ function briefHtml(t: string): string {
 }
 
 // ─── helpers ───────────────────────────────────────────────────
-// Цвет компании — по ОТСТАВАНИЮ от её плана-графика (fact − plan), а не по
-// абсолюту: зелёный = в графике/опережение, янтарь = лёгкое отставание (≤15 пп),
-// красный = заметное. Абсолютные пороги 80/60/40 красили весь портфель «критично».
-function gapColor(fact: number | null | undefined, plan: number | null | undefined): string {
-  if (fact == null) return "#94A3B8";
-  const g = fact - (plan ?? 0);
-  if (g >= 0) return "#1D9E75";
-  if (g >= -15) return "#EF9F27";
-  return "#E24B4A";
+// ЕДИНАЯ band-функция «исполнения обязательств» (0-100) — одна для hero и
+// per-company, чтобы не было двух систем порогов и «двух цветов» у одной цифры.
+function bandClass(v: number | null | undefined): "ok" | "good" | "warn" | "crit" | "na" {
+  if (v == null) return "na";
+  if (v >= 90) return "ok"; if (v >= 75) return "good"; if (v >= 50) return "warn"; return "crit";
 }
-function coColor(c: { score: number | null; plan?: number }): string {
-  return gapColor(c.score, c.plan);
-}
+const BAND_HEX: Record<string, string> = { ok: "#1D9E75", good: "#3FA36F", warn: "#EF9F27", crit: "#E24B4A", na: "#94A3B8" };
+const BAND_WORD: Record<string, string> = {
+  ok: "обязательства выполняются", good: "в целом по графику",
+  warn: "отставание", crit: "сильное отставание", na: "нет наступивших сроков",
+};
+function bandColor(v: number | null | undefined): string { return BAND_HEX[bandClass(v)]; }
+function coColor(c: { oblig?: number | null }): string { return bandColor(c.oblig); }
 // нейтральная «прогресс-интенсивность» (бренд-фиолет) — для накопительной динамики
-// и снимков: это РОСТ во времени, а не оценка «плохо/хорошо».
+// и снимков: это РОСТ во времени (movement), а не оценка состояния «плохо/хорошо».
 const PROG = "#7C6FF7";
 function progColor(_v?: number | null): string { return PROG; }
-function behind(c: { score: number | null; plan?: number }): number {
-  return (c.plan ?? 0) - (c.score ?? 0);  // насколько отстаёт от своего графика, пп
-}
 function fmtDate(s: string | undefined): string {
   if (!s) return "—"; if (s === "Сейчас") return s;
   return new Date(s).toLocaleString("ru-RU", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
@@ -160,29 +157,22 @@ const obligUnmet = computed(() => cur.value ? Math.max(0, cur.value.due_total - 
 
 // ─── редизайн: статус, зоны риска, сортировка ───
 const periodLabel = computed(() => PERIODS.find(p => p.v === period.value)?.l || "");
-// Статус портфеля — по «исполнению обязательств» (fact_now = due_done/due_total),
-// самодостаточной 0-100 (без вычитания несопоставимых величин).
-const statusClass = computed(() => {
-  const v = cur.value?.fact_now;
-  if (v == null) return "na";
-  if (v >= 90) return "ok"; if (v >= 75) return "good"; if (v >= 50) return "warn"; return "crit";
-});
-const statusWord = computed(() => {
-  const v = cur.value?.fact_now;
-  if (v == null) return "нет наступивших сроков";
-  if (v >= 90) return "обязательства выполняются"; if (v >= 75) return "в целом по графику"; if (v >= 50) return "отставание"; return "сильное отставание";
-});
-// «Зона риска» = заметно отстаёт от собственного графика (план − факт > 25 пп).
-const RISK_BEHIND = 25;
-const riskCount = computed(() => (cur.value?.companies || []).filter(c => behind(c) > RISK_BEHIND).length);
-// сортировка компаний: худшие первыми (зоны риска видны сразу), null — в конец
+// Статус/подпись портфеля — по «исполнению обязательств» через единую band.
+const statusClass = computed(() => bandClass(cur.value?.fact_now));
+const statusWord = computed(() => BAND_WORD[bandClass(cur.value?.fact_now)]);
+// «Зона риска» компании = исполнение обязательств ниже 60% (заметно позади).
+const RISK_OBLIG = 60;
+function isRisk(c: Co): boolean { return c.oblig != null && c.oblig < RISK_OBLIG; }
+const riskCount = computed(() => (cur.value?.companies || []).filter(isRisk).length);
+// сортировка компаний: худшие по обязательствам первыми (риск виден сразу),
+// «нет наступивших сроков» (oblig=null) — в конец.
 const coSort = ref<"worst" | "best" | "name">("worst");
 const sortedCompanies = computed(() => {
   const arr = [...(cur.value?.companies || [])];
   if (coSort.value === "name") return arr.sort((a, b) => a.name.localeCompare(b.name, "ru"));
   return arr.sort((a, b) => {
-    const sa = a.score == null ? 1000 : a.score;
-    const sb = b.score == null ? 1000 : b.score;
+    const sa = a.oblig == null ? 1000 : a.oblig;
+    const sb = b.oblig == null ? 1000 : b.oblig;
     return coSort.value === "worst" ? sa - sb : sb - sa;
   });
 });
@@ -237,6 +227,25 @@ const trend = computed(() => {
 });
 const trendWord = computed(() => ({ up: "прогресс растёт", down: "прогресс снижается", flat: "без прироста" }[trend.value.dir]));
 
+// Тренд для HERO — ВСЕГДА по всему портфелю, независимо от фильтра компании в
+// «Динамике» (иначе большое портфельное число сопровождалось трендом одной
+// выбранной компании). Отдельная портфель-only накопительная серия.
+const portfolioCum = ref<{ total: number; periods: CumPeriod[] } | null>(null);
+async function loadPortfolioCum(silent = false) {
+  try {
+    const { data } = await api.get(`/monitoring/cumulative/${year.value}`, {
+      params: { granularity: granularity.value },
+    });
+    portfolioCum.value = data;
+  } catch { if (!silent) portfolioCum.value = null; }
+}
+const heroTrend = computed(() => {
+  const past = (portfolioCum.value?.periods || []).filter(p => !p.is_future);
+  const d = past[past.length - 1]?.delta ?? 0;
+  return { dir: (d > 0 ? "up" : d < 0 ? "down" : "flat") as "up" | "down" | "flat", delta: d };
+});
+const heroTrendWord = computed(() => ({ up: "прогресс растёт", down: "прогресс снижается", flat: "без прироста" }[heroTrend.value.dir]));
+
 // Sparkline накопительной линии (растущая траектория)
 const spark = computed(() => {
   const ps = cumPeriods.value;
@@ -281,8 +290,9 @@ function byDirection(tasks: PTask[]): { dir: string; items: PTask[] }[] {
   return [...m.entries()].map(([dir, items]) => ({ dir, items })).sort((a, b) => b.items.length - a.items.length);
 }
 
-onMounted(loadCumulative);
+onMounted(() => { loadCumulative(); loadPortfolioCum(); });
 watch([year, granularity, dynCompany], () => { expandedPeriod.value = null; loadCumulative(); });
+watch([year, granularity], () => loadPortfolioCum());
 
 // Нормализуем выбранную компанию (Co из списка ИЛИ CoDelta из улучшились/провалились)
 const modalNums = computed(() => {
@@ -325,7 +335,7 @@ function actionRu(a: string): string { return ({ status_changed: "сменил �
 let pollTimer: ReturnType<typeof setInterval> | null = null;
 onMounted(() => {
   pollTimer = window.setInterval(() => {
-    if (!document.hidden && !modalCo.value && !loading.value) { load(true); loadCumulative(true); }
+    if (!document.hidden && !modalCo.value && !loading.value) { load(true); loadCumulative(true); loadPortfolioCum(true); }
   }, 30000);
 });
 onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
@@ -362,22 +372,21 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
             <div class="ph-hero-sub">
               <template v-if="cur.due_total">выполнено {{ cur.due_done }} из {{ cur.due_total }} задач с наступившим сроком</template>
               <template v-else>сроков ещё не наступало · {{ cur.tasks_total }} задач в работе</template>
-              <span v-if="period === 'all'" class="ph-hero-trend" :class="trend.dir">
-                {{ trend.dir === 'up' ? '↑' : trend.dir === 'down' ? '↓' : '→' }} {{ trendWord }}
-              </span>
+              <span v-if="obligUnmet > 0" class="ph-hero-muted">· {{ obligUnmet }} не в срок</span>
             </div>
           </div>
           <div class="ph-hero-r">
-            <div class="ph-gap-head"><span>Взвешенный прогресс</span><b>{{ cur.progress_now }}%</b></div>
-            <div class="ph-gap-bar">
-              <div class="ph-gap-fill" :style="{ width: min100(cur.fact_now ?? 0) + '%' }" />
-            </div>
-            <div class="ph-gap-foot">
-              <span class="ph-gap-delta" :class="obligUnmet > 0 ? 'bad' : 'ok'">
-                <template v-if="obligUnmet > 0">{{ obligUnmet }} не выполнено в срок</template>
-                <template v-else>обязательства закрыты</template>
+            <div class="ph-hero-eyebrow alt">Взвешенный прогресс</div>
+            <div class="ph-hero-num alt">{{ cur.progress_now }}<small>%</small>
+              <span v-if="period === 'all'" class="ph-hero-trend" :class="heroTrend.dir">
+                {{ heroTrend.dir === 'up' ? '↑' : heroTrend.dir === 'down' ? '↓' : '→' }} {{ heroTrendWord }}
               </span>
-              <span class="ph-gap-over"><b>{{ cur.overdue }}</b> просрочено</span>
+            </div>
+            <div class="ph-gap-bar">
+              <div class="ph-gap-fill prog" :style="{ width: min100(cur.progress_now) + '%' }" />
+            </div>
+            <div class="ph-hero-sub alt">
+              учитывает задачи в работе (нач. 25% · в работе 50% · проверка 75%) · <b>{{ cur.overdue }}</b> просрочено
             </div>
           </div>
         </div>
@@ -450,7 +459,9 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
             <div class="ph-dyn" :class="granularity">
               <div v-for="p in cumPeriods" :key="p.key" class="ph-dynp"
                    :class="{ now: p.isNow, fut: p.is_future, open: expandedPeriod === p.key }"
-                   @click="togglePeriod(p.key)">
+                   role="button" tabindex="0" :aria-expanded="expandedPeriod === p.key"
+                   :aria-label="'Детали периода ' + p.label_full"
+                   @click="togglePeriod(p.key)" @keydown.enter="togglePeriod(p.key)" @keydown.space.prevent="togglePeriod(p.key)">
                 <div class="ph-dynp-top">
                   <span v-if="p.is_future" class="ph-dynp-delta fl ph-dynp-first">не наступил</span>
                   <span v-else-if="p.delta != null" class="ph-dynp-delta" :class="p.delta > 0 ? 'up' : p.delta < 0 ? 'dn' : 'fl'">
@@ -525,7 +536,7 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
             <div class="ph-col">
               <div class="ph-col-h up">Улучшились<span>{{ cmp.improved.length }}</span></div>
               <div v-if="cmp.improved.length" class="ph-col-list">
-                <div v-for="c in cmp.improved" :key="c.company_id" class="ph-co" @click="openCompany(c)">
+                <div v-for="c in cmp.improved" :key="c.company_id" class="ph-co" role="button" tabindex="0" :aria-label="'Лента изменений: ' + c.name" @click="openCompany(c)" @keydown.enter="openCompany(c)" @keydown.space.prevent="openCompany(c)">
                   <div class="av" :style="{ background: c.color }">{{ c.badge }}</div>
                   <div class="ph-co-m">
                     <div class="ph-co-n">{{ c.name }}<span v-if="(c.projects_closed || 0) > 0" class="ph-pc-chip" :title="c.projects_closed + ' проект(ов) закрыто'">+{{ c.projects_closed }} пр.</span></div>
@@ -550,7 +561,7 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
             <div class="ph-col">
               <div class="ph-col-h dn">Провалились<span>{{ cmp.fell.length }}</span></div>
               <div v-if="cmp.fell.length" class="ph-col-list">
-                <div v-for="c in cmp.fell" :key="c.company_id" class="ph-co" @click="openCompany(c)">
+                <div v-for="c in cmp.fell" :key="c.company_id" class="ph-co" role="button" tabindex="0" :aria-label="'Лента изменений: ' + c.name" @click="openCompany(c)" @keydown.enter="openCompany(c)" @keydown.space.prevent="openCompany(c)">
                   <div class="av" :style="{ background: c.color }">{{ c.badge }}</div>
                   <div class="ph-co-m"><div class="ph-co-n">{{ c.name }}</div><div class="ph-co-s">{{ c.sector }}</div></div>
                   <div class="ph-co-p"><span class="f">{{ c.from }}</span><span class="t" :style="{ color: progColor(c.to) }">{{ c.to }}%</span></div>
@@ -585,18 +596,20 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
           </div>
           <div class="ph-co-list2">
             <div v-for="c in sortedCompanies" :key="c.company_id" class="ph-co2"
-                 :class="{ risk: behind(c) > RISK_BEHIND }" @click="openCompany(c)">
+                 :class="{ risk: isRisk(c) }" role="button" tabindex="0"
+                 :aria-label="'Лента изменений: ' + c.name"
+                 @click="openCompany(c)" @keydown.enter="openCompany(c)" @keydown.space.prevent="openCompany(c)">
               <div class="av" :style="{ background: c.color }">{{ c.badge }}</div>
               <div class="ph-co-m">
-                <div class="ph-co-n">{{ c.name }}<span v-if="behind(c) > RISK_BEHIND" class="ph-risk-tag">риск</span><span v-if="coDeltaMap[c.company_id]" class="ph-co-delta" :class="coDeltaMap[c.company_id] > 0 ? 'up' : 'dn'">{{ coDeltaMap[c.company_id] > 0 ? '+' : '' }}{{ coDeltaMap[c.company_id] }} пп</span></div>
+                <div class="ph-co-n">{{ c.name }}<span v-if="isRisk(c)" class="ph-risk-tag">риск</span><span v-if="coDeltaMap[c.company_id]" class="ph-co-delta" :class="coDeltaMap[c.company_id] > 0 ? 'up' : 'dn'">{{ coDeltaMap[c.company_id] > 0 ? '+' : '' }}{{ coDeltaMap[c.company_id] }} пп</span></div>
                 <div class="ph-co-nums">
                   <span>задачи <b>{{ c.tasks_done }}</b>/{{ c.tasks_total }}<i v-if="hasSnap && (c.tasks_done - (c.tasks_done_snap||0)) > 0" class="up">+{{ c.tasks_done - (c.tasks_done_snap||0) }}</i></span>
                   <span>проекты <b>{{ c.projects_done }}</b>/{{ c.projects_total }}<i v-if="hasSnap && (c.projects_done - (c.projects_done_snap||0)) > 0" class="up">+{{ c.projects_done - (c.projects_done_snap||0) }}</i></span>
                   <span v-if="c.comments"><b>{{ c.comments }}</b> комм.<i v-if="hasSnap && (c.comments - (c.comments_snap||0)) > 0" class="up">+{{ c.comments - (c.comments_snap||0) }}</i></span>
                 </div>
               </div>
-              <div class="ph-co-track"><span :style="{ width: Math.min(100, c.score || 0) + '%', background: coColor(c) }" /></div>
-              <span class="ph-co-pct" :style="{ color: coColor(c) }">{{ c.score ?? '—' }}<template v-if="c.score!=null">%</template></span>
+              <div class="ph-co-track"><span :style="{ width: Math.min(100, c.oblig ?? 0) + '%', background: coColor(c) }" /></div>
+              <span class="ph-co-pct" :style="{ color: coColor(c) }">{{ c.oblig ?? '—' }}<template v-if="c.oblig!=null">%</template></span>
             </div>
           </div>
         </div>
@@ -718,7 +731,13 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
 /* ─── HERO ─── */
 .ph-hero { display: grid; grid-template-columns: 1fr 1.5fr; gap: 0; border-radius: 18px; overflow: hidden; margin-bottom: 14px; border: 1px solid var(--bd); box-shadow: var(--sh); position: relative; }
 .ph-hero::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 4px; }
-.ph-hero.crit::before { background: #E24B4A; } .ph-hero.warn::before { background: #EF9F27; } .ph-hero.good::before { background: #7C6FF7; } .ph-hero.ok::before { background: #1D9E75; } .ph-hero.na::before { background: #94A3B8; }
+/* Полоска — градиент: цвет обязательств (слева) → фиолет прогресса (справа):
+   визуально обе метрики, а не только «тревожная» строгая. */
+.ph-hero.crit::before { background: linear-gradient(90deg, #E24B4A 0 38%, #7C6FF7 82%); }
+.ph-hero.warn::before { background: linear-gradient(90deg, #EF9F27 0 38%, #7C6FF7 82%); }
+.ph-hero.good::before { background: linear-gradient(90deg, #6C5CE7 0 38%, #7C6FF7 82%); }
+.ph-hero.ok::before { background: linear-gradient(90deg, #1D9E75 0 38%, #7C6FF7 82%); }
+.ph-hero.na::before { background: linear-gradient(90deg, #94A3B8 0 38%, #7C6FF7 82%); }
 .ph-hero-l { padding: 22px 28px; background: linear-gradient(135deg,#fff,#FBFAFF); border-right: 1px solid var(--line); }
 .ph-hero.crit .ph-hero-l { background: linear-gradient(135deg,#FFF6F6,#FFF0F0); }
 .ph-hero.warn .ph-hero-l { background: linear-gradient(135deg,#FFFBF3,#FEF6E9); }
@@ -742,6 +761,22 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
 .ph-gap-foot { display: flex; align-items: center; justify-content: space-between; }
 .ph-gap-delta { font-size: 13px; font-weight: 700; } .ph-gap-delta.ok { color: #0F6E56; } .ph-gap-delta.bad { color: #B23434; }
 .ph-gap-over { font-size: 12px; color: var(--t3); } .ph-gap-over b { color: #E24B4A; font-weight: 700; font-variant-numeric: tabular-nums; }
+/* Правая метрика hero — взвешенный прогресс (крупно, всегда бренд-фиолет,
+   независимо от статуса обязательств): «не всё так плохо — общий прогресс 40%». */
+.ph-hero-r { justify-content: center; gap: 8px; }
+.ph-hero-eyebrow.alt { color: #6C5CE7; }
+.ph-hero-r .ph-hero-num.alt { font-size: 46px; color: #6C5CE7; margin-top: 4px; }
+.ph-hero-r .ph-hero-num.alt small { font-size: 22px; color: #6C5CE7; }
+.ph-hero-r .ph-gap-fill.prog { background-color: #7C6FF7; }
+.ph-hero-sub.alt { margin-top: 4px; }
+.ph-hero-sub.alt b { color: #E24B4A; font-weight: 700; }
+.ph-hero-muted { color: var(--t4); margin-left: 6px; }
+/* a11y: видимые фокус-кольца на нативных селектах (у них outline:none) + строках */
+.ph-sel:focus-visible, .ph-dyn-co:focus-visible { outline: 2px solid #7C6FF7; outline-offset: 2px; }
+.ph-co2:focus-visible, .ph-dynp:focus-visible, .ph-co:focus-visible { outline: 2px solid #7C6FF7; outline-offset: -2px; border-radius: 12px; }
+@media (prefers-reduced-motion: reduce) {
+  .ph-gap-fill, .ph-dynp-fill, .ph-co-track span, .ph-hero-num, .ph-spark-dot { transition: none !important; animation: none !important; }
+}
 
 /* ─── TILES ─── */
 .ph-tiles { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 16px; }

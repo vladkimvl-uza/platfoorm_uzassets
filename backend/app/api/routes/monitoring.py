@@ -614,7 +614,10 @@ async def _compute_state(db: AsyncSession, year: int,
         tt, td = (int(r["total"]), int(r["done"])) if r else (0, 0)
         wsum = float(r["wsum"] or 0.0) if r else 0.0
         prog = _wpct(wsum, tt)                 # ВЗВЕШЕННЫЙ прогресс компании
-        plan = round(due / tt * 100) if tt else 0  # «должно быть к сегодня»
+        plan = round(due / tt * 100) if tt else 0  # доля наступивших сроков (справочно)
+        # «Исполнение обязательств» компании = из наступивших сроков сколько
+        # выполнено (та же метрика, что hero) — для цвета/сортировки/риска.
+        oblig = round(due_done / due * 100) if due else None
         companies.append({
             "company_id": str(m["id"]), "code": m["code"],
             "name": m["name_short"] or m["name_ru"],
@@ -624,8 +627,8 @@ async def _compute_state(db: AsyncSession, year: int,
             "tasks_total": tt, "tasks_done": td,
             "projects_total": pt, "projects_done": pd,
             "comments": int(cmt_by_co.get(m["id"], 0)),
-            "prog": prog, "plan": plan,
-            "score": prog,  # ЕДИНАЯ метрика — взвешенный прогресс по статусам
+            "prog": prog, "plan": plan, "oblig": oblig,
+            "score": prog,  # взвешенный прогресс (сравнение снимков)
         })
 
     tm = trow._mapping
@@ -902,14 +905,14 @@ async def digest(
         for item in improved + fell:
             item["projects_closed"] = pc_by_co.get(item["company_id"], 0)
 
-        # from.score той же взвешенной метрикой, что и to.score (current.score) —
-        # иначе portfolio_delta показывал фантомный сдвиг при идентичных снимках.
+        # ОБЕ стороны одним оценщиком _wscore(companies) — иначе portfolio_delta
+        # показывал фантомный сдвиг (to через tasks_wsum vs from через per-company).
         fp = _wscore(from_state["companies"])
-        tp = current["score"]
+        tp = _wscore(to_state["companies"])
         comparison = {
             "from": {"label": from_s.label, "at": from_dt.isoformat(), "score": fp or 0},
-            "to": {"label": to_label, "at": to_dt.isoformat(), "score": tp},
-            "portfolio_delta": (tp - fp) if fp is not None else None,
+            "to": {"label": to_label, "at": to_dt.isoformat(), "score": tp or 0},
+            "portfolio_delta": (tp - fp) if (fp is not None and tp is not None) else None,
             "improved": improved, "fell": fell,
             "tasks_closed": done - from_state["tasks_done"],
             "comments_added": comments_added,
