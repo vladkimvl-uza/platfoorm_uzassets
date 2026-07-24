@@ -23,6 +23,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from pydantic import BaseModel
 
+from app.core.access import (
+    allowed_company_ids,
+    ensure_company_access,
+    has_unrestricted_view,
+)
 from app.core.progress import NON_OVERDUE_STATUSES
 from app.core.security import require_permission
 from app.database import get_db
@@ -37,6 +42,33 @@ router = APIRouter(prefix="/monitoring", tags=["monitoring"])
 # Доступ к Execution Summary — по праву monitoring.view, которое admin/OWNER
 # выдают через сетку RBAC «Доступ к модулям». super-admin проходит автоматически.
 _require_monitoring = require_permission("monitoring.view")
+
+
+async def _scope_ids(db: AsyncSession, user: User) -> Optional[set[UUID]]:
+    """Разрешённые компании пользователя для per-company scope мониторинга.
+
+    None  = неограниченный доступ (owner/view_all) → видит весь портфель;
+    set() = нет ни одной компании → пустой ответ;
+    {ids} = только эти компании (orphan-задачи company_id IS NULL не видны).
+    """
+    if has_unrestricted_view(user):
+        return None
+    res = await allowed_company_ids(db, user)
+    return set(res) if res is not None else set()
+
+
+def _scope_col(conds: list, col, scope: Optional[set[UUID]]) -> list:
+    """Добавить фильтр company-scope к списку условий (если scope ограничен)."""
+    if scope is not None:
+        conds = [*conds, col.in_(scope)]
+    return conds
+
+
+def _as_uuid(v: str) -> UUID:
+    try:
+        return UUID(v)
+    except (ValueError, TypeError) as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Некорректный company_id") from e
 
 _MONTHS = ["Янв", "Фев", "Мар", "Апр", "Май", "Июн",
            "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"]
@@ -117,13 +149,15 @@ def _labels(granularity: str):
     return ["I", "II", "III", "IV"], _QUARTERS, 4
 
 
-async def _aggregate_entity(db: AsyncSession, model, year: int, granularity: str) -> dict:
+async def _aggregate_entity(db: AsyncSession, model, year: int, granularity: str,
+                            scope: Optional[set[UUID]] = None) -> dict:
     """План/факт по периодам для Task или Project (по due_date)."""
-    base = and_(
+    _c = _scope_col([
         model.is_archived.is_(False),
         model.portfolio_year == year,
         model.due_date.is_not(None),
-    )
+    ], model.company_id, scope)
+    base = and_(*_c)
     bucket = (
         extract("month", model.due_date) if granularity == "month"
         else extract("quarter", model.due_date)
@@ -172,21 +206,27 @@ async def _aggregate_entity(db: AsyncSession, model, year: int, granularity: str
     }
 
 
-async def _aggregate_comments(db: AsyncSession, year: int, granularity: str) -> dict:
+async def _aggregate_comments(db: AsyncSession, year: int, granularity: str,
+                              scope: Optional[set[UUID]] = None) -> dict:
     """Активность комментариев (задачи+проекты) по периодам — по created_at."""
     short, full, n = _labels(granularity)
     counts = {i: 0 for i in range(1, n + 1)}
     total = 0
-    for cmodel in (TaskComment, ProjectComment):
+    for cmodel, parent, pfk in (
+        (TaskComment, Task, TaskComment.task_id),
+        (ProjectComment, Project, ProjectComment.project_id),
+    ):
         bucket = (
             extract("month", cmodel.created_at) if granularity == "month"
             else extract("quarter", cmodel.created_at)
         )
-        rows = (await db.execute(
+        q = (
             select(bucket.label("b"), func.count().label("c"))
             .where(extract("year", cmodel.created_at) == year)
-            .group_by("b"),
-        )).all()
+        )
+        if scope is not None:  # scope-фильтр через родительскую задачу/проект
+            q = q.join(parent, parent.id == pfk).where(parent.company_id.in_(scope))
+        rows = (await db.execute(q.group_by("b"))).all()
         for r in rows:
             b = int(r._mapping["b"])
             counts[b] = counts.get(b, 0) + int(r._mapping["c"])
@@ -204,11 +244,12 @@ async def progress_timeline(
     year: int,
     granularity: str = Query("month", pattern="^(month|quarter)$"),
     db: AsyncSession = Depends(get_db),
-    _user: User = Depends(_require_monitoring),
+    user: User = Depends(_require_monitoring),
 ):
-    tasks = await _aggregate_entity(db, Task, year, granularity)
-    projects = await _aggregate_entity(db, Project, year, granularity)
-    comments = await _aggregate_comments(db, year, granularity)
+    scope = await _scope_ids(db, user)
+    tasks = await _aggregate_entity(db, Task, year, granularity, scope)
+    projects = await _aggregate_entity(db, Project, year, granularity, scope)
+    comments = await _aggregate_comments(db, year, granularity, scope)
     return {
         "year": year,
         "granularity": granularity,
@@ -246,7 +287,7 @@ async def cumulative_dynamics(
     granularity: str = Query("quarter", pattern="^(month|quarter)$"),
     company_id: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
-    _user: User = Depends(_require_monitoring),
+    user: User = Depends(_require_monitoring),
 ):
     """Накопительный % выполнения портфеля к концу каждого периода.
 
@@ -255,9 +296,12 @@ async def cumulative_dynamics(
     (или одной компании). Прогресс растёт; delta = прирост к прошлому периоду.
     Плюс per-period: завершено в периоде и просрочено.
     """
+    scope = await _scope_ids(db, user)
     base_conds = [Task.is_archived.is_(False), Task.portfolio_year == year, _eligible(Task)]
     if company_id:
+        await ensure_company_access(db, user, _as_uuid(company_id))  # IDOR-guard
         base_conds.append(Task.company_id == company_id)
+    base_conds = _scope_col(base_conds, Task.company_id, scope)
     total = (await db.execute(select(func.count()).where(and_(*base_conds)))).scalar() or 0
 
     today = datetime.now(UTC).date()
@@ -309,14 +353,17 @@ async def period_tasks(
     granularity: str = Query("quarter", pattern="^(month|quarter)$"),
     company_id: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
-    _user: User = Depends(_require_monitoring),
+    user: User = Depends(_require_monitoring),
 ):
     """Детали периода: завершённые и просроченные задачи, по направлениям."""
+    scope = await _scope_ids(db, user)
     start, end = _cum_period_bounds(year, granularity, period)
     today = datetime.now(UTC).date()
     base_conds = [Task.is_archived.is_(False), Task.portfolio_year == year]
     if company_id:
+        await ensure_company_access(db, user, _as_uuid(company_id))  # IDOR-guard
         base_conds.append(Task.company_id == company_id)
+    base_conds = _scope_col(base_conds, Task.company_id, scope)
     done_date = func.coalesce(func.date(Task.completed_at), Task.due_date)
 
     async def _rows(extra):
@@ -362,19 +409,20 @@ async def companies_timeline(
     granularity: str = Query("quarter", pattern="^(month|quarter)$"),
     metric: str = Query("tasks", pattern="^(tasks|projects)$"),
     db: AsyncSession = Depends(get_db),
-    _user: User = Depends(_require_monitoring),
+    user: User = Depends(_require_monitoring),
 ):
     """Per-company исполнение по периодам — для построчного сравнения A↔B.
 
     План = записи (задачи/проекты) с дедлайном в периоде, факт = выполнено.
     """
+    scope = await _scope_ids(db, user)
     model = Task if metric == "tasks" else Project
-    base = and_(
+    base = and_(*_scope_col([
         model.is_archived.is_(False),
         model.portfolio_year == year,
         model.due_date.is_not(None),
         model.company_id.is_not(None),
-    )
+    ], model.company_id, scope))
     bucket = (
         extract("month", model.due_date) if granularity == "month"
         else extract("quarter", model.due_date)
@@ -467,15 +515,21 @@ def _period_bounds(year: int, period: Optional[str]) -> Optional[tuple[date, dat
 
 
 async def _compute_state(db: AsyncSession, year: int,
-                         bounds: Optional[tuple[date, date]] = None) -> dict:
-    """Текущее состояние портфеля (опц. в границах периода) + per-company."""
+                         bounds: Optional[tuple[date, date]] = None,
+                         scope: Optional[set[UUID]] = None) -> dict:
+    """Текущее состояние портфеля (опц. в границах периода) + per-company.
+
+    scope=None → весь портфель (owner/view_all); {ids} → только эти компании.
+    """
     today = datetime.now(UTC).date()
     due_cond = and_(Task.due_date.is_not(None), Task.due_date <= today)
 
-    def _scope(model):
+    def _pbase(model):
         c = and_(model.is_archived.is_(False), model.portfolio_year == year)
         if bounds:
             c = and_(c, model.due_date >= bounds[0], model.due_date <= bounds[1])
+        if scope is not None:
+            c = and_(c, model.company_id.in_(scope))
         return c
 
     W = _weight_expr(Task)
@@ -485,7 +539,7 @@ async def _compute_state(db: AsyncSession, year: int,
         Task.status.notin_(("monthly", "ongoing", "quarterly")),
     )
 
-    tbase = _scope(Task)
+    tbase = _pbase(Task)
     trow = (await db.execute(select(
         func.count().filter(_eligible(Task)).label("total"),
         func.count().filter(Task.status == "done").label("done"),
@@ -495,7 +549,7 @@ async def _compute_state(db: AsyncSession, year: int,
         func.count().filter(overdue_cond).label("overdue"),
     ).where(tbase))).first()
 
-    pbase = _scope(Project)
+    pbase = _pbase(Project)
     prow = (await db.execute(select(
         func.count().label("total"),
         func.count().filter(Project.status == "done").label("done"),
@@ -683,12 +737,14 @@ async def digest(
     from_id: Optional[str] = Query(None),
     to_id: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
-    _user: User = Depends(_require_monitoring),
+    user: User = Depends(_require_monitoring),
 ):
     """Обзор. Всегда возвращает live `current` (в границах period: год/квартал/
     месяц): факт %, «должно быть к сегодня» %, per-company, план по кварталам.
-    Плюс `comparison` (было→стало, improved/fell) — если есть базовый срез.
+    Плюс `comparison` (было→стало, improved/fell) — только для period='all'
+    (сравнивать срез квартала с годовым снимком некорректно) и если есть срез.
     """
+    scope = await _scope_ids(db, user)
     bounds = _period_bounds(year, period)
 
     snaps = (await db.execute(
@@ -700,8 +756,11 @@ async def digest(
     # ── LIVE current (всегда, в границах period) ──
     if to_id and to_id in by_id:
         to_state, to_label, to_dt = _snap_state(by_id[to_id]), by_id[to_id].label, by_id[to_id].captured_at
+        if scope is not None:  # снимок хранит весь портфель → фильтруем под scope
+            _sc = {str(x) for x in scope}
+            to_state = {**to_state, "companies": [c for c in to_state["companies"] if c.get("company_id") in _sc]}
     else:
-        to_state = await _compute_state(db, year, bounds)
+        to_state = await _compute_state(db, year, bounds, scope)
         to_label, to_dt = "Сейчас", datetime.now(UTC)
 
     total, done = to_state["tasks_total"], to_state["tasks_done"]
@@ -735,8 +794,14 @@ async def digest(
             if not (to_id and str(s.id) == to_id):
                 from_s = s
                 break
-    if from_s is not None:
+    # Сравнение строим ТОЛЬКО для period='all' (bounds=None): срез квартала/месяца
+    # нельзя честно сопоставлять с годовым снимком (иначе ложные «провалился −N пп»).
+    if from_s is not None and bounds is None:
         from_state, from_dt = _snap_state(from_s), from_s.captured_at
+        if scope is not None:  # снимок хранит весь портфель → под scope пользователя
+            _scs = {str(x) for x in scope}
+            from_state = {**from_state,
+                          "companies": [c for c in from_state["companies"] if c.get("company_id") in _scs]}
         # Сравнение per-company по ЕДИНОЙ взвешенной метрике (prog). Старые снимки
         # без prog → fallback на done/total. Обе стороны одной формулой — дельта честная.
         def coscore(c):
@@ -778,24 +843,36 @@ async def digest(
         improved.sort(key=lambda x: -x["delta"])
         fell.sort(key=lambda x: x["delta"])
 
+        # Комменты в окне — привязаны к задачам/проектам ЭТОГО года (+ scope),
+        # иначе счётчик протекал кросс-год/кросс-портфель (P1-фикс).
         comments_added = 0
-        for cmodel in (TaskComment, ProjectComment):
-            comments_added += int((await db.execute(select(func.count()).where(
-                cmodel.created_at > from_dt, cmodel.created_at <= to_dt,
-            ))).scalar() or 0)
+        for cmodel, parent, pfk in (
+            (TaskComment, Task, TaskComment.task_id),
+            (ProjectComment, Project, ProjectComment.project_id),
+        ):
+            q = (
+                select(func.count()).select_from(cmodel)
+                .join(parent, parent.id == pfk)
+                .where(cmodel.created_at > from_dt, cmodel.created_at <= to_dt,
+                       parent.portfolio_year == year)
+            )
+            if scope is not None:
+                q = q.where(parent.company_id.in_(scope))
+            comments_added += int((await db.execute(q)).scalar() or 0)
 
         # Проекты, ЗАКРЫТЫЕ в окне сравнения (status=done, completed_at в (from_dt, to_dt]).
         # Отдаём список «какие именно» + счётчик по компаниям.
         _co_meta = {c["company_id"]: c for c in to_state["companies"]}
+        _pc_conds = _scope_col([
+            Project.status == "done",
+            Project.completed_at.is_not(None),
+            Project.completed_at > from_dt,
+            Project.completed_at <= to_dt,
+            Project.portfolio_year == year,
+        ], Project.company_id, scope)
         pc_rows = (await db.execute(
             select(Project.company_id, Project.num, Project.title)
-            .where(
-                Project.status == "done",
-                Project.completed_at.is_not(None),
-                Project.completed_at > from_dt,
-                Project.completed_at <= to_dt,
-                Project.portfolio_year == year,
-            )
+            .where(and_(*_pc_conds))
             .order_by(Project.completed_at.desc())
         )).all()
         closed_projects = []
@@ -880,10 +957,10 @@ async def exec_brief(
     year: int,
     period: str = Query("all", pattern="^(all|q[1-4]|m([1-9]|1[0-2]))$"),
     db: AsyncSession = Depends(get_db),
-    _user: User = Depends(_require_monitoring),
+    user: User = Depends(_require_monitoring),
 ):
     """Сгенерировать executive-бриф по исполнению портфеля (AI engine, grounded в
-    реальных цифрах). Уважает is_enabled + owner-активацию ассистента."""
+    реальных цифрах). Уважает is_enabled + owner-активацию ассистента + scope."""
     from app.api.routes.ai import _assistant_active
     from app.services.ai_service import complete_once, is_enabled
 
@@ -892,8 +969,9 @@ async def exec_brief(
     if not await _assistant_active(db):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "ИИ-ассистент деактивирован владельцем")
 
+    scope = await _scope_ids(db, user)
     bounds = _period_bounds(year, period)
-    st = await _compute_state(db, year, bounds)
+    st = await _compute_state(db, year, bounds, scope)
     total, done = st["tasks_total"], st["tasks_done"]
     # Та же ЕДИНАЯ взвешенная метрика, что на дашборде — иначе бриф и экран расходятся.
     fact = _wpct(st["tasks_wsum"], total)
@@ -929,8 +1007,10 @@ async def exec_brief(
         "нефтегаз, энергетика, транспорт, химия). Пишешь строго по-деловому, на "
         "русском, для высшего руководства. Используй ТОЛЬКО предоставленные цифры — "
         "ничего не выдумывай, не добавляй данных, которых нет. Без воды и общих фраз, "
-        "конкретно и по существу. Метрика «исполнение обязательств» = из задач, чей "
-        "срок уже наступил, сколько выполнено."
+        "конкретно и по существу. Определения метрик: «исполнение_факт_%» = взвешенный "
+        "прогресс по статусам задач (new 0 / init 25 / active 50 / review 75 / done 100); "
+        "«должно_быть_к_сегодня_%» = доля задач, чей срок уже наступил (плановая "
+        "траектория на сегодня); «отставание_пп» = их разница."
     )
     prompt = (
         "Составь краткий executive-бриф по исполнению портфеля (4–6 абзацев, можно "

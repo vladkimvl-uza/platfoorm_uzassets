@@ -15,6 +15,7 @@ import { useConfirm } from "@/composables/useConfirm";
 import EptLogo from "@/components/EptLogo.vue";
 import UzaSkeleton from "@/components/UZA/UzaSkeleton.vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
+import ModalShell from "@/components/ModalShell.vue";
 
 interface Quarter { q: number; label: string; plan_pct: number; fact_pct: number; }
 interface Co { company_id: string; code: string; name: string; sector: string; color: string; badge: string; score: number | null; prog?: number; plan?: number; tasks_done: number; tasks_total: number; projects_done: number; projects_total: number; comments: number; tasks_done_snap?: number; projects_done_snap?: number; comments_snap?: number; }
@@ -627,15 +628,12 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
       </template>
     </div>
 
-    <!-- МОДАЛКА -->
-    <Teleport to="body">
-      <Transition name="ph-modal">
-        <div v-if="modalCo" class="ph-back" @click.self="closeModal">
-          <div class="ph-mod">
-            <div class="ph-mod-head" :style="{ '--accent': modalCo.color }">
-              <div class="cmpcell"><div class="av lg" :style="{ background: modalCo.color }">{{ modalCo.badge }}</div><div><div class="ph-mod-name">{{ modalCo.name }}</div><div class="ph-mod-sec">{{ modalCo.sector }}</div></div></div>
-              <button class="ph-x" @click="closeModal"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
-            </div>
+    <!-- МОДАЛКА — через ModalShell (a11y: role=dialog, aria-modal, Escape, focus-trap, возврат фокуса) -->
+    <ModalShell :open="!!modalCo" size="md" @close="closeModal">
+      <template #header>
+        <div v-if="modalCo" class="cmpcell"><div class="av lg" :style="{ background: modalCo.color }">{{ modalCo.badge }}</div><div><div class="ph-mod-name">{{ modalCo.name }}</div><div class="ph-mod-sec">{{ modalCo.sector }}</div></div></div>
+      </template>
+      <div v-if="modalCo" class="ph-mod-inner">
             <div v-if="modalCo.delta != null" class="ph-mod-ab">
               <div class="ph-ab-c"><div class="ph-ab-l">Было</div><div class="ph-ab-v" :style="{ color: progColor(modalCo.from) }">{{ modalCo.from }}%</div></div>
               <div class="ph-ab-d" :class="modalCo.delta > 0 ? 'up' : modalCo.delta < 0 ? 'dn' : 'fl'"><div>{{ modalCo.delta > 0 ? '+' : '' }}{{ modalCo.delta }}</div><small>пп</small></div>
@@ -682,10 +680,8 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
                 <div class="ph-tr-t">{{ trailTime(it.ts) }}</div>
               </div>
             </div>
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
+      </div>
+    </ModalShell>
   </div>
 </template>
 
