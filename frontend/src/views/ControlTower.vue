@@ -438,9 +438,9 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
                 <option value="">Весь портфель</option>
                 <option v-for="c in cur.companies" :key="c.company_id" :value="c.company_id">{{ c.name }}</option>
               </select>
-              <div class="ph-sortsw">
-                <button :class="{ on: granularity === 'quarter' }" @click="granularity = 'quarter'">Кварталы</button>
-                <button :class="{ on: granularity === 'month' }" @click="granularity = 'month'">Месяцы</button>
+              <div class="uza-seg">
+                <button class="uza-seg-btn" :class="{ on: granularity === 'quarter' }" @click="granularity = 'quarter'">Кварталы</button>
+                <button class="uza-seg-btn" :class="{ on: granularity === 'month' }" @click="granularity = 'month'">Месяцы</button>
               </div>
             </div>
           </div>
@@ -599,10 +599,10 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
         <div class="ph-card">
           <div class="ph-card-h">
             <div><span class="ph-eyebrow2">ПО КОМПАНИЯМ</span><span class="ph-card-cap">{{ cur.companies.length }} · клик — лента изменений</span></div>
-            <div class="ph-sortsw">
-              <button :class="{ on: coSort === 'worst' }" @click="coSort = 'worst'">Сначала риск</button>
-              <button :class="{ on: coSort === 'best' }" @click="coSort = 'best'">Лучшие</button>
-              <button :class="{ on: coSort === 'name' }" @click="coSort = 'name'">По имени</button>
+            <div class="uza-seg">
+              <button class="uza-seg-btn" :class="{ on: coSort === 'worst' }" @click="coSort = 'worst'">Сначала риск</button>
+              <button class="uza-seg-btn" :class="{ on: coSort === 'best' }" @click="coSort = 'best'">Лучшие</button>
+              <button class="uza-seg-btn" :class="{ on: coSort === 'name' }" @click="coSort = 'name'">По имени</button>
             </div>
           </div>
           <div class="ph-co-list2">
@@ -762,18 +762,9 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
 .ph-hero.crit .ph-hero-chip { background: rgba(226,75,74,.12); color: #C0392B; } .ph-hero.warn .ph-hero-chip { background: rgba(239,159,39,.14); color: #C77A0A; } .ph-hero.good .ph-hero-chip { background: rgba(124,111,247,.12); color: #534AB7; } .ph-hero.ok .ph-hero-chip { background: rgba(29,158,117,.12); color: #0F6E56; } .ph-hero.na .ph-hero-chip { background: #F1F2F6; color: #64748B; }
 .ph-hero-sub { font-size: 12.5px; color: var(--t3); margin-top: 12px; }
 .ph-hero-r { padding: 22px 28px; display: flex; flex-direction: column; justify-content: center; gap: 12px; background: #fff; }
-.ph-gap-head { display: flex; align-items: baseline; justify-content: space-between; }
-.ph-gap-head span { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--t3); }
-.ph-gap-head b { font-size: 22px; font-weight: 500; color: #1E2A4A; font-variant-numeric: tabular-nums; }
 .ph-gap-bar { position: relative; height: 12px; border-radius: 7px; background: #F0F1F6; }
 .ph-gap-fill { position: absolute; left: 0; top: 0; height: 100%; border-radius: 7px; background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.30) 0%, rgba(255, 255, 255, 0) 55%); transition: width .8s var(--ease-out); }
 .ph-hero.crit .ph-gap-fill { background-color: #E2807F; } .ph-hero.warn .ph-gap-fill { background-color: #EFB373; } .ph-hero.good .ph-gap-fill { background-color: #7C6FF7; } .ph-hero.ok .ph-gap-fill { background-color: #5DC093; } .ph-hero.na .ph-gap-fill { background-color: #B8B7B0; }
-.ph-gap-target { position: absolute; top: -5px; bottom: -5px; width: 0; z-index: 2; transition: left .8s var(--ease-out); }
-.ph-gap-target i { position: absolute; left: -1.5px; top: 0; bottom: 0; width: 3px; border-radius: 2px; background: #1E2A4A; }
-.ph-gap-target span { position: absolute; top: -16px; left: 50%; transform: translateX(-50%); font-size: 9px; font-weight: 600; color: #1E2A4A; white-space: nowrap; }
-.ph-gap-foot { display: flex; align-items: center; justify-content: space-between; }
-.ph-gap-delta { font-size: 13px; font-weight: 700; } .ph-gap-delta.ok { color: #0F6E56; } .ph-gap-delta.bad { color: #B23434; }
-.ph-gap-over { font-size: 12px; color: var(--t3); } .ph-gap-over b { color: #E24B4A; font-weight: 700; font-variant-numeric: tabular-nums; }
 /* Правая метрика hero — взвешенный прогресс (крупно, всегда бренд-фиолет,
    независимо от статуса обязательств): «не всё так плохо — общий прогресс 40%». */
 .ph-hero-r { justify-content: center; gap: 8px; }
@@ -802,9 +793,6 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
 .ph-tile-l { font-size: 11px; font-weight: 500; color: var(--t3); margin-top: 8px; }
 
 /* ─── sort switch ─── */
-.ph-sortsw { display: inline-flex; background: #F1F2F6; border-radius: 9px; padding: 2px; }
-.ph-sortsw button { border: 0; background: transparent; font: 600 11px inherit; color: var(--t3); padding: 5px 11px; border-radius: 7px; cursor: pointer; transition: all .14s; }
-.ph-sortsw button.on { background: #fff; color: var(--p-deep); box-shadow: var(--sh-sm); }
 .ph-risk-tag { margin-left: 7px; font-size: 9px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #C0392B; background: rgba(226,75,74,.10); padding: 1px 6px; border-radius: 5px; vertical-align: middle; }
 .ph-co2.risk { background: linear-gradient(90deg, rgba(226,75,74,.035), transparent 40%); }
 
@@ -968,12 +956,8 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
 .ph-co-cnt { font-size: 10.5px; color: var(--t4); text-align: right; font-variant-numeric: tabular-nums; }
 
 /* modal */
-.ph-back { position: fixed; inset: 0; background: rgba(15,18,40,.5); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); z-index: var(--z-overlay, 9000); display: grid; place-items: center; padding: 24px; }
-.ph-mod { width: min(580px,100%); max-height: calc(100dvh - 48px); background: #fff; border-radius: 18px; box-shadow: var(--sh-lg); display: flex; flex-direction: column; overflow: hidden; }
-.ph-mod-head { display: flex; align-items: center; justify-content: space-between; padding: 20px 22px; border-bottom: 1px solid var(--line); background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 9%, #fff), #fff 70%); }
 .cmpcell { display: flex; align-items: center; gap: 12px; }
 .ph-mod-name { font-size: 16px; font-weight: 600; color: #1E2A4A; } .ph-mod-sec { font-size: 11px; color: var(--t3); margin-top: 2px; }
-.ph-x { border: 0; background: rgba(15,23,60,.04); cursor: pointer; color: #64748B; width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; } .ph-x:hover { background: rgba(127,119,221,.12); color: var(--p-deep); }
 .ph-mod-ab { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 16px; padding: 18px 22px; margin: 16px 22px 0; background: #FAFAFD; border: 1px solid var(--line); border-radius: 13px; }
 .ph-mod-ab.single { grid-template-columns: 1fr; }
 .ph-ab-c { text-align: center; } .ph-ab-l { font-size: 9.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--t4); } .ph-ab-l2 { font-size: 11px; color: var(--t3); margin-top: 4px; }
@@ -990,7 +974,6 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
 .ph-tr-c { display: inline-flex; align-items: center; gap: 8px; margin-top: 5px; font-size: 11.5px; } .ph-tr-c .o { color: var(--t4); text-decoration: line-through; } .ph-tr-c .n { color: #0F6E56; font-weight: 600; } .ph-tr-c svg { color: var(--t4); }
 .ph-tr-meta { font-size: 10.5px; color: var(--t4); margin-top: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ph-tr-t { font-size: 10.5px; color: var(--t4); white-space: nowrap; }
-.ph-modal-enter-active,.ph-modal-leave-active { transition: opacity .22s ease; } .ph-modal-enter-from,.ph-modal-leave-to { opacity: 0; } .ph-modal-enter-active .ph-mod { transition: transform .4s var(--ease); } .ph-modal-enter-from .ph-mod { transform: scale(.94) translateY(12px); }
 
 @media (max-width: 820px) {
   .ph-hero { grid-template-columns: 1fr; } .ph-hero-l { border-right: 0; border-bottom: 1px solid var(--line); }
