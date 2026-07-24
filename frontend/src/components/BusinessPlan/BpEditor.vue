@@ -90,39 +90,48 @@
             <tr
               v-for="f in displayedFields"
               :key="f.key"
-              :class="{ 'is-sub': f.sub, 'is-auto': f.auto, 'is-key': isKeyMetric(f.key), 'is-expense': f.positive }"
+              :class="{ 'is-sub': f.sub, 'is-auto': f.auto && !f.overridable, 'is-final': f.overridable, 'is-key': isKeyMetric(f.key), 'is-expense': f.positive }"
             >
               <td class="lbl">
-                <span v-if="f.auto" class="bpe-auto-tag" :title="`Рассчитывается автоматически: ${f.formula || ''}`">∑ расчёт</span>
+                <span v-if="f.auto && !f.overridable" class="bpe-auto-tag" :title="`Рассчитывается автоматически: ${f.formula || ''}`">∑ расчёт</span>
+                <span v-else-if="f.overridable" class="bpe-final-tag" :title="`Итог по формуле (${f.formula || ''}), но можно переопределить вручную по компании. Факт — автоподстановка из НСБУ.`">итог · правится</span>
                 {{ f.label }}
               </td>
-              <td>
+              <td :class="{ 'bpe-pe-cell': canEditRow(f) }">
                 <input
-                  v-if="!f.auto"
+                  v-if="canEditRow(f)"
                   v-model.number="data[activePeriod][f.key].plan"
                   type="number"
                   step="0.001"
                   inputmode="decimal"
                   class="bpe-in"
+                  :class="{ 'bpe-in-ghost': isOverridable(f.key) && peSuggestion(f.key, 'plan') != null }"
+                  :placeholder="isOverridable(f.key) ? peGhost(f.key, 'plan') : '—'"
+                  :title="isOverridable(f.key) && peSuggestion(f.key, 'plan') != null ? `Расчёт по формуле (${f.formula}): ${peGhost(f.key, 'plan')}. Введите своё значение, чтобы переопределить.` : ''"
                   @input="markDirty"
                 />
                 <span v-else class="bpe-auto-val">{{ formatComputed(f.key, "plan") }}</span>
+                <button v-if="isOverridable(f.key) && peSuggestion(f.key, 'plan') != null" class="bpe-badge bpe-badge-calc" :title="`Подставить расчёт: ${peGhost(f.key, 'plan')}`" @click="applyComputedCol(f.key, 'plan')">∑ расчёт</button>
               </td>
-              <td>
+              <td :class="{ 'bpe-pe-cell': canEditRow(f) }">
                 <input
-                  v-if="!f.auto"
+                  v-if="canEditRow(f)"
                   v-model.number="data[activePeriod][f.key].expect"
                   type="number"
                   step="0.001"
                   inputmode="decimal"
                   class="bpe-in"
+                  :class="{ 'bpe-in-ghost': isOverridable(f.key) && peSuggestion(f.key, 'expect') != null }"
+                  :placeholder="isOverridable(f.key) ? peGhost(f.key, 'expect') : '—'"
+                  :title="isOverridable(f.key) && peSuggestion(f.key, 'expect') != null ? `Расчёт по формуле (${f.formula}): ${peGhost(f.key, 'expect')}. Введите своё значение, чтобы переопределить.` : ''"
                   @input="markDirty"
                 />
                 <span v-else class="bpe-auto-val">{{ formatComputed(f.key, "expect") }}</span>
+                <button v-if="isOverridable(f.key) && peSuggestion(f.key, 'expect') != null" class="bpe-badge bpe-badge-calc" :title="`Подставить расчёт: ${peGhost(f.key, 'expect')}`" @click="applyComputedCol(f.key, 'expect')">∑ расчёт</button>
               </td>
               <td class="bpe-fact-cell">
                 <input
-                  v-if="!f.auto"
+                  v-if="canEditRow(f)"
                   :value="factDisplay(f.key)"
                   type="number"
                   step="0.001"
@@ -135,12 +144,12 @@
                 />
                 <span v-else class="bpe-auto-val">{{ formatComputed(f.key, "fact") }}</span>
                 <!-- per-cell метка источника/ручного ввода + кнопка применить обновление -->
-                <span v-if="!f.auto && isAutoFact(f.key)" class="bpe-badge bpe-badge-auto" :title="`Автоподстановка из ${sourceLabel(f.key)}`">
+                <span v-if="canEditRow(f) && isAutoFact(f.key)" class="bpe-badge bpe-badge-auto" :title="`Автоподстановка из ${sourceLabel(f.key)}`">
                   <svg width="7" height="7" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 5l2.5 2.5L8.5 2.5"/></svg>
                   авто · {{ sourceLabel(f.key) }}
                 </span>
-                <span v-else-if="!f.auto && isManualFact(f.key)" class="bpe-badge bpe-badge-manual" title="Введено вручную">✎ вручную</span>
-                <button v-if="!f.auto && sourceUpdated(f.key)" class="bpe-badge bpe-badge-upd" :title="`Применить значение источника (${sourceLabel(f.key)}): ${autoFact(f.key)}`" @click="applyAuto(f.key)">↻ обновить</button>
+                <span v-else-if="canEditRow(f) && isManualFact(f.key)" class="bpe-badge bpe-badge-manual" title="Введено вручную">✎ вручную</span>
+                <button v-if="canEditRow(f) && sourceUpdated(f.key)" class="bpe-badge bpe-badge-upd" :title="`Применить значение источника (${sourceLabel(f.key)}): ${autoFact(f.key)}`" @click="applyAuto(f.key)">↻ обновить</button>
               </td>
             </tr>
           </tbody>
@@ -323,7 +332,7 @@ function applyAuto(k: string) {
 }
 const updatedCount = computed(() => {
   if (activePeriod.value !== "annual") return 0;
-  return BP_FIELDS.filter(f => !f.auto && sourceUpdated(f.key)).length;
+  return BP_FIELDS.filter(f => canEditRow(f) && sourceUpdated(f.key)).length;
 });
 
 function makeBlank(): Record<Period, Record<string, Cell>> {
@@ -344,32 +353,52 @@ function isKeyMetric(k: string): boolean {
   return ["revenue", "grossProfit", "opProfit", "pbt", "profit"].includes(k);
 }
 
-// Compute auto fields based on currently entered values
-function formatComputed(key: string, col: "plan" | "expect" | "fact"): string {
+// Расчётное значение производной метрики по колонке (единый источник для
+// read-only авто-строк И для подсказки план/прогноз переопределяемого итога).
+function computedNum(key: string, col: "plan" | "expect" | "fact"): number | null {
   const p = activePeriod.value;
   const get = (k: string) => data.value[p][k]?.[col];
-  let v: number | null = null;
-
   if (key === "grossProfit") {
     const rev = get("revenue"), cogs = get("cogs");
-    if (rev != null && cogs != null) v = rev - Math.abs(cogs);
-  } else if (key === "opProfit") {
-    const rev = get("revenue"), cogs = get("cogs"), opex = get("opExpenses"), oth = get("otherOpInc");
-    if (rev != null && cogs != null && opex != null) {
-      v = rev - Math.abs(cogs) - Math.abs(opex) + (oth ?? 0);
-    }
-  } else if (key === "hhProfit") {
-    const op = computeOp(col), fi = get("finIncome"), fc = get("finCost");
-    if (op != null) v = op + (fi ?? 0) - Math.abs(fc ?? 0);
-  } else if (key === "pbt") {
-    const hh = computeHh(col);
-    if (hh != null) v = hh;
-  } else if (key === "profit") {
-    const pbt = computeHh(col), tax = get("tax");
-    if (pbt != null && tax != null) v = pbt - Math.abs(tax);
+    return (rev != null && cogs != null) ? rev - Math.abs(cogs) : null;
   }
+  if (key === "opProfit") return computeOp(col);
+  if (key === "hhProfit" || key === "pbt") return computeHh(col);
+  if (key === "profit") {
+    const pbt = computeHh(col), tax = get("tax");
+    return (pbt != null && tax != null) ? pbt - Math.abs(tax) : null;
+  }
+  return null;
+}
+
+function formatComputed(key: string, col: "plan" | "expect" | "fact"): string {
+  const v = computedNum(key, col);
   if (v == null) return "—";
   return v.toLocaleString("ru-RU", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+}
+
+// ─── Переопределяемый итог (чистая прибыль): ручной ввод + подсказки ─────
+function isOverridable(k: string): boolean {
+  return BP_FIELDS.find(f => f.key === k)?.overridable === true;
+}
+function canEditRow(f: { auto: boolean; overridable?: boolean }): boolean {
+  return !f.auto || f.overridable === true;
+}
+// Подсказка расчёта (pbt − налог) для план/прогноз — только когда ячейка пуста.
+function peSuggestion(key: string, col: "plan" | "expect"): number | null {
+  if (!isOverridable(key)) return null;
+  if (data.value[activePeriod.value][key]?.[col] != null) return null;  // введено вручную
+  return computedNum(key, col);
+}
+function peGhost(key: string, col: "plan" | "expect"): string {
+  const v = peSuggestion(key, col);
+  return v == null ? "—" : v.toLocaleString("ru-RU", { maximumFractionDigits: 2 });
+}
+function applyComputedCol(key: string, col: "plan" | "expect") {
+  const v = computedNum(key, col);
+  if (v == null) return;
+  data.value[activePeriod.value][key][col] = Number(v.toFixed(3));
+  markDirty();
 }
 
 function computeOp(col: "plan" | "expect" | "fact"): number | null {
@@ -454,7 +483,7 @@ async function save() {
     const records: BpRecordUpsert[] = [];
     for (const p of PERIODS) {
       for (const f of BP_FIELDS) {
-        if (f.auto) continue; // skip computed
+        if (f.auto && !f.overridable) continue; // skip pure-computed; keep overridable finals (profit)
         const c = data.value[p][f.key];
         // null-guard: пустые ячейки НЕ отправляем — иначе (а) при сбое загрузки
         // пустой грид затёр бы реальные данные; (б) авто-подставленный годовой
@@ -829,6 +858,19 @@ async function save() {
 .bpe-badge-manual { background: rgba(99,102,180,.10); color: #534AB7; border: 1px solid rgba(99,102,180,.22); }
 .bpe-badge-upd { background: #EF9F27; color: #fff; border: none; cursor: pointer; }
 .bpe-badge-upd:hover { background: #d98e1c; }
+/* ─── Переопределяемый итог (чистая прибыль): ручной ввод + подсказка расчёта ─ */
+.bpe-tbl tbody tr.is-final td.lbl { font-weight: 600; }
+.bpe-final-tag {
+  display: inline-block; margin-right: 5px; padding: 2px 5px;
+  background: rgba(127, 119, 221, .12); color: #534AB7; border-radius: 3px;
+  font-size: 8.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+  vertical-align: 1px; cursor: help;
+}
+.bpe-pe-cell { position: relative; }
+.bpe-in-ghost { border-color: rgba(127, 119, 221, .28); }
+.bpe-in-ghost::placeholder { color: rgba(83, 74, 183, .55); font-style: italic; }
+.bpe-badge-calc { background: rgba(127, 119, 221, .10); color: #534AB7; border: 1px solid rgba(127, 119, 221, .25); cursor: pointer; }
+.bpe-badge-calc:hover { background: rgba(127, 119, 221, .18); }
 .bpe-in-auto { background: rgba(29,158,117,.05) !important; border-color: rgba(29,158,117,.28) !important; color: #0F6E56; font-style: italic; }
 .bpe-in-manual { font-weight: 600; }
 .bpe-in-updated { background: rgba(239,159,39,.07) !important; border-color: rgba(239,159,39,.45) !important; box-shadow: inset 0 0 0 1px rgba(239,159,39,.25); }

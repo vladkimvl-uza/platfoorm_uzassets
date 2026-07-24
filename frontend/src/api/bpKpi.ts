@@ -24,6 +24,11 @@ export interface BpFieldMeta {
   formula?: string;
   positive?: boolean;
   sub?: boolean;
+  /** «Итог», считаемый по формуле, но ДОПУСКАЮЩИЙ ручное переопределение по
+   *  компаниям (напр. чистая прибыль): показываем ввод во всех колонках, факт —
+   *  с автоподстановкой из НСБУ, план/прогноз — с подсказкой расчёта. Сохранённое
+   *  значение перебивает формулу (бэкенд bp_compute уважает stored > derived). */
+  overridable?: boolean;
 }
 
 // Default — also returned by GET /bp/metrics
@@ -49,7 +54,7 @@ export const BP_FIELDS: BpFieldMeta[] = [
   { key: "hhProfit",    label: "Прибыль от общехоз. деятельности",                group: "final",      auto: true, formula: "opProfit + finIncome - finCost" },
   { key: "pbt",         label: "Прибыль до налогообложения",                      group: "final",      auto: true, formula: "hhProfit" },
   { key: "tax",         label: "Налог на прибыль",                                group: "final",      auto: false, positive: true },
-  { key: "profit",      label: "Чистая прибыль (убыток) периода",                 group: "final",      auto: true, formula: "pbt - tax" },
+  { key: "profit",      label: "Чистая прибыль (убыток) периода",                 group: "final",      auto: true, formula: "pbt - tax", overridable: true },
 ];
 
 // ─── Field-set helpers ─────────────────────────────────────────────
@@ -82,10 +87,18 @@ export function incomeFields(): BpFieldMeta[] {
 
 export type BpViewMode = "all" | "expenses" | "income";
 
+/** Переопределяемые «итоги» (чистая прибыль и т.п.) — авто по формуле, но
+ *  редактируемые вручную. Показываем их нижней строкой-итогом и в income, и в
+ *  expenses, чтобы бухгалтер/владелец мог задать/сверить чистую прибыль в любом
+ *  из режимов (в «all» они уже присутствуют внутри BP_FIELDS). */
+export function overridableFinals(): BpFieldMeta[] {
+  return BP_FIELDS.filter(f => f.overridable === true);
+}
+
 /** Helper for UI: return BP_FIELDS or subset depending on view-mode. */
 export function bpFieldsFor(viewMode: BpViewMode): BpFieldMeta[] {
-  if (viewMode === "expenses") return expenseFields();
-  if (viewMode === "income")   return incomeFields();
+  if (viewMode === "expenses") return [...expenseFields(), ...overridableFinals()];
+  if (viewMode === "income")   return [...incomeFields(), ...overridableFinals()];
   return BP_FIELDS;
 }
 
