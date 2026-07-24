@@ -393,13 +393,14 @@ onMounted(async () => {
   margin-top: 2px;
 }
 
-/* Контролы держим одной строкой-стрипом (nowrap внутри), а весь стрип при
-   нехватке места уходит на аккуратный второй ряд целиком — без «лесенки».
-   sm-чипы + меньшие гэпы поднимают порог, при котором всё влезает в один ряд. */
-.bp-tb-right { display: flex; gap: 8px; align-items: center; flex-wrap: nowrap; }
-/* Кнопка «Анализ ИИ» — отдельным действием у правого края, не в ряду чипов. */
-.bp-tb-ai { margin-left: auto; flex-shrink: 0; }
-@media (max-width: 900px) { .bp-tb-right { flex-wrap: wrap; } .bp-tb-ai { margin-left: 0; } }
+/* Контролы переносятся по ФАКТИЧЕСКОЙ ширине контейнера (flex-wrap: wrap), а не
+   по media-вьюпорту: развёрнутый сайдбар сужает топбар, но не вьюпорт — раньше
+   nowrap-стрип «съезжал»/обрезался. Теперь при нехватке места чипы аккуратно
+   переносятся на второй ряд под любую ширину/масштаб. */
+.bp-tb-right { display: flex; gap: 8px; row-gap: 10px; align-items: center; flex-wrap: wrap; justify-content: flex-end; min-width: 0; }
+/* Кнопка «Анализ ИИ» — последним элементом у правого края (выравнивание даёт
+   justify-content: flex-end), не сжимается. */
+.bp-tb-ai { flex-shrink: 0; }
 
 .bp-menu-wrap { position: relative; }
 .bp-menu-btn {
