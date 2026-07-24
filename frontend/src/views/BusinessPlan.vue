@@ -13,16 +13,16 @@
         <div class="bp-tb-sub">{{ headerSub }}</div>
       </div>
       <div class="bp-tb-right">
-        <UzaSegment tone="dark" label="Вкладка" :options="TOPTAB_OPTS"
+        <UzaSegment tone="dark" :options="TOPTAB_OPTS"
                     :model-value="topTab" @update:model-value="(v) => topTab = v as 'financial' | 'production'" />
         <template v-if="topTab === 'financial'">
         <!-- Единые чипы + дропдаун года (UzaSegment / UzaSelect) -->
-        <UzaSegment tone="dark" label="Вид" :options="VIEW_OPTS"
+        <UzaSegment tone="dark" :options="VIEW_OPTS"
                     :model-value="state.viewMode.value" @update:model-value="(v) => state.setViewMode(v as any)" />
-        <UzaSegment tone="dark" label="Категория" :options="LENS_OPTS" v-model="lens" />
-        <UzaSegment tone="dark" label="Период" :options="periodOpts"
+        <UzaSegment tone="dark" :options="LENS_OPTS" v-model="lens" />
+        <UzaSegment tone="dark" :options="periodOpts"
                     :model-value="state.selectedPeriod.value" @update:model-value="(v) => state.setPeriod(v as any)" />
-        <UzaYearStepper tone="dark" label="Год" :years="state.availableYears.value"
+        <UzaYearStepper tone="dark" :years="state.availableYears.value"
                         :model-value="state.selectedYear.value" @update:model-value="(v) => state.setYear(v)" />
 
         <!-- Menu -->
@@ -132,6 +132,8 @@
       :company-id="state.selectedCompany.value.company_id"
       :company-name="state.selectedCompany.value.company_name_ru"
       :year="state.selectedYear.value"
+      :companies="state.companies.value"
+      @switch-company="(id) => state.setCompany(id)"
       @close="editorOpen = false"
       @saved="onEditorSaved"
     />

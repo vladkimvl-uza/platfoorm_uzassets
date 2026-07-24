@@ -4,7 +4,16 @@
       <div class="bpe-header">
         <div class="bpe-title">
           <h2>Редактор бизнес-плана</h2>
-          <div class="bpe-subtitle">{{ companyName }} · FY {{ year }}</div>
+          <div class="bpe-subtitle">
+            <span v-if="companies && companies.length > 1" class="bpe-co-switch">
+              <select class="bpe-co-select" :value="companyId" @change="onSwitchCompany" title="Переключить компанию">
+                <option v-for="c in companies" :key="c.company_id" :value="c.company_id">{{ c.company_name_ru }}</option>
+              </select>
+              <svg class="bpe-co-caret" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </span>
+            <span v-else>{{ companyName }}</span>
+            <span class="bpe-fy"> · FY {{ year }}</span>
+          </div>
         </div>
         <button class="bpe-close" @click="$emit('close')" title="Закрыть">×</button>
       </div>
@@ -185,15 +194,18 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useToast } from "@/composables/useToast";
+import { useConfirm } from "@/composables/useConfirm";
 
 const toast = useToast();
+const { confirmDialog } = useConfirm();
 import {
   BP_FIELDS,
   BP_PERIODS,
   bpApi,
   bpFieldsFor,
+  type AvailableCompany,
   type BpRecordUpsert,
 } from "@/api/bpKpi";
 import { isModerationQueued } from "@/api/client";
@@ -205,12 +217,33 @@ const props = defineProps<{
   companyId: string;
   companyName: string;
   year: number;
+  companies?: AvailableCompany[];
 }>();
 
 const emit = defineEmits<{
   (e: "close"): void;
   (e: "saved"): void;
+  (e: "switch-company", id: string): void;
 }>();
+
+// ─── Переключение компании прямо в редакторе (с dirty-guard) ──────
+// Смена идёт наверх (родитель зовёт setCompany) → пропсы companyId/year
+// обновляются → watcher ниже перезагружает данные редактора.
+async function onSwitchCompany(e: Event) {
+  const sel = e.target as HTMLSelectElement;
+  const id = sel.value;
+  if (!id || id === props.companyId) return;
+  if (dirty.value) {
+    const ok = await confirmDialog({
+      message: "Есть несохранённые изменения. Переключить компанию и потерять их?",
+      danger: true,
+    });
+    if (!ok) { sel.value = props.companyId; return; }   // откат селекта
+  }
+  emit("switch-company", id);
+}
+// Компания/год сменились извне → перезагрузить грид (dirty уже подтверждён выше).
+watch(() => [props.companyId, props.year], () => { load(); });
 
 type Cell = { plan: number | null; expect: number | null; fact: number | null };
 type Period = "annual" | "q1" | "q2" | "q3" | "q4";
@@ -572,7 +605,23 @@ async function save() {
   border-bottom: 1px solid rgba(15, 23, 60, .06);
 }
 .bpe-title h2 { font-size: 15px; font-weight: 600; margin: 0; color: var(--t1, #1e2a4a); }
-.bpe-subtitle { font-size: 11px; color: rgba(15, 23, 60, .55); margin-top: 2px; }
+.bpe-subtitle { font-size: 11px; color: rgba(15, 23, 60, .55); margin-top: 2px; display: flex; align-items: center; gap: 2px; }
+/* Инлайн-переключатель компании прямо в шапке редактора */
+.bpe-co-switch { position: relative; display: inline-flex; align-items: center; }
+.bpe-co-select {
+  appearance: none; -webkit-appearance: none; -moz-appearance: none;
+  font: inherit; font-size: 11px; font-weight: 600;
+  color: var(--p-deep, #534AB7);
+  background: rgba(127, 119, 221, .08);
+  border: 1px solid rgba(127, 119, 221, .20);
+  border-radius: 6px; padding: 2px 20px 2px 8px; cursor: pointer;
+  max-width: 340px; text-overflow: ellipsis;
+  transition: background .15s, border-color .15s;
+}
+.bpe-co-select:hover { background: rgba(127, 119, 221, .14); border-color: rgba(127, 119, 221, .38); }
+.bpe-co-select:focus { outline: none; border-color: #7F77DD; }
+.bpe-co-caret { position: absolute; right: 6px; color: var(--p-deep, #534AB7); pointer-events: none; }
+.bpe-fy { white-space: nowrap; }
 .bpe-close {
   background: transparent;
   border: none;
