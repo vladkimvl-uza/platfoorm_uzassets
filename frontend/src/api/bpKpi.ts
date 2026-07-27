@@ -320,6 +320,9 @@ export interface KpiIndicator {
   q3_fact: string | number | null;
   q4_plan: string | number | null;
   q4_fact: string | number | null;
+  /** Конвенция кварталов строки: 'per_quarter' — суммы за квартал (год = Σ),
+   *  'cumulative' — нарастающим итогом (Q2 = полугодие, Q4 = год). */
+  quarters_mode?: "per_quarter" | "cumulative";
   notes: string | null;
   // Связь с метрикой Бизнес-плана (reference-pull). null/"" = свободный KPI.
   bp_metric_key?: string | null;
@@ -417,6 +420,9 @@ export interface KpiIndicatorUpsert {
   q3_fact?: number | null;
   q4_plan?: number | null;
   q4_fact?: number | null;
+  /** Конвенция кварталов строки — ОБЯЗАТЕЛЬНО возвращать при сохранении:
+   *  PUT пересоздаёт дерево, пропуск поля сбросит признак в 'per_quarter'. */
+  quarters_mode?: "per_quarter" | "cumulative";
   notes?: string | null;
   bp_metric_key?: string | null;   // связь с метрикой Бизнес-плана (reference-pull)
 }

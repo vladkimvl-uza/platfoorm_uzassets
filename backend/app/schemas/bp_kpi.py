@@ -215,6 +215,9 @@ class KpiIndicatorRead(BaseModel):
     q3_fact: Optional[MoneyDecimal]
     q4_plan: Optional[MoneyDecimal]
     q4_fact: Optional[MoneyDecimal]
+    # Конвенция квартальных полей строки: 'per_quarter' (суммы за квартал) |
+    # 'cumulative' (нарастающим итогом, Q4 = год). См. kpi_year_pair.
+    quarters_mode: str = "per_quarter"
     notes: Optional[str]
     # Связь с метрикой Бизнес-плана (reference-pull). NULL = свободный KPI.
     bp_metric_key: Optional[str] = None
@@ -250,6 +253,10 @@ class KpiIndicatorUpsert(BaseModel):
     q3_fact: Optional[MoneyDecimal] = None
     q4_plan: Optional[MoneyDecimal] = None
     q4_fact: Optional[MoneyDecimal] = None
+    # Конвенция квартальных полей строки. Сохранение KPI — пересоздание дерева,
+    # поэтому редактор ОБЯЗАН возвращать это поле, иначе признак теряется при
+    # каждом сохранении. Неизвестное значение трактуем как 'per_quarter'.
+    quarters_mode: Literal["per_quarter", "cumulative"] = "per_quarter"
     notes: Optional[str] = None
     # Связь с метрикой Бизнес-плана (reference-pull). NULL/"" = свободный KPI.
     bp_metric_key: Optional[str] = None

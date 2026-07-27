@@ -380,17 +380,65 @@ def kpi_period_weight(ind: KpiIndicator, period: str) -> float:
     return w if w != 0 else float(ind.weight or 0)
 
 
+def kpi_is_cumulative(ind: KpiIndicator) -> bool:
+    """Кварталы строки заведены нарастающим итогом? (явный признак строки)."""
+    return str(getattr(ind, "quarters_mode", "per_quarter") or "") == "cumulative"
+
+
+def kpi_quarter_deltas(ind: KpiIndicator, field: str = "plan") -> list:
+    """Кварталы строки как суммы ЗА КВАРТАЛ [q1..q4] (учитывая её конвенцию).
+
+    Для 'cumulative' — разности соседних (честный None при разрыве, как в БП);
+    для 'per_quarter' — значения как есть. Нужно там, где арифметика требует
+    независимых кварталов: движок прогноза (pace/run-rate/сезонность).
+    """
+    vals = [getattr(ind, f"q{i}_{field}", None) for i in (1, 2, 3, 4)]
+    vals = [float(v) if v is not None else None for v in vals]
+    if not kpi_is_cumulative(ind):
+        return vals
+    out, prev = [], None
+    for i, v in enumerate(vals):
+        if v is None or (i > 0 and prev is None):
+            out.append(None)
+        else:
+            out.append(v - (prev if i > 0 else 0.0))
+        prev = v
+    return out
+
+
 def kpi_year_pair(ind: KpiIndicator) -> tuple:
     """Годовая пара (plan, fact, source) для индикатора.
 
-    'annual' — заведены plan_year+fact_year; иначе YTD-сумма Σ Q1..Q4 ('ytd',
-    т.к. fact_year заводят у <1% индикаторов — факт закрывают поквартально);
-    иначе (None, None, None). source нужен, чтобы отдать в payload план/факт,
-    СООТВЕТСТВУЮЩИЕ посчитанному %, и пометить происхождение (P1-3)."""
+    'annual' — заведены plan_year+fact_year; иначе годовое значение выводится
+    из кварталов С УЧЁТОМ КОНВЕНЦИИ строки (`quarters_mode`, решение владельца):
+      • 'cumulative' → год = ПОСЛЕДНИЙ заполненный квартал (q4 = год), source 'ytd_q4';
+      • 'per_quarter' → год = Σ q1..q4, source 'ytd' (прежнее поведение).
+
+    P0 аудита KPI (07.2026): раньше суммировалось ВСЕГДА, а 75% строк заведены
+    нарастающим итогом → годовая цифра завышалась примерно в 2.5 раза
+    (UzAuto: план 437 000 → Σ кварталов 1 041 050). Плюс годовой план брался
+    из кварталов, даже когда `plan_year` заполнен, — теперь он приоритетен.
+    """
     plan = ind.plan_year
     fact = ind.fact_year
     if plan is not None and float(plan) != 0 and fact is not None:
         return (float(plan), float(fact), "annual")
+
+    if kpi_is_cumulative(ind):
+        # Нарастающий итог: берём последний квартал, где есть ПАРА план+факт
+        # (иначе сравнивали бы план девяти месяцев с фактом полугодия).
+        last_p = last_f = None
+        for q in ("q1", "q2", "q3", "q4"):
+            qp = getattr(ind, f"{q}_plan", None)
+            qf = getattr(ind, f"{q}_fact", None)
+            if qp is not None and qf is not None and float(qp) != 0:
+                last_p, last_f = float(qp), float(qf)
+        if last_p is not None:
+            # Годовой план известен явно — он точнее последнего закрытого квартала.
+            plan_out = float(plan) if (plan is not None and float(plan) != 0) else last_p
+            return (plan_out, last_f, "ytd_q4")
+        return (None, None, None)
+
     sum_p, sum_f = 0.0, 0.0
     had_pair = False
     for q in ("q1", "q2", "q3", "q4"):

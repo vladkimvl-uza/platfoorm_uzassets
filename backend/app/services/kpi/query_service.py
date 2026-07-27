@@ -32,6 +32,7 @@ from app.services.bp_kpi_helpers import (
     kpi_attention_issues,
     kpi_bp_effective,
     kpi_compute_completion,
+    kpi_is_cumulative,
     kpi_period_weight,
     kpi_ratio,
     kpi_status_for_pct,
@@ -297,7 +298,11 @@ def _aggregate(
                 else:
                     plan = getattr(ind, f"{period}_plan", None)
                     fact = getattr(ind, f"{period}_fact", None)
-                    source = "quarter"
+                    # Отношение факт/план корректно в обеих конвенциях (обе стороны
+                    # однородны), но ЧИСЛА у строк с нарастающим итогом — это «с
+                    # начала года», а не «за квартал». Помечаем источник, чтобы в
+                    # дрилле не читали их как квартальные суммы.
+                    source = "quarter_cum" if kpi_is_cumulative(ind) else "quarter"
 
                 payload = KpiIndPayload(
                     co_id=cid, co_name=co_name,

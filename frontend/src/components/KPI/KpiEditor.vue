@@ -137,6 +137,7 @@
                 <th>Ед.</th>
                 <th title="Направление метрики: больше=лучше или меньше=лучше">Напр.</th>
                 <th title="Связь с метрикой Бизнес-плана: план/факт зеркалятся из БП/НСБУ">BP</th>
+                <th title="Как заведены кварталы этой строки: суммы за квартал или нарастающим итогом (Q4 = год)">Кварталы</th>
                 <th>Вес год</th>
                 <th>План год</th>
                 <th>Факт год</th>
@@ -169,6 +170,17 @@
                   <select v-model="ind.bp_metric_key" class="kpe-in kpe-in-bp" :class="{ on: isLinked(ind) }" @change="onBpLinkChange(ind)" title="Связать с метрикой Бизнес-плана — план/факт будут зеркалиться из БП/НСБУ">
                     <option :value="null">— свободный</option>
                     <option v-for="o in bpOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
+                  </select>
+                </td>
+                <td>
+                  <select
+                    v-model="ind.quarters_mode"
+                    class="kpe-in kpe-in-qm"
+                    :class="{ cum: ind.quarters_mode === 'cumulative' }"
+                    title="За квартал — Q1..Q4 суммы за каждый квартал, год = их сумма. Нарастающим итогом — Q2 = полугодие, Q3 = 9 мес., Q4 = год (конвенция НСБУ)"
+                  >
+                    <option value="per_quarter">за квартал</option>
+                    <option value="cumulative">нараст. итог</option>
                   </select>
                 </td>
                 <td><input v-model.number="ind.weight" class="kpe-in kpe-in-n" type="number" step="0.5" min="0" max="100" /></td>
@@ -357,6 +369,7 @@ function addIndicator() {
     q2_plan: null, q2_fact: null,
     q3_plan: null, q3_fact: null,
     q4_plan: null, q4_fact: null,
+    quarters_mode: "per_quarter",
     bp_metric_key: null,
     sort_order: activeManager.value.indicators.length,
   });
@@ -473,6 +486,27 @@ function hardValidate(): string | null {
   return null;
 }
 
+/** Первая строка с quarters_mode='cumulative', у которой заполненный ряд
+ *  план/факт убывает (нарастающий итог убывать не может). null = всё чисто. */
+function notMonotonic(): string | null {
+  for (const m of managers.value) {
+    for (const ind of m.indicators) {
+      if (ind.quarters_mode !== "cumulative") continue;
+      for (const f of ["plan", "fact"] as const) {
+        let prev: number | null = null;
+        for (const q of ["q1", "q2", "q3", "q4"] as const) {
+          const raw = (ind as any)[`${q}_${f}`];
+          if (raw == null || raw === "") continue;
+          const v = num(raw);
+          if (prev != null && v < prev) return ind.name || "Без названия";
+          prev = v;
+        }
+      }
+    }
+  }
+  return null;
+}
+
 async function save() {
   if (saving.value) return;
   // Анти-затирание: при сбое загрузки дерево пустое не потому что данных нет, а
@@ -484,6 +518,16 @@ async function save() {
   // P1: жёсткая валидация диапазонов → блок с тостом.
   const verr = hardValidate();
   if (verr) { useToast().error(verr); return; }
+  // Строка помечена «нарастающим итогом», но ряд убывает — почти всегда это
+  // значит, что кварталы на самом деле заведены за квартал. Мягкий гейт.
+  const nonMono = notMonotonic();
+  if (nonMono) {
+    const ok = await confirmDialog({
+      message: `«${nonMono}» помечен как «нараст. итог», но квартальные значения убывают. `
+        + "Похоже, кварталы заведены за квартал. Сохранить всё равно?",
+    });
+    if (!ok) return;
+  }
   // Сумма весов ≠ 100 — мягкий гейт (подтверждение), чтобы не блокировать
   // правку легаси-данных, но явно предупредить.
   if (weightTotal.value !== 100) {
@@ -566,6 +610,9 @@ onMounted(async () => {
         q3_fact: ind.q3_fact != null ? num(ind.q3_fact) : null,
         q4_plan: ind.q4_plan != null ? num(ind.q4_plan) : null,
         q4_fact: ind.q4_fact != null ? num(ind.q4_fact) : null,
+        // Конвенция кварталов строки. Сохранение KPI пересоздаёт дерево, поэтому
+        // признак обязан ходить туда-обратно, иначе теряется при каждом save.
+        quarters_mode: ind.quarters_mode === "cumulative" ? "cumulative" : "per_quarter",
         notes: ind.notes ?? null,
         // Связь с БП + read-through значения (для отображения зеркала в редакторе).
         bp_metric_key: ind.bp_metric_key ?? null,
@@ -797,6 +844,9 @@ onMounted(async () => {
 .kpe-tbl .kpe-in-m { width: 80px; min-width: 70px; text-align: right; }
 .kpe-tbl .kpe-in-bp { width: 120px; min-width: 96px; padding: 4px 4px; font-size: 11px; cursor: pointer; }
 .kpe-tbl .kpe-in-bp.on { border-color: #7F77DD; background: rgba(127, 119, 221, .07); color: var(--p-deep, #534AB7); font-weight: 500; }
+/* Конвенция кварталов строки: нарастающий итог подсвечен — это меняет расчёт года. */
+.kpe-tbl .kpe-in-qm { width: 104px; min-width: 92px; padding: 4px 4px; font-size: 11px; cursor: pointer; }
+.kpe-tbl .kpe-in-qm.cum { border-color: #7F77DD; background: rgba(127, 119, 221, .07); color: var(--p-deep, #534AB7); font-weight: 500; }
 /* Зеркало значения из БП — read-only, приглушённый стиль + бейдж происхождения. */
 .kpe-bp-val {
   display: inline-flex; align-items: center; gap: 5px; justify-content: flex-end;

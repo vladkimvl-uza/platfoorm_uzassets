@@ -214,6 +214,16 @@ class KpiIndicator(Base):
     # зеркалятся из BP/НСБУ (read-through), direction форсится из BP_METRIC_DIRECTION;
     # собственные plan_year/fact_year связанной строки в расчёте не используются.
     bp_metric_key: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    # Конвенция КВАРТАЛЬНЫХ значений строки (решение владельца, аудит 07.2026):
+    #   'per_quarter' — q1..q4 = суммы ЗА квартал, годовое = Σ (прежнее поведение);
+    #   'cumulative'  — нарастающим итогом (q2 = полугодие, q4 = год), годовое = q4.
+    # До введения признака код ВСЕГДА суммировал кварталы, а данные оказались
+    # смешанными (75% строк — нарастающим итогом) → годовая цифра завышалась
+    # примерно в 2.5 раза. Признак проставлен бэкфиллом по форме данных и
+    # редактируется в KPI-редакторе.
+    quarters_mode: Mapped[str] = mapped_column(
+        String(12), nullable=False, server_default=text("'per_quarter'"),
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=text("now()"), nullable=False
     )

@@ -248,6 +248,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_year_registry_gdp(conn)
             await _patch_direction_color(conn)
             await _patch_drop_value_module(conn)
+            await _patch_kpi_quarters_mode(conn)
             await _bump_alembic(conn)
     except Exception as e:
         # Never crash the app on a self-heal failure - just log and continue.
@@ -560,6 +561,76 @@ async def _patch_pmo_agile(conn) -> None:
 # ─────────────────────────────────────────────────────────────────────
 # Notes (Smart Journal) — чек-листы + ответственные
 # ─────────────────────────────────────────────────────────────────────
+
+async def _patch_kpi_quarters_mode(conn) -> None:
+    """KPI: ЯВНЫЙ признак конвенции квартальных значений (решение владельца).
+
+    Диагностика прода (2026): из 609 индикаторов 594 идут через Σ q1..q4 для
+    годового значения (годовая пара plan_year+fact_year заполнена у ОДНОГО), а
+    сами кварталы заведены СМЕШАННО: у 75% строк Q4 ≈ plan_year (нарастающий
+    итог, как в БП и узбекской отчётности), у 23% Σ кварталов ≈ plan_year
+    (суммы за квартал). Итог: для большинства строк годовая цифра завышалась
+    примерно в 2.5 раза (пример: UzAuto — план 437 000, Σ кварталов 1 041 050).
+
+    Гадать по форме ряда в рантайме нельзя — конвенция фиксируется полем.
+    Бэкфилл проставляет её по фактической форме данных:
+      • Q4 ≈ plan_year (±2%)      → 'cumulative'
+      • Σ q1..q4 ≈ plan_year (±2%)→ 'per_quarter'
+      • нет plan_year, но ряд строго монотонно растёт и q4>q1 → 'cumulative'
+      • иначе                     → 'per_quarter' (прежнее поведение кода)
+    """
+    await conn.execute(text(
+        "ALTER TABLE kpi_indicators ADD COLUMN IF NOT EXISTS quarters_mode "
+        "VARCHAR(12) NOT NULL DEFAULT 'per_quarter'"
+    ))
+    # Бэкфилл выполняем ОДИН раз — по маркеру в system_config, чтобы ручные
+    # правки пользователей не перезатирались при каждом рестарте.
+    already = (await conn.execute(text(
+        "SELECT 1 FROM system_config WHERE key = 'kpi_quarters_mode_backfilled' LIMIT 1"
+    ))).first()
+    if already:
+        return
+
+    # 1) есть годовой план — решаем по нему (самый надёжный признак)
+    await conn.execute(text(
+        """
+        UPDATE kpi_indicators SET quarters_mode = 'cumulative'
+        WHERE plan_year IS NOT NULL AND plan_year <> 0
+          AND q4_plan IS NOT NULL
+          AND abs(q4_plan - plan_year) <= abs(plan_year) * 0.02
+        """
+    ))
+    await conn.execute(text(
+        """
+        UPDATE kpi_indicators SET quarters_mode = 'per_quarter'
+        WHERE plan_year IS NOT NULL AND plan_year <> 0
+          AND q1_plan IS NOT NULL AND q2_plan IS NOT NULL
+          AND q3_plan IS NOT NULL AND q4_plan IS NOT NULL
+          AND abs((q1_plan + q2_plan + q3_plan + q4_plan) - plan_year)
+              <= abs(plan_year) * 0.02
+          AND NOT (abs(q4_plan - plan_year) <= abs(plan_year) * 0.02)
+        """
+    ))
+    # 2) годового плана нет — по форме ряда (строгий рост = нарастающий итог)
+    await conn.execute(text(
+        """
+        UPDATE kpi_indicators SET quarters_mode = 'cumulative'
+        WHERE (plan_year IS NULL OR plan_year = 0)
+          AND q1_plan IS NOT NULL AND q2_plan IS NOT NULL
+          AND q3_plan IS NOT NULL AND q4_plan IS NOT NULL
+          AND q1_plan < q2_plan AND q2_plan < q3_plan AND q3_plan < q4_plan
+        """
+    ))
+    # id и is_secret — NOT NULL без дефолта: без них вставка упала бы, маркер
+    # не поставился, и бэкфилл затирал бы ручные правки на каждом рестарте.
+    await conn.execute(text(
+        "INSERT INTO system_config (id, key, value, description, is_secret) "
+        "VALUES (gen_random_uuid(), 'kpi_quarters_mode_backfilled', "
+        "'{\"done\": true}'::jsonb, "
+        "'KPI quarters_mode backfilled from data shape (audit 2026-07)', false) "
+        "ON CONFLICT (key) DO NOTHING"
+    ))
+
 
 async def _patch_notes_checklist(conn) -> None:
     """Smart Journal (additive, idempotent): ответственный на заметку +

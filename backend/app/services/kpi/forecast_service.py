@@ -38,7 +38,9 @@ from app.schemas.kpi_forecast import (
 )
 from app.services.bp_kpi_helpers import (
     kpi_compute_completion,
+    kpi_is_cumulative,
     kpi_period_weight,
+    kpi_quarter_deltas,
     kpi_year_pair,
 )
 from app.uow.ports import UnitOfWorkABC
@@ -97,9 +99,10 @@ class KpiForecastService:
         имени (_ind_key). Связанные с БП строки пропускаются — их план тянется из
         Бизнес-плана (reference-pull). Годовое предложение — forecast_annual
         (CAGR/OLS) по годовым фактам (kpi_year_pair, с YTD-фолбэком); квартальная
-        разбивка — сезонность исторических КВАРТАЛЬНЫХ значений KPI (конвенция
-        q*-полей — суммы за квартал). Ничего не пишет: применение — редактором в
-        пустые планы + штатное сохранение (модерация/лок сохраняются).
+        разбивка — сезонность исторических КВАРТАЛЬНЫХ значений KPI, приведённых
+        к суммам ЗА КВАРТАЛ по конвенции строки (`quarters_mode`); предложение
+        отдаётся обратно В КОНВЕНЦИИ целевой строки. Ничего не пишет: применение —
+        редактором в пустые планы + штатное сохранение (модерация/лок сохраняются).
         """
         async with self.uow:
             years = await self.uow.kpi.years_for_company(company_id)
@@ -150,8 +153,10 @@ class KpiForecastService:
                         if oind is None:
                             continue
                         _plan_o, fact_o, _src = kpi_year_pair(oind)
-                        qp_o = [getattr(oind, f"q{i}_plan", None) for i in (1, 2, 3, 4)]
-                        qf_o = [getattr(oind, f"q{i}_fact", None) for i in (1, 2, 3, 4)]
+                        # Суммы ЗА КВАРТАЛ по конвенции строки: и pace-оценка,
+                        # и сезонные доли осмысленны только на дельтах.
+                        qp_o = kpi_quarter_deltas(oind, "plan")
+                        qf_o = kpi_quarter_deltas(oind, "fact")
                         if fact_o is not None:
                             syears.append(y)
                             svals.append(float(fact_o))
@@ -192,6 +197,18 @@ class KpiForecastService:
                     proposed_q = None
                     if shares:
                         qs = split_by_shares(proj.value, shares) or []
+                        if kpi_is_cumulative(ind):
+                            # Строка ведётся нарастающим итогом — отдаём предложение
+                            # в её конвенции, иначе редактор запишет дельты в
+                            # накопительные поля.
+                            acc, cum = 0.0, []
+                            for v in qs:
+                                if v is None:
+                                    cum.append(None)
+                                    continue
+                                acc += float(v)
+                                cum.append(acc)
+                            qs = cum
                         proposed_q = [
                             round(v, 2) if v is not None else None for v in qs]
                     inds_out.append(KpiPlanDraftIndicator(
@@ -259,13 +276,16 @@ class KpiForecastService:
                 inds_out: list[IndicatorForecast] = []
                 for ind in m.indicators:
                     ikey = _ind_key(ind)
-                    q_plan = [getattr(ind, f"q{i}_plan", None) for i in (1, 2, 3, 4)]
-                    q_fact = [getattr(ind, f"q{i}_fact", None) for i in (1, 2, 3, 4)]
+                    # P0 аудита KPI: движок (pace/run-rate/сезонность) ждёт суммы
+                    # ЗА КВАРТАЛ. Строки с нарастающим итогом конвертируем в
+                    # дельты по явной конвенции строки — иначе Σфакт/Σплан и
+                    # run-rate считались по накопленным значениям.
+                    q_plan = kpi_quarter_deltas(ind, "plan")
+                    q_fact = kpi_quarter_deltas(ind, "fact")
 
                     prior = idx_by_year.get(base_year - 1, {}).get(ikey)
                     prior_q = (
-                        [getattr(prior, f"q{i}_fact", None) for i in (1, 2, 3, 4)]
-                        if prior is not None else None
+                        kpi_quarter_deltas(prior, "fact") if prior is not None else None
                     )
                     qf = forecast_quarters(q_plan, q_fact, prior_q_fact=prior_q)
 
@@ -303,8 +323,8 @@ class KpiForecastService:
                             oind = idx_by_year.get(y, {}).get(ikey)
                             if oind is None:
                                 continue
-                            hist_qp.append([getattr(oind, f"q{i}_plan", None) for i in (1, 2, 3, 4)])
-                            hist_qf.append([getattr(oind, f"q{i}_fact", None) for i in (1, 2, 3, 4)])
+                            hist_qp.append(kpi_quarter_deltas(oind, "plan"))
+                            hist_qf.append(kpi_quarter_deltas(oind, "fact"))
                         shares = seasonal_shares(hist_qp) or seasonal_shares(hist_qf)
 
                     plan_y, fact_y, _ = kpi_year_pair(ind)

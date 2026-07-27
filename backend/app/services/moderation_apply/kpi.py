@@ -111,6 +111,9 @@ async def apply(db, *, sub: ModerationSubmission, user: User) -> dict:
                 q2_plan=ind.q2_plan, q2_fact=ind.q2_fact,
                 q3_plan=ind.q3_plan, q3_fact=ind.q3_fact,
                 q4_plan=ind.q4_plan, q4_fact=ind.q4_fact,
+                # Тот же класс, что direction выше: конвенция кварталов строки
+                # обязана пережить одобрение правки, иначе годовая цифра поедет.
+                quarters_mode=(getattr(ind, "quarters_mode", None) or "per_quarter"),
                 notes=ind.notes,
                 is_esg=(((m.title or "").strip(), (ind.name or "").strip()) in _esg_marks),
                 bp_metric_key=(
