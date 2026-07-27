@@ -49,16 +49,20 @@
       <span v-if="recording" class="ai-inp-mic-ring" aria-hidden="true"></span>
     </button>
 
+    <!-- a11y (P2 аудита): доступное имя держалось на `title`, который
+         обнулялся в disabled-состоянии — скринридер читал просто «кнопка».
+         Постоянный aria-label не зависит от состояния. -->
     <button
       class="ai-inp-send"
       type="button"
       :disabled="!canSend"
-      :title="canSend ? 'Отправить (Enter)' : ''"
+      aria-label="Отправить сообщение"
+      :title="canSend ? 'Отправить (Enter)' : 'Введите сообщение'"
       @click="onSubmit"
     >
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
            stroke="currentColor" stroke-width="2"
-           stroke-linecap="round" stroke-linejoin="round">
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M5 12l14-7-7 14-2-7z"/>
       </svg>
     </button>

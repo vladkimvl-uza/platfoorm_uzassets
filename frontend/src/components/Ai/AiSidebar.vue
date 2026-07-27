@@ -19,12 +19,22 @@
       Здесь появятся ваши разговоры
     </div>
     <ul v-else class="ai-sb-list">
+      <!-- a11y (P2 аудита): строка беседы была <li @click> без tabindex/role/
+           keydown — выбрать беседу с клавиатуры было НЕВОЗМОЖНО (фокус
+           перескакивал сразу на иконки действий). Теперь это кнопка-строка:
+           Tab доводит фокус, Enter/Space открывают. -->
       <li
         v-for="(c, idx) in items"
         :key="c.id"
         :class="['ai-sb-item', { active: c.id === activeId, editing: editingId === c.id }]"
         :style="{ animationDelay: `${Math.min(idx, 8) * 30}ms` }"
+        :tabindex="editingId === c.id ? -1 : 0"
+        role="button"
+        :aria-current="c.id === activeId ? 'true' : undefined"
+        :aria-label="`Открыть разговор: ${c.title || 'Без названия'}`"
         @click="editingId === c.id ? null : $emit('select', c.id)"
+        @keydown.enter.prevent="editingId === c.id ? null : $emit('select', c.id)"
+        @keydown.space.prevent="editingId === c.id ? null : $emit('select', c.id)"
       >
         <div class="ai-sb-item-head">
           <input
@@ -393,8 +403,24 @@ function formatDate(s: string) {
   transition: all 0.15s;
   flex-shrink: 0;
 }
+/* a11y: кнопки действий показывались ТОЛЬКО по hover мышью — клавиатурный
+   пользователь не мог ни переименовать, ни удалить беседу. Показываем их
+   также при фокусе внутри строки и при фокусе самой кнопки. */
 .ai-sb-item:hover .ai-sb-item-act,
-.ai-sb-item:hover .ai-sb-item-del { opacity: 1; }
+.ai-sb-item:hover .ai-sb-item-del,
+.ai-sb-item:focus-within .ai-sb-item-act,
+.ai-sb-item:focus-within .ai-sb-item-del,
+.ai-sb-item-act:focus-visible,
+.ai-sb-item-del:focus-visible { opacity: 1; }
+.ai-sb-item:focus-visible {
+  outline: 2px solid var(--uza-purple, #7C6FF7);
+  outline-offset: -2px;
+}
+.ai-sb-item-act:focus-visible,
+.ai-sb-item-del:focus-visible {
+  outline: 2px solid var(--uza-purple, #7C6FF7);
+  outline-offset: 1px;
+}
 .ai-sb-item-act:hover {
   background: rgba(127, 119, 221, 0.10);
   color: var(--uza-purple);

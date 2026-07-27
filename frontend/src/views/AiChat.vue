@@ -128,7 +128,18 @@
         </div>
       </header>
 
-      <main class="ai-page-body" ref="bodyRef">
+      <!-- a11y: лента — live-region. Раньше скринридер молчал при генерации:
+           ни начала ответа, ни текста, ни завершения. aria-busy сообщает о
+           процессе, «polite» не перебивает пользователя во время ввода. -->
+      <main
+        class="ai-page-body"
+        ref="bodyRef"
+        role="log"
+        aria-live="polite"
+        aria-relevant="additions text"
+        :aria-busy="chat.isStreaming.value ? 'true' : 'false'"
+        aria-label="Переписка с ассистентом"
+      >
         <div v-if="!chat.messages.value.length" class="ai-page-empty">
           <div class="ai-page-empty-card">
             <div class="ai-page-empty-icon ai-page-empty-icon-logo">
@@ -194,10 +205,11 @@
             Остановить
           </button>
         </div>
-        <div v-if="chat.error.value" class="ai-page-err">
+        <!-- a11y: role=alert — иначе незрячий пользователь не узнаёт об ошибке -->
+        <div v-if="chat.error.value" class="ai-page-err" role="alert">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
                stroke="currentColor" stroke-width="2"
-               stroke-linecap="round" stroke-linejoin="round">
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <circle cx="12" cy="12" r="10"/>
             <line x1="12" y1="8" x2="12" y2="12"/>
             <line x1="12" y1="16" x2="12.01" y2="16"/>
@@ -348,10 +360,26 @@ function scrollBottom() {
   });
 }
 
+// P2 аудита: автоскролл был БЕЗУСЛОВНЫМ — во время генерации пользователя
+// выбрасывало вниз каждые ~200 мс, и перечитать начало длинного ответа было
+// невозможно. Теперь «прилипание»: скроллим только если пользователь уже внизу
+// (как в FinCopilot, где это уже сделано правильно).
+const STICK_PX = 80;
+function atBottom(): boolean {
+  const el = bodyRef.value;
+  if (!el) return true;
+  return el.scrollHeight - el.scrollTop - el.clientHeight <= STICK_PX;
+}
+function scrollIfStuck() {
+  if (atBottom()) scrollBottom();
+}
+
+// Новое сообщение — всегда прокручиваем (это действие пользователя).
 watch(() => chat.messages.value.length, scrollBottom);
+// Поток токенов — только если пользователь не ушёл читать выше.
 watch(
   () => chat.messages.value[chat.messages.value.length - 1]?.content,
-  scrollBottom,
+  scrollIfStuck,
 );
 
 onMounted(async () => {

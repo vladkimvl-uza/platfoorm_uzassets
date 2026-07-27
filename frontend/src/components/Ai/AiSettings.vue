@@ -10,7 +10,17 @@
     </Transition>
 
     <Transition name="ai-drawer">
-      <div v-if="modelValue" class="ai-set-drawer" role="dialog" aria-modal="true">
+      <!-- a11y: Escape закрывает панель (через dirty-guard), tabindex делает
+           контейнер фокусируемым для перехвата клавиши. -->
+      <div
+        v-if="modelValue"
+        class="ai-set-drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Настройки ассистента"
+        tabindex="-1"
+        @keydown.escape="close"
+      >
         <header class="ai-set-head">
           <div>
             <h2>Настройки ассистента</h2>
@@ -505,8 +515,25 @@ async function onSave() {
   border-color: rgba(127, 119, 221, 0.4);
   box-shadow: 0 0 0 3px rgba(127, 119, 221, 0.08);
 }
+/* a11y (P2 аудита): `display:none` полностью убирал радио из дерева
+   доступности — ни один из 13 вариантов роли, 3 моделей и 4 стилей не получал
+   фокус и не читался диктором, выбрать их с клавиатуры было нельзя.
+   Прячем визуально, но оставляем фокусируемыми. */
 .ai-set-opt input[type="radio"] {
-  display: none;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+/* Видимый индикатор фокуса — на карточке-обёртке */
+.ai-set-opt:has(input[type="radio"]:focus-visible) {
+  outline: 2px solid var(--uza-purple, #7C6FF7);
+  outline-offset: 2px;
 }
 .ai-set-opt-body { flex: 1; }
 .ai-set-opt-title {
