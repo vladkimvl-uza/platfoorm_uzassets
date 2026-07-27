@@ -82,6 +82,10 @@ export function useBusinessPlanData() {
   async function loadSummary(headlineMetric: string = "revenue") {
     const my = ++_seqSummary;
     isLoadingSummary.value = true;
+    // НЕ stale-while-revalidate (решение владельца): refs модульные и прошлая
+    // сводка (другой период/год/визит) рендерилась МГНОВЕННО как «старый график»,
+    // а потом скачком менялась. Пока грузим — сводки нет, view показывает скелетон.
+    summary.value = null;
     error.value = null;
     try {
       const result = await bpApi.getSummary(

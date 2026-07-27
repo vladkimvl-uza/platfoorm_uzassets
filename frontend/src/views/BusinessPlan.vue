@@ -86,6 +86,15 @@
         @open-sector="onDrillSector"
         @open-pnl-line="onDrillPnlLine"
       />
+      <!-- Загрузка сводки: скелетон вместо старого графика (stale не показываем) -->
+      <div v-else-if="state.viewMode.value === 'summary' && state.isLoadingSummary.value" class="bp-sum-skel">
+        <div class="bp-skel-row"><UzaSkeleton v-for="i in 4" :key="i" variant="block" height="132px" /></div>
+        <div class="bp-skel-row bp-skel-row-bot">
+          <UzaSkeleton variant="block" height="300px" />
+          <UzaSkeleton variant="block" height="300px" />
+          <UzaSkeleton variant="block" height="300px" />
+        </div>
+      </div>
       <div v-else-if="state.viewMode.value === 'summary' && state.summary.value && state.summary.value.co_count === 0" class="bp-empty uza-empty">
         Нет данных бизнес-плана. Перейдите в режим «По компании» и заведите данные.
       </div>
@@ -175,6 +184,7 @@ import { useBusinessPlanData } from "@/composables/useBusinessPlanData";
 import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
 import BpSummaryDashboard from "@/components/BusinessPlan/BpSummaryDashboard.vue";
+import UzaSkeleton from "@/components/UZA/UzaSkeleton.vue";
 import BpCompanyDashboard from "@/components/BusinessPlan/BpCompanyDashboard.vue";
 import BpEditor from "@/components/BusinessPlan/BpEditor.vue";
 import BpDrillModal from "@/components/BusinessPlan/BpDrillModal.vue";
@@ -424,6 +434,12 @@ onMounted(async () => {
 @container bptop (max-width: 640px) {
   .bp-tb-right { justify-content: flex-start; }
 }
+
+/* Скелетон сводки (загрузка/смена периода): вместо старого графика */
+.bp-sum-skel { padding: 18px 22px; display: flex; flex-direction: column; gap: 12px; }
+.bp-skel-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.bp-skel-row-bot { grid-template-columns: 1.4fr 1fr 1fr; }
+@media (max-width: 1100px) { .bp-skel-row, .bp-skel-row-bot { grid-template-columns: 1fr 1fr; } }
 
 .bp-menu-wrap { position: relative; }
 .bp-menu-btn {
