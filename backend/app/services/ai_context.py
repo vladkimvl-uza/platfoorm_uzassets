@@ -1037,22 +1037,46 @@ def _task_stats(tasks: list, year: Optional[int] = None) -> dict:
 
 # ─────────────────── Block builders ───────────────────
 
+def _weighted_pct_for_year(tasks: list, year: int) -> int:
+    """Взвешенный прогресс группы задач года — КАНОН платформы.
+
+    P0 аудита ИИ: здесь считалось done/total, из-за чего ассистент называл
+    руководству не то число, что показывает /execution-summary (взвешенно:
+    new 0 / init 25 / active 50 / review 75 / done 100, monthly/ongoing вне
+    расчёта). Единственный источник правды — app/core/progress.py.
+    """
+    from app.core.progress import weighted_pct
+    rows = [
+        (getattr(t, "status", None), t)
+        for t in tasks
+        if getattr(t, "portfolio_year", None) == year
+    ]
+    return weighted_pct(rows) if rows else 0
+
+
 def _build_totals_block(projects: list, tasks: list, n_companies: int) -> str:
     proj = _project_stats(projects)
-    t25 = _task_stats(tasks, 2025)
-    t26 = _task_stats(tasks, 2026)
-    pct25 = round(t25["done"] / t25["total"] * 100) if t25["total"] else 0
-    pct26 = round(t26["done"] / t26["total"] * 100) if t26["total"] else 0
+    # Годы — от текущего, а не захардкоженные 2025/2026 (иначе блок устаревает).
+    cur_year = datetime.now(timezone.utc).year
+    prev_year = cur_year - 1
+    tp = _task_stats(tasks, prev_year)
+    tc = _task_stats(tasks, cur_year)
+    pct_prev = _weighted_pct_for_year(tasks, prev_year)
+    pct_cur = _weighted_pct_for_year(tasks, cur_year)
 
     return (
         f"\n=== ПОРТФЕЛЬ — ИТОГОВЫЕ ЧИСЛА ===\n"
         f"Компаний: {n_companies}\n"
         f"Проектов: {proj['total']} (✓{proj['done']} | "
         f"в процессе {proj['active']} | просрочено {proj['overdue']})\n"
-        f"Задач 2025: {t25['total']} (✓{t25['done']} = {pct25}% | "
-        f"просрочено {t25['overdue']})\n"
-        f"Задач 2026: {t26['total']} (✓{t26['done']} = {pct26}% | "
-        f"просрочено {t26['overdue']})\n"
+        f"Задач {prev_year}: {tp['total']} (полностью завершено {tp['done']}, "
+        f"прогресс {pct_prev}% взвешенно | просрочено {tp['overdue']})\n"
+        f"Задач {cur_year}: {tc['total']} (полностью завершено {tc['done']}, "
+        f"прогресс {pct_cur}% взвешенно | просрочено {tc['overdue']})\n"
+        f"ВАЖНО: «прогресс» — взвешенный по статусам (new 0 / инициация 25 / "
+        f"в работе 50 / на проверке 75 / завершено 100; ежемесячные и постоянные "
+        f"задачи в расчёт не входят). Это та же метрика, что на экране "
+        f"«Сводка исполнения» — не пересчитывай её как завершённые/всего.\n"
     )
 
 

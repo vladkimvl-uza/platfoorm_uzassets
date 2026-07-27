@@ -18,14 +18,20 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
+from app.core.access import (
+    allowed_company_ids,
+    ensure_company_access,
+    has_unrestricted_view,
+)
 from app.core.security import has_effective_permission, require_permission
 from app.dependencies.ai import AiAdminServiceDep
 from app.models.ai import AIConfig
 from app.models.ai_conversation import AiConversation, AiMessage
+from app.models.company import Company
 from app.models.system_config import SystemConfig
 from app.models.user import User
 from app.schemas.ai import (
@@ -342,20 +348,58 @@ async def ai_forecast(
 _SAVED_KINDS = {"forecast", "hlf", "kpi", "bp"}
 
 
+async def _saved_scope_company(db: AsyncSession, scope: str):
+    """Компания, закодированная в scope-ключе артефакта («<роль>__<код>»).
+
+    → (company_or_None, is_portfolio). Портфельные ключи (без «__») относятся
+    ко всему портфелю и доступны только носителям unrestricted view.
+    """
+    if "__" not in (scope or ""):
+        return None, True
+    code = scope.rsplit("__", 1)[1].strip()
+    if not code:
+        return None, True
+    co = (await db.execute(
+        select(Company).where(func.lower(Company.code) == code.lower())
+    )).scalar_one_or_none()
+    return co, False
+
+
 @router.get("/saved/{kind}")
 async def list_saved_ai_outputs(
     kind: str,
     user: User = Depends(require_ai_access),
     db: AsyncSession = Depends(get_db),
 ):
-    """Все сохранённые результаты вида kind (для hlf — по всем ролям/scope)."""
+    """Сохранённые результаты вида kind, ДОСТУПНЫЕ пользователю.
+
+    P0 аудита ИИ (июль 2026): отдавались ВСЕ ключи `ai_saved:<kind>:*` без
+    единого фильтра — company-scoped пользователь получал ИИ-разборы (матрицу
+    финансовых показателей, выводы, «лидеры и аутсайдеры») по всем 22
+    компаниям портфеля. Теперь: компанийные артефакты — по allowed_company_ids,
+    портфельные — только при has_unrestricted_view.
+    """
     if kind not in _SAVED_KINDS:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Unknown kind")
     prefix = f"ai_saved:{kind}:"
     rows = (await db.execute(
         select(SystemConfig).where(SystemConfig.key.like(prefix + "%"))
     )).scalars().all()
-    return {"saved": {r.key[len(prefix):]: r.value for r in rows}}
+    unrestricted = has_unrestricted_view(user)
+    allowed = None if unrestricted else set(await allowed_company_ids(db, user) or [])
+    out: dict = {}
+    for r in rows:
+        scope = r.key[len(prefix):]
+        co, is_portfolio = await _saved_scope_company(db, scope)
+        if is_portfolio:
+            if not unrestricted:
+                continue
+        else:
+            # Неизвестный код компании в ключе — не раскрываем (fail-closed).
+            if co is None or (allowed is not None and co.id not in allowed):
+                continue
+        out[scope] = r.value
+    return {"saved": out}
 
 
 @router.put("/saved/{kind}/{scope}")
@@ -366,10 +410,28 @@ async def save_ai_output(
     user: User = Depends(require_ai_access),
     db: AsyncSession = Depends(get_db),
 ):
-    """Сохранить/перезаписать результат генерации (общий для всех, до новой генерации)."""
+    """Сохранить/перезаписать результат генерации (общий для всех, до новой генерации).
+
+    P0 аудита ИИ: запись общего артефакта была доступна по праву-ПРОСМОТРА
+    `ai.view` и без проверки компании — company-scoped пользователь мог
+    перезаписать анализ по чужой компании (или портфельный) произвольным
+    текстом, который затем читает руководство. Теперь: компанийный артефакт —
+    только при доступе к этой компании, портфельный — только при unrestricted view.
+    """
     if kind not in _SAVED_KINDS:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Unknown kind")
     scope = re.sub(r"[^A-Za-z0-9_.-]", "", scope)[:64] or "default"
+    _co, _is_portfolio = await _saved_scope_company(db, scope)
+    if _is_portfolio:
+        if not has_unrestricted_view(user):
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                "Портфельный анализ может сохранять только пользователь с доступом ко всем компаниям",
+            )
+    else:
+        if _co is None:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Неизвестная компания в ключе")
+        await ensure_company_access(db, user, _co.id)
     body = payload.get("payload")
     if not isinstance(body, dict):
         body = payload

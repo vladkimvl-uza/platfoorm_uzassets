@@ -125,6 +125,17 @@ def _is_overdue(deadline: Any, status: Optional[str]) -> bool:
         return False
 
 
+def _weighted_pct_tasks(tasks: list) -> int:
+    """Взвешенный прогресс набора задач — КАНОН платформы (core/progress.py).
+
+    P0 аудита ИИ: инструменты отдавали done/total, из-за чего ассистент называл
+    руководству не то число, что показывает «Сводка исполнения».
+    """
+    from app.core.progress import weighted_pct
+    rows = [(getattr(t, "status", None), t) for t in (tasks or [])]
+    return weighted_pct(rows) if rows else 0
+
+
 def _is_carried_over(item: Any) -> bool:
     """A task/project is 'carried over' if linked_year is set and differs from portfolio_year."""
     py = getattr(item, "portfolio_year", None)
@@ -1256,7 +1267,11 @@ async def _tool_compare_companies(args: dict, db: AsyncSession) -> dict:
             t_res = await db.execute(select(Task).where(Task.company_id == co.id, Task.portfolio_year == yr))
             ts = list(t_res.scalars().all())
             done = sum(1 for t in ts if (getattr(t, "status", "") or "").lower() in _DONE_STATUSES)
-            val = {"total": len(ts), "done": done, "pct": round(done/len(ts)*100) if ts else 0}
+            # Канон: pct — ВЗВЕШЕННЫЙ прогресс (как «Сводка исполнения»);
+            # fully_done_pct — вспомогательная доля завершённых.
+            val = {"total": len(ts), "done": done,
+                   "pct": _weighted_pct_tasks(ts),
+                   "fully_done_pct": round(done/len(ts)*100) if ts else 0}
         elif metric in ("overdue_count_2025", "overdue_count_2026"):
             yr = 2025 if "2025" in metric else 2026
             t_res = await db.execute(select(Task).where(Task.company_id == co.id, Task.portfolio_year == yr))
@@ -1511,8 +1526,9 @@ async def _tool_get_kpi_summary(args: dict, db: AsyncSession) -> dict:
     for t in tasks:
         cid = getattr(t, "company_id", None)
         if not cid: continue
-        b = by_co.setdefault(cid, {"total": 0, "done": 0, "overdue": 0, "carried": 0})
+        b = by_co.setdefault(cid, {"total": 0, "done": 0, "overdue": 0, "carried": 0, "items": []})
         b["total"] += 1
+        b["items"].append(t)
         if (getattr(t, "status", "") or "").lower() in _DONE_STATUSES: b["done"] += 1
         if _is_overdue(getattr(t, "due_date", None), getattr(t, "status", None)): b["overdue"] += 1
         if _is_carried_over(t): b["carried"] += 1
@@ -1521,7 +1537,8 @@ async def _tool_get_kpi_summary(args: dict, db: AsyncSession) -> dict:
     top_overdue_data = [{
         "company": co_map.get(cid, "?"), "overdue": b["overdue"], "total": b["total"],
         "carried_over": b["carried"],
-        "done_pct": round(b["done"]/b["total"]*100) if b["total"] else 0,
+        # Канон: взвешенный прогресс (как на «Сводке исполнения»), не done/total.
+        "progress_pct": _weighted_pct_tasks(b["items"]),
     } for cid, b in top_overdue if b["overdue"] > 0]
 
     ratings_count = 0
@@ -1547,7 +1564,12 @@ async def _tool_get_kpi_summary(args: dict, db: AsyncSession) -> dict:
                 "projects.no_year = projects WHERE portfolio_year IS NULL. "
                 "All task counts are scoped to portfolio_year=YEAR. "
                 "tasks_carried_over = tasks WHERE linked_year IS NOT NULL AND linked_year != portfolio_year (i.e. moved INTO this year from another year). "
-                "completion_pct = tasks_done / tasks * 100 (only tasks with portfolio_year=YEAR)."
+                "progress_pct — КАНОНИЧЕСКАЯ метрика платформы (взвешенно по статусам: "
+                "new 0 / init 25 / active 50 / review 75 / done 100; monthly и ongoing "
+                "исключены). Это ровно то число, что показывает экран «Сводка исполнения» — "
+                "используй ЕГО, когда спрашивают «процент выполнения». "
+                "tasks_fully_done_pct — доля ПОЛНОСТЬЮ завершённых (done/total), "
+                "вспомогательная величина, не путать с прогрессом."
             ),
         },
         "year": year,
@@ -1561,7 +1583,10 @@ async def _tool_get_kpi_summary(args: dict, db: AsyncSession) -> dict:
             "tasks_active_in_year": active,
             "tasks_overdue_in_year": overdue,
             "tasks_carried_over_into_year": carried,
-            "completion_pct": round(done/len(tasks)*100) if tasks else 0,
+            # P0 аудита: раньше здесь был done/total под именем completion_pct —
+            # ассистент называл руководству не то число, что на /execution-summary.
+            "progress_pct": _weighted_pct_tasks(tasks),
+            "tasks_fully_done_pct": round(done/len(tasks)*100) if tasks else 0,
             "ratings_total_db": int(ratings_count),
             "esg_metrics_in_year": int(esg_count),
         },
@@ -2375,9 +2400,9 @@ async def _tool_compare_years(args: dict, db: AsyncSession) -> dict:
             by_year[str(yr)] = sum(1 for t in ts if _is_overdue(getattr(t, "due_date", None), getattr(t, "status", None)))
         elif metric == "tasks_carried_over_into_year":
             by_year[str(yr)] = sum(1 for t in ts if _is_carried_over(t))
-        elif metric == "completion_pct":
-            done = sum(1 for t in ts if (getattr(t, "status", "") or "").lower() in _DONE_STATUSES)
-            by_year[str(yr)] = round(done/len(ts)*100, 1) if ts else 0
+        elif metric in ("completion_pct", "progress_pct"):
+            # Канон платформы: взвешенный прогресс, а не done/total.
+            by_year[str(yr)] = _weighted_pct_tasks(ts)
 
     # Compute deltas (year[i+1] - year[i])
     deltas: dict = {}
@@ -2398,7 +2423,8 @@ async def _tool_compare_years(args: dict, db: AsyncSession) -> dict:
                 "tasks_done_in_year": "COUNT(tasks) WHERE portfolio_year=YEAR AND lower(status) IN (done|completed|finished)",
                 "tasks_overdue_in_year": "COUNT(tasks) WHERE portfolio_year=YEAR AND due_date < today AND status NOT IN done",
                 "tasks_carried_over_into_year": "COUNT(tasks) WHERE portfolio_year=YEAR AND linked_year IS NOT NULL AND linked_year != portfolio_year",
-                "completion_pct": "tasks_done_in_year / tasks_in_year * 100 (only same year)",
+                "completion_pct": "ВЗВЕШЕННЫЙ прогресс (канон платформы): new 0 / init 25 / active 50 / review 75 / done 100, monthly и ongoing исключены — то же число, что на «Сводке исполнения»",
+                "progress_pct": "то же, что completion_pct (взвешенный прогресс, канон платформы)",
                 "projects_in_year": "COUNT(projects) WHERE portfolio_year = YEAR",
             }.get(metric, "?"),
             "filter_company": company_name,
