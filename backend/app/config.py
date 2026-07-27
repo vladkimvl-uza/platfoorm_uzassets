@@ -89,6 +89,10 @@ class Settings(BaseSettings):
     RATE_LIMIT_API:     str = "300/minute"
     RATE_LIMIT_HEAVY:   str = "30/minute"   # /reports/*, /export/*
     RATE_LIMIT_USER_SEARCH: str = "30/minute"   # /users/search
+    # ИИ (аудит июль 2026): /ai/* были ВНЕ лимитов — один пользователь мог
+    # крутить дорогие запросы (deep-модель, web-поиск) без ограничений.
+    RATE_LIMIT_AI_CHAT: str = "20/minute"   # /ai/chat — интерактивный диалог
+    RATE_LIMIT_AI_HEAVY: str = "10/minute"  # аналитика: forecast/hlf/kpi/bp/exec-brief
     RATE_LIMIT_DEFAULT: str = "300/minute"
     RATE_LIMIT_ENABLED: bool = True
 

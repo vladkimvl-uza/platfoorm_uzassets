@@ -27,6 +27,8 @@ from app.core.access import (
     ensure_company_access,
     has_unrestricted_view,
 )
+from app.config import settings
+from app.core.rate_limit import limiter
 from app.core.security import has_effective_permission, require_permission
 from app.dependencies.ai import AiAdminServiceDep
 from app.models.ai import AIConfig
@@ -240,8 +242,10 @@ async def set_ai_activation(
 
 # ─── ИИ-прогноз (структурный, для авто-заполнения таблиц) ─────────
 @router.post("/forecast")
+@limiter.limit(settings.RATE_LIMIT_AI_HEAVY)
 async def ai_forecast(
     payload: dict,
+    request: Request,
     user: User = Depends(require_ai_access),
     db: AsyncSession = Depends(get_db),
 ):
@@ -456,8 +460,10 @@ async def save_ai_output(
 
 # ─── ИИ-анализ высокоуровневых показателей (кросс-компанийный) ─────
 @router.post("/hlf-analysis")
+@limiter.limit(settings.RATE_LIMIT_AI_HEAVY)
 async def ai_hlf_analysis(
     payload: dict,
+    request: Request,
     user: User = Depends(require_ai_access),
     db: AsyncSession = Depends(get_db),
 ):
@@ -581,8 +587,10 @@ async def ai_hlf_analysis(
 
 
 @router.post("/kpi-analysis")
+@limiter.limit(settings.RATE_LIMIT_AI_HEAVY)
 async def ai_kpi_analysis(
     payload: dict,
+    request: Request,
     user: User = Depends(require_ai_access),
     db: AsyncSession = Depends(get_db),
 ):
@@ -838,8 +846,10 @@ async def ai_kpi_analysis(
 
 
 @router.post("/bp-analysis")
+@limiter.limit(settings.RATE_LIMIT_AI_HEAVY)
 async def ai_bp_analysis(
     payload: dict,
+    request: Request,
     user: User = Depends(require_ai_access),
     db: AsyncSession = Depends(get_db),
 ):
@@ -1058,8 +1068,10 @@ EXEC_BRIEF_INSTRUCTIONS = (
 
 
 @router.post("/exec-sector-brief")
+@limiter.limit(settings.RATE_LIMIT_AI_HEAVY)
 async def exec_sector_brief(
     payload: ExecBriefRequest,
+    request: Request,
     user: User = Depends(require_ai_access),
     db: AsyncSession = Depends(get_db),
 ):
@@ -1177,7 +1189,37 @@ async def rename_conversation(
 
 # ─── Streaming chat with tools ────────────────────────────────────
 
+# Окно истории диалога, уходящее провайдеру (P1 аудита: контекст рос
+# неограниченно и пересылался на каждом tool-турне).
+_CHAT_HISTORY_WINDOW = 40
+
+
+def _capture_sse_block(line_block: str, events: list, tool_calls: list) -> None:
+    """Разобрать один SSE-кадр и сложить в накопители для записи в БД/аудит."""
+    evt_name = "message"
+    data_str = ""
+    for ln in line_block.split("\n"):
+        if ln.startswith("event:"):
+            evt_name = ln[6:].strip()
+        elif ln.startswith("data:"):
+            data_str += ln[5:].strip()
+    if not data_str or data_str == "[DONE]":
+        return
+    try:
+        obj = json.loads(data_str)
+    except json.JSONDecodeError:
+        return
+    if evt_name == "tool_use_start":
+        tool_calls.append({
+            "name": obj.get("name"), "args": obj.get("args"), "id": obj.get("id"),
+        })
+    elif evt_name == "tool_use_end":
+        return
+    elif isinstance(obj, dict) and obj.get("type"):
+        events.append(obj)
+
 @router.post("/chat")
+@limiter.limit(settings.RATE_LIMIT_AI_CHAT)
 async def chat(
     payload: ChatRequest,
     service: AiAdminServiceDep,
@@ -1185,7 +1227,13 @@ async def chat(
     user: User = Depends(require_ai_access),
     db: AsyncSession = Depends(get_db),
 ):
-    """Streaming SSE chat with AI engine tool_use."""
+    """Streaming SSE chat with AI engine tool_use.
+
+    P1 аудита: /ai/* были ВНЕ rate-limit (бакет RATE_LIMIT_HEAVY описан в
+    докстринге core/rate_limit, но не применён ни к одному ИИ-роуту) — один
+    пользователь мог сжечь бюджет провайдера циклом запросов. Ключ бакета —
+    per-user (см. _key_func).
+    """
     if not is_enabled():
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -1277,9 +1325,16 @@ async def chat(
         for m in payload.messages
         if m.content and m.role in ("user", "assistant")
     ]
+    # P1 аудита: окно истории. Клиент присылает диалог целиком, а он ещё и
+    # пересылается на каждом tool-турне (до 12) — стоимость растёт квадратично.
+    # Держим последние _CHAT_HISTORY_WINDOW ходов; последнее сообщение
+    # пользователя всегда остаётся (оно и есть запрос).
+    if len(api_messages) > _CHAT_HISTORY_WINDOW:
+        api_messages = api_messages[-_CHAT_HISTORY_WINDOW:]
 
     captured_events: list[dict] = []
     captured_tool_calls: list[dict] = []
+    _sse_buf = [""]        # буфер SSE-кадров между чанками (см. ниже)
     conv_id_str = str(conv.id)
     conv_id = conv.id
 
@@ -1295,38 +1350,29 @@ async def chat(
                 model=eff_model, max_tokens=eff_max, temperature=eff_temp,
             ):
                 yield raw
+                # P1 аудита: разбор шёл по КАЖДОМУ чанку без буфера — SSE-кадр,
+                # разорванный между чанками, терялся молча, и в БД сохранялся
+                # ОБРЕЗАННЫЙ ответ (пользователь видел полный, в истории — куски).
+                # Буферизуем по «\n\n», хвост оставляем до следующего чанка.
                 try:
-                    text = raw.decode("utf-8", errors="ignore")
-                    for line_block in text.split("\n\n"):
-                        evt_name = "message"
-                        data_str = ""
-                        for ln in line_block.split("\n"):
-                            if ln.startswith("event:"):
-                                evt_name = ln[6:].strip()
-                            elif ln.startswith("data:"):
-                                data_str += ln[5:].strip()
-                        if not data_str or data_str == "[DONE]":
-                            continue
-                        try:
-                            obj = json.loads(data_str)
-                        except json.JSONDecodeError:
-                            continue
-                        if evt_name == "tool_use_start":
-                            captured_tool_calls.append({
-                                "name": obj.get("name"),
-                                "args": obj.get("args"),
-                                "id": obj.get("id"),
-                            })
-                        elif evt_name == "tool_use_end":
-                            pass
-                        elif isinstance(obj, dict) and obj.get("type"):
-                            captured_events.append(obj)
+                    _sse_buf[0] += raw.decode("utf-8", errors="ignore")
+                    while "\n\n" in _sse_buf[0]:
+                        line_block, _sse_buf[0] = _sse_buf[0].split("\n\n", 1)
+                        _capture_sse_block(line_block, captured_events, captured_tool_calls)
                 except Exception:
                     pass
         except Exception as e:
             logger.exception("AI stream failed")
             err = {"type": "error", "error": {"message": str(e)}}
             yield f"event: error\ndata: {json.dumps(err, ensure_ascii=False)}\n\n".encode()
+
+        # Хвост без завершающего «\n\n» — тоже кадр; иначе последний фрагмент
+        # ответа не попадал в сохранённую историю.
+        if _sse_buf[0].strip():
+            try:
+                _capture_sse_block(_sse_buf[0], captured_events, captured_tool_calls)
+            except Exception:
+                pass
 
         full_text, tin, tout, stop = extract_text_and_stats(captured_events)
         if full_text or captured_tool_calls:

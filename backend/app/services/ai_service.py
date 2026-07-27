@@ -48,6 +48,43 @@ def _resolve_model(m: Optional[str]) -> str:
 DEFAULT_MODEL = os.environ.get("AI_MODEL_DEFAULT", "ai-balanced")
 DEFAULT_MAX_TURNS = 12  # safety cap for tool_use loop — bumped 6→12 for chained verify_count flows
 
+# P1 аудита ИИ (июль 2026): результат инструмента уходил модели БЕЗ усечения
+# (лимит 50 КБ применялся только к копии для UI) и оставался в контексте на все
+# последующие турны → лавинообразный рост стоимости. Кап на блок, уходящий в
+# диалог; пользователю в UI по-прежнему отдаётся более полная копия.
+_TOOL_RESULT_CAP = 24_000
+
+# Ниже какого размера кэшировать префикс бессмысленно (провайдер требует
+# минимальную длину блока; для коротких промптов только накладные расходы).
+_CACHE_MIN_CHARS = 4_000
+
+
+def _cacheable_system(system: str):
+    """Системный промпт как кэшируемый блок (prompt caching).
+
+    Возвращает исходную строку, если промпт короткий — тогда кэш не нужен.
+    """
+    if not system or len(system) < _CACHE_MIN_CHARS:
+        return system
+    return [{
+        "type": "text",
+        "text": system,
+        "cache_control": {"type": "ephemeral"},
+    }]
+
+
+def _cacheable_tools(tools: Optional[list]) -> Optional[list]:
+    """Пометить последнюю схему инструмента как границу кэша.
+
+    Схемы инструментов идут в префиксе запроса сразу за system и в рамках одного
+    диалога неизменны — кэшируем их вместе с системным промптом.
+    """
+    if not tools:
+        return tools
+    out = [dict(t) for t in tools]
+    out[-1]["cache_control"] = {"type": "ephemeral"}
+    return out
+
 
 def get_api_key() -> str:
     # Дженерик-имя приоритетно; старое имя оставлено как fallback (на проде .env
@@ -115,10 +152,19 @@ async def complete_once(
 
 
 def extract_text_and_stats(events: list[dict]) -> tuple[str, int | None, int | None, str | None]:
-    """Walk parsed SSE events, return (full_text, tokens_in, tokens_out, stop_reason)."""
+    """Walk parsed SSE events, return (full_text, tokens_in, tokens_out, stop_reason).
+
+    P1 аудита: счётчики ПЕРЕЗАПИСЫВАЛИСЬ на каждом `message_start`, а список
+    событий — общий на весь мультитурновый цикл (до 12 турнов). В БД уходил
+    расход ПОСЛЕДНЕГО турна вместо суммы, и понять источник счёта провайдера по
+    журналу было невозможно. Теперь усилия суммируются по турнам; output
+    последнего турна корректируется из `message_delta` (там финальное значение).
+    """
     text_parts: list[str] = []
-    tin: int | None = None
-    tout: int | None = None
+    tin_total = 0
+    tout_total = 0
+    seen_usage = False
+    cur_turn_out = 0          # output последнего начатого турна
     stop: str | None = None
     for ev in events:
         et = ev.get("type")
@@ -130,17 +176,26 @@ def extract_text_and_stats(events: list[dict]) -> tuple[str, int | None, int | N
                     text_parts.append(t)
         elif et == "message_start":
             usage = (ev.get("message") or {}).get("usage") or {}
+            # закрываем предыдущий турн
+            tout_total += cur_turn_out
+            cur_turn_out = 0
             if "input_tokens" in usage:
-                tin = usage["input_tokens"]
+                tin_total += usage["input_tokens"] or 0
+                seen_usage = True
             if "output_tokens" in usage:
-                tout = usage["output_tokens"]
+                cur_turn_out = usage["output_tokens"] or 0
+                seen_usage = True
         elif et == "message_delta":
             d = ev.get("delta") or {}
             if d.get("stop_reason"):
                 stop = d["stop_reason"]
             usage = ev.get("usage") or {}
             if "output_tokens" in usage:
-                tout = usage["output_tokens"]
+                cur_turn_out = usage["output_tokens"] or 0
+                seen_usage = True
+    tout_total += cur_turn_out
+    tin = tin_total if seen_usage else None
+    tout = tout_total if seen_usage else None
     return "".join(text_parts), tin, tout, stop
 
 
@@ -199,9 +254,13 @@ async def stream_chat_with_tools(
         payload = {
             "model": _resolve_model(model),
             "max_tokens": max_tokens,
-            "system": system,
+            # P2 аудита: prompt caching. Системный промпт + схемы инструментов —
+            # ~90 КБ КОНСТАНТНОГО префикса, который оплачивался заново в каждом
+            # из до 12 турнов одного вопроса. cache_control на последнем блоке
+            # префикса кэширует его целиком (system + tools) между турнами.
+            "system": _cacheable_system(system),
             "messages": convo,
-            "tools": tools,
+            "tools": _cacheable_tools(tools),
             "stream": True,
         }
         if send_temperature is not None:
@@ -384,11 +443,28 @@ async def stream_chat_with_tools(
             }
             yield f"event: tool_use_end\ndata: {json.dumps(end_evt, ensure_ascii=False)}\n\n".encode("utf-8")
 
-            # Append to tool_result blocks for next turn
+            # Append to tool_result blocks for next turn.
+            # P1 аудита: усечение (50 КБ) применялось ТОЛЬКО к копии для UI, а в
+            # диалог с моделью уходил полный дамп — и оставался там навсегда,
+            # пересылаясь на каждом следующем турне (до 12). Контекст рос
+            # лавинообразно. Теперь режем и то, что уходит модели, с ЧЕСТНОЙ
+            # пометкой — чтобы она понимала неполноту и уточнила фильтр,
+            # а не выдумывала полноту.
+            try:
+                content_for_model = json.dumps(result, ensure_ascii=False, default=str)
+            except Exception:
+                content_for_model = '{"error":"failed to serialize result"}'
+            if len(content_for_model) > _TOOL_RESULT_CAP:
+                content_for_model = (
+                    content_for_model[:_TOOL_RESULT_CAP]
+                    + '..."[ДАННЫЕ УСЕЧЕНЫ: показана только часть результата. '
+                      'Уточни фильтр (компания/год/лимит) и вызови инструмент '
+                      'повторно; не додумывай пропущенное]"'
+                )
             tool_result_blocks.append({
                 "type": "tool_result",
                 "tool_use_id": tool_id,
-                "content": json.dumps(result, ensure_ascii=False, default=str),
+                "content": content_for_model,
             })
 
         convo.append({"role": "user", "content": tool_result_blocks})

@@ -15,12 +15,19 @@ from pydantic import BaseModel, Field
 
 class ChatMessage(BaseModel):
     role: Literal["user", "assistant"]
-    content: str
+    # P1 аудита: длина сообщения не ограничивалась — клиент мог прислать
+    # мегабайты, которые уходили провайдеру как есть (и повторялись на каждом
+    # tool-турне). 20k символов ≈ 5-7k токенов: с запасом на длинный вопрос.
+    content: str = Field(..., max_length=20_000)
 
 
 class ChatRequest(BaseModel):
     conversation_id: Optional[UUID] = None
-    messages: List[ChatMessage] = Field(..., min_length=1)
+    # P1 аудита: история диалога слалась ЦЕЛИКОМ на каждое сообщение и ещё раз
+    # на каждом из 12 tool-турнов → стоимость росла квадратично. Окно 40 ходов
+    # (~20 пар «вопрос-ответ») покрывает рабочий диалог; более старое обрезает
+    # роут (см. _trim_history в routes/ai.py).
+    messages: List[ChatMessage] = Field(..., min_length=1, max_length=200)
     role: Optional[str] = None
     style: Optional[str] = None
     model: Optional[str] = None  # per-request override; falls back to saved cfg
