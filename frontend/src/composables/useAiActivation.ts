@@ -6,6 +6,7 @@
 // поэтому переключение мгновенно отражается везде.
 import { reactive } from "vue";
 import { api } from "@/api/client";
+import { useToast } from "@/composables/useToast";
 
 const state = reactive({
   active: true,
@@ -37,11 +38,24 @@ async function load(force = false): Promise<void> {
   return inflight;
 }
 
+function _reason(e: any): string {
+  return e?.response?.data?.detail || e?.message || "неизвестная ошибка";
+}
+
+// P1 аудита: обе операции глушили ошибку молча (`catch { /* ignore */ }`).
+// Владелец тянул тумблер «выключить ассистента для организации», запрос падал
+// (сеть/502/истёкший токен), тумблер отпружинивал — и человек оставался в
+// уверенности, что ИИ выключен, хотя он работал. Канон платформы: никаких
+// тихих провалов — явный тост «не сохранено» с причиной.
 async function setActive(v: boolean): Promise<void> {
   try {
     const { data } = await api.put("/ai/activation", { active: v });
     state.active = !!data.active;
-  } catch { /* ignore */ }
+    useToast().success(state.active ? "ИИ-ассистент включён" : "ИИ-ассистент выключен");
+  } catch (e) {
+    useToast().error(`Не удалось изменить состояние ассистента: ${_reason(e)}`);
+    await load(true);   // вернуть UI к РЕАЛЬНОМУ состоянию сервера
+  }
 }
 
 async function setAccessMode(mode: "owner_only" | "rbac"): Promise<void> {
@@ -49,7 +63,15 @@ async function setAccessMode(mode: "owner_only" | "rbac"): Promise<void> {
     const { data } = await api.put("/ai/access-mode", { mode });
     state.accessMode = data.access_mode === "rbac" ? "rbac" : "owner_only";
     await load(true);
-  } catch { /* ignore */ }
+    useToast().success(
+      state.accessMode === "rbac"
+        ? "Доступ к ИИ: по правам (ai.view)"
+        : "Доступ к ИИ: только владелец",
+    );
+  } catch (e) {
+    useToast().error(`Не удалось изменить режим доступа: ${_reason(e)}`);
+    await load(true);
+  }
 }
 
 export function useAiActivation() {

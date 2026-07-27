@@ -195,7 +195,15 @@ WEB_SEARCH_TOOL_DEEP = {
 # ─── Health ───────────────────────────────────────────────────────
 
 @router.get("/health", response_model=AiHealthOut)
-async def ai_health(_user: User = Depends(require_admin)) -> AiHealthOut:
+async def ai_health(_user: User = Depends(require_ai_access)) -> AiHealthOut:
+    """Доступность движка для ТЕКУЩЕГО пользователя.
+
+    P1 аудита: эндпоинт был под `require_admin`, хотя от него зависит
+    доступность поля ввода в чате (AiChat.vue гасит инпут при health=null).
+    В режиме доступа «по правам» это ломало сам сценарий, ради которого режим
+    сделан: пользователь с `ai.view` открывал чат и видел «AI недоступен».
+    Ответ не содержит секретов — только факт готовности и тир модели.
+    """
     return AiHealthOut(
         enabled=is_enabled(),
         model=DEFAULT_MODEL,
@@ -204,11 +212,15 @@ async def ai_health(_user: User = Depends(require_admin)) -> AiHealthOut:
 
 
 # ─── User config ──────────────────────────────────────────────────
+# Конфиг ЛИЧНЫЙ (ключ — user.id): роль, стиль, тир модели, температура,
+# лимит токенов, доп. инструкции. P1 аудита: был под `require_admin`, из-за
+# чего пользователь с доступом к чату не мог ни прочитать, ни изменить
+# СВОИ ЖЕ настройки (403). Глобальные рубильники остаются owner-only.
 
 @router.get("/config", response_model=AiConfigOut)
 async def get_ai_config(
     service: AiAdminServiceDep,
-    user: User = Depends(require_admin),
+    user: User = Depends(require_ai_access),
 ) -> AiConfigOut:
     return await service.get_config(user.id)
 
@@ -217,7 +229,7 @@ async def get_ai_config(
 async def update_ai_config(
     payload: AiConfigIn,
     service: AiAdminServiceDep,
-    user: User = Depends(require_admin),
+    user: User = Depends(require_ai_access),
 ) -> AiConfigOut:
     return await service.update_config(user.id, payload)
 

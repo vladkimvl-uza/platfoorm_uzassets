@@ -14,7 +14,9 @@
         <header class="ai-set-head">
           <div>
             <h2>Настройки ассистента</h2>
-            <p>Сохраняется автоматически после изменения</p>
+            <!-- P1 аудита: подпись «Сохраняется автоматически» лгала —
+                 сохранение ручное, и правки терялись при закрытии. -->
+            <p>{{ dirty ? "Есть несохранённые изменения" : "Нажмите «Сохранить», чтобы применить" }}</p>
           </div>
           <button class="ai-set-x" type="button" @click="close" aria-label="Закрыть">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
@@ -31,6 +33,13 @@
         </div>
 
         <form v-else class="ai-set-body" @submit.prevent="onSave">
+          <!-- Anti-wipe: загрузка не удалась → показываем это явно и блокируем
+               сохранение, чтобы дефолты формы не затёрли реальные настройки. -->
+          <div v-if="loadFailed" class="ai-set-warn">
+            Не удалось загрузить ваши настройки. Показаны значения по умолчанию —
+            сохранение отключено, чтобы не перезаписать текущие. Закройте панель и
+            откройте её заново.
+          </div>
           <!-- Role (Pack 7.7: grouped) -->
           <section class="ai-set-section">
             <h3>Роль</h3>
@@ -173,7 +182,7 @@
             <button type="button" class="ai-set-btn ai-set-btn-secondary" @click="close">
               Закрыть
             </button>
-            <button type="submit" class="ai-set-btn ai-set-btn-primary" :disabled="cfg.saving.value">
+            <button type="submit" class="ai-set-btn ai-set-btn-primary" :disabled="cfg.saving.value || loadFailed">
               <span v-if="cfg.saving.value">Сохранение…</span>
               <span v-else>Сохранить</span>
             </button>
@@ -186,8 +195,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import { useAiConfig } from "@/composables/useAiConfig";
+import { useToast } from "@/composables/useToast";
+import { useConfirm } from "@/composables/useConfirm";
+
+const toast = useToast();
+const { confirmDialog } = useConfirm();
 
 const props = defineProps<{
   modelValue: boolean;
@@ -208,10 +222,20 @@ const form = ref({
   custom_instructions: "",
 });
 
+// Снимок загруженных настроек — для dirty-guard и anti-wipe (P1 аудита:
+// правки терялись без предупреждения, а при сбое загрузки форма показывала
+// хардкод-дефолты и «Сохранить» затирало реальные настройки).
+const snapshot = ref<string>("");
+const loadFailed = ref(false);
+const dirty = computed(
+  () => snapshot.value !== "" && JSON.stringify(form.value) !== snapshot.value,
+);
+
 watch(
   () => props.modelValue,
   async (v) => {
     if (v) {
+      loadFailed.value = false;
       const c = await cfg.load();
       if (c) {
         form.value = {
@@ -222,16 +246,33 @@ watch(
           max_tokens: c.max_tokens,
           custom_instructions: c.custom_instructions || "",
         };
+        snapshot.value = JSON.stringify(form.value);
+      } else {
+        // Anti-wipe: НЕ показываем дефолты как «текущие настройки» и не даём
+        // сохранить — иначе перезапишем реальные значения хардкодом.
+        loadFailed.value = true;
+        snapshot.value = "";
       }
     }
   },
 );
 
-function close() {
+async function close() {
+  if (dirty.value) {
+    const ok = await confirmDialog({
+      message: "Есть несохранённые изменения настроек ИИ. Закрыть без сохранения?",
+      danger: true,
+    });
+    if (!ok) return;
+  }
   emit("update:modelValue", false);
 }
 
 async function onSave() {
+  if (loadFailed.value) {
+    toast.error("Настройки не были загружены — сохранение отключено, чтобы не затереть текущие. Закройте и откройте панель заново.");
+    return;
+  }
   const saved = await cfg.save({
     role: form.value.role,
     style: form.value.style,
@@ -241,21 +282,41 @@ async function onSave() {
     custom_instructions: form.value.custom_instructions || null,
   });
   if (saved) {
+    snapshot.value = JSON.stringify(form.value);
+    toast.success("Настройки ассистента сохранены");
     emit("saved");
-    close();
+    emit("update:modelValue", false);   // закрываем без повторного dirty-guard
+  } else {
+    toast.error(cfg.error.value || "Не удалось сохранить настройки ассистента");
   }
 }
 </script>
 
 <style scoped>
-/* Backdrop */
+/* Backdrop.
+   P1 аудита: здесь стоял хардкод 9998 против var(--z-overlay)=9000 у дровера —
+   затемнение рисовалось ПОВЕРХ панели, и любой клик по роли/слайдеру/«Сохранить»
+   попадал в бэкдроп и ЗАКРЫВАЛ настройки (изменить их через UI было нельзя).
+   Обе поверхности переведены на единую шкалу --z-*. */
 .ai-set-back {
   position: fixed;
   inset: 0;
   background: rgba(15, 18, 40, 0.45);
   -webkit-backdrop-filter: blur(8px);
           backdrop-filter: blur(8px);
-  z-index: 9998;
+  z-index: var(--z-overlay, 9000);
+}
+
+/* Anti-wipe баннер (сбой загрузки настроек) */
+.ai-set-warn {
+  margin: 0 0 14px;
+  padding: 11px 13px;
+  background: rgba(239, 159, 39, 0.10);
+  border: 1px solid rgba(239, 159, 39, 0.32);
+  border-radius: 10px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: #A36500;
 }
 
 /* Drawer */
@@ -270,7 +331,8 @@ async function onSave() {
           backdrop-filter: var(--ai-glass-blur);
   border-left: 1px solid var(--ai-glass-border);
   box-shadow: var(--ai-shadow-modal);
-  z-index: var(--z-overlay, 9000);
+  /* ВЫШЕ бэкдропа — иначе панель некликабельна (см. комментарий у .ai-set-back) */
+  z-index: calc(var(--z-overlay, 9000) + 1);
   display: flex;
   flex-direction: column;
   overflow: hidden;

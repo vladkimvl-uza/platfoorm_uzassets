@@ -81,8 +81,14 @@ class AiHealthOut(BaseModel):
 
 # ─────────────── Per-user config ───────────────
 
+# P1 аудита ИИ (июль 2026): 5 БАЗОВЫХ ролей были «съедены» слиянием
+# комментария со строкой значений (тот же класс, что прошлый scrub-инцидент) —
+# список стал из 8 элементов вместо 13, и PUT /ai/config падал с 400
+# «Invalid role: analyst» на ДЕФОЛТНОЙ роли: ни одно поле настроек не
+# сохранялось. Восстановлено; порядок — как в UI.
 VALID_ROLES = {
-    # Базовые     "analyst", "assistant", "expert", "universal", "financial",
+    # Базовые
+    "analyst", "assistant", "expert", "universal", "financial",
     # Финансы
     "investor",
     # Big4 specialisations
