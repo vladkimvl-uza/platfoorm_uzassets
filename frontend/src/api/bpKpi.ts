@@ -118,7 +118,8 @@ export interface BpCell {
   expect: string | number | null;
   fact: string | number | null;
   fact_auto?: boolean;
-  /** источник автоподстановки факта: 'nsbu' (финотчётность) | 'ytd' (Σ кварталов) */
+  /** источник автоподстановки факта: 'nsbu' (финотчётность) | 'ytd' (нараст.
+   *  итог Q4 — кварталы хранятся нарастающим итогом, q4 = весь год) */
   fact_source?: "nsbu" | "ytd" | null;
   /** значение источника (приходит всегда — для сравнения с ручным фактом в редакторе) */
   fact_source_value?: string | number | null;
@@ -167,10 +168,36 @@ export interface BpSectorRow {
   sum_revenue: string | number;
 }
 
+/** Квартальная строка сводки. Кварталы БП хранятся НАРАСТАЮЩИМ ИТОГОМ (НСБУ:
+ *  q1=1 кв, q2=полугодие, q3=9 мес, q4=год): cum_* — Σ хранимых YTD по компаниям,
+ *  *_delta — «за квартал» (Σ по-компанейских дельт, null-guard по компании).
+ *  plan/fact ≡ cum_plan/cum_fact (обратная совместимость). */
 export interface BpQuarterRow {
   q: BpPeriod;
-  plan: string | number | null;
-  fact: string | number | null;
+  plan: string | number | null;        // DEPRECATED ≡ cum_plan
+  fact: string | number | null;        // DEPRECATED ≡ cum_fact
+  expect?: string | number | null;     // ≡ cum_expect
+  cum_plan?: string | number | null;
+  cum_expect?: string | number | null;
+  cum_fact?: string | number | null;
+  plan_delta?: string | number | null;
+  expect_delta?: string | number | null;
+  fact_delta?: string | number | null;
+  co_count_cum_fact?: number;
+  co_count_fact_delta?: number;
+}
+
+/** Зеркало backend ytd_to_deltas: «за квартал» = ytd[n] − ytd[n−1] (q1 = ytd[0]);
+ *  честный null, когда сам квартал ИЛИ предыдущий не заполнен. */
+export function ytdToDeltas(vals: (number | null)[]): (number | null)[] {
+  const out: (number | null)[] = [];
+  let prev: number | null = null;
+  vals.forEach((v, i) => {
+    if (v == null || (i > 0 && prev == null)) out.push(null);
+    else out.push(i > 0 ? v - (prev as number) : v);
+    prev = v;
+  });
+  return out;
 }
 
 export interface BpSummary {

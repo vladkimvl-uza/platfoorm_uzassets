@@ -180,20 +180,25 @@ import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 
 const fmt = useFormatters();
 
-// Drill-разбор квартала (открывается из BpQuarterlyChart)
+// Drill-разбор квартала (открывается из BpQuarterlyChart).
+// КАНОН: кварталы хранятся нарастающим итогом — «итог» берётся из САМОЙ строки
+// (раньше здесь был acc+= по уже-кумулятивным значениям → двойной счёт), дельты
+// «за квартал» приходят с бэка (plan_delta/fact_delta, per-company null-guard).
 const quarterDrill = ref<null | {
   q: string; plan: number | null; fact: number | null; expect?: number | null;
-  cum: number; label: string; unit: string;
+  planDelta: number | null; factDelta: number | null;
+  cum: number | null; label: string; unit: string;
 }>(null);
 function onQuarterDrill(e: { row: any; index: number }) {
-  let acc = 0;
-  for (let i = 0; i <= e.index; i++) {
-    const q = props.summary.by_quarter[i] as any;
-    acc += Number(q.fact ?? q.expect ?? q.plan ?? 0);
-  }
+  const r = e.row;
+  const numOr = (v: any): number | null => (v == null ? null : Number(v));
+  const cum = numOr(r.cum_fact ?? r.fact) ?? numOr(r.cum_expect ?? r.expect) ?? numOr(r.cum_plan ?? r.plan);
   quarterDrill.value = {
-    q: e.row.q, plan: e.row.plan, fact: e.row.fact, expect: e.row.expect,
-    cum: acc, label: headlineLabel.value, unit: unitLabel(e.row.fact ?? e.row.plan),
+    q: r.q,
+    plan: numOr(r.cum_plan ?? r.plan), fact: numOr(r.cum_fact ?? r.fact),
+    expect: numOr(r.cum_expect ?? r.expect),
+    planDelta: numOr(r.plan_delta), factDelta: numOr(r.fact_delta),
+    cum, label: headlineLabel.value, unit: unitLabel(cum),
   };
 }
 

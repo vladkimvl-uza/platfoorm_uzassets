@@ -16,6 +16,7 @@ import {
   bpApi,
   bpFmt,
   num,
+  ytdToDeltas,
   type BpComputed,
   type BpPeriod,
   type BpSummary,
@@ -104,20 +105,25 @@ async function loadCompanyMode() {
     prevYearAnnual.value = await bpApi.getComputed(props.companyId, props.year - 1, "annual");
   } catch { prevYearAnnual.value = null; }
 
-  // Quarterly trend (4 calls)
+  // Quarterly trend (4 calls). КАНОН: хранимые кварталы — НАРАСТАЮЩИМ ИТОГОМ
+  // (НСБУ) → «динамика кварталов» показывает дельты «за квартал» (честный null,
+  // когда предыдущий квартал не заполнен).
   try {
-    const out: typeof quarterly.value = [];
+    const ytd: typeof quarterly.value = [];
     for (const q of ["q1", "q2", "q3", "q4"] as const) {
       const r = await bpApi.getComputed(props.companyId, props.year, q);
       const c = r.metrics["revenue"] || { plan: null, expect: null, fact: null };
-      out.push({
+      ytd.push({
         q,
         plan: c.plan != null ? num(c.plan) : null,
         expect: c.expect != null ? num(c.expect) : null,
         fact: c.fact != null ? num(c.fact) : null,
       });
     }
-    quarterly.value = out;
+    const dp = ytdToDeltas(ytd.map(d => d.plan));
+    const de = ytdToDeltas(ytd.map(d => d.expect));
+    const df = ytdToDeltas(ytd.map(d => d.fact));
+    quarterly.value = ytd.map((d, i) => ({ q: d.q, plan: dp[i], expect: de[i], fact: df[i] }));
   } catch { quarterly.value = []; }
 }
 
@@ -359,9 +365,20 @@ const nsbuAutoCount = computed(() => {
 const chartMax = computed(() => {
   const vals = quarterly.value.flatMap(d => [d.plan, d.expect, d.fact]).filter((v): v is number => v != null);
   if (!vals.length) return 1;
-  const m = Math.max(...vals);
+  const m = Math.max(0, ...vals);
   return m === 0 ? 1 : m;
 });
+// Нижняя граница: отрицательная дельта рисуется вниз от нулевой базы, а не
+// исчезает (SVG отбрасывает rect с отрицательной высотой).
+const chartMin = computed(() => {
+  const vals = quarterly.value.flatMap(d => [d.plan, d.expect, d.fact]).filter((v): v is number => v != null);
+  return vals.length ? Math.min(0, ...vals) : 0;
+});
+const chartRange = computed(() => (chartMax.value - chartMin.value) || 1);
+function qY(v: number) { return 14 + (1 - (v - chartMin.value) / chartRange.value) * 92; }
+const qBaseY = computed(() => qY(0));
+function qBarY(v: number) { return Math.min(qY(v), qBaseY.value); }
+function qBarH(v: number) { return v === 0 ? 0 : Math.max(1, Math.abs(qY(v) - qBaseY.value)); }
 const hasQuarterly = computed(() => quarterly.value.some(d => d.plan != null || d.fact != null || d.expect != null));
 
 const achievements = computed(() => {
@@ -468,7 +485,7 @@ const headerTitle = computed(() => {
 });
 
 const periodLabel = computed(() => {
-  const p = props.period === "annual" ? "годовой итог" : `за квартал ${props.period.toUpperCase()}`;
+  const p = props.period === "annual" ? "годовой итог" : `нарастающим итогом за ${props.period.toUpperCase()}`;
   return `FY ${props.year} · ${p}`;
 });
 
@@ -674,11 +691,11 @@ watch(
                 <div v-if="!hasQuarterly" class="bpd-empty-mini">Квартальные данные не введены</div>
                 <svg v-else viewBox="0 0 320 130" style="width:100%;height:130px" preserveAspectRatio="xMidYMid meet">
                   <line v-for="(g, gi) in [0, 0.25, 0.5, 0.75]" :key="gi" :x1="28" :y1="14 + (1 - g) * 92" :x2="312" :y2="14 + (1 - g) * 92" stroke="#E2E8F0" stroke-width="0.5" stroke-dasharray="2 3"/>
-                  <line x1="28" y1="106" x2="312" y2="106" stroke="#1E2A4A" stroke-width="0.8"/>
+                  <line x1="28" :y1="qBaseY" x2="312" :y2="qBaseY" stroke="#1E2A4A" stroke-width="0.8"/>
                   <g v-for="(d, di) in quarterly" :key="d.q">
-                    <rect v-if="d.plan != null" :x="48 + di * 70" :y="106 - (d.plan / chartMax) * 92" width="11" :height="(d.plan / chartMax) * 92" fill="#CECBF6" rx="2"/>
-                    <rect v-if="d.expect != null" :x="60 + di * 70" :y="106 - (d.expect / chartMax) * 92" width="11" :height="(d.expect / chartMax) * 92" fill="#FAC775" rx="2"/>
-                    <rect v-if="d.fact != null" :x="72 + di * 70" :y="106 - (d.fact / chartMax) * 92" width="11" :height="(d.fact / chartMax) * 92" fill="#5DC093" rx="2"/>
+                    <rect v-if="d.plan != null" :x="48 + di * 70" :y="qBarY(d.plan)" width="11" :height="qBarH(d.plan)" fill="#CECBF6" rx="2"/>
+                    <rect v-if="d.expect != null" :x="60 + di * 70" :y="qBarY(d.expect)" width="11" :height="qBarH(d.expect)" fill="#FAC775" rx="2"/>
+                    <rect v-if="d.fact != null" :x="72 + di * 70" :y="qBarY(d.fact)" width="11" :height="qBarH(d.fact)" fill="#5DC093" rx="2"/>
                     <text :x="65 + di * 70" y="120" font-size="10" fill="#64748B" text-anchor="middle" font-weight="500">{{ d.q.toUpperCase() }}</text>
                   </g>
                 </svg>

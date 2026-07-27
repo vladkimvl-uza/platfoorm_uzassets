@@ -179,7 +179,7 @@
           <span v-else-if="activePeriod === 'annual'" class="bpe-status-h">
             Данных источника (НСБУ / закрытые кварталы) за {{ year }} пока нет — ручной ввод
           </span>
-          <span v-else class="bpe-status-h">Квартальный период — ручной ввод</span>
+          <span v-else class="bpe-status-h">Квартальный период — значения НАРАСТАЮЩИМ ИТОГОМ с начала года (Q1 = 1 кв, Q2 = полугодие, Q3 = 9 мес, Q4 = год)</span>
         </div>
         <div class="bpe-actions">
           <button class="bpe-btn bpe-btn-ghost" @click="$emit('close')">{{ perm.canEdit ? "Отмена" : "Закрыть" }}</button>
@@ -323,7 +323,9 @@ const editorToken = ref<string | null>(null);   // optimistic-lock: токен �
 const nsbuCount = computed(() =>
   Object.values(nsbuFacts.value).filter(v => v != null).length
 );
-function sourceLabel(k: string): string { return nsbuSource.value[k] === "ytd" ? "Σ кв." : "НСБУ"; }
+// 'ytd' = годовой факт из значения Q4 (кварталы хранятся нарастающим итогом,
+// q4 = весь год) — НЕ сумма кварталов.
+function sourceLabel(k: string): string { return nsbuSource.value[k] === "ytd" ? "нараст. итог (Q4)" : "НСБУ"; }
 function autoFact(k: string): number | null {
   return activePeriod.value === "annual" ? (nsbuFacts.value[k] ?? null) : null;
 }

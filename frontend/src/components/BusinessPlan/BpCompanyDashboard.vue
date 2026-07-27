@@ -287,18 +287,24 @@ const chartLabel = computed(() =>
 async function loadQuarterly() {
   try {
     const metric = chartMetric.value;
-    const out: QData[] = [];
+    const ytd: QData[] = [];
     for (const q of ["q1", "q2", "q3", "q4"] as const) {
       const r = await bpApi.getComputed(props.computedData.company_id, props.year, q);
       const c = r.metrics[metric] || { plan: null, expect: null, fact: null };
-      out.push({
+      ytd.push({
         q,
         plan: c.plan != null ? num(c.plan) : null,
         expect: c.expect != null ? num(c.expect) : null,
         fact: c.fact != null ? num(c.fact) : null,
       });
     }
-    quarterlyData.value = out;
+    // КАНОН: хранимые кварталы — НАРАСТАЮЩИМ ИТОГОМ (НСБУ). «Квартальный тренд»
+    // показывает величины ЗА квартал → конвертируем в дельты (честный null,
+    // когда предыдущий квартал не заполнен).
+    const dp = ytdToDeltas(ytd.map(d => d.plan));
+    const de = ytdToDeltas(ytd.map(d => d.expect));
+    const df = ytdToDeltas(ytd.map(d => d.fact));
+    quarterlyData.value = ytd.map((d, i) => ({ q: d.q, plan: dp[i], expect: de[i], fact: df[i] }));
   } catch {
     quarterlyData.value = null;
   }
@@ -313,9 +319,17 @@ const chartMax = computed(() => {
   if (!quarterlyData.value) return 1;
   const all = quarterlyData.value.flatMap(d => [d.plan, d.expect, d.fact]).filter((v): v is number => v != null);
   if (!all.length) return 1;
-  const max = Math.max(...all);
+  const max = Math.max(0, ...all);
   return max === 0 ? 1 : max;
 });
+// Нижняя граница шкалы: отрицательная дельта (коррекция/убыточный квартал)
+// рисуется вниз от нулевой базы, а не исчезает.
+const chartMin = computed(() => {
+  if (!quarterlyData.value) return 0;
+  const all = quarterlyData.value.flatMap(d => [d.plan, d.expect, d.fact]).filter((v): v is number => v != null);
+  return Math.min(0, ...all);
+});
+const chartRange = computed(() => (chartMax.value - chartMin.value) || 1);
 
 const hasQuarterly = computed(() => {
   if (!quarterlyData.value) return false;
@@ -334,27 +348,34 @@ const innerH = CHART_H - PAD_T - PAD_B;
 const gw = (CHART_W - PAD_L - PAD_R) / 4;
 const barW = 10;
 
-const gridLines = [0, 0.25, 0.5, 0.75, 1].map(p => ({
-  y: PAD_T + innerH * (1 - p),
-  label: bpFmt(chartMax.value * p),
-}));
+function chartY(v: number) { return PAD_T + innerH * (1 - (v - chartMin.value) / chartRange.value); }
+const chartBaseY = computed(() => chartY(0));
 
+// computed (НЕ const!): const вычислялся один раз при setup (chartMax ещё 1) —
+// ось навсегда застывала на 0.00–1.00, даже когда данные загрузились.
+const gridLines = computed(() => [0, 0.25, 0.5, 0.75, 1].map(p => ({
+  y: PAD_T + innerH * (1 - p),
+  label: bpFmt(chartMin.value + chartRange.value * p),
+})));
+
+// ВАЖНО: у SVG <rect> атрибуты width/height — {w, h} через v-bind молча давал
+// нулевые размеры (бары никогда не рисовались, «пустой» график).
 function barGeometry(value: number | null, idx: number, offset: number) {
   if (value == null) return null;
   const cx = PAD_L + gw * (idx + 0.5);
-  const h = Math.max(1, innerH * (value / chartMax.value));
+  const y = chartY(value);
   return {
     x: cx + offset * barW,
-    y: CHART_H - PAD_B - h,
-    w: barW,
-    h,
+    y: Math.min(y, chartBaseY.value),
+    width: barW,
+    height: value === 0 ? 0 : Math.max(1, Math.abs(y - chartBaseY.value)),
   };
 }
 
 // ─── Details — hierarchical toggle + view-mode (all/income/expenses) ───
 // viewMode initialises from parent `lens` prop and stays in sync — top-level
 // toggle on BusinessPlan.vue drives both summary & company dashboards.
-import { bpFieldsFor, type BpViewMode } from "@/api/bpKpi";
+import { bpFieldsFor, ytdToDeltas, type BpViewMode } from "@/api/bpKpi";
 const detailsExpanded = ref(false);
 const viewMode = ref<BpViewMode>(props.lens);
 watch(() => props.lens, (l) => { viewMode.value = l; });
@@ -367,7 +388,7 @@ const detailsFields = computed(() => {
 const periodLabel = computed(() => {
   return props.period === "annual"
     ? "годовой итог"
-    : `за квартал ${props.period.toUpperCase()}`;
+    : `нарастающим итогом за ${props.period.toUpperCase()}`;
 });
 
 const factAutoCount = computed(() => {
@@ -520,6 +541,8 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
                   <line :x1="PAD_L" :y1="g.y" :x2="CHART_W - PAD_R" :y2="g.y" stroke="#E2E8F0" stroke-width="0.5" stroke-dasharray="2 3"/>
                   <text :x="PAD_L - 6" :y="g.y + 3" font-size="9" fill="#94A3B8" text-anchor="end">{{ g.label }}</text>
                 </template>
+                <!-- нулевая база (заметна при отрицательных дельтах) -->
+                <line v-if="chartMin < 0" :x1="PAD_L" :y1="chartBaseY" :x2="CHART_W - PAD_R" :y2="chartBaseY" stroke="#B9B6C9" stroke-width="1" stroke-dasharray="3 3"/>
               </g>
               <!-- Bars -->
               <g v-for="(d, idx) in quarterlyData" :key="d.q">

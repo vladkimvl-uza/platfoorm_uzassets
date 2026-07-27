@@ -1,12 +1,20 @@
 <script setup lang="ts">
 /**
- * BpQuarterlyChart — премиум-комбо: бары план/факт по кварталам + линия
- * нарастающего итога (YTD) + % выполнения (цветом). Hover-тултип, клик → drill,
+ * BpQuarterlyChart — премиум-комбо: бары «ЗА квартал» (дельты) + линия
+ * нарастающего итога + % исполнения с начала года. Hover-тултип, клик → drill,
  * анимации роста баров и draw-in линии.
+ *
+ * КАНОН: кварталы БП хранятся НАРАСТАЮЩИМ ИТОГОМ (НСБУ: q1=1 кв, q2=полугодие,
+ * q3=9 мес, q4=год). Бары = *_delta с бэка (или клиентская конвертация
+ * ytdToDeltas для старого payload); линия итога = хранимые cum-значения КАК
+ * ЕСТЬ — раньше здесь был acc+= по уже-кумулятивным значениям (двойной счёт).
+ * Линии факта и плана раздельны (не смешиваем колонки в одной линии — иначе
+ * «нарастающий итог» мог падать на стыке факт→план).
  */
 import { computed, onMounted, onUnmounted, ref } from "vue";
+import { ytdToDeltas, type BpQuarterRow } from "@/api/bpKpi";
 
-interface QuarterRow { q: string; plan: number | null; fact: number | null; expect?: number | null }
+type QuarterRow = BpQuarterRow;
 
 const props = defineProps<{
   quarters: QuarterRow[];
@@ -52,50 +60,71 @@ onMounted(() => {
 });
 onUnmounted(() => { ro?.disconnect(); ro = null; if (raf) cancelAnimationFrame(raf); });
 
-// Нарастающий итог (факт → ожидание → план как оценка)
-const cumVals = computed(() => {
-  let acc = 0;
-  return rows.value.map((q) => (acc += (q.fact ?? q.expect ?? q.plan ?? 0)));
+function N(v: string | number | null | undefined): number | null {
+  return v == null ? null : Number(v);
+}
+
+// Нарастающий итог = хранимые значения (cum_* с бэка; старый payload: plan/fact
+// и ЕСТЬ YTD — фолбэк без пересчёта).
+const cumPlan = computed(() => rows.value.map(r => N(r.cum_plan ?? r.plan)));
+const cumFact = computed(() => rows.value.map(r => N(r.cum_fact ?? r.fact)));
+// «За квартал» = дельты с бэка (per-company null-guard) либо клиентская
+// конвертация YTD→дельты (payload без новых полей).
+const hasDeltaFields = computed(() => rows.value.some(r => "plan_delta" in r || "fact_delta" in r));
+const dPlan = computed(() =>
+  hasDeltaFields.value ? rows.value.map(r => N(r.plan_delta)) : ytdToDeltas(cumPlan.value));
+const dFact = computed(() =>
+  hasDeltaFields.value ? rows.value.map(r => N(r.fact_delta)) : ytdToDeltas(cumFact.value));
+
+// Шкала с нулевой базой: отрицательная дельта (напр. убыточный квартал по
+// прибыли) рисуется ВНИЗ от базовой линии, а не исчезает (SVG молча отбрасывает
+// rect с отрицательной высотой).
+const scaleMin = computed(() => {
+  let m = 0;
+  for (const arr of [dPlan.value, dFact.value]) for (const v of arr) if (v != null) m = Math.min(m, v);
+  return m;
 });
-// ЕДИНАЯ шкала для баров и линии итога: первая точка итога (= Q1) совпадает по
-// высоте с баром Q1, а линия всегда ≥ баров (как и должно быть у нарастающего
-// итога). Раньше бары и линия масштабировались по разным максимумам — из-за
-// чего точка Q1 «проваливалась» под бар.
 const scaleMax = computed(() => {
   let m = 0;
-  for (const q of rows.value) {
-    if (q.plan != null) m = Math.max(m, q.plan);
-    if (q.fact != null) m = Math.max(m, q.fact);
+  for (const arr of [dPlan.value, dFact.value, cumPlan.value, cumFact.value]) {
+    for (const v of arr) if (v != null) m = Math.max(m, v);
   }
-  for (const c of cumVals.value) m = Math.max(m, c);
   return m || 1;
 });
+const range = computed(() => (scaleMax.value - scaleMin.value) || 1);
 
 function centerX(i: number) { return PAD.l + slot.value * i + slot.value / 2; }
-function barY(v: number) { return PAD.t + plotH.value - (v / scaleMax.value) * plotH.value; }
-function barHt(v: number) { return (v / scaleMax.value) * plotH.value; }
+function yOf(v: number) { return PAD.t + plotH.value * (1 - (v - scaleMin.value) / range.value); }
+const baseY = computed(() => yOf(0));
+function barY(v: number) { return Math.min(yOf(v), baseY.value); }
+function barHt(v: number) { return v === 0 ? 0 : Math.max(Math.abs(yOf(v) - baseY.value), 1); }
 
-const cumPoints = computed(() => {
-  const cum = cumVals.value;
-  const out: { x: number; y: number; v: number }[] = [];
-  rows.value.forEach((_, i) => {
-    out.push({ x: centerX(i), y: PAD.t + plotH.value - (cum[i] / scaleMax.value) * plotH.value, v: cum[i] });
-  });
+// Линии нарастающего итога: факт (сплошная, до последнего квартала с фактом) и
+// план (пунктирная референс-линия). Точки строго одной колонки.
+function cumPts(arr: (number | null)[]) {
+  const out: { x: number; y: number; v: number; i: number }[] = [];
+  arr.forEach((v, i) => { if (v != null) out.push({ x: centerX(i), y: yOf(v), v, i }); });
   return out;
-});
-const cumLine = computed(() => cumPoints.value.map((p) => `${p.x},${p.y}`).join(" "));
+}
+const cumFactPts = computed(() => cumPts(cumFact.value));
+const cumPlanPts = computed(() => cumPts(cumPlan.value));
+const cumFactLine = computed(() => cumFactPts.value.map((p) => `${p.x},${p.y}`).join(" "));
+const cumPlanLine = computed(() => cumPlanPts.value.map((p) => `${p.x},${p.y}`).join(" "));
 const cumLen = computed(() => {
   let len = 0;
-  const pts = cumPoints.value;
+  const pts = cumFactPts.value;
   for (let i = 1; i < pts.length; i++) {
     len += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
   }
   return Math.ceil(len) || 1;
 });
 
-function execPct(q: QuarterRow): number | null {
-  if (q.plan == null || q.plan === 0 || q.fact == null) return null;
-  return Math.round((q.fact / q.plan) * 100);
+// % исполнения — С НАЧАЛА ГОДА (YTD-факт / YTD-план того же квартала): это
+// конвенция НСБУ-отчётности («исполнение за полугодие»), не % бара-дельты.
+function execPct(i: number): number | null {
+  const p = cumPlan.value[i], f = cumFact.value[i];
+  if (p == null || p === 0 || f == null) return null;
+  return Math.round((f / p) * 100);
 }
 function execColor(pct: number | null): string {
   if (pct == null) return "#94A3B8";
@@ -103,13 +132,26 @@ function execColor(pct: number | null): string {
   if (pct >= 80) return "#A36500";
   return "#C5352F";
 }
+// Значение над баром: факт-дельта, иначе план-дельта.
+function barLabel(i: number): { v: number; fact: boolean } | null {
+  const f = dFact.value[i], p = dPlan.value[i];
+  if (f != null) return { v: f, fact: true };
+  if (p != null) return { v: p, fact: false };
+  return null;
+}
 
 const hovered = ref<number | null>(null);
 function tip(i: number) {
-  const q = rows.value[i];
-  const pct = execPct(q);
-  const delta = (q.fact != null && q.plan != null) ? q.fact - q.plan : null;
-  return { q, pct, delta, cum: cumPoints.value[i]?.v ?? 0 };
+  const r = rows.value[i];
+  return {
+    q: r,
+    dp: dPlan.value[i], df: dFact.value[i],
+    ytdPlan: cumPlan.value[i], ytdFact: cumFact.value[i],
+    pct: execPct(i),
+    // дельта не вычислима при наличии YTD → нет данных предыдущего квартала
+    deltaGap: dFact.value[i] == null && cumFact.value[i] != null,
+    covCum: r.co_count_cum_fact, covDelta: r.co_count_fact_delta,
+  };
 }
 </script>
 
@@ -118,46 +160,56 @@ function tip(i: number) {
     <div class="bqc-hd">
       <span class="bqc-t">Динамика по кварталам<span v-if="label"> · {{ label }}</span></span>
       <span class="bqc-legend">
-        <span><i class="bqc-sw bqc-sw-plan" />План</span>
-        <span><i class="bqc-sw bqc-sw-fact" />Факт</span>
+        <span><i class="bqc-sw bqc-sw-plan" />План (за кв.)</span>
+        <span><i class="bqc-sw bqc-sw-fact" />Факт (за кв.)</span>
         <span><i class="bqc-sw bqc-sw-cum" />Нараст. итог</span>
+        <span><i class="bqc-sw bqc-sw-cumplan" />Нараст. план</span>
       </span>
     </div>
 
     <div class="bqc-chart" ref="chartEl">
       <svg :viewBox="`0 0 ${W} ${H}`" class="bqc-svg" preserveAspectRatio="none">
-        <!-- Бары + значения -->
+        <!-- Нулевая база (видна, когда есть отрицательные дельты) -->
+        <line v-if="scaleMin < 0" :x1="PAD.l" :x2="W - PAD.r" :y1="baseY" :y2="baseY" class="bqc-zero" />
+        <!-- Бары «за квартал» + значения -->
         <g v-for="(q, i) in rows" :key="q.q"
            class="bqc-grp" :class="{ on: hovered === i }"
            @mouseenter="hovered = i" @mouseleave="hovered = null"
            @click="emit('drill', { row: q, index: i })">
           <!-- hover-подсветка слота -->
           <rect :x="PAD.l + slot * i" :y="PAD.t" :width="slot" :height="plotH" class="bqc-slot" />
-          <!-- план -->
-          <rect v-if="q.plan != null" class="bqc-bar bqc-bar-plan"
-                :x="centerX(i) - 17" :y="barY(q.plan)" width="15" :height="barHt(q.plan)" rx="3"
-                :style="{ '--gh': barHt(q.plan) + 'px', animationDelay: i * 90 + 'ms' }" />
-          <!-- факт -->
-          <rect v-if="q.fact != null" class="bqc-bar bqc-bar-fact"
-                :x="centerX(i) + 2" :y="barY(q.fact)" width="15" :height="barHt(q.fact)" rx="3"
-                :style="{ '--gh': barHt(q.fact) + 'px', animationDelay: i * 90 + 60 + 'ms' }" />
-          <!-- значение сверху (факт приоритетнее) -->
-          <text v-if="q.fact != null" class="bqc-val bqc-val-fact" :x="centerX(i) + 9" :y="barY(q.fact) - 7" text-anchor="middle">{{ fmt(q.fact) }}</text>
-          <text v-else-if="q.plan != null" class="bqc-val" :x="centerX(i) - 9" :y="barY(q.plan) - 7" text-anchor="middle">{{ fmt(q.plan) }}</text>
+          <!-- план (дельта) -->
+          <rect v-if="dPlan[i] != null" class="bqc-bar bqc-bar-plan" :class="{ neg: dPlan[i]! < 0 }"
+                :x="centerX(i) - 17" :y="barY(dPlan[i]!)" width="15" :height="barHt(dPlan[i]!)" rx="3"
+                :style="{ '--gh': barHt(dPlan[i]!) + 'px', animationDelay: i * 90 + 'ms' }" />
+          <!-- факт (дельта) -->
+          <rect v-if="dFact[i] != null" class="bqc-bar bqc-bar-fact" :class="{ neg: dFact[i]! < 0 }"
+                :x="centerX(i) + 2" :y="barY(dFact[i]!)" width="15" :height="barHt(dFact[i]!)" rx="3"
+                :style="{ '--gh': barHt(dFact[i]!) + 'px', animationDelay: i * 90 + 60 + 'ms' }" />
+          <!-- значение «за квартал» сверху (факт приоритетнее); знак сохраняем -->
+          <text v-if="barLabel(i)" class="bqc-val" :class="{ 'bqc-val-fact': barLabel(i)!.fact }"
+                :x="centerX(i) + (barLabel(i)!.fact ? 9 : -9)"
+                :y="barLabel(i)!.v < 0 ? barY(barLabel(i)!.v) + barHt(barLabel(i)!.v) + 13 : barY(barLabel(i)!.v) - 7"
+                text-anchor="middle">{{ barLabel(i)!.v < 0 ? '−' + fmt(Math.abs(barLabel(i)!.v)) : fmt(barLabel(i)!.v) }}</text>
+          <!-- дельта не вычислима (нет пред. квартала), но итог есть — честный маркер -->
+          <text v-else-if="cumFact[i] != null" class="bqc-val" :x="centerX(i)" :y="baseY - 7" text-anchor="middle">—</text>
           <!-- метка квартала -->
           <text class="bqc-qlbl" :x="centerX(i)" :y="H - 28" text-anchor="middle">{{ q.q.toUpperCase() }}</text>
-          <!-- % выполнения -->
+          <!-- % исполнения с начала года (YTD/YTD) -->
           <text class="bqc-pct" :x="centerX(i)" :y="H - 12" text-anchor="middle"
-                :style="{ fill: execColor(execPct(q)) }">
-            {{ execPct(q) != null ? execPct(q) + '%' : '—' }}
+                :style="{ fill: execColor(execPct(i)) }">
+            <title>Исполнение с начала года (нарастающим итогом)</title>
+            {{ execPct(i) != null ? execPct(i) + '%' : '—' }}
           </text>
         </g>
 
-        <!-- Линия нарастающего итога -->
-        <polyline class="bqc-cum-line" :points="cumLine" fill="none"
+        <!-- Нарастающий план — пунктирная референс-линия (только план-колонка) -->
+        <polyline v-if="cumPlanPts.length > 1" class="bqc-cumplan-line" :points="cumPlanLine" fill="none" />
+        <!-- Нарастающий итог (факт) — сплошная, до последнего квартала с фактом -->
+        <polyline v-if="cumFactPts.length > 1" class="bqc-cum-line" :points="cumFactLine" fill="none"
                   :style="{ strokeDasharray: cumLen, strokeDashoffset: cumLen }" />
-        <g v-for="(p, i) in cumPoints" :key="'c' + i">
-          <circle class="bqc-cum-dot" :cx="p.x" :cy="p.y" r="3.5" :style="{ animationDelay: 500 + i * 110 + 'ms' }" />
+        <g v-for="p in cumFactPts" :key="'c' + p.i">
+          <circle class="bqc-cum-dot" :cx="p.x" :cy="p.y" r="3.5" :style="{ animationDelay: 500 + p.i * 110 + 'ms' }" />
         </g>
       </svg>
 
@@ -165,11 +217,15 @@ function tip(i: number) {
       <div v-if="hovered != null" class="bqc-tip"
            :style="{ left: (centerX(hovered) / W * 100) + '%' }">
         <div class="bqc-tip-h">{{ rows[hovered].q.toUpperCase() }}</div>
-        <div class="bqc-tip-r"><span>План</span><b>{{ rows[hovered].plan != null ? fmt(rows[hovered].plan!) : '—' }}</b></div>
-        <div class="bqc-tip-r"><span>Факт</span><b>{{ rows[hovered].fact != null ? fmt(rows[hovered].fact!) : '—' }}</b></div>
-        <div class="bqc-tip-r" v-if="tip(hovered).pct != null"><span>Выполнение</span><b :style="{ color: execColor(tip(hovered).pct) }">{{ tip(hovered).pct }}%</b></div>
-        <div class="bqc-tip-r" v-if="tip(hovered).delta != null"><span>Дельта</span><b :style="{ color: tip(hovered).delta! >= 0 ? '#1D9E75' : '#C5352F' }">{{ tip(hovered).delta! >= 0 ? '+' : '' }}{{ fmt(tip(hovered).delta!) }}</b></div>
-        <div class="bqc-tip-r"><span>Нараст. итог</span><b>{{ fmt(tip(hovered).cum) }}</b></div>
+        <div class="bqc-tip-r"><span>За квартал · план</span><b>{{ tip(hovered).dp != null ? fmt(tip(hovered).dp!) : '—' }}</b></div>
+        <div class="bqc-tip-r"><span>За квартал · факт</span><b>{{ tip(hovered).df != null ? fmt(tip(hovered).df!) : '—' }}</b></div>
+        <div v-if="tip(hovered).deltaGap" class="bqc-tip-note">за квартал не вычислимо: нет данных предыдущего квартала</div>
+        <div class="bqc-tip-r"><span>Нараст. план</span><b>{{ tip(hovered).ytdPlan != null ? fmt(tip(hovered).ytdPlan!) : '—' }}</b></div>
+        <div class="bqc-tip-r"><span>Нараст. факт</span><b>{{ tip(hovered).ytdFact != null ? fmt(tip(hovered).ytdFact!) : '—' }}</b></div>
+        <div class="bqc-tip-r" v-if="tip(hovered).pct != null"><span>Исполнение с начала года</span><b :style="{ color: execColor(tip(hovered).pct) }">{{ tip(hovered).pct }}%</b></div>
+        <div class="bqc-tip-r" v-if="tip(hovered).covDelta != null && tip(hovered).covCum != null && tip(hovered).covDelta !== tip(hovered).covCum">
+          <span>Покрытие</span><b>{{ tip(hovered).covDelta }} / {{ tip(hovered).covCum }} комп.</b>
+        </div>
         <div class="bqc-tip-cta">Открыть разбор →</div>
       </div>
     </div>
@@ -186,6 +242,7 @@ function tip(i: number) {
 .bqc-sw-plan { background: #C7C2F0; }
 .bqc-sw-fact { background: #7F77DD; }
 .bqc-sw-cum { background: #EF9F27; border-radius: 50%; }
+.bqc-sw-cumplan { background: transparent; border: 1.5px dashed #D9A648; border-radius: 50%; box-sizing: border-box; }
 
 .bqc-chart { position: relative; flex: 1; min-height: 220px; }
 /* SVG вынесен из потока (absolute), чтобы НЕ участвовать в расчёте высоты
@@ -203,6 +260,11 @@ function tip(i: number) {
 .bqc-bar-plan { fill: #C7C2F0; }
 .bqc-bar-fact { fill: #7F77DD; }
 .bqc-grp.on .bqc-bar-fact { fill: #6C5CE7; }
+/* Отрицательная дельта (напр. убыточный квартал по прибыли) — растёт вниз от
+   нулевой базы, красный тон, чтобы не читалась как обычный бар. */
+.bqc-bar-plan.neg { fill: #F2C4C3; transform-origin: top; }
+.bqc-bar-fact.neg { fill: #E2807F; transform-origin: top; }
+.bqc-zero { stroke: #B9B6C9; stroke-width: 1; stroke-dasharray: 3 3; }
 @keyframes bqcGrow { from { transform: scaleY(0); opacity: .3; } to { transform: scaleY(1); opacity: 1; } }
 
 .bqc-val { font-size: 10px; font-weight: 500; fill: var(--t3, #94A3B8); font-variant-numeric: tabular-nums; }
@@ -214,6 +276,8 @@ function tip(i: number) {
   stroke: #EF9F27; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
   animation: bqcDraw 1s ease .35s forwards;
 }
+/* Нарастающий ПЛАН — светлее и пунктиром: референс, не факт. */
+.bqc-cumplan-line { stroke: #D9A648; stroke-width: 1.4; stroke-dasharray: 5 4; opacity: .55; }
 @keyframes bqcDraw { to { stroke-dashoffset: 0; } }
 .bqc-cum-dot { fill: #fff; stroke: #EF9F27; stroke-width: 2; animation: bqcDot .3s ease both; }
 @keyframes bqcDot { from { opacity: 0; transform: scale(0); } to { opacity: 1; transform: scale(1); } }
@@ -229,6 +293,7 @@ function tip(i: number) {
 .bqc-tip-r { display: flex; justify-content: space-between; gap: 14px; padding: 1.5px 0; }
 .bqc-tip-r span { color: rgba(255,255,255,.55); }
 .bqc-tip-r b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.bqc-tip-note { font-size: 9.5px; color: #F2C4C3; padding: 2px 0; }
 .bqc-tip-cta { margin-top: 6px; padding-top: 5px; border-top: 1px solid rgba(255,255,255,.12); color: #C7C2F0; font-size: 10px; }
 
 @media (prefers-reduced-motion: reduce) {

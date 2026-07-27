@@ -26,7 +26,7 @@ from app.models.bp_kpi import (
 )
 from app.schemas.bp_forecast import BpCompanyForecast, BpMetricForecast
 from app.schemas.kpi_forecast import ForecastBlock, ForecastPoint, SeriesPoint
-from app.services.bp_kpi_helpers import bp_compute
+from app.services.bp_kpi_helpers import bp_compute, ytd_to_deltas
 from app.uow.ports import UnitOfWorkABC
 
 _MAX_HISTORY = 6
@@ -105,11 +105,17 @@ class BpForecastService:
                 af = forecast_annual(syears, svals, horizon)
 
                 # Сезонность: план кварталов базового года → факт кварталов.
-                qplan = [_f(base_q[q].get(m, {}).get("plan")) for q in _QUARTERS]
-                shares = seasonal_shares([qplan])
+                # Кварталы БП хранятся НАРАСТАЮЩИМ ИТОГОМ → перед seasonal_shares
+                # (движок ждёт суммы «за квартал») конвертируем в дельты. Иначе
+                # доли всегда монотонно растут к Q4 независимо от сезонности
+                # (плоские кварталы [25,50,75,100] дали бы 10/20/30/40%).
+                def _q_deltas(metric: str, col: str) -> list:
+                    ytd = [base_q[q].get(metric, {}).get(col) for q in _QUARTERS]
+                    return [_f(v) for v in ytd_to_deltas(ytd)]
+
+                shares = seasonal_shares([_q_deltas(m, "plan")])
                 if shares is None:
-                    qfact = [_f(base_q[q].get(m, {}).get("fact")) for q in _QUARTERS]
-                    shares = seasonal_shares([qfact])
+                    shares = seasonal_shares([_q_deltas(m, "fact")])
 
                 base_cell = annual_by_year.get(base_year, {}).get(m, {}) or {}
                 # Метрику без единого значения (пустой ряд + пустой базовый год) — пропускаем.

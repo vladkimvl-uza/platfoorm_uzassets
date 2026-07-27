@@ -1,16 +1,19 @@
-<script setup lang="ts">
+ <script setup lang="ts">
 /**
- * BpQuarterDrillModal — разбор квартала: план / факт / ожидание / выполнение /
- * дельта / вклад в нарастающий итог. Премиум-модалка с анимацией.
+ * BpQuarterDrillModal — разбор квартала. КАНОН: кварталы БП хранятся нарастающим
+ * итогом (НСБУ: q2=полугодие, q4=год) — план/факт/ожидание здесь YTD-значения,
+ * % и шкала = исполнение С НАЧАЛА ГОДА; «за квартал» — отдельные строки-дельты.
  */
 import { computed } from "vue";
 import ModalShell from "@/components/ModalShell.vue";
 
 const props = defineProps<{
   q: string;
-  plan: number | null;
-  fact: number | null;
-  expect?: number | null;
+  plan: number | null;          // YTD (нарастающим итогом)
+  fact: number | null;          // YTD
+  expect?: number | null;       // YTD
+  planDelta?: number | null;    // «за квартал»
+  factDelta?: number | null;
   cum?: number | null;
   label?: string;
   unit?: string;
@@ -24,6 +27,9 @@ const pct = computed(() =>
     ? Math.round((props.fact / props.plan) * 100) : null,
 );
 const delta = computed(() => (props.fact != null && props.plan != null) ? props.fact - props.plan : null);
+function signed(v: number): string {
+  return (v < 0 ? "−" : "") + props.fmt(Math.abs(v));
+}
 const fillPct = computed(() => Math.max(0, Math.min(140, pct.value ?? 0)));
 const tone = computed(() => {
   const p = pct.value;
@@ -57,11 +63,15 @@ const tone = computed(() => {
     </div>
 
     <div class="bqd-rows">
-      <div class="bqd-row"><span>План</span><b>{{ plan != null ? fmt(plan) : '—' }} <i>{{ unit }}</i></b></div>
-      <div class="bqd-row"><span>Факт</span><b>{{ fact != null ? fmt(fact) : '—' }} <i>{{ unit }}</i></b></div>
-      <div v-if="expect != null" class="bqd-row"><span>Ожидание</span><b>{{ fmt(expect) }} <i>{{ unit }}</i></b></div>
-      <div v-if="delta != null" class="bqd-row"><span>Дельта факт−план</span><b :style="{ color: delta >= 0 ? '#0F6E56' : '#C5352F' }">{{ delta >= 0 ? '+' : '' }}{{ fmt(delta) }} <i>{{ unit }}</i></b></div>
-      <div v-if="cum != null" class="bqd-row"><span>Нараст. итог (YTD)</span><b>{{ fmt(cum) }} <i>{{ unit }}</i></b></div>
+      <div v-if="planDelta != null || factDelta != null" class="bqd-row bqd-row-delta">
+        <span>За квартал · план / факт</span>
+        <b>{{ planDelta != null ? signed(planDelta) : '—' }} / {{ factDelta != null ? signed(factDelta) : '—' }} <i>{{ unit }}</i></b>
+      </div>
+      <div class="bqd-row"><span>План (нараст. итогом)</span><b>{{ plan != null ? fmt(plan) : '—' }} <i>{{ unit }}</i></b></div>
+      <div class="bqd-row"><span>Факт (нараст. итогом)</span><b>{{ fact != null ? fmt(fact) : '—' }} <i>{{ unit }}</i></b></div>
+      <div v-if="expect != null" class="bqd-row"><span>Ожидание (нараст. итогом)</span><b>{{ fmt(expect) }} <i>{{ unit }}</i></b></div>
+      <div v-if="delta != null" class="bqd-row"><span>Дельта факт−план (нараст.)</span><b :style="{ color: delta >= 0 ? '#0F6E56' : '#C5352F' }">{{ delta >= 0 ? '+' : '' }}{{ fmt(delta) }} <i>{{ unit }}</i></b></div>
+      <div v-if="cum != null && cum !== fact" class="bqd-row"><span>Нараст. итог</span><b>{{ fmt(cum) }} <i>{{ unit }}</i></b></div>
     </div>
   </ModalShell>
 </template>
@@ -84,6 +94,7 @@ const tone = computed(() => {
 .bqd-gauge-cap { display: flex; justify-content: space-between; font-size: 9px; color: var(--t3, #A6A3B8); margin-top: 5px; }
 
 .bqd-rows { display: flex; flex-direction: column; gap: 1px; }
+.bqd-row-delta { background: rgba(127,119,221,.05); border-radius: 8px; padding-left: 8px !important; padding-right: 8px !important; }
 .bqd-row { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; padding: 9px 0; border-bottom: 1px solid var(--line, #F1F0F7); }
 .bqd-row:last-child { border-bottom: none; }
 .bqd-row > span { font-size: 12px; color: var(--t2, #6B6880); }

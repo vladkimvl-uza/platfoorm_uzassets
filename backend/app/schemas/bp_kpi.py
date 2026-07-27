@@ -102,9 +102,28 @@ class BpSectorRow(BaseModel):
 
 
 class BpQuarterRow(BaseModel):
+    """Квартальная строка сводки. Кварталы БП хранятся НАРАСТАЮЩИМ ИТОГОМ
+    (НСБУ: q1=1 кв, q2=полугодие, q3=9 мес, q4=год), поэтому отдаём две серии:
+
+    - cum_* — Σ по компаниям хранимых YTD-значений (нарастающий итог портфеля);
+    - *_delta — «за квартал» = Σ по-компанейских дельт ytd(qn)−ytd(qn−1);
+      null-guard ПО КОМПАНИИ до суммирования (полугодие компании без q1 не
+      должно лечь в Q2).
+
+    plan/fact оставлены ≡ cum_plan/cum_fact для обратной совместимости.
+    Σ дельт ≠ Δ cum при разном покрытии кварталов (см. co_count_*)."""
     q: PeriodKey                       # 'q1' | 'q2' | 'q3' | 'q4'
-    plan: Optional[MoneyDecimal] = None
-    fact: Optional[MoneyDecimal] = None
+    plan: Optional[MoneyDecimal] = None      # DEPRECATED ≡ cum_plan
+    fact: Optional[MoneyDecimal] = None      # DEPRECATED ≡ cum_fact
+    expect: Optional[MoneyDecimal] = None    # ≡ cum_expect
+    cum_plan: Optional[MoneyDecimal] = None
+    cum_expect: Optional[MoneyDecimal] = None
+    cum_fact: Optional[MoneyDecimal] = None
+    plan_delta: Optional[MoneyDecimal] = None
+    expect_delta: Optional[MoneyDecimal] = None
+    fact_delta: Optional[MoneyDecimal] = None
+    co_count_cum_fact: int = 0         # компаний в cum_fact этого квартала
+    co_count_fact_delta: int = 0       # компаний в fact_delta этого квартала
 
 
 class BpSummary(BaseModel):

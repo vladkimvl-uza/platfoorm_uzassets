@@ -670,7 +670,10 @@ TOOLS: list[dict] = [
         "description": (
             "Business Plan редактор — статьи ОФР по компании/году: metric, period "
             "(annual/Q1-Q4), plan, expect, fact. Покрывает все доходы/расходы линз. "
-            "Источник = live state BP-editor."
+            "Источник = live state BP-editor. ВАЖНО: квартальные периоды — "
+            "НАРАСТАЮЩИМ ИТОГОМ (q2 = 1-е полугодие, q3 = 9 мес, q4 ≈ год); "
+            "величина «за квартал» = разность соседних периодов; НИКОГДА не "
+            "суммируй кварталы в год."
         ),
         "input_schema": {
             "type": "object",
@@ -2356,6 +2359,9 @@ async def _tool_get_business_plan(args: dict, db: AsyncSession) -> dict:
     records = list(res.scalars().all())
     return {"company": _company_name(co), "year": year, "filter": {"period": period, "metric_substring": sub},
             "records_count": len(records),
+            "note": ("Кварталы (q1..q4) — НАРАСТАЮЩИМ ИТОГОМ (НСБУ): q2 = 1-е полугодие, "
+                     "q4 ≈ год. Величина «за квартал» = разность соседних периодов; "
+                     "суммировать кварталы в год НЕЛЬЗЯ (двойной счёт)."),
             "records": [_model_to_dict(r) for r in records]}
 
 

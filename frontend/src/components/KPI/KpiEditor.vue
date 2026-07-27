@@ -209,7 +209,7 @@ const loadError = ref(false);
 const bpOptions = BP_FIELDS.filter((f) => !f.sub).map((f) => ({ value: f.key, label: f.label }));
 function isLinked(ind: any): boolean { return !!ind.bp_metric_key; }
 function bpProvLabel(ind: any): string {
-  return ({ nsbu: "НСБУ", ytd: "Σ4 кв", bp_plan: "план БП" } as Record<string, string>)[ind.bp_source] || "БП";
+  return ({ nsbu: "НСБУ", ytd: "нараст. итог (Q4)", bp_plan: "план БП" } as Record<string, string>)[ind.bp_source] || "БП";
 }
 function bpVal(v: any): string {
   if (v == null || v === "") return "—";

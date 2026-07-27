@@ -94,6 +94,29 @@ async def bp_fact_from_nsbu(
         return None
 
 
+# ─── BP: конвенция кварталов = НАРАСТАЮЩИЙ ИТОГ (НСБУ) ───────────
+
+def ytd_to_deltas(vals: list) -> list:
+    """Кварталы БП хранятся нарастающим итогом (НСБУ: q1=1 кв, q2=полугодие,
+    q3=9 мес, q4=год) — подтверждено данными всех компаний. Величина «за квартал»
+    = ytd[n] − ytd[n−1] (для q1 — сам ytd[0]).
+
+    Честный None, когда сам квартал ИЛИ предыдущий не заполнен: иначе полугодие
+    компании без q1 целиком легло бы в «Q2». Вход/выход — списки по [q1..q4]
+    (Decimal | None), длина сохраняется.
+    """
+    out: list = []
+    prev = None
+    for i, v in enumerate(vals):
+        if v is None or (i > 0 and prev is None):
+            out.append(None)
+        else:
+            d = Decimal(v) - (Decimal(prev) if i > 0 else Decimal(0))
+            out.append(d)
+        prev = v
+    return out
+
+
 # ─── BP compute (single company, year, period) ───────────────────
 
 async def bp_compute(
@@ -109,6 +132,10 @@ async def bp_compute(
     Auto-calculates derived metrics (grossProfit, opProfit, hhProfit, pbt, profit)
     from inputs when not explicitly stored. Auto-fills `fact` from NSBU only
     for period='annual'.
+
+    ВАЖНО: для period='q1'..'q4' все значения — НАРАСТАЮЩИМ ИТОГОМ с начала года
+    (конвенция НСБУ-отчётности; см. ytd_to_deltas). Производные формулы линейны,
+    поэтому одинаково верны для YTD и для дельт.
     """
     # Load all stored BP records
     rows = (
@@ -172,10 +199,11 @@ async def bp_compute(
 
     # Автозаполнение годового факта (period='annual'), если он не введён вручную:
     #   1) из НСБУ-финотчётности (точный годовой факт закрытого года) → source='nsbu';
-    #   2) иначе — сумма кварталов, НО только если закрыты ВСЕ 4 (истинный
-    #      годовой факт = Σ Q1..Q4, без вводящего в заблуждение частичного) → 'ytd'.
+    #   2) иначе — значение Q4: кварталы хранятся НАРАСТАЮЩИМ ИТОГОМ, поэтому
+    #      ytd(q4) = весь год → 'ytd'. НИКОГДА не Σ Q1..Q4 (сумма YTD ≈ 2.5× года)
+    #      и не q3/q2 (занизили бы год).
     if period == "annual":
-        # Кварталы — для YTD-источника (Σ Q1..Q4 при полном годе по кварталам).
+        # Кварталы — для YTD-источника (годовой факт = значение q4).
         qrows = (
             await db.execute(
                 select(BpRecord)
@@ -184,22 +212,26 @@ async def bp_compute(
                 .where(BpRecord.period.in_(["q1", "q2", "q3", "q4"]))
             )
         ).scalars().all()
-        qfacts: dict[str, list] = {}
+        # Ключуем по периоду (не список!): «взять q4» на неключёванном списке
+        # не выражается и зависит от порядка строк.
+        qfacts: dict[str, dict[str, Decimal]] = {}
         for qr in qrows:
             if qr.fact is not None:
-                qfacts.setdefault(qr.metric, []).append(qr.fact)
+                qfacts.setdefault(qr.metric, {})[qr.period] = qr.fact
         for k in BP_METRIC_KEYS:
             # Значение источника считаем ВСЕГДА (для пометки/сравнения в редакторе),
-            # даже если факт уже введён вручную. Приоритет: НСБУ → Σ4 кв.
+            # даже если факт уже введён вручную. Приоритет: НСБУ → ytd(q4).
             sv = None
             ssrc = None
             if nsbu_fallback:
                 sv = await bp_fact_from_nsbu(db, company_id, year, k)
                 if sv is not None:
                     ssrc = "nsbu"
-            if sv is None and len(qfacts.get(k, [])) == 4:
-                sv = sum(qfacts[k])
-                ssrc = "ytd"
+            if sv is None:
+                q4v = qfacts.get(k, {}).get("q4")
+                if q4v is not None:
+                    sv = q4v
+                    ssrc = "ytd"
             if sv is not None:
                 out[k]["fact_source_value"] = sv
                 out[k]["fact_source"] = ssrc
@@ -323,13 +355,13 @@ def kpi_bp_effective(
     direction = BP_METRIC_DIRECTION.get(key, "up")
     plan = bp_cell.get("plan")
     fact = bp_cell.get("fact")
-    if period not in ("year", "annual"):
-        qp = getattr(ind, f"{period}_plan", None)
-        qf = getattr(ind, f"{period}_fact", None)
-        if plan is None:
-            plan = qp
-        if fact is None:
-            fact = qf
+    if period not in ("year", "annual") and plan is None and fact is None:
+        # Фолбэк на q*-поля индикатора — ТОЛЬКО парой целиком. BP-кварталы хранятся
+        # нарастающим итогом (YTD), конвенция q*-полей KPI не закреплена; смешение
+        # одной стороны из BP с другой из индикатора (факт «за квартал» ÷ план YTD)
+        # дало бы бессмысленный % на министерских экранах.
+        plan = getattr(ind, f"{period}_plan", None)
+        fact = getattr(ind, f"{period}_fact", None)
     return (plan, fact, direction)
 
 

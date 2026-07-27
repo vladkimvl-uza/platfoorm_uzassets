@@ -34,6 +34,7 @@ from app.schemas.bp_kpi import (
 from app.services.bp_kpi_helpers import (
     bp_attention_issues,
     bp_compute,
+    ytd_to_deltas,
 )
 from app.services.bp_kpi_helpers import (
     sector_code as sector_code_fn,
@@ -236,22 +237,50 @@ class BpService:
             ]
             by_sector.sort(key=lambda r: -float(r.sum_revenue))
 
-            by_quarter: list[BpQuarterRow] = []
-            for q in ("q1", "q2", "q3", "q4"):
-                sum_plan, sum_fact = Decimal(0), Decimal(0)
-                has_plan = has_fact = False
-                for co in cos_full:
+            # by_quarter: кварталы хранятся НАРАСТАЮЩИМ ИТОГОМ (НСБУ) — отдаём обе
+            # серии: cum_* (Σ хранимых YTD по компаниям) и *_delta («за квартал»).
+            # Дельты считаются ПО КОМПАНИИ (ytd_to_deltas, null-guard) ДО суммирования:
+            # иначе полугодие компании без q1 целиком легло бы в дельту Q2.
+            qkeys = ("q1", "q2", "q3", "q4")
+            cols = ("plan", "expect", "fact")
+            cum_sums = {q: {c: Decimal(0) for c in cols} for q in qkeys}
+            cum_has = {q: {c: False for c in cols} for q in qkeys}
+            d_sums = {q: {c: Decimal(0) for c in cols} for q in qkeys}
+            d_has = {q: {c: False for c in cols} for q in qkeys}
+            cov_cum = {q: 0 for q in qkeys}
+            cov_delta = {q: 0 for q in qkeys}
+            for co in cos_full:
+                cells = []
+                for q in qkeys:
                     qcomp = await bp_compute(session, co.id, year, q)
-                    if qcomp[headline_metric]["plan"] is not None:
-                        sum_plan += Decimal(qcomp[headline_metric]["plan"])
-                        has_plan = True
-                    if qcomp[headline_metric]["fact"] is not None:
-                        sum_fact += Decimal(qcomp[headline_metric]["fact"])
-                        has_fact = True
+                    cells.append(qcomp[headline_metric])
+                for c in cols:
+                    ytd = [
+                        Decimal(cell[c]) if cell[c] is not None else None
+                        for cell in cells
+                    ]
+                    deltas = ytd_to_deltas(ytd)
+                    for i, q in enumerate(qkeys):
+                        if ytd[i] is not None:
+                            cum_sums[q][c] += ytd[i]
+                            cum_has[q][c] = True
+                            if c == "fact":
+                                cov_cum[q] += 1
+                        if deltas[i] is not None:
+                            d_sums[q][c] += deltas[i]
+                            d_has[q][c] = True
+                            if c == "fact":
+                                cov_delta[q] += 1
+            by_quarter: list[BpQuarterRow] = []
+            for q in qkeys:
+                _cum = {c: (cum_sums[q][c] if cum_has[q][c] else None) for c in cols}
+                _d = {c: (d_sums[q][c] if d_has[q][c] else None) for c in cols}
                 by_quarter.append(BpQuarterRow(
                     q=q,
-                    plan=sum_plan if has_plan else None,
-                    fact=sum_fact if has_fact else None,
+                    plan=_cum["plan"], fact=_cum["fact"], expect=_cum["expect"],
+                    cum_plan=_cum["plan"], cum_expect=_cum["expect"], cum_fact=_cum["fact"],
+                    plan_delta=_d["plan"], expect_delta=_d["expect"], fact_delta=_d["fact"],
+                    co_count_cum_fact=cov_cum[q], co_count_fact_delta=cov_delta[q],
                 ))
 
             return BpSummary(
