@@ -76,6 +76,10 @@ class BpAvailableCompany(BaseModel):
 
 # Summary (across all companies)
 class BpMetricTotal(BaseModel):
+    """При квартальном периоде plan/expect/fact — ДЕЛЬТЫ «за квартал»
+    (решение владельца), cum_* — нарастающим итогом (Σ хранимых YTD).
+    Внимание: Σ дельт ≠ cum при разном покрытии (компания без q1 входит в
+    cum, но не в дельту). annual → cum_* = None."""
     metric: str
     plan: Optional[MoneyDecimal] = None
     expect: Optional[MoneyDecimal] = None
@@ -83,6 +87,9 @@ class BpMetricTotal(BaseModel):
     has_plan: bool = False
     has_expect: bool = False
     has_fact: bool = False
+    cum_plan: Optional[MoneyDecimal] = None
+    cum_expect: Optional[MoneyDecimal] = None
+    cum_fact: Optional[MoneyDecimal] = None
 
 
 class BpCompanyRow(BaseModel):
@@ -124,6 +131,7 @@ class BpQuarterRow(BaseModel):
     fact_delta: Optional[MoneyDecimal] = None
     co_count_cum_fact: int = 0         # компаний в cum_fact этого квартала
     co_count_fact_delta: int = 0       # компаний в fact_delta этого квартала
+    co_count_cum_plan: int = 0         # компаний в cum_plan (планы часто разнесены не на все кварталы)
 
 
 class BpSummary(BaseModel):

@@ -183,6 +183,12 @@ class BpService:
                     "has_plan": False, "has_fact": False, "has_expect": False}
                 for m in metrics_for_summary
             }
+            # Нарастающим итогом (только квартальные срезы; annual → None).
+            cum_totals = {
+                m: {"plan": Decimal(0), "fact": Decimal(0), "expect": Decimal(0),
+                    "has_plan": False, "has_fact": False, "has_expect": False}
+                for m in metrics_for_summary
+            }
             by_company: list[BpCompanyRow] = []
             sector_sums: dict[str, dict] = {}
 
@@ -219,6 +225,7 @@ class BpService:
             d_has = {q: {c: False for c in cols} for q in qkeys}
             cov_cum = {q: 0 for q in qkeys}
             cov_delta = {q: 0 for q in qkeys}
+            cov_cum_plan = {q: 0 for q in qkeys}
 
             for co in cos_full:
                 qcomp_all: dict[str, dict] = {}
@@ -231,6 +238,14 @@ class BpService:
                     prev = await bp_compute(session, co.id, year - 1, period)
                 else:
                     cur = qcomp_all[period]
+                    # Нарастающим итогом (для карточек KPI под разделителем):
+                    # Σ хранимых YTD выбранного квартала по компаниям.
+                    for m in metrics_for_summary:
+                        for c in ("plan", "fact", "expect"):
+                            v = cur[m][c]
+                            if v is not None:
+                                cum_totals[m][c] += Decimal(v)
+                                cum_totals[m][f"has_{c}"] = True
                     curprev = qcomp_all[prev_q] if prev_q else None
                     comp = {
                         m: _delta_cell(cur[m], curprev[m] if curprev else None)
@@ -261,6 +276,8 @@ class BpService:
                             cum_has[q][c] = True
                             if c == "fact":
                                 cov_cum[q] += 1
+                            elif c == "plan":
+                                cov_cum_plan[q] += 1
                         if deltas[i] is not None:
                             d_sums[q][c] += deltas[i]
                             d_has[q][c] = True
@@ -323,11 +340,25 @@ class BpService:
                     cum_plan=_cum["plan"], cum_expect=_cum["expect"], cum_fact=_cum["fact"],
                     plan_delta=_d["plan"], expect_delta=_d["expect"], fact_delta=_d["fact"],
                     co_count_cum_fact=cov_cum[q], co_count_fact_delta=cov_delta[q],
+                    co_count_cum_plan=cov_cum_plan[q],
                 ))
+
+            def _cum_kwargs(m: str) -> dict:
+                if period == "annual":
+                    return {}
+                ct = cum_totals[m]
+                return {
+                    "cum_plan": ct["plan"] if ct["has_plan"] else None,
+                    "cum_expect": ct["expect"] if ct["has_expect"] else None,
+                    "cum_fact": ct["fact"] if ct["has_fact"] else None,
+                }
 
             return BpSummary(
                 year=year, period=period, co_count=len(cos_full),
-                totals=[BpMetricTotal(metric=m, **totals[m]) for m in metrics_for_summary],
+                totals=[
+                    BpMetricTotal(metric=m, **totals[m], **_cum_kwargs(m))
+                    for m in metrics_for_summary
+                ],
                 prev_totals=[BpMetricTotal(metric=m, **prev_totals[m]) for m in metrics_for_summary],
                 by_company=by_company,
                 by_sector=by_sector,

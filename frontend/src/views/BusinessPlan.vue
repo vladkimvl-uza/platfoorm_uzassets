@@ -80,6 +80,7 @@
         v-if="state.viewMode.value === 'summary' && state.summary.value && state.summary.value.co_count > 0"
         :summary="state.summary.value"
         :lens="lens"
+        :loading="state.isLoadingSummary.value"
         @open-company="onDrillCompany"
         @open-kpi="onDrillKpi"
         @open-sector="onDrillSector"

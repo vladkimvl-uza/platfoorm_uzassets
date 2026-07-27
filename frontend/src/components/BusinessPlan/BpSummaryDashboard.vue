@@ -1,6 +1,6 @@
 <template>
   <div class="bps-scroll">
-    <div class="bps-body">
+    <div class="bps-body" :class="{ 'bps-refreshing': loading }">
       <!-- 4 KPI cards -->
       <div class="bps-kgrid kpi-rail">
         <div
@@ -41,6 +41,14 @@
 
           <div v-if="yoy(cfg.m) != null" class="bps-yoy" :class="yoyClass(yoy(cfg.m)!)">
             YoY {{ fmt.fmtPercent(yoy(cfg.m), { decimals: 1, signed: true }) }}
+          </div>
+
+          <!-- Нарастающим итогом — под разделителем (только квартальные срезы) -->
+          <div v-if="cum(cfg.m)" class="bps-cum" title="С начала года (нарастающим итогом). Сумма «за квартал» по кварталам может отличаться: в итог входят и компании без данных предыдущего квартала.">
+            <span class="bps-cum-l">Нараст. итогом</span>
+            <span class="bps-cum-v">
+              план {{ cumTxt(cum(cfg.m)!.plan) }} · факт {{ cumTxt(cum(cfg.m)!.fact) }}<template v-if="cumPct(cfg.m) != null"> · <b :style="{ color: cumPct(cfg.m)! >= 100 ? '#1D9E75' : cumPct(cfg.m)! >= 80 ? '#A36500' : '#C5352F' }">{{ cumPct(cfg.m) }}%</b></template>
+            </span>
           </div>
         </div>
       </div>
@@ -206,6 +214,9 @@ function onQuarterDrill(e: { row: any; index: number }) {
 const props = withDefaults(defineProps<{
   summary: BpSummary;
   lens?: "all" | "income" | "expenses";
+  /** Идёт перезагрузка сводки (смена периода/года) — вуаль поверх старых данных,
+   *  чтобы прошлый график не читался как актуальный. */
+  loading?: boolean;
 }>(), {
   lens: "all",
 });
@@ -250,6 +261,27 @@ function metric(key: string) {
     expect: t.has_expect ? num(t.expect) : null,
     fact: t.has_fact ? num(t.fact) : null,
   };
+}
+
+// Нарастающим итогом (квартальные срезы; annual → бэк отдаёт null → блок скрыт).
+// Σ дельт ≠ итог при разном покрытии (компания без q1 в итоге есть, в дельте нет).
+function cum(key: string): { plan: number | null; fact: number | null } | null {
+  const t = props.summary.totals.find((m) => m.metric === key);
+  if (!t || (t.cum_plan == null && t.cum_fact == null)) return null;
+  return {
+    plan: t.cum_plan != null ? num(t.cum_plan) : null,
+    fact: t.cum_fact != null ? num(t.cum_fact) : null,
+  };
+}
+function cumTxt(v: number | null): string {
+  if (v == null) return "—";
+  const s = bpFmtScaled(v);
+  return `${s.value} ${s.unit}`;
+}
+function cumPct(key: string): number | null {
+  const c = cum(key);
+  if (!c || c.plan == null || c.plan === 0 || c.fact == null) return null;
+  return Math.round((c.fact / c.plan) * 100);
 }
 
 function prevFact(key: string): number | null {
@@ -543,6 +575,32 @@ const waterfall = computed(() => {
 .bps-yoy.up { color: #3D9C72; }
 .bps-yoy.dn { color: #C36868; }
 .bps-yoy.flat { color: rgba(15, 23, 60, .5); }
+
+/* Перезагрузка сводки: вуаль поверх СТАРЫХ данных (смена периода/года) — иначе
+   прошлый график секунду читается как актуальный. Плавно, без layout-сдвига. */
+.bps-refreshing {
+  opacity: .45;
+  filter: saturate(.55);
+  pointer-events: none;
+  transition: opacity .18s ease, filter .18s ease;
+}
+
+/* «Нарастающим итогом» — под разделителем (квартальные срезы) */
+.bps-cum {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  margin-top: 9px; padding-top: 8px;
+  border-top: 1px dashed rgba(15, 23, 60, .12);
+  cursor: help;
+}
+.bps-cum-l {
+  font-size: 8.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+  color: rgba(15, 23, 60, .45); white-space: nowrap;
+}
+.bps-cum-v {
+  font-size: 10.5px; color: rgba(15, 23, 60, .68); font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.bps-cum-v b { font-weight: 700; }
 
 /* Bottom row */
 .bps-bot {

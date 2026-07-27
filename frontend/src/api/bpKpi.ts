@@ -142,6 +142,8 @@ export interface BpRecordUpsert {
   fact?: number | null;
 }
 
+/** При квартальном периоде plan/expect/fact — дельты «за квартал», cum_* —
+ *  нарастающим итогом. Σ дельт ≠ cum при разном покрытии компаний. */
 export interface BpMetricTotal {
   metric: string;
   plan: string | number | null;
@@ -150,6 +152,9 @@ export interface BpMetricTotal {
   has_plan: boolean;
   has_expect: boolean;
   has_fact: boolean;
+  cum_plan?: string | number | null;
+  cum_expect?: string | number | null;
+  cum_fact?: string | number | null;
 }
 
 export interface BpCompanyRow {
@@ -185,6 +190,7 @@ export interface BpQuarterRow {
   fact_delta?: string | number | null;
   co_count_cum_fact?: number;
   co_count_fact_delta?: number;
+  co_count_cum_plan?: number;
 }
 
 /** Зеркало backend ytd_to_deltas: «за квартал» = ytd[n] − ytd[n−1] (q1 = ytd[0]);

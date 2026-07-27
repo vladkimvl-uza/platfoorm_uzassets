@@ -148,7 +148,18 @@ function cumPts(arr: (number | null)[]) {
   return out;
 }
 const cumFactPts = computed(() => cumPts(cumFact.value));
-const cumPlanPts = computed(() => cumPts(cumPlan.value));
+// Линия нараст. ПЛАНА — только кварталы с ПОЛНЫМ покрытием компаний: планы
+// часто разнесены лишь до Q2, и «провал» линии на Q3 (3 компании вместо 21)
+// был бы артефактом покрытия, а не падением плана.
+const cumPlanPts = computed(() => {
+  const covs = rows.value.map(r => r.co_count_cum_plan);
+  const known = covs.filter((c): c is number => c != null);
+  if (!known.length) return cumPts(cumPlan.value);   // старый payload — как раньше
+  const maxCov = Math.max(...known);
+  const vals = cumPlan.value.map((v, i) =>
+    (covs[i] != null && covs[i]! < maxCov ? null : v));
+  return cumPts(vals);
+});
 const cumFactLine = computed(() => cumFactPts.value.map((p) => `${p.x},${p.y}`).join(" "));
 const cumPlanLine = computed(() => cumPlanPts.value.map((p) => `${p.x},${p.y}`).join(" "));
 const cumLen = computed(() => {
@@ -203,6 +214,10 @@ function barLabel(i: number): { v: number; fact: boolean } | null {
 }
 
 const hovered = ref<number | null>(null);
+const maxPlanCov = computed(() => {
+  const known = rows.value.map(r => r.co_count_cum_plan).filter((c): c is number => c != null);
+  return known.length ? Math.max(...known) : null;
+});
 function tip(i: number) {
   const r = rows.value[i];
   return {
@@ -213,6 +228,10 @@ function tip(i: number) {
     // дельта не вычислима при наличии YTD → нет данных предыдущего квартала
     deltaGap: dFact.value[i] == null && cumFact.value[i] != null,
     covCum: r.co_count_cum_fact, covDelta: r.co_count_fact_delta,
+    // план этого квартала разнесён лишь частью компаний → бар/линия неполные
+    planPartial: maxPlanCov.value != null && r.co_count_cum_plan != null
+      && r.co_count_cum_plan < maxPlanCov.value
+      ? `${r.co_count_cum_plan} / ${maxPlanCov.value}` : null,
     proj: dFact.value[i] == null ? (projByIdx.value.get(i) ?? null) : null,
   };
 }
@@ -299,6 +318,7 @@ function tip(i: number) {
            :style="{ left: (centerX(hovered) / W * 100) + '%' }">
         <div class="bqc-tip-h">{{ rows[hovered].q.toUpperCase() }}</div>
         <div class="bqc-tip-r"><span>За квартал · план</span><b>{{ tip(hovered).dp != null ? fmt(tip(hovered).dp!) : '—' }}</b></div>
+        <div v-if="tip(hovered).planPartial" class="bqc-tip-note">план разнесён лишь частью компаний ({{ tip(hovered).planPartial }})</div>
         <div class="bqc-tip-r"><span>За квартал · факт</span><b>{{ tip(hovered).df != null ? fmt(tip(hovered).df!) : '—' }}</b></div>
         <div v-if="tip(hovered).deltaGap" class="bqc-tip-note">за квартал не вычислимо: нет данных предыдущего квартала</div>
         <template v-if="tip(hovered).proj">
@@ -311,9 +331,10 @@ function tip(i: number) {
         <div class="bqc-tip-r"><span>Нараст. план</span><b>{{ tip(hovered).ytdPlan != null ? fmt(tip(hovered).ytdPlan!) : '—' }}</b></div>
         <div class="bqc-tip-r"><span>Нараст. факт</span><b>{{ tip(hovered).ytdFact != null ? fmt(tip(hovered).ytdFact!) : '—' }}</b></div>
         <div class="bqc-tip-r" v-if="tip(hovered).pct != null"><span>Исполнение с начала года</span><b :style="{ color: execColor(tip(hovered).pct) }">{{ tip(hovered).pct }}%</b></div>
-        <div class="bqc-tip-r" v-if="tip(hovered).covDelta != null && tip(hovered).covCum != null && tip(hovered).covDelta !== tip(hovered).covCum">
-          <span>Покрытие</span><b>{{ tip(hovered).covDelta }} / {{ tip(hovered).covCum }} комп.</b>
-        </div>
+        <template v-if="tip(hovered).covDelta != null && tip(hovered).covCum != null && tip(hovered).covDelta !== tip(hovered).covCum">
+          <div class="bqc-tip-r"><span>Покрытие</span><b>{{ tip(hovered).covDelta }} / {{ tip(hovered).covCum }} комп.</b></div>
+          <div class="bqc-tip-note">в итог входят компании без данных пред. квартала — поэтому Σ баров ≠ нараст. итогу</div>
+        </template>
         <div class="bqc-tip-cta">Открыть разбор →</div>
       </div>
     </div>
