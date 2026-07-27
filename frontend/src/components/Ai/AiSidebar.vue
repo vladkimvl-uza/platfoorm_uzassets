@@ -575,7 +575,27 @@ function formatDate(s: string) {
   border-color: var(--uza-purple);
 }
 
+/* P2 аудита: на ≤768px сайдбар был просто `display:none`, а кнопка «Показать
+   историю чатов» в шапке оставалась активной и НИЧЕГО не делала. Панель
+   существует (рендерится по тому же тумблеру) — делаем её выдвижной поверх
+   контента: та же кнопка открывает и закрывает. */
 @media (max-width: 768px) {
-  .ai-sb { display: none; }
+  .ai-sb {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: min(300px, 86vw);
+    z-index: calc(var(--z-overlay, 9000) - 1);
+    box-shadow: 0 18px 48px rgba(15, 23, 60, 0.28);
+    animation: ai-sb-slide-in 0.22s var(--ai-easing, ease) both;
+  }
+}
+@keyframes ai-sb-slide-in {
+  from { transform: translateX(-100%); opacity: 0.6; }
+  to   { transform: translateX(0); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ai-sb { animation: none; }
 }
 </style>

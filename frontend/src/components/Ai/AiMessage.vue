@@ -54,6 +54,31 @@
         <span v-if="pending && content" class="ai-cursor"></span>
       </div>
 
+      <!-- P2 аудита: «призрачное» пустое сообщение. При остановке генерации
+           после вызова инструмента пузырь скрывался (content пуст, а бейджи
+           инструментов намеренно убраны) — оставалась пустая строка без
+           объяснения. Теперь состояние названо. -->
+      <div v-if="role === 'assistant' && !content && !pending && toolCalls && toolCalls.length"
+           class="ai-msg-halted">
+        Генерация остановлена — ответ не сформирован.
+      </div>
+
+      <!-- P2 аудита: отказ инструмента (например, нет доступа к компании)
+           возвращался модели как {"error": …} и НИКАК не отражался в UI —
+           пользователь видел уверенное «данных нет». Показываем факт отказа,
+           не возвращая удалённые бейджи всех вызовов. -->
+      <div v-if="role === 'assistant' && !pending && failedTools.length" class="ai-msg-toolfail">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <span>
+          Часть данных получить не удалось ({{ failedTools.join(", ") }}) — возможно,
+          нет доступа к этим компаниям. Ответ может быть неполным.
+        </span>
+      </div>
+
       <!-- Графики, построенные ИИ на лету -->
       <AiChart v-for="(c, ci) in charts" :key="`chart-${ci}`" :spec="c" />
 
@@ -141,7 +166,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
 import DOMPurify from "dompurify";
 import type { ToolCall } from "@/api/aiClient";
 import { useAiVoice } from "@/composables/useAiVoice";
@@ -224,6 +249,39 @@ function purify(html: string): string {
   });
 }
 
+// P2 аудита: полный разбор markdown + DOMPurify выполнялись НА КАЖДЫЙ токен
+// стрима — к концу длинного ответа (копилот шлёт до 16k токенов, ~60 КБ) это
+// сотни мегабайт работы парсера и заметное подтормаживание. Во время стрима
+// перерисовываем не чаще RENDER_THROTTLE_MS, а по завершении — сразу и целиком.
+// Инструменты, вернувшие ok:false — источник «неполного» ответа (см. шаблон).
+const failedTools = computed(() =>
+  [...new Set((props.toolCalls || [])
+    .filter((t) => t.ok === false)
+    .map((t) => t.name || "инструмент"))],
+);
+
+const RENDER_THROTTLE_MS = 120;
+const renderSrc = ref("");
+let throttleTimer: ReturnType<typeof setTimeout> | null = null;
+
+watch(
+  [renderBody, () => props.pending],
+  ([body, pending]) => {
+    if (!pending) {                       // финальное состояние — точный рендер
+      if (throttleTimer) { clearTimeout(throttleTimer); throttleTimer = null; }
+      renderSrc.value = body;
+      return;
+    }
+    if (throttleTimer) return;            // уже запланировано
+    throttleTimer = setTimeout(() => {
+      throttleTimer = null;
+      renderSrc.value = renderBody.value;
+    }, RENDER_THROTTLE_MS);
+  },
+  { immediate: true },
+);
+onBeforeUnmount(() => { if (throttleTimer) clearTimeout(throttleTimer); });
+
 const rendered = computed(() => {
   if (!props.content) return "";
   if (props.role === "user") {
@@ -231,7 +289,7 @@ const rendered = computed(() => {
     // but free; if escapeHtml ever drops a character class, purify catches it.
     return purify(escapeHtml(props.content).replace(/\n/g, "<br>"));
   }
-  return purify(renderMarkdown(renderBody.value));
+  return purify(renderMarkdown(renderSrc.value));
 });
 
 // Экспорт таблиц из ответа ИИ в Excel (.xls, HTML-таблица — Excel открывает нативно).
@@ -767,6 +825,30 @@ function renderMarkdown(src: string): string {
 .ai-msg-content :deep(th.ai-al-c) { text-align: center; }
 /* Числовые ячейки — моноширинные цифры для ровных колонок */
 .ai-msg-content :deep(td) { font-variant-numeric: tabular-nums; }
+
+/* Остановленная генерация без ответа (вместо пустого «призрака») */
+.ai-msg-halted {
+  font-size: 12px;
+  color: rgba(30, 42, 74, 0.5);
+  font-style: italic;
+  padding: 4px 2px;
+}
+
+/* Отказ инструмента — ответ может быть неполным */
+.ai-msg-toolfail {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin-top: 6px;
+  padding: 8px 11px;
+  background: rgba(239, 159, 39, 0.09);
+  border: 1px solid rgba(239, 159, 39, 0.3);
+  border-radius: 9px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: #A36500;
+}
+.ai-msg-toolfail svg { flex-shrink: 0; margin-top: 1px; }
 
 /* Кнопка копирования сообщения */
 .ai-msg-actions {

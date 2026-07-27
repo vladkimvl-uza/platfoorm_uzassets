@@ -37,6 +37,7 @@ from app.models.company import Company
 from app.models.system_config import SystemConfig
 from app.models.user import User
 from app.schemas.ai import (
+    VALID_MODELS,
     AiConfigIn,
     AiConfigOut,
     AiHealthOut,
@@ -161,15 +162,30 @@ async def _has_ai_access(user: User, db: AsyncSession) -> bool:
 
 
 async def require_ai_access(
+    request: Request,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> User:
-    """Гейт пользовательских AI-эндпоинтов: режим owner_only / rbac."""
+    """Гейт пользовательских AI-эндпоинтов: режим owner_only / rbac.
+
+    P2 аудита: этот гейт зовёт has_effective_permission НАПРЯМУЮ, минуя
+    require_permission, — а значит и минуя проверку scopes API-ключа. Ключ
+    интеграции со скоупом, скажем, `companies.view` проходил в чат, если у
+    сервис-аккаунта была роль с `ai.view`. Проверяем скоуп здесь же.
+    """
     if not await _has_ai_access(user, db):
         raise HTTPException(
             status.HTTP_403_FORBIDDEN,
             "Нет доступа к ИИ-ассистенту",
         )
+    api_key = getattr(request.state, "api_key", None)
+    if api_key is not None:
+        from app.services.api_key_service import check_scope
+        if not check_scope(api_key, "ai.view"):
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                "API key scope missing: ai.view",
+            )
     return user
 
 
@@ -263,6 +279,7 @@ async def get_ai_activation(
 @router.put("/access-mode")
 async def set_ai_access_mode(
     payload: dict,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -272,30 +289,47 @@ async def set_ai_access_mode(
     mode = str((payload or {}).get("mode", ""))
     if mode not in ("owner_only", "rbac"):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "mode должен быть 'owner_only' или 'rbac'")
+    prev = await _access_mode(db)
     row = (await db.execute(select(AIConfig).where(AIConfig.key == _ACCESS_KEY))).scalar_one_or_none()
     if row is None:
         db.add(AIConfig(key=_ACCESS_KEY, value={"mode": mode}))
     else:
         row.value = {"mode": mode}
     await db.commit()
+    # P2 аудита: в журнале были две неотличимые строки «UPDATE /ai/access-mode»
+    # — разобрать инцидент «почему ИИ был открыт всем три недели» было нельзя.
+    # Пишем СТАРОЕ → НОВОЕ значение (аудит-мидлварь заберёт из request.state).
+    _RU = {"owner_only": "только владелец", "rbac": "по правам (ai.view)"}
+    request.state.activity_entity = "ИИ-ассистент"
+    request.state.activity_summary = (
+        f"Режим доступа к ИИ: {_RU.get(prev, prev)} → {_RU.get(mode, mode)}"
+    )
     return {"access_mode": mode}
 
 
 @router.put("/activation")
 async def set_ai_activation(
     payload: dict,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     if not getattr(user, "is_owner", False):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Только владелец может управлять ассистентом")
     active = bool(payload.get("active", True))
+    prev = await _assistant_active(db)
     row = (await db.execute(select(AIConfig).where(AIConfig.key == _ACT_KEY))).scalar_one_or_none()
     if row is None:
         db.add(AIConfig(key=_ACT_KEY, value={"active": active}))
     else:
         row.value = {"active": active}
     await db.commit()
+    # P2 аудита: старое → новое значение в журнале (см. /access-mode).
+    request.state.activity_entity = "ИИ-ассистент"
+    request.state.activity_summary = (
+        f"Ассистент: {'включён' if prev else 'выключен'} → "
+        f"{'включён' if active else 'выключен'}"
+    )
     return {"active": active, "can_toggle": True}
 
 
@@ -1243,6 +1277,10 @@ async def rename_conversation(
 # неограниченно и пересылался на каждом tool-турне).
 _CHAT_HISTORY_WINDOW = 40
 
+# Потолок max_tokens для ИНТЕРАКТИВНОГО чата (аналитические роуты задают свой).
+# P2 аудита: клиент мог просить 64 000 на каждое сообщение.
+_MAX_TOKENS_CEILING = 16_000
+
 
 
 def _capture_sse_block(line_block: str, events: list, tool_calls: list) -> None:
@@ -1345,9 +1383,18 @@ async def chat(
     saved_cfg = await service.get_effective_config(user.id)
     eff_role = payload.role or saved_cfg.role
     eff_style = payload.style or saved_cfg.style
-    eff_model = payload.model or saved_cfg.model
+    # P2 аудита: `model` и `max_tokens` приходили из ТЕЛА без whitelist —
+    # обычный пользователь мог слать {"model":"ai-deep","max_tokens":64000} и
+    # постоянно работать на самой дорогой модели (она зарезервирована под
+    # прогнозы), а произвольный provider-id ушёл бы провайдеру как есть.
+    # Валидация тем же справочником, что и на админском PUT /ai/config.
+    _requested_model = payload.model or saved_cfg.model
+    eff_model = _requested_model if _requested_model in VALID_MODELS else saved_cfg.model
+    if payload.model and payload.model not in VALID_MODELS:
+        logger.info("ai chat: неизвестная модель %r от user=%s — берём сохранённую %r",
+                    payload.model, user.id, saved_cfg.model)
     eff_temp = payload.temperature if payload.temperature is not None else saved_cfg.temperature
-    eff_max = payload.max_tokens or saved_cfg.max_tokens
+    eff_max = min(payload.max_tokens or saved_cfg.max_tokens, _MAX_TOKENS_CEILING)
     eff_custom = saved_cfg.custom_instructions or ""
 
     system_prompt = await build_ai_context(
