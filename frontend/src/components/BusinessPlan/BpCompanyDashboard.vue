@@ -101,13 +101,36 @@ const prevQMissing = computed(() => {
   return _metricsEmpty(prevQComputed.value?.metrics);
 });
 
-/** Метрики для ОТОБРАЖЕНИЯ: q2..q4 → дельты; пред. квартал пуст → YTD-фолбэк. */
-const displayMetrics = computed<Record<string, BpCell>>(() => {
+/** Метрики для ОТОБРАЖЕНИЯ: q2..q4 → дельты «за квартал»; ПО-СТРОЧНЫЙ фолбэк:
+ *  если факт-дельта метрики не вычислима (в пред. квартале нет факта, как у
+ *  УНГ: Q1-план есть, Q1-факта нет), а YTD-факт существует — строка ЦЕЛИКОМ
+ *  (план/ожид/факт) показывается нарастающим итогом с меткой «нараст.».
+ *  Пары не смешиваем: % такой строки = YTD-факт / YTD-план. */
+const displayComputed = computed<{ metrics: Record<string, BpCell>; ytdKeys: Set<string> }>(() => {
   const cur = props.computedData.metrics;
   const pq = PREV_Q[props.period] ?? null;
-  if (!pq || prevQMissing.value) return cur;
-  return deltaMetrics(cur, prevQComputed.value?.metrics);
+  if (!pq) return { metrics: cur, ytdKeys: new Set() };
+  if (prevQMissing.value) return { metrics: cur, ytdKeys: new Set(Object.keys(cur)) };
+  const prev = prevQComputed.value?.metrics;
+  const out: Record<string, BpCell> = {};
+  const ytd = new Set<string>();
+  const d = (a: string | number | null | undefined, b: string | number | null | undefined) =>
+    (a != null && b != null) ? num(a) - num(b) : null;
+  for (const k of Object.keys(cur)) {
+    const c = cur[k] || { plan: null, expect: null, fact: null };
+    const p = prev?.[k];
+    const df = d(c.fact, p?.fact);
+    if (df == null && c.fact != null) {
+      out[k] = { plan: c.plan, expect: c.expect, fact: c.fact, fact_auto: false };
+      ytd.add(k);
+    } else {
+      out[k] = { plan: d(c.plan, p?.plan), expect: d(c.expect, p?.expect), fact: df, fact_auto: false };
+    }
+  }
+  return { metrics: out, ytdKeys: ytd };
 });
+const displayMetrics = computed<Record<string, BpCell>>(() => displayComputed.value.metrics);
+const ytdKeys = computed(() => displayComputed.value.ytdKeys);
 
 function cell(key: string): BpCell {
   return displayMetrics.value[key] || { plan: null, expect: null, fact: null };
@@ -159,14 +182,19 @@ async function loadPrevYearAnnual() {
   }
 }
 
-/** YoY-метрики прошлого года в тех же единицах, что displayMetrics
- *  (YTD-фолбэк текущего года → сравниваем с YTD прошлого года). */
+/** YoY-метрики прошлого года В ТЕХ ЖЕ единицах, что displayMetrics:
+ *  строки-«нараст.» сравниваются с YTD прошлого года, дельта-строки — с
+ *  дельтой того же квартала прошлого года. */
 const prevDisplayMetrics = computed<Record<string, BpCell>>(() => {
   const cur = prevYearCur.value?.metrics;
   if (!cur) return {};
   const pq = PREV_Q[props.period] ?? null;
-  if (!pq || prevQMissing.value) return cur;
-  return deltaMetrics(cur, prevYearPrevQ.value?.metrics);
+  if (!pq) return cur;
+  if (prevQMissing.value) return cur;
+  const deltas = deltaMetrics(cur, prevYearPrevQ.value?.metrics);
+  const out: Record<string, BpCell> = {};
+  for (const k of Object.keys(cur)) out[k] = ytdKeys.value.has(k) ? cur[k] : deltas[k];
+  return out;
 });
 
 async function loadAnnualForFooter() {
@@ -260,6 +288,7 @@ interface KpiCard {
   fact: number | null;
   plan: number | null;
   factAuto: boolean;
+  ytd: boolean;                 // строка показана нарастающим итогом (фолбэк)
   pctOfPlan: number | null;
   yoyPct: number | null;
   footerFactAnnual: number | null;
@@ -284,6 +313,7 @@ const kpiCards = computed<KpiCard[]>(() => {
       key, label, accent, delay,
       fact, plan,
       factAuto: !!c.fact_auto,
+      ytd: ytdKeys.value.has(key),
       pctOfPlan: (fact != null && plan != null && plan !== 0) ? fact / plan : null,
       yoyPct,
       footerFactAnnual: annualC.fact != null ? num(annualC.fact) : null,
@@ -609,6 +639,14 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
         <b>нарастающим итогом с начала года</b>; разбивка «за квартал» появится после
         заполнения предыдущего квартала в редакторе.
       </div>
+      <!-- Частичный фолбэк: в пред. квартале нет ФАКТА по части строк -->
+      <div v-else-if="ytdKeys.size" class="bpv-ytd-note">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        Строки с меткой <span class="bpv-ytd-chip">нараст.</span> показаны
+        <b>нарастающим итогом</b>: в {{ (PREV_Q[period] || '').toUpperCase() }} не заполнен факт —
+        «за квартал» не вычислить. Внесите факт {{ (PREV_Q[period] || '').toUpperCase() }} в редакторе,
+        и строки переключатся на «за квартал».
+      </div>
 
       <!-- ═══ 1. Status bar (4 cells) ═══ -->
       <div class="bpv-stat-bar kpi-rail">
@@ -641,7 +679,7 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
           <div class="kpi2-val bpv-kpi-v" :class="{ 'is-empty': k.fact == null }">
             <Odometer :value="k.fact != null ? bpFmt(k.fact) : '—'" />
           </div>
-          <div class="kpi2-sub bpv-kpi-u">млрд сум · факт</div>
+          <div class="kpi2-sub bpv-kpi-u">млрд сум · факт<template v-if="k.ytd"> · <span class="bpv-ytd-chip" title="Показано нарастающим итогом с начала года: в предыдущем квартале нет факта — «за квартал» не вычислить">нараст.</span></template></div>
           <div class="bpv-kpi-foot">
             <span class="bpv-kpi-plan" :style="k.pctOfPlan != null ? { color: bpPctColor(k.pctOfPlan) } : { color: 'var(--t3,#888780)' }">
               <template v-if="k.pctOfPlan != null">
@@ -887,6 +925,7 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
                 <td class="lbl">
                   {{ f.label }}
                   <span v-if="f.auto" class="auto-tag">расчёт</span>
+                  <span v-if="ytdKeys.has(f.key) && !prevQMissing" class="bpv-ytd-chip" title="Показано нарастающим итогом с начала года: в предыдущем квартале нет факта — «за квартал» не вычислить">нараст.</span>
                 </td>
                 <td class="r">{{ fmtV(cell(f.key).plan) }}</td>
                 <td class="r">{{ fmtV(cell(f.key).expect) }}</td>
@@ -1092,6 +1131,12 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
 }
 .bpv-ytd-note b { font-weight: 700; }
 .bpv-ytd-note svg { flex-shrink: 0; }
+.bpv-ytd-chip {
+  display: inline-block; margin-left: 5px; padding: 1px 6px; border-radius: 5px;
+  font-size: 8.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+  background: rgba(239, 159, 39, .13); color: #A36500;
+  border: 1px solid rgba(239, 159, 39, .35); cursor: help; vertical-align: 1px;
+}
 
 /* Chart */
 .bpv-chart-wrap { height: 180px; position: relative; }

@@ -74,6 +74,8 @@ const quarterly = ref<{ q: string; plan: number | null; expect: number | null; f
 const PREV_Q: Record<string, string | null> = { annual: null, q1: null, q2: "q1", q3: "q2", q4: "q3" };
 // Пред. квартал пуст → company-профиль показан нарастающим итогом (ярлык в шапке).
 const ytdFallback = ref(false);
+// По-строчный фолбэк: какие метрики показаны нарастающим итогом (нет факта пред. кв.).
+const drillYtdKeys = ref<Set<string>>(new Set());
 function dOf(a: string | number | null | undefined, b: string | number | null | undefined): number | null {
   return (a != null && b != null) ? num(a) - num(b) : null;
 }
@@ -125,19 +127,31 @@ async function loadCompanyMode() {
         // Пред. квартал пуст → дельты не вычислимы НИ по одной метрике.
         // YTD-фолбэк с ярлыком (прятать имеющийся факт за «—» хуже).
         ytdFallback.value = true;
+        drillYtdKeys.value = new Set(Object.keys(cur.metrics));
         computedData.value = cur;
       } else {
         ytdFallback.value = false;
+        // По-строчный фолбэк: нет факта пред. квартала (УНГ: Q1-план есть,
+        // Q1-факта нет) → строка целиком нарастающим итогом, пары не смешиваем.
         const metrics: typeof cur.metrics = {};
+        const ytdK = new Set<string>();
         for (const k of Object.keys(cur.metrics)) {
           const c = cur.metrics[k];
           const p = prevM?.[k];
-          metrics[k] = { plan: dOf(c.plan, p?.plan), expect: dOf(c.expect, p?.expect), fact: dOf(c.fact, p?.fact), fact_auto: false };
+          const df = dOf(c.fact, p?.fact);
+          if (df == null && c.fact != null) {
+            metrics[k] = { plan: c.plan, expect: c.expect, fact: c.fact, fact_auto: false };
+            ytdK.add(k);
+          } else {
+            metrics[k] = { plan: dOf(c.plan, p?.plan), expect: dOf(c.expect, p?.expect), fact: df, fact_auto: false };
+          }
         }
+        drillYtdKeys.value = ytdK;
         computedData.value = { ...cur, metrics };
       }
     } else {
       ytdFallback.value = false;
+      drillYtdKeys.value = new Set();
       computedData.value = cur;
     }
   } catch (e) { console.error("[bpDrill] company:", e); }
@@ -802,6 +816,7 @@ watch(
                       <td class="lbl">
                         <span v-if="f.auto" class="bpd-auto-tag">∑ расчёт</span>
                         {{ f.label }}
+                        <span v-if="drillYtdKeys.has(f.key) && !ytdFallback" class="bpd-ytd-tag" title="Показано нарастающим итогом: в предыдущем квартале нет факта — «за квартал» не вычислить">нараст.</span>
                       </td>
                       <td class="r">{{ fmt(computedData.metrics[f.key]?.plan != null ? num(computedData.metrics[f.key].plan) : null) }}</td>
                       <td class="r">{{ fmt(computedData.metrics[f.key]?.expect != null ? num(computedData.metrics[f.key].expect) : null) }}</td>
@@ -1232,6 +1247,13 @@ watch(
   padding: 1px 5px; background: rgba(239, 159, 39, .12); color: #A36500;
   border-radius: 3px; font-size: 8.5px; font-weight: 500;
   letter-spacing: .04em; text-transform: uppercase; vertical-align: 1px;
+}
+.bpd-ytd-tag {
+  display: inline-block; margin-left: 5px;
+  padding: 1px 6px; background: rgba(239, 159, 39, .13); color: #A36500;
+  border: 1px solid rgba(239, 159, 39, .35);
+  border-radius: 5px; font-size: 8.5px; font-weight: 700;
+  letter-spacing: .04em; text-transform: uppercase; vertical-align: 1px; cursor: help;
 }
 .bpd-pct {
   display: inline-block; padding: 1px 7px; border-radius: 3px;
