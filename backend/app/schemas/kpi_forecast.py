@@ -73,3 +73,32 @@ class CompanyForecast(BaseModel):
     completion: Optional[ForecastBlock] = None
     completion_history: list[SeriesPoint] = []
     note: str = ""
+
+
+# ─── Черновик планов KPI (генератор «Рассчитать показатели») ─────────
+
+class KpiPlanDraftIndicator(BaseModel):
+    """Предложение плана по одному индикатору target-года."""
+    name: str
+    manager: str
+    linked: bool = False              # bp_metric_key задан → план тянется из БП
+    current_plan_year: Optional[float] = None
+    proposed_plan_year: Optional[float] = None
+    low: Optional[float] = None
+    high: Optional[float] = None
+    # Квартальные предложения — СУММЫ ЗА КВАРТАЛ (конвенция q*-полей KPI).
+    proposed_q: Optional[list[Optional[float]]] = None
+    method: str = "none"              # cagr|ols|none
+    confidence: str = "none"
+    note: str = ""
+
+
+class KpiPlanDraft(BaseModel):
+    """Черновик планов KPI на target_year из истории фактов (сопоставление
+    индикаторов между годами по bp_metric_key/нормализованному имени).
+    НИЧЕГО не пишет — применяется редактором в пустые планы + штатный save."""
+    company_id: UUID
+    target_year: int
+    base_years: list[int] = []
+    indicators: list[KpiPlanDraftIndicator] = []
+    note: str = ""

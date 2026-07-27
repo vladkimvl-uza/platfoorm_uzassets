@@ -51,7 +51,7 @@ from app.schemas.bp_kpi import (
     KpiManagerRead,
     KpiSummary,
 )
-from app.schemas.kpi_forecast import CompanyForecast
+from app.schemas.kpi_forecast import CompanyForecast, KpiPlanDraft
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/kpi", tags=["kpi"])
@@ -184,6 +184,32 @@ async def delete_year(
 
 
 # ─── Прогноз KPI (детерминированный движок + грудинг ИИ) ──────────
+
+@router.get("/plan-draft/{company_id}/{target_year}", response_model=KpiPlanDraft)
+async def kpi_plan_draft(
+    company_id: UUID,
+    target_year: int,
+    service: KpiForecastServiceDep,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Черновик планов KPI на target_year из истории фактов (генератор
+    «Рассчитать показатели»). Read-only: ничего не пишет — применение через
+    редактор (только пустые планы) и штатный PUT replace_year (kpi.edit +
+    модерация + optimistic-lock). Literal-путь — ПЕРЕД /{company_id}/{year}."""
+    await _require(db, user, "kpi.view")
+    await ensure_company_access(db, user, company_id)
+    try:
+        return await service.plan_draft(company_id, target_year)
+    except HTTPException:
+        raise
+    except Exception:
+        log.exception("KPI plan-draft %s/%s failed", company_id, target_year)
+        raise HTTPException(
+            http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Не удалось построить черновик планов KPI. Попробуйте позже.",
+        )
+
 
 @router.get("/{company_id}/forecast/{base_year}", response_model=CompanyForecast)
 async def forecast_company(

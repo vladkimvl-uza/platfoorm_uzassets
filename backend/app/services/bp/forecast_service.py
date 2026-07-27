@@ -28,10 +28,13 @@ from app.models.bp_kpi import (
     BP_HEADLINE_METRIC_KEYS,
     BP_METRIC_DIRECTION,
     BP_METRIC_LABELS,
+    BP_METRICS,
 )
 from app.schemas.bp_forecast import (
     BpCompanyForecast,
     BpMetricForecast,
+    BpPlanDraft,
+    BpPlanDraftMetric,
     BpQuarterOutlook,
     BpQuarterProjection,
 )
@@ -76,6 +79,107 @@ _QO_CONF_ORD = {"none": 0, "low": 1, "medium": 2, "high": 3}
 class BpForecastService:
     def __init__(self, uow: UnitOfWorkABC) -> None:
         self.uow = uow
+
+    async def plan_draft(self, company_id: UUID, target_year: int) -> BpPlanDraft:
+        """Черновик ПЛАНА на target_year из истории фактов компании.
+
+        Годовое предложение — forecast_annual (auto: CAGR/OLS) по годовым фактам
+        (для последнего исторического года допускается «ожидаемое»). Квартальная
+        разбивка — историческая сезонность из ФАКТ-дельт (fallback план-дельты,
+        до 3 последних лет), результат конвертируется ОБРАТНО в нарастающий итог
+        (канон хранения; q4 ≡ годовому предложению). Только вводимые метрики —
+        auto-итоги считаются формулами. Черновик НИЧЕГО не пишет: применение —
+        редактором в пустые ячейки + штатный save (модерация/локи сохраняются).
+        """
+        async with self.uow:
+            session = self.uow._session  # type: ignore[attr-defined]
+            years = await self.uow.bp.years_for_company(company_id)
+            hist = sorted(y for y in years if y < target_year)[-_MAX_HISTORY:]
+            if not hist:
+                return BpPlanDraft(
+                    company_id=company_id, target_year=target_year,
+                    note="Нет исторических лет БП — черновик построить не из чего",
+                )
+            annual_by_year = {
+                y: await bp_compute(
+                    session, company_id, y, "annual",
+                    nsbu_fallback=(y >= target_year - 3),
+                )
+                for y in hist
+            }
+            # Сезонность: до 3 последних лет, квартальные ДЕЛЬТЫ (канон YTD).
+            season_years = hist[-3:]
+            q_by_year = {
+                y: [await bp_compute(session, company_id, y, q) for q in _QUARTERS]
+                for y in season_years
+            }
+            input_keys = [m["key"] for m in BP_METRICS if not m.get("auto")]
+            last_hist = hist[-1]
+            metrics_out: list[BpPlanDraftMetric] = []
+            for k in input_keys:
+                label = BP_METRIC_LABELS.get(k, k)
+                syears: list[int] = []
+                svals: list[float] = []
+                for y in hist:
+                    cell = annual_by_year[y].get(k, {}) or {}
+                    v = _f(cell.get("fact"))
+                    if v is None and y == last_hist:
+                        v = _f(cell.get("expect"))   # текущий год — свежая оценка
+                    if v is not None:
+                        syears.append(y)
+                        svals.append(v)
+                if not syears:
+                    metrics_out.append(BpPlanDraftMetric(
+                        key=k, label=label, note="Нет истории факта"))
+                    continue
+                horizon = target_year - max(syears)
+                if horizon < 1:
+                    metrics_out.append(BpPlanDraftMetric(
+                        key=k, label=label, note="Год уже присутствует в истории"))
+                    continue
+                af = forecast_annual(syears, svals, horizon)
+                proj = next(
+                    (p for p in af.projections if p.period == str(target_year)), None)
+                if proj is None or proj.value is None:
+                    metrics_out.append(BpPlanDraftMetric(
+                        key=k, label=label, method=af.method,
+                        confidence=af.confidence,
+                        note=af.note or "Прогноз недоступен"))
+                    continue
+                rows_fact: list[list] = []
+                rows_plan: list[list] = []
+                for y in season_years:
+                    cells = q_by_year[y]
+                    rows_fact.append(
+                        [_f(v) for v in ytd_to_deltas([c[k]["fact"] for c in cells])])
+                    rows_plan.append(
+                        [_f(v) for v in ytd_to_deltas([c[k]["plan"] for c in cells])])
+                shares = seasonal_shares(rows_fact) or seasonal_shares(rows_plan)
+                quarters_ytd: Optional[list[Optional[float]]] = None
+                if shares:
+                    qs = split_by_shares(proj.value, shares) or []
+                    acc = 0.0
+                    quarters_ytd = []
+                    for v in qs:
+                        acc += (v or 0.0)
+                        quarters_ytd.append(round(acc, 1))
+                    if quarters_ytd:
+                        # q4 ≡ годовому предложению (без дрейфа округления)
+                        quarters_ytd[-1] = round(proj.value, 1)
+                metrics_out.append(BpPlanDraftMetric(
+                    key=k, label=label,
+                    annual=round(proj.value, 1),
+                    low=(round(proj.low, 1) if proj.low is not None else None),
+                    high=(round(proj.high, 1) if proj.high is not None else None),
+                    quarters_ytd=quarters_ytd,
+                    method=af.method, confidence=af.confidence, note=af.note,
+                ))
+            return BpPlanDraft(
+                company_id=company_id, target_year=target_year, base_years=hist,
+                metrics=metrics_out,
+                note=("Черновик из истории — применяется только в пустые ячейки "
+                      "плана; кварталы нарастающим итогом"),
+            )
 
     async def quarter_outlook(
         self,

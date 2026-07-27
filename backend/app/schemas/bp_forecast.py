@@ -47,6 +47,31 @@ class BpQuarterProjection(BaseModel):
     co_count: int = 0                 # компаний в сводной проекции (company: 1)
 
 
+# ─── Черновик плана (генератор «Рассчитать показатели») ──────────────
+
+class BpPlanDraftMetric(BaseModel):
+    """Предложение плана по одной вводимой метрике ОФР."""
+    key: str
+    label: str
+    annual: Optional[float] = None    # предлагаемый годовой план
+    low: Optional[float] = None
+    high: Optional[float] = None
+    quarters_ytd: Optional[list[Optional[float]]] = None  # [q1..q4] НАРАСТАЮЩИМ итогом
+    method: str = "none"              # cagr|ols|none
+    confidence: str = "none"
+    note: str = ""
+
+
+class BpPlanDraft(BaseModel):
+    """Черновик плана на target_year из истории фактов. НИЧЕГО не пишет —
+    применяется редактором только в пустые ячейки и сохраняется штатно."""
+    company_id: UUID
+    target_year: int
+    base_years: list[int] = []
+    metrics: list[BpPlanDraftMetric] = []
+    note: str = ""
+
+
 class BpQuarterOutlook(BaseModel):
     """Прогноз оставшихся кварталов года (движок forecast_quarters на ДЕЛЬТАХ
     «за квартал» — кварталы БП хранятся нарастающим итогом, см. ytd_to_deltas).

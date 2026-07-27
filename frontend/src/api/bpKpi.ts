@@ -252,6 +252,26 @@ export interface BpQuarterProjection {
   high: number | null;
   co_count: number;
 }
+/** Черновик плана (генератор): предложение по вводимой метрике ОФР. */
+export interface BpPlanDraftMetric {
+  key: string;
+  label: string;
+  annual: number | null;
+  low: number | null;
+  high: number | null;
+  quarters_ytd: (number | null)[] | null;   // [q1..q4] НАРАСТАЮЩИМ итогом
+  method: string;                            // cagr|ols|none
+  confidence: string;
+  note: string;
+}
+export interface BpPlanDraft {
+  company_id: string;
+  target_year: number;
+  base_years: number[];
+  metrics: BpPlanDraftMetric[];
+  note: string;
+}
+
 export interface BpQuarterOutlook {
   year: number;
   metric: string;
@@ -341,6 +361,28 @@ export interface IndicatorForecast {
   quarterly: ForecastBlock; annual: ForecastBlock; history: ForecastSeriesPoint[];
 }
 export interface ManagerForecast { title: string; role: string | null; indicators: IndicatorForecast[]; }
+
+/** Черновик планов KPI (генератор «Рассчитать показатели»). */
+export interface KpiPlanDraftIndicator {
+  name: string;
+  manager: string;
+  linked: boolean;                          // план тянется из БП (reference-pull)
+  current_plan_year: number | null;
+  proposed_plan_year: number | null;
+  low: number | null;
+  high: number | null;
+  proposed_q: (number | null)[] | null;     // суммы ЗА квартал (конвенция KPI)
+  method: string;
+  confidence: string;
+  note: string;
+}
+export interface KpiPlanDraft {
+  company_id: string;
+  target_year: number;
+  base_years: number[];
+  indicators: KpiPlanDraftIndicator[];
+  note: string;
+}
 export interface CompanyForecast {
   company_id: string; company_code: string | null; company_name: string;
   base_year: number; horizon: number; future_years: number[];
@@ -512,6 +554,12 @@ export const bpApi = {
     return data;
   },
 
+  /** Черновик плана на год из истории (генератор «Рассчитать показатели»). */
+  async getPlanDraft(companyId: string, targetYear: number): Promise<BpPlanDraft> {
+    const { data } = await api.get<BpPlanDraft>(`/bp/plan-draft/${companyId}/${targetYear}`);
+    return data;
+  },
+
   async getRaw(companyId: string, year: number): Promise<{
     data: Record<string, Record<string, BpCell>>;
     editorToken: string | null;
@@ -620,6 +668,12 @@ export const kpiApi = {
     const { data } = await api.get<CompanyForecast>(
       `/kpi/${companyId}/forecast/${baseYear}`, { params: { horizon } },
     );
+    return data;
+  },
+
+  /** Черновик планов KPI на год из истории (генератор «Рассчитать показатели»). */
+  async getPlanDraft(companyId: string, targetYear: number): Promise<KpiPlanDraft> {
+    const { data } = await api.get<KpiPlanDraft>(`/kpi/plan-draft/${companyId}/${targetYear}`);
     return data;
   },
 

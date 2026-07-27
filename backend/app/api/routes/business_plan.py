@@ -28,7 +28,7 @@ from app.core.security import has_effective_permission
 from app.dependencies.bp import BpForecastServiceDep, BpServiceDep
 from app.models.bp_kpi import BP_METRICS
 from app.models.user import User
-from app.schemas.bp_forecast import BpCompanyForecast, BpQuarterOutlook
+from app.schemas.bp_forecast import BpCompanyForecast, BpPlanDraft, BpQuarterOutlook
 from app.schemas.bp_kpi import (
     BpAttentionIssue,
     BpAvailableCompany,
@@ -173,6 +173,33 @@ async def forecast_company(
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "bp.view required")
     await ensure_company_access(db, user, company_id)
     return await service.forecast_company(company_id, base_year, horizon)
+
+
+@router.get("/plan-draft/{company_id}/{target_year}", response_model=BpPlanDraft)
+async def plan_draft(
+    company_id: UUID,
+    target_year: int,
+    service: BpForecastServiceDep,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Черновик плана на target_year из истории фактов (генератор «Рассчитать
+    показатели»). Read-only: ничего не пишет — применение через редактор
+    (только пустые ячейки) и штатный bulk-upsert (bp.edit + модерация + лок).
+    Literal-путь — регистрируется ПЕРЕД catch-all /{company_id}/{year}/{period}."""
+    if not await has_effective_permission(db, user, "bp.view"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "bp.view required")
+    await ensure_company_access(db, user, company_id)
+    try:
+        return await service.plan_draft(company_id, target_year)
+    except HTTPException:
+        raise
+    except Exception:
+        log.exception("BP plan-draft %s/%s failed", company_id, target_year)
+        raise HTTPException(
+            http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Не удалось построить черновик плана. Попробуйте позже.",
+        )
 
 
 @router.get("/quarter-forecast/{year}", response_model=BpQuarterOutlook)

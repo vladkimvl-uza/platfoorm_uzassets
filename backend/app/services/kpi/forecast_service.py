@@ -31,6 +31,8 @@ from app.schemas.kpi_forecast import (
     ForecastBlock,
     ForecastPoint,
     IndicatorForecast,
+    KpiPlanDraft,
+    KpiPlanDraftIndicator,
     ManagerForecast,
     SeriesPoint,
 )
@@ -87,6 +89,113 @@ def _block(
 class KpiForecastService:
     def __init__(self, uow: UnitOfWorkABC) -> None:
         self.uow = uow
+
+    async def plan_draft(self, company_id: UUID, target_year: int) -> KpiPlanDraft:
+        """Черновик ПЛАНОВ KPI на target_year из истории фактов.
+
+        Индикаторы сопоставляются между годами по bp_metric_key/нормализованному
+        имени (_ind_key). Связанные с БП строки пропускаются — их план тянется из
+        Бизнес-плана (reference-pull). Годовое предложение — forecast_annual
+        (CAGR/OLS) по годовым фактам (kpi_year_pair, с YTD-фолбэком); квартальная
+        разбивка — сезонность исторических КВАРТАЛЬНЫХ значений KPI (конвенция
+        q*-полей — суммы за квартал). Ничего не пишет: применение — редактором в
+        пустые планы + штатное сохранение (модерация/лок сохраняются).
+        """
+        async with self.uow:
+            years = await self.uow.kpi.years_for_company(company_id)
+            hist = sorted(y for y in years if y < target_year)[-_MAX_HISTORY:]
+            mgrs = await self.uow.kpi.get_managers_for_years(
+                company_id, [*hist, target_year])
+            by_year: dict[int, list] = {}
+            for m in mgrs:
+                by_year.setdefault(m.year, []).append(m)
+            idx_by_year: dict[int, dict[str, object]] = {}
+            for y, ms in by_year.items():
+                d: dict[str, object] = {}
+                for m in ms:
+                    for ind in m.indicators:
+                        d.setdefault(_ind_key(ind), ind)
+                idx_by_year[y] = d
+
+            target_mgrs = by_year.get(target_year, [])
+            if not target_mgrs:
+                return KpiPlanDraft(
+                    company_id=company_id, target_year=target_year, base_years=hist,
+                    note=(f"Нет KPI за {target_year} — сначала создайте структуру "
+                          "(шаблон или копия прошлого года)"))
+            if not hist:
+                return KpiPlanDraft(
+                    company_id=company_id, target_year=target_year,
+                    note="Нет исторических лет KPI — черновик построить не из чего")
+
+            inds_out: list[KpiPlanDraftIndicator] = []
+            for m in target_mgrs:
+                mgr_title = m.short_title or m.title or ""
+                for ind in m.indicators:
+                    nm = ind.name or ""
+                    cur_plan = _f(ind.plan_year)
+                    if getattr(ind, "bp_metric_key", None):
+                        inds_out.append(KpiPlanDraftIndicator(
+                            name=nm, manager=mgr_title, linked=True,
+                            current_plan_year=cur_plan,
+                            note="План тянется из Бизнес-плана (связанный KPI)"))
+                        continue
+                    ikey = _ind_key(ind)
+                    syears: list[int] = []
+                    svals: list[float] = []
+                    hist_qp: list[list] = []
+                    hist_qf: list[list] = []
+                    for y in hist:
+                        oind = idx_by_year.get(y, {}).get(ikey)
+                        if oind is None:
+                            continue
+                        _plan_o, fact_o, _src = kpi_year_pair(oind)
+                        if fact_o is not None:
+                            syears.append(y)
+                            svals.append(float(fact_o))
+                        hist_qp.append([getattr(oind, f"q{i}_plan", None) for i in (1, 2, 3, 4)])
+                        hist_qf.append([getattr(oind, f"q{i}_fact", None) for i in (1, 2, 3, 4)])
+                    if not syears:
+                        inds_out.append(KpiPlanDraftIndicator(
+                            name=nm, manager=mgr_title,
+                            current_plan_year=cur_plan,
+                            note="Нет истории факта по этому KPI"))
+                        continue
+                    horizon = target_year - max(syears)
+                    if horizon < 1:
+                        inds_out.append(KpiPlanDraftIndicator(
+                            name=nm, manager=mgr_title, current_plan_year=cur_plan,
+                            note="Год уже присутствует в истории"))
+                        continue
+                    af = forecast_annual(syears, svals, horizon)
+                    proj = next(
+                        (p for p in af.projections if p.period == str(target_year)),
+                        None)
+                    if proj is None or proj.value is None:
+                        inds_out.append(KpiPlanDraftIndicator(
+                            name=nm, manager=mgr_title, current_plan_year=cur_plan,
+                            method=af.method, confidence=af.confidence,
+                            note=af.note or "Прогноз недоступен"))
+                        continue
+                    # Сезонность: факт прошлых лет → план прошлых лет (за квартал).
+                    shares = seasonal_shares(hist_qf) or seasonal_shares(hist_qp)
+                    proposed_q = None
+                    if shares:
+                        qs = split_by_shares(proj.value, shares) or []
+                        proposed_q = [
+                            round(v, 2) if v is not None else None for v in qs]
+                    inds_out.append(KpiPlanDraftIndicator(
+                        name=nm, manager=mgr_title, linked=False,
+                        current_plan_year=cur_plan,
+                        proposed_plan_year=round(proj.value, 2),
+                        low=(round(proj.low, 2) if proj.low is not None else None),
+                        high=(round(proj.high, 2) if proj.high is not None else None),
+                        proposed_q=proposed_q,
+                        method=af.method, confidence=af.confidence, note=af.note))
+            return KpiPlanDraft(
+                company_id=company_id, target_year=target_year, base_years=hist,
+                indicators=inds_out,
+                note="Черновик из истории — применяется только в пустые планы")
 
     async def forecast_company(
         self, company_id: UUID, base_year: int, horizon: int = 2,

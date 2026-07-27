@@ -6,7 +6,70 @@
           <div class="kpe-eyebrow">UzAssets · KPI редактор</div>
           <h2 class="kpe-title">{{ companyName }} · FY {{ year }}</h2>
         </div>
-        <button class="kpe-close" @click="requestClose">×</button>
+        <div class="kpe-hd-actions">
+          <button v-if="perm.canEdit" class="kpe-draft-btn" :disabled="kpiDraftLoading" @click="openKpiDraft"
+                  title="Черновик планов из истории фактов (CAGR/OLS + сезонность кварталов). Заполняет только пустые планы; связанные с БП строки не трогает; ничего не сохраняет сам.">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l3-3 3 3 5-6"/></svg>
+            {{ kpiDraftLoading ? "Расчёт…" : "Рассчитать план" }}
+          </button>
+          <button class="kpe-close" @click="requestClose">×</button>
+        </div>
+      </div>
+
+      <!-- Превью черновика планов (генератор) -->
+      <div v-if="kpiDraftOpen && kpiDraft" class="kpe-draft-back" @click.self="kpiDraftOpen = false">
+        <div class="kpe-draft">
+          <div class="kpe-draft-hd">
+            <div>
+              <h3>Черновик планов KPI · FY {{ year }}</h3>
+              <div class="kpe-draft-sub">
+                Из истории {{ kpiDraft.base_years.join(", ") }} · движок CAGR/OLS + сезонность кварталов ·
+                применяется только в <b>пустые</b> планы · связанные с БП строки — из Бизнес-плана ·
+                ничего не сохраняется до «Сохранить всё»
+              </div>
+            </div>
+            <button class="kpe-close" @click="kpiDraftOpen = false">×</button>
+          </div>
+          <div class="kpe-draft-body">
+            <div v-if="!kpiDraft.indicators.length" class="kpe-draft-empty">{{ kpiDraft.note }}</div>
+            <table v-else class="kpe-draft-tbl">
+              <thead>
+                <tr><th class="lbl">KPI · руководитель</th><th>Текущий план</th><th>Предложение</th><th>Коридор</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th><th>Метод</th></tr>
+              </thead>
+              <tbody>
+                <tr v-for="(r, ri) in kpiDraft.indicators" :key="ri" :class="{ 'is-empty': r.proposed_plan_year == null }">
+                  <td class="lbl">
+                    {{ r.name }}<span class="kpe-draft-mgr"> · {{ r.manager }}</span>
+                    <span v-if="r.linked" class="kpe-draft-chip">из БП</span>
+                    <span v-else-if="r.proposed_plan_year != null && r.current_plan_year != null" class="kpe-draft-chip busy" title="План уже введён — черновик его не тронет">занято</span>
+                  </td>
+                  <td class="num">{{ r.current_plan_year != null ? r.current_plan_year.toLocaleString("ru-RU") : "—" }}</td>
+                  <template v-if="r.proposed_plan_year != null">
+                    <td class="num"><b>{{ r.proposed_plan_year.toLocaleString("ru-RU") }}</b></td>
+                    <td class="num kpe-draft-corr">{{ r.low != null && r.high != null ? r.low.toLocaleString("ru-RU") + " – " + r.high.toLocaleString("ru-RU") : "—" }}</td>
+                    <template v-if="r.proposed_q">
+                      <td v-for="(v, i) in r.proposed_q" :key="i" class="num">{{ v != null ? v.toLocaleString("ru-RU") : "—" }}</td>
+                    </template>
+                    <td v-else colspan="4" class="kpe-draft-noq">сезонности нет — только год</td>
+                    <td class="kpe-draft-m" :title="r.note">{{ KPI_DRAFT_METHOD_RU[r.method] || r.method }} · {{ KPI_DRAFT_CONF_RU[r.confidence] || r.confidence }}</td>
+                  </template>
+                  <template v-else>
+                    <td colspan="7" class="kpe-draft-noq">{{ r.note || "нет данных" }}</td>
+                  </template>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="kpe-draft-ft">
+            <span class="kpe-draft-cnt">
+              {{ kpiDraftFillCount > 0 ? `Заполнит ${kpiDraftFillCount} пустых ячеек плана` : "Пустых ячеек плана нет — всё уже введено" }}
+            </span>
+            <div style="display:flex; gap:8px;">
+              <button class="kpe-btn kpe-btn-ghost" @click="kpiDraftOpen = false">Отмена</button>
+              <button class="kpe-btn kpe-btn-primary" :disabled="!kpiDraftFillCount" @click="applyKpiDraft">Заполнить пустые планы</button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Сбой загрузки → запрет сохранения (иначе пустой список затрёт данные) -->
@@ -175,6 +238,7 @@ import {
   BP_FIELDS,
   type KpiCompanyYearUpsert,
   type KpiManagerUpsert,
+  type KpiPlanDraft,
 } from "@/api/bpKpi";
 import { isModerationQueued } from "@/api/client";
 import { usePermissions } from "@/composables/usePermissions";
@@ -301,6 +365,91 @@ function addIndicator() {
 function removeIndicator(idx: number) {
   if (!activeManager.value) return;
   activeManager.value.indicators.splice(idx, 1);
+}
+
+// ─── Генератор «Рассчитать план»: черновик из истории (движок core/forecast) ──
+// Матчинг строк редактора с черновиком — по нормализованному имени (модель
+// редактора — Upsert без id). Применяется ТОЛЬКО в пустые планы; связанные с БП
+// строки пропускаются (их план — reference-pull). Dirty-guard сработает сам
+// (снимок JSON изменится) — сохранение остаётся штатным «Сохранить всё».
+const kpiDraft = ref<KpiPlanDraft | null>(null);
+const kpiDraftOpen = ref(false);
+const kpiDraftLoading = ref(false);
+const KPI_DRAFT_METHOD_RU: Record<string, string> = { cagr: "CAGR", ols: "OLS-тренд", none: "—" };
+const KPI_DRAFT_CONF_RU: Record<string, string> = { high: "высокая", medium: "средняя", low: "низкая", none: "—" };
+
+function normName(s: unknown): string {
+  return String(s ?? "").toLowerCase().split(/\s+/).join(" ").trim();
+}
+async function openKpiDraft() {
+  if (kpiDraftLoading.value) return;
+  kpiDraftLoading.value = true;
+  try {
+    kpiDraft.value = await kpiApi.getPlanDraft(props.companyId, props.year);
+    kpiDraftOpen.value = true;
+  } catch (e: any) {
+    const reason = e?.response?.data?.detail || e?.message || "неизвестная ошибка";
+    useToast().error(`Не удалось построить черновик планов: ${reason}`);
+  } finally {
+    kpiDraftLoading.value = false;
+  }
+}
+function _draftMap(): Map<string, any> {
+  const map = new Map<string, any>();
+  for (const r of kpiDraft.value?.indicators || []) {
+    if (r.linked || r.proposed_plan_year == null) continue;
+    map.set(normName(r.manager) + "|" + normName(r.name), r);
+    const short = "|" + normName(r.name);
+    if (!map.has(short)) map.set(short, r);
+  }
+  return map;
+}
+function _rowDraft(m: KpiManagerUpsert, ind: any) {
+  const map = _draftMap();
+  return map.get(normName(m.short_title || m.title) + "|" + normName(ind.name)) || map.get("|" + normName(ind.name)) || null;
+}
+/** Сколько ПУСТЫХ ячеек плана заполнит черновик. */
+const kpiDraftFillCount = computed(() => {
+  if (!kpiDraft.value) return 0;
+  let n = 0;
+  for (const m of managers.value) {
+    for (const ind of m.indicators) {
+      if (ind.bp_metric_key) continue;
+      const r = _rowDraft(m, ind);
+      if (!r) continue;
+      if (ind.plan_year == null && r.proposed_plan_year != null) n++;
+      (r.proposed_q || []).forEach((v: number | null, i: number) => {
+        if (v != null && (ind as any)[`q${i + 1}_plan`] == null) n++;
+      });
+    }
+  }
+  return n;
+});
+function applyKpiDraft() {
+  if (!kpiDraft.value) return;
+  let n = 0;
+  for (const m of managers.value) {
+    for (const ind of m.indicators) {
+      if (ind.bp_metric_key) continue;
+      const r = _rowDraft(m, ind);
+      if (!r) continue;
+      if (ind.plan_year == null && r.proposed_plan_year != null) {
+        ind.plan_year = r.proposed_plan_year;
+        n++;
+      }
+      (r.proposed_q || []).forEach((v: number | null, i: number) => {
+        const k = `q${i + 1}_plan`;
+        if (v != null && (ind as any)[k] == null) {
+          (ind as any)[k] = v;
+          n++;
+        }
+      });
+    }
+  }
+  kpiDraftOpen.value = false;
+  useToast().info(n > 0
+    ? `Черновик применён: заполнено ${n} ячеек плана — проверьте и сохраните`
+    : "Пустых планов нет — черновик ничего не менял");
 }
 
 /** Жёсткие ошибки данных (блокируют сохранение). Возвращает текст или null. */
@@ -720,4 +869,49 @@ onMounted(async () => {
   color: rgba(15, 23, 60, .55);
   cursor: not-allowed;
 }
+
+/* ─── Генератор «Рассчитать план» ─────────────────────────────── */
+.kpe-hd-actions { display: flex; align-items: center; gap: 10px; }
+.kpe-draft-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 12px;
+  background: rgba(127, 119, 221, .08); border: 1px solid rgba(127, 119, 221, .28);
+  border-radius: 7px; color: var(--p-deep, #534AB7);
+  font: 600 11px/1.4 inherit; font-family: inherit; cursor: pointer; white-space: nowrap;
+  transition: background .15s, border-color .15s;
+}
+.kpe-draft-btn:hover:not(:disabled) { background: rgba(127, 119, 221, .15); border-color: #7F77DD; }
+.kpe-draft-btn:disabled { opacity: .55; cursor: default; }
+.kpe-draft-back {
+  position: fixed; inset: 0; z-index: calc(var(--z-overlay, 9000) + 2);
+  background: rgba(15, 18, 40, .4);
+  -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px);
+  display: flex; align-items: center; justify-content: center;
+}
+.kpe-draft {
+  background: var(--bg1, #fff); border-radius: 12px; width: min(980px, 94vw);
+  max-height: 88dvh; display: flex; flex-direction: column;
+  box-shadow: 0 18px 48px rgba(15, 23, 60, .25);
+}
+.kpe-draft-hd { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 16px 20px 12px; border-bottom: 1px solid rgba(15, 23, 60, .07); }
+.kpe-draft-hd h3 { margin: 0; font-size: 14px; font-weight: 600; color: var(--t1, #1e2a4a); }
+.kpe-draft-sub { font-size: 10.5px; color: rgba(15, 23, 60, .55); margin-top: 3px; max-width: 720px; }
+.kpe-draft-sub b { color: #A36500; }
+.kpe-draft-body { overflow-y: auto; padding: 10px 20px; flex: 1; }
+.kpe-draft-empty { padding: 26px 0; text-align: center; color: rgba(15, 23, 60, .55); font-size: 12.5px; }
+.kpe-draft-tbl { width: 100%; border-collapse: collapse; font-size: 11px; font-variant-numeric: tabular-nums; }
+.kpe-draft-tbl th { font-size: 9px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: rgba(15, 23, 60, .5); text-align: right; padding: 5px 7px; border-bottom: 1px solid rgba(15, 23, 60, .08); position: sticky; top: 0; background: var(--bg1, #fff); }
+.kpe-draft-tbl th.lbl { text-align: left; padding-left: 0; }
+.kpe-draft-tbl td { padding: 5px 7px; border-bottom: 1px solid rgba(15, 23, 60, .05); text-align: right; }
+.kpe-draft-tbl td.lbl { text-align: left; padding-left: 0; font-weight: 500; color: var(--t1, #1e2a4a); max-width: 300px; }
+.kpe-draft-tbl td.num b { font-weight: 600; color: var(--p-deep, #534AB7); }
+.kpe-draft-mgr { color: rgba(15, 23, 60, .45); font-weight: 400; font-size: 10px; }
+.kpe-draft-chip { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 5px; font-size: 8.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; background: rgba(29, 158, 117, .1); color: #0F6E56; border: 1px solid rgba(29, 158, 117, .25); }
+.kpe-draft-chip.busy { background: rgba(99, 102, 180, .1); color: #534AB7; border-color: rgba(99, 102, 180, .22); }
+.kpe-draft-corr { color: rgba(15, 23, 60, .5); font-size: 10px; white-space: nowrap; }
+.kpe-draft-noq { color: rgba(15, 23, 60, .45); font-size: 10.5px; text-align: left !important; font-style: italic; }
+.kpe-draft-m { font-size: 9.5px; color: rgba(15, 23, 60, .55); white-space: nowrap; cursor: help; }
+.kpe-draft-tbl tr.is-empty td { opacity: .6; }
+.kpe-draft-ft { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 20px 14px; border-top: 1px solid rgba(15, 23, 60, .07); }
+.kpe-draft-cnt { font-size: 11px; color: rgba(15, 23, 60, .6); }
 </style>

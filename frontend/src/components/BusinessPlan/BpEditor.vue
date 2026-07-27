@@ -51,6 +51,11 @@
             <span class="bpe-view-cnt">{{ expensesCount }}</span>
           </button>
         </div>
+        <button v-if="perm.canEdit" class="bpe-draft-btn" :disabled="draftLoading" @click="openDraft"
+                title="Черновик плана из истории фактов (CAGR/OLS + историческая сезонность). Заполняет только пустые ячейки плана; ничего не сохраняет сам.">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l3-3 3 3 5-6"/></svg>
+          {{ draftLoading ? "Расчёт…" : "Рассчитать план" }}
+        </button>
       </div>
 
       <!-- Subset summary — visible when viewMode != 'all' -->
@@ -165,6 +170,58 @@
         </table>
       </div>
 
+      <!-- Превью черновика плана (генератор) — внутренний оверлей редактора -->
+      <div v-if="draftOpen && draft" class="bpe-draft-back" @click.self="draftOpen = false">
+        <div class="bpe-draft">
+          <div class="bpe-draft-hd">
+            <div>
+              <h3>Черновик плана · FY {{ year }}</h3>
+              <div class="bpe-draft-sub">
+                Из истории {{ draft.base_years.join(", ") }} · движок CAGR/OLS + историческая сезонность ·
+                применяется только в <b>пустые</b> ячейки плана · ничего не сохраняется до «Сохранить все периоды»
+              </div>
+            </div>
+            <button class="bpe-close" @click="draftOpen = false" title="Закрыть">×</button>
+          </div>
+          <div class="bpe-draft-body">
+            <table class="bpe-draft-tbl">
+              <thead>
+                <tr><th class="lbl">Показатель</th><th>Год (план)</th><th>Коридор</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th><th>Метод</th></tr>
+              </thead>
+              <tbody>
+                <tr v-for="m in draft.metrics" :key="m.key" :class="{ 'is-empty': m.annual == null }">
+                  <td class="lbl">
+                    {{ m.label }}
+                    <span v-if="m.annual != null && draftBusy(m)" class="bpe-badge bpe-badge-manual" title="Годовой план уже введён — черновик его не тронет">занято</span>
+                  </td>
+                  <template v-if="m.annual != null">
+                    <td class="num"><b>{{ m.annual.toLocaleString("ru-RU") }}</b></td>
+                    <td class="num bpe-draft-corr">{{ m.low != null && m.high != null ? m.low.toLocaleString("ru-RU") + " – " + m.high.toLocaleString("ru-RU") : "—" }}</td>
+                    <template v-if="m.quarters_ytd">
+                      <td v-for="(v, i) in m.quarters_ytd" :key="i" class="num">{{ v != null ? v.toLocaleString("ru-RU") : "—" }}</td>
+                    </template>
+                    <td v-else colspan="4" class="bpe-draft-noq">сезонности нет — только год</td>
+                    <td class="bpe-draft-m" :title="m.note">{{ DRAFT_METHOD_RU[m.method] || m.method }} · {{ DRAFT_CONF_RU[m.confidence] || m.confidence }}</td>
+                  </template>
+                  <template v-else>
+                    <td colspan="7" class="bpe-draft-noq">{{ m.note || "нет данных" }}</td>
+                  </template>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="bpe-draft-ft">
+            <span class="bpe-draft-cnt">
+              {{ draftFillCount > 0 ? `Заполнит ${draftFillCount} пустых ячеек плана` : "Пустых ячеек плана нет — всё уже введено" }}
+            </span>
+            <div class="bpe-actions">
+              <button class="bpe-btn bpe-btn-ghost" @click="draftOpen = false">Отмена</button>
+              <button class="bpe-btn bpe-btn-primary" :disabled="!draftFillCount" @click="applyDraft">Заполнить пустые планы</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="bpe-footer">
         <div class="bpe-status">
           <span v-if="dirty" class="bpe-status-d">Несохранённые изменения</span>
@@ -206,6 +263,7 @@ import {
   bpApi,
   bpFieldsFor,
   type AvailableCompany,
+  type BpPlanDraft,
   type BpRecordUpsert,
 } from "@/api/bpKpi";
 import { isModerationQueued } from "@/api/client";
@@ -369,6 +427,66 @@ const updatedCount = computed(() => {
   if (activePeriod.value !== "annual") return 0;
   return BP_FIELDS.filter(f => canEditRow(f) && sourceUpdated(f.key)).length;
 });
+
+// ─── Генератор «Рассчитать план»: черновик из истории (движок core/forecast) ──
+// Черновик применяется ТОЛЬКО в пустые ячейки плана и ничего не сохраняет сам —
+// пользователь проверяет и жмёт штатное «Сохранить все периоды».
+const draft = ref<BpPlanDraft | null>(null);
+const draftOpen = ref(false);
+const draftLoading = ref(false);
+const QK: Period[] = ["q1", "q2", "q3", "q4"];
+const DRAFT_METHOD_RU: Record<string, string> = { cagr: "CAGR", ols: "OLS-тренд", none: "—" };
+const DRAFT_CONF_RU: Record<string, string> = { high: "высокая", medium: "средняя", low: "низкая", none: "—" };
+
+async function openDraft() {
+  if (draftLoading.value) return;
+  draftLoading.value = true;
+  try {
+    draft.value = await bpApi.getPlanDraft(props.companyId, props.year);
+    draftOpen.value = true;
+  } catch (e: any) {
+    const reason = e?.response?.data?.detail || e?.message || "неизвестная ошибка";
+    toast.error(`Не удалось построить черновик плана: ${reason}`);
+  } finally {
+    draftLoading.value = false;
+  }
+}
+/** Сколько ПУСТЫХ ячеек плана заполнит черновик (занятые не трогаем). */
+const draftFillCount = computed(() => {
+  let n = 0;
+  for (const m of draft.value?.metrics || []) {
+    if (m.annual != null && data.value.annual[m.key]?.plan == null) n++;
+    m.quarters_ytd?.forEach((v, i) => {
+      if (v != null && data.value[QK[i]][m.key]?.plan == null) n++;
+    });
+  }
+  return n;
+});
+function draftBusy(m: { key: string }): boolean {
+  return data.value.annual[m.key]?.plan != null;
+}
+function applyDraft() {
+  const d = draft.value;
+  if (!d) return;
+  let n = 0;
+  for (const m of d.metrics) {
+    if (m.annual != null && data.value.annual[m.key]?.plan == null) {
+      data.value.annual[m.key].plan = m.annual;
+      n++;
+    }
+    m.quarters_ytd?.forEach((v, i) => {
+      if (v != null && data.value[QK[i]][m.key]?.plan == null) {
+        data.value[QK[i]][m.key].plan = v;
+        n++;
+      }
+    });
+  }
+  if (n > 0) markDirty();
+  draftOpen.value = false;
+  toast.info(n > 0
+    ? `Черновик применён: заполнено ${n} ячеек плана — проверьте и сохраните`
+    : "Пустых ячеек плана нет — черновик ничего не менял");
+}
 
 function makeBlank(): Record<Period, Record<string, Cell>> {
   const out = {} as Record<Period, Record<string, Cell>>;
@@ -596,6 +714,7 @@ async function save() {
   flex-direction: column;
   box-shadow: 0 24px 64px rgba(15, 23, 60, .18);
   animation: bpeModalIn .35s var(--ease-standard);
+  position: relative;   /* якорь для внутреннего оверлея черновика плана */
 }
 @keyframes bpeModalIn { from { opacity: 0; transform: scale(.96) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
 
@@ -957,6 +1076,47 @@ async function save() {
   color: #0F6E56;
   font-weight: 700;
 }
+
+/* ─── Генератор «Рассчитать план» ─────────────────────────────── */
+.bpe-draft-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  margin: 6px 0; padding: 4px 11px;
+  background: rgba(127, 119, 221, .08); border: 1px solid rgba(127, 119, 221, .28);
+  border-radius: 7px; color: var(--p-deep, #534AB7);
+  font: 600 10.5px/1.4 inherit; font-family: inherit; cursor: pointer; white-space: nowrap;
+  transition: background .15s, border-color .15s;
+}
+.bpe-draft-btn:hover:not(:disabled) { background: rgba(127, 119, 221, .15); border-color: #7F77DD; }
+.bpe-draft-btn:disabled { opacity: .55; cursor: default; }
+.bpe-draft-back {
+  position: absolute; inset: 0; z-index: 5;
+  background: rgba(15, 18, 40, .35);
+  -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+  border-radius: 14px; display: flex; align-items: center; justify-content: center;
+  animation: bpeFade .2s ease;
+}
+.bpe-draft {
+  background: var(--bg1, #fff); border-radius: 12px; width: min(860px, 94%);
+  max-height: 92%; display: flex; flex-direction: column;
+  box-shadow: 0 18px 48px rgba(15, 23, 60, .22); animation: bpeModalIn .3s var(--ease-standard);
+}
+.bpe-draft-hd { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 16px 20px 12px; border-bottom: 1px solid rgba(15, 23, 60, .07); }
+.bpe-draft-hd h3 { margin: 0; font-size: 14px; font-weight: 600; color: var(--t1, #1e2a4a); }
+.bpe-draft-sub { font-size: 10.5px; color: rgba(15, 23, 60, .55); margin-top: 3px; max-width: 640px; }
+.bpe-draft-sub b { color: #A36500; }
+.bpe-draft-body { overflow-y: auto; padding: 10px 20px; flex: 1; }
+.bpe-draft-tbl { width: 100%; border-collapse: collapse; font-size: 11px; font-variant-numeric: tabular-nums; }
+.bpe-draft-tbl th { font-size: 9px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: rgba(15, 23, 60, .5); text-align: right; padding: 5px 7px; border-bottom: 1px solid rgba(15, 23, 60, .08); position: sticky; top: 0; background: var(--bg1, #fff); }
+.bpe-draft-tbl th.lbl { text-align: left; padding-left: 0; }
+.bpe-draft-tbl td { padding: 5px 7px; border-bottom: 1px solid rgba(15, 23, 60, .05); text-align: right; }
+.bpe-draft-tbl td.lbl { text-align: left; padding-left: 0; font-weight: 500; color: var(--t1, #1e2a4a); }
+.bpe-draft-tbl td.num b { font-weight: 600; color: var(--p-deep, #534AB7); }
+.bpe-draft-corr { color: rgba(15, 23, 60, .5); font-size: 10px; white-space: nowrap; }
+.bpe-draft-noq { color: rgba(15, 23, 60, .45); font-size: 10.5px; text-align: left !important; font-style: italic; }
+.bpe-draft-m { font-size: 9.5px; color: rgba(15, 23, 60, .55); white-space: nowrap; cursor: help; }
+.bpe-draft-tbl tr.is-empty td { opacity: .6; }
+.bpe-draft-ft { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 20px 14px; border-top: 1px solid rgba(15, 23, 60, .07); }
+.bpe-draft-cnt { font-size: 11px; color: rgba(15, 23, 60, .6); }
 
 /* Read-only mode for users without bp.edit permission */
 .bpe-body[data-readonly="true"] input,
