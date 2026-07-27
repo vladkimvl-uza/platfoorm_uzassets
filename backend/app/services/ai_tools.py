@@ -240,6 +240,91 @@ async def _find_company_by_name(
     return co
 
 
+# ─────────── Per-company scope инструментов (P0 аудита ИИ, июль 2026) ───────────
+# Инструменты ходят в БД от имени пользователя чата, но отдавали данные ВСЕГО
+# портфеля: `allowed_company_ids` в этом файле не применялся ни разу, а
+# `_find_company_by_name` закрывал лишь путь «компания названа явно» — запрос без
+# имени компании («покажи задачи», «какой долг портфеля») скоуп обходил.
+# ПРАВИЛО: любая выборка портфельных сущностей обязана пройти через
+# `_scope_ids()` + `_scoped()` — БЕЗУСЛОВНО, а не только когда компания указана.
+
+async def _scope_ids(db: AsyncSession) -> Optional[list[UUID]]:
+    """Компании, доступные актору чата.
+
+    None — ограничений нет (owner / `companies.view_all`);
+    [...] — список разрешённых id; [] — доступа нет ни к одной компании
+    (в т.ч. когда актор не определён: безопасный отказ вместо утечки).
+    """
+    actor = await _actor_user(db)
+    if actor is None:
+        return []
+    try:
+        from app.core.access import allowed_company_ids, has_unrestricted_view
+        if has_unrestricted_view(actor):
+            return None
+        return await allowed_company_ids(db, actor)
+    except Exception:
+        return []
+
+
+def _like(s: Optional[str]) -> str:
+    """Безопасный LIKE-паттерн из аргумента модели.
+
+    P1 аудита: метасимволы не экранировались ни в одном из ~20 вызовов —
+    запрос «%» вырождался в match-all и выгружал сотни строк одним вызовом.
+    Использовать вместе с `escape="\\\\"`.
+    """
+    t = (s or "").lower().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return f"%{t}%"
+
+
+def _scoped(stmt, column, ids: Optional[list[UUID]]):
+    """Применить scope к запросу: None → без фильтра; иначе `column IN ids`.
+    Пустой список даёт заведомо пустую выборку — это честный результат, а не сбой.
+    Ставить ПОСЛЕ опционального фильтра по имени компании, чтобы scope нельзя
+    было обойти, просто не назвав компанию."""
+    if ids is None:
+        return stmt
+    return stmt.where(column.in_(ids))
+
+
+async def _in_scope(db: AsyncSession, company_id) -> bool:
+    """Доступна ли актору конкретная компания (для проверки уже найденной записи)."""
+    if company_id is None:
+        return True
+    ids = await _scope_ids(db)
+    if ids is None:
+        return True
+    return company_id in ids
+
+
+async def _allowed_entity_ids(db: AsyncSession) -> Optional[set[str]]:
+    """Множество id задач и проектов, доступных актору (строками).
+
+    Для полиморфных сущностей (StatusUpdate, комментарии) — там нет company_id,
+    и скоупить их можно только через родителя. None — ограничений нет.
+    """
+    ids = await _scope_ids(db)
+    if ids is None:
+        return None
+    out: set[str] = set()
+    if not ids:
+        return out
+    try:
+        from app.models.task import Task  # type: ignore[import]
+        r = await db.execute(select(Task.id).where(Task.company_id.in_(ids)))
+        out |= {str(x) for x in r.scalars().all()}
+    except Exception:
+        pass
+    try:
+        from app.models.project import Project  # type: ignore[import]
+        r = await db.execute(select(Project.id).where(Project.company_id.in_(ids)))
+        out |= {str(x) for x in r.scalars().all()}
+    except Exception:
+        pass
+    return out
+
+
 async def _build_lookup_maps(db: AsyncSession, *,
                               need_companies: bool = False,
                               need_directions: bool = False,
@@ -757,14 +842,14 @@ TOOLS: list[dict] = [
     {
         "name": "list_notifications",
         "description": (
-            "Системные уведомления: type, priority, title, body, source_module, "
-            "delivered_channels, is_read, requires_ack. Используй для 'что за алерты сегодня', "
-            "'непрочитанные критичные', 'broadcasts на пользователе X'."
+            "СОБСТВЕННЫЕ уведомления текущего пользователя: type, priority, title, body, "
+            "source_module, is_read. Используй для 'что за алерты сегодня', "
+            "'мои непрочитанные критичные'. Уведомления ДРУГИХ пользователей "
+            "недоступны — это личная переписка."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
-                "recipient_email": {"type": "string"},
                 "priority": {"type": "string", "description": "critical / high / normal / low"},
                 "is_read": {"type": "boolean"},
                 "source_module": {"type": "string"},
@@ -1127,6 +1212,7 @@ async def _tool_list_overdue_tasks(args: dict, db: AsyncSession) -> dict:
     stmt = select(Task)
     if year: stmt = stmt.where(Task.portfolio_year == year)
     if company_id: stmt = stmt.where(Task.company_id == company_id)
+    stmt = _scoped(stmt, Task.company_id, await _scope_ids(db))
     stmt = stmt.order_by(Task.due_date.asc().nullslast()).limit(500)
 
     res = await db.execute(stmt)
@@ -1226,9 +1312,10 @@ async def _tool_search_tasks(args: dict, db: AsyncSession) -> dict:
 
     from app.models.task import Task  # type: ignore[import]
 
-    stmt = select(Task).where(func.lower(Task.title).like(f"%{query.lower()}%"))
+    stmt = select(Task).where(func.lower(Task.title).like(_like(query), escape="\\"))
     if year: stmt = stmt.where(Task.portfolio_year == year)
     if status: stmt = stmt.where(Task.status == status)
+    stmt = _scoped(stmt, Task.company_id, await _scope_ids(db))
     stmt = stmt.order_by(Task.due_date.asc().nullslast()).limit(limit)
 
     res = await db.execute(stmt)
@@ -1348,6 +1435,9 @@ async def _tool_get_credit_portfolio(args: dict, db: AsyncSession) -> dict:
     stmt = select(CpLoan)
     if company_id: stmt = stmt.where(CpLoan.company_id == company_id)
     if currency: stmt = stmt.where(CpLoan.currency == currency.upper())
+    # P0: без имени компании отдавался топ займов ВСЕГО портфеля (банк, ставка,
+    # долг, контрагент) — коммерчески чувствительные данные вне доступа актора.
+    stmt = _scoped(stmt, CpLoan.company_id, await _scope_ids(db))
     stmt = stmt.order_by(CpLoan.debt_usd.desc().nullslast()).limit(limit)
 
     res = await db.execute(stmt)
@@ -1380,20 +1470,32 @@ async def _tool_get_kpi_summary(args: dict, db: AsyncSession) -> dict:
     from app.models.project import Project  # type: ignore[import]
     from app.models.task import Task  # type: ignore[import]
 
+    # P0: портфельный обзор считался по ВСЕМ компаниям независимо от доступа
+    # актора — скоупим каждый агрегат.
+    _ids = await _scope_ids(db)
+
     # Companies: total in DB (no year filter — companies aren't year-scoped)
-    co_count = (await db.execute(select(func.count()).select_from(Company))).scalar_one() or 0
+    co_count = (await db.execute(
+        _scoped(select(func.count()).select_from(Company), Company.id, _ids)
+    )).scalar_one() or 0
 
     # Projects: split into 3 groups for honest reporting
-    proj_total = (await db.execute(select(func.count()).select_from(Project))).scalar_one() or 0
-    proj_in_year = (await db.execute(
-        select(func.count()).select_from(Project).where(Project.portfolio_year == year)
+    proj_total = (await db.execute(
+        _scoped(select(func.count()).select_from(Project), Project.company_id, _ids)
     )).scalar_one() or 0
-    proj_no_year = (await db.execute(
-        select(func.count()).select_from(Project).where(Project.portfolio_year.is_(None))
-    )).scalar_one() or 0
+    proj_in_year = (await db.execute(_scoped(
+        select(func.count()).select_from(Project).where(Project.portfolio_year == year),
+        Project.company_id, _ids,
+    ))).scalar_one() or 0
+    proj_no_year = (await db.execute(_scoped(
+        select(func.count()).select_from(Project).where(Project.portfolio_year.is_(None)),
+        Project.company_id, _ids,
+    ))).scalar_one() or 0
 
     # Tasks: filtered by portfolio_year
-    task_res = await db.execute(select(Task).where(Task.portfolio_year == year))
+    task_res = await db.execute(_scoped(
+        select(Task).where(Task.portfolio_year == year), Task.company_id, _ids,
+    ))
     tasks = list(task_res.scalars().all())
 
     done = sum(1 for t in tasks if (getattr(t, "status", "") or "").lower() in _DONE_STATUSES)
@@ -1402,7 +1504,7 @@ async def _tool_get_kpi_summary(args: dict, db: AsyncSession) -> dict:
     carried = sum(1 for t in tasks if _is_carried_over(t))
 
     by_co: dict[Any, dict] = {}
-    co_res = await db.execute(select(Company))
+    co_res = await db.execute(_scoped(select(Company), Company.id, _ids))
     cos = list(co_res.scalars().all())
     co_map = {co.id: _company_name(co) for co in cos}
 
@@ -1535,40 +1637,51 @@ async def _tool_get_ratings_history(args: dict, db: AsyncSession) -> dict:
 # ─────────────────── NEW handlers ───────────────────
 
 async def _find_task_by_query(db: AsyncSession, q: str) -> Optional[Any]:
-    """Find single task by num exact match, then num substring, then title substring."""
+    """Find single task by num exact match, then num substring, then title substring.
+
+    P0: резолв шёл по всему портфелю — «покажи задачу 12.3» отдавала карточку
+    чужой компании. Все три ветки скоупятся доступом актора.
+    """
     from app.models.task import Task  # type: ignore[import]
     qs = (q or "").strip()
     if not qs:
         return None
+    _ids = await _scope_ids(db)
     # exact num
-    r = await db.execute(select(Task).where(Task.num == qs).limit(1))
+    r = await db.execute(_scoped(select(Task).where(Task.num == qs), Task.company_id, _ids).limit(1))
     t = r.scalar_one_or_none()
     if t: return t
     # num substring
-    r = await db.execute(select(Task).where(Task.num.ilike(f"%{qs}%")).limit(1))
+    r = await db.execute(_scoped(
+        select(Task).where(Task.num.ilike(_like(qs), escape="\\")), Task.company_id, _ids).limit(1))
     t = r.scalar_one_or_none()
     if t: return t
     # title substring (most relevant by recency)
     r = await db.execute(
-        select(Task).where(func.lower(Task.title).like(f"%{qs.lower()}%"))
+        _scoped(select(Task).where(func.lower(Task.title).like(_like(qs), escape="\\")),
+                Task.company_id, _ids)
         .order_by(Task.created_at.desc()).limit(1)
     )
     return r.scalar_one_or_none()
 
 
 async def _find_project_by_query(db: AsyncSession, q: str) -> Optional[Any]:
+    """P0: как и у задач — резолв проекта скоупится доступом актора."""
     from app.models.project import Project  # type: ignore[import]
     qs = (q or "").strip()
     if not qs:
         return None
-    r = await db.execute(select(Project).where(Project.num == qs).limit(1))
+    _ids = await _scope_ids(db)
+    r = await db.execute(_scoped(select(Project).where(Project.num == qs), Project.company_id, _ids).limit(1))
     p = r.scalar_one_or_none()
     if p: return p
-    r = await db.execute(select(Project).where(Project.num.ilike(f"%{qs}%")).limit(1))
+    r = await db.execute(_scoped(
+        select(Project).where(Project.num.ilike(_like(qs), escape="\\")), Project.company_id, _ids).limit(1))
     p = r.scalar_one_or_none()
     if p: return p
     r = await db.execute(
-        select(Project).where(func.lower(Project.title).like(f"%{qs.lower()}%"))
+        _scoped(select(Project).where(func.lower(Project.title).like(_like(qs), escape="\\")),
+                Project.company_id, _ids)
         .order_by(Project.created_at.desc()).limit(1)
     )
     return r.scalar_one_or_none()
@@ -1768,24 +1881,31 @@ async def _tool_get_project_details(args: dict, db: AsyncSession) -> dict:
 
 
 async def _tool_search_comments(args: dict, db: AsyncSession) -> dict:
+    """P0: поиск шёл по комментариям ВСЕГО портфеля (тексты обсуждений чужих
+    компаний). Комментарии не имеют company_id — скоупим через родителя."""
     query = (args.get("query") or "").strip()
     days_back = int(args.get("days_back", 90))
     limit = min(int(args.get("limit", 30)), 100)
     if not query:
         return {"error": "Параметр 'query' обязателен"}
+    # P1: пустой/вырожденный паттерн («%») выгружал всё подряд.
+    if len(query.replace("%", "").replace("_", "").strip()) < 2:
+        return {"error": "Уточните запрос: слишком общий поиск (нужно ≥2 значащих символа)."}
 
     cutoff = datetime.now(timezone.utc) - timedelta(days=days_back)
     matches: list[dict] = []
+    _ent = await _allowed_entity_ids(db)
 
     # Task comments
     try:
         from app.models.task import TaskComment, Task  # type: ignore[import]
-        r = await db.execute(
-            select(TaskComment).where(
-                func.lower(TaskComment.body).like(f"%{query.lower()}%"),
-                TaskComment.created_at >= cutoff,
-            ).order_by(TaskComment.created_at.desc()).limit(limit)
+        _q = select(TaskComment).where(
+            func.lower(TaskComment.body).like(_like(query), escape="\\"),
+            TaskComment.created_at >= cutoff,
         )
+        if _ent is not None:
+            _q = _q.where(TaskComment.task_id.in_(_ent))
+        r = await db.execute(_q.order_by(TaskComment.created_at.desc()).limit(limit))
         tcs = list(r.scalars().all())
         # Resolve task titles
         task_ids = list({c.task_id for c in tcs})
@@ -1806,12 +1926,13 @@ async def _tool_search_comments(args: dict, db: AsyncSession) -> dict:
     # Project comments
     try:
         from app.models.project import ProjectComment, Project  # type: ignore[import]
-        r = await db.execute(
-            select(ProjectComment).where(
-                func.lower(ProjectComment.body).like(f"%{query.lower()}%"),
-                ProjectComment.created_at >= cutoff,
-            ).order_by(ProjectComment.created_at.desc()).limit(limit)
+        _q = select(ProjectComment).where(
+            func.lower(ProjectComment.body).like(_like(query), escape="\\"),
+            ProjectComment.created_at >= cutoff,
         )
+        if _ent is not None:
+            _q = _q.where(ProjectComment.project_id.in_(_ent))
+        r = await db.execute(_q.order_by(ProjectComment.created_at.desc()).limit(limit))
         pcs = list(r.scalars().all())
         proj_ids = list({c.project_id for c in pcs})
         ptitle_map: dict = {}
@@ -1828,15 +1949,16 @@ async def _tool_search_comments(args: dict, db: AsyncSession) -> dict:
     except ImportError:
         pass
 
-    # General entity-based comments
+    # General entity-based comments (полиморфные: скоуп через родителя)
     try:
         from app.models.comment import Comment  # type: ignore[import]
-        r = await db.execute(
-            select(Comment).where(
-                func.lower(Comment.body).like(f"%{query.lower()}%"),
-                Comment.created_at >= cutoff,
-            ).order_by(Comment.created_at.desc()).limit(limit)
+        _q = select(Comment).where(
+            func.lower(Comment.body).like(_like(query), escape="\\"),
+            Comment.created_at >= cutoff,
         )
+        if _ent is not None:
+            _q = _q.where(Comment.entity_id.in_(_ent))
+        r = await db.execute(_q.order_by(Comment.created_at.desc()).limit(limit))
         for c in r.scalars().all():
             d = _model_to_dict(c)
             d["entity"] = getattr(c, "entity_type", "?")
@@ -1852,12 +1974,15 @@ async def _tool_search_comments(args: dict, db: AsyncSession) -> dict:
         try:
             import importlib
             mdl = getattr(importlib.import_module(model_path[0]), model_path[1])
-            r = await db.execute(
+            # BP/KPI-комментарии имеют company_id — скоупим напрямую.
+            _q = _scoped(
                 select(mdl).where(
-                    func.lower(mdl.body).like(f"%{query.lower()}%"),
+                    func.lower(mdl.body).like(_like(query), escape="\\"),
                     mdl.created_at >= cutoff,
-                ).order_by(mdl.created_at.desc()).limit(limit)
+                ),
+                mdl.company_id, await _scope_ids(db),
             )
+            r = await db.execute(_q.order_by(mdl.created_at.desc()).limit(limit))
             rows = list(r.scalars().all())
             co_ids = list({c.company_id for c in rows if getattr(c, "company_id", None)})
             co_map: dict = {}
@@ -2300,6 +2425,9 @@ async def _tool_list_companies(args: dict, db: AsyncSession) -> dict:
                 stmt = stmt.where(Company.sector_id == sec.id)
         except ImportError:
             pass
+    # P0: «перечисли компании портфеля» отдавало все 22 компании любому
+    # носителю ai.view — теперь только доступные актору.
+    stmt = _scoped(stmt, Company.id, await _scope_ids(db))
     res = await db.execute(stmt)
     cos = list(res.scalars().all())
     return {"count": len(cos), "companies": [_model_to_dict(c) for c in cos]}
@@ -2432,6 +2560,9 @@ async def _tool_get_procurement(args: dict, db: AsyncSession) -> dict:
                 func.lower(func.coalesce(ProcurementData.product_name, "")).like(f"%{product}%"),
                 func.lower(func.coalesce(ProcurementData.product_code, "")).like(f"%{product}%"),
             ))
+        # P0: без имени компании утекали строки закупок всего портфеля
+        # (товар, поставщик, цена) и агрегаты по поставщикам.
+        stmt = _scoped(stmt, ProcurementData.company_id, await _scope_ids(db))
         stmt = stmt.order_by(ProcurementData.total_amount.desc().nullslast()).limit(limit)
         rows = list((await db.execute(stmt)).scalars().all())
     except ImportError:
@@ -2471,6 +2602,7 @@ async def _tool_get_procurement(args: dict, db: AsyncSession) -> dict:
         if company_id: stmt = stmt.where(ProcurementContract.company_id == company_id)
         if year: stmt = stmt.where(ProcurementContract.year == year)
         if supplier: stmt = stmt.where(func.lower(ProcurementContract.supplier_name).like(f"%{supplier}%"))
+        stmt = _scoped(stmt, ProcurementContract.company_id, await _scope_ids(db))
         stmt = stmt.order_by(ProcurementContract.total_amount.desc().nullslast()).limit(limit)
         contracts = list((await db.execute(stmt)).scalars().all())
     except ImportError:
@@ -2539,6 +2671,8 @@ async def _tool_list_notes(args: dict, db: AsyncSession) -> dict:
     if entity_type: stmt = stmt.where(Note.entity_type == entity_type)
     if company_id: stmt = stmt.where(Note.company_id == company_id)
     if is_resolved is not None: stmt = stmt.where(Note.is_resolved == bool(is_resolved))
+    # P0: тела заметок (решения/риски) по всем компаниям при отсутствии фильтра.
+    stmt = _scoped(stmt, Note.company_id, await _scope_ids(db))
     stmt = stmt.order_by(Note.is_pinned.desc(), Note.created_at.desc()).limit(limit)
     res = await db.execute(stmt)
     notes = list(res.scalars().all())
@@ -2549,7 +2683,15 @@ async def _tool_list_notes(args: dict, db: AsyncSession) -> dict:
 
 
 async def _tool_list_notifications(args: dict, db: AsyncSession) -> dict:
-    recipient_email = args.get("recipient_email")
+    """Уведомления АКТОРА — и только его.
+
+    P0 аудита ИИ (июль 2026): фильтра по получателю не было вовсе, а
+    `recipient_email` был ЗАДАВАЕМЫМ МОДЕЛЬЮ параметром — то есть «покажи
+    уведомления у <чужой e-mail>» возвращало личную ленту любого человека
+    (тексты @mention, личные сообщения, решения) целиком, без права и без scope.
+    Чтение чужих ящиков не является функцией ассистента: получатель жёстко
+    фиксирован актором, параметр убран из схемы инструмента.
+    """
     priority = args.get("priority")
     is_read = args.get("is_read")
     source_module = args.get("source_module")
@@ -2559,29 +2701,31 @@ async def _tool_list_notifications(args: dict, db: AsyncSession) -> dict:
         from app.models.notification import Notification  # type: ignore[import]
     except ImportError:
         return {"error": "Модель Notification не доступна"}
+    actor = await _actor_user(db)
+    if actor is None:
+        return {"error": "Не удалось определить пользователя."}
     cutoff = datetime.now(timezone.utc) - timedelta(days=days_back)
-    stmt = select(Notification).where(Notification.created_at >= cutoff)
+    stmt = select(Notification).where(
+        Notification.created_at >= cutoff,
+        Notification.recipient_user_id == actor.id,
+    )
     if priority: stmt = stmt.where(Notification.priority == priority)
     if is_read is not None: stmt = stmt.where(Notification.is_read == bool(is_read))
     if source_module: stmt = stmt.where(Notification.source_module == source_module)
-    if recipient_email:
-        try:
-            from app.models.user import User  # type: ignore[import]
-            ur = await db.execute(select(User).where(User.email == recipient_email))
-            user = ur.scalar_one_or_none()
-            if user:
-                stmt = stmt.where(Notification.recipient_user_id == user.id)
-            else:
-                return {"error": f"Пользователь {recipient_email} не найден"}
-        except ImportError:
-            pass
     stmt = stmt.order_by(Notification.created_at.desc()).limit(limit)
     res = await db.execute(stmt)
     notifs = list(res.scalars().all())
-    return {"filter": {"recipient_email": recipient_email, "priority": priority,
+    # Whitelist полей вместо полного дампа модели (payload/JSONB не отдаём).
+    return {"filter": {"recipient": "актор (только свои уведомления)", "priority": priority,
                        "is_read": is_read, "source_module": source_module, "days_back": days_back},
             "notifications_count": len(notifs),
-            "notifications": [_model_to_dict(n) for n in notifs]}
+            "notifications": [{
+                "id": str(n.id), "type": getattr(n, "type", None),
+                "title": getattr(n, "title", None), "body": getattr(n, "body", None),
+                "priority": getattr(n, "priority", None), "is_read": getattr(n, "is_read", None),
+                "source_module": getattr(n, "source_module", None),
+                "created_at": _to_jsonable(getattr(n, "created_at", None)),
+            } for n in notifs]}
 
 
 async def _tool_get_moderation_queue(args: dict, db: AsyncSession) -> dict:
@@ -2605,6 +2749,10 @@ async def _tool_get_moderation_queue(args: dict, db: AsyncSession) -> dict:
     if status: stmt = stmt.where(ModerationSubmission.status == status)
     if target_module: stmt = stmt.where(ModerationSubmission.target_module == target_module)
     if company_id: stmt = stmt.where(ModerationSubmission.target_company_id == company_id)
+    # P0: очередь содержит ЕЩЁ НЕ УТВЕРЖДЁННЫЕ значения чужих данных
+    # (proposed_value/original_value) — скоупим безусловно, а не только когда
+    # компания названа.
+    stmt = _scoped(stmt, ModerationSubmission.target_company_id, await _scope_ids(db))
     stmt = stmt.order_by(ModerationSubmission.created_at.desc()).limit(limit)
     res = await db.execute(stmt)
     items = list(res.scalars().all())
@@ -2830,6 +2978,11 @@ async def _tool_list_status_updates(args: dict, db: AsyncSession) -> dict:
             stmt = stmt.where(StatusUpdate.entity_id == entity_id)
         if health:
             stmt = stmt.where(func.lower(StatusUpdate.health) == health)
+        # P0: StatusUpdate полиморфен (entity_type/entity_id, без company_id) —
+        # скоупим через множество РАЗРЕШЁННЫХ сущностей актора.
+        _ent = await _allowed_entity_ids(db)
+        if _ent is not None:
+            stmt = stmt.where(StatusUpdate.entity_id.in_(_ent))
         stmt = stmt.order_by(StatusUpdate.created_at.desc()).limit(limit)
         res = await db.execute(stmt)
         updates = [_model_to_dict(s, include_heavy=True) for s in res.scalars().all()]
@@ -3045,9 +3198,15 @@ async def _tool_delete_calendar_event(args: dict, db: AsyncSession) -> dict:
     except Exception:
         return {"error": "Некорректный event_id."}
     from app.models.note import Note  # type: ignore[import]
-    note = (await db.execute(select(Note).where(Note.id == euuid))).scalar_one_or_none()
+    # P1: выборка шла по ЛЮБОЙ заметке (kind не проверялся) — «удали встречу»
+    # могло стереть решение/риск-запись; и не было проверки доступа к компании.
+    note = (await db.execute(
+        select(Note).where(Note.id == euuid, Note.kind == "event")
+    )).scalar_one_or_none()
     if not note:
         return {"error": "Событие не найдено."}
+    if not await _in_scope(db, getattr(note, "company_id", None)):
+        return {"error": "Нет доступа к этой компании."}
     if note.author_id != actor.id and not _actor_is_admin(actor):
         return {"error": "Удалять можно только свои события (или быть администратором)."}
     await db.delete(note)
@@ -3056,17 +3215,30 @@ async def _tool_delete_calendar_event(args: dict, db: AsyncSession) -> dict:
 
 
 async def _tool_create_task(args: dict, db: AsyncSession) -> dict:
-    """Поставить задачу (Task), опционально назначить и уведомить исполнителя."""
+    """Поставить задачу (Task), опционально назначить и уведомить исполнителя.
+
+    P1 аудита: инструмент писал в БД без права `tasks.edit`, а компания была
+    НЕОБЯЗАТЕЛЬНОЙ — то есть scope обходился простым «не называть компанию»
+    (канонический REST-путь, routes/tasks.py, требует и право, и вхождение
+    компании в allowed_company_ids).
+    """
     actor = await _actor_user(db)
     if not actor:
         return {"error": "Не удалось определить пользователя."}
+    perm_err = await _require_perm(db, "tasks.edit")
+    if perm_err:
+        return {"error": perm_err}
     title = (args.get("title") or "").strip()
     if not title:
         return {"error": "Нужен 'title' задачи."}
     due = _parse_dt(args.get("due_date"))
+    if not (args.get("company") or "").strip():
+        return {"error": "Укажите компанию, для которой ставится задача."}
     company_id, err = await _check_company(db, actor, args.get("company"))
     if err:
         return {"error": err}
+    if company_id is None:
+        return {"error": "Не удалось определить компанию задачи."}
     assignee = None
     if args.get("assignee"):
         assignee = await _find_user_by_target(db, args.get("assignee"))
@@ -3156,24 +3328,38 @@ async def _tool_benchmark_company(args: dict, db: AsyncSession) -> dict:
     pctile = round((n - rank) / (n - 1) * 100) if n > 1 else 100
     port_avg = round(sum(r["pct"] for r in rows) / n)
     sec_rows = [r for r in rows if r["sector_id"] and r["sector_id"] == target["sector_id"]]
+    # P0-скоуп для бенчмарка: сам смысл инструмента — сравнение с портфелем,
+    # поэтому агрегаты (ранг, перцентиль, средние) считаем по всему портфелю,
+    # но ИМЕНА чужих компаний раскрываем только тем, кому доступен весь портфель.
+    # Иначе «бенчмарк» превращался в обходной путь получить лидеров/аутсайдеров.
+    _ids = await _scope_ids(db)
+    _named = _ids is None
     sector = None
     if sec_rows:
         sector = {"rank": sec_rows.index(target) + 1, "of": len(sec_rows),
-                  "avg_pct": round(sum(r["pct"] for r in sec_rows) / len(sec_rows)),
-                  "best": sec_rows[0]["name"], "worst": sec_rows[-1]["name"]}
+                  "avg_pct": round(sum(r["pct"] for r in sec_rows) / len(sec_rows))}
+        if _named:
+            sector["best"] = sec_rows[0]["name"]
+            sector["worst"] = sec_rows[-1]["name"]
     idx = rows.index(target)
+    portfolio = {"rank": rank, "of": n, "percentile": pctile, "avg_pct": port_avg}
+    if _named:
+        portfolio["best"] = rows[0]["name"]
+        portfolio["worst"] = rows[-1]["name"]
     return {
         "_meta": {"tool": "benchmark_company", "metric": "task_completion",
                   "note": "Бенчмарк по выполнению задач (live). Для полной картины "
                           "сравни ещё через get_kpi_summary / get_financials / "
-                          "get_ratings_history / compare_years."},
+                          "get_ratings_history / compare_years."
+                          + ("" if _named else " Имена других компаний скрыты: "
+                             "у пользователя нет доступа ко всему портфелю.")},
         "company": target["name"], "year": year,
         "value_pct": target["pct"], "done": target["done"], "total": target["total"],
-        "portfolio": {"rank": rank, "of": n, "percentile": pctile, "avg_pct": port_avg,
-                      "best": rows[0]["name"], "worst": rows[-1]["name"]},
+        "portfolio": portfolio,
         "sector": sector,
-        "neighbors": {"above": rows[idx - 1]["name"] if idx > 0 else None,
-                      "below": rows[idx + 1]["name"] if idx < n - 1 else None},
+        "neighbors": ({"above": rows[idx - 1]["name"] if idx > 0 else None,
+                       "below": rows[idx + 1]["name"] if idx < n - 1 else None}
+                      if _named else None),
     }
 
 
