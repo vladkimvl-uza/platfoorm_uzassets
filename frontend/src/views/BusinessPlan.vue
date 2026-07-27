@@ -288,7 +288,8 @@ const headerTitle = computed(() =>
 
 const headerSub = computed(() => {
   const p = BP_PERIODS.find((x) => x.key === state.selectedPeriod.value);
-  const lbl = p?.key === "annual" ? "годовой итог" : `нарастающим итогом за ${p?.label}`;
+  // Квартальный срез показывает величины ЗА квартал (дельты YTD-хранения).
+  const lbl = p?.key === "annual" ? "годовой итог" : `за квартал ${p?.label}`;
   if (state.viewMode.value === "summary" && state.summary.value) {
     return `FY ${state.selectedYear.value} · ${lbl} · ${state.summary.value.co_count} компаний · млрд сум`;
   }

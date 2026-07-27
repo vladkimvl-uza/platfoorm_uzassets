@@ -13,16 +13,18 @@
  * по правилам из легасиа (_bpRepaintStatBar, _bpAchievements).
  *
  * Данные:
- *  - props.computedData — current period (всегда передан)
- *  - prevYearAnnual — fetched для YoY base
+ *  - props.computedData — current period (всегда передан; кварталы = YTD-хранение,
+ *    отображение при q2..q4 — дельты «за квартал» через displayMetrics)
+ *  - prevYearCur/prevYearPrevQ — YoY-база: тот же период прошлого года (дельта)
  *  - annualForFooter — fetched когда period != annual (для KPI footer "Итог года")
- *  - quarterlyData — fetched 4 раза для SVG chart
+ *  - quarterlyData — fetched 4 раза для SVG chart (дельты; qYtdData — нараст. итог)
  *
  * Все save операции (комментарий) идут через bpApi → backend → PostgreSQL.
  */
 import { computed, ref, watch } from "vue";
 import Odometer from "@/components/Odometer.vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
+import BpQuarterDrillModal from "./BpQuarterDrillModal.vue";
 import { useToast } from "@/composables/useToast";
 import {
   BP_FIELDS,
@@ -55,8 +57,46 @@ const emit = defineEmits<{
 }>();
 
 // ─── Helpers ─────────────────────────────────────────────
+// «ЗА КВАРТАЛ» (решение владельца): при period=q2..q4 карточки/статусы/таблица
+// показывают ДЕЛЬТЫ ytd(period)−ytd(prev_q) — хранение и редактор остаются
+// нарастающим итогом (НСБУ). q1/annual — значения как есть. Null-guard: без
+// предыдущего YTD дельта не вычислима (полугодие не должно выглядеть «за Q2»).
+const PREV_Q: Record<string, string | null> = { annual: null, q1: null, q2: "q1", q3: "q2", q4: "q3" };
+const prevQComputed = ref<BpComputed | null>(null);
+
+async function loadPrevQuarter() {
+  const pq = PREV_Q[props.period] ?? null;
+  if (!pq) { prevQComputed.value = null; return; }
+  try {
+    prevQComputed.value = await bpApi.getComputed(props.computedData.company_id, props.year, pq as BpPeriod);
+  } catch {
+    prevQComputed.value = null;
+  }
+}
+watch(() => [props.computedData.company_id, props.year, props.period], () => loadPrevQuarter(), { immediate: true });
+
+function deltaMetrics(cur: Record<string, BpCell>, prev: Record<string, BpCell> | undefined): Record<string, BpCell> {
+  const out: Record<string, BpCell> = {};
+  for (const k of Object.keys(cur)) {
+    const c = cur[k] || { plan: null, expect: null, fact: null };
+    const p = prev?.[k];
+    const d = (a: string | number | null | undefined, b: string | number | null | undefined) =>
+      (a != null && b != null) ? num(a) - num(b) : null;
+    out[k] = { plan: d(c.plan, p?.plan), expect: d(c.expect, p?.expect), fact: d(c.fact, p?.fact), fact_auto: false };
+  }
+  return out;
+}
+
+/** Метрики для ОТОБРАЖЕНИЯ: q2..q4 → дельты, иначе как есть. */
+const displayMetrics = computed<Record<string, BpCell>>(() => {
+  const cur = props.computedData.metrics;
+  const pq = PREV_Q[props.period] ?? null;
+  if (!pq) return cur;
+  return deltaMetrics(cur, prevQComputed.value?.metrics);
+});
+
 function cell(key: string): BpCell {
-  return props.computedData.metrics[key] || { plan: null, expect: null, fact: null };
+  return displayMetrics.value[key] || { plan: null, expect: null, fact: null };
 }
 
 function fmtV(v: string | number | null | undefined): string {
@@ -78,20 +118,41 @@ interface StatCell {
   sub: string;
 }
 
-const prevYearAnnual = ref<BpComputed | null>(null);
+// YoY-база: ТОТ ЖЕ период прошлого года (для кварталов — дельта того же
+// квартала; раньше квартал сравнивался с ГОДОВЫМ фактом прошлого года).
+const prevYearCur = ref<BpComputed | null>(null);
+const prevYearPrevQ = ref<BpComputed | null>(null);
 const annualForFooter = ref<BpComputed | null>(null);
 
 async function loadPrevYearAnnual() {
   try {
-    prevYearAnnual.value = await bpApi.getComputed(
+    prevYearCur.value = await bpApi.getComputed(
       props.computedData.company_id,
       props.year - 1,
-      "annual",
+      props.period,
     );
   } catch {
-    prevYearAnnual.value = null;
+    prevYearCur.value = null;
+  }
+  const pq = PREV_Q[props.period] ?? null;
+  if (!pq) { prevYearPrevQ.value = null; return; }
+  try {
+    prevYearPrevQ.value = await bpApi.getComputed(
+      props.computedData.company_id, props.year - 1, pq as BpPeriod,
+    );
+  } catch {
+    prevYearPrevQ.value = null;
   }
 }
+
+/** YoY-метрики прошлого года в тех же единицах, что displayMetrics. */
+const prevDisplayMetrics = computed<Record<string, BpCell>>(() => {
+  const cur = prevYearCur.value?.metrics;
+  if (!cur) return {};
+  const pq = PREV_Q[props.period] ?? null;
+  if (!pq) return cur;
+  return deltaMetrics(cur, prevYearPrevQ.value?.metrics);
+});
 
 async function loadAnnualForFooter() {
   // Если просматриваемый period не annual, загружаем annual для KPI footer ("Итог года")
@@ -111,7 +172,7 @@ async function loadAnnualForFooter() {
 }
 
 watch(
-  () => [props.computedData.company_id, props.year],
+  () => [props.computedData.company_id, props.year, props.period],
   () => loadPrevYearAnnual(),
   { immediate: true },
 );
@@ -122,7 +183,7 @@ watch(
 );
 
 const statBand = computed<StatCell[]>(() => {
-  const m = props.computedData.metrics;
+  const m = displayMetrics.value;
 
   // 1. Общий прогресс — среднее % по revenue/opProfit/profit, capped at 1.5
   let sumPct = 0, cntPct = 0;
@@ -156,10 +217,10 @@ const statBand = computed<StatCell[]>(() => {
   const critSev = critical === 0 ? "ok" : critical <= 2 ? "warn" : "bad";
   const critSub = critical === 0 ? "всё в норме" : "требуют решения";
 
-  // 4. YoY (revenue)
+  // 4. YoY (revenue) — тот же период прошлого года (для кварталов — та же дельта).
   let yoyVal = "—", yoySev: StatCell["severity"] = "neutral", yoySub = `нет данных за ${props.year - 1}`;
   const curRev = m["revenue"]?.fact;
-  const prevRev = prevYearAnnual.value?.metrics["revenue"]?.fact;
+  const prevRev = prevDisplayMetrics.value["revenue"]?.fact;
   if (curRev != null && prevRev != null && num(prevRev) !== 0) {
     const d = (num(curRev) - num(prevRev)) / Math.abs(num(prevRev));
     yoyVal = (d >= 0 ? "▲ +" : "▼ ") + Math.round(Math.abs(d) * 100) + "%";
@@ -191,9 +252,9 @@ interface KpiCard {
 }
 
 const kpiCards = computed<KpiCard[]>(() => {
-  const m = props.computedData.metrics;
+  const m = displayMetrics.value;
   const annualSrc = props.period === "annual" ? m : (annualForFooter.value?.metrics || {});
-  const prev = prevYearAnnual.value?.metrics || {};
+  const prev = prevDisplayMetrics.value;
 
   const build = (key: string, label: string, accent: string, delay: number): KpiCard => {
     const c = m[key] || { plan: null, expect: null, fact: null };
@@ -256,7 +317,7 @@ interface Achievement {
 }
 
 const achievements = computed<Achievement[]>(() => {
-  const m = props.computedData.metrics;
+  const m = displayMetrics.value;
   const res: Achievement[] = [];
   for (const f of BP_FIELDS) {
     if (f.sub) continue;
@@ -273,7 +334,8 @@ const achievements = computed<Achievement[]>(() => {
 
 // ─── Quarterly chart data (lens-aware headline metric) ───
 interface QData { q: string; plan: number | null; expect: number | null; fact: number | null; }
-const quarterlyData = ref<QData[] | null>(null);
+const quarterlyData = ref<QData[] | null>(null);   // дельты «за квартал» (бары)
+const qYtdData = ref<QData[] | null>(null);        // нарастающий итог (тултип/дрилл)
 
 // Headline metric for the quarterly chart, matches the lens choice.
 // expenses → opExpenses (главный расходный бакет). all/income → revenue.
@@ -300,14 +362,43 @@ async function loadQuarterly() {
     }
     // КАНОН: хранимые кварталы — НАРАСТАЮЩИМ ИТОГОМ (НСБУ). «Квартальный тренд»
     // показывает величины ЗА квартал → конвертируем в дельты (честный null,
-    // когда предыдущий квартал не заполнен).
+    // когда предыдущий квартал не заполнен); YTD-ряд оставляем для тултипа/дрилла.
     const dp = ytdToDeltas(ytd.map(d => d.plan));
     const de = ytdToDeltas(ytd.map(d => d.expect));
     const df = ytdToDeltas(ytd.map(d => d.fact));
+    qYtdData.value = ytd;
     quarterlyData.value = ytd.map((d, i) => ({ q: d.q, plan: dp[i], expect: de[i], fact: df[i] }));
   } catch {
     quarterlyData.value = null;
+    qYtdData.value = null;
   }
+}
+
+// ─── Интерактив «Квартального тренда»: hover-тултип + клик → разбор квартала ──
+const hoveredQ = ref<number | null>(null);
+const qDrill = ref<null | {
+  q: string; plan: number | null; fact: number | null; expect?: number | null;
+  planDelta: number | null; factDelta: number | null;
+  cum: number | null; label: string; unit: string;
+}>(null);
+
+function qTip(i: number) {
+  const d = quarterlyData.value?.[i];
+  const y = qYtdData.value?.[i];
+  const pct = (y?.plan != null && y.plan !== 0 && y.fact != null)
+    ? Math.round((y.fact / y.plan) * 100) : null;
+  return { d, y, pct, gap: d?.fact == null && y?.fact != null };
+}
+function openQuarterDrill(i: number) {
+  const y = qYtdData.value?.[i];
+  const d = quarterlyData.value?.[i];
+  if (!y || !d) return;
+  qDrill.value = {
+    q: y.q, plan: y.plan, fact: y.fact, expect: y.expect,
+    planDelta: d.plan, factDelta: d.fact,
+    cum: y.fact ?? y.expect ?? y.plan,
+    label: chartLabel.value, unit: "млрд сум",
+  };
 }
 watch(
   () => [props.computedData.company_id, props.year, props.lens],
@@ -386,9 +477,10 @@ const detailsFields = computed(() => {
 
 // ─── Period label ──────────────────────────────────────
 const periodLabel = computed(() => {
+  // Значения экрана при квартале — ДЕЛЬТЫ «за квартал» (displayMetrics).
   return props.period === "annual"
     ? "годовой итог"
-    : `нарастающим итогом за ${props.period.toUpperCase()}`;
+    : `за квартал ${props.period.toUpperCase()}`;
 });
 
 const factAutoCount = computed(() => {
@@ -544,8 +636,13 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
                 <!-- нулевая база (заметна при отрицательных дельтах) -->
                 <line v-if="chartMin < 0" :x1="PAD_L" :y1="chartBaseY" :x2="CHART_W - PAD_R" :y2="chartBaseY" stroke="#B9B6C9" stroke-width="1" stroke-dasharray="3 3"/>
               </g>
-              <!-- Bars -->
-              <g v-for="(d, idx) in quarterlyData" :key="d.q">
+              <!-- Bars (кликабельные группы: hover-тултип + дрилл квартала) -->
+              <g v-for="(d, idx) in quarterlyData" :key="d.q"
+                 class="bpvq-grp" :class="{ on: hoveredQ === idx }"
+                 @mouseenter="hoveredQ = idx" @mouseleave="hoveredQ = null"
+                 @click="openQuarterDrill(idx)">
+                <!-- hover-подсветка слота -->
+                <rect :x="PAD_L + gw * idx" :y="PAD_T" :width="gw" :height="innerH" class="bpvq-slot" rx="6"/>
                 <!-- Plan (offset -1.5) -->
                 <rect v-if="barGeometry(d.plan, idx, -1.5)" v-bind="barGeometry(d.plan, idx, -1.5)!" fill="#CECBF6" rx="2"/>
                 <rect v-if="barGeometry(d.plan, idx, -1.5)" v-bind="barGeometry(d.plan, idx, -1.5)!" fill="url(#bpvBarSheen)" rx="2" pointer-events="none"/>
@@ -559,12 +656,26 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
                 <text :x="PAD_L + gw * (idx + 0.5)" :y="CHART_H - 8" font-size="10" fill="#64748B" text-anchor="middle" font-weight="500">{{ d.q.toUpperCase() }}</text>
               </g>
             </svg>
+
+            <!-- Hover-тултип: за квартал / нараст. итогом / % с начала года -->
+            <div v-if="hoveredQ != null && quarterlyData" class="bpvq-tip"
+                 :style="{ left: ((PAD_L + gw * (hoveredQ + 0.5)) / CHART_W * 100) + '%' }">
+              <div class="bpvq-tip-h">{{ quarterlyData[hoveredQ].q.toUpperCase() }} · {{ chartLabel.toLowerCase() }}</div>
+              <div class="bpvq-tip-r"><span>За квартал · план</span><b>{{ qTip(hoveredQ).d?.plan != null ? bpFmt(qTip(hoveredQ).d!.plan!) : '—' }}</b></div>
+              <div class="bpvq-tip-r"><span>За квартал · факт</span><b>{{ qTip(hoveredQ).d?.fact != null ? bpFmt(qTip(hoveredQ).d!.fact!) : '—' }}</b></div>
+              <div v-if="qTip(hoveredQ).gap" class="bpvq-tip-note">за квартал не вычислимо: нет данных предыдущего квартала</div>
+              <div class="bpvq-tip-r"><span>Нараст. план</span><b>{{ qTip(hoveredQ).y?.plan != null ? bpFmt(qTip(hoveredQ).y!.plan!) : '—' }}</b></div>
+              <div class="bpvq-tip-r"><span>Нараст. факт</span><b>{{ qTip(hoveredQ).y?.fact != null ? bpFmt(qTip(hoveredQ).y!.fact!) : '—' }}</b></div>
+              <div v-if="qTip(hoveredQ).pct != null" class="bpvq-tip-r"><span>Исполнение с начала года</span><b>{{ qTip(hoveredQ).pct }}%</b></div>
+              <div class="bpvq-tip-cta">Открыть разбор →</div>
+            </div>
           </div>
           <div class="bpv-chart-lgd">
             <span><span class="dot" style="background:#7F77DD"></span>План</span>
             <span><span class="dot" style="background:#EF9F27"></span>Ожидание</span>
             <span><span class="dot" style="background:#5DC093"></span>Факт</span>
           </div>
+          <BpQuarterDrillModal v-if="qDrill" v-bind="qDrill" :fmt="bpFmt" @close="qDrill = null" />
         </div>
 
         <!-- Attention -->
@@ -893,6 +1004,23 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
 
 /* Chart */
 .bpv-chart-wrap { height: 180px; position: relative; }
+/* Интерактивные кварталы: слот подсвечивается, курсор — кликабельность */
+.bpvq-grp { cursor: pointer; }
+.bpvq-slot { fill: transparent; transition: fill .14s; }
+.bpvq-grp.on .bpvq-slot { fill: rgba(124, 111, 247, .07); }
+.bpvq-tip {
+  position: absolute; top: 2px; transform: translateX(-50%);
+  background: #1B1730; color: #fff; border-radius: 10px; padding: 9px 11px;
+  font-size: 11px; min-width: 170px; pointer-events: none; z-index: 5;
+  box-shadow: 0 12px 30px rgba(20, 16, 50, .4); animation: bpvqTipIn .14s ease;
+}
+@keyframes bpvqTipIn { from { opacity: 0; transform: translateX(-50%) translateY(-4px); } to { opacity: 1; transform: translateX(-50%); } }
+.bpvq-tip-h { font-size: 12px; font-weight: 700; margin-bottom: 5px; }
+.bpvq-tip-r { display: flex; justify-content: space-between; gap: 14px; padding: 1.5px 0; }
+.bpvq-tip-r span { color: rgba(255, 255, 255, .55); }
+.bpvq-tip-r b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.bpvq-tip-note { font-size: 9.5px; color: #F2C4C3; padding: 2px 0; }
+.bpvq-tip-cta { margin-top: 6px; padding-top: 5px; border-top: 1px solid rgba(255, 255, 255, .12); color: #C7C2F0; font-size: 10px; }
 .bpv-chart-empty {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   height: 100%; color: var(--t3, var(--t-muted)); font-size: 12px; text-align: center; gap: 3px;

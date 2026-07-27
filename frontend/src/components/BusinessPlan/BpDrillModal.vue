@@ -61,16 +61,25 @@ interface CoRow {
 
 const coRows = ref<CoRow[]>([]);
 const computedData = ref<BpComputed | null>(null);
-const prevYearAnnual = ref<BpComputed | null>(null);
+// YoY-база: ТОТ ЖЕ период прошлого года (для кварталов — та же дельта).
+const prevYearBase = ref<BpComputed | null>(null);
 const quarterly = ref<{ q: string; plan: number | null; expect: number | null; fact: number | null }[]>([]);
 
 // ──────────────────────────────────────────────────────────────────
 //   Load functions per mode
 // ──────────────────────────────────────────────────────────────────
 
+// «ЗА КВАРТАЛ»: при period=q2..q4 модалка показывает дельты ytd(q)−ytd(q−1)
+// (консистентно со сводкой/company-вью); хранение — нарастающим итогом (НСБУ).
+const PREV_Q: Record<string, string | null> = { annual: null, q1: null, q2: "q1", q3: "q2", q4: "q3" };
+function dOf(a: string | number | null | undefined, b: string | number | null | undefined): number | null {
+  return (a != null && b != null) ? num(a) - num(b) : null;
+}
+
 async function loadKpiOrPnlMode() {
   if (props.mode !== "kpi" && props.mode !== "pnl-line") return;
   if (!activeMetric.value) return;
+  const pq = PREV_Q[props.period] ?? null;
   const rows: CoRow[] = [];
   const cos = await bpApi.availableCompanies();
   for (const co of cos) {
@@ -79,8 +88,14 @@ async function loadKpiOrPnlMode() {
       const c = await bpApi.getComputed(co.company_id, props.year, props.period);
       const cell = c.metrics[activeMetric.value];
       if (!cell) continue;
-      const plan = cell.plan != null ? num(cell.plan) : null;
-      const fact = cell.fact != null ? num(cell.fact) : null;
+      let plan = cell.plan != null ? num(cell.plan) : null;
+      let fact = cell.fact != null ? num(cell.fact) : null;
+      if (pq) {
+        const pc = await bpApi.getComputed(co.company_id, props.year, pq as BpPeriod);
+        const pcell = pc.metrics[activeMetric.value];
+        plan = dOf(cell.plan, pcell?.plan);
+        fact = dOf(cell.fact, pcell?.fact);
+      }
       rows.push({
         company_id: co.company_id,
         name: co.company_name_ru,
@@ -97,13 +112,44 @@ async function loadKpiOrPnlMode() {
 async function loadCompanyMode() {
   if (props.mode !== "company" || !props.companyId) return;
   try {
-    computedData.value = await bpApi.getComputed(props.companyId, props.year, props.period);
+    const cur = await bpApi.getComputed(props.companyId, props.year, props.period);
+    const pq = PREV_Q[props.period] ?? null;
+    if (pq) {
+      // Дельты по всем метрикам (null-guard; при недоступном пред. квартале —
+      // честные null, а не YTD под ярлыком «за квартал»).
+      let prevM: Record<string, any> | undefined;
+      try { prevM = (await bpApi.getComputed(props.companyId, props.year, pq as BpPeriod)).metrics; } catch { prevM = undefined; }
+      const metrics: typeof cur.metrics = {};
+      for (const k of Object.keys(cur.metrics)) {
+        const c = cur.metrics[k];
+        const p = prevM?.[k];
+        metrics[k] = { plan: dOf(c.plan, p?.plan), expect: dOf(c.expect, p?.expect), fact: dOf(c.fact, p?.fact), fact_auto: false };
+      }
+      computedData.value = { ...cur, metrics };
+    } else {
+      computedData.value = cur;
+    }
   } catch (e) { console.error("[bpDrill] company:", e); }
 
-  // Previous year for YoY
+  // Previous year for YoY — ТОТ ЖЕ период прошлого года (для кварталов — дельта
+  // того же квартала; раньше квартал сравнивался с годовым фактом → бессмыслица).
   try {
-    prevYearAnnual.value = await bpApi.getComputed(props.companyId, props.year - 1, "annual");
-  } catch { prevYearAnnual.value = null; }
+    const pcur = await bpApi.getComputed(props.companyId, props.year - 1, props.period);
+    const pq = PREV_Q[props.period] ?? null;
+    if (pq) {
+      let ppm: Record<string, any> | undefined;
+      try { ppm = (await bpApi.getComputed(props.companyId, props.year - 1, pq as BpPeriod)).metrics; } catch { ppm = undefined; }
+      const metrics: typeof pcur.metrics = {};
+      for (const k of Object.keys(pcur.metrics)) {
+        const c = pcur.metrics[k];
+        const p = ppm?.[k];
+        metrics[k] = { plan: dOf(c.plan, p?.plan), expect: dOf(c.expect, p?.expect), fact: dOf(c.fact, p?.fact), fact_auto: false };
+      }
+      prevYearBase.value = { ...pcur, metrics };
+    } else {
+      prevYearBase.value = pcur;
+    }
+  } catch { prevYearBase.value = null; }
 
   // Quarterly trend (4 calls). КАНОН: хранимые кварталы — НАРАСТАЮЩИМ ИТОГОМ
   // (НСБУ) → «динамика кварталов» показывает дельты «за квартал» (честный null,
@@ -335,7 +381,7 @@ interface KpiHero {
 const kpiHeroes = computed<KpiHero[]>(() => {
   if (!computedData.value) return [];
   const m = computedData.value.metrics;
-  const prev = prevYearAnnual.value?.metrics || {};
+  const prev = prevYearBase.value?.metrics || {};
   const build = (key: string, label: string, accent: string): KpiHero => {
     const c = m[key] || { plan: null, expect: null, fact: null };
     const fact = c.fact != null ? num(c.fact) : null;
@@ -485,7 +531,8 @@ const headerTitle = computed(() => {
 });
 
 const periodLabel = computed(() => {
-  const p = props.period === "annual" ? "годовой итог" : `нарастающим итогом за ${props.period.toUpperCase()}`;
+  // Квартальный срез = величины ЗА квартал (дельты YTD-хранения).
+  const p = props.period === "annual" ? "годовой итог" : `за квартал ${props.period.toUpperCase()}`;
   return `FY ${props.year} · ${p}`;
 });
 

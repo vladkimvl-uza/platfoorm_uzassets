@@ -188,11 +188,85 @@ class BpService:
 
             session = self.uow._session  # type: ignore[attr-defined]
 
+            # «ЗА КВАРТАЛ» (решение владельца): квартальный срез сводки показывает
+            # ДЕЛЬТЫ ytd(q)−ytd(q−1) во всех агрегатах (KPI-карточки, по компаниям,
+            # секторы, YoY) — хранение остаётся нарастающим итогом (НСБУ), q1 ≡ ytd(q1),
+            # annual — значения как есть. Null-guard по компании: без предыдущего
+            # YTD дельта не вычислима (полугодие не должно лечь в «Q2»).
+            _PREV_Q = {"q1": None, "q2": "q1", "q3": "q2", "q4": "q3"}
+            prev_q: Optional[str] = _PREV_Q.get(period)
+            delta_metrics = list(dict.fromkeys([*metrics_for_summary, headline_metric]))
+
+            def _delta_cell(cur: dict, prevq: Optional[dict]) -> dict:
+                out: dict = {}
+                for c in ("plan", "expect", "fact"):
+                    v = cur.get(c)
+                    if prevq is None:
+                        out[c] = v
+                    elif v is not None and prevq.get(c) is not None:
+                        out[c] = Decimal(v) - Decimal(prevq[c])
+                    else:
+                        out[c] = None
+                return out
+
+            # by_quarter-аккумуляторы (cum + дельты + покрытие) — заполняются в том же
+            # цикле: bp_compute кварталов переиспользуется и для дельт среза.
+            qkeys = ("q1", "q2", "q3", "q4")
+            cols = ("plan", "expect", "fact")
+            cum_sums = {q: {c: Decimal(0) for c in cols} for q in qkeys}
+            cum_has = {q: {c: False for c in cols} for q in qkeys}
+            d_sums = {q: {c: Decimal(0) for c in cols} for q in qkeys}
+            d_has = {q: {c: False for c in cols} for q in qkeys}
+            cov_cum = {q: 0 for q in qkeys}
+            cov_delta = {q: 0 for q in qkeys}
+
             for co in cos_full:
-                comp = await bp_compute(session, co.id, year, period)
-                # YoY — за ТОТ ЖE период прошлого года (а не всегда годовой),
-                # иначе квартал текущего года делился на годовой факт прошлого → бессмыслица.
-                prev = await bp_compute(session, co.id, year - 1, period)
+                qcomp_all: dict[str, dict] = {}
+                for q in qkeys:
+                    qcomp_all[q] = await bp_compute(session, co.id, year, q)
+
+                if period == "annual":
+                    comp = await bp_compute(session, co.id, year, period)
+                    # YoY — за ТОТ ЖЕ период прошлого года.
+                    prev = await bp_compute(session, co.id, year - 1, period)
+                else:
+                    cur = qcomp_all[period]
+                    curprev = qcomp_all[prev_q] if prev_q else None
+                    comp = {
+                        m: _delta_cell(cur[m], curprev[m] if curprev else None)
+                        for m in delta_metrics
+                    }
+                    # YoY — дельта ТОГО ЖЕ квартала прошлого года (не YTD и не год).
+                    py_cur = await bp_compute(session, co.id, year - 1, period)
+                    py_prev = (
+                        await bp_compute(session, co.id, year - 1, prev_q)
+                        if prev_q else None
+                    )
+                    prev = {
+                        m: _delta_cell(py_cur[m], py_prev[m] if py_prev else None)
+                        for m in delta_metrics
+                    }
+
+                # by_quarter: серия headline-метрики этой компании (cum + дельты).
+                cells = [qcomp_all[q][headline_metric] for q in qkeys]
+                for c in cols:
+                    ytd = [
+                        Decimal(cell[c]) if cell[c] is not None else None
+                        for cell in cells
+                    ]
+                    deltas = ytd_to_deltas(ytd)
+                    for i, q in enumerate(qkeys):
+                        if ytd[i] is not None:
+                            cum_sums[q][c] += ytd[i]
+                            cum_has[q][c] = True
+                            if c == "fact":
+                                cov_cum[q] += 1
+                        if deltas[i] is not None:
+                            d_sums[q][c] += deltas[i]
+                            d_has[q][c] = True
+                            if c == "fact":
+                                cov_delta[q] += 1
+
                 for m in metrics_for_summary:
                     for c in ("plan", "fact", "expect"):
                         v = comp[m][c]
@@ -237,40 +311,8 @@ class BpService:
             ]
             by_sector.sort(key=lambda r: -float(r.sum_revenue))
 
-            # by_quarter: кварталы хранятся НАРАСТАЮЩИМ ИТОГОМ (НСБУ) — отдаём обе
-            # серии: cum_* (Σ хранимых YTD по компаниям) и *_delta («за квартал»).
-            # Дельты считаются ПО КОМПАНИИ (ytd_to_deltas, null-guard) ДО суммирования:
-            # иначе полугодие компании без q1 целиком легло бы в дельту Q2.
-            qkeys = ("q1", "q2", "q3", "q4")
-            cols = ("plan", "expect", "fact")
-            cum_sums = {q: {c: Decimal(0) for c in cols} for q in qkeys}
-            cum_has = {q: {c: False for c in cols} for q in qkeys}
-            d_sums = {q: {c: Decimal(0) for c in cols} for q in qkeys}
-            d_has = {q: {c: False for c in cols} for q in qkeys}
-            cov_cum = {q: 0 for q in qkeys}
-            cov_delta = {q: 0 for q in qkeys}
-            for co in cos_full:
-                cells = []
-                for q in qkeys:
-                    qcomp = await bp_compute(session, co.id, year, q)
-                    cells.append(qcomp[headline_metric])
-                for c in cols:
-                    ytd = [
-                        Decimal(cell[c]) if cell[c] is not None else None
-                        for cell in cells
-                    ]
-                    deltas = ytd_to_deltas(ytd)
-                    for i, q in enumerate(qkeys):
-                        if ytd[i] is not None:
-                            cum_sums[q][c] += ytd[i]
-                            cum_has[q][c] = True
-                            if c == "fact":
-                                cov_cum[q] += 1
-                        if deltas[i] is not None:
-                            d_sums[q][c] += deltas[i]
-                            d_has[q][c] = True
-                            if c == "fact":
-                                cov_delta[q] += 1
+            # by_quarter: обе серии — cum_* (Σ хранимых YTD) и *_delta («за квартал»);
+            # аккумуляторы заполнены в цикле по компаниям выше.
             by_quarter: list[BpQuarterRow] = []
             for q in qkeys:
                 _cum = {c: (cum_sums[q][c] if cum_has[q][c] else None) for c in cols}
