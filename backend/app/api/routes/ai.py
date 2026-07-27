@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+import time
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -28,7 +29,6 @@ from app.core.access import (
     has_unrestricted_view,
 )
 from app.config import settings
-from app.core.rate_limit import limiter
 from app.core.security import has_effective_permission, require_permission
 from app.dependencies.ai import AiAdminServiceDep
 from app.models.ai import AIConfig
@@ -83,6 +83,53 @@ def require_admin(user: User = Depends(get_current_user)) -> User:
     if not is_super_admin(user):
         raise HTTPException(status_code=403, detail="Admin access required")
     return user
+
+
+# ─── Rate-limit ИИ-роутов (P1 аудита) ────────────────────────────
+# ВАЖНО: НЕ через декоратор slowapi @limiter.limit — он оборачивает функцию
+# (functools.wraps), и FastAPI перестаёт резолвить аннотации из модуля роутов
+# → `PydanticUndefinedAnnotation: ExecBriefRequest`, и ВЕСЬ роутер /ai не
+# монтируется (проверено на проде: 71 → 70 роутеров, все /ai/* = 404).
+# Поэтому лимит — ЗАВИСИМОСТЬЮ: сигнатуры роутов не меняются.
+_AI_RL: dict[tuple[str, str], list[float]] = {}
+
+
+def _rl_per_minute(spec: object, default: int) -> int:
+    try:
+        return int(str(spec).split("/", 1)[0])
+    except (ValueError, AttributeError):
+        return default
+
+
+def ai_rate_limit(name: str, spec: object, default: int):
+    """Скользящее окно в 1 минуту; ключ — пользователь (иначе IP)."""
+    per_minute = _rl_per_minute(spec, default)
+
+    async def _dep(request: Request, user: User = Depends(get_current_user)) -> None:
+        if not getattr(settings, "RATE_LIMIT_ENABLED", True):
+            return
+        uid = str(getattr(user, "id", "") or "") or (
+            request.client.host if request.client else "?")
+        key = (name, uid)
+        now = time.monotonic()
+        window = _AI_RL.setdefault(key, [])
+        window[:] = [t for t in window if t > now - 60.0]
+        if len(window) >= per_minute:
+            raise HTTPException(
+                status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=("Слишком много запросов к ИИ. Подождите минуту "
+                        f"(лимит {per_minute}/мин)."),
+            )
+        window.append(now)
+        if len(_AI_RL) > 5000:      # не даём словарю расти бесконечно
+            for k in [k for k, v in _AI_RL.items() if not v]:
+                _AI_RL.pop(k, None)
+
+    return _dep
+
+
+_RL_CHAT = ai_rate_limit("chat", getattr(settings, "RATE_LIMIT_AI_CHAT", "20/minute"), 20)
+_RL_HEAVY = ai_rate_limit("heavy", getattr(settings, "RATE_LIMIT_AI_HEAVY", "10/minute"), 10)
 
 
 # Доступ к пользовательскому ИИ (чат + беседы) — по праву ai.view, которое
@@ -241,11 +288,9 @@ async def set_ai_activation(
 
 
 # ─── ИИ-прогноз (структурный, для авто-заполнения таблиц) ─────────
-@router.post("/forecast")
-@limiter.limit(settings.RATE_LIMIT_AI_HEAVY)
+@router.post("/forecast", dependencies=[Depends(_RL_HEAVY)])
 async def ai_forecast(
     payload: dict,
-    request: Request,
     user: User = Depends(require_ai_access),
     db: AsyncSession = Depends(get_db),
 ):
@@ -459,11 +504,9 @@ async def save_ai_output(
 
 
 # ─── ИИ-анализ высокоуровневых показателей (кросс-компанийный) ─────
-@router.post("/hlf-analysis")
-@limiter.limit(settings.RATE_LIMIT_AI_HEAVY)
+@router.post("/hlf-analysis", dependencies=[Depends(_RL_HEAVY)])
 async def ai_hlf_analysis(
     payload: dict,
-    request: Request,
     user: User = Depends(require_ai_access),
     db: AsyncSession = Depends(get_db),
 ):
@@ -586,11 +629,9 @@ async def ai_hlf_analysis(
     return {"analysis": (text or "").strip()}
 
 
-@router.post("/kpi-analysis")
-@limiter.limit(settings.RATE_LIMIT_AI_HEAVY)
+@router.post("/kpi-analysis", dependencies=[Depends(_RL_HEAVY)])
 async def ai_kpi_analysis(
     payload: dict,
-    request: Request,
     user: User = Depends(require_ai_access),
     db: AsyncSession = Depends(get_db),
 ):
@@ -845,11 +886,9 @@ async def ai_kpi_analysis(
     return {"analysis": (text or "").strip()}
 
 
-@router.post("/bp-analysis")
-@limiter.limit(settings.RATE_LIMIT_AI_HEAVY)
+@router.post("/bp-analysis", dependencies=[Depends(_RL_HEAVY)])
 async def ai_bp_analysis(
     payload: dict,
-    request: Request,
     user: User = Depends(require_ai_access),
     db: AsyncSession = Depends(get_db),
 ):
@@ -1067,11 +1106,9 @@ EXEC_BRIEF_INSTRUCTIONS = (
 )
 
 
-@router.post("/exec-sector-brief")
-@limiter.limit(settings.RATE_LIMIT_AI_HEAVY)
+@router.post("/exec-sector-brief", dependencies=[Depends(_RL_HEAVY)])
 async def exec_sector_brief(
     payload: ExecBriefRequest,
-    request: Request,
     user: User = Depends(require_ai_access),
     db: AsyncSession = Depends(get_db),
 ):
@@ -1194,6 +1231,7 @@ async def rename_conversation(
 _CHAT_HISTORY_WINDOW = 40
 
 
+
 def _capture_sse_block(line_block: str, events: list, tool_calls: list) -> None:
     """Разобрать один SSE-кадр и сложить в накопители для записи в БД/аудит."""
     evt_name = "message"
@@ -1218,8 +1256,7 @@ def _capture_sse_block(line_block: str, events: list, tool_calls: list) -> None:
     elif isinstance(obj, dict) and obj.get("type"):
         events.append(obj)
 
-@router.post("/chat")
-@limiter.limit(settings.RATE_LIMIT_AI_CHAT)
+@router.post("/chat", dependencies=[Depends(_RL_CHAT)])
 async def chat(
     payload: ChatRequest,
     service: AiAdminServiceDep,
