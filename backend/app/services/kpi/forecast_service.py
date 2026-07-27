@@ -150,11 +150,21 @@ class KpiForecastService:
                         if oind is None:
                             continue
                         _plan_o, fact_o, _src = kpi_year_pair(oind)
+                        qp_o = [getattr(oind, f"q{i}_plan", None) for i in (1, 2, 3, 4)]
+                        qf_o = [getattr(oind, f"q{i}_fact", None) for i in (1, 2, 3, 4)]
                         if fact_o is not None:
                             syears.append(y)
                             svals.append(float(fact_o))
-                        hist_qp.append([getattr(oind, f"q{i}_plan", None) for i in (1, 2, 3, 4)])
-                        hist_qf.append([getattr(oind, f"q{i}_fact", None) for i in (1, 2, 3, 4)])
+                        elif y == hist[-1] and any(x is not None for x in qf_o):
+                            # Незакрытый последний год: честная pace-оценка по его
+                            # кварталам (метод 'plan' не годится — это не факт).
+                            qr = forecast_quarters(qp_o, qf_o)
+                            if (qr.method in ("pace", "seasonal", "run_rate", "actual")
+                                    and qr.expected_year is not None):
+                                syears.append(y)
+                                svals.append(float(qr.expected_year))
+                        hist_qp.append(qp_o)
+                        hist_qf.append(qf_o)
                     if not syears:
                         inds_out.append(KpiPlanDraftIndicator(
                             name=nm, manager=mgr_title,

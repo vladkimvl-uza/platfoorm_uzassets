@@ -94,7 +94,13 @@ class BpForecastService:
         async with self.uow:
             session = self.uow._session  # type: ignore[attr-defined]
             years = await self.uow.bp.years_for_company(company_id)
-            hist = sorted(y for y in years if y < target_year)[-_MAX_HISTORY:]
+            # История ШИРЕ годов bp_records: НСБУ-факты существуют и за годы без
+            # строк БП (bp_compute с nsbu_fallback их достаёт) — пробуем весь
+            # диапазон, пустые годы отпадут сами (значений не будет).
+            hist = sorted({
+                *(y for y in years if y < target_year),
+                *range(target_year - _MAX_HISTORY, target_year),
+            })[-_MAX_HISTORY:]
             if not hist:
                 return BpPlanDraft(
                     company_id=company_id, target_year=target_year,
@@ -103,7 +109,7 @@ class BpForecastService:
             annual_by_year = {
                 y: await bp_compute(
                     session, company_id, y, "annual",
-                    nsbu_fallback=(y >= target_year - 3),
+                    nsbu_fallback=(y >= target_year - 4),
                 )
                 for y in hist
             }
@@ -115,6 +121,7 @@ class BpForecastService:
             }
             input_keys = [m["key"] for m in BP_METRICS if not m.get("auto")]
             last_hist = hist[-1]
+            used_years: set[int] = set()
             metrics_out: list[BpPlanDraftMetric] = []
             for k in input_keys:
                 label = BP_METRIC_LABELS.get(k, k)
@@ -125,9 +132,22 @@ class BpForecastService:
                     v = _f(cell.get("fact"))
                     if v is None and y == last_hist:
                         v = _f(cell.get("expect"))   # текущий год — свежая оценка
+                    if v is None and y == last_hist:
+                        # Годовой факт/ожидаемое не закрыты, но есть кварталы —
+                        # честная pace-оценка года (только при наличии ФАКТ-кварталов;
+                        # method='plan' не годится — это не оценка факта).
+                        qcells = q_by_year.get(y)
+                        if qcells:
+                            dpl = [_f(x) for x in ytd_to_deltas([c[k]["plan"] for c in qcells])]
+                            dfc = [_f(x) for x in ytd_to_deltas([c[k]["fact"] for c in qcells])]
+                            if any(x is not None for x in dfc):
+                                qr = forecast_quarters(dpl, dfc)
+                                if qr.method in ("pace", "seasonal", "run_rate", "actual"):
+                                    v = _f(qr.expected_year)
                     if v is not None:
                         syears.append(y)
                         svals.append(v)
+                        used_years.add(y)
                 if not syears:
                     metrics_out.append(BpPlanDraftMetric(
                         key=k, label=label, note="Нет истории факта"))
@@ -175,10 +195,12 @@ class BpForecastService:
                     method=af.method, confidence=af.confidence, note=af.note,
                 ))
             return BpPlanDraft(
-                company_id=company_id, target_year=target_year, base_years=hist,
+                company_id=company_id, target_year=target_year,
+                base_years=sorted(used_years) or hist,
                 metrics=metrics_out,
-                note=("Черновик из истории — применяется только в пустые ячейки "
-                      "плана; кварталы нарастающим итогом"),
+                note=("Черновик из истории (факты НСБУ/БП; незакрытый год — "
+                      "pace-оценка по кварталам) — применяется только в пустые "
+                      "ячейки плана; кварталы нарастающим итогом"),
             )
 
     async def quarter_outlook(
