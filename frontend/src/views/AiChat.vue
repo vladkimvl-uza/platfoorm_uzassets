@@ -9,10 +9,12 @@
       :items="conversations"
       :active-id="chat.conversationId.value"
       :loading="convLoading"
+      :error="convError"
       @new-chat="newChat"
       @select="selectConversation"
       @delete="onDeleteConv"
       @renamed="onRenamed"
+      @retry="loadConversations"
       @open-settings="settingsOpen = true"
     />
 
@@ -288,15 +290,35 @@ const convLoading = ref(false);
 const settingsOpen = ref(false);
 const bodyRef = ref<HTMLElement | null>(null);
 
+// P1 аудита: обе загрузки глотали исключение. Сбой сервера выглядел как
+// «история пуста» — пользователь делал вывод, что переписка УДАЛЕНА, а
+// пропавшая строка статуса не отличалась от «ИИ выключен». Канон платформы:
+// никаких тихих провалов — различаем «пусто» и «ошибка».
+const healthError = ref(false);
+const convError = ref<string | null>(null);
+
 async function loadHealth() {
-  try { health.value = await getHealth(); } catch { health.value = null; }
+  try {
+    health.value = await getHealth();
+    healthError.value = false;
+  } catch {
+    health.value = null;
+    healthError.value = true;
+  }
 }
 
 async function loadConversations() {
   convLoading.value = true;
-  try { conversations.value = await listConversations(); }
-  catch { conversations.value = []; }
-  finally { convLoading.value = false; }
+  convError.value = null;
+  try {
+    conversations.value = await listConversations();
+  } catch (e: any) {
+    // НЕ затираем уже загруженный список ошибкой обновления.
+    convError.value = e?.response?.data?.detail || e?.message || "не удалось загрузить";
+    if (!conversations.value.length) conversations.value = [];
+  } finally {
+    convLoading.value = false;
+  }
 }
 
 function newChat() { voice.stop(); chat.reset(); }

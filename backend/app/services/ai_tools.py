@@ -25,6 +25,7 @@ automatically surface to AI engine without code changes.
    15. list_carried_over        — tasks/projects moved between years (linked_year != portfolio_year)
 """
 from __future__ import annotations
+import logging
 from contextvars import ContextVar
 from datetime import datetime, timezone, date, timedelta
 from decimal import Decimal
@@ -33,6 +34,8 @@ from uuid import UUID
 
 # Текущий пользователь чата — ставится в ai.py перед стримом, читается
 # action-инструментами (notify_user) для атрибуции и проверки прав.
+log = logging.getLogger(__name__)
+
 _current_user_id: ContextVar[Optional[str]] = ContextVar("ai_current_user_id", default=None)
 
 def set_current_user_id(uid: Optional[str]) -> None:
@@ -1665,7 +1668,7 @@ async def _tool_get_ratings_history(args: dict, db: AsyncSession) -> dict:
         return {"error": "Модель AgencyRating не доступна"}
 
     stmt = select(AgencyRating).where(AgencyRating.company_id == co.id)
-    if agency: stmt = stmt.where(AgencyRating.agency.ilike(f"%{agency}%"))
+    if agency: stmt = stmt.where(AgencyRating.agency.ilike(_like(agency), escape="\\"))
     if is_esg is not None: stmt = stmt.where(AgencyRating.is_esg == bool(is_esg))
     stmt = stmt.order_by(AgencyRating.rating_date.desc().nullslast()).limit(100)
 
@@ -2535,7 +2538,7 @@ async def _tool_get_business_plan(args: dict, db: AsyncSession) -> dict:
         return {"error": "Модель BpRecord не доступна"}
     stmt = select(BpRecord).where(BpRecord.company_id == co.id, BpRecord.year == year)
     if period: stmt = stmt.where(BpRecord.period == period)
-    if sub: stmt = stmt.where(func.lower(BpRecord.metric).like(f"%{sub}%"))
+    if sub: stmt = stmt.where(func.lower(BpRecord.metric).like(_like(sub), escape="\\"))
     stmt = stmt.order_by(BpRecord.period, BpRecord.metric).limit(500)
     res = await db.execute(stmt)
     records = list(res.scalars().all())
@@ -2608,11 +2611,11 @@ async def _tool_get_procurement(args: dict, db: AsyncSession) -> dict:
         stmt = select(ProcurementData)
         if company_id: stmt = stmt.where(ProcurementData.company_id == company_id)
         if year: stmt = stmt.where(ProcurementData.year == year)
-        if supplier: stmt = stmt.where(func.lower(ProcurementData.supplier_name).like(f"%{supplier}%"))
+        if supplier: stmt = stmt.where(func.lower(ProcurementData.supplier_name).like(_like(supplier), escape="\\"))
         if product:
             stmt = stmt.where(or_(
-                func.lower(func.coalesce(ProcurementData.product_name, "")).like(f"%{product}%"),
-                func.lower(func.coalesce(ProcurementData.product_code, "")).like(f"%{product}%"),
+                func.lower(func.coalesce(ProcurementData.product_name, "")).like(_like(product), escape="\\"),
+                func.lower(func.coalesce(ProcurementData.product_code, "")).like(_like(product), escape="\\"),
             ))
         # P0: без имени компании утекали строки закупок всего портфеля
         # (товар, поставщик, цена) и агрегаты по поставщикам.
@@ -2655,7 +2658,7 @@ async def _tool_get_procurement(args: dict, db: AsyncSession) -> dict:
         stmt = select(ProcurementContract)
         if company_id: stmt = stmt.where(ProcurementContract.company_id == company_id)
         if year: stmt = stmt.where(ProcurementContract.year == year)
-        if supplier: stmt = stmt.where(func.lower(ProcurementContract.supplier_name).like(f"%{supplier}%"))
+        if supplier: stmt = stmt.where(func.lower(ProcurementContract.supplier_name).like(_like(supplier), escape="\\"))
         stmt = _scoped(stmt, ProcurementContract.company_id, await _scope_ids(db))
         stmt = stmt.order_by(ProcurementContract.total_amount.desc().nullslast()).limit(limit)
         contracts = list((await db.execute(stmt)).scalars().all())
@@ -2720,8 +2723,8 @@ async def _tool_list_notes(args: dict, db: AsyncSession) -> dict:
         company_id = co.id
     stmt = select(Note)
     if query:
-        stmt = stmt.where(or_(func.lower(Note.title).like(f"%{query}%"),
-                              func.lower(Note.body).like(f"%{query}%")))
+        stmt = stmt.where(or_(func.lower(Note.title).like(_like(query), escape="\\"),
+                              func.lower(Note.body).like(_like(query), escape="\\")))
     if entity_type: stmt = stmt.where(Note.entity_type == entity_type)
     if company_id: stmt = stmt.where(Note.company_id == company_id)
     if is_resolved is not None: stmt = stmt.where(Note.is_resolved == bool(is_resolved))
@@ -2897,8 +2900,8 @@ async def _tool_list_users(args: dict, db: AsyncSession) -> dict:
     if email_sub:
         # ищем и по email, и по ФИО
         stmt = stmt.where(or_(
-            func.lower(User.email).like(f"%{email_sub}%"),
-            func.lower(func.coalesce(User.full_name, "")).like(f"%{email_sub}%"),
+            func.lower(User.email).like(_like(email_sub), escape="\\"),
+            func.lower(func.coalesce(User.full_name, "")).like(_like(email_sub), escape="\\"),
         ))
     stmt = stmt.order_by(User.full_name.nullslast(), User.email).limit(limit)
     res = await db.execute(stmt)
@@ -3084,25 +3087,41 @@ async def _tool_list_status_updates(args: dict, db: AsyncSession) -> dict:
 
 
 async def _find_user_by_target(db: AsyncSession, target: str):
-    """Найти пользователя по email или ФИО (точное → частичное)."""
+    """Найти пользователя по email или ФИО (точное → частичное).
+
+    → (user|None, error|None). P1 аудита: обе ветки тернарника возвращали
+    rows[0], то есть при НЕОДНОЗНАЧНОМ совпадении («Иванов» — а их трое)
+    молча выбирался произвольный человек: уведомление или задача уходили
+    не тому. Теперь неоднозначность — явная ошибка со списком кандидатов,
+    чтобы модель переспросила.
+    """
     from app.models.user import User  # type: ignore[import]
     t = (target or "").strip().lower()
     if not t:
-        return None
+        return None, "Не указан получатель."
     # точный email
     r = await db.execute(select(User).where(func.lower(User.email) == t))
     u = r.scalar_one_or_none()
     if u:
-        return u
-    # частично по email/ФИО
+        return u, None
+    # частично по email/ФИО (берём до 6 — чтобы показать варианты)
     r = await db.execute(
         select(User).where(or_(
-            func.lower(User.email).like(f"%{t}%"),
-            func.lower(func.coalesce(User.full_name, "")).like(f"%{t}%"),
-        )).where(User.is_active == True).limit(2)  # noqa: E712
+            func.lower(User.email).like(_like(t), escape="\\"),
+            func.lower(func.coalesce(User.full_name, "")).like(_like(t), escape="\\"),
+        )).where(User.is_active == True).limit(6)  # noqa: E712
     )
     rows = list(r.scalars().all())
-    return rows[0] if len(rows) == 1 else (rows[0] if rows else None)
+    if not rows:
+        return None, f"Пользователь «{target}» не найден."
+    if len(rows) > 1:
+        names = ", ".join(
+            f"{(getattr(x, 'full_name', None) or '').strip() or '—'} <{x.email}>"
+            for x in rows[:6]
+        )
+        return None, (f"Под «{target}» подходит несколько пользователей: {names}. "
+                      "Уточни, кого именно (лучше указать e-mail).")
+    return rows[0], None
 
 
 async def _tool_notify_user(args: dict, db: AsyncSession) -> dict:
@@ -3126,9 +3145,9 @@ async def _tool_notify_user(args: dict, db: AsyncSession) -> dict:
     if not is_admin:
         return {"error": "Отправка уведомлений через ИИ доступна только владельцу/администратору."}
 
-    recipient = await _find_user_by_target(db, target)
-    if not recipient:
-        return {"error": f"Пользователь '{target}' не найден. Уточни email или ФИО."}
+    recipient, _uerr = await _find_user_by_target(db, target)
+    if _uerr or not recipient:
+        return {"error": _uerr or f"Пользователь '{target}' не найден. Уточни email или ФИО."}
 
     try:
         from app.services.notifications_service import notify
@@ -3304,9 +3323,9 @@ async def _tool_create_task(args: dict, db: AsyncSession) -> dict:
         return {"error": "Не удалось определить компанию задачи."}
     assignee = None
     if args.get("assignee"):
-        assignee = await _find_user_by_target(db, args.get("assignee"))
-        if not assignee:
-            return {"error": f"Исполнитель '{args.get('assignee')}' не найден."}
+        assignee, _aerr = await _find_user_by_target(db, args.get("assignee"))
+        if _aerr or not assignee:
+            return {"error": _aerr or f"Исполнитель '{args.get('assignee')}' не найден."}
     prio = (args.get("priority") or "medium").lower()
     if prio not in ("low", "medium", "high", "critical"):
         prio = "medium"
@@ -3598,11 +3617,48 @@ _HANDLERS = {
 }
 
 
+# Поля, которые ПИШУТ ЛЮДИ: их содержимое — данные для анализа, а не команды
+# ассистенту. Оборачиваем ЦЕНТРАЛЬНО (а не в каждом инструменте), иначе новый
+# 39-й инструмент про это забудут — ровно так и получилось: приём применялся
+# только в search_knowledge_base.
+_UNTRUSTED_FIELDS = {
+    "body", "description", "excerpt", "message", "notes", "comment",
+    "result", "text", "content",
+}
+_UNTRUSTED_MARK = "<<НЕДОВЕРЕННЫЕ ДАННЫЕ"
+
+
+def _untrust_result(obj: Any, depth: int = 0) -> Any:
+    """Рекурсивно обернуть человеческие тексты в результате инструмента."""
+    if depth > 6:
+        return obj
+    if isinstance(obj, dict):
+        out = {}
+        for k, v in obj.items():
+            if (k in _UNTRUSTED_FIELDS and isinstance(v, str) and v.strip()
+                    and not v.startswith(_UNTRUSTED_MARK)):
+                out[k] = _untrusted(v)
+            else:
+                out[k] = _untrust_result(v, depth + 1)
+        return out
+    if isinstance(obj, list):
+        return [_untrust_result(x, depth + 1) for x in obj[:400]]
+    return obj
+
+
 async def execute_tool(name: str, args: dict, db: AsyncSession) -> dict:
     handler = _HANDLERS.get(name)
     if handler is None:
         return {"error": f"Unknown tool: {name}"}
     try:
-        return await handler(args or {}, db)
+        result = await handler(args or {}, db)
     except Exception as e:
-        return {"error": f"Tool '{name}' failed: {e}"}
+        # Наружу — без сырого текста исключения (мог содержать имена таблиц и
+        # фрагменты SQL); подробности остаются в логах сервера.
+        log.warning("AI tool %s failed: %s: %s", name, type(e).__name__, e)
+        return {"error": f"Инструмент «{name}» не смог выполнить запрос "
+                         f"({type(e).__name__}). Уточни параметры или попробуй другой инструмент."}
+    try:
+        return _untrust_result(result)
+    except Exception:
+        return result

@@ -942,23 +942,38 @@ def _company_name(co: Any) -> str:
 
 # ─────────────────── DB loaders ───────────────────
 
-async def _load_companies(db: AsyncSession) -> list[Any]:
+# P1 аудита ИИ (июль 2026): загрузчики контекста читали ВЕСЬ портфель без
+# учёта прав, и агрегаты по всем 22 компаниям попадали в системный промпт
+# КАЖДОГО пользователя — company-scoped человек получал их в ответ на любой
+# вопрос, даже на «привет». Образец правильного scope — ai_exec_brief.py:59.
+# `scope` здесь: None → без ограничений (owner / companies.view_all),
+# [...] → список разрешённых компаний, [] → доступа нет ни к одной.
+
+def _apply_scope(stmt, column, scope: Optional[list]):
+    if scope is None:
+        return stmt
+    return stmt.where(column.in_(scope))
+
+
+async def _load_companies(db: AsyncSession, scope: Optional[list] = None) -> list[Any]:
     from app.models.company import Company  # type: ignore[import]
-    res = await db.execute(select(Company))
+    res = await db.execute(_apply_scope(select(Company), Company.id, scope))
     return list(res.scalars().all())
 
 
-async def _load_projects(db: AsyncSession) -> list[Any]:
+async def _load_projects(db: AsyncSession, scope: Optional[list] = None) -> list[Any]:
     from app.models.project import Project  # type: ignore[import]
-    res = await db.execute(select(Project))
+    res = await db.execute(_apply_scope(select(Project), Project.company_id, scope))
     return list(res.scalars().all())
 
 
-async def _load_tasks(db: AsyncSession, limit: int = 400) -> list[Any]:
+async def _load_tasks(db: AsyncSession, limit: int = 400,
+                      scope: Optional[list] = None) -> list[Any]:
     from app.models.task import Task  # type: ignore[import]
     cutoff = datetime.now(timezone.utc) - timedelta(days=30)
     res = await db.execute(
-        select(Task).order_by(Task.due_date.asc().nullslast()).limit(limit)
+        _apply_scope(select(Task), Task.company_id, scope)
+        .order_by(Task.due_date.asc().nullslast()).limit(limit)
     )
     items = list(res.scalars().all())
     out = []
@@ -1295,6 +1310,7 @@ def _build_task_list(tasks: list, companies: list, max_n: int = 80) -> str:
 async def build_ai_context(
     db: AsyncSession,
     *,
+    user: Any = None,
     role: str = "analyst",
     style: str = "structured",
     agent_name: str = "ИИ-аналитик UzAssets",
@@ -1302,10 +1318,22 @@ async def build_ai_context(
 ) -> str:
     """Pack 7.9 lite: minimal context — AI engine pulls details via tools on demand.
     Only loads what's actually rendered: companies+projects+tasks for the
-    totals block. ratings/governance/esg/task-list dumps removed (tools cover них)."""
-    companies = await _load_companies(db)
-    projects = await _load_projects(db)
-    tasks = await _load_tasks(db)
+    totals block. ratings/governance/esg/task-list dumps removed (tools cover них).
+
+    P1 аудита ИИ: `user` ОБЯЗАТЕЛЕН для скоупа — без него агрегаты по всему
+    портфелю попадали в системный промпт любого пользователя. Если пользователь
+    не передан, считаем доступ пустым (fail-closed), а не полным.
+    """
+    scope: Optional[list] = []
+    if user is not None:
+        try:
+            from app.core.access import allowed_company_ids, has_unrestricted_view
+            scope = None if has_unrestricted_view(user) else await allowed_company_ids(db, user)
+        except Exception:
+            scope = []
+    companies = await _load_companies(db, scope)
+    projects = await _load_projects(db, scope)
+    tasks = await _load_tasks(db, scope=scope)
 
     role_text = ROLES.get(role, ROLES["universal"])
     style_text = STYLES.get(style, STYLES["structured"])

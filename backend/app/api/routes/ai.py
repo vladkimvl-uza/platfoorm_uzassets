@@ -1146,7 +1146,8 @@ async def exec_sector_brief(
         "risks": "ОСОБЫЙ ФОКУС: риски и проблемные проекты.",
         "delays": "ОСОБЫЙ ФОКУС: причины задержек.",
     }.get((payload.focus or "").lower(), "")
-    system = await build_ai_context(db, role="analyst", style="structured")
+    # user обязателен: агрегаты контекста скоупятся по доступу (P1 аудита).
+    system = await build_ai_context(db, user=user, role="analyst", style="structured")
     system += "\n\n" + EXEC_BRIEF_INSTRUCTIONS + (("\n" + focus_hint) if focus_hint else "")
     prompt = f"Данные исполнения по секторам:\n\n{context}"
     try:
@@ -1350,7 +1351,7 @@ async def chat(
     eff_custom = saved_cfg.custom_instructions or ""
 
     system_prompt = await build_ai_context(
-        db, role=eff_role, style=eff_style, custom_instructions=eff_custom,
+        db, user=user, role=eff_role, style=eff_style, custom_instructions=eff_custom,
     )
     system_prompt += (
         "\n\n[ЭКСПОРТ] Если пользователь просит Excel/Word/выгрузку/«сформировать в xlsx» — "

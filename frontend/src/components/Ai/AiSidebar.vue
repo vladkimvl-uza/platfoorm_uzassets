@@ -15,6 +15,13 @@
       <span class="ai-sb-empty-spinner"></span>
       <span>Загрузка</span>
     </div>
+    <!-- P1 аудита: «ошибка» больше не выдаётся за «пусто» — иначе сбой сети
+         читался как «вся переписка удалена». -->
+    <div v-else-if="error && !items.length" class="ai-sb-err" role="alert">
+      <span>Не удалось загрузить историю разговоров.</span>
+      <span class="ai-sb-err-why">{{ error }}</span>
+      <button type="button" class="ai-sb-retry" @click="$emit('retry')">Повторить</button>
+    </div>
     <div v-else-if="!items.length" class="ai-sb-empty">
       Здесь появятся ваши разговоры
     </div>
@@ -181,6 +188,8 @@ const props = defineProps<{
   items: ConversationListItem[];
   activeId: string | null;
   loading: boolean;
+  /** Текст ошибки загрузки истории (P1: «пусто» ≠ «сбой»). */
+  error?: string | null;
 }>();
 const emit = defineEmits<{
   "new-chat": [];
@@ -188,6 +197,7 @@ const emit = defineEmits<{
   delete: [id: string];
   "open-settings": [];
   renamed: [id: string, title: string];
+  retry: [];
 }>();
 
 const editingId = ref<string | null>(null);
@@ -390,6 +400,34 @@ function formatDate(s: string) {
   letter-spacing: -0.01em;
   min-width: 0;
 }
+
+/* Ошибка загрузки истории (отличаем от «пусто») */
+.ai-sb-err {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 8px 10px;
+  padding: 11px 12px;
+  background: rgba(226, 75, 74, 0.07);
+  border: 1px solid rgba(226, 75, 74, 0.28);
+  border-radius: 10px;
+  font-size: 12px;
+  color: #C5352F;
+  line-height: 1.45;
+}
+.ai-sb-err-why { font-size: 10.5px; opacity: 0.75; word-break: break-word; }
+.ai-sb-retry {
+  border: 1px solid rgba(226, 75, 74, 0.4);
+  background: transparent;
+  color: #C5352F;
+  font: 600 11px inherit;
+  font-family: inherit;
+  border-radius: 7px;
+  padding: 4px 11px;
+  cursor: pointer;
+}
+.ai-sb-retry:hover { background: rgba(226, 75, 74, 0.08); }
 
 .ai-sb-item-act, .ai-sb-item-del {
   border: 0;
