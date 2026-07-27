@@ -64,10 +64,12 @@ async def bp_fact_from_nsbu(
     company_id: UUID,
     year: int,
     metric: str,
+    standard: str = "NSBU",
 ) -> Optional[Decimal]:
-    """Годовой факт BP-метрики из НСБУ-финотчётности (реальный источник).
+    """Годовой факт BP-метрики из финотчётности (реальный источник).
 
-    Берёт значение из `financial_reports` (standard='NSBU', is_detailed=false,
+    Берёт значение из `financial_reports` (standard='NSBU' по умолчанию;
+    'IFRS' — для исторических серий генератора планов, is_detailed=false,
     quarter IS NULL) × `financial_lines`, где line_code = канонический id и
     совпадает с ключом BP-метрики (revenue/cogs/grossProfit/opProfit/finIncome/
     finCost/pbt/tax/profit/ebitda и т.д.). Только period='annual'.
@@ -76,17 +78,19 @@ async def bp_fact_from_nsbu(
     Раньше функция смотрела в несуществующую таблицу financials_detailed и
     всегда возвращала None → автозаполнение факта было мёртвым.
     """
+    if standard not in ("NSBU", "IFRS"):
+        return None
     try:
         r = await db.execute(
             text(
                 "SELECT fl.value FROM financial_reports fr "
                 "JOIN financial_lines fl ON fl.report_id = fr.id "
-                "WHERE fr.company_id::text = :cid AND fr.standard = 'NSBU' "
+                "WHERE fr.company_id::text = :cid AND fr.standard = :std "
                 "AND COALESCE(fr.is_detailed, false) = false AND fr.quarter IS NULL "
                 "AND fr.year = :yr AND fl.line_code = :metric AND fl.value IS NOT NULL "
                 "ORDER BY fr.updated_at DESC NULLS LAST LIMIT 1"
             ),
-            {"cid": str(company_id), "yr": year, "metric": metric},
+            {"cid": str(company_id), "yr": year, "metric": metric, "std": standard},
         )
         v = r.scalar_one_or_none()
         return Decimal(str(v)) if v is not None else None

@@ -6,8 +6,9 @@
 будущих лет — по сезонности квартального плана. Числа воспроизводимы; ИИ-слой
 получает их как опору.
 
-nsbu-автозаполнение включается только для свежих лет (>= base_year−2) — иначе
-bp_compute делает по ~20 SQL-запросов к финотчётности на КАЖДЫЙ исторический год.
+nsbu-автозаполнение включено на всю глубину истории (НСБУ-отчётность лежит с
+2021): ~20 лёгких SQL-запросов на исторический год — приемлемая цена за полную
+серию для CAGR/OLS (прогноз и генератор планов дергаются по кнопке, не в цикле).
 """
 from __future__ import annotations
 
@@ -39,7 +40,7 @@ from app.schemas.bp_forecast import (
     BpQuarterProjection,
 )
 from app.schemas.kpi_forecast import ForecastBlock, ForecastPoint, SeriesPoint
-from app.services.bp_kpi_helpers import bp_compute, ytd_to_deltas
+from app.services.bp_kpi_helpers import bp_compute, bp_fact_from_nsbu, ytd_to_deltas
 from app.uow.ports import UnitOfWorkABC
 
 _MAX_HISTORY = 6
@@ -106,10 +107,11 @@ class BpForecastService:
                     company_id=company_id, target_year=target_year,
                     note="Нет исторических лет БП — черновик построить не из чего",
                 )
+            # nsbu_fallback на ВСЮ глубину: НСБУ-отчётность лежит с 2021 года —
+            # резать её перф-лимитом значит строить CAGR по огрызку серии.
             annual_by_year = {
                 y: await bp_compute(
-                    session, company_id, y, "annual",
-                    nsbu_fallback=(y >= target_year - 4),
+                    session, company_id, y, "annual", nsbu_fallback=True,
                 )
                 for y in hist
             }
@@ -148,6 +150,22 @@ class BpForecastService:
                         syears.append(y)
                         svals.append(v)
                         used_years.add(y)
+                src_note = ""
+                if len(syears) < 2:
+                    # НСБУ-истории мало — пробуем серию ЦЕЛИКОМ из МСФО (стандарты
+                    # в одной серии НЕ смешиваем; источник помечаем честно).
+                    iy: list[int] = []
+                    iv: list[float] = []
+                    for y in hist:
+                        v = _f(await bp_fact_from_nsbu(
+                            session, company_id, y, k, standard="IFRS"))
+                        if v is not None:
+                            iy.append(y)
+                            iv.append(v)
+                    if len(iy) >= 2 and len(iy) > len(syears):
+                        syears, svals = iy, iv
+                        used_years.update(iy)
+                        src_note = " · источник истории: МСФО"
                 if not syears:
                     metrics_out.append(BpPlanDraftMetric(
                         key=k, label=label, note="Нет истории факта"))
@@ -192,7 +210,8 @@ class BpForecastService:
                     low=(round(proj.low, 1) if proj.low is not None else None),
                     high=(round(proj.high, 1) if proj.high is not None else None),
                     quarters_ytd=quarters_ytd,
-                    method=af.method, confidence=af.confidence, note=af.note,
+                    method=af.method, confidence=af.confidence,
+                    note=(af.note or "") + src_note,
                 ))
             return BpPlanDraft(
                 company_id=company_id, target_year=target_year,
@@ -335,9 +354,12 @@ class BpForecastService:
         async with self.uow:
             session = self.uow._session  # type: ignore[attr-defined]
             years = await self.uow.bp.years_for_company(company_id)
-            hist_years = [y for y in years if y <= base_year][-_MAX_HISTORY:]
-            if base_year not in hist_years:
-                hist_years = sorted({*hist_years, base_year})
+            # История шире годов bp_records: НСБУ-факты есть и за годы без строк
+            # БП (2021+) — пустые годы отпадут сами (значений не будет).
+            hist_years = sorted({
+                *(y for y in years if y <= base_year),
+                *range(base_year - _MAX_HISTORY + 1, base_year + 1),
+            })[-_MAX_HISTORY:]
 
             company = await self.uow.bp.get_company(company_id)
             name = (
@@ -348,8 +370,10 @@ class BpForecastService:
 
             annual_by_year: dict[int, dict] = {}
             for y in hist_years:
+                # nsbu_fallback на всю глубину: НСБУ-факты лежат с 2021 — иначе
+                # тренд строится по огрызку серии (2-3 точки вместо 5-6).
                 annual_by_year[y] = await bp_compute(
-                    session, company_id, y, "annual", nsbu_fallback=(y >= base_year - 2),
+                    session, company_id, y, "annual", nsbu_fallback=True,
                 )
             base_q: dict[str, dict] = {}
             for q in _QUARTERS:
