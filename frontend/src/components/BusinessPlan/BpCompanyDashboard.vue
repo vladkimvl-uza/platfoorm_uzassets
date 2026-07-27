@@ -87,11 +87,25 @@ function deltaMetrics(cur: Record<string, BpCell>, prev: Record<string, BpCell> 
   return out;
 }
 
-/** Метрики для ОТОБРАЖЕНИЯ: q2..q4 → дельты, иначе как есть. */
+function _metricsEmpty(m?: Record<string, BpCell>): boolean {
+  if (!m) return true;
+  return Object.values(m).every(c => c.plan == null && c.expect == null && c.fact == null);
+}
+/** Пред. квартал ПУСТ целиком (напр. УНГ: полугодие введено, Q1 нет) →
+ *  дельты «за квартал» не вычислимы НИ по одной метрике. Прятать имеющийся
+ *  YTD-факт за «—» хуже, чем показать его с честным ярлыком — фолбэк на
+ *  нарастающий итог + баннер. */
+const prevQMissing = computed(() => {
+  const pq = PREV_Q[props.period] ?? null;
+  if (!pq) return false;
+  return _metricsEmpty(prevQComputed.value?.metrics);
+});
+
+/** Метрики для ОТОБРАЖЕНИЯ: q2..q4 → дельты; пред. квартал пуст → YTD-фолбэк. */
 const displayMetrics = computed<Record<string, BpCell>>(() => {
   const cur = props.computedData.metrics;
   const pq = PREV_Q[props.period] ?? null;
-  if (!pq) return cur;
+  if (!pq || prevQMissing.value) return cur;
   return deltaMetrics(cur, prevQComputed.value?.metrics);
 });
 
@@ -145,12 +159,13 @@ async function loadPrevYearAnnual() {
   }
 }
 
-/** YoY-метрики прошлого года в тех же единицах, что displayMetrics. */
+/** YoY-метрики прошлого года в тех же единицах, что displayMetrics
+ *  (YTD-фолбэк текущего года → сравниваем с YTD прошлого года). */
 const prevDisplayMetrics = computed<Record<string, BpCell>>(() => {
   const cur = prevYearCur.value?.metrics;
   if (!cur) return {};
   const pq = PREV_Q[props.period] ?? null;
-  if (!pq) return cur;
+  if (!pq || prevQMissing.value) return cur;
   return deltaMetrics(cur, prevYearPrevQ.value?.metrics);
 });
 
@@ -514,9 +529,11 @@ const detailsFields = computed(() => {
 
 // ─── Period label ──────────────────────────────────────
 const periodLabel = computed(() => {
-  // Значения экрана при квартале — ДЕЛЬТЫ «за квартал» (displayMetrics).
-  return props.period === "annual"
-    ? "годовой итог"
+  // Значения экрана при квартале — ДЕЛЬТЫ «за квартал» (displayMetrics);
+  // при пустом пред. квартале — YTD-фолбэк с соответствующим ярлыком.
+  if (props.period === "annual") return "годовой итог";
+  return prevQMissing.value
+    ? `нарастающим итогом за ${props.period.toUpperCase()}`
     : `за квартал ${props.period.toUpperCase()}`;
 });
 
@@ -583,6 +600,14 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 5l2.5 2.5L8.5 2.5"/></svg>
           авто из НСБУ: {{ factAutoCount }}
         </span>
+      </div>
+
+      <!-- YTD-фолбэк: пред. квартал пуст → показываем нарастающий итог, не «—» -->
+      <div v-if="prevQMissing" class="bpv-ytd-note">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        {{ (PREV_Q[period] || '').toUpperCase() }} не заполнен — показатели показаны
+        <b>нарастающим итогом с начала года</b>; разбивка «за квартал» появится после
+        заполнения предыдущего квартала в редакторе.
       </div>
 
       <!-- ═══ 1. Status bar (4 cells) ═══ -->
@@ -1055,6 +1080,18 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
   display: flex; justify-content: space-between; align-items: center;
   animation: bpvNumIn .45s ease var(--d, 0ms) both;
 }
+
+/* YTD-фолбэк баннер (пред. квартал пуст) */
+.bpv-ytd-note {
+  display: flex; align-items: center; gap: 8px;
+  margin: 10px 0 2px; padding: 8px 13px;
+  background: rgba(239, 159, 39, .08);
+  border: 1px solid rgba(239, 159, 39, .3);
+  border-radius: 9px;
+  font-size: 11.5px; color: #A36500;
+}
+.bpv-ytd-note b { font-weight: 700; }
+.bpv-ytd-note svg { flex-shrink: 0; }
 
 /* Chart */
 .bpv-chart-wrap { height: 180px; position: relative; }

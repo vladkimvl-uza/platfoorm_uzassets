@@ -72,6 +72,8 @@ const quarterly = ref<{ q: string; plan: number | null; expect: number | null; f
 // «ЗА КВАРТАЛ»: при period=q2..q4 модалка показывает дельты ytd(q)−ytd(q−1)
 // (консистентно со сводкой/company-вью); хранение — нарастающим итогом (НСБУ).
 const PREV_Q: Record<string, string | null> = { annual: null, q1: null, q2: "q1", q3: "q2", q4: "q3" };
+// Пред. квартал пуст → company-профиль показан нарастающим итогом (ярлык в шапке).
+const ytdFallback = ref(false);
 function dOf(a: string | number | null | undefined, b: string | number | null | undefined): number | null {
   return (a != null && b != null) ? num(a) - num(b) : null;
 }
@@ -115,18 +117,27 @@ async function loadCompanyMode() {
     const cur = await bpApi.getComputed(props.companyId, props.year, props.period);
     const pq = PREV_Q[props.period] ?? null;
     if (pq) {
-      // Дельты по всем метрикам (null-guard; при недоступном пред. квартале —
-      // честные null, а не YTD под ярлыком «за квартал»).
       let prevM: Record<string, any> | undefined;
       try { prevM = (await bpApi.getComputed(props.companyId, props.year, pq as BpPeriod)).metrics; } catch { prevM = undefined; }
-      const metrics: typeof cur.metrics = {};
-      for (const k of Object.keys(cur.metrics)) {
-        const c = cur.metrics[k];
-        const p = prevM?.[k];
-        metrics[k] = { plan: dOf(c.plan, p?.plan), expect: dOf(c.expect, p?.expect), fact: dOf(c.fact, p?.fact), fact_auto: false };
+      const prevEmpty = !prevM || Object.values(prevM).every(
+        (c: any) => c.plan == null && c.expect == null && c.fact == null);
+      if (prevEmpty) {
+        // Пред. квартал пуст → дельты не вычислимы НИ по одной метрике.
+        // YTD-фолбэк с ярлыком (прятать имеющийся факт за «—» хуже).
+        ytdFallback.value = true;
+        computedData.value = cur;
+      } else {
+        ytdFallback.value = false;
+        const metrics: typeof cur.metrics = {};
+        for (const k of Object.keys(cur.metrics)) {
+          const c = cur.metrics[k];
+          const p = prevM?.[k];
+          metrics[k] = { plan: dOf(c.plan, p?.plan), expect: dOf(c.expect, p?.expect), fact: dOf(c.fact, p?.fact), fact_auto: false };
+        }
+        computedData.value = { ...cur, metrics };
       }
-      computedData.value = { ...cur, metrics };
     } else {
+      ytdFallback.value = false;
       computedData.value = cur;
     }
   } catch (e) { console.error("[bpDrill] company:", e); }
@@ -531,8 +542,13 @@ const headerTitle = computed(() => {
 });
 
 const periodLabel = computed(() => {
-  // Квартальный срез = величины ЗА квартал (дельты YTD-хранения).
-  const p = props.period === "annual" ? "годовой итог" : `за квартал ${props.period.toUpperCase()}`;
+  // Квартальный срез = величины ЗА квартал (дельты YTD-хранения);
+  // пустой пред. квартал → YTD-фолбэк с честным ярлыком.
+  const p = props.period === "annual"
+    ? "годовой итог"
+    : ytdFallback.value
+      ? `нарастающим итогом за ${props.period.toUpperCase()} (пред. квартал не заполнен)`
+      : `за квартал ${props.period.toUpperCase()}`;
   return `FY ${props.year} · ${p}`;
 });
 
