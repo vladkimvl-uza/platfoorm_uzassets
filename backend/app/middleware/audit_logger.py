@@ -121,6 +121,40 @@ class AuditLoggerMiddleware(BaseHTTPMiddleware):
         try:
             response = await call_next(request)
             status = response.status_code
+            # Обогащение фида активности: при POST-создании название новой записи
+            # существует только в ОТВЕТЕ (в пути id ещё нет, тело может не нести
+            # name/title) → без этого уведомление читается как безликое «Добавил
+            # запись». Снимаем небольшое JSON-тело ответа, достаём человекочитаемое
+            # название (whitelist-ключи, рекурсия) и пересобираем Response 1:1.
+            # Строго best-effort: любые сбои — игнор, ответ не трогаем.
+            if (
+                method.upper() == "POST"
+                and 200 <= status < 300
+                and getattr(request.state, "activity_descriptor", None) is None
+                and getattr(request.state, "activity_entity", None) is None
+            ):
+                try:
+                    ctype = (response.headers.get("content-type") or "").lower()
+                    clen = int(response.headers.get("content-length") or "0")
+                    if "application/json" in ctype and 0 < clen <= 32768:
+                        body_bytes = b"".join(
+                            [chunk async for chunk in response.body_iterator]  # type: ignore[attr-defined]
+                        )
+                        rebuilt = Response(
+                            content=body_bytes,
+                            status_code=status,
+                            headers=dict(response.headers),
+                            media_type=response.media_type,
+                        )
+                        response = rebuilt
+                        import json as _json
+
+                        from app.services.owner_activity import extract_descriptor
+                        desc = extract_descriptor(_json.loads(body_bytes))
+                        if desc:
+                            request.state.activity_descriptor = desc
+                except Exception:  # noqa: BLE001 — не ломаем ответ ради детали фида
+                    pass
         except Exception:
             status = 500
             raise

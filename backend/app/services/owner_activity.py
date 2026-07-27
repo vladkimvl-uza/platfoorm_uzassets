@@ -40,10 +40,39 @@ log = logging.getLogger(__name__)
 # Ключи тела, из которых берём человекочитаемое НАЗВАНИЕ записи (для «что изменено»).
 _DESCRIPTOR_KEYS = (
     "metric_name", "product_name", "committee_name", "name", "title", "label",
-    "agency", "rating", "product", "full_name",
+    "name_ru", "name_short", "short_title", "full_name",
+    "agency", "rating", "product",
 )
 # Ключи тела, указывающие на компанию (для scope получателей + контекста).
 _COMPANY_REF_KEYS = ("company_id", "company_code", "company", "code")
+
+
+def extract_descriptor(data: object, depth: int = 2) -> Optional[str]:
+    """Человекочитаемое название записи из JSON (тело запроса ИЛИ ответа).
+
+    Ищет whitelist-ключи на верхнем уровне, затем на один-два уровня вглубь
+    (upsert-payload'ы часто оборачивают запись: {"record": {...}}, список строк
+    и т.п.). Только строки; секретов не берём (whitelist). None — не нашли."""
+    if depth < 0:
+        return None
+    if isinstance(data, list):
+        for item in data[:5]:
+            found = extract_descriptor(item, depth - 1)
+            if found:
+                return found
+        return None
+    if not isinstance(data, dict):
+        return None
+    for dk in _DESCRIPTOR_KEYS:
+        v = data.get(dk)
+        if isinstance(v, str) and v.strip():
+            return v.strip()[:120]
+    for v in list(data.values())[:25]:
+        if isinstance(v, dict | list):
+            found = extract_descriptor(v, depth - 1)
+            if found:
+                return found
+    return None
 
 
 async def capture_activity(request: Request) -> None:
@@ -69,11 +98,11 @@ async def capture_activity(request: Request) -> None:
     st = request.state
     try:
         st.activity_body_keys = [str(k) for k in d.keys()][:40]
-        for dk in _DESCRIPTOR_KEYS:
-            v = d.get(dk)
-            if isinstance(v, str) and v.strip():
-                st.activity_descriptor = v.strip()[:120]
-                break
+        # Название записи — с рекурсией: upsert-тела часто оборачивают запись
+        # ({"records": [...]}, {"record": {...}}), верхнего уровня недостаточно.
+        desc = extract_descriptor(body)
+        if desc:
+            st.activity_descriptor = desc
         for ck in _COMPANY_REF_KEYS:
             v = d.get(ck)
             if isinstance(v, str) and v.strip():
@@ -383,11 +412,12 @@ async def notify_owners_of_change(
     recipient_ids = await _recipients(db, company_id)
 
     verb = _verb(method, (http_path or "").split("?", 1)[0])
-    # Название записи: явный override роута → описатель из тела (имя показателя/
-    # записи) → подтянутое из пути (задача/проект) → имя компании как контекст.
+    # Название записи: явный override роута → описатель из тела/ответа (имя
+    # показателя/записи) → подтянутое из пути (задача/проект) → имя компании.
+    co_name = await _company_name(db, company_id)
     entity_title = (entity_override or descriptor
                     or await _resolve_entity_title(db, http_path or "")
-                    or await _company_name(db, company_id))
+                    or co_name)
     fields = _humanize_fields(changed_fields)
     link = _resolve_link(http_path or "")
     title = f"{label}: {verb}"
@@ -421,6 +451,9 @@ async def notify_owners_of_change(
                 company_id=company_id,
                 payload={"action": "activity", "verb": verb, "label": label,
                          "entity_title": entity_title, "fields": fields,
+                         # Компания — ВСЕГДА отдельным полем (контекст «у кого»),
+                         # а не только как fallback названия записи.
+                         "company": co_name,
                          # detail_text: человеческая деталь от роута
                          # («Выручка 2025: 1 200 млрд», «Статус: Новая → Завершено»).
                          "detail_text": summary},

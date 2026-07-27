@@ -199,10 +199,13 @@ export function describeNotification(n: NotifEntity): NotifDescriptor {
       : verb === "Прокомментировал" ? "comment"
       : verb === "Загрузил файл" ? "assign"
       : "progress";
-    // Сущность: конкретное название (если бэк смог его подтянуть) → «… в Задачи».
+    // Сущность: конкретное название (если бэк смог его подтянуть) → «… · Задачи
+    // · Компания». Компания — отдельный контекст (p.company), не дублируем, если
+    // она уже и есть название записи.
+    const co = p.company && p.company !== p.entity_title ? String(p.company) : "";
     const ent = p.entity_title
-      ? `${p.entity_title}${label ? " · " + label : ""}`
-      : (label || undefined);
+      ? `${p.entity_title}${label ? " · " + label : ""}${co ? " · " + co : ""}`
+      : ([label, co].filter(Boolean).join(" · ") || undefined);
     // Деталь: какие поля изменены (бэк кладёт p.fields = список рус. лейблов).
     // Фильтр внутренних/служебных полей (и для СТАРЫХ уведомлений, где бэк ещё
     // не фильтровал): num, *_id, год и т.п. не несут смысла читателю.
