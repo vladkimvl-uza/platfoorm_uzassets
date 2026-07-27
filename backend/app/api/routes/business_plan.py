@@ -28,7 +28,7 @@ from app.core.security import has_effective_permission
 from app.dependencies.bp import BpForecastServiceDep, BpServiceDep
 from app.models.bp_kpi import BP_METRICS
 from app.models.user import User
-from app.schemas.bp_forecast import BpCompanyForecast
+from app.schemas.bp_forecast import BpCompanyForecast, BpQuarterOutlook
 from app.schemas.bp_kpi import (
     BpAttentionIssue,
     BpAvailableCompany,
@@ -173,6 +173,40 @@ async def forecast_company(
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "bp.view required")
     await ensure_company_access(db, user, company_id)
     return await service.forecast_company(company_id, base_year, horizon)
+
+
+@router.get("/quarter-forecast/{year}", response_model=BpQuarterOutlook)
+async def quarter_forecast(
+    year: int,
+    service: BpForecastServiceDep,
+    metric: str = "revenue",
+    company_id: Optional[UUID] = None,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Прогноз оставшихся кварталов года (компания или сводно по портфелю).
+
+    Движок forecast_quarters на ДЕЛЬТАХ «за квартал» (кварталы БП хранятся
+    нарастающим итогом); сезонный fallback — прошлогодние кварталы. Питает
+    ghost-бары в «Динамике по кварталам». Путь 2-сегментный — с catch-all
+    /{company_id}/{year}/{period} не коллидирует."""
+    if not await has_effective_permission(db, user, "bp.view"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "bp.view required")
+    try:
+        if company_id is not None:
+            await ensure_company_access(db, user, company_id)
+            return await service.quarter_outlook(year, metric, company_id=company_id)
+        return await service.quarter_outlook(
+            year, metric, scope_company_ids=await _scope(db, user),
+        )
+    except HTTPException:
+        raise
+    except Exception:
+        log.exception("BP quarter-forecast %s/%s failed", year, metric)
+        raise HTTPException(
+            http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Не удалось построить квартальный прогноз. Попробуйте позже.",
+        )
 
 
 # ─── Computed (catch-all) ────────────────────────────────────────

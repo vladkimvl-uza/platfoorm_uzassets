@@ -11,11 +11,16 @@ bp_compute делает по ~20 SQL-запросов к финотчётнос�
 """
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Optional
 from uuid import UUID
 
+from fastapi import HTTPException
+from fastapi import status as http_status
+
 from app.core.forecast import (
     forecast_annual,
+    forecast_quarters,
     seasonal_shares,
     split_by_shares,
 )
@@ -24,7 +29,12 @@ from app.models.bp_kpi import (
     BP_METRIC_DIRECTION,
     BP_METRIC_LABELS,
 )
-from app.schemas.bp_forecast import BpCompanyForecast, BpMetricForecast
+from app.schemas.bp_forecast import (
+    BpCompanyForecast,
+    BpMetricForecast,
+    BpQuarterOutlook,
+    BpQuarterProjection,
+)
 from app.schemas.kpi_forecast import ForecastBlock, ForecastPoint, SeriesPoint
 from app.services.bp_kpi_helpers import bp_compute, ytd_to_deltas
 from app.uow.ports import UnitOfWorkABC
@@ -56,9 +66,141 @@ def _block(r, shares: Optional[list[float]] = None) -> ForecastBlock:
     )
 
 
+_QO_METHOD_RU = {
+    "pace": "план × темп", "seasonal": "сезонность прошлого года",
+    "run_rate": "run-rate", "plan": "по плану", "actual": "год закрыт",
+}
+_QO_CONF_ORD = {"none": 0, "low": 1, "medium": 2, "high": 3}
+
+
 class BpForecastService:
     def __init__(self, uow: UnitOfWorkABC) -> None:
         self.uow = uow
+
+    async def quarter_outlook(
+        self,
+        year: int,
+        metric: str = "revenue",
+        *,
+        company_id: Optional[UUID] = None,
+        scope_company_ids: Optional[Sequence[UUID]] = None,
+    ) -> BpQuarterOutlook:
+        """Прогноз оставшихся кварталов года для «Динамики по кварталам».
+
+        Движок core/forecast.forecast_quarters ждёт суммы «ЗА квартал» →
+        кварталы БП (нарастающий итог) конвертируются через ytd_to_deltas;
+        сезонный fallback — дельты фактов прошлого года.
+
+        Компания: движок на её рядах как есть. Портфель: движок ПО КАЖДОЙ
+        компании (naz прогнозится pace по своим q3/q4-планам, компании без
+        планов — сезонностью/run-rate), сводные проекции = Σ по кварталам
+        ПОЗЖЕ последнего портфельного факта; методы перечисляются в note,
+        уверенность = минимальная среди вошедших. Честность: коридор Σ
+        только когда он есть у всех вошедших компаний, иначе None.
+        """
+        if metric not in BP_HEADLINE_METRIC_KEYS:
+            raise HTTPException(http_status.HTTP_400_BAD_REQUEST,
+                                f"Invalid metric: {metric}")
+        async with self.uow:
+            session = self.uow._session  # type: ignore[attr-defined]
+            if company_id is not None:
+                co_ids: list[UUID] = [company_id]
+            else:
+                co_ids = list(await self.uow.bp.distinct_companies_with_bp(
+                    scope_company_ids=scope_company_ids,
+                ))
+            qkeys = ("q1", "q2", "q3", "q4")
+            agg = {"plan": [0.0] * 4, "fact": [0.0] * 4}
+            has = {"plan": [False] * 4, "fact": [False] * 4}
+            per = []
+            for cid in co_ids:
+                cur = [await bp_compute(session, cid, year, q) for q in qkeys]
+                prior = [await bp_compute(session, cid, year - 1, q) for q in qkeys]
+                dplan = [_f(v) for v in ytd_to_deltas([c[metric]["plan"] for c in cur])]
+                dfact = [_f(v) for v in ytd_to_deltas([c[metric]["fact"] for c in cur])]
+                dprior = [_f(v) for v in ytd_to_deltas([c[metric]["fact"] for c in prior])]
+                for i in range(4):
+                    if dplan[i] is not None:
+                        agg["plan"][i] += dplan[i]
+                        has["plan"][i] = True
+                    if dfact[i] is not None:
+                        agg["fact"][i] += dfact[i]
+                        has["fact"][i] = True
+                per.append(forecast_quarters(
+                    dplan, dfact,
+                    prior_q_fact=dprior if any(v is not None for v in dprior) else None,
+                ))
+            q_plan = [agg["plan"][i] if has["plan"][i] else None for i in range(4)]
+            q_fact = [agg["fact"][i] if has["fact"][i] else None for i in range(4)]
+
+            if company_id is not None:
+                r = per[0]
+                return BpQuarterOutlook(
+                    year=year, metric=metric, scope="company",
+                    company_id=company_id, co_count=1,
+                    q_plan=q_plan, q_fact=q_fact,
+                    projections=[BpQuarterProjection(
+                        period=p.period, value=p.value, low=p.low, high=p.high, co_count=1,
+                    ) for p in r.projections],
+                    expected_year=r.expected_year,
+                    method=r.method, confidence=r.confidence, note=r.note,
+                )
+
+            # ── Портфель: Σ по-компанейских проекций ──
+            last_fact_i = max((i for i in range(4) if q_fact[i] is not None), default=-1)
+            psum: dict[str, dict] = {}
+            for r in per:
+                for p in r.projections:
+                    i = int(p.period[1]) - 1
+                    # «прогноз» кварталов, где у портфеля уже есть факт (компания
+                    # без q1 и т.п.) — не суммируем: бары там фактические.
+                    if i <= last_fact_i or p.value is None:
+                        continue
+                    s = psum.setdefault(p.period, {
+                        "v": 0.0, "lo": 0.0, "hi": 0.0, "cnt": 0,
+                        "lo_ok": True, "hi_ok": True,
+                    })
+                    s["v"] += p.value
+                    s["cnt"] += 1
+                    if p.low is None:
+                        s["lo_ok"] = False
+                    else:
+                        s["lo"] += p.low
+                    if p.high is None:
+                        s["hi_ok"] = False
+                    else:
+                        s["hi"] += p.high
+            projections = [
+                BpQuarterProjection(
+                    period=q, value=s["v"],
+                    low=(s["lo"] if s["lo_ok"] else None),
+                    high=(s["hi"] if s["hi_ok"] else None),
+                    co_count=s["cnt"],
+                )
+                for q, s in sorted(psum.items())
+            ]
+            methods: dict[str, int] = {}
+            for r in per:
+                if r.method != "none":
+                    methods[r.method] = methods.get(r.method, 0) + 1
+            confs = [r.confidence for r in per if r.projections]
+            conf = min(confs, key=lambda c: _QO_CONF_ORD.get(c, 0)) if confs else "none"
+            real_methods = [m for m in methods if m != "actual"]
+            method = ("mixed" if len(real_methods) > 1
+                      else (real_methods[0] if real_methods else "none"))
+            exp_vals = [r.expected_year for r in per if r.expected_year is not None]
+            note = (
+                "Σ по-компанейских прогнозов · "
+                + ", ".join(f"{_QO_METHOD_RU.get(m, m)}: {n}"
+                            for m, n in sorted(methods.items(), key=lambda t: -t[1]))
+                if methods else "Недостаточно данных для квартального прогноза"
+            )
+            return BpQuarterOutlook(
+                year=year, metric=metric, scope="portfolio", co_count=len(co_ids),
+                q_plan=q_plan, q_fact=q_fact, projections=projections,
+                expected_year=(sum(exp_vals) if exp_vals else None),
+                method=method, confidence=conf, note=note,
+            )
 
     async def forecast_company(
         self, company_id: UUID, base_year: int, horizon: int = 2,

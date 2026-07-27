@@ -22,18 +22,31 @@ const props = defineProps<{
 
 const emit = defineEmits<{ close: [] }>();
 
+// % исполнения С НАЧАЛА ГОДА (YTD факт / YTD план) — им же красится бейдж и шкала.
 const pct = computed(() =>
   (props.plan != null && props.plan !== 0 && props.fact != null)
     ? Math.round((props.fact / props.plan) * 100) : null,
+);
+// % исполнения ЗА квартал (дельта факта / дельта плана).
+const pctQ = computed(() =>
+  (props.planDelta != null && props.planDelta !== 0 && props.factDelta != null)
+    ? Math.round((props.factDelta / props.planDelta) * 100) : null,
 );
 const delta = computed(() => (props.fact != null && props.plan != null) ? props.fact - props.plan : null);
 function signed(v: number): string {
   return (v < 0 ? "−" : "") + props.fmt(Math.abs(v));
 }
+function pctColor(p: number | null): string {
+  if (p == null) return "#94A3B8";
+  if (p >= 100) return "#1D9E75";
+  if (p >= 80) return "#A36500";
+  return "#C5352F";
+}
 const fillPct = computed(() => Math.max(0, Math.min(140, pct.value ?? 0)));
 const tone = computed(() => {
   const p = pct.value;
   if (p == null) return { c: "#94A3B8", bg: "rgba(148,163,184,.14)", t: "нет факта" };
+  if (p >= 110) return { c: "#1D9E75", bg: "rgba(29,158,117,.12)", t: "план перевыполнен" };
   if (p >= 100) return { c: "#1D9E75", bg: "rgba(29,158,117,.12)", t: "план выполнен" };
   if (p >= 80) return { c: "#A36500", bg: "rgba(239,159,39,.14)", t: "требует внимания" };
   return { c: "#C5352F", bg: "rgba(226,75,74,.12)", t: "недобор" };
@@ -53,25 +66,32 @@ const tone = computed(() => {
       </div>
     </template>
 
-    <!-- Шкала выполнения -->
+    <!-- Шкала: исполнение С НАЧАЛА ГОДА (бейдж в шапке — тот же %) -->
     <div class="bqd-gauge">
       <div class="bqd-gauge-track">
         <div class="bqd-gauge-fill" :style="{ width: (fillPct / 140 * 100) + '%', background: tone.c }"></div>
         <div class="bqd-gauge-100" :style="{ left: (100 / 140 * 100) + '%' }" title="План = 100%"></div>
       </div>
-      <div class="bqd-gauge-cap"><span>0</span><span>план</span><span>140%</span></div>
+      <div class="bqd-gauge-cap"><span>0</span><span>исполнение с начала года · план = 100%</span><span>140%</span></div>
     </div>
 
+    <!-- Секция 1: только этот квартал (дельты) -->
+    <div class="bqd-sec">За квартал {{ q.toUpperCase() }}</div>
     <div class="bqd-rows">
-      <div v-if="planDelta != null || factDelta != null" class="bqd-row bqd-row-delta">
-        <span>За квартал · план / факт</span>
-        <b>{{ planDelta != null ? signed(planDelta) : '—' }} / {{ factDelta != null ? signed(factDelta) : '—' }} <i>{{ unit }}</i></b>
-      </div>
-      <div class="bqd-row"><span>План (нараст. итогом)</span><b>{{ plan != null ? fmt(plan) : '—' }} <i>{{ unit }}</i></b></div>
-      <div class="bqd-row"><span>Факт (нараст. итогом)</span><b>{{ fact != null ? fmt(fact) : '—' }} <i>{{ unit }}</i></b></div>
-      <div v-if="expect != null" class="bqd-row"><span>Ожидание (нараст. итогом)</span><b>{{ fmt(expect) }} <i>{{ unit }}</i></b></div>
-      <div v-if="delta != null" class="bqd-row"><span>Дельта факт−план (нараст.)</span><b :style="{ color: delta >= 0 ? '#0F6E56' : '#C5352F' }">{{ delta >= 0 ? '+' : '' }}{{ fmt(delta) }} <i>{{ unit }}</i></b></div>
-      <div v-if="cum != null && cum !== fact" class="bqd-row"><span>Нараст. итог</span><b>{{ fmt(cum) }} <i>{{ unit }}</i></b></div>
+      <div class="bqd-row"><span>План</span><b>{{ planDelta != null ? signed(planDelta) : '—' }} <i>{{ unit }}</i></b></div>
+      <div class="bqd-row"><span>Факт</span><b>{{ factDelta != null ? signed(factDelta) : '—' }} <i>{{ unit }}</i></b></div>
+      <div v-if="factDelta == null && fact != null" class="bqd-row-note">за квартал не вычислимо: нет данных предыдущего квартала</div>
+      <div v-if="pctQ != null" class="bqd-row"><span>Исполнение за квартал</span><b :style="{ color: pctColor(pctQ) }">{{ pctQ }}%</b></div>
+    </div>
+
+    <!-- Секция 2: с начала года (как хранится в отчётности НСБУ) -->
+    <div class="bqd-sec">С начала года · нарастающим итогом</div>
+    <div class="bqd-rows">
+      <div class="bqd-row"><span>План</span><b>{{ plan != null ? fmt(plan) : '—' }} <i>{{ unit }}</i></b></div>
+      <div class="bqd-row"><span>Факт</span><b>{{ fact != null ? fmt(fact) : '—' }} <i>{{ unit }}</i></b></div>
+      <div v-if="expect != null && expect !== fact" class="bqd-row"><span>Ожидание</span><b>{{ fmt(expect) }} <i>{{ unit }}</i></b></div>
+      <div v-if="delta != null" class="bqd-row"><span>Дельта факт−план</span><b :style="{ color: delta >= 0 ? '#0F6E56' : '#C5352F' }">{{ delta >= 0 ? '+' : '' }}{{ fmt(delta) }} <i>{{ unit }}</i></b></div>
+      <div v-if="pct != null" class="bqd-row"><span>Исполнение с начала года</span><b :style="{ color: tone.c }">{{ pct }}%</b></div>
     </div>
   </ModalShell>
 </template>
@@ -93,8 +113,13 @@ const tone = computed(() => {
 .bqd-gauge-100 { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--t3, #94A3B8); border-radius: 2px; }
 .bqd-gauge-cap { display: flex; justify-content: space-between; font-size: 9px; color: var(--t3, #A6A3B8); margin-top: 5px; }
 
-.bqd-rows { display: flex; flex-direction: column; gap: 1px; }
-.bqd-row-delta { background: rgba(127,119,221,.05); border-radius: 8px; padding-left: 8px !important; padding-right: 8px !important; }
+.bqd-rows { display: flex; flex-direction: column; gap: 1px; margin-bottom: 6px; }
+.bqd-sec {
+  font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em;
+  color: var(--t3, #94A3B8); margin: 12px 0 3px; padding-bottom: 4px;
+  border-bottom: 1px solid var(--line, #F1F0F7);
+}
+.bqd-row-note { font-size: 10.5px; color: var(--t3, #A6A3B8); padding: 4px 0; }
 .bqd-row { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; padding: 9px 0; border-bottom: 1px solid var(--line, #F1F0F7); }
 .bqd-row:last-child { border-bottom: none; }
 .bqd-row > span { font-size: 12px; color: var(--t2, #6B6880); }

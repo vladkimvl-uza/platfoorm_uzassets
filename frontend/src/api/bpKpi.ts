@@ -242,6 +242,31 @@ export interface BpCompanyForecast {
   metrics: BpMetricForecast[]; note: string;
 }
 
+/** Прогноз оставшихся кварталов года (ghost-бары «Динамики по кварталам»).
+ *  Движок forecast_quarters на ДЕЛЬТАХ «за квартал»; value/low/high — тоже
+ *  величины за квартал. */
+export interface BpQuarterProjection {
+  period: string;                   // 'q1'..'q4'
+  value: number | null;
+  low: number | null;
+  high: number | null;
+  co_count: number;
+}
+export interface BpQuarterOutlook {
+  year: number;
+  metric: string;
+  scope: "company" | "portfolio";
+  company_id: string | null;
+  co_count: number;
+  q_plan: (number | null)[];
+  q_fact: (number | null)[];
+  projections: BpQuarterProjection[];
+  expected_year: number | null;
+  method: string;                   // pace|seasonal|run_rate|plan|actual|mixed|none
+  confidence: string;               // high|medium|low|none
+  note: string;
+}
+
 // ─── KPI Types ─────────────────────────────────────────────────────
 
 export type KpiPeriod = "year" | "q1" | "q2" | "q3" | "q4";
@@ -474,6 +499,15 @@ export const bpApi = {
   async getForecast(companyId: string, baseYear: number, horizon = 2): Promise<BpCompanyForecast> {
     const { data } = await api.get<BpCompanyForecast>(
       `/bp/forecast/${companyId}/${baseYear}`, { params: { horizon } },
+    );
+    return data;
+  },
+
+  /** Прогноз оставшихся кварталов года: companyId → по компании, без — сводно. */
+  async getQuarterOutlook(year: number, metric: string, companyId?: string | null): Promise<BpQuarterOutlook> {
+    const { data } = await api.get<BpQuarterOutlook>(
+      `/bp/quarter-forecast/${year}`,
+      { params: { metric, ...(companyId ? { company_id: companyId } : {}) } },
     );
     return data;
   },

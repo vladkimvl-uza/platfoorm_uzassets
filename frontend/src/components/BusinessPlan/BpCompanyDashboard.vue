@@ -372,7 +372,36 @@ async function loadQuarterly() {
     quarterlyData.value = null;
     qYtdData.value = null;
   }
+  // Прогноз оставшихся кварталов (ghost-бары) — прогрессив-энханс.
+  try {
+    coOutlook.value = await bpApi.getQuarterOutlook(
+      props.year, chartMetric.value, props.computedData.company_id,
+    );
+  } catch {
+    coOutlook.value = null;
+  }
 }
+
+// ─── Прогноз кварталов компании (движок forecast_quarters на дельтах) ───
+const coOutlook = ref<BpQuarterOutlook | null>(null);
+const coProj = computed<Map<number, { value: number; low: number | null; high: number | null }>>(() => {
+  const m = new Map();
+  for (const p of coOutlook.value?.projections || []) {
+    const i = Number(p.period?.[1]) - 1;
+    if (Number.isFinite(i) && i >= 0 && i < 4 && p.value != null) m.set(i, { value: p.value, low: p.low, high: p.high });
+  }
+  return m;
+});
+const _FC_METHOD_RU: Record<string, string> = {
+  pace: "план × темп", seasonal: "сезонность прошлого года", run_rate: "run-rate",
+  plan: "по плану", actual: "год закрыт", mixed: "смешанный", none: "нет данных",
+};
+const _FC_CONF_RU: Record<string, string> = { high: "высокая", medium: "средняя", low: "низкая", none: "—" };
+const coForecastMeta = computed(() => {
+  const f = coOutlook.value;
+  if (!f || !coProj.value.size) return null;
+  return `${_FC_METHOD_RU[f.method] || f.method} · увер.: ${_FC_CONF_RU[f.confidence] || f.confidence}`;
+});
 
 // ─── Интерактив «Квартального тренда»: hover-тултип + клик → разбор квартала ──
 const hoveredQ = ref<number | null>(null);
@@ -409,6 +438,10 @@ watch(
 const chartMax = computed(() => {
   if (!quarterlyData.value) return 1;
   const all = quarterlyData.value.flatMap(d => [d.plan, d.expect, d.fact]).filter((v): v is number => v != null);
+  for (const p of coProj.value.values()) {
+    all.push(p.value);
+    if (p.high != null) all.push(p.high);
+  }
   if (!all.length) return 1;
   const max = Math.max(0, ...all);
   return max === 0 ? 1 : max;
@@ -418,6 +451,10 @@ const chartMax = computed(() => {
 const chartMin = computed(() => {
   if (!quarterlyData.value) return 0;
   const all = quarterlyData.value.flatMap(d => [d.plan, d.expect, d.fact]).filter((v): v is number => v != null);
+  for (const p of coProj.value.values()) {
+    all.push(p.value);
+    if (p.low != null) all.push(p.low);
+  }
   return Math.min(0, ...all);
 });
 const chartRange = computed(() => (chartMax.value - chartMin.value) || 1);
@@ -466,7 +503,7 @@ function barGeometry(value: number | null, idx: number, offset: number) {
 // ─── Details — hierarchical toggle + view-mode (all/income/expenses) ───
 // viewMode initialises from parent `lens` prop and stays in sync — top-level
 // toggle on BusinessPlan.vue drives both summary & company dashboards.
-import { bpFieldsFor, ytdToDeltas, type BpViewMode } from "@/api/bpKpi";
+import { bpFieldsFor, ytdToDeltas, type BpQuarterOutlook, type BpViewMode } from "@/api/bpKpi";
 const detailsExpanded = ref(false);
 const viewMode = ref<BpViewMode>(props.lens);
 watch(() => props.lens, (l) => { viewMode.value = l; });
@@ -652,6 +689,15 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
                 <!-- Fact (offset +0.5) -->
                 <rect v-if="barGeometry(d.fact, idx, 0.5)" v-bind="barGeometry(d.fact, idx, 0.5)!" fill="#5DC093" rx="2"/>
                 <rect v-if="barGeometry(d.fact, idx, 0.5)" v-bind="barGeometry(d.fact, idx, 0.5)!" fill="url(#bpvBarSheen)" rx="2" pointer-events="none"/>
+                <!-- ПРОГНОЗ: ghost-бар на месте факта + коридор low..high -->
+                <template v-if="d.fact == null && coProj.get(idx)">
+                  <rect v-bind="barGeometry(coProj.get(idx)!.value, idx, 0.5)!" class="bpvq-ghost" rx="2"/>
+                  <line v-if="coProj.get(idx)!.low != null && coProj.get(idx)!.high != null"
+                        class="bpvq-whisker"
+                        :x1="PAD_L + gw * (idx + 0.5) + 0.5 * barW + barW / 2"
+                        :x2="PAD_L + gw * (idx + 0.5) + 0.5 * barW + barW / 2"
+                        :y1="chartY(coProj.get(idx)!.high!)" :y2="chartY(coProj.get(idx)!.low!)"/>
+                </template>
                 <!-- Quarter label -->
                 <text :x="PAD_L + gw * (idx + 0.5)" :y="CHART_H - 8" font-size="10" fill="#64748B" text-anchor="middle" font-weight="500">{{ d.q.toUpperCase() }}</text>
               </g>
@@ -664,6 +710,13 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
               <div class="bpvq-tip-r"><span>За квартал · план</span><b>{{ qTip(hoveredQ).d?.plan != null ? bpFmt(qTip(hoveredQ).d!.plan!) : '—' }}</b></div>
               <div class="bpvq-tip-r"><span>За квартал · факт</span><b>{{ qTip(hoveredQ).d?.fact != null ? bpFmt(qTip(hoveredQ).d!.fact!) : '—' }}</b></div>
               <div v-if="qTip(hoveredQ).gap" class="bpvq-tip-note">за квартал не вычислимо: нет данных предыдущего квартала</div>
+              <template v-if="quarterlyData[hoveredQ].fact == null && coProj.get(hoveredQ)">
+                <div class="bpvq-tip-r"><span>Прогноз (за кв.)</span><b class="bpvq-tip-fc">≈{{ bpFmt(coProj.get(hoveredQ)!.value) }}</b></div>
+                <div v-if="coProj.get(hoveredQ)!.low != null && coProj.get(hoveredQ)!.high != null" class="bpvq-tip-r">
+                  <span>Коридор</span><b>{{ bpFmt(coProj.get(hoveredQ)!.low!) }} – {{ bpFmt(coProj.get(hoveredQ)!.high!) }}</b>
+                </div>
+                <div v-if="coForecastMeta" class="bpvq-tip-note bpvq-tip-note-fc">{{ coForecastMeta }}</div>
+              </template>
               <div class="bpvq-tip-r"><span>Нараст. план</span><b>{{ qTip(hoveredQ).y?.plan != null ? bpFmt(qTip(hoveredQ).y!.plan!) : '—' }}</b></div>
               <div class="bpvq-tip-r"><span>Нараст. факт</span><b>{{ qTip(hoveredQ).y?.fact != null ? bpFmt(qTip(hoveredQ).y!.fact!) : '—' }}</b></div>
               <div v-if="qTip(hoveredQ).pct != null" class="bpvq-tip-r"><span>Исполнение с начала года</span><b>{{ qTip(hoveredQ).pct }}%</b></div>
@@ -674,6 +727,7 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
             <span><span class="dot" style="background:#7F77DD"></span>План</span>
             <span><span class="dot" style="background:#EF9F27"></span>Ожидание</span>
             <span><span class="dot" style="background:#5DC093"></span>Факт</span>
+            <span v-if="coProj.size" :title="coForecastMeta || ''"><span class="dot bpvq-dot-ghost"></span>Прогноз</span>
           </div>
           <BpQuarterDrillModal v-if="qDrill" v-bind="qDrill" :fmt="bpFmt" @close="qDrill = null" />
         </div>
@@ -1021,6 +1075,12 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
 .bpvq-tip-r b { font-weight: 600; font-variant-numeric: tabular-nums; }
 .bpvq-tip-note { font-size: 9.5px; color: #F2C4C3; padding: 2px 0; }
 .bpvq-tip-cta { margin-top: 6px; padding-top: 5px; border-top: 1px solid rgba(255, 255, 255, .12); color: #C7C2F0; font-size: 10px; }
+/* Прогноз: ghost-бар + коридор + легенда/тултип */
+.bpvq-ghost { fill: rgba(93, 192, 147, .18); stroke: #2FA97C; stroke-width: 1; stroke-dasharray: 3 2.5; }
+.bpvq-whisker { stroke: #2FA97C; stroke-width: 1.2; opacity: .5; stroke-linecap: round; }
+.bpvq-dot-ghost { background: rgba(93, 192, 147, .25) !important; border: 1.2px dashed #2FA97C; box-sizing: border-box; }
+.bpvq-tip-fc { color: #A9E4C8; font-style: italic; }
+.bpvq-tip-note-fc { color: rgba(169, 228, 200, .8); }
 .bpv-chart-empty {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   height: 100%; color: var(--t3, var(--t-muted)); font-size: 12px; text-align: center; gap: 3px;

@@ -12,7 +12,7 @@
  * «нарастающий итог» мог падать на стыке факт→план).
  */
 import { computed, onMounted, onUnmounted, ref } from "vue";
-import { ytdToDeltas, type BpQuarterRow } from "@/api/bpKpi";
+import { ytdToDeltas, type BpQuarterOutlook, type BpQuarterRow } from "@/api/bpKpi";
 
 type QuarterRow = BpQuarterRow;
 
@@ -21,6 +21,8 @@ const props = defineProps<{
   label?: string;
   /** Форматтер значения (напр. fmtBn) */
   fmt: (n: number) => string;
+  /** Прогноз оставшихся кварталов (ghost-бары + пунктирное продление итога). */
+  forecast?: BpQuarterOutlook | null;
 }>();
 
 const emit = defineEmits<{ drill: [{ row: QuarterRow; index: number }] }>();
@@ -76,12 +78,46 @@ const dPlan = computed(() =>
 const dFact = computed(() =>
   hasDeltaFields.value ? rows.value.map(r => N(r.fact_delta)) : ytdToDeltas(cumFact.value));
 
+// Прогноз: проекция по индексу квартала (ghost-бар рисуем только там, где нет
+// факт-дельты — прогнозные кварталы).
+const projByIdx = computed<Map<number, { value: number; low: number | null; high: number | null }>>(() => {
+  const m = new Map();
+  for (const p of props.forecast?.projections || []) {
+    const i = Number(p.period?.[1]) - 1;
+    if (Number.isFinite(i) && i >= 0 && i < 4 && p.value != null) {
+      m.set(i, { value: p.value, low: p.low, high: p.high });
+    }
+  }
+  return m;
+});
+const hasForecast = computed(() => projByIdx.value.size > 0);
+
+// Пунктирное продление линии итога прогнозными кварталами: от последнего
+// фактического YTD накапливаем прогнозные дельты. ЗНАЧЕНИЯ отдельно от
+// ГЕОМЕТРИИ — иначе цикл computed (шкала зависит от значений, точки от шкалы).
+const cumForecastVals = computed<{ i: number; v: number }[]>(() => {
+  if (!projByIdx.value.size) return [];
+  let lastI = -1, acc = 0;
+  cumFact.value.forEach((v, i) => { if (v != null) { lastI = i; acc = v; } });
+  const out: { i: number; v: number }[] = [];
+  for (const i of [...projByIdx.value.keys()].sort((a, b) => a - b)) {
+    if (i <= lastI) continue;
+    acc += projByIdx.value.get(i)!.value;
+    out.push({ i, v: acc });
+  }
+  return out;
+});
+
 // Шкала с нулевой базой: отрицательная дельта (напр. убыточный квартал по
 // прибыли) рисуется ВНИЗ от базовой линии, а не исчезает (SVG молча отбрасывает
-// rect с отрицательной высотой).
+// rect с отрицательной высотой). Прогнозные значения/коридор — тоже в шкале.
 const scaleMin = computed(() => {
   let m = 0;
   for (const arr of [dPlan.value, dFact.value]) for (const v of arr) if (v != null) m = Math.min(m, v);
+  for (const p of projByIdx.value.values()) {
+    m = Math.min(m, p.value);
+    if (p.low != null) m = Math.min(m, p.low);
+  }
   return m;
 });
 const scaleMax = computed(() => {
@@ -89,6 +125,11 @@ const scaleMax = computed(() => {
   for (const arr of [dPlan.value, dFact.value, cumPlan.value, cumFact.value]) {
     for (const v of arr) if (v != null) m = Math.max(m, v);
   }
+  for (const p of projByIdx.value.values()) {
+    m = Math.max(m, p.value);
+    if (p.high != null) m = Math.max(m, p.high);
+  }
+  for (const p of cumForecastVals.value) m = Math.max(m, p.v);
   return m || 1;
 });
 const range = computed(() => (scaleMax.value - scaleMin.value) || 1);
@@ -117,6 +158,27 @@ const cumLen = computed(() => {
     len += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
   }
   return Math.ceil(len) || 1;
+});
+
+// Геометрия прогнозного продления (стык с последней фактической точкой).
+const cumForecastPts = computed(() => {
+  const vals = cumForecastVals.value;
+  if (!vals.length) return [] as { x: number; y: number; v: number; i: number }[];
+  const pts = vals.map(p => ({ x: centerX(p.i), y: yOf(p.v), v: p.v, i: p.i }));
+  const factPts = cumFactPts.value;
+  return factPts.length ? [factPts[factPts.length - 1], ...pts] : pts;
+});
+const cumForecastLine = computed(() => cumForecastPts.value.map(p => `${p.x},${p.y}`).join(" "));
+
+const _FC_METHOD_RU: Record<string, string> = {
+  pace: "план × темп", seasonal: "сезонность прошлого года", run_rate: "run-rate",
+  plan: "по плану", actual: "год закрыт", mixed: "смешанный", none: "нет данных",
+};
+const _FC_CONF_RU: Record<string, string> = { high: "высокая", medium: "средняя", low: "низкая", none: "—" };
+const forecastMeta = computed(() => {
+  const f = props.forecast;
+  if (!f || !hasForecast.value) return null;
+  return `${_FC_METHOD_RU[f.method] || f.method} · увер.: ${_FC_CONF_RU[f.confidence] || f.confidence}`;
 });
 
 // % исполнения — С НАЧАЛА ГОДА (YTD-факт / YTD-план того же квартала): это
@@ -151,6 +213,7 @@ function tip(i: number) {
     // дельта не вычислима при наличии YTD → нет данных предыдущего квартала
     deltaGap: dFact.value[i] == null && cumFact.value[i] != null,
     covCum: r.co_count_cum_fact, covDelta: r.co_count_fact_delta,
+    proj: dFact.value[i] == null ? (projByIdx.value.get(i) ?? null) : null,
   };
 }
 </script>
@@ -162,6 +225,7 @@ function tip(i: number) {
       <span class="bqc-legend">
         <span><i class="bqc-sw bqc-sw-plan" />План (за кв.)</span>
         <span><i class="bqc-sw bqc-sw-fact" />Факт (за кв.)</span>
+        <span v-if="hasForecast" :title="forecastMeta || ''"><i class="bqc-sw bqc-sw-ghost" />Прогноз</span>
         <span><i class="bqc-sw bqc-sw-cum" />Нараст. итог</span>
         <span><i class="bqc-sw bqc-sw-cumplan" />Нараст. план</span>
       </span>
@@ -193,6 +257,18 @@ function tip(i: number) {
                 text-anchor="middle">{{ barLabel(i)!.v < 0 ? '−' + fmt(Math.abs(barLabel(i)!.v)) : fmt(barLabel(i)!.v) }}</text>
           <!-- дельта не вычислима (нет пред. квартала), но итог есть — честный маркер -->
           <text v-else-if="cumFact[i] != null" class="bqc-val" :x="centerX(i)" :y="baseY - 7" text-anchor="middle">—</text>
+          <!-- ПРОГНОЗ: ghost-бар на месте факта + коридор low..high -->
+          <template v-if="dFact[i] == null && projByIdx.get(i)">
+            <rect class="bqc-bar-ghost"
+                  :x="centerX(i) + 2" :y="barY(projByIdx.get(i)!.value)" width="15"
+                  :height="barHt(projByIdx.get(i)!.value)" rx="3" />
+            <line v-if="projByIdx.get(i)!.low != null && projByIdx.get(i)!.high != null"
+                  class="bqc-whisker"
+                  :x1="centerX(i) + 9.5" :x2="centerX(i) + 9.5"
+                  :y1="yOf(projByIdx.get(i)!.high!)" :y2="yOf(projByIdx.get(i)!.low!)" />
+            <text class="bqc-val bqc-val-ghost" :x="centerX(i) + 9"
+                  :y="barY(projByIdx.get(i)!.value) - 7" text-anchor="middle">≈{{ fmt(projByIdx.get(i)!.value) }}</text>
+          </template>
           <!-- метка квартала -->
           <text class="bqc-qlbl" :x="centerX(i)" :y="H - 28" text-anchor="middle">{{ q.q.toUpperCase() }}</text>
           <!-- % исполнения с начала года (YTD/YTD) -->
@@ -208,6 +284,11 @@ function tip(i: number) {
         <!-- Нарастающий итог (факт) — сплошная, до последнего квартала с фактом -->
         <polyline v-if="cumFactPts.length > 1" class="bqc-cum-line" :points="cumFactLine" fill="none"
                   :style="{ strokeDasharray: cumLen, strokeDashoffset: cumLen }" />
+        <!-- Прогнозное продление итога (пунктир, полые точки) -->
+        <polyline v-if="cumForecastPts.length > 1" class="bqc-cum-fc" :points="cumForecastLine" fill="none" />
+        <g v-for="p in cumForecastPts.slice(1)" :key="'f' + p.i">
+          <circle class="bqc-cum-dot-fc" :cx="p.x" :cy="p.y" r="3.2" />
+        </g>
         <g v-for="p in cumFactPts" :key="'c' + p.i">
           <circle class="bqc-cum-dot" :cx="p.x" :cy="p.y" r="3.5" :style="{ animationDelay: 500 + p.i * 110 + 'ms' }" />
         </g>
@@ -220,6 +301,13 @@ function tip(i: number) {
         <div class="bqc-tip-r"><span>За квартал · план</span><b>{{ tip(hovered).dp != null ? fmt(tip(hovered).dp!) : '—' }}</b></div>
         <div class="bqc-tip-r"><span>За квартал · факт</span><b>{{ tip(hovered).df != null ? fmt(tip(hovered).df!) : '—' }}</b></div>
         <div v-if="tip(hovered).deltaGap" class="bqc-tip-note">за квартал не вычислимо: нет данных предыдущего квартала</div>
+        <template v-if="tip(hovered).proj">
+          <div class="bqc-tip-r"><span>Прогноз (за кв.)</span><b class="bqc-tip-fc">≈{{ fmt(tip(hovered).proj!.value) }}</b></div>
+          <div class="bqc-tip-r" v-if="tip(hovered).proj!.low != null && tip(hovered).proj!.high != null">
+            <span>Коридор</span><b>{{ fmt(tip(hovered).proj!.low!) }} – {{ fmt(tip(hovered).proj!.high!) }}</b>
+          </div>
+          <div v-if="forecastMeta" class="bqc-tip-note bqc-tip-note-fc">{{ forecastMeta }}</div>
+        </template>
         <div class="bqc-tip-r"><span>Нараст. план</span><b>{{ tip(hovered).ytdPlan != null ? fmt(tip(hovered).ytdPlan!) : '—' }}</b></div>
         <div class="bqc-tip-r"><span>Нараст. факт</span><b>{{ tip(hovered).ytdFact != null ? fmt(tip(hovered).ytdFact!) : '—' }}</b></div>
         <div class="bqc-tip-r" v-if="tip(hovered).pct != null"><span>Исполнение с начала года</span><b :style="{ color: execColor(tip(hovered).pct) }">{{ tip(hovered).pct }}%</b></div>
@@ -278,6 +366,20 @@ function tip(i: number) {
 }
 /* Нарастающий ПЛАН — светлее и пунктиром: референс, не факт. */
 .bqc-cumplan-line { stroke: #D9A648; stroke-width: 1.4; stroke-dasharray: 5 4; opacity: .55; }
+/* ── ПРОГНОЗ: ghost-бар (полупрозрачный, пунктирная обводка) + коридор + линия ── */
+.bqc-bar-ghost {
+  fill: rgba(124, 111, 247, .16);
+  stroke: #7C6FF7; stroke-width: 1.2; stroke-dasharray: 4 3;
+  animation: bqcGhostIn .5s ease .4s both;
+}
+@keyframes bqcGhostIn { from { opacity: 0; } to { opacity: 1; } }
+.bqc-whisker { stroke: #6C5CE7; stroke-width: 1.4; opacity: .45; stroke-linecap: round; }
+.bqc-val-ghost { fill: #6C5CE7; font-style: italic; font-weight: 600; }
+.bqc-cum-fc { stroke: #EF9F27; stroke-width: 1.6; stroke-dasharray: 4 4; opacity: .6; }
+.bqc-cum-dot-fc { fill: #fff; stroke: #EF9F27; stroke-width: 1.6; stroke-dasharray: 2 1.5; opacity: .75; }
+.bqc-sw-ghost { background: rgba(124,111,247,.18); border: 1.2px dashed #7C6FF7; box-sizing: border-box; }
+.bqc-tip-fc { color: #C7C2F0; font-style: italic; }
+.bqc-tip-note-fc { color: rgba(199,194,240,.75); }
 @keyframes bqcDraw { to { stroke-dashoffset: 0; } }
 .bqc-cum-dot { fill: #fff; stroke: #EF9F27; stroke-width: 2; animation: bqcDot .3s ease both; }
 @keyframes bqcDot { from { opacity: 0; transform: scale(0); } to { opacity: 1; transform: scale(1); } }

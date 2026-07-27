@@ -34,3 +34,35 @@ class BpCompanyForecast(BaseModel):
     future_years: list[int] = []
     metrics: list[BpMetricForecast] = []
     note: str = ""
+
+
+# ─── Квартальный прогноз текущего года (для «Динамики по кварталам») ──
+
+class BpQuarterProjection(BaseModel):
+    """Прогноз одного оставшегося квартала (величина ЗА квартал + коридор)."""
+    period: str                       # 'q1'..'q4'
+    value: Optional[float] = None
+    low: Optional[float] = None
+    high: Optional[float] = None
+    co_count: int = 0                 # компаний в сводной проекции (company: 1)
+
+
+class BpQuarterOutlook(BaseModel):
+    """Прогноз оставшихся кварталов года (движок forecast_quarters на ДЕЛЬТАХ
+    «за квартал» — кварталы БП хранятся нарастающим итогом, см. ytd_to_deltas).
+
+    scope='company' — движок на рядах компании; scope='portfolio' — движок по
+    КАЖДОЙ компании, сводные проекции = Σ по кварталам позже последнего
+    портфельного факта (не искажаемся неполнотой q3/q4-планов у большинства)."""
+    year: int
+    metric: str
+    scope: str                        # 'company' | 'portfolio'
+    company_id: Optional[UUID] = None
+    co_count: int = 0
+    q_plan: list[Optional[float]] = []   # дельты «за квартал» (план), [q1..q4]
+    q_fact: list[Optional[float]] = []
+    projections: list[BpQuarterProjection] = []
+    expected_year: Optional[float] = None
+    method: str = "none"              # pace|seasonal|run_rate|plan|actual|mixed|none
+    confidence: str = "none"          # high|medium|low|none
+    note: str = ""

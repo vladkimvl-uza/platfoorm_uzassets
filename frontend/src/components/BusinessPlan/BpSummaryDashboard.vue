@@ -49,7 +49,7 @@
       <div class="bps-bot">
         <!-- Quarterly combo chart (бары план/факт + линия нараст. итога + drill) -->
         <div class="bps-w">
-          <BpQuarterlyChart :quarters="(summary.by_quarter as any)" :label="headlineLabel" :fmt="fmtBn" @drill="onQuarterDrill" />
+          <BpQuarterlyChart :quarters="(summary.by_quarter as any)" :label="headlineLabel" :fmt="fmtBn" :forecast="quarterOutlook" @drill="onQuarterDrill" />
         </div>
 
         <!-- Top-3 leaders + laggards -->
@@ -168,6 +168,7 @@ import {
   bpFmtScaled,
   bpDeltaColor,
   num,
+  type BpQuarterOutlook,
   type BpSummary,
 } from "@/api/bpKpi";
 
@@ -330,6 +331,22 @@ const headlineLabel = computed(() => {
   if (props.lens === "expenses") return "Расходы периода";
   return "Выручка";
 });
+
+// ─── Прогноз оставшихся кварталов (ghost-бары «Динамики по кварталам») ───
+const headlineKey = computed(() => (props.lens === "expenses" ? "opExpenses" : "revenue"));
+const quarterOutlook = ref<BpQuarterOutlook | null>(null);
+watch(
+  () => [props.summary.year, headlineKey.value],
+  async () => {
+    quarterOutlook.value = null;
+    try {
+      quarterOutlook.value = await bpApi.getQuarterOutlook(props.summary.year, headlineKey.value);
+    } catch {
+      quarterOutlook.value = null;   // прогноз — прогрессив-энханс, без него график живёт
+    }
+  },
+  { immediate: true },
+);
 const headlineGenitive = computed(() => {
   if (props.lens === "expenses") return "расходам периода";
   return "выручке";
