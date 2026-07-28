@@ -28,9 +28,10 @@ class EsgRepository:
         scope_company_ids: Optional[Sequence[UUID]],
     ):
         # Деактивированные компании исключаем из портфельного ESG-overview.
+        # include_in_rollups: демо и непрофильные компании не должны искажать портфельные средние и пиллары.
         q = (select(ESGMetric)
              .join(Company, Company.id == ESGMetric.company_id)
-             .where(Company.is_active.is_(True)))
+             .where(Company.is_active.is_(True), Company.include_in_rollups.is_(True)))
         if year:
             q = q.where(ESGMetric.year == year)
         if sector_code:
@@ -88,9 +89,10 @@ class EsgRepository:
         sector_code: Optional[str],
         scope_company_ids: Optional[Sequence[UUID]],
     ):
+        # include_in_rollups: демо и непрофильные компании не должны искажать сводные счётчики инцидентов.
         q = (select(ESGIssue)
              .join(Company, Company.id == ESGIssue.company_id)
-             .where(Company.is_active.is_(True)))
+             .where(Company.is_active.is_(True), Company.include_in_rollups.is_(True)))
         if sector_code:
             q = (q.join(Sector, Sector.id == Company.sector_id)
                   .where(Sector.code == sector_code))
@@ -164,8 +166,10 @@ class EsgRepository:
         sector_code: Optional[str],
         scope_company_ids: Optional[Sequence[UUID]],
     ):
+        # Это не пикер компаний, здесь строятся строки ESG-обзора (rankings плюс знаменатель «X из N»):
+        # include_in_rollups отсекает демо и непрофильные компании, чтобы не искажать портфельное покрытие.
         q = select(Company).options(selectinload(Company.sector))
-        q = q.where(Company.is_active.is_(True))
+        q = q.where(Company.is_active.is_(True), Company.include_in_rollups.is_(True))
         if sector_code:
             q = q.join(Sector, Sector.id == Company.sector_id).where(Sector.code == sector_code)
         if scope_company_ids is not None:
@@ -203,10 +207,12 @@ class EsgRepository:
         return {c.id: c for c in res.scalars().all()}
 
     async def sectors_with_counts(self):
+        # Фасет-счётчики того же ESG-обзора: условие обязано повторять list_companies,
+        # иначе демо и непрофильные компании раздуют цифру на чипе относительно числа строк.
         res = await self.session.execute(
             select(Sector.code, func.count(Company.id))
             .join(Company, Company.sector_id == Sector.id)
-            .where(Company.is_active.is_(True))
+            .where(Company.is_active.is_(True), Company.include_in_rollups.is_(True))
             .group_by(Sector.code)
         )
         return [{"code": r[0], "count": r[1]} for r in res.all()]
@@ -219,10 +225,13 @@ class EsgRepository:
         scope_company_ids: Optional[Sequence[UUID]],
     ):
         # Деактивированные компании исключаем; рейтинги-сироты (company_id NULL) — оставляем.
+        # include_in_rollups: демо и непрофильные компании не должны искажать портфельное покрытие агентствами.
         q = (select(AgencyRating)
              .outerjoin(Company, Company.id == AgencyRating.company_id)
              .where(AgencyRating.is_esg == True,  # noqa: E712
-                    or_(Company.is_active.is_(True), AgencyRating.company_id.is_(None))))
+                    or_(and_(Company.is_active.is_(True),
+                             Company.include_in_rollups.is_(True)),
+                        AgencyRating.company_id.is_(None))))
         if scope_company_ids is not None:
             if not scope_company_ids:
                 return []

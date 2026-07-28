@@ -113,6 +113,8 @@ class KpiRepository:
             .join(Company, KpiManager.company_id == Company.id)
             # Деактивированные компании не участвуют в портфельной сводке KPI.
             .where(KpiManager.year == year, Company.is_active.is_(True))
+            # Демо/непрофильные компании исключены из сводных цифр, чтобы не искажать портфель.
+            .where(Company.include_in_rollups.is_(True))
             .options(
                 selectinload(KpiManager.indicators),
                 selectinload(KpiManager.company).selectinload(Company.sector),

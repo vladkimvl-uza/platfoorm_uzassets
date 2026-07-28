@@ -1514,8 +1514,13 @@ async def _tool_get_kpi_summary(args: dict, db: AsyncSession) -> dict:
     _ids = await _scope_ids(db)
 
     # Companies: total in DB (no year filter — companies aren't year-scoped)
+    # Демо/непрофильные компании (include_in_rollups=false) не входят в свод — иначе N портфеля у ассистента разойдётся с дашбордами.
     co_count = (await db.execute(
-        _scoped(select(func.count()).select_from(Company), Company.id, _ids)
+        _scoped(
+            select(func.count()).select_from(Company)
+            .where(Company.include_in_rollups.is_(True)),
+            Company.id, _ids,
+        )
     )).scalar_one() or 0
 
     # Projects: split into 3 groups for honest reporting
@@ -1546,6 +1551,8 @@ async def _tool_get_kpi_summary(args: dict, db: AsyncSession) -> dict:
     co_res = await db.execute(_scoped(select(Company), Company.id, _ids))
     cos = list(co_res.scalars().all())
     co_map = {co.id: _company_name(co) for co in cos}
+    # Топ по просрочке — портфельный рейтинг, демо/непрофильные компании (include_in_rollups=false) не должны в нём фигурировать; справочник имён при этом полный.
+    rollup_ids = {co.id for co in cos if getattr(co, "include_in_rollups", True)}
 
     for t in tasks:
         cid = getattr(t, "company_id", None)
@@ -1557,7 +1564,10 @@ async def _tool_get_kpi_summary(args: dict, db: AsyncSession) -> dict:
         if _is_overdue(getattr(t, "due_date", None), getattr(t, "status", None)): b["overdue"] += 1
         if _is_carried_over(t): b["carried"] += 1
 
-    top_overdue = sorted(by_co.items(), key=lambda x: -x[1]["overdue"])[:5]
+    top_overdue = sorted(
+        ((cid, b) for cid, b in by_co.items() if cid in rollup_ids),
+        key=lambda x: -x[1]["overdue"],
+    )[:5]
     top_overdue_data = [{
         "company": co_map.get(cid, "?"), "overdue": b["overdue"], "total": b["total"],
         "carried_over": b["carried"],
@@ -3373,7 +3383,13 @@ async def _tool_benchmark_company(args: dict, db: AsyncSession) -> dict:
         return {"error": f"Компания '{name}' не найдена"}
     from app.models.task import Task  # type: ignore[import]
     from app.models.company import Company  # type: ignore[import]
-    cos = list((await db.execute(select(Company))).scalars().all())
+    # База пиров для ранга/перцентиля/средних — только компании, входящие в свод: демо/непрофильные не должны искажать портфельные цифры.
+    # Саму целевую компанию оставляем в выборке всегда, иначе бенчмарк по непрофильной компании вернул бы «нет задач за период».
+    cos = list((await db.execute(
+        select(Company).where(
+            or_(Company.include_in_rollups.is_(True), Company.id == co.id)
+        )
+    )).scalars().all())
     stmt = select(Task)
     if year:
         stmt = stmt.where(Task.portfolio_year == year)

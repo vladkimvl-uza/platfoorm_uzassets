@@ -56,7 +56,13 @@ class BpRepository:
         *,
         scope_company_ids: Optional[Sequence[UUID]] = None,
     ) -> list[UUID]:
-        q = select(BpRecord.company_id).distinct()
+        # Вход только в СВОДНЫЕ расчёты БП: демо/непрофильные компании (include_in_rollups=false) не должны искажать портфельные цифры, оставаясь видимыми в пикере и в своей карточке.
+        q = (
+            select(BpRecord.company_id)
+            .join(Company, BpRecord.company_id == Company.id)
+            .where(Company.include_in_rollups.is_(True))
+            .distinct()
+        )
         if scope_company_ids is not None:
             q = q.where(BpRecord.company_id.in_(scope_company_ids))
         return [r[0] for r in (await self.session.execute(q)).all()]

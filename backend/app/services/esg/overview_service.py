@@ -56,6 +56,7 @@ class ESGOverviewService:
         scope_company_ids: Optional[Sequence[UUID]],
     ) -> ESGOverviewResponse:
         async with self.uow:
+            # Источники ниже уже сужены репозиторием по include_in_rollups: демо и непрофильные компании не искажают портфельные цифры обзора.
             metrics = await self.uow.esg.list_metrics(
                 year=year, sector_code=sector_code,
                 scope_company_ids=scope_company_ids,

@@ -83,10 +83,12 @@ class ExecDashboardService:
             co_to_board = await self.uow.exec_dashboard.boards_by_company()
             tasks = await self.uow.exec_dashboard.list_tasks_for_year(year)
             projects = await self.uow.exec_dashboard.list_projects_for_year(year)
-            # Деактивированные компании: list_companies уже фильтрует is_active, но
-            # задачи/проекты тянутся портфельно (по году) БЕЗ этого фильтра, поэтому
-            # bottom-metrics (len задач/проектов) и направления считали строки
-            # отключённых компаний (напр. «Тест»). Отсекаем их ВЕЗДЕ, до всех блоков.
+            # Вне портфельных счётчиков: list_companies уже фильтрует is_active +
+            # include_in_rollups, но задачи/проекты тянутся портфельно (по году) БЕЗ
+            # этих фильтров, поэтому bottom-metrics (len задач/проектов) и направления
+            # считали строки отключённых компаний (напр. «Тест»). Отсекаем их ВЕЗДЕ, до
+            # всех блоков: демо/непрофильные компании (include_in_rollups=false) не
+            # должны искажать портфельные цифры, оставаясь видимыми в своей карточке.
             _inactive_ids = await self.uow.exec_dashboard.inactive_company_ids()
             if _inactive_ids:
                 tasks = [t for t in tasks if t.company_id not in _inactive_ids]
@@ -454,8 +456,9 @@ class ExecDashboardService:
                 co_id = getattr(r, "company_id", None)
                 if not co_id:
                     continue
-                # co_name содержит только активные компании (list_companies фильтрует
-                # is_active) — рейтинги деактивированных компаний в блок не берём.
+                # co_name содержит только портфельные компании (list_companies фильтрует
+                # is_active + include_in_rollups) — рейтинги деактивированных и демо/
+                # непрофильных компаний не идут ни в строки, ни в кольца «X из N».
                 if co_id not in co_name:
                     continue
                 agency_raw = getattr(r, "agency", None) or getattr(r, "agency_name", None) or ""

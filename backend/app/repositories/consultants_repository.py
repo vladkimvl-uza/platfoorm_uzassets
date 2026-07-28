@@ -99,8 +99,14 @@ class ConsultantsRepository:
     async def inactive_company_ids(self) -> set:
         """ID деактивированных компаний (is_active=false) — их задачи не считаем
         в портфельном overview консультантов."""
+        # Плюс компании с include_in_rollups=false: демо/непрофильные не должны искажать портфельные цифры (карточка компании их по-прежнему показывает).
         rows = (await self.session.execute(
-            select(Company.id).where(Company.is_active.is_(False))
+            select(Company.id).where(
+                or_(
+                    Company.is_active.is_(False),
+                    Company.include_in_rollups.is_(False),
+                )
+            )
         )).all()
         return {cid for (cid,) in rows}
 

@@ -27,7 +27,8 @@ class GovernanceRepository:
         scope_company_ids: Optional[Sequence[UUID]],
     ):
         q = select(Company).options(selectinload(Company.sector))
-        q = q.where(Company.is_active.is_(True))
+        # include_in_rollups: демо и непрофильные компании не должны искажать сводные показатели КУ (рейтинги, средние по портфелю, счётчики комитетов).
+        q = q.where(Company.is_active.is_(True), Company.include_in_rollups.is_(True))
         if sector_code:
             q = q.join(Sector, Sector.id == Company.sector_id).where(Sector.code == sector_code)
         if scope_company_ids is not None:

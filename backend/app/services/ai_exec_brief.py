@@ -66,6 +66,9 @@ async def build_exec_brief_context(
         cq = cq.where(Company.id.in_(allowed))
     if company_id is not None:
         cq = cq.where(Company.id == company_id)
+    else:
+        # Сводный бриф: демо и непрофильные компании (include_in_rollups=false) не должны искажать портфельные и секторные цифры; для брифа по одной компании фильтр не применяем.
+        cq = cq.where(Company.include_in_rollups.is_(True))
     if sectors:
         cq = cq.where(or_(Sector.code.in_(sectors), Sector.name_ru.in_(sectors)))
     companies = (await db.execute(cq)).all()

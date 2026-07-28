@@ -87,8 +87,11 @@ class DashboardService:
             rating_rows = await r.list_agency_ratings_for_dashboard()
             inactive_ids = await r.inactive_company_ids()
 
-        # Деактивированные компании (is_active=false) исключаем ВЕЗДЕ: и из
-        # счётчиков/статусов (фильтр строк), и из разбивки по компаниям (co_meta).
+        # Из ВСЕХ портфельных агрегатов исключаем деактивированные компании
+        # (is_active=false) и помеченные include_in_rollups=false: демо и непрофильные
+        # компании не должны искажать портфельные цифры, оставаясь видимыми в списках,
+        # пикерах и в своей карточке. Исключение действует и на счётчики/статусы
+        # (фильтр строк), и на разбивку по компаниям (co_meta).
         # Компанию строки резолвим как доска→компания ЛИБО прямой company_id.
         if inactive_ids:
             def _co_of(row):
@@ -317,6 +320,8 @@ class DashboardService:
                     "is_esg": is_esg,
                 }
 
+        # Знаменатель «X из N компаний»: co_meta уже без деактивированных и без
+        # include_in_rollups=false — демо/непрофильные компании не занижают покрытие.
         total_companies = len(co_meta)
         ring_data = []
         for agency_name in AGENCIES_CREDIT:
@@ -507,7 +512,9 @@ class DashboardService:
             co_meta_raw = await r.companies_meta()
             inactive_ids = await r.inactive_company_ids()
 
-        # Деактивированные компании исключаем и из drill-разбивки (как в overview).
+        # Из drill-разбивки исключаем тот же набор, что и в overview (is_active=false +
+        # include_in_rollups=false): drill — разрез той же портфельной цифры, иначе клик
+        # по плитке даст число, не сходящееся с плиткой.
         if inactive_ids:
             def _co_of(row):
                 return board_to_company.get(row.board_id) or getattr(row, "company_id", None)

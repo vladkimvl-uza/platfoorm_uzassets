@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Any, Optional
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.agency_rating import AgencyRating
@@ -161,10 +161,16 @@ class DashboardRepository:
         return {bid: cid for bid, cid in rows}
 
     async def inactive_company_ids(self) -> set:
-        """ID деактивированных компаний (is_active=false). Их данные не должны
-        попадать в дашборды/сводки — деактивация = скрыть везде."""
+        """ID компаний, исключаемых из портфельных расчётов дашборда акционера:
+        деактивированные (is_active=false) — деактивация = скрыть везде, и
+        помеченные include_in_rollups=false — демо/непрофильные компании не должны
+        искажать портфельные цифры (KPI, разбивка по секторам, покрытие рейтингов,
+        completion), при этом остаются доступны в списках и в своей карточке."""
         rows = (await self.session.execute(
-            select(Company.id).where(Company.is_active.is_(False))
+            select(Company.id).where(or_(
+                Company.is_active.is_(False),
+                Company.include_in_rollups.is_(False),
+            ))
         )).all()
         return {cid for (cid,) in rows}
 

@@ -215,6 +215,8 @@ class ESGMaturityService:
         climate_funnel = [0, 0, 0, 0]   # passed stage>=1..4
         risk_funnel = [0, 0, 0]         # passed stage>=1..3
         iso_full = 0
+        # Компании вне портфельных сводных (include_in_rollups=false) — исключаются из агрегатов ниже.
+        rollup_skip: set[UUID] = set()
 
         for co in companies:
             cells = cells_by_co.get(co.id, [])
@@ -284,6 +286,10 @@ class ESGMaturityService:
             # «Не нуждается» → компания не участвует ни в одной агрегированной метрике.
             if not_needed:
                 continue
+            # include_in_rollups=false → строка в матрице остаётся, но демо/непрофильные компании не искажают портфельные средние и счётчики.
+            if not getattr(co, "include_in_rollups", True):
+                rollup_skip.add(co.id)
+                continue
             ems_list.append(ems)
             if "D1" not in dim_nr and d1 >= 4:
                 iso_full += 1
@@ -310,8 +316,8 @@ class ESGMaturityService:
             baskets=baskets,
             climate_funnel=climate_funnel, risk_funnel=risk_funnel,
             iso_full_count=iso_full,
-            rated_count=sum(1 for c in out_companies if c.rating_count > 0 and not c.not_needed and "D3" not in c.dim_not_required),
-            total_companies=sum(1 for c in out_companies if not c.not_needed),
+            rated_count=sum(1 for c in out_companies if c.rating_count > 0 and not c.not_needed and "D3" not in c.dim_not_required and c.company_id not in rollup_skip),
+            total_companies=sum(1 for c in out_companies if not c.not_needed and c.company_id not in rollup_skip),
             available_years=years or [target_year],
             generated_at=datetime.now(UTC),
         )

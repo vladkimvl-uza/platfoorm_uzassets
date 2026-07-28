@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from typing import Any, Optional
 from uuid import UUID
 
-from sqlalchemy import distinct, select
+from sqlalchemy import distinct, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -27,7 +27,9 @@ class ExecDashboardRepository:
     ) -> list[Company]:
         cos_q = await self.session.execute(
             select(Company)
-            .where(Company.is_active.is_(True))
+            # include_in_rollups: демо/непрофильные компании не должны искажать
+            # портфельные цифры экрана министра (карточка компании им доступна).
+            .where(Company.is_active.is_(True), Company.include_in_rollups.is_(True))
             .options(selectinload(Company.sector))
             .where(Company.is_archived.is_(False) if hasattr(Company, "is_archived") else True)
         )
@@ -46,12 +48,16 @@ class ExecDashboardRepository:
         return all_companies
 
     async def inactive_company_ids(self) -> set[UUID]:
-        """ID деактивированных компаний — для отсечения их задач/проектов из
-        портфельных счётчиков (list_tasks/projects_for_year тянут ВЕСЬ год без
-        фильтра is_active, поэтому bottom-metrics/направления считали строки
-        отключённых компаний, напр. «Тест»)."""
+        """ID компаний, исключённых из портфельных счётчиков — деактивированных
+        (is_active=false) и непрофильных/демо (include_in_rollups=false):
+        list_tasks/projects_for_year тянут ВЕСЬ год без фильтра по компании,
+        поэтому bottom-metrics/направления считали их строки (напр. «Тест»)."""
         rows = await self.session.execute(
-            select(Company.id).where(Company.is_active.is_(False))
+            # include_in_rollups=false — компания видима как отдельная карточка, но
+            # её задачи/проекты не должны искажать портфельные цифры министра.
+            select(Company.id).where(
+                or_(Company.is_active.is_(False), Company.include_in_rollups.is_(False))
+            )
         )
         return {cid for (cid,) in rows.all()}
 

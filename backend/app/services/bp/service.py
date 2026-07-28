@@ -168,6 +168,8 @@ class BpService:
                     by_company=[], by_sector=[], by_quarter=[],
                 )
             cos_full = await self.uow.bp.list_companies_with_sector(co_ids)
+            # Портфельная сводка БП: демо/непрофильные компании (include_in_rollups=false) не должны искажать портфельные цифры, оставаясь видимыми в пикере и в своей карточке.
+            cos_full = [co for co in cos_full if co.include_in_rollups]
 
             metrics_for_summary = [
                 "revenue", "cogs", "grossProfit", "opExpenses", "otherOpInc",

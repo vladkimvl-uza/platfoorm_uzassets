@@ -106,12 +106,14 @@ class GovernanceService:
                 sector_code=sector_code,
                 scope_company_ids=scope_company_ids,
             )
+            # include_in_rollups: демо и непрофильные компании не должны искажать сводные цифры КУ (средние по портфелю, счётчики комитетов, ранжирование, total_companies) — в своей карточке они остаются видимы.
+            companies = [co for co in companies if co.include_in_rollups]
             all_data = await self.uow.governance.list_governance_data(
                 year=year, sector_code=sector_code,
                 scope_company_ids=scope_company_ids,
             )
-            # list_companies уже фильтрует is_active; данные КУ — нет. Отсекаем
-            # данные деактивированных компаний, иначе committee-счётчики их считали.
+            # companies уже сужен до is_active + include_in_rollups; данные КУ — нет.
+            # Отсекаем данные компаний вне свода, иначе committee-счётчики их считали.
             active_ids = {co.id for co in companies}
             all_data = [d for d in all_data if d.company_id in active_ids]
 

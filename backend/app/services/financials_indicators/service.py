@@ -125,6 +125,9 @@ class FinancialsIndicatorsService:
         for co in companies:
             if scope_ids is not None and co.id not in scope_ids:
                 continue
+            # Демо/непрофильные компании не должны искажать портфельные суммы и счётчик покрытия.
+            if not co.include_in_rollups:
+                continue
             ind = _clean_indicators((co.extra or {}).get("indicators"))
             v = (ind.get(field) or {}).get(ys)
             if v is not None:

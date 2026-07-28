@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from typing import Optional
 from uuid import UUID
 
-from sqlalchemy import asc, desc, func, or_, select
+from sqlalchemy import and_, asc, desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.agency_rating import AgencyRating
@@ -73,8 +73,12 @@ class RatingsRepository:
         # Портфельный список (без явного фильтра по компании) не показывает
         # рейтинги деактивированных компаний; рейтинги-сироты (company_id NULL)
         # сохраняем. При явном фильтре по company_id/code — показываем как есть.
+        # include_in_rollups: демо и непрофильные компании не должны искажать портфельные цифры.
         if not company_id and not company_code:
-            q = q.where(or_(Company.is_active.is_(True), AgencyRating.company_id.is_(None)))
+            q = q.where(or_(
+                and_(Company.is_active.is_(True), Company.include_in_rollups.is_(True)),
+                AgencyRating.company_id.is_(None),
+            ))
         if scope_company_ids is not None:
             q = q.where(AgencyRating.company_id.in_(scope_company_ids))
         if company_id:
@@ -122,8 +126,13 @@ class RatingsRepository:
         q = (select(AgencyRating.agency, AgencyRating.is_esg,
                     AgencyRating.company_id, Company.code)
              .outerjoin(Company, AgencyRating.company_id == Company.id))
+        # Сводные счётчики фасетов фильтруем синхронно с list_ratings, иначе фасеты
+        # разойдутся с таблицей; демо и непрофильные компании не искажают портфельные цифры.
         if not company_id and not company_code:
-            q = q.where(or_(Company.is_active.is_(True), AgencyRating.company_id.is_(None)))
+            q = q.where(or_(
+                and_(Company.is_active.is_(True), Company.include_in_rollups.is_(True)),
+                AgencyRating.company_id.is_(None),
+            ))
         if scope_company_ids is not None:
             q = q.where(AgencyRating.company_id.in_(scope_company_ids))
         if company_id:

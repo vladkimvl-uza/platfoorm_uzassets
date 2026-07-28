@@ -144,7 +144,11 @@ class FinancialsRepository:
         self, *, allowed_company_ids: Optional[set[UUID]] = None
     ) -> int:
         from sqlalchemy import func
-        q = select(func.count(Company.id)).where(Company.is_active.is_(True))
+        q = select(func.count(Company.id)).where(
+            Company.is_active.is_(True),
+            # Демо/непрофильные компании не искажают знаменатель «X из N компаний».
+            Company.include_in_rollups.is_(True),
+        )
         if allowed_company_ids is not None:
             q = q.where(Company.id.in_(list(allowed_company_ids)))
         return int((await self._session.execute(q)).scalar() or 0)
@@ -160,6 +164,8 @@ class FinancialsRepository:
         """
         q = select(Company.code, Company.extra).where(
             Company.is_active.is_(True),
+            # Демо/непрофильные компании не должны искажать портфельные цифры (вкладка CF).
+            Company.include_in_rollups.is_(True),
             Company.extra.isnot(None),
             Company.extra.has_key("hlf"),  # noqa: W601 (JSONB ? operator)
         )
@@ -240,6 +246,8 @@ class FinancialsRepository:
                 FinancialReport.quarter.is_(None),
                 # Деактивированные компании не показываем в портфельной сводке.
                 Company.is_active.is_(True),
+                # Демо/непрофильные компании не должны искажать портфельные цифры.
+                Company.include_in_rollups.is_(True),
             )
         )
         if allowed_company_ids is not None:

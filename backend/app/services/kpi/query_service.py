@@ -209,6 +209,9 @@ def _aggregate(
     # Group by company
     by_co: dict[UUID, dict] = {}
     for m in managers:
+        # Демо/непрофильные компании (include_in_rollups=false) не должны искажать портфельные цифры KPI, оставаясь видимыми в пикере и в своей карточке.
+        if not getattr(m.company, "include_in_rollups", True):
+            continue
         if m.company_id not in by_co:
             by_co[m.company_id] = {"company": m.company, "managers": []}
         by_co[m.company_id]["managers"].append(m)

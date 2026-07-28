@@ -957,6 +957,11 @@ def _apply_scope(stmt, column, scope: Optional[list]):
 
 async def _load_companies(db: AsyncSession, scope: Optional[list] = None) -> list[Any]:
     from app.models.company import Company  # type: ignore[import]
+    # Грузим ВСЕ доступные компании: список работает и как справочник имён для
+    # блоков рейтингов/governance/ESG/задач, и как источник per-company статистики.
+    # Отсекать здесь include_in_rollups нельзя — компания вне свода всё равно
+    # должна называться по имени, а не «?». Из портфельного счётчика «Компаний: N»
+    # она исключается отдельно (см. build_ai_context).
     res = await db.execute(_apply_scope(select(Company), Company.id, scope))
     return list(res.scalars().all())
 
@@ -1366,7 +1371,9 @@ async def build_ai_context(
         f"{ANALYST_PATTERNS}\n"
         f"{MACRO_CONTEXT_2026}\n"
         f"{custom}\n"
-        f"{_build_totals_block(projects, tasks, len(companies))}\n"
+        # Счётчик портфеля — без компаний вне свода (include_in_rollups=false),
+        # чтобы «Компаний: N» у ассистента сходилось с дашбордами.
+        f"{_build_totals_block(projects, tasks, sum(1 for c in companies if getattr(c, 'include_in_rollups', True)))}\n"
         f"ВАЖНО: подробные данные по компаниям/рейтингам/governance/ESG/задачам "
         f"— ВСЕГДА через tools (см. TOOL_DECISION_TREE). В системном промпте "
         f"их нет, не выдумывай.\n"

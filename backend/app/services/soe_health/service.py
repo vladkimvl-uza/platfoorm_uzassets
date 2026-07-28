@@ -405,6 +405,7 @@ class SoeHealthService:
         """{company_code: {name, sector..., metrics{lc: val}}} из канона (summary FY)."""
         # LEFT JOIN: в ростере ВСЕ активные компании — без отчётности за
         # год/стандарт показываются честными «н/д», а не исчезают из матрицы.
+        # include_in_rollups: демо и непрофильные компании не должны искажать портфельные цифры (средний балл, зоны риска, %ВВП, разрезы по секторам).
         q = text(
             "SELECT c.code, COALESCE(c.name_short, c.name_ru) AS name, c.id AS cid, "
             "       s.code AS sector_code, s.name_ru AS sector_name, s.color_hex AS sector_color, "
@@ -417,7 +418,7 @@ class SoeHealthService:
             "     AND fr.is_detailed = false AND fr.quarter IS NULL "
             "LEFT JOIN financial_lines fl ON fl.report_id = fr.id "
             "     AND fl.line_code = ANY(:codes) AND fl.value IS NOT NULL "
-            "WHERE c.is_active = true"
+            "WHERE c.is_active = true AND c.include_in_rollups = true"
         )
         rows = (await db.execute(q, {
             "std": standard, "yr": year, "codes": list(_NEEDED_CODES),
@@ -497,12 +498,13 @@ class SoeHealthService:
         scope_ids: Optional[Sequence[UUID]],
     ) -> dict[str, Any]:
         """Портфельные агрегаты по годам [y0..y1] (для трендов дашборда)."""
+        # include_in_rollups: демо и непрофильные компании не должны искажать портфельные суммы и производные коэффициенты (roa/roe/debtToEquity).
         base = (
             "SELECT fr.year, fl.line_code, SUM(fl.value) AS s "
             "FROM companies c "
             "JOIN financial_reports fr ON fr.company_id = c.id "
             "JOIN financial_lines fl ON fl.report_id = fr.id "
-            "WHERE c.is_active = true AND fr.standard = :std "
+            "WHERE c.is_active = true AND c.include_in_rollups = true AND fr.standard = :std "
             "AND fr.year BETWEEN :y0 AND :y1 "
             "AND fr.is_detailed = false AND fr.quarter IS NULL "
             "AND fl.line_code = ANY(:codes) AND fl.value IS NOT NULL "
@@ -585,13 +587,16 @@ class SoeHealthService:
         portfolio_avg = round(sum(c["overall"] for c in scored) / len(scored), 2) if scored else None
 
         # total — в пределах scope пользователя (company-scoped видит «из своих»)
+        # include_in_rollups: знаменатель «X из N компаний» считаем по тому же набору, что и числитель в _load_metrics — демо и непрофильные компании не должны искажать портфельные цифры.
         if scope_ids is not None:
             total_companies = (await db.execute(text(
-                "SELECT count(*) FROM companies WHERE is_active = true AND id = ANY(:scope)"
+                "SELECT count(*) FROM companies "
+                "WHERE is_active = true AND include_in_rollups = true AND id = ANY(:scope)"
             ), {"scope": [str(i) for i in scope_ids]})).scalar() or 0
         else:
             total_companies = (await db.execute(text(
-                "SELECT count(*) FROM companies WHERE is_active = true"
+                "SELECT count(*) FROM companies "
+                "WHERE is_active = true AND include_in_rollups = true"
             ))).scalar() or 0
 
         series = await self._load_series(

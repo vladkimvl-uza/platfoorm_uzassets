@@ -45,7 +45,12 @@ async def build_kpi_forecast_block(
     q = (
         select(KpiManager)
         .join(Company, KpiManager.company_id == Company.id)
-        .where(KpiManager.year.in_(years), Company.is_active.is_(True))
+        # include_in_rollups: демо и непрофильные компании не должны искажать портфельный прогноз
+        .where(
+            KpiManager.year.in_(years),
+            Company.is_active.is_(True),
+            Company.include_in_rollups.is_(True),
+        )
         .options(
             selectinload(KpiManager.indicators),
             selectinload(KpiManager.company).selectinload(Company.sector),
