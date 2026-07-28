@@ -56,17 +56,21 @@ class ForensicRepository:
         создавать строку снапшота для любой активной компании."""
         res = await self.session.execute(text(
             "SELECT c.code, COALESCE(c.name_short, c.name_ru) AS name, "
-            "       s.code AS sector_code, s.name_ru AS sector_name "
+            "       s.code AS sector_code, s.name_ru AS sector_name, "
+            "       c.include_in_rollups "
             "FROM companies c LEFT JOIN sectors s ON s.id = c.sector_id "
             "WHERE c.is_active = true AND c.code <> 'uzassets'"
         ))
         out: list[dict] = []
-        for code, name, sector_code, sector_name in res.all():
+        for code, name, sector_code, sector_name, in_rollups in res.all():
             if not code:
                 continue
             out.append({
                 "k": code.strip().lower(),
                 "n": name or code,
+                # Компания вне свода остаётся строкой ростера, но не входит в
+                # портфельные счётчики модуля (см. ForensicService.overview).
+                "rollup": bool(in_rollups),
                 "s": _forensic_sector_bucket(sector_code, sector_name),
             })
         return out

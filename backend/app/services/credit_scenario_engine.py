@@ -61,6 +61,19 @@ def scope_to_filter_clause(scope: str):
     return CreditPortfolioLoan.lender_type.in_(types)
 
 
+def rollup_clause():
+    """Кредиты только тех компаний, что входят в портфельные сводные.
+
+    Срез «Кредитная нагрузка» — государственный сводный экран: демо и непрофильные
+    компании (include_in_rollups=false) не должны попадать ни в KPI-полосу, ни в
+    прогноз погашения, ни в топы и коэффициенты. Карточка компании и её собственный
+    кредитный портфель этим фильтром не затронуты (см. CreditPortfolioRepository).
+    """
+    return CreditPortfolioLoan.company_id.in_(
+        select(Company.id).where(Company.include_in_rollups.is_(True))
+    )
+
+
 # ============================================================================
 # State summary (KPI strip)
 # ============================================================================
@@ -70,7 +83,7 @@ async def compute_state_summary(
     scenario_id: Optional[UUID] = None,
 ) -> dict[str, Any]:
     """Compute KPI strip for the admin credit-nagruzka section."""
-    base_filters = [CreditPortfolioLoan.deleted_at.is_(None)]
+    base_filters = [CreditPortfolioLoan.deleted_at.is_(None), rollup_clause()]
     scope_clause = scope_to_filter_clause(scope)
     if scope_clause is not None:
         base_filters.append(scope_clause)
@@ -128,14 +141,19 @@ async def compute_state_summary(
     fx_pct = (Decimal(str(row.fx_debt or 0)) / debt * 100) if debt > 0 else Decimal(0)
 
     # Overdue: lookup from loan_repayments
-    overdue_q = select(
-        func.coalesce(func.sum(LoanRepayment.scheduled_amount_usd), 0).label("amt"),
-        func.count(func.distinct(LoanRepayment.loan_id)).label("cnt"),
-    ).where(LoanRepayment.status == "overdue")
+    # Джойн к кредиту нужен всегда: просрочка государственного среза не должна
+    # включать компании вне портфельных сводных (иначе демо-компания станет
+    # единственным источником просрочки на экране).
+    overdue_q = (
+        select(
+            func.coalesce(func.sum(LoanRepayment.scheduled_amount_usd), 0).label("amt"),
+            func.count(func.distinct(LoanRepayment.loan_id)).label("cnt"),
+        )
+        .join(CreditPortfolioLoan, CreditPortfolioLoan.id == LoanRepayment.loan_id)
+        .where(LoanRepayment.status == "overdue", rollup_clause())
+    )
     if scope_clause is not None:
-        overdue_q = overdue_q.join(
-            CreditPortfolioLoan, CreditPortfolioLoan.id == LoanRepayment.loan_id
-        ).where(scope_clause)
+        overdue_q = overdue_q.where(scope_clause)
     overdue_row = (await db.execute(overdue_q)).first()
     overdue_amt = Decimal(str(overdue_row.amt or 0))
     overdue_cnt = int(overdue_row.cnt or 0)
@@ -145,7 +163,10 @@ async def compute_state_summary(
     plus_year = today + timedelta(days=365)
     n12_q = select(
         func.coalesce(func.sum(LoanRepayment.scheduled_amount_usd), 0).label("amt"),
+    ).join(
+        CreditPortfolioLoan, CreditPortfolioLoan.id == LoanRepayment.loan_id
     ).where(
+        rollup_clause(),
         LoanRepayment.status.in_(("scheduled", "overdue")),
         # crude: any quarter ending within +365 days
         or_(
@@ -165,9 +186,7 @@ async def compute_state_summary(
         ),
     )
     if scope_clause is not None:
-        n12_q = n12_q.join(
-            CreditPortfolioLoan, CreditPortfolioLoan.id == LoanRepayment.loan_id
-        ).where(scope_clause)
+        n12_q = n12_q.where(scope_clause)
     n12_row = (await db.execute(n12_q)).first()
     next_12mo = Decimal(str(n12_row.amt or 0))
 
@@ -237,7 +256,7 @@ async def compute_el_aggregate(
             overrides_by_loan[ov.loan_id] = ov
 
     # Iterate loans in scope
-    base_filters = [CreditPortfolioLoan.deleted_at.is_(None)]
+    base_filters = [CreditPortfolioLoan.deleted_at.is_(None), rollup_clause()]
     scope_clause = scope_to_filter_clause(scope)
     if scope_clause is not None:
         base_filters.append(scope_clause)
@@ -348,7 +367,7 @@ async def compute_debt_ratios(
 
     Returns list of dicts ready for the UI.
     """
-    base_filters = [CreditPortfolioLoan.deleted_at.is_(None)]
+    base_filters = [CreditPortfolioLoan.deleted_at.is_(None), rollup_clause()]
     scope_clause = scope_to_filter_clause(scope)
     if scope_clause is not None:
         base_filters.append(scope_clause)
@@ -489,6 +508,9 @@ async def compute_repayment_forecast(
     base_filters = [
         LoanRepayment.period_year >= base_year,
         LoanRepayment.period_year <= horizon_year,
+        # Прогноз погашения — часть государственного сводного среза: компании
+        # вне портфельных сводных в него не входят.
+        rollup_clause(),
     ]
     scope_clause = scope_to_filter_clause(scope)
 
@@ -525,14 +547,13 @@ async def compute_repayment_forecast(
             ).label("custom"),
             func.bool_or(LoanRepayment.is_custom_schedule).label("has_custom"),
         )
+        .join(CreditPortfolioLoan, CreditPortfolioLoan.id == LoanRepayment.loan_id)
         .where(and_(*base_filters))
         .group_by(LoanRepayment.period_year, LoanRepayment.period_quarter)
         .order_by(LoanRepayment.period_year, LoanRepayment.period_quarter)
     )
     if scope_clause is not None:
-        q = q.join(
-            CreditPortfolioLoan, CreditPortfolioLoan.id == LoanRepayment.loan_id
-        ).where(scope_clause)
+        q = q.where(scope_clause)
 
     res = await db.execute(q)
     rows = res.all()
@@ -563,7 +584,7 @@ async def compute_top_loans(
     top_n: int = 20,
 ) -> list[dict[str, Any]]:
     """TOP-N loans by debt_usd within scope, with scenario overrides loaded."""
-    base_filters = [CreditPortfolioLoan.deleted_at.is_(None)]
+    base_filters = [CreditPortfolioLoan.deleted_at.is_(None), rollup_clause()]
     scope_clause = scope_to_filter_clause(scope)
     if scope_clause is not None:
         base_filters.append(scope_clause)

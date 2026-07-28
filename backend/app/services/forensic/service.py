@@ -105,6 +105,13 @@ class ForensicService:
                 merged.append({"k": ac["k"], "n": ac["n"], "s": ac["s"], "years": []})
         # Коды АКТИВНЫХ компаний — для отсева деактивированных строк снапшота.
         active_codes = {(ac.get("k") or "").strip().lower() for ac in active}
+        # Компании вне портфельных сводных: строка ростера остаётся, но в KPI
+        # («планы утверждены», «форензик завершён», «с аудитором», total) не идёт —
+        # иначе демо/непрофильная компания поднимает портфельные счётчики.
+        no_rollup_codes = {
+            (ac.get("k") or "").strip().lower()
+            for ac in active if not ac.get("rollup", True)
+        }
 
         if not merged:
             return {
@@ -142,12 +149,14 @@ class ForensicService:
             # H-1/H-2: «план утверждён» = число>0 в поле plan (7 флагманов держат
             # сумму в статус-поле) ИЛИ статус начинается с «Утверждён». Согласовано
             # с фронтом (planBadge/planFilter) — один предикат, без противоречия.
-            if _plan_approved(raw):
+            in_rollups = code_lc not in no_rollup_codes
+            enriched["in_rollups"] = in_rollups
+            if _plan_approved(raw) and in_rollups:
                 plan_approved += 1
             # H-3: форензик «завершён» только с аудитором и годами.
-            if _forensic_really_done(raw):
+            if _forensic_really_done(raw) and in_rollups:
                 forensic_done += 1
-            if (raw.get("auditor") or "").strip():
+            if (raw.get("auditor") or "").strip() and in_rollups:
                 with_auditor += 1
             companies.append(enriched)
 
@@ -159,7 +168,8 @@ class ForensicService:
         return {
             "companies": companies,
             "kpis": {
-                "total_companies": len(companies),
+                # Знаменатель — по тем же компаниям, что и числители выше.
+                "total_companies": sum(1 for c in companies if c.get("in_rollups", True)),
                 "plan_approved": plan_approved,
                 "forensic_done": forensic_done,
                 "with_auditor": with_auditor,
