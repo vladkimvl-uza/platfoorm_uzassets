@@ -1918,10 +1918,10 @@ async def _patch_direction_color(conn) -> None:
         "ALTER TABLE directions ADD COLUMN IF NOT EXISTS color VARCHAR(9)"
     ))
     _defaults = {
-        "strategy": "#1e2787", "finance": "#D97706", "procurement": "#3B6D11",
-        "orgdev": "#534AB7", "digital": "#1D9E75", "operations": "#EF4444",
-        "governance": "#72243E", "esg": "#1D9E75", "pr": "#D4537E",
-        "pmo": "#2563EB", "analytics": "#7C3AED",
+        "strategy": "#6B7FD7", "finance": "#E0A458", "procurement": "#7BA05B",
+        "orgdev": "#A78BC7", "digital": "#5FB3C4", "operations": "#E08A7B",
+        "governance": "#C77B96", "esg": "#5FA98A", "pr": "#D89BB5",
+        "pmo": "#7B9BD1", "analytics": "#9B8EC4",
     }
     for _code, _color in _defaults.items():
         await conn.execute(

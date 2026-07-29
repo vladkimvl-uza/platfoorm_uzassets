@@ -36,17 +36,17 @@ const fmt = useFormatters();
 
 // ── Direction metadata (1:1 legacy const DIRS) ──────────────────────
 const DIRS: Record<string, { label: string; short: string; color: string }> = {
-  strategy:    { label: "Стратегическое управление",  short: "STRG",  color: "#1e2787" },
-  finance:     { label: "Финансы / риски / аудит",    short: "FIN",   color: "#D97706" },
-  procurement: { label: "Система закупок",            short: "PROC",  color: "#3B6D11" },
-  orgdev:      { label: "Организационное развитие",   short: "ORG",   color: "#534AB7" },
-  digital:     { label: "Цифровизация",               short: "DIG",   color: "#1D9E75" },
-  operations:  { label: "Операционная эффективность", short: "OPS",   color: "#EF4444" },
-  governance:  { label: "Корпоративное управление",   short: "GOV",   color: "#72243E" },
-  esg:         { label: "ESG",                        short: "ESG",   color: "#1D9E75" },
-  pr:          { label: "Связи с общественностью",    short: "PR",    color: "#D4537E" },
-  pmo:         { label: "PMO",                        short: "PMO",   color: "#2563EB" },
-  analytics:   { label: "Сводный отдел",              short: "ANL",   color: "#7C3AED" },
+  strategy:    { label: "Стратегическое управление",  short: "STRG",  color: "#6B7FD7" },
+  finance:     { label: "Финансы / риски / аудит",    short: "FIN",   color: "#E0A458" },
+  procurement: { label: "Система закупок",            short: "PROC",  color: "#7BA05B" },
+  orgdev:      { label: "Организационное развитие",   short: "ORG",   color: "#A78BC7" },
+  digital:     { label: "Цифровизация",               short: "DIG",   color: "#5FB3C4" },
+  operations:  { label: "Операционная эффективность", short: "OPS",   color: "#E08A7B" },
+  governance:  { label: "Корпоративное управление",   short: "GOV",   color: "#C77B96" },
+  esg:         { label: "ESG",                        short: "ESG",   color: "#5FA98A" },
+  pr:          { label: "Связи с общественностью",    short: "PR",    color: "#D89BB5" },
+  pmo:         { label: "PMO",                        short: "PMO",   color: "#7B9BD1" },
+  analytics:   { label: "Сводный отдел",              short: "ANL",   color: "#9B8EC4" },
 };
 
 const dir = computed(() => {

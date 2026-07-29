@@ -5,17 +5,17 @@ from datetime import UTC, date, datetime
 from typing import Optional
 
 DIRS = [
-    {"id": "strategy",    "label": "Стратегическое управление",  "color": "#1e2787"},
-    {"id": "finance",     "label": "Финансы / риски / аудит",    "color": "#D97706"},
-    {"id": "procurement", "label": "Система закупок",            "color": "#3B6D11"},
-    {"id": "orgdev",      "label": "Организационное развитие",   "color": "#534AB7"},
-    {"id": "digital",     "label": "Цифровизация",               "color": "#1D9E75"},
-    {"id": "operations",  "label": "Операционная эффективность", "color": "#EF4444"},
-    {"id": "governance",  "label": "Корпоративное управление",   "color": "#72243E"},
-    {"id": "esg",         "label": "ESG",                        "color": "#1D9E75"},
-    {"id": "pr",          "label": "Связи с общественностью",    "color": "#D4537E"},
-    {"id": "pmo",         "label": "PMO",                        "color": "#2563EB"},
-    {"id": "analytics",   "label": "Сводный отдел",              "color": "#7C3AED"},
+    {"id": "strategy",    "label": "Стратегическое управление",  "color": "#6B7FD7"},
+    {"id": "finance",     "label": "Финансы / риски / аудит",    "color": "#E0A458"},
+    {"id": "procurement", "label": "Система закупок",            "color": "#7BA05B"},
+    {"id": "orgdev",      "label": "Организационное развитие",   "color": "#A78BC7"},
+    {"id": "digital",     "label": "Цифровизация",               "color": "#5FB3C4"},
+    {"id": "operations",  "label": "Операционная эффективность", "color": "#E08A7B"},
+    {"id": "governance",  "label": "Корпоративное управление",   "color": "#C77B96"},
+    {"id": "esg",         "label": "ESG",                        "color": "#5FA98A"},
+    {"id": "pr",          "label": "Связи с общественностью",    "color": "#D89BB5"},
+    {"id": "pmo",         "label": "PMO",                        "color": "#7B9BD1"},
+    {"id": "analytics",   "label": "Сводный отдел",              "color": "#9B8EC4"},
 ]
 
 SECTOR_ORDER = ["mining_metallurgy", "oil_gas", "energy", "transport_communications", "other"]

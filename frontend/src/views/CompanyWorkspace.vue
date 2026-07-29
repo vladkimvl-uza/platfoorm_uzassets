@@ -564,17 +564,17 @@ const overdueTasks = computed(() =>
 
 // Direction meta (1:1 from legacy DIRS const)
 const _DIRS_META: Record<string, { label: string; color: string }> = {
-  strategy:    { label: "Стратегическое управление",  color: "#1e2787" },
-  finance:     { label: "Финансы / риски / аудит",    color: "#D97706" },
-  procurement: { label: "Система закупок",            color: "#3B6D11" },
-  orgdev:      { label: "Организационное развитие",   color: "#534AB7" },
-  digital:     { label: "Цифровизация",               color: "#1D9E75" },
-  operations:  { label: "Операционная эффективность", color: "#EF4444" },
-  governance:  { label: "Корпоративное управление",   color: "#72243E" },
-  esg:         { label: "ESG",                        color: "#1D9E75" },
-  pr:          { label: "Связи с общественностью",    color: "#D4537E" },
-  pmo:         { label: "PMO",                        color: "#2563EB" },
-  analytics:   { label: "Сводный отдел",              color: "#7C3AED" },
+  strategy:    { label: "Стратегическое управление",  color: "#6B7FD7" },
+  finance:     { label: "Финансы / риски / аудит",    color: "#E0A458" },
+  procurement: { label: "Система закупок",            color: "#7BA05B" },
+  orgdev:      { label: "Организационное развитие",   color: "#A78BC7" },
+  digital:     { label: "Цифровизация",               color: "#5FB3C4" },
+  operations:  { label: "Операционная эффективность", color: "#E08A7B" },
+  governance:  { label: "Корпоративное управление",   color: "#C77B96" },
+  esg:         { label: "ESG",                        color: "#5FA98A" },
+  pr:          { label: "Связи с общественностью",    color: "#D89BB5" },
+  pmo:         { label: "PMO",                        color: "#7B9BD1" },
+  analytics:   { label: "Сводный отдел",              color: "#9B8EC4" },
 };
 // =====================================================================
 // List view helpers
@@ -3219,6 +3219,12 @@ function onEditorClose() {
             </div>
           </section>
 
+          <!-- Сотрудники — сразу под шапкой обзора: раньше карточка стояла
+               последней, ниже документов и шести блоков, и до неё приходилось
+               долго прокручивать (замечание владельца 29.07.2026). -->
+          <CompanyEmployeesSummary :code="code" @open-people="activeTab = 'people'"
+                                   style="margin-bottom: 16px" />
+
           <!-- ╔═ Placeholders for next session ═╗ -->
           <!-- Overview Extras -- 6 блоков -->
           <CompanyOverviewExtras
@@ -3235,8 +3241,6 @@ function onEditorClose() {
             :company-id="company.id"
             style="margin-top: 16px"
           />
-
-          <CompanyEmployeesSummary :code="code" @open-people="activeTab = 'people'" />
 
         </div>
 

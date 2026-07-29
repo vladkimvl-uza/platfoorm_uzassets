@@ -13,7 +13,9 @@ import UserAffiliationBadge from '@/components/rbac-v3/UserAffiliationBadge.vue'
 import UserAvatar from '@/components/rbac-v3/UserAvatar.vue';
 import UserCardAnchor from '@/components/user/UserCardAnchor.vue';
 import { useConfirm } from '@/composables/useConfirm';
+import { useI18n } from '@/composables/useI18n';
 import { presenceStatus } from '@/composables/usePresence';
+import { fmtDateTime, fmtRelativeTime, INTL_LOCALE } from '@/locale';
 import UserDetailDrawer from './UserDetailDrawer.vue';
 
 type Filter = 'all' | 'active' | 'inactive' | 'pwd_change' | 'without_roles';
@@ -46,6 +48,7 @@ type RegistryItem =
     };
 
 const { confirmDialog } = useConfirm();
+const { t, locale } = useI18n();
 
 const users = ref<RbacV3UserBrief[]>([]);
 const overview = ref<RbacV3Overview | null>(null);
@@ -90,12 +93,12 @@ function pwdSeverity(user: RbacV3UserBrief): 'critical' | 'warning' | 'ok' | 'un
 }
 
 function pwdStatusLabel(user: RbacV3UserBrief): string {
-  if (user.must_change_password) return 'Требуется смена';
+  if (user.must_change_password) return t('Требуется смена');
   const age = pwdAgeDays(user);
-  if (age === null) return 'Нет данных';
-  if (age >= PWD_AGE_CRIT_DAYS) return `${age} дн. без смены`;
-  if (age >= PWD_AGE_WARN_DAYS) return `Истекает · ${age} дн.`;
-  return 'В норме';
+  if (age === null) return t('Нет данных');
+  if (age >= PWD_AGE_CRIT_DAYS) return t('{age} дн. без смены', { age: formatCount(age) });
+  if (age >= PWD_AGE_WARN_DAYS) return t('Истекает · {age} дн.', { age: formatCount(age) });
+  return t('В норме');
 }
 
 async function loadOverview() {
@@ -121,7 +124,7 @@ async function loadUsers(silent = false) {
     selectedIds.value = new Set([...selectedIds.value].filter(id => loadedIds.has(id)));
     if (selectedUser.value && !loadedIds.has(selectedUser.value.id)) selectedUser.value = null;
   } catch (requestError: any) {
-    error.value = requestError?.response?.data?.detail || 'Не удалось загрузить пользователей';
+    error.value = requestError?.response?.data?.detail || t('Не удалось загрузить пользователей');
   } finally {
     if (!silent) loading.value = false;
   }
@@ -168,29 +171,29 @@ const loadedCounts = computed(() => ({
 const filterOptions = computed(() => [
   {
     id: 'all' as const,
-    label: 'Все',
+    label: t('Все'),
     count: search.value.trim() ? total.value : (overview.value?.users_total ?? total.value),
   },
   {
     id: 'active' as const,
-    label: 'Активные',
+    label: t('Активные'),
     count: search.value.trim() ? loadedCounts.value.active : (overview.value?.users_active ?? loadedCounts.value.active),
   },
   {
     id: 'inactive' as const,
-    label: 'Заблокированные',
+    label: t('Заблокированные'),
     count: search.value.trim() ? loadedCounts.value.inactive : (overview.value?.users_inactive ?? loadedCounts.value.inactive),
   },
   {
     id: 'pwd_change' as const,
-    label: 'Требуют внимания',
+    label: t('Требуют внимания'),
     count: loadedCounts.value.pwd_change,
   },
   {
     // Вкладка нужна, чтобы клик по карточке «Без назначенных ролей» имел
     // видимое состояние в переключателе и его можно было снять обратно.
     id: 'without_roles' as const,
-    label: 'Без ролей',
+    label: t('Без ролей'),
     count: overview.value?.users_without_roles ?? loadedCounts.value.without_roles,
   },
 ]);
@@ -201,7 +204,7 @@ const summaryMetrics = computed(() => [
   {
     key: 'total',
     target: 'all' as Filter,
-    label: 'Всего пользователей',
+    label: t('Всего пользователей'),
     value: overview.value?.users_total ?? total.value,
     icon: 'user-check',
     tone: 'neutral',
@@ -209,7 +212,7 @@ const summaryMetrics = computed(() => [
   {
     key: 'active',
     target: 'active' as Filter,
-    label: 'Активные',
+    label: t('Активные'),
     value: overview.value?.users_active ?? loadedCounts.value.active,
     icon: 'shield-check',
     tone: 'positive',
@@ -217,7 +220,7 @@ const summaryMetrics = computed(() => [
   {
     key: 'inactive',
     target: 'inactive' as Filter,
-    label: 'Заблокированные',
+    label: t('Заблокированные'),
     value: overview.value?.users_inactive ?? loadedCounts.value.inactive,
     icon: 'lock',
     tone: 'negative',
@@ -225,7 +228,7 @@ const summaryMetrics = computed(() => [
   {
     key: 'without_roles',
     target: 'without_roles' as Filter,
-    label: 'Без назначенных ролей',
+    label: t('Без назначенных ролей'),
     value: overview.value?.users_without_roles ?? loadedCounts.value.without_roles,
     icon: 'user-exclamation',
     tone: 'warning',
@@ -242,13 +245,16 @@ const visibleUsers = computed(() => {
   });
 
   result = [...result].sort((left, right) => {
-    if (sortMode.value === 'name') return left.full_name.localeCompare(right.full_name, 'ru');
+    if (sortMode.value === 'name') {
+      return left.full_name.localeCompare(right.full_name, INTL_LOCALE[locale.value]);
+    }
     if (sortMode.value === 'created') {
       return new Date(right.created_at).getTime() - new Date(left.created_at).getTime();
     }
     const leftActivity = left.last_seen_at ? new Date(left.last_seen_at).getTime() : 0;
     const rightActivity = right.last_seen_at ? new Date(right.last_seen_at).getTime() : 0;
-    return rightActivity - leftActivity || left.full_name.localeCompare(right.full_name, 'ru');
+    return rightActivity - leftActivity
+      || left.full_name.localeCompare(right.full_name, INTL_LOCALE[locale.value]);
   });
 
   return result;
@@ -295,7 +301,7 @@ const companyGroups = computed<CompanyUserGroup[]>(() => {
     if (user.organization_id && user.company) {
       addEntry(user.organization_id, user.organization_id, user.company, user, null);
     } else {
-      addEntry(UNASSIGNED_COMPANY_KEY, null, 'Без привязки к компании', user, null);
+      addEntry(UNASSIGNED_COMPANY_KEY, null, t('Без привязки к компании'), user, null);
     }
   }
 
@@ -315,7 +321,7 @@ const companyGroups = computed<CompanyUserGroup[]>(() => {
     .sort((left, right) => {
       if (left.key === UNASSIGNED_COMPANY_KEY) return 1;
       if (right.key === UNASSIGNED_COMPANY_KEY) return -1;
-      return left.name.localeCompare(right.name, 'ru');
+      return left.name.localeCompare(right.name, INTL_LOCALE[locale.value]);
     });
 });
 
@@ -354,15 +360,30 @@ const allVisibleSelected = computed(() =>
 const someVisibleSelected = computed(() =>
   visibleUsers.value.some(user => selectedIds.value.has(user.id)) && !allVisibleSelected.value);
 
+function formatCount(value: number): string {
+  return value.toLocaleString(INTL_LOCALE[locale.value]);
+}
+
 const registryCaption = computed(() => {
-  const shown = visibleUsers.value.length;
-  const companies = companyGroups.value.length;
-  const companySuffix = viewMode.value === 'company'
-    ? ` · ${companies} ${companyCountLabel(companies)}`
-    : '';
-  if (search.value.trim()) return `Найдено ${shown} из ${total.value}${companySuffix}`;
-  if (truncated.value) return `Показано ${shown} · загружено ${users.value.length} из ${total.value}${companySuffix}`;
-  return `Показано ${shown} из ${total.value}${companySuffix}`;
+  const values = {
+    shown: formatCount(visibleUsers.value.length),
+    loaded: formatCount(users.value.length),
+    total: formatCount(total.value),
+    companies: formatCount(companyGroups.value.length),
+  };
+  if (search.value.trim()) {
+    return viewMode.value === 'company'
+      ? t('Найдено: {shown} из {total} · Компаний: {companies}', values)
+      : t('Найдено: {shown} из {total}', values);
+  }
+  if (truncated.value) {
+    return viewMode.value === 'company'
+      ? t('Показано: {shown} · Загружено: {loaded} из {total} · Компаний: {companies}', values)
+      : t('Показано: {shown} · Загружено: {loaded} из {total}', values);
+  }
+  return viewMode.value === 'company'
+    ? t('Показано: {shown} из {total} · Компаний: {companies}', values)
+    : t('Показано: {shown} из {total}', values);
 });
 
 function onSearchInput() {
@@ -396,24 +417,6 @@ function toggleSelectAllVisible() {
     for (const user of visibleUsers.value) next.add(user.id);
   }
   selectedIds.value = next;
-}
-
-function companyCountLabel(count: number): string {
-  const mod100 = count % 100;
-  const mod10 = count % 10;
-  if (mod100 >= 11 && mod100 <= 14) return 'компаний';
-  if (mod10 === 1) return 'компания';
-  if (mod10 >= 2 && mod10 <= 4) return 'компании';
-  return 'компаний';
-}
-
-function userCountLabel(count: number): string {
-  const mod100 = count % 100;
-  const mod10 = count % 10;
-  if (mod100 >= 11 && mod100 <= 14) return 'пользователей';
-  if (mod10 === 1) return 'пользователь';
-  if (mod10 >= 2 && mod10 <= 4) return 'пользователя';
-  return 'пользователей';
 }
 
 function companyUserIds(group: CompanyUserGroup): string[] {
@@ -458,33 +461,25 @@ async function onUserChanged() {
 }
 
 function fmtLastActivity(value: string | null): string {
-  if (!value) return 'Не входил';
-  const difference = (Date.now() - new Date(value).getTime()) / 1000;
-  if (difference < 60) return 'Только что';
-  if (difference < 3600) return `${Math.floor(difference / 60)} мин назад`;
-  if (difference < 86400) return `${Math.floor(difference / 3600)} ч назад`;
-  const days = Math.floor(difference / 86400);
-  if (days === 1) return 'Вчера';
-  if (days < 30) return `${days} дн назад`;
-  return `${Math.floor(days / 30)} мес назад`;
+  return value ? fmtRelativeTime(value, locale.value) : t('Не входил');
 }
 
 function lastActivityTitle(user: RbacV3UserBrief): string {
   const seen = user.last_seen_at
-    ? `Последняя активность: ${new Date(user.last_seen_at).toLocaleString('ru-RU')}`
-    : 'Активности ещё не было';
+    ? t('Последняя активность: {date}', { date: fmtDateTime(user.last_seen_at, locale.value) })
+    : t('Активности ещё не было');
   const login = user.last_login_at
-    ? `Последний вход: ${new Date(user.last_login_at).toLocaleString('ru-RU')}`
-    : 'Ни разу не входил';
+    ? t('Последний вход: {date}', { date: fmtDateTime(user.last_login_at, locale.value) })
+    : t('Ни разу не входил');
   return `${seen}\n${login}`;
 }
 
 function scopeLabel(user: RbacV3UserBrief): string {
-  return user.company || user.department || 'Не указана';
+  return user.company || user.department || t('Не указана');
 }
 
 function rowScopeLabel(user: RbacV3UserBrief, membership: RbacV3UserCompanyMembership | null): string {
-  if (membership) return user.department || membership.group_name || 'Без подразделения';
+  if (membership) return user.department || membership.group_name || t('Без подразделения');
   return scopeLabel(user);
 }
 
@@ -506,15 +501,16 @@ function rowRoleTitle(
     ...(membership ? [`${membership.role_name} · ${membership.company_name}`] : []),
     ...user.role_names,
   ];
-  return labels.join(', ') || 'Роли не назначены';
+  return labels.join(', ') || t('Роли не назначены');
 }
 
 async function bulkDeactivate() {
   const ids = Array.from(selectedIds.value);
   if (!ids.length) return;
-  const noun = ids.length === 1 ? 'пользователя' : 'пользователей';
   const confirmed = await confirmDialog({
-    message: `Деактивировать ${ids.length} ${noun}? Активные сессии будут отозваны, пользователей можно реактивировать позже.`,
+    message: t('Деактивировать выбранных пользователей: {count}? Активные сессии будут отозваны, пользователей можно реактивировать позже.',
+      { count: formatCount(ids.length) },
+    ),
     danger: true,
   });
   if (!confirmed) return;
@@ -533,18 +529,24 @@ async function bulkDeactivate() {
   bulkBusy.value = false;
   selectedIds.value = new Set();
   await Promise.all([loadUsers(true), loadOverview()]);
-  if (failed.length) error.value = `Деактивировано ${completed}, не удалось ${failed.length}: ${failed[0]}`;
+  if (failed.length) {
+    error.value = t('Деактивировано: {completed}; не удалось: {failed}. Причина: {reason}', {
+      completed: formatCount(completed),
+      failed: formatCount(failed.length),
+      reason: failed[0],
+    });
+  }
 }
 </script>
 
 <template>
   <div class="users-page" :class="{ 'detail-open': selectedUser }">
     <main class="users-registry">
-      <section class="users-summary" aria-label="Сводка по пользователям">
+      <section class="users-summary" :aria-label="t('Сводка по пользователям')">
         <div class="summary-intro">
-          <span class="summary-eyebrow">Реестр доступа</span>
-          <h1>Пользователи</h1>
-          <p>Учётные записи, роли и состояние безопасности</p>
+          <span class="summary-eyebrow">{{ t('Реестр доступа') }}</span>
+          <h1>{{ t('Пользователи') }}</h1>
+          <p>{{ t('Учётные записи, роли и состояние безопасности') }}</p>
         </div>
         <div class="summary-metrics">
           <button
@@ -554,20 +556,20 @@ async function bulkDeactivate() {
             :class="['summary-metric', `tone-${metric.tone}`, { on: filter === metric.target }]"
             :style="{ animationDelay: `${80 + index * 55}ms` }"
             :aria-pressed="filter === metric.target"
-            :title="`Показать: ${metric.label}`"
+            :title="t('Показать: {label}', { label: metric.label })"
             @click="onFilterChange(metric.target)"
           >
             <span class="metric-icon"><BIcon :name="metric.icon" :size="16" /></span>
             <span class="metric-copy">
-              <strong>{{ metric.value.toLocaleString('ru-RU') }}</strong>
+              <strong>{{ formatCount(metric.value) }}</strong>
               <small>{{ metric.label }}</small>
             </span>
           </button>
         </div>
       </section>
 
-      <section class="users-toolbar" aria-label="Фильтры пользователей">
-        <div class="filter-tabs" role="tablist" aria-label="Статус пользователей">
+      <section class="users-toolbar" :aria-label="t('Фильтры пользователей')">
+        <div class="filter-tabs" role="tablist" :aria-label="t('Статус пользователей')">
           <button
             v-for="option in filterOptions"
             :key="option.id"
@@ -578,26 +580,26 @@ async function bulkDeactivate() {
             @click="onFilterChange(option.id)"
           >
             {{ option.label }}
-            <span>{{ option.count.toLocaleString('ru-RU') }}</span>
+            <span>{{ formatCount(option.count) }}</span>
           </button>
         </div>
 
         <div class="toolbar-tools">
-          <div class="view-mode" role="group" aria-label="Представление пользователей">
+          <div class="view-mode" role="group" :aria-label="t('Представление пользователей')">
             <button
               type="button"
               :class="{ on: viewMode === 'list' }"
               :aria-pressed="viewMode === 'list'"
-              title="Показать единым списком"
+              :title="t('Показать единым списком')"
               @click="viewMode = 'list'"
-            ><BIcon name="checklist" :size="13" /><span>Список</span></button>
+            ><BIcon name="checklist" :size="13" /><span>{{ t('Список') }}</span></button>
             <button
               type="button"
               :class="{ on: viewMode === 'company' }"
               :aria-pressed="viewMode === 'company'"
-              title="Сгруппировать по компаниям доступа"
+              :title="t('Сгруппировать по компаниям доступа')"
               @click="viewMode = 'company'"
-            ><BIcon name="building-bank" :size="13" /><span>Компании</span></button>
+            ><BIcon name="building-bank" :size="13" /><span>{{ t('Компании') }}</span></button>
           </div>
 
           <label class="users-search">
@@ -610,24 +612,24 @@ async function bulkDeactivate() {
               autocorrect="off"
               autocapitalize="off"
               spellcheck="false"
-              placeholder="Имя, email, подразделение"
+              :placeholder="t('Имя, email, подразделение')"
               @input="onSearchInput"
             />
             <button
               v-if="search"
               type="button"
-              title="Очистить поиск"
-              aria-label="Очистить поиск"
+              :title="t('Очистить поиск')"
+              :aria-label="t('Очистить поиск')"
               @click="clearSearch"
             ><BIcon name="x" :size="13" /></button>
           </label>
 
           <label class="sort-control">
-            <span>Сортировка</span>
-            <select v-model="sortMode" aria-label="Сортировка пользователей">
-              <option value="activity">По активности</option>
-              <option value="name">По имени</option>
-              <option value="created">Сначала новые</option>
+            <span>{{ t('Сортировка') }}</span>
+            <select v-model="sortMode" :aria-label="t('Сортировка пользователей')">
+              <option value="activity">{{ t('По активности') }}</option>
+              <option value="name">{{ t('По имени') }}</option>
+              <option value="created">{{ t('Сначала новые') }}</option>
             </select>
           </label>
 
@@ -636,8 +638,8 @@ async function bulkDeactivate() {
             class="refresh-button"
             :class="{ spinning: refreshing }"
             :disabled="refreshing"
-            title="Обновить список"
-            aria-label="Обновить список"
+            :title="t('Обновить список')"
+            :aria-label="t('Обновить список')"
             @click="refreshAll"
           ><BIcon name="refresh" :size="15" /></button>
         </div>
@@ -647,20 +649,20 @@ async function bulkDeactivate() {
         <div v-if="selectedIds.size" class="bulk-actions">
           <div class="bulk-count">
             <span>{{ selectedIds.size }}</span>
-            <div><b>Выбрано</b><small>Действия применятся ко всем отмеченным</small></div>
+            <div><b>{{ t('Выбрано') }}</b><small>{{ t('Действия применятся ко всем отмеченным') }}</small></div>
           </div>
           <div class="bulk-buttons">
             <button type="button" @click="showBulk = true">
-              <BIcon name="shield-check" :size="14" /> Изменить роли
+              <BIcon name="shield-check" :size="14" /> {{ t('Изменить роли') }}
             </button>
             <button type="button" class="danger" :disabled="bulkBusy" @click="bulkDeactivate">
-              <BIcon name="trash" :size="14" /> {{ bulkBusy ? 'Деактивация...' : 'Деактивировать' }}
+              <BIcon name="trash" :size="14" /> {{ bulkBusy ? t('Деактивация...') : t('Деактивировать') }}
             </button>
             <button
               type="button"
               class="bulk-clear"
-              title="Снять выделение"
-              aria-label="Снять выделение"
+              :title="t('Снять выделение')"
+              :aria-label="t('Снять выделение')"
               @click="selectedIds = new Set()"
             ><BIcon name="x" :size="15" /></button>
           </div>
@@ -669,10 +671,13 @@ async function bulkDeactivate() {
 
       <div v-if="truncated" class="truncated-notice">
         <BIcon name="info-circle" :size="15" />
-        <span>Загружено {{ users.length }} из {{ total }} записей. Для точного результата уточните поиск.</span>
+        <span>{{ t('Загружено {loaded} из {total} записей. Для точного результата уточните поиск.', {
+          loaded: formatCount(users.length),
+          total: formatCount(total),
+        }) }}</span>
       </div>
 
-      <section class="registry-table" aria-label="Список пользователей">
+      <section class="registry-table" :aria-label="t('Список пользователей')">
         <template v-if="loading">
           <div class="user-grid table-head skeleton-head">
             <span v-for="index in 8" :key="index"></span>
@@ -688,28 +693,28 @@ async function bulkDeactivate() {
 
         <div v-else-if="error" class="registry-state error-state">
           <span class="state-icon"><BIcon name="info-circle" :size="22" /></span>
-          <h2>Не удалось загрузить пользователей</h2>
+          <h2>{{ t('Не удалось загрузить пользователей') }}</h2>
           <p>{{ error }}</p>
-          <button type="button" @click="loadUsers()"><BIcon name="refresh" :size="14" /> Повторить</button>
+          <button type="button" @click="loadUsers()"><BIcon name="refresh" :size="14" /> {{ t('Повторить') }}</button>
         </div>
 
         <template v-else>
           <div class="user-grid table-head">
-            <label class="select-all" title="Выбрать видимые записи">
+            <label class="select-all" :title="t('Выбрать видимые записи')">
               <input
                 type="checkbox"
                 :checked="allVisibleSelected"
                 :indeterminate="someVisibleSelected"
-                aria-label="Выбрать всех видимых пользователей"
+                :aria-label="t('Выбрать всех видимых пользователей')"
                 @change="toggleSelectAllVisible"
               />
             </label>
-            <span>Пользователь</span>
-            <span>{{ viewMode === 'company' ? 'Подразделение' : 'Область' }}</span>
-            <span>{{ viewMode === 'company' ? 'Роль в компании' : 'Роли' }}</span>
-            <span>Активность</span>
-            <span>Безопасность</span>
-            <span>Статус</span>
+            <span>{{ t('Пользователь') }}</span>
+            <span>{{ viewMode === 'company' ? t('Подразделение') : t('Область') }}</span>
+            <span>{{ viewMode === 'company' ? t('Роль в компании') : t('Роли') }}</span>
+            <span>{{ t('Активность') }}</span>
+            <span>{{ t('Безопасность') }}</span>
+            <span>{{ t('Статус') }}</span>
             <span></span>
           </div>
 
@@ -725,26 +730,28 @@ async function bulkDeactivate() {
                     type="checkbox"
                     :checked="isCompanySelected(item.group)"
                     :indeterminate="isCompanyPartiallySelected(item.group)"
-                    :aria-label="`Выбрать пользователей компании ${item.group.name}`"
+                    :aria-label="t('Выбрать пользователей компании {company}', { company: item.group.name })"
                     @change="toggleCompanySelection(item.group)"
                   />
                 </label>
                 <span class="company-mark"><BIcon name="building-bank" :size="15" /></span>
                 <div class="company-heading">
                   <b :title="item.group.name">{{ item.group.name }}</b>
-                  <small>{{ item.group.entries.length }} {{ userCountLabel(item.group.entries.length) }}</small>
+                  <small>{{ t('Пользователей: {count}', { count: formatCount(item.group.entries.length) }) }}</small>
                 </div>
                 <div class="company-health">
-                  <span class="company-active"><i></i>{{ item.group.activeCount }} активны</span>
-                  <span v-if="item.group.inactiveCount" class="company-inactive"><i></i>{{ item.group.inactiveCount }} заблокированы</span>
-                  <span v-if="item.group.attentionCount" class="company-attention"><i></i>{{ item.group.attentionCount }} требуют внимания</span>
+                  <span class="company-active"><i></i>{{ t('Активны: {count}', { count: formatCount(item.group.activeCount) }) }}</span>
+                  <span v-if="item.group.inactiveCount" class="company-inactive"><i></i>{{ t('Заблокированы: {count}', { count: formatCount(item.group.inactiveCount) }) }}</span>
+                  <span v-if="item.group.attentionCount" class="company-attention"><i></i>{{ t('Требуют внимания: {count}', { count: formatCount(item.group.attentionCount) }) }}</span>
                 </div>
                 <button
                   type="button"
                   class="company-collapse"
                   :class="{ collapsed: collapsedCompanies.has(item.group.key) }"
                   :aria-expanded="!collapsedCompanies.has(item.group.key)"
-                  :aria-label="`${collapsedCompanies.has(item.group.key) ? 'Развернуть' : 'Свернуть'} компанию ${item.group.name}`"
+                  :aria-label="collapsedCompanies.has(item.group.key)
+                    ? t('Развернуть компанию {company}', { company: item.group.name })
+                    : t('Свернуть компанию {company}', { company: item.group.name })"
                   @click="toggleCompany(item.group.key)"
                 ><BIcon name="chevron-right" :size="15" /></button>
               </div>
@@ -753,7 +760,7 @@ async function bulkDeactivate() {
                 v-else
                 role="button"
                 tabindex="0"
-                :aria-label="`Открыть карточку пользователя ${item.user.full_name}`"
+                :aria-label="t('Открыть карточку пользователя {name}', { name: item.user.full_name })"
                 :class="[
                   'user-grid',
                   'user-row',
@@ -772,7 +779,7 @@ async function bulkDeactivate() {
                   <input
                     type="checkbox"
                     :checked="selectedIds.has(item.user.id)"
-                    :aria-label="`Выбрать ${item.user.full_name}`"
+                    :aria-label="t('Выбрать {name}', { name: item.user.full_name })"
                     @change="toggleSelect(item.user.id)"
                   />
                 </label>
@@ -790,7 +797,7 @@ async function bulkDeactivate() {
                   <div class="identity-copy">
                     <div class="identity-name">
                       <span>{{ item.user.full_name }}</span>
-                      <b v-if="item.user.is_owner" class="owner-label">Owner</b>
+                      <b v-if="item.user.is_owner" class="owner-label">{{ t('Владелец') }}</b>
                     </div>
                     <div class="identity-email">{{ item.user.email }}</div>
                     <UserAffiliationBadge
@@ -817,14 +824,14 @@ async function bulkDeactivate() {
                   <span v-if="rowRoleCodes(item.user, item.membership).length > 2" class="role-overflow">
                     +{{ rowRoleCodes(item.user, item.membership).length - 2 }}
                   </span>
-                  <span v-if="!rowRoleCodes(item.user, item.membership).length" class="no-access">Без ролей</span>
+                  <span v-if="!rowRoleCodes(item.user, item.membership).length" class="no-access">{{ t('Без ролей') }}</span>
                 </div>
 
                 <div class="activity-cell" :title="lastActivityTitle(item.user)">
                   <span :class="['activity-dot', `presence-${presenceStatus(item.user.last_seen_at)}`]"></span>
                   <div>
                     <b>{{ fmtLastActivity(item.user.last_seen_at) }}</b>
-                    <small>{{ item.user.last_login_at ? 'Есть входы' : 'Нет истории входа' }}</small>
+                    <small>{{ item.user.last_login_at ? t('Есть входы') : t('Нет истории входа') }}</small>
                   </div>
                 </div>
 
@@ -834,7 +841,7 @@ async function bulkDeactivate() {
                 </div>
 
                 <div :class="['account-status', { off: !item.user.is_active }]">
-                  <span></span>{{ item.user.is_active ? 'Активен' : 'Заблокирован' }}
+                  <span></span>{{ item.user.is_active ? t('Активен') : t('Заблокирован') }}
                 </div>
 
                 <span class="row-open"><BIcon name="chevron-right" :size="15" /></span>
@@ -843,9 +850,9 @@ async function bulkDeactivate() {
 
             <div v-if="!visibleUsers.length" class="registry-state empty-state">
               <span class="state-icon"><BIcon name="user-check" :size="23" /></span>
-              <h2>Пользователи не найдены</h2>
-              <p>{{ search ? 'Измените запрос или очистите поиск.' : 'Для этого фильтра пока нет записей.' }}</p>
-              <button v-if="search" type="button" @click="clearSearch"><BIcon name="x" :size="14" /> Очистить поиск</button>
+              <h2>{{ t('Пользователи не найдены') }}</h2>
+              <p>{{ search ? t('Измените запрос или очистите поиск.') : t('Для этого фильтра пока нет записей.') }}</p>
+              <button v-if="search" type="button" @click="clearSearch"><BIcon name="x" :size="14" /> {{ t('Очистить поиск') }}</button>
             </div>
           </div>
         </template>
@@ -853,8 +860,8 @@ async function bulkDeactivate() {
 
       <footer class="registry-footer">
         <span>{{ registryCaption }}</span>
-        <span v-if="refreshing" class="sync-status"><BIcon name="refresh" :size="11" /> Обновление</span>
-        <span v-else class="sync-status ready"><i></i> Данные актуальны</span>
+        <span v-if="refreshing" class="sync-status"><BIcon name="refresh" :size="11" /> {{ t('Обновление') }}</span>
+        <span v-else class="sync-status ready"><i></i> {{ t('Данные актуальны') }}</span>
       </footer>
     </main>
 
@@ -863,7 +870,7 @@ async function bulkDeactivate() {
         v-if="selectedUser"
         type="button"
         class="drawer-scrim"
-        aria-label="Закрыть карточку пользователя"
+        :aria-label="t('Закрыть карточку пользователя')"
         @click="closeDrawer"
       ></button>
     </Transition>

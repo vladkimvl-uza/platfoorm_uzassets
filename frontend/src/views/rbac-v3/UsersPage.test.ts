@@ -1,4 +1,5 @@
 import { flushPromises, shallowMount } from '@vue/test-utils';
+import { createPinia, setActivePinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { rbacV3Api, type RbacV3Overview, type RbacV3UserBrief } from '@/api/rbacV3';
 import UsersPage from './UsersPage.vue';
@@ -121,6 +122,12 @@ const users: RbacV3UserBrief[] = [
   },
 ];
 
+function mountUsersPage() {
+  const pinia = createPinia();
+  setActivePinia(pinia);
+  return shallowMount(UsersPage, { global: { plugins: [pinia] } });
+}
+
 describe('UsersPage', () => {
   beforeEach(() => {
     vi.mocked(rbacV3Api.overview).mockResolvedValue(overview);
@@ -132,7 +139,7 @@ describe('UsersPage', () => {
   });
 
   it('renders authoritative overview metrics and the loaded registry', async () => {
-    const wrapper = shallowMount(UsersPage);
+    const wrapper = mountUsersPage();
     await flushPromises();
 
     expect(wrapper.findAll('.summary-metric strong').map(node => node.text())).toEqual(['3', '2', '1', '0']);
@@ -147,7 +154,7 @@ describe('UsersPage', () => {
   });
 
   it('switches between company groups and a deduplicated flat list', async () => {
-    const wrapper = shallowMount(UsersPage);
+    const wrapper = mountUsersPage();
     await flushPromises();
 
     expect(wrapper.findAll('.company-group-header')).toHaveLength(2);
@@ -162,7 +169,7 @@ describe('UsersPage', () => {
   });
 
   it('selects and collapses a whole company section', async () => {
-    const wrapper = shallowMount(UsersPage);
+    const wrapper = mountUsersPage();
     await flushPromises();
 
     const alphaGroup = wrapper.findAll('.company-group-header')
@@ -179,7 +186,7 @@ describe('UsersPage', () => {
   });
 
   it('filters blocked users and exposes bulk actions after selection', async () => {
-    const wrapper = shallowMount(UsersPage);
+    const wrapper = mountUsersPage();
     await flushPromises();
 
     const blockedFilter = wrapper.findAll('.filter-tab').find(button => button.text().includes('Заблокированные'));
