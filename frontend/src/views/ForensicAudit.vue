@@ -802,25 +802,36 @@ onBeforeUnmount(() => {
                   <div class="kpi2-lbl">{{ t('План') }}</div>
                   <div class="kpi2-val"><span :data-countup="totals.kPlan">{{ totals.kPlan }}</span></div>
                   <div class="pr-comp-unit"
-                       :title="anyEstimatedPlan ? 'Включает оценочные квартальные планы (год÷период): квартальная разбивка заведена не по всем компаниям' : ''">
+                       :title="anyEstimatedPlan ? t('Включает оценочные квартальные планы (год÷период): квартальная разбивка заведена не по всем компаниям') : ''">
                     <span v-if="anyEstimatedPlan">≈ </span>{{ t('трлн сум') }}
                   </div>
                 </div>
                 <div class="pr-comp-divider"></div>
                 <div class="pr-comp-cell">
-                  <div class="kpi2-lbl">{{ hasFact ? 'Факт' : '—' }}</div>
-                  <div class="kpi2-val"><span :data-countup="totals.kFact">{{ totals.kFact }}</span></div>
-                  <div class="pr-comp-unit">{{ hasFact ? 'трлн сум' : '' }}</div>
+                  <div class="kpi2-lbl">{{ t('Факт') }}</div>
+                  <!-- Нет факта за период — показываем «—», а НЕ 0: ноль читается
+                       как «ничего не закупили», хотя данных просто не заведено. -->
+                  <div v-if="hasFact" class="kpi2-val"><span :data-countup="totals.kFact">{{ totals.kFact }}</span></div>
+                  <div v-else class="kpi2-val pr-comp-nodata">—</div>
+                  <div class="pr-comp-unit">{{ hasFact ? t('трлн сум') : t('факт не заведён') }}</div>
                 </div>
                 <div class="pr-comp-divider"></div>
                 <div class="pr-comp-cell">
                   <div class="kpi2-lbl">{{ t('Исполнение') }}</div>
-                  <div class="kpi2-val pr-comp-pct" :style="{ color: hasFact ? pctCol(totals.avgP) : 'var(--t3)' }">
-                    <span :data-countup="hasFact ? totals.avgP : 0">{{ hasFact ? totals.avgP : 0 }}</span><span class="pr-comp-pct-sign">%</span>
+                  <div v-if="hasFact && totals.covN > 0" class="kpi2-val pr-comp-pct" :style="{ color: pctCol(totals.avgP) }">
+                    <span :data-countup="totals.avgP">{{ totals.avgP }}</span><span class="pr-comp-pct-sign">%</span>
+                  </div>
+                  <!-- Честное состояние вместо «0 %»: сравнивать не с чем. -->
+                  <div v-else class="kpi2-val pr-comp-nodata"
+                       :title="t('Исполнение считается как факт ÷ план. За выбранный период факт не заведён ни по одной компании, поэтому сравнение невозможно.')">
+                    {{ t('нет данных') }}
+                  </div>
+                  <div v-if="!hasFact || totals.covN === 0" class="pr-comp-unit">
+                    {{ t('недостаточно данных для сравнения') }}
                   </div>
                   <!-- M-5: охват composite — по скольким компаниям с фактом считалось -->
-                  <div v-if="hasFact && totals.covN < totals.count" class="pr-comp-unit"
-                       :title="'Сводное исполнение считается только по компаниям с заведённым фактом. Остальные (' + (totals.count - totals.covN) + ') — план без факта, в среднее не входят.'">
+                  <div v-if="hasFact && totals.covN > 0 && totals.covN < totals.count" class="pr-comp-unit"
+                       :title="t('Сводное исполнение считается только по компаниям с заведённым фактом. Остальные ({value0}) — план без факта, в среднее не входят.', { value0: (totals.count - totals.covN) })">
                     {{ t('по') }} {{ totals.covN }} {{ t('из') }} {{ totals.count }}
                   </div>
                 </div>
@@ -861,7 +872,7 @@ onBeforeUnmount(() => {
                     @click="sectorFilter = sid"
                   >{{ SECTOR_LABELS_RU[sid] }}</button>
                 </div>
-                <button class="pr-zoom-btn" @click="toggleZoom('chart')" :title="zoomed === 'chart' ? 'Свернуть' : 'Развернуть'">
+                <button class="pr-zoom-btn" @click="toggleZoom('chart')" :title="zoomed === 'chart' ? t('Свернуть') : t('Развернуть')">
                   <svg v-if="zoomed !== 'chart'" width="14" height="14" viewBox="0 0 16 16" fill="none">
                     <path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4"
                       stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -911,7 +922,7 @@ onBeforeUnmount(() => {
                     <button :class="{ on: planFilter === 'Утверждён' }" @click="planFilter = 'Утверждён'">{{ t('Утверждён') }}</button>
                     <button :class="{ on: planFilter === 'Не утверждён' }" @click="planFilter = 'Не утверждён'">{{ t('Не утверждён') }}</button>
                   </div>
-                  <button class="pr-zoom-btn" @click="toggleZoom('plan')" :title="zoomed === 'plan' ? 'Свернуть' : 'Развернуть'">
+                  <button class="pr-zoom-btn" @click="toggleZoom('plan')" :title="zoomed === 'plan' ? t('Свернуть') : t('Развернуть')">
                     <svg v-if="zoomed !== 'plan'" width="14" height="14" viewBox="0 0 16 16" fill="none">
                       <path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4"
                         stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -947,12 +958,12 @@ onBeforeUnmount(() => {
                         </span>
                       </td>
                       <td class="rt num muted"
-                          :title="gPisEstimate(c) ? 'Оценка: годовой план ÷ доля периода (квартальный план не заведён)' : ''">
+                          :title="gPisEstimate(c) ? t('Оценка: годовой план ÷ доля периода (квартальный план не заведён)') : ''">
                         <span v-if="gPisEstimate(c)" style="color:var(--t3);font-weight:400" :title="t('оценка')">≈</span>{{ fN(gP(c)) }}
                       </td>
                       <td class="rt num muted">{{ fN(gF(c)) }}</td>
                       <td class="rt num" :style="{ color: pctCol(gPct(c)), fontWeight: 600 }"
-                          :title="pctZone(gPct(c)) + (gPisEstimate(c) && gPctState(c) === 'pct' ? ' · % от оценочного плана (год÷период)' : '')">
+                          :title="pctZone(gPct(c)) + (gPisEstimate(c) && gPctState(c) === 'pct' ? t('· % от оценочного плана (год÷период)') : '')">
                         <!-- H-4: 0% (факт=0 при плане) красным; «факт —» когда план есть, а факта нет; «—» когда плана нет -->
                         <template v-if="gPctState(c) === 'pct'">{{ gPct(c) }}%</template>
                         <span v-else-if="gPctState(c) === 'nofact'" class="pr-nofact" :title="t('План есть, факт не заведён')">{{ t('факт —') }}</span>
@@ -977,7 +988,7 @@ onBeforeUnmount(() => {
                     <button :class="{ on: forFilter === 'Тендер' }"   @click="forFilter = 'Тендер'">{{ t('Тендер') }}</button>
                     <button :class="{ on: forFilter === 'Не начат' }"  @click="forFilter = 'Не начат'">{{ t('Не начат') }}</button>
                   </div>
-                  <button class="pr-zoom-btn" @click="toggleZoom('forensic')" :title="zoomed === 'forensic' ? 'Свернуть' : 'Развернуть'">
+                  <button class="pr-zoom-btn" @click="toggleZoom('forensic')" :title="zoomed === 'forensic' ? t('Свернуть') : t('Развернуть')">
                     <svg v-if="zoomed !== 'forensic'" width="14" height="14" viewBox="0 0 16 16" fill="none">
                       <path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4"
                         stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -1228,6 +1239,9 @@ onBeforeUnmount(() => {
 .pr-comp-divider { width: 1px; background: rgba(0, 0, 0, .08); margin: 4px 0; }
 .pr-comp-unit { font-size: 11px; color: var(--t3, var(--t-muted)); margin-top: 2px; }
 .pr-comp-pct { font-size: 40px; }
+.pr-comp-nodata {
+  font-size: 15px; font-weight: 500; color: var(--t3, #94A3B8); letter-spacing: -.01em;
+}
 .pr-comp-pct-sign { font-size: 20px; }
 .pr-of { font-size: 16px; color: var(--t3, var(--t-muted)); margin-left: 2px; font-weight: 500; }
 .pr-kpi-sub { font-size: 10.5px; color: var(--t3, var(--t-muted)); margin-top: 3px; font-weight: 500; letter-spacing: .01em; }
