@@ -14,8 +14,32 @@ import { useEntityEditor } from "@/composables/useEntityEditor";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+import {
+  getHolidays, holidayTitle, HOLIDAY_KIND_COLORS, HOLIDAY_KIND_LABELS,
+  type UzHoliday,
+} from "@/api/holidays";
+
 
 const entityEditor = useEntityEditor();
+// ── Праздники Узбекистана в сетке календаря ──────────────────────
+// Каталог встроенный (api/holidays), запросов не делает. До 29.07.2026 сетка
+// про праздники не знала вовсе: нерабочие дни выглядели как обычные, и
+// «на самом календаре не отображаются праздники» — так и было.
+function holidaysOf(d: Date): UzHoliday[] {
+  return getHolidays(d);
+}
+function holidayOf(d: Date): UzHoliday | null {
+  return holidaysOf(d)[0] || null;
+}
+function holidayTip(d: Date): string {
+  const list = holidaysOf(d);
+  if (!list.length) return "";
+  return list
+    .map(h => `${holidayTitle(h)} — ${t(HOLIDAY_KIND_LABELS[h.kind])}${h.is_dayoff ? ", " + t("нерабочий") : ""}`)
+    .join(" · ");
+}
+
 const { confirmDialog } = useConfirm();
 const toast = useToast();
 const { t } = useI18n();
@@ -106,8 +130,8 @@ function evState(e: CalendarEvent): "overdue" | "soon" | "done" | "future" {
 const STATE_COLOR: Record<string, string> = { overdue: "#E24B4A", soon: "#EF9F27", future: "#7F77DD", done: "#1D9E75" };
 
 const STATUS_OPTS = [
-  { v: "active", l: "В процессе" }, { v: "review", l: "На проверке" }, { v: "done", l: "Завершено" },
-  { v: "init", l: "Инициировано" }, { v: "new", l: "Не начато" }, { v: "deferred", l: "Отложено" },
+  { v: "active", l: i18nKey("В процессе") }, { v: "review", l: i18nKey("На проверке") }, { v: "done", l: i18nKey("Завершено") },
+  { v: "init", l: i18nKey("Инициировано") }, { v: "new", l: i18nKey("Не начато") }, { v: "deferred", l: i18nKey("Отложено") },
 ];
 
 const filteredEvents = computed(() => events.value.filter((e) => {
@@ -312,7 +336,7 @@ function overdueDays(e: CalendarEvent): number {
           <span class="cal-viewsw-ind"></span>
           <button v-for="v in (['month','week','agenda'] as const)" :key="v"
                   class="cal-vbtn" :class="{ on: view === v }" @click="view = v">
-            {{ v === 'month' ? 'Месяц' : v === 'week' ? 'Неделя' : 'Повестка' }}
+            {{ v === 'month' ? t('Месяц') : v === 'week' ? t('Неделя') : t('Повестка') }}
           </button>
         </div>
         <!-- Фильтры -->
@@ -345,14 +369,21 @@ function overdueDays(e: CalendarEvent): number {
         <div class="cal-grid" :key="monKey(cur)">
           <div v-for="(d, i) in gridDays" :key="d.key" class="cal-day"
                role="button" tabindex="0" :aria-label="fmtFull(d.date)"
-               :class="{ 'cal-out': !d.inMonth, 'cal-today': d.isToday, 'cal-sel': d.key === selectedKey, 'cal-has': (eventsByDay[d.key] || []).length }"
-               :style="{ '--di': (i % 7) * 0.012 + Math.floor(i / 7) * 0.03 + 's' }"
+               :class="{ 'cal-out': !d.inMonth, 'cal-today': d.isToday, 'cal-sel': d.key === selectedKey, 'cal-has': (eventsByDay[d.key] || []).length, 'cal-hol': !!holidayOf(d.date), 'cal-hol-off': holidayOf(d.date)?.is_dayoff }"
+               :style="{ '--di': (i % 7) * 0.012 + Math.floor(i / 7) * 0.03 + 's',
+                         '--hc': holidayOf(d.date) ? HOLIDAY_KIND_COLORS[holidayOf(d.date)!.kind] : 'transparent' }"
+               :title="holidayTip(d.date) || undefined"
                @click="pickDay(d.key)" @keydown.enter.prevent="pickDay(d.key)" @keydown.space.prevent="pickDay(d.key)">
-            <span v-if="(notesByDay[d.key] || []).length" class="cal-note-badge" :title="(notesByDay[d.key] || []).length + ' заметок'">
+            <span v-if="(notesByDay[d.key] || []).length" class="cal-note-badge" :title="t('{value0} заметок', { value0: (notesByDay[d.key] || []).length })">
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
               <span v-if="(notesByDay[d.key] || []).length > 1">{{ (notesByDay[d.key] || []).length }}</span>
             </span>
             <div class="cal-daynum"><span>{{ d.date.getDate() }}</span></div>
+            <!-- Название праздника прямо в ячейке: раньше нерабочий день ничем
+                 не отличался от рабочего. -->
+            <div v-if="holidayOf(d.date)" class="cal-hol-name">
+              {{ holidayTitle(holidayOf(d.date)) }}
+            </div>
             <div class="cal-chips">
               <button v-for="(e, ci) in (eventsByDay[d.key] || []).slice(0, 3)" :key="e.entity_id"
                       class="cal-chip" :class="'cal-' + evState(e)" :style="{ '--ec': STATE_COLOR[evState(e)], '--ci': ci * 0.05 + 's' }"
@@ -396,7 +427,7 @@ function overdueDays(e: CalendarEvent): number {
             <span class="cal-ag-bar"></span>
             <div class="cal-ag-main">
               <div class="cal-ag-title"><span v-if="e.num" class="cal-ag-num">{{ e.num }}</span>{{ e.title }}</div>
-              <div class="cal-ag-meta">{{ e.entity_type === 'project' ? 'Проект' : 'Задача' }}<template v-if="isGlobal && e.company_name"> · {{ e.company_name }}</template></div>
+              <div class="cal-ag-meta">{{ e.entity_type === 'project' ? t('Проект') : t('Задача') }}<template v-if="isGlobal && e.company_name"> · {{ e.company_name }}</template></div>
             </div>
             <span v-if="evState(e) === 'overdue'" class="cal-ag-over">{{ t('просрочено') }} {{ overdueDays(e) }} {{ t('дн') }}</span>
           </button>
@@ -433,7 +464,7 @@ function overdueDays(e: CalendarEvent): number {
               <div class="cal-sp-main">
                 <div class="cal-sp-title"><span v-if="e.num" class="cal-sp-num">{{ e.num }}</span>{{ e.title }}</div>
                 <div class="cal-sp-meta">
-                  {{ e.entity_type === 'project' ? 'Проект' : 'Задача' }}<template v-if="isGlobal && e.company_name"> · {{ e.company_name }}</template>
+                  {{ e.entity_type === 'project' ? t('Проект') : t('Задача') }}<template v-if="isGlobal && e.company_name"> · {{ e.company_name }}</template>
                   <span v-if="evState(e) === 'overdue'" class="cal-sp-od">{{ t('просрочено') }} {{ overdueDays(e) }} {{ t('дн') }}</span>
                 </div>
               </div>
@@ -468,7 +499,7 @@ function overdueDays(e: CalendarEvent): number {
 
         <!-- Инлайн-форма заметки (добавление / редактирование) -->
         <div v-if="noteAdding" class="cal-sp-noteform">
-          <div class="cal-sp-noteformh">{{ noteEditId ? 'Редактирование заметки' : 'Новая заметка' }}</div>
+          <div class="cal-sp-noteformh">{{ noteEditId ? t('Редактирование заметки') : t('Новая заметка') }}</div>
           <select v-if="!props.companyId && !noteEditId" v-model="noteCompanyId" class="cal-sp-noteco">
             <option value="">{{ t('— выберите компанию —') }}</option>
             <option v-for="c in noteCompanies" :key="c.id" :value="c.id">{{ c.name }}</option>
@@ -478,7 +509,7 @@ function overdueDays(e: CalendarEvent): number {
           <div v-if="noteError" class="cal-sp-noteerr">{{ noteError }}</div>
           <div class="cal-sp-noteact">
             <button class="cal-sp-ncancel" @click="cancelNote" :disabled="noteSaving">{{ t('Отмена') }}</button>
-            <button class="cal-sp-nsave" @click="saveNote" :disabled="noteSaving || !noteBody.trim()">{{ noteSaving ? 'Сохранение…' : 'Сохранить' }}</button>
+            <button class="cal-sp-nsave" @click="saveNote" :disabled="noteSaving || !noteBody.trim()">{{ noteSaving ? t('Сохранение…') : t('Сохранить') }}</button>
           </div>
         </div>
 
@@ -543,6 +574,16 @@ function overdueDays(e: CalendarEvent): number {
 .cal-today { border-color: rgba(127,119,221,.45); background: rgba(127,119,221,.04); }
 .cal-sel { border-color: var(--p-deep, #534AB7); box-shadow: 0 0 0 1px var(--p-deep, #534AB7); }
 .cal-note-badge { position: absolute; top: 6px; left: 7px; z-index: 2; display: inline-flex; align-items: center; gap: 2px; color: #B87600; background: rgba(239,159,39,.16); border-radius: 6px; padding: 1px 4px; font-size: 9px; font-weight: 700; }
+.cal-hol { background: color-mix(in srgb, var(--hc, #7C6FF7) 8%, #fff); border-color: color-mix(in srgb, var(--hc, #7C6FF7) 26%, transparent); }
+.cal-hol::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 2.5px;
+  background: var(--hc, #7C6FF7); border-radius: 12px 12px 0 0;
+}
+.cal-hol-name {
+  font-size: 9.5px; font-weight: 600; line-height: 1.2; color: var(--hc, #7C6FF7);
+  margin: -2px 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cal-out .cal-hol-name { opacity: .45; }
 .cal-daynum { display: flex; justify-content: flex-end; font-size: 12px; font-weight: 500; color: var(--t2, #475569); margin-bottom: 4px; }
 .cal-today .cal-daynum span { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; border-radius: 50%; background: var(--p-deep, #534AB7); color: #fff; font-weight: 600; padding: 0 4px; }
 .cal-chips { display: flex; flex-direction: column; gap: 3px; }

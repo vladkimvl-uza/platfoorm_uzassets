@@ -9,8 +9,7 @@ from uuid import UUID
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.user import User, UserGroupRole
-from app.models.rbac_v3 import Group
+from app.models.user import Group, User, UserGroupRole
 
 
 class UserSearchRepository:
