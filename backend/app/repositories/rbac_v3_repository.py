@@ -217,17 +217,68 @@ class RbacV3Repository:
                 GroupPermissionGrant.permission_code,
                 GroupPermissionGrant.grant_type,
                 GroupPermissionGrant.expires_at,
+                GroupPermissionGrant.scope_companies,
+                GroupPermissionGrant.scope_sectors,
+                GroupPermissionGrant.scope_years,
             )
             .join(UserGroupRole, UserGroupRole.group_id == GroupPermissionGrant.group_id)
             .where(UserGroupRole.user_id == user_id)
         )).all())
-        active_grants = [
-            (c, t) for c, t, expires_at in grants_rows
-            if expires_at is None or expires_at >= now
-        ]
-        granted = {c for c, t in active_grants if t == "grant"}
-        denied = {c for c, t in active_grants if t == "deny"}
+        # Точечный (scoped) грант — решение владельца 29.07.2026.
+        # Набор эффективных прав ПЛОСКИЙ: код есть или нет, измерения «компания /
+        # сектор / год» в нём не выражаются. Поэтому:
+        #   • grant с непустым scope в глобальный набор НЕ входит — иначе право,
+        #     выданное «только по компании X», действовало бы везде (именно так
+        #     оно и работало: точечные гранты были шире заявленного);
+        #   • deny с любым scope вычитается ВСЕГДА — сужение безопасно, а
+        #     проигнорированный запрет означал бы доступ сверх намерения.
+        # Итого точечный грант способен только сузить доступ, но не расширить.
+        # Там, где контекст компании/года известен, право проверяется с учётом
+        # scope — см. core.security.has_effective_permission(company_id=..., year=...).
+        granted: set[str] = set()
+        denied: set[str] = set()
+        for code, gtype, expires_at, sc_co, sc_sec, sc_yr in grants_rows:
+            if expires_at is not None and expires_at < now:
+                continue
+            if gtype == "deny":
+                denied.add(code)
+            elif gtype == "grant" and not (sc_co or sc_sec or sc_yr):
+                granted.add(code)
         return (role_perms | granted) - denied
+
+    async def scoped_group_grants(self, user_id: UUID) -> list[dict]:
+        """Активные ТОЧЕЧНЫЕ гранты групп пользователя (с непустым scope).
+
+        В плоский набор прав они не входят (см. base_permission_codes) — этот
+        метод отдаёт их отдельно, чтобы вызывающий код, знающий компанию/год,
+        мог принять решение с учётом области.
+        """
+        now = datetime.now(UTC)
+        rows = list((await self._session.execute(
+            select(
+                GroupPermissionGrant.permission_code,
+                GroupPermissionGrant.grant_type,
+                GroupPermissionGrant.expires_at,
+                GroupPermissionGrant.scope_companies,
+                GroupPermissionGrant.scope_sectors,
+                GroupPermissionGrant.scope_years,
+            )
+            .join(UserGroupRole, UserGroupRole.group_id == GroupPermissionGrant.group_id)
+            .where(UserGroupRole.user_id == user_id)
+        )).all())
+        out: list[dict] = []
+        for code, gtype, expires_at, sc_co, sc_sec, sc_yr in rows:
+            if expires_at is not None and expires_at < now:
+                continue
+            if not (sc_co or sc_sec or sc_yr):
+                continue
+            out.append({
+                "code": code, "grant_type": gtype,
+                "companies": list(sc_co or []),
+                "sectors": list(sc_sec or []),
+                "years": list(sc_yr or []),
+            })
+        return out
 
     async def role_permission_codes(self, role_id: UUID) -> set[str]:
         """Коды прав, привязанных к роли (для privilege-ceiling: актор не должен

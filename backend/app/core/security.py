@@ -221,10 +221,40 @@ def _has_permission(user: User, code: str) -> bool:
     return code in _user_permission_codes(user)
 
 
+def _scoped_grant_applies(
+    sc_companies, sc_sectors, sc_years,
+    company_id, year,
+) -> bool:
+    """Действует ли ТОЧЕЧНЫЙ грант в переданном контексте.
+
+    Правило (решение владельца 29.07.2026): грант с непустым scope применяется,
+    только если КАЖДОЕ заданное измерение удовлетворено контекстом вызова. Нет
+    контекста (company_id/year не переданы) — грант НЕ действует: раньше он
+    действовал глобально, то есть «точечное» право работало шире заявленного.
+    Секторное измерение здесь не резолвится (нужен запрос компания→сектор),
+    поэтому sector-scoped грант глобально не действует — только сужает.
+    """
+    if sc_companies:
+        if company_id is None:
+            return False
+        if str(company_id) not in {str(x) for x in sc_companies}:
+            return False
+    if sc_years:
+        if year is None:
+            return False
+        if int(year) not in {int(y) for y in sc_years}:
+            return False
+    if sc_sectors:
+        return False
+    return True
+
+
 async def has_effective_permission(
     db: AsyncSession,
     user: User,
     code: str,
+    company_id=None,
+    year: int | None = None,
 ) -> bool:
     """Полная проверка с учётом всех источников прав (Pack 147).
 
@@ -272,7 +302,13 @@ async def has_effective_permission(
 
     # --- (2)(3) Group permission grants — чтобы deny отработал ДО grant-источников.
     grants_q = await db.execute(
-        select(GroupPermissionGrant.grant_type, GroupPermissionGrant.expires_at)
+        select(
+            GroupPermissionGrant.grant_type,
+            GroupPermissionGrant.expires_at,
+            GroupPermissionGrant.scope_companies,
+            GroupPermissionGrant.scope_sectors,
+            GroupPermissionGrant.scope_years,
+        )
         .join(UserGroupRole, UserGroupRole.group_id == GroupPermissionGrant.group_id)
         .where(
             UserGroupRole.user_id == user.id,
@@ -282,13 +318,18 @@ async def has_effective_permission(
     grants = list(grants_q.all())
 
     has_group_grant = False
-    for grant_type, expires_at in grants:
+    for grant_type, expires_at, sc_co, sc_sec, sc_yr in grants:
         if expires_at is not None and expires_at < now:
             continue
         if grant_type == "deny":
-            return False  # deny overrides any grant below
+            # Запрет действует всегда: сужение безопасно, а точечный запрет,
+            # применённый шире, не даёт доступа сверх намерения администратора.
+            return False
         if grant_type == "grant":
-            has_group_grant = True
+            # Точечный грант расширяет доступ ТОЛЬКО в своей области: без
+            # контекста компании/года он не действует (см. _scoped_grant_applies).
+            if _scoped_grant_applies(sc_co, sc_sec, sc_yr, company_id, year):
+                has_group_grant = True
 
     if has_user_grant or has_group_grant:
         return True

@@ -181,9 +181,15 @@ class RbacV3Service:
              права (scope живёт только на гранте) → вертикальная эскалация прав.
         Поэтому не-owner не может добавить участника (в т.ч. себя) в группу, чьи
         company_id / гранты несут право или scope сверх его собственных — иначе
-        self/сообщник получает их через членство. Owner/super — без ограничений.
-        Зеркалит ceiling из set_group_permissions + company-scope из access.py."""
-        if actor.is_owner or is_super_admin(actor):
+        self/сообщник получает их через членство.
+        Зеркалит ceiling из set_group_permissions + company-scope из access.py.
+
+        Решение владельца (29.07.2026): обход по is_super_admin СНЯТ. Право
+        admin.users принадлежит единственной роли 'admin', которая и есть
+        super-admin bypass, поэтому раньше потолок не срабатывал НИ РАЗУ —
+        все администраторы проходили мимо него. Теперь потолок обходит только
+        владелец платформы."""
+        if actor.is_owner:
             return
         from app.core.access import allowed_company_ids
         allowed = await allowed_company_ids(db, actor)   # None = все компании
@@ -238,8 +244,11 @@ class RbacV3Service:
         доступ (allowed_company_ids: organization_id → одна компания, allowed_sectors
         → все компании сектора). Не-owner не может выдать (СЕБЕ или другому) scope
         сверх собственного — иначе self/сообщник выходит за пределы своей компании.
-        Применяется в create_user/update_user. Вызывать до записи полей."""
-        if actor.is_owner or is_super_admin(actor):
+        Применяется в create_user/update_user. Вызывать до записи полей.
+
+        Решение владельца (29.07.2026): обход по is_super_admin снят — см.
+        _ensure_group_membership_within_ceiling."""
+        if actor.is_owner:
             return
         from app.core.access import allowed_company_ids
         allowed = await allowed_company_ids(db, actor)
@@ -336,7 +345,10 @@ class RbacV3Service:
                     http_status.HTTP_403_FORBIDDEN,
                     "Only an owner can assign the 'admin' role.",
                 )
-            if not actor.is_owner and not is_super_admin(actor):
+            # Решение владельца (29.07.2026): потолок прав применяется ко ВСЕМ,
+            # кроме владельца — обход по is_super_admin снят (роль 'admin' и есть
+            # super-admin, поэтому потолок раньше не срабатывал ни разу).
+            if not actor.is_owner:
                 if actor_codes is None:
                     actor_codes = set(await repo.effective_permission_codes(actor.id))
                 role_perms = set(await repo.role_permission_codes(role.id))
@@ -431,7 +443,7 @@ class RbacV3Service:
                 )
             # P0 ceiling: не-owner не может вложить в роль права сверх собственных
             # (иначе крафтит роль с admin.*/чужими правами и назначает её).
-            if not user.is_owner and not is_super_admin(user):
+            if not user.is_owner:
                 actor_codes = set(await repo.effective_permission_codes(user.id))
                 excess = [p.code for p in perm_objs
                           if p.code == "admin" or p.code.startswith("admin.") or p.code not in actor_codes]
@@ -522,7 +534,7 @@ class RbacV3Service:
             )
         # P0 ceiling: не-owner не может вложить в роль права сверх собственных
         # (защита от эскалации через правку прав роли).
-        if not user.is_owner and not is_super_admin(user):
+        if not user.is_owner:
             actor_codes = set(await repo.effective_permission_codes(user.id))
             excess = [p.code for p in found
                       if p.code == "admin" or p.code.startswith("admin.") or p.code not in actor_codes]
@@ -695,7 +707,7 @@ class RbacV3Service:
         grants = sorted(desired - baseline)
         # P0 ceiling: не-owner не может выдать права СВЕРХ собственных эффективных;
         # admin / admin.* — только owner. Иначе admin.users-актор self-эскалируется.
-        if not user.is_owner and not is_super_admin(user):
+        if not user.is_owner:
             actor_codes = set(await repo.effective_permission_codes(user.id))
             excess = [c for c in grants
                       if c == "admin" or c.startswith("admin.") or c not in actor_codes]
@@ -741,7 +753,7 @@ class RbacV3Service:
                     http_status.HTTP_403_FORBIDDEN,
                     "Only an owner can create a user with the 'admin' role.",
                 )
-            if not user.is_owner and not is_super_admin(user):
+            if not user.is_owner:
                 if "admin" in payload.role_codes:
                     raise HTTPException(
                         http_status.HTTP_403_FORBIDDEN,
@@ -897,7 +909,7 @@ class RbacV3Service:
                         "Нельзя изменять собственные роли — попросите owner или другого администратора.",
                     )
                 # P0 ceiling: назначаемые роли не должны нести права сверх эффективных прав актора
-                if not user.is_owner and not is_super_admin(user) and added:
+                if not user.is_owner and added:
                     actor_codes = set(await repo.effective_permission_codes(user.id))
                     add_role_perms: set[str] = set()
                     for r in roles:
@@ -988,7 +1000,7 @@ class RbacV3Service:
                 http_status.HTTP_403_FORBIDDEN,
                 "Only an owner can assign the 'admin' role.",
             )
-        if not user.is_owner and not is_super_admin(user):
+        if not user.is_owner:
             # роль 'admin' = супер-админ (глобальный bypass) — назначает только owner
             if role.code == "admin":
                 raise HTTPException(
@@ -1432,7 +1444,7 @@ class RbacV3Service:
         # Ceiling'а достаточно: он ограничивает роль правами актора, поэтому GAIN
         # невозможен даже для self — блокировать себя целиком (как в upsert) не нужно,
         # иначе сломается штатная правка ростера группы, где актор сам в участниках.
-        if not user.is_owner and not is_super_admin(user):
+        if not user.is_owner:
             actor_codes = set(await repo.effective_permission_codes(user.id))
             role_perms_cache: dict[str, set[str]] = {}
             for uid, rc in assignments:
@@ -1509,7 +1521,7 @@ class RbacV3Service:
         # P0 ceiling: не-owner не выдаёт группе права/scope сверх собственных —
         # иначе self-service обход per-company scope (grant всех 22 компаний +
         # добавить себя в группу). Deny (понижение) не ограничиваем.
-        if not user.is_owner and not is_super_admin(user):
+        if not user.is_owner:
             from app.core.access import allowed_company_ids
             actor_codes = set(await repo.effective_permission_codes(user.id))
             allowed = await allowed_company_ids(db, user)  # None = все компании

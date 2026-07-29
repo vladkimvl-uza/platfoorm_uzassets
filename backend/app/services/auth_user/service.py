@@ -70,6 +70,10 @@ def _user_to_public(user: User, permissions: list[str] | None = None) -> UserPub
         linkedin_url=getattr(user, "linkedin_url", None),
         website_url=getattr(user, "website_url", None),
         telegram_username=getattr(user, "telegram_username", None),
+        # Язык интерфейса из профиля: без него /auth/me всегда отдавал бы дефолт
+        # 'ru', и сохранённый выбор языка не применялся бы при входе на новом
+        # устройстве (PATCH /auth/me его пишет, а читать было нечему).
+        ui_locale=getattr(user, "ui_locale", None) or "ru",
         last_login_at=user.last_login_at,
         welcome_seen=getattr(user, "welcome_seen", False),
         roles=[r.code for r in user.roles],
@@ -153,15 +157,23 @@ class AuthUserService:
             # Откат до savepoint чинит транзакцию и не трогает identity map.
             async with db.begin_nested():
                 permissions = await RbacV3Repository(db).effective_permission_codes(user.id)
-        except Exception:
-            # Fallback заведомо УЖЕ, чем эффективный набор: он не знает ни ролей в
-            # группах, ни грантов, и ШИРЕ по deny (не вычитает deny). Молча отдавать
-            # его нельзя — иначе «доступ пропал/вернулся» без следа в логах.
-            log.warning(
-                "effective_permission_codes failed for user %s — /auth/me отдаёт "
-                "урезанный набор прав из ролей", user.id, exc_info=True,
+        except Exception as e:
+            # Решение владельца (29.07.2026): FAIL-CLOSED. Прежний fallback отдавал
+            # набор из одних глобальных ролей — он не знает ролей в группах и
+            # грантов, а главное НЕ ВЫЧИТАЕТ deny: отозванное право возвращалось в
+            # интерфейс при любом сбое запроса, и тот же набор служил потолком прав
+            # для проверок назначения. Лучше выкинуть пользователя из интерфейса
+            # с явной ошибкой, чем тихо выдать ему отозванный доступ.
+            log.error(
+                "effective_permission_codes failed for user %s — /auth/me "
+                "отвечает 503 (fail-closed, права не выдаются)", user.id,
+                exc_info=True,
             )
-            permissions = sorted(_user_permission_codes(user))
+            raise HTTPException(
+                status.HTTP_503_SERVICE_UNAVAILABLE,
+                "Не удалось вычислить права доступа. Повторите попытку позже; "
+                "если ошибка повторяется — обратитесь к администратору.",
+            ) from e
         return _user_to_public(user, permissions)
 
     async def change_password(
