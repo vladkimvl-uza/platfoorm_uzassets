@@ -130,6 +130,9 @@ interface SectorRow {
   score: number;
   grade: string;
   isMine: boolean;
+  /** Есть ли у текущего пользователя доступ к этой компании (иначе строка
+   *  показывается, но переход в чужой воркспейс не предлагается). */
+  accessible: boolean;
 }
 const sectorRanking = ref<SectorRow[]>([]);
 
@@ -137,11 +140,16 @@ interface ActivityRow {
   kind: "task_history" | "audit_log" | string;
   ts: string;                  // ISO timestamp
   actor: string;
+  actor_id?: string | null;
+  actor_email?: string | null;
+  actor_job_title?: string | null;
   action: string;
   field?: string | null;
   old_value?: string | null;
   new_value?: string | null;
   title?: string;              // entity title (task/project)
+  detail?: string | null;      // полный текст события («что именно»)
+  entity_label?: string | null;
   entity_id: string;
   entity_type: string;         // 'task' | 'project' | 'comment' | ...
   is_critical: boolean;
@@ -153,6 +161,12 @@ const activityAll = ref<ActivityRow[]>([]);
 const activityTotal = ref<number>(0);              // honest count from backend
 const activityModalOpen = ref(false);
 const activityRefreshing = ref(false);             // for spin animation
+// Карточка одного события: «кто · что именно · где · когда» + переход к записи.
+// Раньше клик сразу уводил в задачу/проект, и подробности события (текст
+// комментария, что поменяли) увидеть было негде.
+const activityDetail = ref<ActivityRow | null>(null);
+function openActivityDetail(it: ActivityRow) { activityDetail.value = it; }
+function closeActivityDetail() { activityDetail.value = null; }
 
 // ─── Per-widget local year + period overrides ──────────────────────────
 // Each widget keeps its own year + period so the user can browse historical
@@ -318,8 +332,10 @@ const nowTick = ref(Date.now());
 // Sector peer navigation state — for skeleton flash on click
 const router = useRouter();
 const navigatingTo = ref<string | null>(null);
-function navigateToPeer(code: string, isMine: boolean) {
-  if (isMine || !code) return;
+function navigateToPeer(code: string, isMine: boolean, accessible = true) {
+  // Соседа по сектору видно всем в секторе, но открыть можно только компанию,
+  // к которой есть доступ: иначе клик уводил бы на экран с отказом.
+  if (isMine || !code || !accessible) return;
   navigatingTo.value = code;
   router.push(`/companies/${code}/workspace`).finally(() => {
     setTimeout(() => { navigatingTo.value = null; }, 400);
@@ -699,10 +715,27 @@ async function loadSector() {
   loading.sector = true;
   errors.sector = null;
   try {
-    // Пиры сектора берём из /companies (id/code/sector_id), а ПРОГРЕСС (%
-    // выполнения задач) — из dashboard completion.by_company[].progress_pct.
-    // Раньше тянулся overall_score из /ratings, которого там нет (рейтинги —
-    // кредитные грейды) → score всегда 0 → виджет показывал «—».
+    // Рейтинг сектора приходит одним эндпоинтом: он считает те же проценты,
+    // что дашборд (взвешенный прогресс), и — главное — отдаёт ВЕСЬ сектор.
+    // Прежняя сборка на клиенте (/companies + /dashboard/shareholder) была
+    // ограничена областью пользователя: сотрудник компании видел в «рейтинге
+    // сектора» одну свою строку. Флаг accessible решает, куда можно перейти.
+    const rRank = await api.get(`/companies/${props.companyCode}/sector-ranking`, {
+      params: { year: props.year },
+    });
+    const rankItems = _arr(rRank.data?.items);
+    if (rankItems.length > 0) {
+      sectorRanking.value = rankItems.map((it: any) => ({
+        code: String(it.code || ""),
+        name: String(it.name || it.code || ""),
+        score: _num(it.progress_pct),
+        grade: "",
+        isMine: !!it.is_mine,
+        accessible: it.accessible !== false,
+      }));
+      return;
+    }
+    // Фолбэк на старую сборку — если эндпоинт ещё не выкачен на этот бэкенд.
     const [rCo, rDash] = await Promise.all([
       api.get(`/companies`),
       api.get(`/dashboard/shareholder`, { params: { year: props.year } }).catch(() => null),
@@ -743,6 +776,7 @@ async function loadSector() {
         score: progressByCode.get(String(c.code || "").toLowerCase()) ?? 0,
         grade: "",
         isMine: c.id === props.companyId,
+        accessible: true,   // фолбэк-список и так ограничен доступом /companies
       }))
       .sort((a, b) => b.score - a.score)
       .slice(0, 5);
@@ -1403,11 +1437,13 @@ watch(
             class="cox-rank-row"
             :class="{
               'cox-rank-mine': s.isMine,
-              'cox-rank-clickable': !s.isMine,
+              'cox-rank-clickable': !s.isMine && s.accessible,
               'cox-rank-loading': navigatingTo === s.code,
             }"
-            :title="s.isMine ? 'Текущая компания' : `Открыть «${s.name}»`"
-            @click="navigateToPeer(s.code, s.isMine)"
+            :title="s.isMine ? 'Текущая компания'
+                    : s.accessible ? `Открыть «${s.name}»`
+                    : `${s.name} — сосед по сектору (нет доступа к карточке)`"
+            @click="navigateToPeer(s.code, s.isMine, s.accessible)"
           >
             <span class="cox-rank-pos">{{ i + 1 }}</span>
             <span class="cox-rank-name">{{ s.name }}</span>
@@ -1518,36 +1554,45 @@ watch(
           v-else-if="activityData.length > 0"
           class="cox-activity-list"
         >
-          <div
+          <button
             v-for="(a, i) in activityData"
-            :key="i"
+            :key="a.ts + ':' + i"
+            type="button"
             class="cox-activity-row"
-            :class="{ 'is-clickable': isClickable(a) }"
-            @click="isClickable(a) && openEntity(a)"
+            :style="{ '--d': i * 45 + 'ms', '--acc': activityActionColor(a) }"
+            :title="'Подробнее: ' + (a.actor || '—') + ' — ' + activityActionLabel(a)"
+            @click="openActivityDetail(a)"
           >
-            <div
+            <span
               class="cox-activity-icon"
               :style="{ background: activityActionColor(a) + '1F', color: activityActionColor(a) }"
-              :title="a.actor + ' — ' + activityActionLabel(a)"
             >
               <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor"
                    stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M3 8l3 3 7-7"/>
               </svg>
-            </div>
-            <div class="cox-activity-body">
-              <div class="cox-activity-title" :title="a.title || activityActionLabel(a)">
+            </span>
+            <span class="cox-activity-body">
+              <span class="cox-activity-title" :title="a.title || activityActionLabel(a)">
                 {{ a.title || activityActionLabel(a) }}
-              </div>
-              <div class="cox-activity-meta">
+              </span>
+              <span class="cox-activity-meta">
+                <!-- КТО: имя автора первым — раньше строка начиналась с типа
+                     записи, и «кто изменил» в карточке не было вовсе. -->
+                <span class="cox-activity-actor">{{ a.actor || '—' }}</span>
+                <span class="cox-activity-meta-sep">·</span>
                 <span>{{ activityEntityKindRu(a.entity_type) }}</span>
                 <span class="cox-activity-meta-sep">·</span>
                 <span>{{ activityActionLabel(a) }}</span>
                 <span v-if="shortDiff(a)" class="cox-activity-meta-diff">{{ shortDiff(a) }}</span>
                 <span class="cox-activity-time">{{ fmtTimeAgo(a.ts) }}</span>
-              </div>
-            </div>
-          </div>
+              </span>
+            </span>
+            <svg class="cox-activity-chev" width="13" height="13" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 18l6-6-6-6"/>
+            </svg>
+          </button>
         </div>
         <div v-else class="cox-empty-line">Нет записей</div>
       </div>
@@ -1560,9 +1605,9 @@ watch(
             <li
               v-for="(it, i) in activityAll"
               :key="i"
-              class="cox-act-full-item"
-              :class="{ 'is-clickable': isClickable(it) }"
-              @click="isClickable(it) && (closeActivityModal(), openEntity(it))"
+              class="cox-act-full-item is-clickable"
+              :style="{ '--d': Math.min(i, 12) * 28 + 'ms' }"
+              @click="openActivityDetail(it)"
             >
               <span class="cox-act-full-dot" :style="{ background: activityActionColor(it) }"></span>
               <div class="cox-act-full-row">
@@ -1585,6 +1630,49 @@ watch(
           </ul>
           <div v-else class="cox-empty-line">Нет активности</div>
         </div>
+    </ModalShell>
+
+    <!-- ─── Детали одного события: «кто · что именно · где · когда» ─── -->
+    <ModalShell :open="!!activityDetail" size="sm" title="Событие" @close="closeActivityDetail">
+      <div v-if="activityDetail" class="cox-actd" :style="{ '--acc': activityActionColor(activityDetail) }">
+        <div class="cox-actd-head">
+          <span class="cox-actd-chip">{{ activityActionLabel(activityDetail) }}</span>
+          <span class="cox-actd-ts">{{ fmtTimeAgo(activityDetail.ts) }}</span>
+        </div>
+        <div class="cox-actd-entity">{{ activityDetail.title || activityDetail.entity_label || '—' }}</div>
+        <!-- Что именно: полный текст события (текст комментария, суть правки) -->
+        <div v-if="activityDetail.detail || activityDetail.notes" class="cox-actd-text">
+          {{ activityDetail.detail || activityDetail.notes }}
+        </div>
+        <div v-else-if="shortDiff(activityDetail)" class="cox-actd-text">{{ shortDiff(activityDetail) }}</div>
+        <div class="cox-actd-meta">
+          <div class="cox-actd-row">
+            <span class="cox-actd-l">Кто</span>
+            <span class="cox-actd-v">
+              <b>{{ activityDetail.actor || '—' }}</b>
+              <em v-if="activityDetail.actor_job_title">{{ activityDetail.actor_job_title }}</em>
+            </span>
+          </div>
+          <div class="cox-actd-row">
+            <span class="cox-actd-l">Где</span>
+            <span class="cox-actd-v">{{ activityEntityKindRu(activityDetail.entity_type) }}</span>
+          </div>
+          <div class="cox-actd-row">
+            <span class="cox-actd-l">Когда</span>
+            <span class="cox-actd-v">{{ fmt.fmtDateTime(activityDetail.ts) }}</span>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <button
+          v-if="activityDetail && isClickable(activityDetail)"
+          class="cox-actd-open"
+          @click="(() => { const it = activityDetail!; closeActivityDetail(); closeActivityModal(); openEntity(it); })()"
+        >
+          {{ activityDetail?.entity_type === 'project' ? 'Открыть проект' : 'Открыть задачу' }} →
+        </button>
+        <button class="cox-actd-close" @click="closeActivityDetail">Закрыть</button>
+      </template>
     </ModalShell>
 
     <!-- ============================================================ -->
@@ -2398,29 +2486,61 @@ watch(
   display: flex;
   flex-direction: column;
 }
+/* Строка ленты — кнопка: вся площадь кликабельна и доступна с клавиатуры. */
 .cox-activity-row {
   display: flex;
   align-items: flex-start;
   gap: 10px;
+  width: 100%;
   padding: 8px 10px;
   margin: 1px 0;
   border-radius: 10px;
   border: 1px solid transparent;
+  background: transparent;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
   position: relative;
+  overflow: hidden;
   animation: coxFadeUp 0.45s var(--ease-standard, cubic-bezier(.34,1.2,.64,1)) both;
-  transition: background .15s, border-color .15s, transform .15s, box-shadow .15s;
+  animation-delay: var(--d, 0ms);
+  transition: background .16s, border-color .16s, transform .16s, box-shadow .16s;
 }
-/* stagger — строки «вытекают» сверху вниз */
-.cox-activity-row:nth-child(1) { animation-delay: 0ms; }
-.cox-activity-row:nth-child(2) { animation-delay: 45ms; }
-.cox-activity-row:nth-child(3) { animation-delay: 90ms; }
-.cox-activity-row:nth-child(4) { animation-delay: 135ms; }
-.cox-activity-row:nth-child(5) { animation-delay: 180ms; }
+/* Акцент-полоска слева выезжает на наведении (цвет действия) */
+.cox-activity-row::before {
+  content: "";
+  position: absolute; left: 0; top: 6px; bottom: 6px; width: 2.5px;
+  border-radius: 0 3px 3px 0;
+  background: var(--acc, #7C6FF7);
+  transform: scaleY(0); transform-origin: center;
+  transition: transform .2s var(--ease-standard, cubic-bezier(.34,1.2,.64,1));
+}
+.cox-activity-row:hover::before,
+.cox-activity-row:focus-visible::before { transform: scaleY(1); }
 .cox-activity-row:hover {
   background: rgba(127, 119, 221, .05);
   border-color: rgba(127, 119, 221, .14);
   transform: translateX(2px);
   box-shadow: 0 4px 14px rgba(15, 23, 60, .06);
+}
+.cox-activity-row:focus-visible {
+  outline: 2px solid rgba(124, 111, 247, .55);
+  outline-offset: 1px;
+}
+.cox-activity-row:active { transform: translateX(2px) scale(.994); }
+.cox-activity-chev {
+  color: rgba(148, 163, 184, .7);
+  flex-shrink: 0; align-self: center;
+  opacity: 0; transform: translateX(-4px);
+  transition: opacity .16s, transform .16s;
+}
+.cox-activity-row:hover .cox-activity-chev,
+.cox-activity-row:focus-visible .cox-activity-chev { opacity: 1; transform: translateX(0); }
+.cox-activity-actor {
+  font-weight: 600;
+  color: var(--t2, #4B5468);
+  max-width: 42%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .cox-activity-icon {
   width: 26px;
@@ -2439,8 +2559,10 @@ watch(
 .cox-activity-body {
   flex: 1;
   min-width: 0;
+  display: block;
 }
 .cox-activity-title {
+  display: block;
   font-size: 13px;
   font-weight: 500;
   color: var(--t1, #1e2a4a);
@@ -2450,14 +2572,65 @@ watch(
 }
 .cox-activity-meta {
   display: flex;
-  justify-content: space-between;
+  align-items: center;
+  gap: 3px;
+  justify-content: flex-start;
   font-size: 10px;
   color: rgba(148, 163, 184, 0.8);
   margin-top: 1px;
 }
 .cox-activity-time {
   font-weight: 500;
+  margin-left: auto;
+  white-space: nowrap;
+  padding-left: 6px;
 }
+
+/* ── Детали события (модалка) ── */
+.cox-actd-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.cox-actd-chip {
+  font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  padding: 3px 10px; border-radius: 999px;
+  color: var(--acc, #7C6FF7); background: color-mix(in srgb, var(--acc, #7C6FF7) 13%, transparent);
+}
+.cox-actd-ts { font-size: 11px; color: var(--t3, #94A3B8); margin-left: auto; }
+.cox-actd-entity {
+  font-size: 14.5px; font-weight: 600; color: var(--t1, #1E2A4A);
+  line-height: 1.4; margin-bottom: 10px;
+}
+.cox-actd-text {
+  font-size: 12.5px; color: var(--t2, #4B5468); line-height: 1.6;
+  border-left: 2.5px solid var(--acc, #7C6FF7);
+  padding: 2px 0 2px 11px; margin-bottom: 14px;
+  max-height: 220px; overflow-y: auto; white-space: pre-wrap;
+}
+.cox-actd-meta {
+  background: var(--bg2, #F8F9FC); border: 1px solid var(--border, #EEF0F5);
+  border-radius: 12px; padding: 2px 13px;
+}
+.cox-actd-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; }
+.cox-actd-row + .cox-actd-row { border-top: 1px solid var(--border, #EEF0F5); }
+.cox-actd-l {
+  font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--t3, #94A3B8); width: 52px; flex-shrink: 0;
+}
+.cox-actd-v { font-size: 12.5px; color: var(--t1, #1E2A4A); margin-left: auto; text-align: right; }
+.cox-actd-v em { display: block; font-style: normal; font-size: 10.5px; color: var(--t3, #94A3B8); }
+.cox-actd-open {
+  display: inline-flex; align-items: center; gap: 5px; margin-right: auto;
+  font-size: 12px; font-weight: 600; font-family: inherit;
+  color: var(--p-deep, #534AB7); background: transparent;
+  border: 1px solid var(--border-hard, #E5E7EB); border-radius: 10px;
+  padding: 8px 14px; cursor: pointer; transition: background .12s, border-color .12s;
+}
+.cox-actd-open:hover { background: rgba(127,119,221,.08); border-color: rgba(127,119,221,.35); }
+.cox-actd-close {
+  font-size: 12.5px; font-weight: 600; font-family: inherit; color: #fff;
+  background: linear-gradient(135deg, #8B7FFF 0%, #6C5CE7 100%);
+  border: none; border-radius: 10px; padding: 9px 20px; cursor: pointer;
+  box-shadow: 0 3px 12px rgba(108, 92, 231, .34); transition: transform .14s, box-shadow .14s;
+}
+.cox-actd-close:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(108, 92, 231, .45); }
 
 /* ============================================================ */
 /* 6. KPI */

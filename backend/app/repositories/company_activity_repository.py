@@ -34,7 +34,10 @@ class CompanyActivityRepository:
                    th.field_name,
                    th.old_value, th.new_value,
                    t.id::text AS entity_id, t.title,
-                   COALESCE(u.full_name, u.email) AS actor
+                   COALESCE(u.full_name, u.email) AS actor,
+                   u.email AS actor_email,
+                   u.job_title AS actor_job_title,
+                   th.actor_id::text AS actor_id
             FROM task_history th
             JOIN tasks t ON t.id = th.task_id
             LEFT JOIN users u ON u.id = th.actor_id
@@ -49,13 +52,20 @@ class CompanyActivityRepository:
         return (await self._session.execute(text("""
             SELECT al.created_at AS ts,
                    al.action,
-                   al.actor_email AS actor,
+                   -- Имя человека, а не e-mail: в ленте компании «кто» должен
+                   -- читаться сразу (e-mail оставляем отдельным полем).
+                   COALESCE(u.full_name, al.actor_email) AS actor,
+                   al.actor_email,
+                   u.job_title AS actor_job_title,
+                   al.actor_id::text AS actor_id,
                    al.entity_type,
                    al.entity_id,
+                   al.entity_label,
                    COALESCE(al.notes, '') AS notes,
                    al.is_critical,
                    al.http_path
             FROM audit_log al
+            LEFT JOIN users u ON u.id = al.actor_id
             WHERE al.created_at >= :since
               AND (
                 al.entity_id IN (

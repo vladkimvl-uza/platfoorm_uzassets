@@ -100,6 +100,9 @@ class CompanyActivityService:
                 "kind": "task_history",
                 "ts": r["ts"].isoformat(),
                 "actor": r["actor"] or "—",
+                "actor_id": r.get("actor_id"),
+                "actor_email": r.get("actor_email"),
+                "actor_job_title": r.get("actor_job_title"),
                 "action": r["action"],
                 "field": r["field_name"],
                 "old_value": r["old_value"],
@@ -110,16 +113,24 @@ class CompanyActivityService:
                 "is_critical": (r["action"] or "") in _TASK_HIST_CRITICAL,
             })
         for r in al_rows:
+            title = _audit_title(
+                r["action"], r["entity_type"],
+                r.get("notes"), r.get("http_path"),
+            )
             items.append({
                 "kind": "audit_log",
                 "ts": r["ts"].isoformat(),
                 "actor": r["actor"] or "—",
+                "actor_id": r.get("actor_id"),
+                "actor_email": r.get("actor_email"),
+                "actor_job_title": r.get("actor_job_title"),
                 "action": r["action"],
                 "field": None,
-                "title": _audit_title(
-                    r["action"], r["entity_type"],
-                    r.get("notes"), r.get("http_path"),
-                ),
+                "title": title,
+                # Полный текст события (в карточке он обрезается одной строкой,
+                # а в деталях показывается целиком: «что именно» — это здесь).
+                "detail": (r.get("notes") or "").strip() or None,
+                "entity_label": r.get("entity_label"),
                 "entity_id": r["entity_id"],
                 "entity_type": r["entity_type"],
                 "is_critical": bool(r["is_critical"]),

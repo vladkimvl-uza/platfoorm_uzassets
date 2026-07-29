@@ -99,7 +99,9 @@ async def _audit_comment(
         verb_ru = {"created": "оставил", "updated": "обновил",
                    "deleted": "удалил"}.get(verb, verb)
         kind_ru = "задаче" if parent_kind == "task" else "проекте"
-        snippet = (body_excerpt or "").strip().replace("\n", " ")[:80]
+        # 240 (было 80): лента активности показывает эту строку как «что именно
+        # написали». На 80 символах комментарий обрывался на первой же фразе.
+        snippet = (body_excerpt or "").strip().replace("\n", " ")[:240]
         notes = (
             f"{verb_ru} комментарий в {kind_ru} «{parent_title or '—'}»"
             + (f": {snippet}" if snippet else "")
