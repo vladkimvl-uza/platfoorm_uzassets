@@ -10,6 +10,7 @@ import { computed, nextTick, onMounted, ref, watch } from "vue";
 import ModalShell from "@/components/ModalShell.vue";
 import { esgApi, type ESGSwotResponse, type ESGSwotItemBrief, type ESGKpiBrief, type ESGKpiManagerBrief } from "@/api/esg";
 import { useToast } from "@/composables/useToast";
+import { useCompanyScope } from "@/composables/useCompanyScope";
 
 interface CoBrief {
   company_id: string; company_name: string;
@@ -120,11 +121,17 @@ const sectorGroups = computed(() => {
 });
 
 // плоский список строк таблицы: портфель → [сектор-заголовок → компании]…
+// Область доступа: скрывает портфельные строки у компанийных пользователей.
+const coScope = useCompanyScope();
+
 interface SweRow { type: "portfolio" | "sector" | "company"; label: string; scope?: Scope; cid?: string; color?: string; count?: number }
 const tableRows = computed<SweRow[]>(() => {
-  const rows: SweRow[] = [
-    { type: "portfolio", label: "Весь портфель", scope: "portfolio", cid: "", color: "#7C6FF7" },
-  ];
+  // Выводы по ВСЕМУ портфелю — портфельный срез: пользователю, ограниченному
+  // своими компаниями, он не показывается (решение владельца 29.07.2026).
+  // Иначе компания читала бы сводные оценки по всем 22 организациям.
+  const rows: SweRow[] = coScope.showPortfolioViews.value
+    ? [{ type: "portfolio", label: "Весь портфель", scope: "portfolio", cid: "", color: "#7C6FF7" }]
+    : [];
   for (const g of sectorGroups.value) {
     rows.push({ type: "sector", label: g.name, color: g.color, count: g.companies.length });
     for (const c of g.companies) {

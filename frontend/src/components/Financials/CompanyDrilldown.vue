@@ -852,7 +852,11 @@ function close() {
       <div class="cdrl-ftr">
         <span class="cdrl-ftr-info">{{ lastEditedText }}</span>
         <div class="cdrl-ftr-actions">
-          <button class="cdrl-btn-cta" :class="localStandard === 'IFRS' ? 'cta-ifrs' : 'cta-nsbu'" @click="onOpenEditor">
+          <!-- Кнопка редактора видна только при праве на правку финансов:
+               маршрут редактора требует financials.edit, и без права роутер
+               мягко выбрасывал пользователя на «Проекты трансформации» —
+               кнопка выглядела рабочей, а вела не туда. -->
+          <button v-if="canEdit" class="cdrl-btn-cta" :class="localStandard === 'IFRS' ? 'cta-ifrs' : 'cta-nsbu'" @click="onOpenEditor">
             {{ t("Открыть в редакторе {std}", { std: localStandard === 'IFRS' ? t('МСФО') : t('НСБУ') }) }}
           </button>
         </div>

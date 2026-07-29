@@ -8,6 +8,8 @@
  *   node scripts/i18n-residual.mjs            — сводка по файлам
  *   node scripts/i18n-residual.mjs --lines    — все строки
  *   node scripts/i18n-residual.mjs --top 30   — топ-N файлов
+ *   node scripts/i18n-residual.mjs --bucket admin_a --lines
+ *   node scripts/i18n-residual.mjs --file UsersPage.vue --lines
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -17,6 +19,21 @@ const CYR = /[А-Яа-яЁё]/;
 const args = process.argv.slice(2);
 const showLines = args.includes("--lines");
 const topN = args.includes("--top") ? Number(args[args.indexOf("--top") + 1] || 20) : 20;
+const bucketName = args.includes("--bucket") ? args[args.indexOf("--bucket") + 1] : null;
+const fileFilter = args.includes("--file") ? args[args.indexOf("--file") + 1] : null;
+
+let bucketFiles = null;
+if (bucketName) {
+  const bucketPath = path.resolve(process.cwd(), "../.i18n_buckets.json");
+  const buckets = JSON.parse(fs.readFileSync(bucketPath, "utf8"));
+  if (!buckets[bucketName]) {
+    console.error(`Неизвестный bucket: ${bucketName}`);
+    process.exit(1);
+  }
+  bucketFiles = new Set(
+    buckets[bucketName].files.map((file) => path.resolve(process.cwd(), file)),
+  );
+}
 
 const SKIP_DIRS = ["/locale/", "\\locale\\", "__tests__", "/test/", "\\test\\", "/sdk/", "\\sdk\\"];
 
@@ -45,7 +62,9 @@ function walk(dir) {
     const p = path.join(dir, e.name);
     if (e.isDirectory()) { walk(p); continue; }
     if (!/\.(vue|ts)$/.test(e.name)) continue;
+    if (bucketFiles && !bucketFiles.has(path.resolve(p))) continue;
     const rel = p.replace(/\\/g, "/");
+    if (fileFilter && !rel.includes(fileFilter.replace(/\\/g, "/"))) continue;
     if (SKIP_DIRS.some((s) => rel.includes(s.replace(/\\/g, "/")))) continue;
     const src = fs.readFileSync(p, "utf8");
     let inBlockComment = false;
@@ -69,7 +88,8 @@ function walk(dir) {
 walk(ROOT);
 
 const sorted = [...perFile.entries()].sort((a, b) => b[1].length - a[1].length);
-console.log(`Файлов с остатками: ${perFile.size}; строк с необёрнутой кириллицей: ${totalLines}\n`);
+const scope = bucketName ? ` в ${bucketName}` : "";
+console.log(`Файлов с остатками${scope}: ${perFile.size}; строк с необёрнутой кириллицей: ${totalLines}\n`);
 for (const [f, hits] of sorted.slice(0, showLines ? sorted.length : topN)) {
   console.log(`${String(hits.length).padStart(5)}  ${f}`);
   if (showLines) for (const [n, s] of hits) console.log(`         :${n}  ${s}`);
