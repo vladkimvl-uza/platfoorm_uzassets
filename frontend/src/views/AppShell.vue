@@ -28,6 +28,8 @@ import { useHeartbeat } from "@/composables/usePresence";
 const aiAct = useAiActivation();
 const aiActive = computed(() => aiAct.state.active);
 const { t } = useI18n();
+// Область доступа: по ней прячем портфельные пункты меню (экран министра).
+const scope = useCompanyScope();
 import UserProfileModal from "@/components/UserProfileModal.vue";
 import WelcomeModal from "@/components/WelcomeModal.vue";
 import UserAffiliationBadge from "@/components/rbac-v3/UserAffiliationBadge.vue";
@@ -36,6 +38,7 @@ import EptLogo from "@/components/EptLogo.vue";
 import AppTopbar from "@/components/AppTopbar.vue";
 import LangSwitcher from "@/components/LangSwitcher.vue";
 import { useI18n } from "@/composables/useI18n";
+import { useCompanyScope } from "@/composables/useCompanyScope";
 import PasswordExpiryBanner from "@/components/PasswordExpiryBanner.vue";
 import UserCardHost from "@/components/user/UserCardHost.vue";
 import UserViewModal from "@/components/user/UserViewModal.vue";
@@ -461,9 +464,11 @@ function exitImpersonate() {
         <!-- ── Группа: Обзор ── -->
         <div v-if="can('financials.view') || can('monitoring.view') || isAdmin()" class="sb-group-label first">{{ t("Обзор") }}</div>
 
-        <!-- 1. Executive Dashboard (AMBER) — same gate as the route -->
+        <!-- 1. Executive Dashboard (AMBER) — same gate as the route.
+             Плюс область: портфельный экран не показываем пользователю,
+             ограниченному своими компаниями (решение владельца 29.07.2026). -->
         <RouterLink
-          v-if="can('financials.view')"
+          v-if="can('financials.view') && scope.showPortfolioViews.value"
           to="/executive-dashboard"
           class="sb-item sb-exec-dash"
           active-class="active"

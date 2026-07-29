@@ -22,8 +22,14 @@ export interface User {
   telegram_username?: string | null;
   last_login_at: string | null;
   welcome_seen?: boolean;
+  /** Язык интерфейса из профиля (ru | uz-latn | uz-cyr | en). */
+  ui_locale?: string;
   roles: string[];
   permissions: string[];
+  /** true — пользователь видит весь портфель (владелец / companies.view_all). */
+  scope_unrestricted?: boolean;
+  /** Компании области доступа (пусто при scope_unrestricted). */
+  scope_companies?: Array<{ id: string; code: string; name: string; sector?: string | null }>;
   groups?: Array<{ code?: string; name?: string; permissions?: Array<string | { code: string }> }>;
   module_visibility?: Record<string, boolean>;
 }

@@ -45,7 +45,8 @@
     </div>
 
     <!-- Company picker -->
-    <div v-if="state.viewMode.value === 'company'" class="kpi-co-picker">
+    <!-- Селектор компаний: скрыт при единственной доступной компании. -->
+    <div v-if="state.viewMode.value === 'company' && scope.showCompanyPicker.value" class="kpi-co-picker">
       <select
         :value="state.selectedCompanyId.value || ''"
         @change="onCompanyChange"
@@ -151,6 +152,7 @@ import UzaSegment from "@/components/UZA/UzaSegment.vue";
 import UzaYearStepper from "@/components/UZA/UzaYearStepper.vue";
 import { usePermissions } from "@/composables/usePermissions";
 import { useI18n } from "@/composables/useI18n";
+import { useCompanyScope } from "@/composables/useCompanyScope";
 import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
 import { useAuthStore } from "@/stores/auth";
@@ -167,6 +169,8 @@ const auth = useAuthStore();
 const canCreateCompany = computed(() => auth.hasPermission("companies.create"));
 
 const state = useKpiData();
+// Область доступа: ограниченному пользователю портфельная «Сводка» не нужна.
+const scope = useCompanyScope();
 const menuOpen = ref(false);
 const editorOpen = ref(false);
 const addCompanyOpen = ref(false);
@@ -198,10 +202,13 @@ const PERIODS = [
 ];
 
 // Опции единых фильтров (computed: подписи t() реактивны к смене языка)
-const kpiViewOpts = computed(() => [
-  { value: "summary", label: t("Сводка") },
-  { value: "company", label: t("По компании") },
-]);
+// «Сводка» — портфельный срез: скрыт для пользователя, ограниченного своими
+// компаниями (решение владельца 29.07.2026); он работает сразу «По компании».
+const kpiViewOpts = computed(() => (
+  scope.showPortfolioViews.value
+    ? [{ value: "summary", label: t("Сводка") }, { value: "company", label: t("По компании") }]
+    : [{ value: "company", label: t("По компании") }]
+));
 const kpiPeriodOpts = computed(() => PERIODS.map((p) => ({ value: p.key, label: p.label })));
 const kpiYearOpts = computed(() => state.availableYears.value.map((y) => ({ value: y, label: String(y) })));
 
@@ -276,6 +283,11 @@ function onDrillStatus(statusKey: KpiStatus) {
 
 onMounted(async () => {
   await state.loadCompanies();
+  // Ограниченный пользователь открывает сразу свою компанию (viewMode живёт в
+  // модуле и мог остаться «summary» с прошлого визита).
+  if (!scope.showPortfolioViews.value && state.viewMode.value === "summary") {
+    state.setViewMode("company");
+  }
   if (state.viewMode.value === "summary") await state.loadSummary();
   else await state.loadCompanyData();
 });

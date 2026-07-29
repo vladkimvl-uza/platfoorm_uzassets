@@ -39,6 +39,16 @@ class LogoutRequest(BaseModel):
 # User info exposed to clients
 # =====================================================================
 
+class CompanyScopeItem(BaseModel):
+    """Компания в области доступа пользователя (для селекторов интерфейса)."""
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    code: str
+    name: str
+    sector: Optional[str] = None
+
+
 class UserPublic(BaseModel):
     """User as seen by themselves (`/auth/me`) — full info."""
     model_config = ConfigDict(from_attributes=True)
@@ -71,6 +81,14 @@ class UserPublic(BaseModel):
     mfa_setup_required: bool = False
     roles:       list[str]
     permissions: list[str]
+    # Область доступа по компаниям — фронт по ней решает, показывать ли
+    # селекторы компаний/секторов, портфельные вкладки и экран министра.
+    # unrestricted=True → пользователь видит весь портфель (владелец или право
+    # companies.view_all), список при этом пуст. Иначе список = его компании
+    # (одна → селекторы не нужны, несколько → нужны только со своими).
+    scope_unrestricted: bool = True
+    scope_companies: list[CompanyScopeItem] = []
+
 
 
 class UpdateMeRequest(BaseModel):

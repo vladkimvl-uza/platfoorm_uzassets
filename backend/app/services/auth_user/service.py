@@ -52,7 +52,46 @@ def _is_privileged(user: User) -> bool:
     return any((getattr(r, "code", "") or "").lower() == "admin" for r in (user.roles or []))
 
 
-def _user_to_public(user: User, permissions: list[str] | None = None) -> UserPublic:
+async def _company_scope(db: AsyncSession, user: User) -> tuple[bool, list[dict]]:
+    """Область доступа пользователя по компаниям — для интерфейса.
+
+    Возвращает (unrestricted, companies). unrestricted=True → видит весь
+    портфель (владелец или companies.view_all), список пуст. Иначе список его
+    компаний: одна → интерфейс не показывает селекторы и портфельные срезы,
+    несколько → селекторы показываются, но только со своими компаниями.
+    Сбой расчёта НЕ роняет /auth/me, но и не выдаёт лишнего: при ошибке
+    считаем область пустой (fail-closed), а не «весь портфель».
+    """
+    from app.core.access import allowed_company_ids
+    from app.models.company import Company, Sector
+
+    try:
+        ids = await allowed_company_ids(db, user)
+    except Exception:
+        log.exception("company scope failed for user %s — считаем область пустой", user.id)
+        return (False, [])
+    if ids is None:
+        return (True, [])
+    if not ids:
+        return (False, [])
+    from sqlalchemy import select
+    rows = (await db.execute(
+        select(Company.id, Company.code, Company.name_short, Company.name_ru, Sector.code)
+        .outerjoin(Sector, Sector.id == Company.sector_id)
+        .where(Company.id.in_(ids), Company.is_active.is_(True))
+        .order_by(Company.sort_order, Company.name_ru)
+    )).all()
+    return (False, [
+        {"id": cid, "code": code, "name": (short or full or code), "sector": sec}
+        for cid, code, short, full, sec in rows
+    ])
+
+
+def _user_to_public(
+    user: User,
+    permissions: list[str] | None = None,
+    scope: tuple[bool, list[dict]] | None = None,
+) -> UserPublic:
     return UserPublic(
         id=user.id,
         email=user.email,
@@ -78,6 +117,10 @@ def _user_to_public(user: User, permissions: list[str] | None = None) -> UserPub
         welcome_seen=getattr(user, "welcome_seen", False),
         roles=[r.code for r in user.roles],
         permissions=sorted(permissions if permissions is not None else _user_permission_codes(user)),
+        # Без scope (вызов вне /auth/me) не заявляем «весь портфель»: пустая
+        # ограниченная область безопаснее, чем случайно открытый селектор.
+        scope_unrestricted=(scope[0] if scope is not None else False),
+        scope_companies=(scope[1] if scope is not None else []),
     )
 
 
@@ -174,7 +217,8 @@ class AuthUserService:
                 "Не удалось вычислить права доступа. Повторите попытку позже; "
                 "если ошибка повторяется — обратитесь к администратору.",
             ) from e
-        return _user_to_public(user, permissions)
+        scope = await _company_scope(db, user)
+        return _user_to_public(user, permissions, scope)
 
     async def change_password(
         self,

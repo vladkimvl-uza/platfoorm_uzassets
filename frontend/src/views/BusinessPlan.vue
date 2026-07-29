@@ -48,7 +48,9 @@
     </div>
 
     <!-- Company picker (only for company mode) -->
-    <div v-if="topTab === 'financial' && state.viewMode.value === 'company'" class="bp-co-picker">
+    <!-- Селектор компаний: скрыт при единственной доступной компании — выбирать
+         не из чего, она подставляется автоматически (решение владельца). -->
+    <div v-if="topTab === 'financial' && state.viewMode.value === 'company' && scope.showCompanyPicker.value" class="bp-co-picker">
       <select
         :value="state.selectedCompanyId.value || ''"
         @change="onCompanyChange"
@@ -199,6 +201,7 @@ import type { ProdCompany } from "@/api/production";
 import { usePermissions } from "@/composables/usePermissions";
 import { useAuthStore } from "@/stores/auth";
 import { useI18n } from "@/composables/useI18n";
+import { useCompanyScope } from "@/composables/useCompanyScope";
 import type { CompanyDetail } from "@/api/companies";
 
 const perm = usePermissions("bp");
@@ -212,6 +215,8 @@ const { confirmDialog } = useConfirm();
 const { t } = useI18n();
 
 const state = useBusinessPlanData();
+// Область доступа: ограниченному пользователю портфельная «Сводка» не нужна.
+const scope = useCompanyScope();
 const menuOpen = ref(false);
 const editorOpen = ref(false);
 const addCompanyOpen = ref(false);
@@ -241,7 +246,14 @@ const lens = useSavedFilter<"all" | "income" | "expenses">("bp.lens", "income");
 if (lens.value === "all") lens.value = "income";
 
 // Опции единых чипов/дропдауна (UzaSegment/UzaSelect) — computed ради реактивной смены языка
-const VIEW_OPTS = computed(() => [{ value: "summary", label: t("Сводка") }, { value: "company", label: t("По компании") }]);
+// «Сводка» — портфельный срез: пользователю, ограниченному своими компаниями,
+// он не нужен (решение владельца 29.07.2026). Такой пользователь сразу работает
+// в режиме «По компании», а переключатель показывает единственную опцию.
+const VIEW_OPTS = computed(() => (
+  scope.showPortfolioViews.value
+    ? [{ value: "summary", label: t("Сводка") }, { value: "company", label: t("По компании") }]
+    : [{ value: "company", label: t("По компании") }]
+));
 const LENS_OPTS = computed(() => [
   { value: "income", label: t("Доходы"), dot: "#1D9E75" },
   { value: "expenses", label: t("Расходы"), dot: "#EF9F27" },
@@ -369,6 +381,12 @@ function onCommentSaved() {
 
 onMounted(async () => {
   await state.loadCompanies();
+  // Ограниченный пользователь открывает сразу свою компанию: портфельная
+  // «Сводка» ему скрыта, а viewMode хранится в модуле и мог остаться с
+  // прошлого визита (в т.ч. другого пользователя на этом же устройстве).
+  if (!scope.showPortfolioViews.value && state.viewMode.value === "summary") {
+    state.setViewMode("company");
+  }
   if (state.viewMode.value === "summary") await state.loadSummary(headlineMetricFor(lens.value));
   else await state.loadCompanyData();
 });

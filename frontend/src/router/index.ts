@@ -57,7 +57,14 @@ const router = createRouter({
           redirect: () => {
             try {
               const a = useAuthStore();
-              return a.hasPermission("financials.view") ? "/executive-dashboard" : "/home";
+              // Экран министра — портфельный: пользователю, ограниченному
+              // своими компаниями, он не показывается (решение владельца
+              // 29.07.2026), поэтому и стартовой страницей быть не может.
+              const portfolio =
+                !!a.user?.is_owner || a.user?.scope_unrestricted !== false;
+              return portfolio && a.hasPermission("financials.view")
+                ? "/executive-dashboard"
+                : "/home";
             } catch {
               // Если Pinia ещё не готова — fallback на исходный /home.
               return "/home";
@@ -75,6 +82,19 @@ const router = createRouter({
           name: "executive-dashboard",
           component: () => import("@/views/ExecutiveDashboard.vue"),
           meta: { requiresAuth: true, requiresPermission: "financials.view" },
+          // Портфельный экран: закрыт для пользователей, ограниченных своими
+          // компаниями — иначе прямая ссылка обходила бы скрытый пункт меню.
+          beforeEnter: (_to, _from, next) => {
+            try {
+              const a = useAuthStore();
+              const portfolio =
+                !!a.user?.is_owner || a.user?.scope_unrestricted !== false;
+              if (!portfolio) return next("/home");
+            } catch {
+              /* Pinia не готова — пропускаем, гейт по праву отработает выше */
+            }
+            next();
+          },
         },
         {
           path: "executive-overview",
