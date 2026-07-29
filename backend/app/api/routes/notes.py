@@ -8,7 +8,8 @@ Endpoints:
   GET    /notes/tags             distinct tags + counts
   GET    /notes/by-entity        find notes linked to specific entity
 
-RBAC: notes are open to any authenticated user (per-company scope is enforced).
+RBAC: чтение — любому аутентифицированному в пределах своей области компаний;
+ЗАПИСЬ требует `tasks.edit` (см. _require_notes_write).
 """
 from __future__ import annotations
 
@@ -16,7 +17,7 @@ import logging
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
@@ -43,6 +44,23 @@ from app.services.notes.notifications import (
 )
 
 log = logging.getLogger(__name__)
+
+
+async def _require_notes_write(db: AsyncSession, user: User) -> None:
+    """Заметки/календарь — данные компании, а не личный блокнот: они видны всем,
+    у кого есть доступ к компании, и попадают в её календарь.
+
+    До 29.07.2026 запись не спрашивала никакого права (в докстринге модуля так и
+    стояло: «open to any authenticated user») — роль «Наблюдатель» создавала
+    заметки, проверено на проде (POST /notes → 201). Право то же, что у задач:
+    tasks.edit."""
+    from app.core.security import has_effective_permission
+    if await has_effective_permission(db, user, "tasks.edit"):
+        return
+    raise HTTPException(
+        status.HTTP_403_FORBIDDEN,
+        "Недостаточно прав: изменение заметок требует права tasks.edit",
+    )
 
 router = APIRouter(prefix="/notes", tags=["notes"])
 
@@ -108,6 +126,7 @@ async def create_note(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> NoteRead:
+    await _require_notes_write(db, user)
     if payload.company_id is not None:
         await ensure_company_access(db, user, payload.company_id)
     created = await service.create_note(payload, author_id=user.id)
@@ -123,6 +142,7 @@ async def update_note(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> NoteRead:
+    await _require_notes_write(db, user)
     pre = await service.get_for_scope_check(note_id)
     if pre.company_id is not None:
         await ensure_company_access(db, user, pre.company_id)
@@ -144,6 +164,7 @@ async def patch_checklist_item(
 ) -> NoteRead:
     """Точечное обновление пункта чек-листа (галочка с карточки / inline-правка
     текста, ответственного, дедлайна)."""
+    await _require_notes_write(db, user)
     company_id, _ = await service.checklist_item_context(item_id)
     if company_id is not None:
         await ensure_company_access(db, user, company_id)
@@ -169,6 +190,7 @@ async def delete_note(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    await _require_notes_write(db, user)
     pre = await service.get_for_scope_check(note_id)
     if pre.company_id is not None:
         await ensure_company_access(db, user, pre.company_id)

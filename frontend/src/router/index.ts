@@ -78,7 +78,10 @@ const router = createRouter({
           path: "dashboard",
           name: "dashboard",
           component: () => import("@/views/Dashboard.vue"),
-          meta: { title: "Проекты трансформации" },
+          // Гейт добавлен 29.07.2026: до него карточка «Дашборд» в сетке
+          // доступа не управляла ничем — маршрут был открыт всем, и «Нет
+          // доступа» у пользователя ничего не меняло.
+          meta: { title: "Проекты трансформации", requiresPermission: "dashboard.view" },
         },
         {
           path: "executive-dashboard",
@@ -623,9 +626,11 @@ router.beforeEach(async (to) => {
     for (const match of to.matched) {
       const req = match.meta?.requiresPermission as string | undefined;
       if (req && !auth.hasPermission(req)) {
-        // Soft-deny: send them home rather than throwing a hard 403 in UI.
-        // Dashboard isn't permission-gated, so it's a safe fallback.
-        return { name: "dashboard", query: { denied: req } };
+        // Мягкий отказ ведёт на /home: страница без единого гейта. Раньше
+        // целью был дашборд — после того как он сам стал гейтиться
+        // (dashboard.view), это дало бы петлю редиректов у пользователя,
+        // которому дашборд закрыт.
+        return { name: "home", query: { denied: req } };
       }
       // harder gate — DB-консоль для owner/admin
       if (match.meta?.requiresOwnerOrAdmin) {
@@ -635,7 +640,7 @@ router.beforeEach(async (to) => {
         // Убрано, чтобы условие не выглядело шире, чем работает на деле.
         const allowed = !!(u && (u.is_owner === true || auth.hasRole("admin")));
         if (!allowed) {
-          return { name: "dashboard", query: { denied: "owner_or_admin" } };
+          return { name: "home", query: { denied: "owner_or_admin" } };
         }
       }
     }

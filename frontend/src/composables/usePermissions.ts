@@ -202,6 +202,12 @@ export interface ModuleDef {
 
 export const MODULE_REGISTRY = [
   { code: 'dashboard',    label: 'Дашборд',                     hasExport: true,  hasEdit: true,  hasImport: false },
+  // Компании — доступ к карточке/рабочему пространству компании
+  // (companies.view). Модуля в сетке не было вовсе, поэтому самый частый
+  // сценарий — «пусть видит только свою компанию и больше ничего» — нельзя
+  // было ни выдать, ни забрать. companies.create/delete сеткой не управляются:
+  // это администрирование портфеля, оно идёт ролью.
+  { code: 'companies',    label: 'Компании (карточка и рабочее пространство)', hasExport: false, hasEdit: true, hasImport: false },
   // Экран министра: только чтение — на /executive-dashboard нет ни одного
   // пишущего действия, поэтому уровень «Редактировать» ему недоступен.
   { code: 'exec_dashboard', label: 'Экран министра (Executive Dashboard)', hasExport: false, hasEdit: false, hasImport: false },

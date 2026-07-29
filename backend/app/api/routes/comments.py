@@ -16,10 +16,26 @@ from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.access import ensure_company_access
-from app.core.security import get_current_user
+from app.core.security import get_current_user, has_effective_permission
 from app.database import get_db
 from app.dependencies.comments import CommentsServiceDep
 from app.models.user import User
+
+
+async def _require_comment_write(db: AsyncSession, user: User) -> None:
+    """Комментарий — изменение данных, а не чтение.
+
+    До 29.07.2026 создание/правка/удаление комментариев не спрашивали НИКАКОГО
+    права: роль «Наблюдатель» (в каталоге у неё только `*.view`) могла писать
+    комментарии к любому проекту своей компании — проверено на проде, POST
+    возвращал 201. Право берём то же, что у самих задач/проектов: `tasks.edit`.
+    """
+    if await has_effective_permission(db, user, "tasks.edit"):
+        return
+    raise HTTPException(
+        http_status.HTTP_403_FORBIDDEN,
+        "Недостаточно прав: комментирование требует права tasks.edit",
+    )
 
 
 class MarkReadPayload(BaseModel):
@@ -147,6 +163,10 @@ async def _gate_comment(
     """
     from app.services.moderation_service import gate_or_apply
 
+    # Право на запись — ДО модерации и до скоупа: наблюдателю нечего ставить
+    # даже в очередь на согласование.
+    await _require_comment_write(db, user)
+
     company_id = None
     title = ""
     if kind == "task":
@@ -260,6 +280,7 @@ async def update_project_comment(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    await _require_comment_write(db, current_user)
     info = await service.update_comment(
         "project", comment_id, body=payload.body, actor=current_user,
     )
@@ -282,6 +303,7 @@ async def delete_project_comment(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    await _require_comment_write(db, current_user)
     info = await service.delete_comment("project", comment_id, actor=current_user)
     await _audit_comment(
         db, user=current_user, verb="deleted",
@@ -364,6 +386,7 @@ async def update_task_comment(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    await _require_comment_write(db, current_user)
     info = await service.update_comment(
         "task", comment_id, body=payload.body, actor=current_user,
     )
@@ -386,6 +409,7 @@ async def delete_task_comment(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    await _require_comment_write(db, current_user)
     info = await service.delete_comment("task", comment_id, actor=current_user)
     await _audit_comment(
         db, user=current_user, verb="deleted",

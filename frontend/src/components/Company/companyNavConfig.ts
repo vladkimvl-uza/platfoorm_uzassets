@@ -36,34 +36,43 @@ export interface TabIndicators {
 }
 
 // All 14 tabs, left-to-right, in 5 groups.
+// ВАЖНО (29.07.2026): каждая вкладка-модуль гейтится правом СВОЕГО модуля.
+// Раньше гейт был только у PMO, себестоимости и закупок — остальные вкладки
+// показывали данные модуля независимо от сетки «Доступ к модулям». Из-за этого
+// снятие, скажем, ESG или Финансов у пользователя «ничего не меняло»: экран в
+// меню исчезал, а та же самая информация оставалась во вкладке компании (и
+// упиралась в 403 бэкенда только при попытке что-то открыть).
+// Без гейта остаются «Обзор» и «Сотрудники» — это сама карточка компании,
+// доступ к ней даёт модуль «Компании» (companies.view).
 export const COMPANY_TABS: TabConfig[] = [
   { id: 'overview',    label: 'Обзор',          groupId: 'overview' },
   { id: 'people',      label: 'Сотрудники',     groupId: 'overview' },
 
   // Канбан + Список объединены в «Работа» (переключатель вида внутри таба).
-  { id: 'work',        label: 'Работа',         groupId: 'tasks' },
+  { id: 'work',        label: 'Работа',         groupId: 'tasks', gated: 'tasks' },
   // PMO — только для роли с правом pmo.view (расписание/Гантт; позже RAID/здоровье).
   { id: 'pmo',         label: 'PMO',            groupId: 'tasks', gated: 'pmo' },
-  { id: 'notes',       label: 'Календарь',      groupId: 'tasks' },
-  { id: 'reporting',   label: 'Отчёт',          groupId: 'tasks' },
+  { id: 'notes',       label: 'Календарь',      groupId: 'tasks', gated: 'tasks' },
+  // «Отчёт» — мастер отчётов; бэкенд /report-wizard спрашивает reports.view.
+  { id: 'reporting',   label: 'Отчёт',          groupId: 'tasks', gated: 'reports' },
 
-  { id: 'ifrs',        label: 'МСФО',           groupId: 'finance' },
-  { id: 'nsbu',        label: 'НСБУ',           groupId: 'finance' },
-  { id: 'hlf',         label: 'Фин. отчётность', groupId: 'finance' },
-  { id: 'bp',          label: 'Бизнес-план',    groupId: 'finance' },
+  { id: 'ifrs',        label: 'МСФО',           groupId: 'finance', gated: 'financials' },
+  { id: 'nsbu',        label: 'НСБУ',           groupId: 'finance', gated: 'financials' },
+  { id: 'hlf',         label: 'Фин. отчётность', groupId: 'finance', gated: 'financials' },
+  { id: 'bp',          label: 'Бизнес-план',    groupId: 'finance', gated: 'bp' },
   // Себестоимость — тот же бэкенд, что и полноэкранный /unit-cost, поэтому и
   // право то же (unit_cost.view). Без гейта вкладка осталась бы окном в модуль
   // в обход его собственного права.
   { id: 'unitcost',    label: 'Себестоимость',  groupId: 'finance', gated: 'unit_cost' },
 
-  { id: 'kpi',         label: 'KPI',            groupId: 'performance' },
+  { id: 'kpi',         label: 'KPI',            groupId: 'performance', gated: 'kpi' },
   // Закупки во вкладке читают procurementAnalysisApi — то же право, что у
   // полноэкранного /procurement/analysis, а не форензик-право procurement.view.
   { id: 'procurement', label: 'Закупки',        groupId: 'performance', gated: 'procurement_analysis' },
 
-  { id: 'governance',  label: 'Корп. упр.',     groupId: 'governance' },
-  { id: 'consultants', label: 'Консультанты',   groupId: 'governance' },
-  { id: 'esg',         label: 'ESG',            groupId: 'governance' },
+  { id: 'governance',  label: 'Корп. упр.',     groupId: 'governance', gated: 'governance' },
+  { id: 'consultants', label: 'Консультанты',   groupId: 'governance', gated: 'consultants' },
+  { id: 'esg',         label: 'ESG',            groupId: 'governance', gated: 'esg' },
 ];
 
 // Default indicators — все пустые. Caller must pass real ones via `:indicators` prop.

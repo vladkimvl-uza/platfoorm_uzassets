@@ -520,10 +520,10 @@ function exitImpersonate() {
         <!-- ── Группа: Проекты и сроки ── -->
         <div v-if="can('projects.view') || can('tasks.view')" class="sb-group-label">{{ t("Проекты и сроки") }}</div>
 
-        <!-- 2. Проекты трансформации — показывает портфель проектов / задач;
-             скрываем если у юзера нет ни projects.view, ни tasks.view (либо
-             admin/owner — auth.hasPermission уже bypass'ит). -->
-        <RouterLink v-if="can('projects.view') || can('tasks.view')"
+        <!-- 2. Проекты трансформации — гейтится собственным правом дашборда
+             (dashboard.view). Раньше стояло projects.view||tasks.view: карточка
+             «Дашборд» в сетке доступа не убирала пункт меню. -->
+        <RouterLink v-if="can('dashboard.view')"
                     to="/dashboard" class="sb-item" active-class="active">
           <svg
             width="16" height="16" viewBox="0 0 24 24" fill="none"

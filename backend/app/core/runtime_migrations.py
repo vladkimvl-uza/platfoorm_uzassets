@@ -198,6 +198,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_user_permission_grant(conn)
             await _patch_rbac_module_permissions(conn)
             await _patch_rbac_screen_permissions(conn)
+            await _patch_dashboard_view_grant(conn)
             await _patch_custom_api_endpoint(conn)
             await _patch_org_role_tasks_write(conn)
             await _patch_org_role_company_create(conn)
@@ -1908,6 +1909,47 @@ async def _patch_rbac_screen_permissions(conn) -> None:
                 ),
                 {"role": role_code, "code": code},
             )
+
+
+async def _patch_dashboard_view_grant(conn) -> None:
+    """Разовая раздача `dashboard.view` ролям, у которых дашборд и так открыт.
+
+    Право существовало в каталоге, но не было ни у одной роли, кроме admin, и
+    ничего не гейтило: маршрут /dashboard шёл без requiresPermission, а бэкенд
+    пропускал по фолбэку tasks.view. Из-за этого карточка «Дашборд» в сетке
+    доступа не делала НИЧЕГО — администратор ставил «Нет доступа», и у
+    пользователя ничего не менялось.
+
+    Теперь гейт включается на фронте и на бэке, поэтому право нужно сначала
+    отдать тем ролям, у кого дашборд открыт сегодня (держатели tasks.view), —
+    иначе включение гейта отняло бы экран у всех разом. Раздаём ОДИН раз (по
+    маркеру): дальше это обычное право, и снятие его администратором держится.
+    """
+    already = (await conn.execute(text(
+        "SELECT 1 FROM system_config WHERE key = 'dashboard_view_granted' LIMIT 1"
+    ))).first()
+    if already:
+        return
+    await conn.execute(text(
+        """
+        INSERT INTO role_permission (role_id, permission_id)
+        SELECT r.id, p.id
+        FROM roles r, permissions p
+        WHERE p.code = 'dashboard.view'
+          AND r.code IN ('admin', 'company_admin', 'organization', 'viewer')
+          AND NOT EXISTS (
+              SELECT 1 FROM role_permission rp
+              WHERE rp.role_id = r.id AND rp.permission_id = p.id
+          )
+        """
+    ))
+    await conn.execute(text(
+        "INSERT INTO system_config (id, key, value, description, is_secret) "
+        "VALUES (gen_random_uuid(), 'dashboard_view_granted', "
+        "'{\"done\": true}'::jsonb, "
+        "'dashboard.view roздано ролям перед включением гейта /dashboard', false) "
+        "ON CONFLICT (key) DO NOTHING"
+    ))
 
 
 async def _patch_direction_color(conn) -> None:
