@@ -6,6 +6,10 @@
  *
  * Показывает только заполненные поля. size="sm" — мельче для плотных списков.
  */
+import { useI18n } from '@/composables/useI18n';
+
+const { t } = useI18n();
+
 withDefaults(defineProps<{
   company?: string | null;
   sector?: string | null;
@@ -17,13 +21,13 @@ withDefaults(defineProps<{
 
 <template>
   <span class="uab" :class="'uab-' + size">
-    <span v-if="company" class="uab-chip uab-company" :title="'Компания: ' + company">
+    <span v-if="company" class="uab-chip uab-company" :title="t('Компания: {value}', { value: company })">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-2"/></svg>
       {{ company }}
     </span>
-    <span v-if="sector" class="uab-chip uab-sector" :title="'Сектор: ' + sector">{{ sector }}</span>
-    <span v-if="department" class="uab-chip uab-dept" :title="'Отдел: ' + department">{{ department }}</span>
-    <span v-if="jobTitle" class="uab-chip uab-job" :title="'Должность: ' + jobTitle">{{ jobTitle }}</span>
+    <span v-if="sector" class="uab-chip uab-sector" :title="t('Сектор: {value}', { value: sector })">{{ sector }}</span>
+    <span v-if="department" class="uab-chip uab-dept" :title="t('Отдел: {value}', { value: department })">{{ department }}</span>
+    <span v-if="jobTitle" class="uab-chip uab-job" :title="t('Должность: {value}', { value: jobTitle })">{{ jobTitle }}</span>
   </span>
 </template>
 

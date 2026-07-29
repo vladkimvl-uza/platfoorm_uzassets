@@ -4,6 +4,9 @@ import BIcon from "@/components/broadcasts/BIcon.vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import ModalShell from "@/components/ModalShell.vue";
 import { auditApi, httpStatusColor, type AuditEvent } from "@/api/partners";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const events = ref<AuditEvent[]>([]);
 const total  = ref(0);
@@ -64,18 +67,18 @@ function fmtRel(iso: string): string {
 
     <div class="al-filters">
       <div class="al-fl">
-        <label>Период</label>
+        <label>{{ t('Период') }}</label>
         <select v-model.number="filters.hours">
-          <option :value="1">1 час</option>
-          <option :value="6">6 часов</option>
-          <option :value="24">24 часа</option>
-          <option :value="168">7 дней</option>
-          <option :value="720">30 дней</option>
-          <option :value="null">всё время</option>
+          <option :value="1">{{ t('1 час') }}</option>
+          <option :value="6">{{ t('6 часов') }}</option>
+          <option :value="24">{{ t('24 часа') }}</option>
+          <option :value="168">{{ t('7 дней') }}</option>
+          <option :value="720">{{ t('30 дней') }}</option>
+          <option :value="null">{{ t('всё время') }}</option>
         </select>
       </div>
       <div class="al-fl">
-        <label>Модуль</label>
+        <label>{{ t('Модуль') }}</label>
         <input v-model="filters.module" placeholder="e.g. api_keys, broadcasts"/>
       </div>
       <div class="al-fl">
@@ -83,26 +86,26 @@ function fmtRel(iso: string): string {
         <input v-model="filters.action" placeholder="e.g. create, update"/>
       </div>
       <div class="al-fl al-fl-stretch">
-        <label>Поиск</label>
+        <label>{{ t('Поиск') }}</label>
         <input v-model="filters.search" @input="reload" placeholder="entity_label, email…"/>
       </div>
       <label class="al-chk">
         <input v-model="filters.only_critical" type="checkbox"/>
-        Только critical
+        {{ t('Только critical') }}
       </label>
       <label class="al-chk">
         <input v-model="filters.only_api_key" type="checkbox"/>
-        Только API-key auth
+        {{ t('Только API-key auth') }}
       </label>
       <button class="al-btn" @click="reload">
-        <BIcon name="refresh" :size="14" /> Обновить
+        <BIcon name="refresh" :size="14" /> {{ t('Обновить') }}
       </button>
     </div>
 
     <div class="al-bar">
-      <div>{{ total }} событий</div>
+      <div>{{ total }} {{ t('событий') }}</div>
       <div v-if="loading" style="color: var(--color-text-tertiary); font-size: 11px;">
-        <BIcon name="loader-2" :size="14" /> загрузка…
+        <BIcon name="loader-2" :size="14" /> {{ t('загрузка…') }}
       </div>
     </div>
 
@@ -113,11 +116,11 @@ function fmtRel(iso: string): string {
     <table v-else class="al-tbl uza-table">
       <thead>
         <tr>
-          <th>Время</th>
+          <th>{{ t('Время') }}</th>
           <th>Actor</th>
           <th>Action</th>
-          <th>Модуль</th>
-          <th>Сущность</th>
+          <th>{{ t('Модуль') }}</th>
+          <th>{{ t('Сущность') }}</th>
           <th>HTTP</th>
           <th>Long.</th>
           <th></th>
@@ -128,7 +131,7 @@ function fmtRel(iso: string): string {
             :class="{ 'al-critical': e.is_critical, 'al-via-key': !!e.api_key_id }">
           <td class="al-t">
             <div>{{ fmtTime(e.created_at) }}</div>
-            <div class="al-rel">{{ fmtRel(e.created_at) }} назад</div>
+            <div class="al-rel">{{ fmtRel(e.created_at) }} {{ t('назад') }}</div>
           </td>
           <td>
             <div v-if="e.api_key_id" style="color: #534AB7;"><BIcon name="key" :size="14" /> API key</div>
@@ -167,18 +170,18 @@ function fmtRel(iso: string): string {
       </template>
       <template v-if="detailOpen">
         <div class="al-detail-grid">
-            <div><span>Время</span><code>{{ fmtTime(detailOpen.created_at) }}</code></div>
+            <div><span>{{ t('Время') }}</span><code>{{ fmtTime(detailOpen.created_at) }}</code></div>
             <div><span>Actor</span><code>{{ detailOpen.actor_email || (detailOpen.api_key_id ? `API key ${detailOpen.api_key_id.slice(0,8)}` : "—") }}</code></div>
-            <div><span>Модуль</span><code>{{ detailOpen.module || "—" }}</code></div>
+            <div><span>{{ t('Модуль') }}</span><code>{{ detailOpen.module || "—" }}</code></div>
             <div><span>Action</span><code>{{ detailOpen.action }}</code></div>
-            <div><span>Сущность</span><code>{{ detailOpen.entity_type || "—" }}{{ detailOpen.entity_id ? ` #${detailOpen.entity_id.slice(0,8)}` : "" }}</code></div>
+            <div><span>{{ t('Сущность') }}</span><code>{{ detailOpen.entity_type || "—" }}{{ detailOpen.entity_id ? ` #${detailOpen.entity_id.slice(0,8)}` : "" }}</code></div>
             <div><span>HTTP</span><code>{{ detailOpen.http_method || "—" }} {{ detailOpen.http_status ?? "—" }}</code></div>
             <div><span>IP</span><code>{{ detailOpen.ip_address || "—" }}</code></div>
-            <div><span>Длительность</span><code>{{ detailOpen.duration_ms !== null ? `${detailOpen.duration_ms}ms` : "—" }}</code></div>
+            <div><span>{{ t('Длительность') }}</span><code>{{ detailOpen.duration_ms !== null ? `${detailOpen.duration_ms}ms` : "—" }}</code></div>
           </div>
       </template>
       <template #footer>
-        <button class="al-btn" @click="detailOpen = null">Закрыть</button>
+        <button class="al-btn" @click="detailOpen = null">{{ t('Закрыть') }}</button>
       </template>
     </ModalShell>
   </div>

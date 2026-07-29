@@ -91,6 +91,7 @@ def _user_to_public(
     user: User,
     permissions: list[str] | None = None,
     scope: tuple[bool, list[dict]] | None = None,
+    direct_permissions: list[str] | None = None,
 ) -> UserPublic:
     return UserPublic(
         id=user.id,
@@ -117,6 +118,7 @@ def _user_to_public(
         welcome_seen=getattr(user, "welcome_seen", False),
         roles=[r.code for r in user.roles],
         permissions=sorted(permissions if permissions is not None else _user_permission_codes(user)),
+        direct_permissions=sorted(direct_permissions or []),
         # Без scope (вызов вне /auth/me) не заявляем «весь портфель»: пустая
         # ограниченная область безопаснее, чем случайно открытый селектор.
         scope_unrestricted=(scope[0] if scope is not None else False),
@@ -218,7 +220,15 @@ class AuthUserService:
                 "если ошибка повторяется — обратитесь к администратору.",
             ) from e
         scope = await _company_scope(db, user)
-        return _user_to_public(user, permissions, scope)
+        # Личные гранты — отдельным списком: интерфейсу нужно отличать «дали
+        # лично» от «есть по роли» (см. direct_permissions в UserPublic).
+        direct: list[str] = []
+        try:
+            rows = await RbacV3Repository(db).user_grant_rows(user.id)
+            direct = [c for c, t in rows if t == "grant"]
+        except Exception:  # noqa: BLE001 — не критично для входа
+            direct = []
+        return _user_to_public(user, permissions, scope, direct)
 
     async def change_password(
         self,

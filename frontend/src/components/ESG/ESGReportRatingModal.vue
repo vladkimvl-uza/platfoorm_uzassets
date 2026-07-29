@@ -14,6 +14,9 @@ import ModalShell from "@/components/ModalShell.vue";
 import { esgApi, type ESGMaturityCompany } from "@/api/esg";
 import { ratingsApi } from "@/api/ratings";
 import { useToast } from "@/composables/useToast";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const props = defineProps<{
   open: boolean;
@@ -165,7 +168,7 @@ async function save() {
   <ModalShell :open="open" size="md" :dirty="dirty" @close="requestClose">
     <template #header>
       <div class="erm-head">
-        <span class="erm-eyebrow">ESG · внешняя валидация</span>
+        <span class="erm-eyebrow">{{ t('ESG · внешняя валидация') }}</span>
         <h2 class="erm-title">{{ title }}</h2>
         <span class="erm-yr">FY {{ year }}</span>
       </div>
@@ -175,58 +178,58 @@ async function save() {
       <!-- 1. Подготовка ESG-отчётности -->
       <section class="erm-sec">
         <div class="erm-sec-h">
-          <span>Подготовка ESG-отчётности</span>
-          <label class="erm-nr"><input type="checkbox" v-model="repNr" :disabled="!canEdit" /> не требуется</label>
+          <span>{{ t('Подготовка ESG-отчётности') }}</span>
+          <label class="erm-nr"><input type="checkbox" v-model="repNr" :disabled="!canEdit" /> {{ t('не требуется') }}</label>
         </div>
         <template v-if="!repNr">
           <div class="erm-seg">
             <button v-for="o in REP_OPTS" :key="o.v" type="button" class="erm-seg-btn"
                     :class="{ on: repStage === o.v }" :disabled="!canEdit" @click="repStage = o.v">{{ o.label }}</button>
           </div>
-          <input v-model="repLink" type="url" class="erm-inp" placeholder="https://… ссылка на отчёт" :disabled="!canEdit" />
+          <input v-model="repLink" type="url" class="erm-inp" :placeholder="t('https://… ссылка на отчёт')" :disabled="!canEdit" />
         </template>
-        <div v-else class="erm-nr-note">Подготовка отчётности исключена из статистики</div>
+        <div v-else class="erm-nr-note">{{ t('Подготовка отчётности исключена из статистики') }}</div>
       </section>
 
       <!-- 2. Прохождение независимого заверения -->
       <section class="erm-sec">
         <div class="erm-sec-h">
-          <span>Прохождение независимого заверения</span>
-          <label class="erm-nr"><input type="checkbox" v-model="assurNr" :disabled="!canEdit" /> не требуется</label>
+          <span>{{ t('Прохождение независимого заверения') }}</span>
+          <label class="erm-nr"><input type="checkbox" v-model="assurNr" :disabled="!canEdit" /> {{ t('не требуется') }}</label>
         </div>
         <div v-if="!assurNr" class="erm-seg">
           <button v-for="o in ASSUR_OPTS" :key="o.v" type="button" class="erm-seg-btn"
                   :class="{ on: assurStage === o.v }" :disabled="!canEdit" @click="assurStage = o.v">{{ o.label }}</button>
         </div>
-        <div v-else class="erm-nr-note">Заверение исключено из статистики</div>
+        <div v-else class="erm-nr-note">{{ t('Заверение исключено из статистики') }}</div>
       </section>
 
       <!-- 3. ESG-рейтинги -->
       <section class="erm-sec">
-        <div class="erm-sec-h"><span>Получение ESG-рейтинга</span></div>
+        <div class="erm-sec-h"><span>{{ t('Получение ESG-рейтинга') }}</span></div>
         <div class="erm-rates">
           <div v-for="(r, i) in rows" :key="r.id || 'new' + i" class="erm-rate">
             <select v-model="r.agency" class="erm-rate-ag" :disabled="!canEdit">
               <option v-for="a in ESG_AGENCIES" :key="a" :value="a">{{ a }}</option>
             </select>
-            <input v-model="r.value" type="text" class="erm-rate-v" placeholder="значение" :disabled="!canEdit" />
-            <input v-model="r.report_url" type="url" class="erm-rate-url" placeholder="ссылка (опц.)" :disabled="!canEdit" />
-            <button v-if="canEdit" type="button" class="erm-rate-del" title="Удалить рейтинг" @click="removeRow(i)">✕</button>
+            <input v-model="r.value" type="text" class="erm-rate-v" :placeholder="t('значение')" :disabled="!canEdit" />
+            <input v-model="r.report_url" type="url" class="erm-rate-url" :placeholder="t('ссылка (опц.)')" :disabled="!canEdit" />
+            <button v-if="canEdit" type="button" class="erm-rate-del" :title="t('Удалить рейтинг')" @click="removeRow(i)">✕</button>
           </div>
-          <div v-if="!rows.length" class="erm-empty">Рейтингов пока нет</div>
+          <div v-if="!rows.length" class="erm-empty">{{ t('Рейтингов пока нет') }}</div>
         </div>
         <div class="erm-rate-foot">
-          <button v-if="canEdit" type="button" class="erm-add" @click="addRow">+ рейтинг</button>
+          <button v-if="canEdit" type="button" class="erm-add" @click="addRow">{{ t('+ рейтинг') }}</button>
           <label class="erm-planned" :class="{ dis: rows.some((r) => r.value.trim()) }"
                  :title="rows.some((r) => r.value.trim()) ? 'Есть полученный рейтинг' : 'Отметить как запланированный'">
-            <input type="checkbox" v-model="planned" :disabled="!canEdit" /> запланировано получение рейтинга
+            <input type="checkbox" v-model="planned" :disabled="!canEdit" /> {{ t('запланировано получение рейтинга') }}
           </label>
         </div>
       </section>
     </div>
 
     <template #footer>
-      <button class="erm-cancel" type="button" @click="requestClose">Отмена</button>
+      <button class="erm-cancel" type="button" @click="requestClose">{{ t('Отмена') }}</button>
       <button v-if="canEdit" class="erm-save" type="button" :disabled="!dirty || saving" @click="save">
         {{ saving ? "Сохранение…" : "Сохранить" }}
       </button>

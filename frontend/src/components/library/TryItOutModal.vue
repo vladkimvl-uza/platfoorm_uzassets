@@ -6,6 +6,9 @@
 import { computed, ref, watch } from "vue";
 import { apiCatalog, type CatalogEndpointWithSubstitution, type TryResponse } from "@/api/apiCatalog";
 import ModalShell from "@/components/ModalShell.vue";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const props = defineProps<{
   open: boolean;
@@ -118,7 +121,7 @@ function fmtJson(s: string | null): string {
         </div>
 
         <div class="tio-row">
-          <label class="tio-label">Headers <span class="tio-hint">(по строке: Name: value)</span></label>
+          <label class="tio-label">Headers <span class="tio-hint">{{ t('(по строке: Name: value)') }}</span></label>
           <textarea v-model="headersTxt" rows="2" class="tio-input tio-input-mono"
                     placeholder="X-Custom-Header: value"></textarea>
         </div>
@@ -131,8 +134,7 @@ function fmtJson(s: string | null): string {
         <div v-if="error" class="tio-err">{{ error }}</div>
 
         <div v-if="showConfirm && !response" class="tio-confirm">
-          <b>{{ endpoint.method }}</b> — деструктивный запрос. Реальные данные изменятся.
-          Нажмите «Run» ещё раз для подтверждения.
+          <b>{{ endpoint.method }}</b> {{ t('— деструктивный запрос. Реальные данные изменятся. Нажмите «Run» ещё раз для подтверждения.') }}
         </div>
 
         <!-- Response -->
@@ -150,7 +152,7 @@ function fmtJson(s: string | null): string {
     </template>
 
     <template #footer>
-      <button class="tio-btn tio-btn-secondary" @click="emit('close')">Закрыть</button>
+      <button class="tio-btn tio-btn-secondary" @click="emit('close')">{{ t('Закрыть') }}</button>
       <button
         class="tio-btn tio-btn-primary"
         :disabled="running || !url"

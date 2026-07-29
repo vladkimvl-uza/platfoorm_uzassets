@@ -23,6 +23,9 @@ import { isModerationQueued } from "@/api/client";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
 import ModalShell from "@/components/ModalShell.vue";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const { confirmDialog } = useConfirm();
 const toast = useToast();
@@ -271,27 +274,27 @@ const ROLE_OPTIONS = computed(() => ROLE_TYPE_META);
   <ModalShell :open="true" size="md" @close="requestClose">
     <template #header>
       <div>
-        <div class="ge-eyebrow">Корп. управление · FY {{ year }}</div>
+        <div class="ge-eyebrow">{{ t('Корп. управление · FY') }} {{ year }}</div>
         <h2 class="ge-title">{{ companyName }}</h2>
       </div>
     </template>
 
       <div class="ge-tabs">
-        <button :class="{ on: section === 'data' }" @click="section = 'data'">Показатели</button>
+        <button :class="{ on: section === 'data' }" @click="section = 'data'">{{ t('Показатели') }}</button>
         <button :class="{ on: section === 'board' }" @click="section = 'board'">
-          Совет директоров <span class="ge-tab-count">{{ localMembers.length }}</span>
+          {{ t('Совет директоров') }} <span class="ge-tab-count">{{ localMembers.length }}</span>
         </button>
       </div>
 
       <div class="ge-body">
         <p v-if="err" class="ge-err">{{ err }}</p>
-        <p v-if="queued" class="ge-queued">Отправлено на модерацию</p>
+        <p v-if="queued" class="ge-queued">{{ t('Отправлено на модерацию') }}</p>
 
         <!-- ─── ПОКАЗАТЕЛИ ─── -->
         <template v-if="section === 'data'">
           <div v-if="localMembers.length" class="ge-autofill">
-            <span class="ge-autofill-hint">Состав совета: {{ boardAgg.board_size }} чел · {{ boardAgg.independent }} незав. · {{ boardAgg.women }} жен. · {{ boardAgg.foreign }} иностр.</span>
-            <button type="button" class="ge-autofill-btn" :disabled="saving" @click="fillFromBoard">Подставить из совета</button>
+            <span class="ge-autofill-hint">{{ t('Состав совета:') }} {{ boardAgg.board_size }} {{ t('чел ·') }} {{ boardAgg.independent }} {{ t('незав. ·') }} {{ boardAgg.women }} {{ t('жен. ·') }} {{ boardAgg.foreign }} {{ t('иностр.') }}</span>
+            <button type="button" class="ge-autofill-btn" :disabled="saving" @click="fillFromBoard">{{ t('Подставить из совета') }}</button>
           </div>
           <div class="ge-grid">
             <label v-for="f in numFields" :key="f.key" class="ge-field">
@@ -302,7 +305,7 @@ const ROLE_OPTIONS = computed(() => ROLE_TYPE_META);
           </div>
 
           <div class="ge-subsection">
-            <div class="ge-sub-label">Комитеты совета</div>
+            <div class="ge-sub-label">{{ t('Комитеты совета') }}</div>
             <div class="ge-checks">
               <label v-for="c in committees" :key="c.key" class="ge-check">
                 <input type="checkbox" v-model="form[c.key as keyof typeof form]" :disabled="saving" />
@@ -312,13 +315,13 @@ const ROLE_OPTIONS = computed(() => ROLE_TYPE_META);
           </div>
 
           <label class="ge-field">
-            <span class="ge-label">Заметки</span>
+            <span class="ge-label">{{ t('Заметки') }}</span>
             <textarea class="ge-in ge-textarea" v-model="form.notes" rows="3" :disabled="saving"
-                      placeholder="Комментарии по корп. управлению…"></textarea>
+                      :placeholder="t('Комментарии по корп. управлению…')"></textarea>
           </label>
 
           <div class="ge-actions">
-            <button class="ge-btn ge-btn-ghost" @click="requestClose" :disabled="saving">Отмена</button>
+            <button class="ge-btn ge-btn-ghost" @click="requestClose" :disabled="saving">{{ t('Отмена') }}</button>
             <button class="ge-btn ge-btn-primary" @click="saveData" :disabled="saving">
               <span v-if="saving" class="ge-spin"></span>{{ saving ? "" : "Сохранить показатели" }}
             </button>
@@ -332,26 +335,26 @@ const ROLE_OPTIONS = computed(() => ROLE_TYPE_META);
             <div class="ge-sub-label">{{ editingMember ? "Редактирование члена" : "Новый член совета" }}</div>
             <div class="ge-grid">
               <label class="ge-field ge-field-wide">
-                <span class="ge-label">ФИО *</span>
-                <input class="ge-in" v-model="mForm.full_name" :disabled="saving" placeholder="Иванов Иван Иванович" />
+                <span class="ge-label">{{ t('ФИО *') }}</span>
+                <input class="ge-in" v-model="mForm.full_name" :disabled="saving" :placeholder="t('Иванов Иван Иванович')" />
               </label>
               <label class="ge-field ge-field-wide">
-                <span class="ge-label">Должность</span>
-                <input class="ge-in" v-model="mForm.position" :disabled="saving" placeholder="Председатель совета" />
+                <span class="ge-label">{{ t('Должность') }}</span>
+                <input class="ge-in" v-model="mForm.position" :disabled="saving" :placeholder="t('Председатель совета')" />
               </label>
               <label class="ge-field">
-                <span class="ge-label">Роль</span>
+                <span class="ge-label">{{ t('Роль') }}</span>
                 <select class="ge-in" v-model="mForm.role_type" :disabled="saving">
                   <option value="">—</option>
                   <option v-for="r in ROLE_OPTIONS" :key="r.key" :value="r.key">{{ r.label }}</option>
                 </select>
               </label>
               <label class="ge-field">
-                <span class="ge-label">Назначен</span>
+                <span class="ge-label">{{ t('Назначен') }}</span>
                 <input type="date" class="ge-in" v-model="mForm.appointed_date" :disabled="saving" />
               </label>
               <label class="ge-field">
-                <span class="ge-label">Срок до</span>
+                <span class="ge-label">{{ t('Срок до') }}</span>
                 <input type="date" class="ge-in" v-model="mForm.term_end_date" :disabled="saving" />
               </label>
               <label class="ge-field">
@@ -359,21 +362,21 @@ const ROLE_OPTIONS = computed(() => ROLE_TYPE_META);
                 <input type="email" class="ge-in" v-model="mForm.email" :disabled="saving" placeholder="name@company.uz" />
               </label>
               <label class="ge-field">
-                <span class="ge-label">Телефон</span>
+                <span class="ge-label">{{ t('Телефон') }}</span>
                 <input type="tel" class="ge-in" v-model="mForm.phone" :disabled="saving" placeholder="+998 90 123 45 67" />
               </label>
             </div>
             <div class="ge-checks">
-              <label class="ge-check"><input type="checkbox" v-model="mForm.is_independent" :disabled="saving" /><span>Независимый</span></label>
-              <label class="ge-check"><input type="checkbox" v-model="mForm.is_woman" :disabled="saving" /><span>Женщина</span></label>
-              <label class="ge-check"><input type="checkbox" v-model="mForm.is_foreign" :disabled="saving" /><span>Иностранец</span></label>
+              <label class="ge-check"><input type="checkbox" v-model="mForm.is_independent" :disabled="saving" /><span>{{ t('Независимый') }}</span></label>
+              <label class="ge-check"><input type="checkbox" v-model="mForm.is_woman" :disabled="saving" /><span>{{ t('Женщина') }}</span></label>
+              <label class="ge-check"><input type="checkbox" v-model="mForm.is_foreign" :disabled="saving" /><span>{{ t('Иностранец') }}</span></label>
             </div>
             <label class="ge-field">
-              <span class="ge-label">Биография</span>
+              <span class="ge-label">{{ t('Биография') }}</span>
               <textarea class="ge-in ge-textarea" v-model="mForm.bio" rows="2" :disabled="saving"></textarea>
             </label>
             <div class="ge-actions">
-              <button class="ge-btn ge-btn-ghost" @click="showMemberForm = false" :disabled="saving">Отмена</button>
+              <button class="ge-btn ge-btn-ghost" @click="showMemberForm = false" :disabled="saving">{{ t('Отмена') }}</button>
               <button class="ge-btn ge-btn-primary" @click="saveMember" :disabled="saving">
                 <span v-if="saving" class="ge-spin"></span>{{ saving ? "" : "Сохранить" }}
               </button>
@@ -382,8 +385,8 @@ const ROLE_OPTIONS = computed(() => ROLE_TYPE_META);
 
           <!-- список -->
           <template v-else>
-            <button class="ge-add-btn" @click="openAddMember">＋ Добавить члена совета</button>
-            <div v-if="localMembers.length === 0" class="ge-empty">Члены совета не заведены</div>
+            <button class="ge-add-btn" @click="openAddMember">{{ t('＋ Добавить члена совета') }}</button>
+            <div v-if="localMembers.length === 0" class="ge-empty">{{ t('Члены совета не заведены') }}</div>
             <div v-else class="ge-member-list">
               <div v-for="m in localMembers" :key="m.id" class="ge-member-row">
                 <div class="ge-member-main">
@@ -393,16 +396,16 @@ const ROLE_OPTIONS = computed(() => ROLE_TYPE_META);
                     <span class="ge-role-pill" :style="{ background: roleMeta(m.role_type).color + '22', color: roleMeta(m.role_type).color }">
                       {{ roleMeta(m.role_type).label }}
                     </span>
-                    <span v-if="m.is_independent" class="ge-mini-badge">Незав.</span>
-                    <span v-if="m.is_woman" class="ge-mini-badge">Жен.</span>
-                    <span v-if="m.is_foreign" class="ge-mini-badge">Иностр.</span>
+                    <span v-if="m.is_independent" class="ge-mini-badge">{{ t('Незав.') }}</span>
+                    <span v-if="m.is_woman" class="ge-mini-badge">{{ t('Жен.') }}</span>
+                    <span v-if="m.is_foreign" class="ge-mini-badge">{{ t('Иностр.') }}</span>
                   </div>
                 </div>
                 <div class="ge-member-acts">
-                  <button class="ge-icon-btn" @click="openEditMember(m)" title="Редактировать" aria-label="Редактировать">
+                  <button class="ge-icon-btn" @click="openEditMember(m)" :title="t('Редактировать')" :aria-label="t('Редактировать')">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
                   </button>
-                  <button class="ge-icon-btn ge-icon-del" @click="removeMember(m)" title="Удалить" aria-label="Удалить">
+                  <button class="ge-icon-btn ge-icon-del" @click="removeMember(m)" :title="t('Удалить')" :aria-label="t('Удалить')">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
                   </button>
                 </div>

@@ -11,6 +11,9 @@ import { useEntityEditor } from "@/composables/useEntityEditor";
 import TaskProjectEditor from "@/components/TaskProjectEditor.vue";
 import ModalShell from "@/components/ModalShell.vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const { state, close } = useEntityEditor();
 
@@ -26,7 +29,7 @@ function onSaved() {
   </div>
 
   <!-- Ошибка загрузки (невалидный id и т.п.) — канон ModalShell + UzaStateBlock -->
-  <ModalShell v-else-if="state.open && !!state.error" :open="true" size="sm" title="Ошибка" @close="close">
+  <ModalShell v-else-if="state.open && !!state.error" :open="true" size="sm" :title="t('Ошибка')" @close="close">
     <UzaStateBlock state="error" variant="block" :text="state.error || ''" />
   </ModalShell>
 

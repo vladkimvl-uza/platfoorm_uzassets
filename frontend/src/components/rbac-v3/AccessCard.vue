@@ -25,11 +25,11 @@ const LEVEL_COLORS: Record<AccessLevel, { color: string; bg: string }> = {
   read:  { color: '#0891B2', bg: 'rgba(8,145,178,.12)'  },
   none:  { color: '#94A3B8', bg: '#F1F0FB'              },
 };
-const LEVEL_LABEL: Record<AccessLevel, string> = {
-  write: 'Редактировать',
-  read:  'Наблюдать',
-  none:  'Нет доступа',
-};
+function levelLabel(level: AccessLevel): string {
+  if (level === 'write') return t('Редактировать');
+  if (level === 'read') return t('Наблюдать');
+  return t('Нет доступа');
+}
 
 // Для модулей без права {module}.edit / {module}.import (ИИ, отчёты) выбор
 // «Редактировать» ничего бы не изменил — бэкенд отбросил бы несуществующий
@@ -45,7 +45,7 @@ const stripeColor = computed(() => {
 });
 const meta = computed(() => ({
   ...LEVEL_COLORS[props.level],
-  label: t(LEVEL_LABEL[props.level]),
+  label: levelLabel(props.level),
 }));
 const dim  = computed(() => props.level === 'none' && !props.editable);
 </script>
@@ -80,7 +80,7 @@ const dim  = computed(() => props.level === 'none' && !props.editable);
     </div>
     <div class="rv3-card-sub" :class="{ warn: manualGrant }">
       <template v-if="manualGrant">{{ t("+ персональный grant") }}</template>
-      <template v-else>{{ explain }}{{ scope ? ' · scope: ' + scope : '' }}</template>
+      <template v-else>{{ scope ? t('{explain} · Область: {scope}', { explain, scope }) : explain }}</template>
     </div>
     <!-- Явное объяснение, почему у модуля нет варианта «Редактировать». -->
     <div v-if="editable && !writeAvailable" class="rv3-card-hint">{{ writeHint }}</div>

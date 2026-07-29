@@ -8,6 +8,9 @@
  */
 
 import { useToast } from "@/composables/useToast";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const { toasts, remove } = useToast();
 
@@ -70,7 +73,7 @@ const { toasts, remove } = useToast();
           <button
             class="uza-toast-close"
             @click.stop="remove(t.id)"
-            aria-label="Закрыть"
+            :aria-label="t('Закрыть')"
           >
             <svg
               width="14"

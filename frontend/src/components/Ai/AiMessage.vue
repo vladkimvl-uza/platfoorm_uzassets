@@ -31,12 +31,12 @@
     <div class="ai-msg-body">
       <header class="ai-msg-head">
         <span class="ai-msg-role">
-          {{ role === 'user' ? 'Вы' : 'ИИ-ассистент' }}
+          {{ role === 'user' ? t('Вы') : t('ИИ-ассистент') }}
         </span>
-        <span v-if="error" class="ai-msg-status-err">ошибка</span>
+        <span v-if="error" class="ai-msg-status-err">{{ t('ошибка') }}</span>
         <span v-else-if="pending && !content" class="ai-msg-status-think">
           <span class="ai-gen-orb"></span>
-          <span class="ai-gen-label">генерирует ответ</span>
+          <span class="ai-gen-label">{{ t('генерирует ответ') }}</span>
         </span>
       </header>
 
@@ -60,7 +60,7 @@
            объяснения. Теперь состояние названо. -->
       <div v-if="role === 'assistant' && !content && !pending && toolCalls && toolCalls.length"
            class="ai-msg-halted">
-        Генерация остановлена — ответ не сформирован.
+        {{ t('Генерация остановлена — ответ не сформирован.') }}
       </div>
 
       <!-- P2 аудита: отказ инструмента (например, нет доступа к компании)
@@ -73,10 +73,7 @@
           <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/>
           <line x1="12" y1="16" x2="12.01" y2="16"/>
         </svg>
-        <span>
-          Часть данных получить не удалось ({{ failedTools.join(", ") }}) — возможно,
-          нет доступа к этим компаниям. Ответ может быть неполным.
-        </span>
+        <span>{{ t('Часть данных получить не удалось ({tools}) — возможно, нет доступа к этим компаниям. Ответ может быть неполным.', { tools: failedToolLabels }) }}</span>
       </div>
 
       <!-- Графики, построенные ИИ на лету -->
@@ -88,7 +85,7 @@
           type="button"
           class="ai-msg-copy"
           :class="{ 'is-done': contentCopied }"
-          :title="role === 'user' ? 'Скопировать запрос' : 'Скопировать ответ'"
+          :title="role === 'user' ? t('Скопировать запрос') : t('Скопировать ответ')"
           @click="copyContent"
         >
           <svg v-if="!contentCopied" width="13" height="13" viewBox="0 0 24 24"
@@ -102,14 +99,14 @@
                stroke-linecap="round" stroke-linejoin="round">
             <polyline points="20 6 9 17 4 12"/>
           </svg>
-          <span>{{ contentCopied ? 'Скопировано' : 'Копировать' }}</span>
+          <span>{{ contentCopied ? t('Скопировано') : t('Копировать') }}</span>
         </button>
         <button
           v-if="role === 'assistant' && voice.state.supported"
           type="button"
           class="ai-msg-copy ai-msg-speak"
           :class="{ 'is-speaking': isSpeaking }"
-          :title="isSpeaking ? 'Остановить озвучку' : 'Прослушать ответ'"
+          :title="isSpeaking ? t('Остановить озвучку') : t('Прослушать ответ')"
           @click="speakThis"
         >
           <svg v-if="!isSpeaking" width="13" height="13" viewBox="0 0 24 24"
@@ -124,13 +121,13 @@
                stroke-linecap="round" stroke-linejoin="round">
             <rect x="6" y="6" width="12" height="12" rx="2"/>
           </svg>
-          <span>{{ isSpeaking ? 'Озвучивается' : 'Прослушать' }}</span>
+          <span>{{ isSpeaking ? t('Озвучивается') : t('Прослушать') }}</span>
         </button>
         <button
           v-if="hasTable"
           type="button"
           class="ai-msg-copy"
-          title="Скачать таблицу в Excel"
+          :title="t('Скачать таблицу в Excel')"
           @click="downloadXls"
         >
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -169,8 +166,9 @@
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import DOMPurify from "dompurify";
 import type { ToolCall } from "@/api/aiClient";
-import { useAiVoice } from "@/composables/useAiVoice";
 import AiChart from "@/components/Ai/AiChart.vue";
+import { useAiVoice } from "@/composables/useAiVoice";
+import { useI18n } from "@/composables/useI18n";
 
 const props = defineProps<{
   role: "user" | "assistant";
@@ -181,6 +179,7 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ ask: [text: string] }>();
 
+const { t } = useI18n();
 const voice = useAiVoice();
 let _msgKeyCounter = (globalThis as any).__aiMsgKey || 0;
 (globalThis as any).__aiMsgKey = ++_msgKeyCounter;
@@ -257,8 +256,9 @@ function purify(html: string): string {
 const failedTools = computed(() =>
   [...new Set((props.toolCalls || [])
     .filter((t) => t.ok === false)
-    .map((t) => t.name || "инструмент"))],
+    .map((tool) => tool.name || t("инструмент")))],
 );
+const failedToolLabels = computed(() => failedTools.value.map((tool) => t(tool)).join(", "));
 
 const RENDER_THROTTLE_MS = 120;
 const renderSrc = ref("");

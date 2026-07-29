@@ -8,6 +8,9 @@
  */
 import { ref, onMounted, computed } from "vue";
 import { api } from "@/api/client";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 interface StorageStatus {
   config: {
@@ -81,15 +84,15 @@ const isLocal = computed(() => status.value?.config?.backend === "local");
   <div class="stg-page">
     <header class="stg-header">
       <div>
-        <div class="stg-eyebrow">Администрирование</div>
-        <h1 class="stg-title">Хранилище файлов</h1>
-        <p class="stg-sub">Backend для вложений к задачам, проектам, документам компаний</p>
+        <div class="stg-eyebrow">{{ t('Администрирование') }}</div>
+        <h1 class="stg-title">{{ t('Хранилище файлов') }}</h1>
+        <p class="stg-sub">{{ t('Backend для вложений к задачам, проектам, документам компаний') }}</p>
       </div>
       <div class="stg-actions">
         <button class="stg-btn-ghost" @click="guideOpen = !guideOpen">
           {{ guideOpen ? '× Закрыть инструкцию' : '? Как подключить S3' }}
         </button>
-        <button class="stg-btn-ghost" @click="loadStatus" :disabled="loading">↻ Обновить</button>
+        <button class="stg-btn-ghost" @click="loadStatus" :disabled="loading">{{ t('↻ Обновить') }}</button>
       </div>
     </header>
 
@@ -98,7 +101,7 @@ const isLocal = computed(() => status.value?.config?.backend === "local");
     <!-- ════════ STATUS ════════ -->
     <section v-if="status" class="stg-card">
       <div class="stg-card-head">
-        <span class="stg-card-ttl">Текущее состояние</span>
+        <span class="stg-card-ttl">{{ t('Текущее состояние') }}</span>
         <span class="stg-status-chip" :class="{ ok: status.init_ok, err: !status.init_ok }">
           {{ status.init_ok ? '● работает' : '● ошибка' }}
         </span>
@@ -117,14 +120,13 @@ const isLocal = computed(() => status.value?.config?.backend === "local");
 
         <template v-if="isLocal">
           <div class="stg-row">
-            <span class="stg-k">Папка</span>
+            <span class="stg-k">{{ t('Папка') }}</span>
             <span class="stg-v"><code class="stg-mono">{{ status.config.local_root }}</code></span>
           </div>
           <div class="stg-row stg-row-hint">
             <span class="stg-k"></span>
             <span class="stg-v stg-hint">
-              ⚠ Файлы хранятся локально в Docker volume <code>backend_uploads</code>.
-              Не масштабируется; для production переключи на S3 (см. инструкцию).
+              {{ t('⚠ Файлы хранятся локально в Docker volume') }} <code>backend_uploads</code>{{ t('. Не масштабируется; для production переключи на S3 (см. инструкцию).') }}
             </span>
           </div>
         </template>
@@ -157,7 +159,7 @@ const isLocal = computed(() => status.value?.config?.backend === "local");
         </template>
 
         <div v-if="!status.init_ok" class="stg-row stg-row-hint">
-          <span class="stg-k">Ошибка init</span>
+          <span class="stg-k">{{ t('Ошибка init') }}</span>
           <span class="stg-v stg-err">{{ status.init_error }}</span>
         </div>
       </div>
@@ -172,8 +174,7 @@ const isLocal = computed(() => status.value?.config?.backend === "local");
         </button>
       </div>
       <p class="stg-hint">
-        Загружает тестовый файл в storage, скачивает его обратно, генерирует signed URL,
-        затем удаляет. Использует тот же код-путь, что и реальные attachments.
+        {{ t('Загружает тестовый файл в storage, скачивает его обратно, генерирует signed URL, затем удаляет. Использует тот же код-путь, что и реальные attachments.') }}
       </p>
 
       <div v-if="testResult" class="stg-test-result">
@@ -181,16 +182,16 @@ const isLocal = computed(() => status.value?.config?.backend === "local");
           {{ testResult.ok ? '✓ Все шаги прошли' : '✗ Часть шагов упала' }}
         </div>
         <div v-if="testResult.key" class="stg-test-key">
-          <span class="stg-k">Ключ объекта</span>
+          <span class="stg-k">{{ t('Ключ объекта') }}</span>
           <code class="stg-mono">{{ testResult.key }}</code>
         </div>
         <table class="stg-test-table">
           <thead>
             <tr>
-              <th>Шаг</th>
-              <th>Результат</th>
-              <th>Время</th>
-              <th>Детали / ошибка</th>
+              <th>{{ t('Шаг') }}</th>
+              <th>{{ t('Результат') }}</th>
+              <th>{{ t('Время') }}</th>
+              <th>{{ t('Детали / ошибка') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -215,25 +216,24 @@ const isLocal = computed(() => status.value?.config?.backend === "local");
     <!-- ════════ INLINE GUIDE ════════ -->
     <section v-if="guideOpen" class="stg-card stg-guide">
       <div class="stg-card-head">
-        <span class="stg-card-ttl">Как подключить S3 / uzcloud Object Storage</span>
+        <span class="stg-card-ttl">{{ t('Как подключить S3 / uzcloud Object Storage') }}</span>
       </div>
 
       <ol class="stg-steps">
         <li>
-          <b>Создай bucket</b> в <a href="https://console.uzcloud.uz/" target="_blank" rel="noopener">uzcloud Object Storage</a>:
+          <b>{{ t('Создай bucket') }}</b> {{ t('в') }} <a href="https://console.uzcloud.uz/" target="_blank" rel="noopener">uzcloud Object Storage</a>:
           <ul>
-            <li>Имя: <code>uzassets-platform-prod</code></li>
-            <li>Регион: <code>tashkent-1</code></li>
-            <li><b>Public access: BLOCKED</b> — все скачивания через signed URLs</li>
+            <li>{{ t('Имя:') }} <code>uzassets-platform-prod</code></li>
+            <li>{{ t('Регион:') }} <code>tashkent-1</code></li>
+            <li><b>Public access: BLOCKED</b> {{ t('— все скачивания через signed URLs') }}</li>
             <li>Versioning + Server-side encryption (AES256)</li>
           </ul>
         </li>
         <li>
-          <b>Создай IAM-user</b> с минимальными правами (S3 RW на этот bucket).
-          Сохрани <code>Access Key ID</code> + <code>Secret Access Key</code>.
+          <b>{{ t('Создай IAM-user') }}</b> {{ t('с минимальными правами (S3 RW на этот bucket). Сохрани') }} <code>Access Key ID</code> + <code>Secret Access Key</code>.
         </li>
         <li>
-          <b>Добавь env vars</b> в <code>backend/.env.uzassets006</code>:
+          <b>{{ t('Добавь env vars') }}</b> {{ t('в') }} <code>backend/.env.uzassets006</code>:
           <pre>STORAGE_BACKEND=s3
 STORAGE_S3_ENDPOINT_URL=https://s3.uzcloud.uz
 STORAGE_S3_BUCKET=uzassets-platform-prod
@@ -251,14 +251,13 @@ STORAGE_S3_SSE=AES256</pre>
   up -d --force-recreate backend</pre>
         </li>
         <li>
-          <b>Verify</b>: вернись на эту страницу, нажми «↻ Обновить» — backend поменяется на <code>S3</code>.
-          Затем нажми «▶ Запустить» smoke-test — все 4 шага должны быть ✓.
+          <b>Verify</b>{{ t(': вернись на эту страницу, нажми «↻ Обновить» — backend поменяется на') }} <code>S3</code>{{ t('. Затем нажми «▶ Запустить» smoke-test — все 4 шага должны быть ✓.') }}
         </li>
       </ol>
 
       <p class="stg-hint">
-        Полный гайд (включая резервное копирование через cross-region replication, миграцию существующих файлов с local на S3, troubleshooting):
-        <code>docs/S3_SETUP.md</code> в репозитории.
+        {{ t('Полный гайд (включая резервное копирование через cross-region replication, миграцию существующих файлов с local на S3, troubleshooting):') }}
+        <code>docs/S3_SETUP.md</code> {{ t('в репозитории.') }}
       </p>
     </section>
   </div>

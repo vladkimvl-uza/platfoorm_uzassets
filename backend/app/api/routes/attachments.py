@@ -68,6 +68,38 @@ class DeniedUser(BaseModel):
     reason: Optional[str] = None
 
 
+async def _mirror_to_library(
+    db: AsyncSession, *, table: str, att_id: str, company_id, entity_type: str,
+    entity_id: str, entity_label: Optional[str], out: dict, user: User, source: str,
+) -> None:
+    """Положить зеркало вложения в библиотеку документов компании.
+
+    Файл, загруженный в карточке, должен быть виден и во вкладке «Документы» —
+    иначе библиотека показывает лишь часть файлов компании. Ключ хранения берём
+    из только что записанной строки вложения (в ответе его нет)."""
+    from sqlalchemy import text as _text
+
+    from app.services.documents_sync import mirror_attachment
+    try:
+        # task_attachments исторически несёт обе колонки (file_path + storage_key),
+        # project/company — только storage_key.
+        col = "COALESCE(storage_key, file_path)" if table == "task_attachments" else "storage_key"
+        row = (await db.execute(
+            _text(f"SELECT {col} FROM {table} WHERE id = :i"), {"i": att_id},
+        )).first()
+    except Exception:  # noqa: BLE001
+        row = None
+    if not row:
+        return
+    await mirror_attachment(
+        db, attachment_id=att_id, company_id=company_id,
+        entity_type=entity_type, entity_id=entity_id, entity_label=entity_label,
+        filename=out.get("filename") or "file", storage_key=row[0],
+        mime_type=out.get("mime_type"), size_bytes=out.get("size_bytes"),
+        uploader_id=user.id, source=source,
+    )
+
+
 def _require_admin_user(user: User) -> None:
     if not is_admin(user):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Admin only")
@@ -98,6 +130,11 @@ async def upload_task_attachment(
         await ensure_company_access(db, user, task.company_id)
     out = await service.upload_task(
         task_id, file, is_result_doc=is_result_doc, user=user,
+    )
+    await _mirror_to_library(
+        db, table="task_attachments", att_id=str(out.get("id")),
+        company_id=task.company_id, entity_type="task", entity_id=str(task_id),
+        entity_label=(task.title or "")[:255], out=out, user=user, source="task",
     )
     from app.services import watch_service
     await watch_service.auto_follow(db, user.id, "task", str(task_id)); await db.commit()
@@ -149,6 +186,10 @@ async def delete_task_attachment(
     info = await service.delete_task(att_id, user=user)
     if info.get("company_id"):
         await ensure_company_access(db, user, info["company_id"])
+    # Зеркало в библиотеке уходит в корзину — иначе «Документы» показывали бы
+    # файл, которого в карточке уже нет.
+    from app.services.documents_sync import mirror_delete
+    await mirror_delete(db, att_id)
 
 
 # ─── project ──────────────────────────────────────────────────────
@@ -175,6 +216,11 @@ async def upload_project_attachment(
         await ensure_company_access(db, user, project.company_id)
     out = await service.upload_project(
         project_id, file, is_result_doc=is_result_doc, user=user,
+    )
+    await _mirror_to_library(
+        db, table="project_attachments", att_id=str(out.get("id")),
+        company_id=project.company_id, entity_type="project", entity_id=str(project_id),
+        entity_label=(project.title or "")[:255], out=out, user=user, source="project",
     )
     from app.services import watch_service
     await watch_service.auto_follow(db, user.id, "project", str(project_id)); await db.commit()
@@ -225,6 +271,8 @@ async def delete_project_attachment(
     info = await service.delete_project(att_id, user=user)
     if info.get("company_id"):
         await ensure_company_access(db, user, info["company_id"])
+    from app.services.documents_sync import mirror_delete
+    await mirror_delete(db, att_id)
 
 
 # ─── company ──────────────────────────────────────────────────────
@@ -248,6 +296,11 @@ async def upload_company_attachment(
     out = await service.upload_company(
         company_id, file, title=title, category=category,
         description=description, year=year, user=user,
+    )
+    await _mirror_to_library(
+        db, table="company_attachments", att_id=str(out.get("id")),
+        company_id=company_id, entity_type="company", entity_id=str(company_id),
+        entity_label=(title or None), out=out, user=user, source="library",
     )
     return AttachmentOut(**out)
 
@@ -291,6 +344,8 @@ async def delete_company_attachment(
 ):
     company_id = await service.delete_company(att_id, user=user)
     await ensure_company_access(db, user, company_id)
+    from app.services.documents_sync import mirror_delete
+    await mirror_delete(db, att_id)
 
 
 # ─── per-user access denial ────────────────────────────

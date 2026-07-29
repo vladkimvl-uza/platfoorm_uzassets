@@ -18,6 +18,9 @@ import CustomFieldBuilder from "@/components/library/CustomFieldBuilder.vue";
 import SectorChip from "@/components/UZA/SectorChip.vue";
 import { useToast } from "@/composables/useToast";
 import { useCompanyScope } from "@/composables/useCompanyScope";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const store  = useCompanyLibraryStore();
 const router = useRouter();
@@ -89,12 +92,12 @@ const lastUpdatedHint = computed(() => {
     <!-- ═══ HEADER ═══ -->
     <header class="cl-page-header">
       <div class="cl-page-title-block">
-        <div class="cl-page-eyebrow">Библиотека · MDM</div>
-        <h1 class="cl-page-title">Компании</h1>
+        <div class="cl-page-eyebrow">{{ t('Библиотека · MDM') }}</div>
+        <h1 class="cl-page-title">{{ t('Компании') }}</h1>
       </div>
       <div class="cl-page-actions">
         <button class="cl-btn cl-btn-secondary" @click="columnsModalOpen = true">
-          Колонки · {{ store.visibleColumns.length }}
+          {{ t('Колонки ·') }} {{ store.visibleColumns.length }}
         </button>
         <!-- Экспорт/«Добавить» убраны до реализации — вечно-disabled заглушки
              выглядели как недоделка. Добавление компаний — через «Компании и сектора». -->
@@ -106,7 +109,7 @@ const lastUpdatedHint = computed(() => {
       <input
         type="text"
         class="cl-search"
-        placeholder="Поиск по названию, ИНН…"
+        :placeholder="t('Поиск по названию, ИНН…')"
         :value="store.searchQuery"
         @input="onSearchInput(($event.target as HTMLInputElement).value)"
       />
@@ -116,7 +119,7 @@ const lastUpdatedHint = computed(() => {
         :value="store.sectorFilter || ''"
         @change="onSectorChange(($event.target as HTMLSelectElement).value || null)"
       >
-        <option value="">Все сектора</option>
+        <option value="">{{ t('Все сектора') }}</option>
         <option v-for="s in sectors" :key="s.code" :value="s.code">{{ s.name_ru }}</option>
       </select>
 
@@ -127,7 +130,7 @@ const lastUpdatedHint = computed(() => {
           :title="store.wsConnected ? 'Real-time sync включена' : 'Offline — данные обновятся вручную'"
         ></span>
         <span class="cl-live-label">{{ store.wsConnected ? "Live" : "Offline" }}</span>
-        <span v-if="lastUpdatedHint" class="cl-live-sub">· обновлено {{ lastUpdatedHint }}</span>
+        <span v-if="lastUpdatedHint" class="cl-live-sub">{{ t('· обновлено') }} {{ lastUpdatedHint }}</span>
       </div>
 
       <div class="cl-counter">{{ store.companies.length }} / {{ store.total || store.companies.length }}</div>
@@ -135,7 +138,7 @@ const lastUpdatedHint = computed(() => {
 
     <!-- ═══ ERROR / LOADING ═══ -->
     <div v-if="store.error" class="cl-error">{{ store.error }}</div>
-    <div v-else-if="store.loading && store.companies.length === 0" class="cl-loading">Загружаю компании…</div>
+    <div v-else-if="store.loading && store.companies.length === 0" class="cl-loading">{{ t('Загружаю компании…') }}</div>
 
     <!-- ═══ TABLE ═══ -->
     <div v-else class="cl-table-wrap">
@@ -143,7 +146,7 @@ const lastUpdatedHint = computed(() => {
         <thead>
           <tr>
             <th class="cl-th cl-th-name" @click="onSort('name_ru')">
-              <span class="cl-th-label">Компания</span>
+              <span class="cl-th-label">{{ t('Компания') }}</span>
               <span v-if="store.sortBy === 'name_ru'" class="cl-th-sort">{{ store.sortDir === "asc" ? "↑" : "↓" }}</span>
             </th>
             <th
@@ -193,7 +196,7 @@ const lastUpdatedHint = computed(() => {
           </tr>
           <tr v-if="store.companies.length === 0">
             <td :colspan="1 + store.visibleColumns.length" class="cl-empty">
-              Нет компаний по текущему фильтру.
+              {{ t('Нет компаний по текущему фильтру.') }}
             </td>
           </tr>
         </tbody>

@@ -9,6 +9,9 @@ import type {
   FinancialReportBrief,
   GovernanceBrief,
 } from "@/api/companies";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const route   = useRoute();
 const router  = useRouter();
@@ -83,14 +86,14 @@ function backToList() {
   <div class="uza-page">
     <!-- Loading -->
     <div v-if="loading" class="uza-card p-12 text-center text-slate-400 text-sm">
-      Загрузка…
+      {{ t('Загрузка…') }}
     </div>
 
     <!-- Error -->
     <div v-else-if="error" class="uza-card p-6">
       <div class="text-uza-red text-sm">{{ error }}</div>
       <button @click="backToList" class="mt-4 text-xs text-uza-purple hover:underline">
-        ← Назад к списку
+        {{ t('← Назад к списку') }}
       </button>
     </div>
 
@@ -126,23 +129,23 @@ function backToList() {
               <span
                 v-if="company.is_custom"
                 class="inline-block px-2 py-0.5 text-[10px] uppercase tracking-uza-label2 rounded font-medium bg-purple-50 text-uza-purple"
-              >Пользовательская</span>
+              >{{ t('Пользовательская') }}</span>
 
               <span
                 v-if="!company.is_active"
                 class="inline-block px-2 py-0.5 text-[10px] uppercase tracking-uza-label2 rounded font-medium bg-red-50 text-uza-red"
-              >Неактивна</span>
+              >{{ t('Неактивна') }}</span>
             </div>
           </div>
 
           <!-- Quick stats -->
           <div class="flex gap-6 flex-wrap">
             <div v-if="latestRevenue">
-              <div class="uza-section-label">Выручка ({{ latestFin?.year }})</div>
+              <div class="uza-section-label">{{ t('Выручка (') }}{{ latestFin?.year }})</div>
               <div class="text-[22px] font-normal text-slate-900 tabular-nums tracking-uza-tight mt-1">
                 <span v-count-up="{ value: latestRevenue, decimals: 0, thousandSep: true, key: `co-rev-${$route.params.code}` }">0</span>
               </div>
-              <div class="text-[10px] text-slate-400 uppercase tracking-uza-label2">тыс. сум</div>
+              <div class="text-[10px] text-slate-400 uppercase tracking-uza-label2">{{ t('тыс. сум') }}</div>
             </div>
             <div v-if="latestGov?.score">
               <div class="uza-section-label">Governance ({{ latestGov.year }})</div>
@@ -150,7 +153,7 @@ function backToList() {
                 class="text-[22px] font-normal tabular-nums tracking-uza-tight mt-1"
                 :style="{ color: scoreColor(latestGov.score) }"
               ><span v-count-up="{ value: latestGov.score, key: `co-gov-${$route.params.code}` }">0</span></div>
-              <div class="text-[10px] text-slate-400 uppercase tracking-uza-label2">из 1000</div>
+              <div class="text-[10px] text-slate-400 uppercase tracking-uza-label2">{{ t('из 1000') }}</div>
             </div>
           </div>
         </div>
@@ -180,26 +183,26 @@ function backToList() {
       <!-- Tab: Overview -->
       <div v-if="activeTab === 'overview'" class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div class="uza-card p-5">
-          <div class="uza-section-label mb-3">Основная информация</div>
+          <div class="uza-section-label mb-3">{{ t('Основная информация') }}</div>
           <dl class="text-sm space-y-2">
             <div class="flex justify-between gap-4">
-              <dt class="text-slate-500">Код</dt>
+              <dt class="text-slate-500">{{ t('Код') }}</dt>
               <dd class="tabular-nums">{{ company.code.toUpperCase() }}</dd>
             </div>
             <div v-if="company.legal_form" class="flex justify-between gap-4">
-              <dt class="text-slate-500">Форма</dt>
+              <dt class="text-slate-500">{{ t('Форма') }}</dt>
               <dd>{{ company.legal_form }}</dd>
             </div>
             <div v-if="company.inn" class="flex justify-between gap-4">
-              <dt class="text-slate-500">ИНН</dt>
+              <dt class="text-slate-500">{{ t('ИНН') }}</dt>
               <dd class="tabular-nums">{{ company.inn }}</dd>
             </div>
             <div v-if="company.founded_year" class="flex justify-between gap-4">
-              <dt class="text-slate-500">Основана</dt>
+              <dt class="text-slate-500">{{ t('Основана') }}</dt>
               <dd class="tabular-nums">{{ company.founded_year }}</dd>
             </div>
             <div v-if="company.employees_count" class="flex justify-between gap-4">
-              <dt class="text-slate-500">Сотрудников</dt>
+              <dt class="text-slate-500">{{ t('Сотрудников') }}</dt>
               <dd class="tabular-nums">{{ fmtNum(company.employees_count) }}</dd>
             </div>
             <div v-if="company.ceo_name" class="flex justify-between gap-4">
@@ -207,32 +210,32 @@ function backToList() {
               <dd>{{ company.ceo_name }}</dd>
             </div>
             <div v-if="company.website" class="flex justify-between gap-4">
-              <dt class="text-slate-500">Сайт</dt>
+              <dt class="text-slate-500">{{ t('Сайт') }}</dt>
               <dd><a :href="company.website" target="_blank" class="text-uza-blue hover:underline">{{ company.website }}</a></dd>
             </div>
           </dl>
         </div>
 
         <div v-if="company.description || latestGov" class="uza-card p-5">
-          <div class="uza-section-label mb-3">Сводка</div>
+          <div class="uza-section-label mb-3">{{ t('Сводка') }}</div>
           <p v-if="company.description" class="text-sm text-slate-700 leading-relaxed mb-3">
             {{ company.description }}
           </p>
           <div v-if="latestGov" class="text-sm space-y-2">
             <div class="flex justify-between gap-4">
-              <span class="text-slate-500">Совет директоров</span>
+              <span class="text-slate-500">{{ t('Совет директоров') }}</span>
               <span class="tabular-nums">{{ latestGov.board_size || "—" }}</span>
             </div>
             <div class="flex justify-between gap-4">
-              <span class="text-slate-500">Независимые</span>
+              <span class="text-slate-500">{{ t('Независимые') }}</span>
               <span class="tabular-nums">{{ latestGov.independent_directors_count || "—" }}</span>
             </div>
             <div class="flex justify-between gap-4">
-              <span class="text-slate-500">Женщины в совете</span>
+              <span class="text-slate-500">{{ t('Женщины в совете') }}</span>
               <span class="tabular-nums">{{ latestGov.women_directors_count || "—" }}</span>
             </div>
             <div class="flex justify-between gap-4">
-              <span class="text-slate-500">Заседаний в год</span>
+              <span class="text-slate-500">{{ t('Заседаний в год') }}</span>
               <span class="tabular-nums">{{ latestGov.meetings_per_year || "—" }}</span>
             </div>
           </div>
@@ -242,17 +245,17 @@ function backToList() {
       <!-- Tab: Financials -->
       <div v-else-if="activeTab === 'financials'" class="uza-card overflow-hidden">
         <div v-if="financials.length === 0" class="p-12 text-center text-slate-400 text-sm">
-          Финансовая отчётность не загружена.
+          {{ t('Финансовая отчётность не загружена.') }}
         </div>
         <table v-else class="w-full text-sm">
           <thead class="bg-slate-50/60 border-b border-slate-100 text-[10px] uppercase tracking-uza-label2 text-slate-500">
             <tr>
-              <th class="text-left px-4 py-3 font-medium">Период</th>
-              <th class="text-left px-3 py-3 font-medium">Стандарт</th>
-              <th class="text-right px-3 py-3 font-medium">Выручка</th>
-              <th class="text-right px-3 py-3 font-medium">Прибыль</th>
-              <th class="text-center px-3 py-3 font-medium">Аудит</th>
-              <th class="text-center px-3 py-3 font-medium">Источник</th>
+              <th class="text-left px-4 py-3 font-medium">{{ t('Период') }}</th>
+              <th class="text-left px-3 py-3 font-medium">{{ t('Стандарт') }}</th>
+              <th class="text-right px-3 py-3 font-medium">{{ t('Выручка') }}</th>
+              <th class="text-right px-3 py-3 font-medium">{{ t('Прибыль') }}</th>
+              <th class="text-center px-3 py-3 font-medium">{{ t('Аудит') }}</th>
+              <th class="text-center px-3 py-3 font-medium">{{ t('Источник') }}</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-100">
@@ -282,18 +285,18 @@ function backToList() {
       <!-- Tab: Governance -->
       <div v-else-if="activeTab === 'governance'" class="uza-card overflow-hidden">
         <div v-if="governance.length === 0" class="p-12 text-center text-slate-400 text-sm">
-          Данные по корпоративному управлению не загружены.
+          {{ t('Данные по корпоративному управлению не загружены.') }}
         </div>
         <table v-else class="w-full text-sm">
           <thead class="bg-slate-50/60 border-b border-slate-100 text-[10px] uppercase tracking-uza-label2 text-slate-500">
             <tr>
-              <th class="text-left px-4 py-3 font-medium">Год</th>
-              <th class="text-center px-3 py-3 font-medium">Совет</th>
-              <th class="text-center px-3 py-3 font-medium">Незав.</th>
-              <th class="text-center px-3 py-3 font-medium">Жен.</th>
-              <th class="text-center px-3 py-3 font-medium">Иностр.</th>
-              <th class="text-center px-3 py-3 font-medium">Заседаний</th>
-              <th class="text-center px-3 py-3 font-medium">Комитеты</th>
+              <th class="text-left px-4 py-3 font-medium">{{ t('Год') }}</th>
+              <th class="text-center px-3 py-3 font-medium">{{ t('Совет') }}</th>
+              <th class="text-center px-3 py-3 font-medium">{{ t('Незав.') }}</th>
+              <th class="text-center px-3 py-3 font-medium">{{ t('Жен.') }}</th>
+              <th class="text-center px-3 py-3 font-medium">{{ t('Иностр.') }}</th>
+              <th class="text-center px-3 py-3 font-medium">{{ t('Заседаний') }}</th>
+              <th class="text-center px-3 py-3 font-medium">{{ t('Комитеты') }}</th>
               <th class="text-right px-4 py-3 font-medium">Score</th>
             </tr>
           </thead>
@@ -306,8 +309,8 @@ function backToList() {
               <td class="px-3 py-3 text-center tabular-nums">{{ g.foreign_directors_count || "—" }}</td>
               <td class="px-3 py-3 text-center tabular-nums">{{ g.meetings_per_year || "—" }}</td>
               <td class="px-3 py-3 text-center text-xs">
-                <span v-if="g.has_audit_committee" title="Аудит" class="text-uza-teal mr-1">А</span>
-                <span v-if="g.has_strategy_committee" title="Стратегия" class="text-uza-blue">С</span>
+                <span v-if="g.has_audit_committee" :title="t('Аудит')" class="text-uza-teal mr-1">{{ t('А') }}</span>
+                <span v-if="g.has_strategy_committee" :title="t('Стратегия')" class="text-uza-blue">{{ t('С') }}</span>
               </td>
               <td class="px-4 py-3 text-right">
                 <span
@@ -326,19 +329,19 @@ function backToList() {
       <div v-else-if="activeTab === 'ratings'" class="space-y-4">
         <div v-if="!ratings || (ratings.credit.length === 0 && ratings.esg.length === 0)"
              class="uza-card p-12 text-center text-slate-400 text-sm">
-          У компании нет публичных рейтингов.
+          {{ t('У компании нет публичных рейтингов.') }}
         </div>
         <template v-else>
           <!-- Credit ratings -->
           <div v-if="ratings.credit.length > 0" class="uza-card p-5">
-            <div class="uza-section-label mb-3">Кредитные рейтинги</div>
+            <div class="uza-section-label mb-3">{{ t('Кредитные рейтинги') }}</div>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div v-for="r in ratings.credit" :key="r.id"
                    class="border border-slate-100 rounded-xl p-4 hover:border-slate-200 transition-colors">
                 <div class="flex items-center justify-between gap-2 mb-2">
                   <div class="text-[10px] uppercase tracking-uza-label2 text-slate-500">{{ r.agency }}</div>
                   <a v-if="r.report_url" :href="r.report_url" target="_blank"
-                     class="text-[10px] text-uza-purple hover:underline">отчёт ↗</a>
+                     class="text-[10px] text-uza-purple hover:underline">{{ t('отчёт ↗') }}</a>
                 </div>
                 <div class="text-[28px] font-normal tracking-uza-tight text-slate-900">
                   {{ r.rating || "—" }}
@@ -356,14 +359,14 @@ function backToList() {
 
           <!-- ESG ratings -->
           <div v-if="ratings.esg.length > 0" class="uza-card p-5">
-            <div class="uza-section-label mb-3">ESG-рейтинги</div>
+            <div class="uza-section-label mb-3">{{ t('ESG-рейтинги') }}</div>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div v-for="r in ratings.esg" :key="r.id"
                    class="border border-slate-100 rounded-xl p-4 hover:border-slate-200 transition-colors">
                 <div class="flex items-center justify-between gap-2 mb-2">
                   <div class="text-[10px] uppercase tracking-uza-label2 text-uza-teal">{{ r.agency }}</div>
                   <a v-if="r.report_url" :href="r.report_url" target="_blank"
-                     class="text-[10px] text-uza-purple hover:underline">отчёт ↗</a>
+                     class="text-[10px] text-uza-purple hover:underline">{{ t('отчёт ↗') }}</a>
                 </div>
                 <div class="flex items-baseline gap-2">
                   <div class="text-[28px] font-normal tracking-uza-tight text-slate-900">

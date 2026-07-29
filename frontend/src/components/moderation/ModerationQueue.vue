@@ -8,6 +8,9 @@ import {
 } from "@/api/moderation";
 import ModerationReviewModal from "./ModerationReviewModal.vue";
 import { useUserDirectory } from "@/composables/useUserDirectory";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const props = defineProps<{ openSubmissionId: string | null }>();
 const emit = defineEmits<{ change: [] }>();
@@ -85,15 +88,15 @@ async function onResolved() {
         </button>
       </div>
       <span class="mq-sep"></span>
-      <label class="mq-check"><input type="checkbox" v-model="filterAssignedToMe" /> только мне</label>
-      <button v-if="filterStatuses.length || filterAssignedToMe || filterModule" class="mq-clear" @click="clearFilters">сбросить</button>
+      <label class="mq-check"><input type="checkbox" v-model="filterAssignedToMe" /> {{ t('только мне') }}</label>
+      <button v-if="filterStatuses.length || filterAssignedToMe || filterModule" class="mq-clear" @click="clearFilters">{{ t('сбросить') }}</button>
     </div>
 
     <div v-if="loadError" class="mq-error">{{ loadError }}</div>
-    <div v-else-if="loading && items.length === 0" class="mq-empty">Загрузка…</div>
+    <div v-else-if="loading && items.length === 0" class="mq-empty">{{ t('Загрузка…') }}</div>
     <div v-else-if="!loading && items.length === 0" class="mq-empty">
       <BIcon name="inbox" :size="14" />
-      <div>Очередь пуста</div>
+      <div>{{ t('Очередь пуста') }}</div>
     </div>
 
     <div v-else class="mq-list">

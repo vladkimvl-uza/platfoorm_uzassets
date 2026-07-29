@@ -38,6 +38,9 @@ import RatingsNoRatingPanel  from "@/components/Ratings/RatingsNoRatingPanel.vue
 import RatingsRecentChanges  from "@/components/Ratings/RatingsRecentChanges.vue";
 import RatingsSectorTable    from "@/components/Ratings/RatingsSectorTable.vue";
 import RatingEditModal       from "@/components/Ratings/RatingEditModal.vue";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 // ─── State ────────────────────────────────────────────────────────────────
 const allCompanies = ref<CompanyListItem[]>([]);
@@ -162,18 +165,18 @@ function onShowAllChanges() {
     <div class="rt-topbar" @click.stop>
       <SidebarBurger />
       <div class="rt-tb-l">
-        <h1 class="rt-tb-title">Рейтинги компаний портфеля</h1>
+        <h1 class="rt-tb-title">{{ t('Рейтинги компаний портфеля') }}</h1>
         <div class="rt-tb-sub" v-if="!loading">
           <span><b>{{ totalCount }}</b> {{ pluralCompanies(totalCount) }}</span>
           <span v-if="sectorFilter" class="rt-dot">·</span>
-          <span v-if="sectorFilter">сектор: <b>{{ activeSectorLabel() }}</b></span>
+          <span v-if="sectorFilter">{{ t('сектор:') }} <b>{{ activeSectorLabel() }}</b></span>
         </div>
       </div>
       <div class="rt-tb-r">
         <!-- Sector badge-dropdown (1:1 legacy glassSelectHTML golden style).
              Скрыт, когда пользователь ограничен своими компаниями. -->
         <div v-if="scope.showSectorPicker.value" class="rt-badge-wrap" @click.stop>
-          <button class="rt-badge" @click="sectorMenuOpen = !sectorMenuOpen" title="Фильтр по сектору">
+          <button class="rt-badge" @click="sectorMenuOpen = !sectorMenuOpen" :title="t('Фильтр по сектору')">
             <span
               class="rt-sec-icon"
               :style="{
@@ -197,7 +200,7 @@ function onShowAllChanges() {
               <path d="M2 4l3 3 3-3"/>
             </svg>
           </button>
-          <div v-if="sectorMenuOpen" class="rt-dd" role="listbox" aria-label="Фильтр по сектору">
+          <div v-if="sectorMenuOpen" class="rt-dd" role="listbox" :aria-label="t('Фильтр по сектору')">
             <div
               class="rt-dd-item"
               role="option"
@@ -208,7 +211,7 @@ function onShowAllChanges() {
               @keydown.enter.prevent="setSector('')"
               @keydown.space.prevent="setSector('')"
             >
-              <span class="rt-dd-meta">Все секторы</span>
+              <span class="rt-dd-meta">{{ t('Все секторы') }}</span>
               <span class="rt-dd-count">{{ allCompanies.length }}</span>
             </div>
             <div
@@ -233,10 +236,10 @@ function onShowAllChanges() {
     </div>
 
     <!-- Loading / Error -->
-    <div v-if="loading" class="rt-state">Загрузка рейтингов…</div>
+    <div v-if="loading" class="rt-state">{{ t('Загрузка рейтингов…') }}</div>
     <div v-else-if="errorMsg" class="rt-state rt-state-err">
       ⚠ {{ errorMsg }}
-      <button class="rt-state-btn" @click="load">Повторить</button>
+      <button class="rt-state-btn" @click="load">{{ t('Повторить') }}</button>
     </div>
 
     <!-- Main content -->

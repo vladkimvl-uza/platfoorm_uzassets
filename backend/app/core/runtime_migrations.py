@@ -199,6 +199,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_rbac_module_permissions(conn)
             await _patch_rbac_screen_permissions(conn)
             await _patch_dashboard_view_grant(conn)
+            await _patch_documents_library(conn)
             await _patch_custom_api_endpoint(conn)
             await _patch_org_role_tasks_write(conn)
             await _patch_org_role_company_create(conn)
@@ -1909,6 +1910,160 @@ async def _patch_rbac_screen_permissions(conn) -> None:
                 ),
                 {"role": role_code, "code": code},
             )
+
+
+async def _patch_documents_library(conn) -> None:
+    """Единая библиотека документов компании + перенос старых вложений.
+
+    Три таблицы вложений (task/project/company) жили порознь: файл из карточки
+    задачи не был виден в «Документах» компании и наоборот. Заводим documents +
+    document_folders + document_links и ОДИН раз переносим существующие записи,
+    не трогая сами файлы в хранилище (storage_key переносится как есть).
+    """
+    await conn.execute(text("""
+        CREATE TABLE IF NOT EXISTS document_folders (
+            id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            company_id   UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+            parent_id    UUID REFERENCES document_folders(id) ON DELETE CASCADE,
+            name         VARCHAR(255) NOT NULL,
+            system_key   VARCHAR(64),
+            is_system    BOOLEAN NOT NULL DEFAULT false,
+            created_by   UUID REFERENCES users(id) ON DELETE SET NULL,
+            created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+            updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+    """))
+    await conn.execute(text("""
+        CREATE TABLE IF NOT EXISTS documents (
+            id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            company_id    UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+            folder_id     UUID REFERENCES document_folders(id) ON DELETE SET NULL,
+            name          VARCHAR(512) NOT NULL,
+            storage_key   VARCHAR(1024) NOT NULL,
+            mime_type     VARCHAR(128),
+            size_bytes    BIGINT,
+            description   TEXT,
+            source_module VARCHAR(32) NOT NULL DEFAULT 'library',
+            uploader_id   UUID REFERENCES users(id) ON DELETE SET NULL,
+            is_deleted    BOOLEAN NOT NULL DEFAULT false,
+            version       INTEGER NOT NULL DEFAULT 1,
+            created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+            updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+    """))
+    await conn.execute(text("""
+        CREATE TABLE IF NOT EXISTS document_links (
+            id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+            entity_type VARCHAR(32) NOT NULL,
+            entity_id   VARCHAR(128) NOT NULL,
+            label       VARCHAR(255),
+            created_by  UUID REFERENCES users(id) ON DELETE SET NULL,
+            created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+            updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+    """))
+    for ddl in (
+        "CREATE UNIQUE INDEX IF NOT EXISTS uq_docfolder_name "
+        "ON document_folders (company_id, COALESCE(parent_id, '00000000-0000-0000-0000-000000000000'::uuid), name)",
+        "CREATE INDEX IF NOT EXISTS ix_docfolder_company_parent ON document_folders (company_id, parent_id)",
+        "CREATE INDEX IF NOT EXISTS ix_documents_company_folder ON documents (company_id, folder_id)",
+        "CREATE INDEX IF NOT EXISTS ix_documents_company_deleted ON documents (company_id, is_deleted)",
+        "CREATE UNIQUE INDEX IF NOT EXISTS uq_doclink_target ON document_links (document_id, entity_type, entity_id)",
+        "CREATE INDEX IF NOT EXISTS ix_doclink_entity ON document_links (entity_type, entity_id)",
+    ):
+        await conn.execute(text(ddl))
+
+    # Системные папки под источники — по одной на компанию, идемпотентно.
+    for key, name in (
+        ("tasks", "Задачи и проекты"),
+        ("financials", "Финансовая отчётность"),
+        ("general", "Общие документы"),
+    ):
+        await conn.execute(
+            text("""
+                INSERT INTO document_folders (company_id, name, system_key, is_system)
+                SELECT c.id, CAST(:name AS varchar), CAST(:key AS varchar), true
+                FROM companies c
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM document_folders f
+                    WHERE f.company_id = c.id AND f.system_key = CAST(:key AS varchar)
+                )
+            """),
+            {"name": name, "key": key},
+        )
+
+    already = (await conn.execute(text(
+        "SELECT 1 FROM system_config WHERE key = 'documents_backfilled' LIMIT 1"
+    ))).first()
+    if already:
+        return
+
+    # ── Перенос вложений задач ──
+    await conn.execute(text("""
+        INSERT INTO documents (id, company_id, folder_id, name, storage_key, mime_type,
+                               size_bytes, source_module, uploader_id, created_at, updated_at)
+        SELECT ta.id, t.company_id,
+               (SELECT f.id FROM document_folders f
+                 WHERE f.company_id = t.company_id AND f.system_key = 'tasks'),
+               ta.filename, COALESCE(ta.storage_key, ta.file_path), ta.mime_type, ta.size_bytes,
+               'task', ta.uploader_id, ta.created_at, ta.created_at
+        FROM task_attachments ta
+        JOIN tasks t ON t.id = ta.task_id
+        WHERE t.company_id IS NOT NULL
+          AND NOT EXISTS (SELECT 1 FROM documents d WHERE d.id = ta.id)
+    """))
+    await conn.execute(text("""
+        INSERT INTO document_links (document_id, entity_type, entity_id, label)
+        SELECT ta.id, 'task', ta.task_id::text, left(COALESCE(t.title, ''), 255)
+        FROM task_attachments ta
+        JOIN tasks t ON t.id = ta.task_id
+        WHERE EXISTS (SELECT 1 FROM documents d WHERE d.id = ta.id)
+        ON CONFLICT DO NOTHING
+    """))
+
+    # ── Перенос вложений проектов ──
+    await conn.execute(text("""
+        INSERT INTO documents (id, company_id, folder_id, name, storage_key, mime_type,
+                               size_bytes, source_module, uploader_id, created_at, updated_at)
+        SELECT pa.id, p.company_id,
+               (SELECT f.id FROM document_folders f
+                 WHERE f.company_id = p.company_id AND f.system_key = 'tasks'),
+               pa.filename, pa.storage_key, pa.mime_type, pa.size_bytes,
+               'project', pa.uploader_id, pa.created_at, pa.created_at
+        FROM project_attachments pa
+        JOIN projects p ON p.id = pa.project_id
+        WHERE p.company_id IS NOT NULL
+          AND NOT EXISTS (SELECT 1 FROM documents d WHERE d.id = pa.id)
+    """))
+    await conn.execute(text("""
+        INSERT INTO document_links (document_id, entity_type, entity_id, label)
+        SELECT pa.id, 'project', pa.project_id::text, left(COALESCE(p.title, ''), 255)
+        FROM project_attachments pa
+        JOIN projects p ON p.id = pa.project_id
+        WHERE EXISTS (SELECT 1 FROM documents d WHERE d.id = pa.id)
+        ON CONFLICT DO NOTHING
+    """))
+
+    # ── Перенос файлов самой компании ──
+    await conn.execute(text("""
+        INSERT INTO documents (id, company_id, folder_id, name, storage_key, mime_type,
+                               size_bytes, source_module, uploader_id, created_at, updated_at)
+        SELECT ca.id, ca.company_id,
+               (SELECT f.id FROM document_folders f
+                 WHERE f.company_id = ca.company_id AND f.system_key = 'general'),
+               ca.filename, ca.storage_key, ca.mime_type, ca.size_bytes,
+               'library', ca.uploader_id, ca.created_at, ca.created_at
+        FROM company_attachments ca
+        WHERE NOT EXISTS (SELECT 1 FROM documents d WHERE d.id = ca.id)
+    """))
+
+    await conn.execute(text(
+        "INSERT INTO system_config (id, key, value, description, is_secret) "
+        "VALUES (gen_random_uuid(), 'documents_backfilled', '{\"done\": true}'::jsonb, "
+        "'Вложения задач/проектов/компаний перенесены в библиотеку документов', false) "
+        "ON CONFLICT (key) DO NOTHING"
+    ))
 
 
 async def _patch_dashboard_view_grant(conn) -> None:

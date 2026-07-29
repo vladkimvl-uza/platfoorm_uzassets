@@ -13,6 +13,9 @@ import { useRouter } from "vue-router";
 import { companiesApi } from "@/api/companies";
 import UserAffiliationBadge from "@/components/rbac-v3/UserAffiliationBadge.vue";
 import SocialLinks from "@/components/user/SocialLinks.vue";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const emit = defineEmits<{ close: [] }>();
 const auth = useAuthStore();
@@ -157,7 +160,7 @@ function goSecurity() { emit("close"); router.push("/settings/security"); }
       <header class="up-head">
         <div class="up-id">
           <div class="up-avatar-wrap">
-            <div class="up-avatar" :class="{ photo: avatar }" @click="fileInput?.click()" title="Сменить фото">
+            <div class="up-avatar" :class="{ photo: avatar }" @click="fileInput?.click()" :title="t('Сменить фото')">
               <img v-if="avatar" :src="avatar" alt="" />
               <span v-else>{{ initials }}</span>
               <span class="up-avatar-cam" aria-hidden="true">
@@ -181,17 +184,17 @@ function goSecurity() { emit("close"); router.push("/settings/security"); }
             />
             <div class="up-photo-acts">
               <button class="up-mini" :disabled="uploadingPhoto" @click="fileInput?.click()">{{ uploadingPhoto ? 'загрузка…' : 'сменить фото' }}</button>
-              <button v-if="avatar" class="up-mini up-mini-del" :disabled="uploadingPhoto" @click="removePhoto">удалить</button>
+              <button v-if="avatar" class="up-mini up-mini-del" :disabled="uploadingPhoto" @click="removePhoto">{{ t('удалить') }}</button>
             </div>
           </div>
         </div>
-        <button class="up-x" @click="emit('close')" title="Закрыть">×</button>
+        <button class="up-x" @click="emit('close')" :title="t('Закрыть')">×</button>
       </header>
 
       <div class="up-tabs">
-        <button :class="{ on: tab === 'profile' }" @click="tab = 'profile'">Профиль</button>
-        <button :class="{ on: tab === 'password' }" @click="tab = 'password'">Пароль</button>
-        <button class="up-tab-link" @click="goSecurity">Безопасность →</button>
+        <button :class="{ on: tab === 'profile' }" @click="tab = 'profile'">{{ t('Профиль') }}</button>
+        <button :class="{ on: tab === 'password' }" @click="tab = 'password'">{{ t('Пароль') }}</button>
+        <button class="up-tab-link" @click="goSecurity">{{ t('Безопасность →') }}</button>
       </div>
 
       <div class="up-body">
@@ -200,26 +203,26 @@ function goSecurity() { emit("close"); router.push("/settings/security"); }
 
         <template v-if="tab === 'profile'">
           <div class="up-grid">
-            <label class="up-field"><span class="up-lbl">ФИО</span><input v-model="form.full_name" class="up-in" placeholder="Иванов Иван Иванович" /></label>
-            <label class="up-field"><span class="up-lbl">Должность</span><input v-model="form.job_title" class="up-in" placeholder="Финансовый аналитик" /></label>
-            <label class="up-field"><span class="up-lbl">Телефон</span><input v-model="form.phone" class="up-in" placeholder="+998 ..." /></label>
-            <label class="up-field"><span class="up-lbl">Отдел</span><input v-model="form.department" class="up-in" placeholder="Финансовый блок" /></label>
+            <label class="up-field"><span class="up-lbl">{{ t('ФИО') }}</span><input v-model="form.full_name" class="up-in" :placeholder="t('Иванов Иван Иванович')" /></label>
+            <label class="up-field"><span class="up-lbl">{{ t('Должность') }}</span><input v-model="form.job_title" class="up-in" :placeholder="t('Финансовый аналитик')" /></label>
+            <label class="up-field"><span class="up-lbl">{{ t('Телефон') }}</span><input v-model="form.phone" class="up-in" placeholder="+998 ..." /></label>
+            <label class="up-field"><span class="up-lbl">{{ t('Отдел') }}</span><input v-model="form.department" class="up-in" :placeholder="t('Финансовый блок')" /></label>
             <!-- Компания: редактируется юзером только при первой настройке -->
             <label v-if="!orgLocked" class="up-field">
-              <span class="up-lbl">Компания <em class="up-once">указывается один раз</em></span>
+              <span class="up-lbl">{{ t('Компания') }} <em class="up-once">{{ t('указывается один раз') }}</em></span>
               <select v-model="form.organization_id" class="up-in">
-                <option value="">— Выберите компанию</option>
+                <option value="">{{ t('— Выберите компанию') }}</option>
                 <option v-for="c in allCompanies" :key="c.id" :value="c.id">{{ c.name }}</option>
               </select>
             </label>
             <div v-else class="up-field">
-              <span class="up-lbl">Компания / сектор</span>
+              <span class="up-lbl">{{ t('Компания / сектор') }}</span>
               <div class="up-locked">
                 <span>{{ u?.company || 'Не указана' }}<template v-if="u?.sector"> · {{ u?.sector }}</template></span>
-                <span class="up-locked-ic" title="Изменяет только администратор"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
+                <span class="up-locked-ic" :title="t('Изменяет только администратор')"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
               </div>
             </div>
-            <label class="up-field up-wide"><span class="up-lbl">Email (нельзя изменить)</span><input :value="u?.email" class="up-in" disabled /></label>
+            <label class="up-field up-wide"><span class="up-lbl">{{ t('Email (нельзя изменить)') }}</span><input :value="u?.email" class="up-in" disabled /></label>
 
             <!-- Соцссылки: LinkedIn + сайт (премиум, с логотипами) -->
             <label class="up-field up-wide">
@@ -230,7 +233,7 @@ function goSecurity() { emit("close"); router.push("/settings/security"); }
               </span>
             </label>
             <label class="up-field up-wide">
-              <span class="up-lbl">Сайт / портфолио</span>
+              <span class="up-lbl">{{ t('Сайт / портфолио') }}</span>
               <span class="up-in-ico">
                 <svg class="up-ico-web" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
                 <input v-model="form.website_url" class="up-in up-in-pad" placeholder="example.com" />
@@ -238,7 +241,7 @@ function goSecurity() { emit("close"); router.push("/settings/security"); }
             </label>
           </div>
           <div v-if="u?.roles?.length" class="up-roles">
-            <span class="up-lbl">Роли:</span>
+            <span class="up-lbl">{{ t('Роли:') }}</span>
             <span v-for="r in u.roles" :key="r" class="up-role">{{ r }}</span>
           </div>
           <div class="up-actions">
@@ -248,11 +251,11 @@ function goSecurity() { emit("close"); router.push("/settings/security"); }
 
         <template v-else>
           <div class="up-grid">
-            <label class="up-field up-wide"><span class="up-lbl">Текущий пароль</span><input v-model="pwd.current" type="password" class="up-in" autocomplete="current-password" /></label>
-            <label class="up-field"><span class="up-lbl">Новый пароль (≥12)</span><input v-model="pwd.next" type="password" class="up-in" autocomplete="new-password" /></label>
-            <label class="up-field"><span class="up-lbl">Повторите</span><input v-model="pwd.confirm" type="password" class="up-in" autocomplete="new-password" /></label>
+            <label class="up-field up-wide"><span class="up-lbl">{{ t('Текущий пароль') }}</span><input v-model="pwd.current" type="password" class="up-in" autocomplete="current-password" /></label>
+            <label class="up-field"><span class="up-lbl">{{ t('Новый пароль (≥12)') }}</span><input v-model="pwd.next" type="password" class="up-in" autocomplete="new-password" /></label>
+            <label class="up-field"><span class="up-lbl">{{ t('Повторите') }}</span><input v-model="pwd.confirm" type="password" class="up-in" autocomplete="new-password" /></label>
           </div>
-          <button class="up-forgot" type="button" @click="forgotFromProfile">Не помню текущий пароль</button>
+          <button class="up-forgot" type="button" @click="forgotFromProfile">{{ t('Не помню текущий пароль') }}</button>
           <div class="up-actions">
             <button class="up-btn up-primary" :disabled="saving" @click="changePassword">{{ saving ? 'Сохранение…' : 'Сменить пароль' }}</button>
           </div>

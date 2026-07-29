@@ -3,10 +3,13 @@ import { computed, onMounted, ref } from 'vue';
 import { rbacV3Api, rolesApi, type RbacV3Role } from '@/api/rbacV3';
 import ModalShell from '@/components/ModalShell.vue';
 import BIcon from '@/components/broadcasts/BIcon.vue';
+import { useI18n } from '@/composables/useI18n';
+import { INTL_LOCALE } from '@/locale';
 import RoleAssignmentPicker from './RoleAssignmentPicker.vue';
 
 const props = defineProps<{ selectedIds: string[] }>();
 const emit = defineEmits<{ (e: 'close'): void; (e: 'done'): void }>();
+const { t, locale } = useI18n();
 
 type Mode = 'add' | 'replace' | 'remove';
 
@@ -25,7 +28,7 @@ onMounted(async () => {
   try {
     allRoles.value = await rolesApi.list();
   } catch (error: any) {
-    catalogError.value = error?.response?.data?.detail || 'Не удалось загрузить роли';
+    catalogError.value = error?.response?.data?.detail || t('Не удалось загрузить роли');
   } finally {
     loading.value = false;
   }
@@ -37,14 +40,18 @@ const chosenRoles = computed<string[]>({
 });
 
 const selectedRoleName = computed(() =>
-  allRoles.value.find(role => role.code === chosenRole.value)?.name_ru || 'роль не выбрана');
+  allRoles.value.find(role => role.code === chosenRole.value)?.name_ru || t('Роль не выбрана'));
+
+function formatCount(value: number): string {
+  return value.toLocaleString(INTL_LOCALE[locale.value]);
+}
 
 const actionSummary = computed(() => {
-  const count = props.selectedIds.length;
-  if (!chosenRole.value) return `Выбрано пользователей: ${count}`;
-  if (mode.value === 'add') return `Добавить «${selectedRoleName.value}» · ${count} пользователей`;
-  if (mode.value === 'replace') return `Оставить только «${selectedRoleName.value}» · ${count} пользователей`;
-  return `Убрать «${selectedRoleName.value}» · ${count} пользователей`;
+  const values = { count: formatCount(props.selectedIds.length), role: selectedRoleName.value };
+  if (!chosenRole.value) return t('Выбрано пользователей: {count}', values);
+  if (mode.value === 'add') return t('Добавить роль «{role}» · Пользователей: {count}', values);
+  if (mode.value === 'replace') return t('Оставить только роль «{role}» · Пользователей: {count}', values);
+  return t('Убрать роль «{role}» · Пользователей: {count}', values);
 });
 
 const complete = computed(() => progress.value.total > 0 && progress.value.done === progress.value.total);
@@ -70,7 +77,7 @@ async function apply() {
     } catch (e: any) {
       progress.value.failed.push(userId);
       const detail = e?.response?.data?.detail;
-      const reason = typeof detail === 'string' ? detail : 'Не удалось обновить роли';
+      const reason = typeof detail === 'string' ? detail : t('Не удалось обновить роли');
       if (!failReasons.value.includes(reason)) failReasons.value.push(reason);
     } finally {
       progress.value.done++;
@@ -93,29 +100,29 @@ function requestClose() {
   <ModalShell :open="true" size="lg" :close-on-overlay="!applying" :hide-close="applying" @close="requestClose">
     <template #header>
       <div class="brp-header">
-        <h2>Изменить роли</h2>
-        <p>{{ selectedIds.length }} пользователей</p>
+        <h2>{{ t('Изменить роли') }}</h2>
+        <p>{{ t('Пользователей: {count}', { count: formatCount(selectedIds.length) }) }}</p>
       </div>
     </template>
 
     <div v-if="!complete" class="brp-body">
-      <div class="brp-label">Действие</div>
-      <div class="brp-modes" role="tablist" aria-label="Действие с ролью">
+      <div class="brp-label">{{ t('Действие') }}</div>
+      <div class="brp-modes" role="tablist" :aria-label="t('Действие с ролью')">
         <button type="button" :class="{ on: mode === 'add' }" :disabled="applying" @click="mode = 'add'">
           <BIcon name="plus" :size="16" />
-          <span><b>Добавить</b><small>Сохранить текущие роли</small></span>
+          <span><b>{{ t('Добавить') }}</b><small>{{ t('Сохранить текущие роли') }}</small></span>
         </button>
         <button type="button" :class="{ on: mode === 'replace' }" :disabled="applying" @click="mode = 'replace'">
           <BIcon name="refresh" :size="16" />
-          <span><b>Заменить</b><small>Оставить одну роль</small></span>
+          <span><b>{{ t('Заменить') }}</b><small>{{ t('Оставить одну роль') }}</small></span>
         </button>
         <button type="button" :class="{ on: mode === 'remove' }" :disabled="applying" @click="mode = 'remove'">
           <BIcon name="x" :size="16" />
-          <span><b>Убрать</b><small>Остальные роли сохранятся</small></span>
+          <span><b>{{ t('Убрать') }}</b><small>{{ t('Остальные роли сохранятся') }}</small></span>
         </button>
       </div>
 
-      <div class="brp-label role">Роль</div>
+      <div class="brp-label role">{{ t('Роль') }}</div>
       <RoleAssignmentPicker
         v-model="chosenRoles"
         :roles="allRoles"
@@ -123,7 +130,7 @@ function requestClose() {
         :disabled="applying"
         compact
       />
-      <div v-if="loading" class="brp-loading">Загрузка ролей...</div>
+      <div v-if="loading" class="brp-loading">{{ t('Загрузка ролей...') }}</div>
       <div v-else-if="catalogError" class="brp-error">{{ catalogError }}</div>
 
       <div :class="['brp-summary', { warning: mode !== 'add' }]">
@@ -136,25 +143,28 @@ function requestClose() {
           <span :style="{ width: `${progress.total ? progress.done / progress.total * 100 : 0}%` }"></span>
         </div>
         <div>
-          <span>Обработано {{ progress.done }} из {{ progress.total }}</span>
-          <b v-if="progress.failed.length">Ошибок: {{ progress.failed.length }}</b>
+          <span>{{ t('Обработано: {done} из {total}', {
+            done: formatCount(progress.done),
+            total: formatCount(progress.total),
+          }) }}</span>
+          <b v-if="progress.failed.length">{{ t('Ошибок: {count}', { count: formatCount(progress.failed.length) }) }}</b>
         </div>
       </div>
     </div>
 
     <div v-else class="brp-complete">
       <span class="brp-complete-icon"><BIcon name="check" :size="24" /></span>
-      <h3>Роли обновлены</h3>
-      <p>Обработано {{ progress.done }} пользователей</p>
+      <h3>{{ t('Роли обновлены') }}</h3>
+      <p>{{ t('Обработано пользователей: {count}', { count: formatCount(progress.done) }) }}</p>
       <div v-if="progress.failed.length" class="brp-failed">
-        <div>Не удалось обновить: {{ progress.failed.length }}</div>
+        <div>{{ t('Не удалось обновить: {count}', { count: formatCount(progress.failed.length) }) }}</div>
         <div v-for="reason in failReasons" :key="reason" class="brp-failed-reason">{{ reason }}</div>
       </div>
     </div>
 
     <template #footer>
       <div class="brp-footer">
-        <button v-if="!complete" type="button" class="brp-btn secondary" :disabled="applying" @click="requestClose">Отмена</button>
+        <button v-if="!complete" type="button" class="brp-btn secondary" :disabled="applying" @click="requestClose">{{ t('Отмена') }}</button>
         <button
           v-if="!complete"
           type="button"
@@ -162,9 +172,9 @@ function requestClose() {
           :disabled="!chosenRole || applying"
           @click="apply"
         >
-          {{ applying ? 'Применение...' : 'Применить' }}
+          {{ applying ? t('Применение...') : t('Применить') }}
         </button>
-        <button v-else type="button" class="brp-btn primary" @click="finish">Готово</button>
+        <button v-else type="button" class="brp-btn primary" @click="finish">{{ t('Готово') }}</button>
       </div>
     </template>
   </ModalShell>

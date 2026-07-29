@@ -218,6 +218,14 @@ function isAdmin(): boolean {
 // codes the router enforces. `auth.hasPermission` already bypasses for
 // owner + role admin so they keep seeing every section.
 const can = (code: string) => auth.hasPermission(code);
+// Executive Dashboard: по умолчанию портфельный экран скрыт у пользователей,
+// ограниченных своими компаниями. НО если администратор выдал право ЛИЧНО
+// (сетка «Доступ к модулям»), пункт показывается — иначе выданный доступ молча
+// не срабатывал («дал доступ, а он не появился»).
+const showExecDash = computed(
+  () => can("exec_dashboard.view")
+    && (scope.showPortfolioViews.value || auth.hasDirectPermission("exec_dashboard.view")),
+);
 // Group visibility: show the collapsible header iff at least one sub-link
 // is visible to this user.
 // Себестоимость и SOE Health переехали на собственные права — без них носитель
@@ -432,9 +440,9 @@ function exitImpersonate() {
         <RouterLink to="/home" class="sb-brand" :title="t('UzAssets · Единая платформа трансформации')">
           <EptLogo :size="40" />
           <span class="sb-brand-tagline-stack">
-            <span>Единая</span>
-            <span>платформа</span>
-            <span>трансформации</span>
+            <span>{{ t('Единая') }}</span>
+            <span>{{ t('платформа') }}</span>
+            <span>{{ t('трансформации') }}</span>
           </span>
         </RouterLink>
         <NotificationBell class="sb-header-bell" />
@@ -472,14 +480,14 @@ function exitImpersonate() {
         <!-- Заголовок группы повторяет условия своих пунктов (включая область
              портфеля у экрана министра), иначе у scope-ограниченного юзера
              остался бы заголовок без единой ссылки под ним. -->
-        <div v-if="(can('exec_dashboard.view') && scope.showPortfolioViews.value) || can('monitoring.view') || isAdmin()" class="sb-group-label first">{{ t("Обзор") }}</div>
+        <div v-if="showExecDash || can('monitoring.view') || isAdmin()" class="sb-group-label first">{{ t("Обзор") }}</div>
 
         <!-- 1. Executive Dashboard (AMBER) — same gate as the route
              (собственное право exec_dashboard.view, не заимствованное у Финансов).
              Плюс область: портфельный экран не показываем пользователю,
              ограниченному своими компаниями (решение владельца 29.07.2026). -->
         <RouterLink
-          v-if="can('exec_dashboard.view') && scope.showPortfolioViews.value"
+          v-if="showExecDash"
           to="/executive-dashboard"
           class="sb-item sb-exec-dash"
           active-class="active"

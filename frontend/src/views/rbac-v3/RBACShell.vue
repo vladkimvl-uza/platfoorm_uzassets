@@ -3,11 +3,14 @@
  * RBAC v3 — top-level shell. Renders topbar with 4 tab links and
  * <router-view /> for the active child route.
  */
-import { computed, inject } from 'vue';
+import { computed, inject, ref } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
+import InviteUserModal from '@/components/rbac-v3/InviteUserModal.vue';
+import { useI18n } from '@/composables/useI18n';
 
 const router = useRouter();
 const route = useRoute();
+const { t } = useI18n();
 const toggleSidebar = inject<() => void>('toggleSidebar', () => {});
 const openMobileSidebar = inject<() => void>('openMobileSidebar', () => {});
 function onBurger() {
@@ -15,18 +18,16 @@ function onBurger() {
   else toggleSidebar();
 }
 
-const TABS = [
-  { name: 'rbac-v3-users',  label: 'Пользователи' },
-  { name: 'rbac-v3-roles',  label: 'Роли' },
-  { name: 'rbac-v3-groups', label: 'Группы' },
-  { name: 'rbac-v3-audit',  label: 'Аудит' },
-];
+const tabs = computed(() => [
+  { name: 'rbac-v3-users',  label: t('Пользователи') },
+  { name: 'rbac-v3-roles',  label: t('Роли') },
+  { name: 'rbac-v3-groups', label: t('Группы') },
+  { name: 'rbac-v3-audit',  label: t('Аудит') },
+]);
 const activeTab = computed(() => route.name as string);
 function goTab(name: string) { router.push({ name }); }
 
-import { ref as _ref } from 'vue';
-import InviteUserModal from '@/components/rbac-v3/InviteUserModal.vue';
-const showInvite = _ref(false);
+const showInvite = ref(false);
 function onUserCreated(userId: string) {
   // Notify UsersPage to refresh
   window.dispatchEvent(new CustomEvent('rbac-v3:users-changed', { detail: { id: userId } }));
@@ -37,31 +38,31 @@ function onUserCreated(userId: string) {
   <div class="rv3-shell">
     <div class="rv3-topbar">
       <div class="rv3-tb-l">
-        <button class="rv3-sb-toggle" @click="onBurger()" aria-label="toggle sidebar">
+        <button class="rv3-sb-toggle" :aria-label="t('Переключить боковую панель')" @click="onBurger()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
         </button>
         <div class="rv3-tabs">
           <button
-            v-for="t in TABS"
-            :key="t.name"
-            :class="['rv3-tab', { on: activeTab === t.name }]"
-            @click="goTab(t.name)"
-          >{{ t.label }}</button>
+            v-for="tab in tabs"
+            :key="tab.name"
+            :class="['rv3-tab', { on: activeTab === tab.name }]"
+            @click="goTab(tab.name)"
+          >{{ tab.label }}</button>
         </div>
       </div>
       <div class="rv3-tb-c">
-        <div class="rv3-tb-eyebrow">Единая платформа трансформации · Администрирование</div>
-        <div class="rv3-tb-title">Управление доступом</div>
+        <div class="rv3-tb-eyebrow">{{ t('Единая платформа трансформации · Администрирование') }}</div>
+        <div class="rv3-tb-title">{{ t('Управление доступом') }}</div>
       </div>
       <div class="rv3-tb-r">
         <button
           v-if="activeTab === 'rbac-v3-users'"
           class="rv3-invite-btn"
           @click="showInvite = true"
-          aria-label="invite"
+          :aria-label="t('Создать пользователя')"
         >
           <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="8" y1="3" x2="8" y2="13"/><line x1="3" y1="8" x2="13" y2="8"/></svg>
-          Создать пользователя
+          {{ t('Создать пользователя') }}
         </button>
       </div>
     </div>

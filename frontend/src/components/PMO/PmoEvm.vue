@@ -9,6 +9,9 @@
 import { ref, computed, watch, onMounted } from "vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import { pmoApi, type EvmResponse, type EvmProject, type EvmRag } from "@/api/pmo";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const props = defineProps<{ companyCode: string; year?: number }>();
 
@@ -111,7 +114,7 @@ function metricNeg(p: EvmProject, m: MetricDef): boolean {
       <div class="ev-top">
         <button class="ev-info" @click="methodOpen = true">
           <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.5"/><path d="M8 7.2 V11" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="8" cy="5" r="0.9" fill="currentColor"/></svg>
-          Как считается и откуда данные
+          {{ t('Как считается и откуда данные') }}
         </button>
       </div>
 
@@ -119,7 +122,7 @@ function metricNeg(p: EvmProject, m: MetricDef): boolean {
       <div class="ev-idx">
         <div class="ev-gauge ev-gauge-click" :style="{ '--c': idxColor(data.spi) }" @click="methodOpen = true">
           <div class="ev-gauge-head">
-            <span class="ev-gauge-l">SPI · индекс расписания</span>
+            <span class="ev-gauge-l">{{ t('SPI · индекс расписания') }}</span>
             <span class="ev-gauge-v">{{ fmtIdx(data.spi) }}</span>
           </div>
           <div class="ev-bar">
@@ -130,7 +133,7 @@ function metricNeg(p: EvmProject, m: MetricDef): boolean {
         </div>
         <div class="ev-gauge ev-gauge-click" :style="{ '--c': idxColor(data.cpi) }" @click="methodOpen = true">
           <div class="ev-gauge-head">
-            <span class="ev-gauge-l">CPI · индекс стоимости</span>
+            <span class="ev-gauge-l">{{ t('CPI · индекс стоимости') }}</span>
             <span class="ev-gauge-v">{{ fmtIdx(data.cpi) }}</span>
           </div>
           <div class="ev-bar">
@@ -143,29 +146,29 @@ function metricNeg(p: EvmProject, m: MetricDef): boolean {
 
       <!-- ключевые величины -->
       <div class="ev-cards">
-        <div class="ev-card"><span class="ev-card-l">BAC · бюджет</span><span class="ev-card-v">{{ fmtMoney(data.bac) }}</span></div>
-        <div class="ev-card"><span class="ev-card-l">EV · освоено</span><span class="ev-card-v">{{ fmtMoney(data.ev) }}</span></div>
-        <div class="ev-card"><span class="ev-card-l">PV · план</span><span class="ev-card-v">{{ fmtMoney(data.pv) }}</span></div>
-        <div class="ev-card"><span class="ev-card-l">AC · факт затрат</span><span class="ev-card-v">{{ fmtMoney(data.ac) }}</span></div>
-        <div class="ev-card" :class="{ 'ev-neg': (data.sv ?? 0) < 0 }"><span class="ev-card-l">SV · откл. графика</span><span class="ev-card-v">{{ fmtSigned(data.sv) }}</span></div>
-        <div class="ev-card" :class="{ 'ev-neg': (data.cv ?? 0) < 0 }"><span class="ev-card-l">CV · откл. стоимости</span><span class="ev-card-v">{{ fmtSigned(data.cv) }}</span></div>
-        <div class="ev-card ev-card-accent"><span class="ev-card-l">EAC · прогноз стоимости</span><span class="ev-card-v">{{ fmtMoney(data.eac) }}</span></div>
-        <div class="ev-card" :class="{ 'ev-neg': (data.vac ?? 0) < 0 }"><span class="ev-card-l">VAC · прогноз отклонения</span><span class="ev-card-v">{{ fmtSigned(data.vac) }}</span></div>
+        <div class="ev-card"><span class="ev-card-l">{{ t('BAC · бюджет') }}</span><span class="ev-card-v">{{ fmtMoney(data.bac) }}</span></div>
+        <div class="ev-card"><span class="ev-card-l">{{ t('EV · освоено') }}</span><span class="ev-card-v">{{ fmtMoney(data.ev) }}</span></div>
+        <div class="ev-card"><span class="ev-card-l">{{ t('PV · план') }}</span><span class="ev-card-v">{{ fmtMoney(data.pv) }}</span></div>
+        <div class="ev-card"><span class="ev-card-l">{{ t('AC · факт затрат') }}</span><span class="ev-card-v">{{ fmtMoney(data.ac) }}</span></div>
+        <div class="ev-card" :class="{ 'ev-neg': (data.sv ?? 0) < 0 }"><span class="ev-card-l">{{ t('SV · откл. графика') }}</span><span class="ev-card-v">{{ fmtSigned(data.sv) }}</span></div>
+        <div class="ev-card" :class="{ 'ev-neg': (data.cv ?? 0) < 0 }"><span class="ev-card-l">{{ t('CV · откл. стоимости') }}</span><span class="ev-card-v">{{ fmtSigned(data.cv) }}</span></div>
+        <div class="ev-card ev-card-accent"><span class="ev-card-l">{{ t('EAC · прогноз стоимости') }}</span><span class="ev-card-v">{{ fmtMoney(data.eac) }}</span></div>
+        <div class="ev-card" :class="{ 'ev-neg': (data.vac ?? 0) < 0 }"><span class="ev-card-l">{{ t('VAC · прогноз отклонения') }}</span><span class="ev-card-v">{{ fmtSigned(data.vac) }}</span></div>
       </div>
 
       <div v-if="!hasBudget" class="ev-hint">
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.5"/><path d="M8 5 V8.5 M8 10.5 V11" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-        Стоимостные метрики (CPI, EV, прогноз) появятся, когда у проектов заполнены <b>бюджет</b> и <b>факт затрат</b>. Сейчас показан индекс расписания SPI по прогрессу.
+        {{ t('Стоимостные метрики (CPI, EV, прогноз) появятся, когда у проектов заполнены') }} <b>{{ t('бюджет') }}</b> {{ t('и') }} <b>{{ t('факт затрат') }}</b>{{ t('. Сейчас показан индекс расписания SPI по прогрессу.') }}
       </div>
 
       <!-- по проектам -->
       <div class="ev-tblwrap">
-        <UzaStateBlock v-if="!sortedProjects.length" state="empty" variant="block" title="Нет проектов" text="Добавьте проекты в портфель, чтобы видеть освоенный объём." />
+        <UzaStateBlock v-if="!sortedProjects.length" state="empty" variant="block" :title="t('Нет проектов')" text="Добавьте проекты в портфель, чтобы видеть освоенный объём." />
         <table v-else class="uza-table ev-tbl">
           <thead>
             <tr>
-              <th>Проект</th><th>Прогресс / план</th><th>SPI</th><th>CPI</th>
-              <th>SV</th><th>CV</th><th>EAC</th><th>VAC</th><th>Статус</th>
+              <th>{{ t('Проект') }}</th><th>{{ t('Прогресс / план') }}</th><th>SPI</th><th>CPI</th>
+              <th>SV</th><th>CV</th><th>EAC</th><th>VAC</th><th>{{ t('Статус') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -189,7 +192,7 @@ function metricNeg(p: EvmProject, m: MetricDef): boolean {
         </table>
       </div>
 
-      <div class="ev-foot">Индексы ≥ 1.0 — хорошо (по графику / в бюджете). На дату {{ new Date(data.as_of).toLocaleDateString("ru-RU") }} · бюджетных проектов: {{ data.budgeted_count }} из {{ data.total_count }}. Клик по проекту — детальный разбор.</div>
+      <div class="ev-foot">{{ t('Индексы ≥ 1.0 — хорошо (по графику / в бюджете). На дату') }} {{ new Date(data.as_of).toLocaleDateString("ru-RU") }} {{ t('· бюджетных проектов:') }} {{ data.budgeted_count }} {{ t('из') }} {{ data.total_count }}{{ t('. Клик по проекту — детальный разбор.') }}</div>
     </template>
 
     <!-- ── Модалка проекта (drill-down) ── -->
@@ -198,14 +201,14 @@ function metricNeg(p: EvmProject, m: MetricDef): boolean {
         <div class="ev-modal">
           <div class="ev-mh">
             <div>
-              <div class="ev-mh-eyebrow">EVM проекта</div>
+              <div class="ev-mh-eyebrow">{{ t('EVM проекта') }}</div>
               <div class="ev-mh-title">{{ selected.title }}</div>
             </div>
             <span class="ev-rag ev-rag-lg" :style="{ color: RAG_C[selected.rag], background: RAG_C[selected.rag] + '18' }"><span class="ev-rag-dot" :style="{ background: RAG_C[selected.rag] }"></span>{{ RAG_L[selected.rag] }}</span>
           </div>
           <div class="ev-mb">
             <div class="ev-mprog">
-              <div class="ev-mprog-head"><span>Прогресс vs план</span><span class="ev-mprog-n">{{ selected.progress_percent }}%<span v-if="selected.planned_percent != null"> · план {{ selected.planned_percent }}%</span></span></div>
+              <div class="ev-mprog-head"><span>{{ t('Прогресс vs план') }}</span><span class="ev-mprog-n">{{ selected.progress_percent }}%<span v-if="selected.planned_percent != null"> {{ t('· план') }} {{ selected.planned_percent }}%</span></span></div>
               <div class="ev-prog-track ev-prog-track-lg"><span class="ev-prog-fill" :style="{ width: selected.progress_percent + '%' }"></span><span v-if="selected.planned_percent != null" class="ev-prog-plan" :style="{ left: selected.planned_percent + '%' }"></span></div>
             </div>
             <div class="ev-mini2">
@@ -219,13 +222,13 @@ function metricNeg(p: EvmProject, m: MetricDef): boolean {
               </div>
             </div>
             <div class="ev-src">
-              <div class="ev-src-t">Источник данных</div>
-              <div class="ev-src-r"><b>Прогресс</b> — взвешенный расчёт по статусам задач проекта.</div>
-              <div class="ev-src-r"><b>План</b> — доля прошедшего планового времени по базовым/плановым датам.</div>
-              <div class="ev-src-r" :class="{ 'ev-src-warn': selected.bac == null }"><b>Бюджет / факт</b> — {{ selected.bac == null ? "не заполнены: добавьте бюджет и факт затрат в карточке проекта, чтобы видеть CPI, EV и прогноз" : "из полей проекта (бюджет и факт затрат)" }}.</div>
+              <div class="ev-src-t">{{ t('Источник данных') }}</div>
+              <div class="ev-src-r"><b>{{ t('Прогресс') }}</b> {{ t('— взвешенный расчёт по статусам задач проекта.') }}</div>
+              <div class="ev-src-r"><b>{{ t('План') }}</b> {{ t('— доля прошедшего планового времени по базовым/плановым датам.') }}</div>
+              <div class="ev-src-r" :class="{ 'ev-src-warn': selected.bac == null }"><b>{{ t('Бюджет / факт') }}</b> — {{ selected.bac == null ? "не заполнены: добавьте бюджет и факт затрат в карточке проекта, чтобы видеть CPI, EV и прогноз" : "из полей проекта (бюджет и факт затрат)" }}.</div>
             </div>
           </div>
-          <div class="ev-mf"><button class="ev-btn" @click="selected = null">Закрыть</button></div>
+          <div class="ev-mf"><button class="ev-btn" @click="selected = null">{{ t('Закрыть') }}</button></div>
         </div>
       </div>
     </Transition>
@@ -234,25 +237,25 @@ function metricNeg(p: EvmProject, m: MetricDef): boolean {
     <Transition name="ev-modal">
       <div v-if="methodOpen" class="ev-ov" @click.self="methodOpen = false">
         <div class="ev-modal">
-          <div class="ev-mh"><div><div class="ev-mh-eyebrow">Методология</div><div class="ev-mh-title">Освоенный объём (EVM)</div></div></div>
+          <div class="ev-mh"><div><div class="ev-mh-eyebrow">{{ t('Методология') }}</div><div class="ev-mh-title">{{ t('Освоенный объём (EVM)') }}</div></div></div>
           <div class="ev-mb">
-            <p class="ev-doc-p">EVM сравнивает <b>план</b>, <b>выполнение</b> и <b>затраты</b> в одних единицах и даёт ранние сигналы отклонений по срокам и бюджету.</p>
+            <p class="ev-doc-p">{{ t('EVM сравнивает') }} <b>{{ t('план') }}</b>, <b>{{ t('выполнение') }}</b> {{ t('и') }} <b>{{ t('затраты') }}</b> {{ t('в одних единицах и даёт ранние сигналы отклонений по срокам и бюджету.') }}</p>
             <div class="ev-defs">
-              <div class="ev-def"><span class="ev-def-k">PV</span><span>плановый объём — сколько должно быть освоено к сегодня (BAC × плановый %).</span></div>
-              <div class="ev-def"><span class="ev-def-k">EV</span><span>освоенный объём — сколько фактически выполнено (BAC × прогресс).</span></div>
-              <div class="ev-def"><span class="ev-def-k">AC</span><span>фактические затраты на выполненную работу.</span></div>
-              <div class="ev-def"><span class="ev-def-k">SPI</span><span>= EV ÷ PV. ≥ 1 — идём по графику.</span></div>
-              <div class="ev-def"><span class="ev-def-k">CPI</span><span>= EV ÷ AC. ≥ 1 — в рамках бюджета.</span></div>
-              <div class="ev-def"><span class="ev-def-k">EAC</span><span>= BAC ÷ CPI — прогноз итоговой стоимости.</span></div>
+              <div class="ev-def"><span class="ev-def-k">PV</span><span>{{ t('плановый объём — сколько должно быть освоено к сегодня (BAC × плановый %).') }}</span></div>
+              <div class="ev-def"><span class="ev-def-k">EV</span><span>{{ t('освоенный объём — сколько фактически выполнено (BAC × прогресс).') }}</span></div>
+              <div class="ev-def"><span class="ev-def-k">AC</span><span>{{ t('фактические затраты на выполненную работу.') }}</span></div>
+              <div class="ev-def"><span class="ev-def-k">SPI</span><span>{{ t('= EV ÷ PV. ≥ 1 — идём по графику.') }}</span></div>
+              <div class="ev-def"><span class="ev-def-k">CPI</span><span>{{ t('= EV ÷ AC. ≥ 1 — в рамках бюджета.') }}</span></div>
+              <div class="ev-def"><span class="ev-def-k">EAC</span><span>{{ t('= BAC ÷ CPI — прогноз итоговой стоимости.') }}</span></div>
             </div>
             <div class="ev-src">
-              <div class="ev-src-t">Откуда берутся данные</div>
-              <div class="ev-src-r"><b>Прогресс</b> — из статусов задач каждого проекта (взвешенный расчёт, единый с расписанием и дашбордами).</div>
-              <div class="ev-src-r"><b>Плановый %</b> — доля прошедшего планового времени по базовым/плановым датам проекта на сегодня.</div>
-              <div class="ev-src-r"><b>Бюджет (BAC) и факт (AC)</b> — поля проекта «бюджет» и «факт затрат». Пока они пусты, считается только индекс расписания SPI; стоимостные метрики появятся после заполнения.</div>
+              <div class="ev-src-t">{{ t('Откуда берутся данные') }}</div>
+              <div class="ev-src-r"><b>{{ t('Прогресс') }}</b> {{ t('— из статусов задач каждого проекта (взвешенный расчёт, единый с расписанием и дашбордами).') }}</div>
+              <div class="ev-src-r"><b>{{ t('Плановый %') }}</b> {{ t('— доля прошедшего планового времени по базовым/плановым датам проекта на сегодня.') }}</div>
+              <div class="ev-src-r"><b>{{ t('Бюджет (BAC) и факт (AC)') }}</b> {{ t('— поля проекта «бюджет» и «факт затрат». Пока они пусты, считается только индекс расписания SPI; стоимостные метрики появятся после заполнения.') }}</div>
             </div>
           </div>
-          <div class="ev-mf"><button class="ev-btn" @click="methodOpen = false">Закрыть</button></div>
+          <div class="ev-mf"><button class="ev-btn" @click="methodOpen = false">{{ t('Закрыть') }}</button></div>
         </div>
       </div>
     </Transition>

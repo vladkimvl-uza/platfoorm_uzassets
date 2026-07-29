@@ -9,6 +9,9 @@ import {
 } from "@/api/external_apis";
 import { methodPill } from "@/api/api_catalog";
 import { useConfirm } from "@/composables/useConfirm";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const { confirmDialog } = useConfirm();
 
@@ -177,15 +180,15 @@ function pasteSpec() {
       <!-- Left: list -->
       <div class="xa-side">
         <div class="xa-side-hd">
-          <div class="xa-side-t">Внешние API</div>
+          <div class="xa-side-t">{{ t('Внешние API') }}</div>
           <button class="xa-add" @click="showCreate = true">
             <BIcon name="plus" :size="14" />
           </button>
         </div>
         <div class="xa-side-filter">
-          <input v-model="searchQ" @input="onSearch" placeholder="Поиск…" class="xa-filt-i"/>
+          <input v-model="searchQ" @input="onSearch" :placeholder="t('Поиск…')" class="xa-filt-i"/>
           <select v-model="filterStatus" @change="loadList" class="xa-filt-s">
-            <option value="">все</option>
+            <option value="">{{ t('все') }}</option>
             <option value="active">active</option>
             <option value="sandbox">sandbox</option>
             <option value="deprecated">deprec.</option>
@@ -193,7 +196,7 @@ function pasteSpec() {
           </select>
         </div>
 
-        <UzaStateBlock v-if="!apis.length" state="empty" variant="block" title="Нет внешних API" desc="Создайте первую запись">
+        <UzaStateBlock v-if="!apis.length" state="empty" variant="block" :title="t('Нет внешних API')" desc="Создайте первую запись">
           <template #icon><BIcon name="plug" :size="14" /></template>
         </UzaStateBlock>
 
@@ -234,15 +237,15 @@ function pasteSpec() {
             </div>
             <div class="xa-hero-actions">
               <button v-if="!selected.has_openapi_spec" class="xa-btn xa-btn-primary" @click="showSpecUpload = true">
-                <BIcon name="upload" :size="14" /> Загрузить OpenAPI
+                <BIcon name="upload" :size="14" /> {{ t('Загрузить OpenAPI') }}
               </button>
               <a v-if="selected.has_openapi_spec" :href="externalApis.downloadUrl(selected.id)" target="_blank" class="xa-btn">
-                <BIcon name="download" :size="14" /> Скачать spec
+                <BIcon name="download" :size="14" /> {{ t('Скачать spec') }}
               </a>
-              <button v-if="selected.has_openapi_spec" class="xa-btn" @click="removeSpec" title="Удалить spec">
+              <button v-if="selected.has_openapi_spec" class="xa-btn" @click="removeSpec" :title="t('Удалить spec')">
                 <BIcon name="trash" :size="14" />
               </button>
-              <button class="xa-btn xa-btn-danger" @click="showDelete = selected" title="Удалить API">
+              <button class="xa-btn xa-btn-danger" @click="showDelete = selected" :title="t('Удалить API')">
                 <BIcon name="x" :size="14" />
               </button>
             </div>
@@ -250,11 +253,11 @@ function pasteSpec() {
 
           <div class="xa-grid">
             <div class="xa-card">
-              <div class="xa-card-hd">Подключение</div>
+              <div class="xa-card-hd">{{ t('Подключение') }}</div>
               <div class="xa-kv">
                 <div><span>Base URL</span><code>{{ selected.base_url }}</code></div>
                 <div v-if="selected.documentation_url">
-                  <span>Документация</span>
+                  <span>{{ t('Документация') }}</span>
                   <a :href="selected.documentation_url" target="_blank">{{ selected.documentation_url }}</a>
                 </div>
                 <div v-if="selected.health_check_url">
@@ -262,14 +265,14 @@ function pasteSpec() {
                   <code>{{ selected.health_check_url }}</code>
                 </div>
                 <div>
-                  <span>Авторизация</span>
+                  <span>{{ t('Авторизация') }}</span>
                   <code>{{ AUTH_LABELS[selected.auth_kind || "none"] }}</code>
                 </div>
               </div>
             </div>
 
             <div class="xa-card">
-              <div class="xa-card-hd">Метаданные</div>
+              <div class="xa-card-hd">{{ t('Метаданные') }}</div>
               <div class="xa-kv">
                 <div v-if="selected.tags && selected.tags.length">
                   <span>Tags</span>
@@ -278,18 +281,18 @@ function pasteSpec() {
                   </div>
                 </div>
                 <div v-if="selected.openapi_uploaded_at">
-                  <span>Spec загружен</span>
+                  <span>{{ t('Spec загружен') }}</span>
                   <span>{{ fmtDate(selected.openapi_uploaded_at) }} ({{ selected.openapi_spec_version }})</span>
                 </div>
                 <div>
-                  <span>Изменён</span><span>{{ fmtDate(selected.updated_at) }}</span>
+                  <span>{{ t('Изменён') }}</span><span>{{ fmtDate(selected.updated_at) }}</span>
                 </div>
               </div>
             </div>
           </div>
 
           <div v-if="selected.notes" class="xa-notes">
-            <div class="xa-card-hd">Заметки / runbook</div>
+            <div class="xa-card-hd">{{ t('Заметки / runbook') }}</div>
             <pre>{{ selected.notes }}</pre>
           </div>
 
@@ -303,7 +306,7 @@ function pasteSpec() {
             </div>
 
             <div class="xa-cat-filters">
-              <input v-model="endpointFilter.q" placeholder="Поиск endpoint…" class="xa-filt-i"/>
+              <input v-model="endpointFilter.q" :placeholder="t('Поиск endpoint…')" class="xa-filt-i"/>
               <div class="xa-mpills">
                 <button v-for="m in ['ALL','GET','POST','PATCH','PUT','DELETE']" :key="m"
                         class="xa-mpill" :class="{ on: endpointFilter.method === m }"
@@ -327,7 +330,7 @@ function pasteSpec() {
                 </div>
                 <div v-if="expandedEp === epKey(e)" class="xa-ep-body">
                   <p v-if="e.description">{{ e.description }}</p>
-                  <p v-else style="color: var(--color-text-tertiary); font-style: italic;">Описание не задано в спецификации</p>
+                  <p v-else style="color: var(--color-text-tertiary); font-style: italic;">{{ t('Описание не задано в спецификации') }}</p>
                   <div v-if="e.tags.length">
                     <span class="xa-card-hd" style="display: inline-block; margin-right: 6px;">Tags:</span>
                     <span v-for="t in e.tags" :key="t" class="xa-tag">{{ t }}</span>
@@ -342,9 +345,9 @@ function pasteSpec() {
 
           <div v-else-if="!selected.has_openapi_spec" class="xa-no-spec">
             <BIcon name="file-off" :size="14" />
-            <div>OpenAPI спецификация ещё не загружена</div>
+            <div>{{ t('OpenAPI спецификация ещё не загружена') }}</div>
             <button class="xa-btn xa-btn-primary" @click="showSpecUpload = true" style="margin-top: 8px;">
-              <BIcon name="upload" :size="14" /> Загрузить
+              <BIcon name="upload" :size="14" /> {{ t('Загрузить') }}
             </button>
           </div>
         </template>
@@ -356,21 +359,21 @@ function pasteSpec() {
     </div>
 
     <!-- ───── Modal: create ───── -->
-    <ModalShell :open="showCreate" size="lg" title="Новый внешний API" @close="showCreate = false">
+    <ModalShell :open="showCreate" size="lg" :title="t('Новый внешний API')" @close="showCreate = false">
         <div class="xa-modal-body">
           <div class="xa-mgrid">
             <div class="xa-field">
-              <label>Slug (идентификатор)</label>
+              <label>{{ t('Slug (идентификатор)') }}</label>
               <input v-model="newApi.slug" placeholder="openinfo, sap_erp, cbu_rates"/>
             </div>
             <div class="xa-field">
-              <label>Имя</label>
-              <input v-model="newApi.name" placeholder="openinfo.uz · публичные раскрытия"/>
+              <label>{{ t('Имя') }}</label>
+              <input v-model="newApi.name" :placeholder="t('openinfo.uz · публичные раскрытия')"/>
             </div>
           </div>
           <div class="xa-field">
-            <label>Описание</label>
-            <textarea v-model="newApi.description" rows="2" placeholder="Источник IFRS отчётности портфельных компаний"></textarea>
+            <label>{{ t('Описание') }}</label>
+            <textarea v-model="newApi.description" rows="2" :placeholder="t('Источник IFRS отчётности портфельных компаний')"></textarea>
           </div>
           <div class="xa-field">
             <label>Base URL</label>
@@ -378,7 +381,7 @@ function pasteSpec() {
           </div>
           <div class="xa-mgrid">
             <div class="xa-field">
-              <label>Документация (URL)</label>
+              <label>{{ t('Документация (URL)') }}</label>
               <input v-model="newApi.documentation_url" placeholder="https://docs.example.uz"/>
             </div>
             <div class="xa-field">
@@ -388,7 +391,7 @@ function pasteSpec() {
           </div>
           <div class="xa-mgrid" style="grid-template-columns: 1fr 1fr 1fr;">
             <div class="xa-field">
-              <label>Статус</label>
+              <label>{{ t('Статус') }}</label>
               <select v-model="newApi.status">
                 <option value="active">active</option>
                 <option value="sandbox">sandbox</option>
@@ -397,7 +400,7 @@ function pasteSpec() {
               </select>
             </div>
             <div class="xa-field">
-              <label>Окружение</label>
+              <label>{{ t('Окружение') }}</label>
               <select v-model="newApi.environment_kind">
                 <option value="production">production</option>
                 <option value="sandbox">sandbox</option>
@@ -405,9 +408,9 @@ function pasteSpec() {
               </select>
             </div>
             <div class="xa-field">
-              <label>Авторизация</label>
+              <label>{{ t('Авторизация') }}</label>
               <select v-model="newApi.auth_kind">
-                <option value="none">Нет</option>
+                <option value="none">{{ t('Нет') }}</option>
                 <option value="api_key">API key</option>
                 <option value="oauth2">OAuth 2.0</option>
                 <option value="basic">Basic</option>
@@ -417,17 +420,17 @@ function pasteSpec() {
             </div>
           </div>
           <div class="xa-field">
-            <label>Tags (через запятую)</label>
+            <label>{{ t('Tags (через запятую)') }}</label>
             <input v-model="newApi.tags" placeholder="finance, government, weekly"/>
           </div>
           <div class="xa-field">
-            <label>Заметки</label>
-            <textarea v-model="newApi.notes" rows="2" placeholder="Особенности интеграции, ответственный, …"></textarea>
+            <label>{{ t('Заметки') }}</label>
+            <textarea v-model="newApi.notes" rows="2" :placeholder="t('Особенности интеграции, ответственный, …')"></textarea>
           </div>
         </div>
       <template #footer>
-        <button class="xa-btn xa-btn-ghost" @click="showCreate = false">Отмена</button>
-        <button class="xa-btn xa-btn-primary" @click="submitCreate">Создать</button>
+        <button class="xa-btn xa-btn-ghost" @click="showCreate = false">{{ t('Отмена') }}</button>
+        <button class="xa-btn xa-btn-primary" @click="submitCreate">{{ t('Создать') }}</button>
       </template>
     </ModalShell>
 
@@ -437,22 +440,22 @@ function pasteSpec() {
                 @close="showSpecUpload = false">
         <div class="xa-modal-body">
           <div style="font-size: 11.5px; color: var(--color-text-secondary); margin-bottom: 8px;">
-            Вставьте JSON OpenAPI 3.x документа (или Swagger 2.0). Спецификация хранится локально, не запрашивается у источника.
+            {{ t('Вставьте JSON OpenAPI 3.x документа (или Swagger 2.0). Спецификация хранится локально, не запрашивается у источника.') }}
           </div>
           <div class="xa-field">
             <label style="display: flex; justify-content: space-between; align-items: center;">
               <span>OpenAPI JSON</span>
               <button class="xa-btn" style="padding: 3px 9px; font-size: 10.5px;" @click="pasteSpec">
-                <BIcon name="clipboard" :size="14" /> Вставить из буфера
+                <BIcon name="clipboard" :size="14" /> {{ t('Вставить из буфера') }}
               </button>
             </label>
             <textarea v-model="specText" rows="14" style="font-family: var(--font-mono, monospace); font-size: 10.5px;" placeholder='{"openapi":"3.0.3","info":{"title":"...","version":"1.0"},"paths":{...}}'></textarea>
           </div>
         </div>
       <template #footer>
-        <button class="xa-btn xa-btn-ghost" @click="showSpecUpload = false; specText = ''">Отмена</button>
+        <button class="xa-btn xa-btn-ghost" @click="showSpecUpload = false; specText = ''">{{ t('Отмена') }}</button>
         <button class="xa-btn xa-btn-primary" :disabled="!specText.trim()" @click="uploadSpec">
-          <BIcon name="upload" :size="14" /> Загрузить
+          <BIcon name="upload" :size="14" /> {{ t('Загрузить') }}
         </button>
       </template>
     </ModalShell>
@@ -460,16 +463,16 @@ function pasteSpec() {
     <!-- ───── Modal: delete ───── -->
     <ModalShell :open="!!showDelete" size="sm" @close="showDelete = null">
       <template v-if="showDelete" #header>
-        <h2 style="margin:0; font-size:15px; font-weight:500; color:#A32D2D;">Удалить "{{ showDelete.name }}"?</h2>
+        <h2 style="margin:0; font-size:15px; font-weight:500; color:#A32D2D;">{{ t('Удалить "') }}{{ showDelete.name }}"?</h2>
       </template>
       <div class="xa-modal-body" v-if="showDelete">
           <div style="font-size: 11.5px; color: var(--color-text-secondary);">
-            Запись и загруженный OpenAPI будут удалены. Webhook-подписки и API-ключи не затрагиваются.
+            {{ t('Запись и загруженный OpenAPI будут удалены. Webhook-подписки и API-ключи не затрагиваются.') }}
           </div>
         </div>
       <template #footer>
-        <button class="xa-btn xa-btn-ghost" @click="showDelete = null">Отмена</button>
-        <button class="xa-btn xa-btn-danger" @click="confirmDelete">Удалить</button>
+        <button class="xa-btn xa-btn-ghost" @click="showDelete = null">{{ t('Отмена') }}</button>
+        <button class="xa-btn xa-btn-danger" @click="confirmDelete">{{ t('Удалить') }}</button>
       </template>
     </ModalShell>
 

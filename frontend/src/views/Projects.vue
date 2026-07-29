@@ -12,6 +12,9 @@ import ChipFilter from "@/components/ChipFilter.vue";
 import TaskProjectEditor from "@/components/TaskProjectEditor.vue";
 import { useToast } from "@/composables/useToast";
 import type { ProjectDetail } from "@/api/projects";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const router = useRouter();
 const route = useRoute();
@@ -234,8 +237,8 @@ watch(() => route.query.open, (open) => {
   <div class="projects-page">
     <!-- Header -->
     <div class="page-header">
-      <div class="page-eyebrow">ПОРТФЕЛЬ <span style="color: #7F77DD;">{{ portfolioYear || "Все годы" }}</span></div>
-      <h1 class="page-title">Проекты</h1>
+      <div class="page-eyebrow">{{ t('ПОРТФЕЛЬ') }} <span style="color: #7F77DD;">{{ portfolioYear || "Все годы" }}</span></div>
+      <h1 class="page-title">{{ t('Проекты') }}</h1>
       <div class="page-sub">
         <span style="font-variant-numeric: tabular-nums;">{{ total }}</span>
         <span style="color: var(--t3); margin-left: 6px;">{{
@@ -255,7 +258,7 @@ watch(() => route.query.open, (open) => {
                   :animate-in="true"
                   @click="toggleStatus(s.id)" />
       <ChipFilter v-if="byStatus['deferred']"
-                  label="Перенесено"
+                  :label="t('Перенесено')"
                   :count="byStatus['deferred']"
                   :active="statusFilter === 'deferred'"
                   accent="#7F77DD"
@@ -273,7 +276,7 @@ watch(() => route.query.open, (open) => {
 
       <!-- Pack 7.33: чип «С эконом. эффектом» -->
       <ChipFilter
-        label="С эконом. эффектом"
+        :label="t('С эконом. эффектом')"
         :active="hasEffectFilter"
         accent="#1D9E75"
         accent-bg="rgba(29,158,117,.10)"
@@ -293,35 +296,35 @@ watch(() => route.query.open, (open) => {
     <!-- Filter bar -->
     <div class="filter-bar">
       <input v-model="search" class="filter-search"
-             placeholder="Поиск по номеру, названию, исполнителю…" />
+             :placeholder="t('Поиск по номеру, названию, исполнителю…')" />
       <select v-model="directionFilter" class="filter-select">
-        <option value="">Все направления</option>
+        <option value="">{{ t('Все направления') }}</option>
         <option v-for="d in directionsList" :key="d.code" :value="d.code">{{ d.label }}</option>
       </select>
       <select v-model="priorityFilter" class="filter-select">
-        <option value="">Все приоритеты</option>
-        <option value="high">Высокий</option>
-        <option value="medium">Средний</option>
-        <option value="low">Низкий</option>
+        <option value="">{{ t('Все приоритеты') }}</option>
+        <option value="high">{{ t('Высокий') }}</option>
+        <option value="medium">{{ t('Средний') }}</option>
+        <option value="low">{{ t('Низкий') }}</option>
       </select>
       <label class="filter-overdue">
         <input type="checkbox" v-model="onlyOverdue" />
-        <span>Только просроченные</span>
+        <span>{{ t('Только просроченные') }}</span>
       </label>
-      <button v-if="hasFilters" class="btn-clear" @click="clearFilters">Очистить</button>
-      <button class="btn-create" @click="openCreate">+ Проект</button>
+      <button v-if="hasFilters" class="btn-clear" @click="clearFilters">{{ t('Очистить') }}</button>
+      <button class="btn-create" @click="openCreate">{{ t('+ Проект') }}</button>
     </div>
 
     <!-- States -->
     <div v-if="errorMsg" class="state-msg error">⚠ {{ errorMsg }}</div>
-    <div v-else-if="loading && items.length === 0" class="state-msg">Загрузка…</div>
-    <div v-else-if="!loading && items.length === 0" class="state-msg">Ничего не найдено</div>
+    <div v-else-if="loading && items.length === 0" class="state-msg">{{ t('Загрузка…') }}</div>
+    <div v-else-if="!loading && items.length === 0" class="state-msg">{{ t('Ничего не найдено') }}</div>
 
     <!-- Project list -->
     <template v-else>
     <!-- Truncation hint: показано первых N из total (нет пагинации, limit:200) -->
     <div v-if="total > items.length" class="trunc-banner">
-      Показаны первые {{ items.length }} из {{ total }} — уточните фильтр для более точного списка.
+      {{ t('Показаны первые') }} {{ items.length }} {{ t('из') }} {{ total }} {{ t('— уточните фильтр для более точного списка.') }}
     </div>
     <div class="project-list">
       <div class="list-header">
@@ -329,12 +332,12 @@ watch(() => route.query.open, (open) => {
           № <span v-if="sortBy === 'num'" class="sort-arr">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
         </button>
         <button class="col-title" @click="toggleSort('title')">
-          НАЗВАНИЕ <span v-if="sortBy === 'title'" class="sort-arr">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+          {{ t('НАЗВАНИЕ') }} <span v-if="sortBy === 'title'" class="sort-arr">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
         </button>
-        <div class="col-progress">ПРОГРЕСС</div>
-        <div class="col-status">СТАТУС</div>
+        <div class="col-progress">{{ t('ПРОГРЕСС') }}</div>
+        <div class="col-status">{{ t('СТАТУС') }}</div>
         <button class="col-deadline" @click="toggleSort('due_date')">
-          ДЕДЛАЙН <span v-if="sortBy === 'due_date'" class="sort-arr">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+          {{ t('ДЕДЛАЙН') }} <span v-if="sortBy === 'due_date'" class="sort-arr">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
         </button>
         <div class="col-actions"></div>
       </div>
@@ -370,7 +373,7 @@ watch(() => route.query.open, (open) => {
           </div>
           <div class="progress-counts">
             <span class="pc-num">{{ p.tasks_done || 0 }}/{{ p.tasks_total || 0 }}</span>
-            <span class="pc-lbl">задач</span>
+            <span class="pc-lbl">{{ t('задач') }}</span>
           </div>
         </div>
         <div class="col-status">

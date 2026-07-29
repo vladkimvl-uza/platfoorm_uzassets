@@ -15,6 +15,9 @@ import {
 import { describeNotification, NOTIF_ICON_PATHS } from "@/composables/useNotificationMeta";
 import { useNotificationDetail } from "@/composables/useNotificationDetail";
 import ActorLine from "@/components/user/ActorLine.vue";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const router = useRouter();
 const store = useNotificationsStore();
@@ -122,11 +125,11 @@ const iconPath = (k: string) => NOTIF_ICON_PATHS[k] || NOTIF_ICON_PATHS.bell;
       <div class="ni-tb-l">
         <div class="ni-eyebrow">
           <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 1c2 0 4 2 4 4v3l2 2H2l2-2V5c0-2 2-4 4-4z"/></svg>
-          Личный кабинет · уведомления
+          {{ t('Личный кабинет · уведомления') }}
         </div>
-        <div class="ni-title">Все уведомления</div>
+        <div class="ni-title">{{ t('Все уведомления') }}</div>
         <div class="ni-sub">
-          <b>{{ total }}</b> всего · <b style="color:#A32D2D">{{ store.unreadCount }}</b> непрочитанных ·
+          <b>{{ total }}</b> {{ t('всего ·') }} <b style="color:#A32D2D">{{ store.unreadCount }}</b> {{ t('непрочитанных ·') }}
           <span v-if="store.isConnected" class="ni-live"><span class="ni-live-dot"></span> live</span>
           <span v-else class="ni-live offline"><span class="ni-live-dot"></span> polling</span>
         </div>
@@ -134,17 +137,17 @@ const iconPath = (k: string) => NOTIF_ICON_PATHS[k] || NOTIF_ICON_PATHS.bell;
       <div class="ni-tb-r">
         <button class="ni-btn ni-btn-ghost" @click="router.push('/notifications/settings')">
           <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="8" r="2"/><path d="M12.5 9.5l1 1M2.5 9.5l-1 1M9.5 12.5l1 1M9.5 2.5l1-1M6.5 12.5l-1 1M6.5 2.5l-1-1M12.5 6.5l1-1M2.5 6.5l-1-1"/></svg>
-          Настройки
+          {{ t('Настройки') }}
         </button>
       </div>
     </div>
 
     <div class="ni-filterbar">
-      <input v-model="search" placeholder="Поиск..." class="ni-search"/>
-      <label class="ni-check"><input type="checkbox" v-model="filterUnread"/> только непрочитанные</label>
-      <label class="ni-check"><input type="checkbox" v-model="filterArchived"/> показать архив</label>
+      <input v-model="search" :placeholder="t('Поиск...')" class="ni-search"/>
+      <label class="ni-check"><input type="checkbox" v-model="filterUnread"/> {{ t('только непрочитанные') }}</label>
+      <label class="ni-check"><input type="checkbox" v-model="filterArchived"/> {{ t('показать архив') }}</label>
       <span class="ni-divider"></span>
-      <span class="ni-prio-label">приоритет:</span>
+      <span class="ni-prio-label">{{ t('приоритет:') }}</span>
       <button v-for="p in (['critical','high','normal','low'] as Priority[])" :key="p"
               class="ni-prio-btn" :class="{ active: filterPriorities.includes(p) }"
               :style="filterPriorities.includes(p) ? { background: priorityBg(p), color: priorityColor(p) } : {}"
@@ -156,15 +159,15 @@ const iconPath = (k: string) => NOTIF_ICON_PATHS[k] || NOTIF_ICON_PATHS.bell;
     <div v-if="error" class="ni-err">{{ error }}</div>
 
     <div v-if="selected.size > 0" class="ni-bulk-bar">
-      <span>Выбрано: <b>{{ selected.size }}</b></span>
-      <button class="ni-btn ni-btn-ghost" @click="bulkRead">Прочитать выбранные</button>
-      <button class="ni-btn ni-btn-ghost" @click="bulkArchive">Архивировать</button>
-      <button class="ni-btn ni-btn-ghost" @click="clearSel">Снять выделение</button>
+      <span>{{ t('Выбрано:') }} <b>{{ selected.size }}</b></span>
+      <button class="ni-btn ni-btn-ghost" @click="bulkRead">{{ t('Прочитать выбранные') }}</button>
+      <button class="ni-btn ni-btn-ghost" @click="bulkArchive">{{ t('Архивировать') }}</button>
+      <button class="ni-btn ni-btn-ghost" @click="clearSel">{{ t('Снять выделение') }}</button>
     </div>
 
     <div class="ni-list">
       <div v-if="!loading && searchedItems.length === 0" class="ni-empty">
-        Ничего не найдено
+        {{ t('Ничего не найдено') }}
       </div>
       <div v-for="n in searchedItems" :key="n.id"
            class="ni-row"
@@ -181,7 +184,7 @@ const iconPath = (k: string) => NOTIF_ICON_PATHS[k] || NOTIF_ICON_PATHS.bell;
             </span>
             <span v-if="(n.payload as any)?.is_external" class="ni-ext">EXTERNAL</span>
             <span class="ni-time">{{ formatRelativeTime(n.created_at) }}</span>
-            <span v-if="n.is_archived" class="ni-archived-tag">в архиве</span>
+            <span v-if="n.is_archived" class="ni-archived-tag">{{ t('в архиве') }}</span>
           </div>
           <!-- КТО: имя (акцент) + компания и должность рядом -->
           <div v-if="n.source_user_id" class="ni-actor" @click.stop>
@@ -204,9 +207,9 @@ const iconPath = (k: string) => NOTIF_ICON_PATHS[k] || NOTIF_ICON_PATHS.bell;
     </div>
 
     <div v-if="totalPages > 1" class="ni-pager">
-      <button :disabled="page === 1" @click="page--" class="ni-btn ni-btn-ghost">← Назад</button>
-      <span>Стр. {{ page }} из {{ totalPages }}</span>
-      <button :disabled="page === totalPages" @click="page++" class="ni-btn ni-btn-ghost">Вперёд →</button>
+      <button :disabled="page === 1" @click="page--" class="ni-btn ni-btn-ghost">{{ t('← Назад') }}</button>
+      <span>{{ t('Стр.') }} {{ page }} {{ t('из') }} {{ totalPages }}</span>
+      <button :disabled="page === totalPages" @click="page++" class="ni-btn ni-btn-ghost">{{ t('Вперёд →') }}</button>
     </div>
   </div>
 </template>

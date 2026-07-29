@@ -12,6 +12,9 @@ import {
   isRecentlyUpdated, formatDate, dateSortKey,
   displayRating, coSector, sectorColor,
 } from "./ratingsHelpers";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const props = defineProps<{
   companies: CompanyListItem[];
@@ -88,16 +91,16 @@ const esgSlice  = computed(() => esgEvents.value.slice(0, 8));
 <template>
   <div class="rrc-card">
     <div class="rrc-head">
-      <span>Последние изменения</span>
+      <span>{{ t('Последние изменения') }}</span>
       <span v-if="hasShowAll" class="rrc-all" @click="emit('showAll')">
-        Показать все ({{ totalEvents }}) →
+        {{ t('Показать все (') }}{{ totalEvents }}) →
       </span>
     </div>
     <div class="rrc-body">
       <!-- Credit -->
       <div class="rrc-col">
         <div class="rrc-col-head" style="color:#378ADD">
-          <span>Кредитный рейтинг</span>
+          <span>{{ t('Кредитный рейтинг') }}</span>
           <span class="rrc-cnt">{{ creditEvents.length }}</span>
         </div>
         <div class="rrc-list">
@@ -128,14 +131,14 @@ const esgSlice  = computed(() => esgEvents.value.slice(0, 8));
             </span>
             <span v-if="e.isNew" class="rrc-recent">▲</span>
           </div>
-          <div v-if="!credSlice.length" class="rrc-empty">Нет данных</div>
+          <div v-if="!credSlice.length" class="rrc-empty">{{ t('Нет данных') }}</div>
         </div>
       </div>
 
       <!-- ESG -->
       <div class="rrc-col rrc-col-r">
         <div class="rrc-col-head" style="color:#1D9E75">
-          <span>ESG рейтинг</span>
+          <span>{{ t('ESG рейтинг') }}</span>
           <span class="rrc-cnt">{{ esgEvents.length }}</span>
         </div>
         <div class="rrc-list">
@@ -166,7 +169,7 @@ const esgSlice  = computed(() => esgEvents.value.slice(0, 8));
             </span>
             <span v-if="e.isNew" class="rrc-recent">▲</span>
           </div>
-          <div v-if="!esgSlice.length" class="rrc-empty">Нет данных</div>
+          <div v-if="!esgSlice.length" class="rrc-empty">{{ t('Нет данных') }}</div>
         </div>
       </div>
     </div>

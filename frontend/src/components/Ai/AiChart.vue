@@ -5,12 +5,15 @@
       <canvas ref="cv"></canvas>
     </div>
   </div>
-  <div v-else class="aic aic-err">График не удалось построить</div>
+  <div v-else class="aic aic-err">{{ t('График не удалось построить') }}</div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, computed } from "vue";
+import { useI18n } from "@/composables/useI18n";
 import { Chart } from "@/utils/chartjsRegister";
+
+const { t } = useI18n();
 
 interface ChartSpec {
   type?: string;
@@ -32,9 +35,9 @@ const PALETTE = ["#7F77DD", "#1D9E75", "#EF9F27", "#378ADD", "#E24B4A", "#534AB7
 const ALLOWED = new Set(["bar", "line", "doughnut", "radar"]);
 
 const type = computed(() => {
-  let t = (props.spec?.type || "bar").toLowerCase();
-  if (t === "pie" || t === "polararea") t = "doughnut";
-  return ALLOWED.has(t) ? t : "bar";
+  let chartType = (props.spec?.type || "bar").toLowerCase();
+  if (chartType === "pie" || chartType === "polararea") chartType = "doughnut";
+  return ALLOWED.has(chartType) ? chartType : "bar";
 });
 
 const datasets = computed(() => {

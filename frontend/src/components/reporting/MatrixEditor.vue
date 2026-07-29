@@ -16,6 +16,9 @@ import {
   type ManualDirection,
   type ManualProject,
 } from "@/api/overviewMatrix";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 interface Proj {
   id: string;
@@ -185,45 +188,42 @@ const ministerCount = computed(() =>
   <ModalShell :open="true" size="full" @close="emit('close')">
     <template #header>
       <div class="mx-head">
-        <div class="mx-head-t">Сводный обзор — {{ companyName }}</div>
+        <div class="mx-head-t">{{ t('Сводный обзор —') }} {{ companyName }}</div>
         <div class="mx-head-s">
-          FY {{ year }} · направлений: {{ dirs.length }} · проектов: {{ totalProjects }} · требует решения министра: {{ ministerCount }}
+          FY {{ year }} {{ t('· направлений:') }} {{ dirs.length }} {{ t('· проектов:') }} {{ totalProjects }} {{ t('· требует решения министра:') }} {{ ministerCount }}
         </div>
       </div>
     </template>
 
-    <div v-if="loading" class="mx-state">Загрузка…</div>
+    <div v-if="loading" class="mx-state">{{ t('Загрузка…') }}</div>
 
     <div v-else class="mx">
       <!-- Подсказка-инструкция -->
       <div class="mx-tip">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
         <div>
-          <b>Как заполнять.</b> Добавьте <b>направления</b> (строки отчёта) и в каждом — <b>проекты</b> по кварталам.
-          Для каждого проекта укажите <b>статус</b> (В графике / Внимание / Заблокирован) — он задаёт цвет в матрице,
-          и заполните <b>Цель / результат</b>, <b>Ответственного</b> и <b>«Требуется распоряжение»</b> — всё это
-          1-в-1 попадёт в печатный отчёт и таблицу «Детали проекта». Пустая цель в печати отметится как
-          <i>«ochiq»</i> (данные ещё не внесены). Квартал «авто» — по сроку; «до Q…» — Гант на несколько кварталов.
+          <b>{{ t('Как заполнять.') }}</b> {{ t('Добавьте') }} <b>{{ t('направления') }}</b> {{ t('(строки отчёта) и в каждом —') }} <b>{{ t('проекты') }}</b> {{ t('по кварталам. Для каждого проекта укажите') }} <b>{{ t('статус') }}</b> {{ t('(В графике / Внимание / Заблокирован) — он задаёт цвет в матрице, и заполните') }} <b>{{ t('Цель / результат') }}</b>, <b>{{ t('Ответственного') }}</b> {{ t('и') }} <b>{{ t('«Требуется распоряжение»') }}</b> {{ t('— всё это 1-в-1 попадёт в печатный отчёт и таблицу «Детали проекта». Пустая цель в печати отметится как') }}
+          <i>«ochiq»</i> {{ t('(данные ещё не внесены). Квартал «авто» — по сроку; «до Q…» — Гант на несколько кварталов.') }}
         </div>
       </div>
 
       <!-- Ошибка загрузки — НЕ показываем редактируемый пустой шаблон (иначе сейв затрёт отчёт) -->
       <div v-if="loadError" class="mx-load-error">
-        <div class="mx-empty-ttl">Не удалось загрузить отчёт</div>
-        <div class="mx-empty-sub">Сохранение заблокировано, чтобы не затереть существующие данные.</div>
+        <div class="mx-empty-ttl">{{ t('Не удалось загрузить отчёт') }}</div>
+        <div class="mx-empty-sub">{{ t('Сохранение заблокировано, чтобы не затереть существующие данные.') }}</div>
         <button class="mx-add-dir mx-add-dir-big" type="button" @click="loadCfg">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
-          Повторить
+          {{ t('Повторить') }}
         </button>
       </div>
 
       <!-- Пустой шаблон -->
       <div v-else-if="!dirs.length" class="mx-empty-all">
-        <div class="mx-empty-ttl">Пустой отчёт</div>
-        <div class="mx-empty-sub">Начните с добавления первого направления.</div>
+        <div class="mx-empty-ttl">{{ t('Пустой отчёт') }}</div>
+        <div class="mx-empty-sub">{{ t('Начните с добавления первого направления.') }}</div>
         <button class="mx-add-dir mx-add-dir-big" type="button" @click="addDirection()">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-          Добавить направление
+          {{ t('Добавить направление') }}
         </button>
       </div>
 
@@ -231,15 +231,15 @@ const ministerCount = computed(() =>
       <div v-for="(d, di) in dirs" :key="d.id" class="mx-dir">
         <div class="mx-dir-head">
           <span class="mx-dir-no">{{ di + 1 }}</span>
-          <input v-model="d.name" class="mx-in mx-dir-name-in" list="mxDirList" placeholder="Название направления (напр. «Финансы / Риски / Аудит»)" />
+          <input v-model="d.name" class="mx-in mx-dir-name-in" list="mxDirList" :placeholder="t('Название направления (напр. «Финансы / Риски / Аудит»)')" />
           <div class="mx-dir-actions">
-            <button class="mx-icon" type="button" title="Выше" :disabled="di === 0" @click="moveDirection(di, -1)">
+            <button class="mx-icon" type="button" :title="t('Выше')" :disabled="di === 0" @click="moveDirection(di, -1)">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 15l-6-6-6 6"/></svg>
             </button>
-            <button class="mx-icon" type="button" title="Ниже" :disabled="di === dirs.length - 1" @click="moveDirection(di, 1)">
+            <button class="mx-icon" type="button" :title="t('Ниже')" :disabled="di === dirs.length - 1" @click="moveDirection(di, 1)">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>
             </button>
-            <button class="mx-icon mx-icon-del" type="button" title="Удалить направление" @click="removeDirection(di)">
+            <button class="mx-icon mx-icon-del" type="button" :title="t('Удалить направление')" @click="removeDirection(di)">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
             </button>
           </div>
@@ -249,58 +249,58 @@ const ministerCount = computed(() =>
           <!-- строка 1: название + статус + ★ министру + удалить -->
           <div class="mx-pc-row mx-pc-r1">
             <div class="mx-title-wrap">
-              <input v-model="p.title" class="mx-in mx-in-title" list="mxProjList" placeholder="Название проекта (начните вводить — подсказка)…"
+              <input v-model="p.title" class="mx-in mx-in-title" list="mxProjList" :placeholder="t('Название проекта (начните вводить — подсказка)…')"
                      @change="onTitlePick(p)" @blur="onTitlePick(p)" />
-              <span v-if="p.ref_project_id" class="mx-linked" title="Связано с проектом системы">авто</span>
+              <span v-if="p.ref_project_id" class="mx-linked" :title="t('Связано с проектом системы')">{{ t('авто') }}</span>
             </div>
-            <select v-model="p.status" class="mx-in mx-in-status" :class="'st-' + (p.status || 'none')" title="Статус проекта">
-              <option :value="null">— статус —</option>
-              <option value="on_track">В графике</option>
-              <option value="attention">Внимание</option>
-              <option value="blocked">Заблокирован</option>
+            <select v-model="p.status" class="mx-in mx-in-status" :class="'st-' + (p.status || 'none')" :title="t('Статус проекта')">
+              <option :value="null">{{ t('— статус —') }}</option>
+              <option value="on_track">{{ t('В графике') }}</option>
+              <option value="attention">{{ t('Внимание') }}</option>
+              <option value="blocked">{{ t('Заблокирован') }}</option>
             </select>
-            <button class="mx-icon mx-icon-del" type="button" title="Удалить проект" @click="removeProject(d, pi)">
+            <button class="mx-icon mx-icon-del" type="button" :title="t('Удалить проект')" @click="removeProject(d, pi)">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
             </button>
           </div>
           <!-- строка 2: квартал · гант · срок -->
           <div class="mx-pc-row mx-pc-r2">
-            <label class="mx-fl"><span>Квартал</span>
+            <label class="mx-fl"><span>{{ t('Квартал') }}</span>
               <select v-model="p.quarter" class="mx-in mx-in-q"><option v-for="o in QOPTS" :key="String(o.v)" :value="o.v">{{ o.l }}</option></select>
             </label>
-            <label class="mx-fl"><span>Гант — до</span>
+            <label class="mx-fl"><span>{{ t('Гант — до') }}</span>
               <select v-model="p.quarter_end" class="mx-in mx-in-q"><option v-for="o in QEND_OPTS" :key="'e' + String(o.v)" :value="o.v">{{ o.l }}</option></select>
             </label>
-            <label class="mx-fl"><span>Срок</span>
+            <label class="mx-fl"><span>{{ t('Срок') }}</span>
               <input v-model="p.due_date" type="date" class="mx-in" />
             </label>
           </div>
           <!-- строка 3: цель + ответственный -->
           <div class="mx-pc-row mx-pc-r3">
-            <label class="mx-fl mx-fl-grow"><span>Цель / результат</span>
-              <textarea v-model="p.goal" class="mx-in mx-in-area" rows="2" placeholder="Что должно быть достигнуто…"></textarea>
+            <label class="mx-fl mx-fl-grow"><span>{{ t('Цель / результат') }}</span>
+              <textarea v-model="p.goal" class="mx-in mx-in-area" rows="2" :placeholder="t('Что должно быть достигнуто…')"></textarea>
             </label>
-            <label class="mx-fl mx-fl-grow"><span>Ответственный</span>
-              <input v-model="p.responsible" class="mx-in" placeholder="напр. «PwC · договор 13.03.26» / «не назначен»" />
+            <label class="mx-fl mx-fl-grow"><span>{{ t('Ответственный') }}</span>
+              <input v-model="p.responsible" class="mx-in" :placeholder="t('напр. «PwC · договор 13.03.26» / «не назначен»')" />
             </label>
           </div>
           <!-- строка 4: требуется распоряжение -->
           <div class="mx-pc-row">
-            <label class="mx-fl mx-fl-grow"><span>Требуется распоряжение</span>
-              <textarea v-model="p.minister_ask" class="mx-in mx-in-area" rows="2" placeholder="Какое решение/действие требуется (пусто = «Распоряжений не требуется»)"></textarea>
+            <label class="mx-fl mx-fl-grow"><span>{{ t('Требуется распоряжение') }}</span>
+              <textarea v-model="p.minister_ask" class="mx-in mx-in-area" rows="2" :placeholder="t('Какое решение/действие требуется (пусто = «Распоряжений не требуется»)')"></textarea>
             </label>
           </div>
         </div>
 
         <button class="mx-add-proj" type="button" @click="addProject(d)">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-          Добавить проект
+          {{ t('Добавить проект') }}
         </button>
       </div>
 
       <button v-if="dirs.length" class="mx-add-dir" type="button" @click="addDirection()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-        Добавить направление
+        {{ t('Добавить направление') }}
       </button>
 
       <!-- Источники автоподсказки -->
@@ -314,9 +314,9 @@ const ministerCount = computed(() =>
 
     <template #footer>
       <div class="mx-foot">
-        <span class="mx-foot-note">Печатается 1-в-1: статус-цвет в матрице и таблица «Детали проекта».</span>
+        <span class="mx-foot-note">{{ t('Печатается 1-в-1: статус-цвет в матрице и таблица «Детали проекта».') }}</span>
         <div class="mx-foot-btns">
-          <button class="mx-btn-cancel" type="button" :disabled="saving" @click="emit('close')">Отмена</button>
+          <button class="mx-btn-cancel" type="button" :disabled="saving" @click="emit('close')">{{ t('Отмена') }}</button>
           <button class="mx-btn-save" type="button" :disabled="saving || loading || loadError" @click="save">{{ saving ? 'Сохранение…' : 'Сохранить отчёт' }}</button>
         </div>
       </div>

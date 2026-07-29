@@ -6,6 +6,9 @@ import {
   apiCatalogApi, methodPill,
   type CatalogEndpoint, type CatalogSummary,
 } from "@/api/api_catalog";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const summary  = ref<CatalogSummary | null>(null);
 const loading  = ref(false);
@@ -94,10 +97,10 @@ async function copyCurl(e: CatalogEndpoint) {
     <div v-else-if="summary" class="cb-body">
 
       <div class="cb-side">
-        <div class="cb-side-hd">Модули · {{ summary.total_endpoints }} endpoints</div>
+        <div class="cb-side-hd">{{ t('Модули ·') }} {{ summary.total_endpoints }} endpoints</div>
 
         <div class="cb-mod-row" :class="{ active: !selectedModule }" @click="selectedModule = null">
-          <span>Все модули</span>
+          <span>{{ t('Все модули') }}</span>
           <span class="cb-mod-c">{{ summary.total_endpoints }}</span>
         </div>
 
@@ -121,7 +124,7 @@ async function copyCurl(e: CatalogEndpoint) {
         <div class="cb-actbar">
           <div class="cb-search">
             <BIcon name="search" :size="14" />
-            <input v-model="searchQ" type="text" placeholder="Поиск по пути, описанию, operation_id…"/>
+            <input v-model="searchQ" type="text" :placeholder="t('Поиск по пути, описанию, operation_id…')"/>
           </div>
           <div class="cb-mpills">
             <button v-for="m in ['ALL','GET','POST','PATCH','DELETE']" :key="m"
@@ -156,7 +159,7 @@ async function copyCurl(e: CatalogEndpoint) {
             </div>
             <div v-if="expandedKey === epKey(e)" class="cb-ep-body">
               <div v-if="e.description" class="cb-desc">{{ e.description }}</div>
-              <div v-else class="cb-desc cb-desc-empty">Описание отсутствует — добавьте docstring к endpoint функции.</div>
+              <div v-else class="cb-desc cb-desc-empty">{{ t('Описание отсутствует — добавьте docstring к endpoint функции.') }}</div>
 
               <div class="cb-sec">
                 <div class="cb-sec-hd">Tags</div>
@@ -166,13 +169,13 @@ async function copyCurl(e: CatalogEndpoint) {
               </div>
 
               <div class="cb-sec">
-                <div class="cb-sec-hd">Пример запроса · curl</div>
-                <pre class="cb-code"><span class="cb-code-copy"><button @click="copyCurl(e)"><BIcon name="copy" :size="14" /> копир.</button></span>{{ curlExample(e) }}</pre>
+                <div class="cb-sec-hd">{{ t('Пример запроса · curl') }}</div>
+                <pre class="cb-code"><span class="cb-code-copy"><button @click="copyCurl(e)"><BIcon name="copy" :size="14" /> {{ t('копир.') }}</button></span>{{ curlExample(e) }}</pre>
               </div>
 
               <div class="cb-actions">
                 <button class="cb-btn" @click="copyCurl(e)">
-                  <BIcon name="terminal-2" :size="14" /> Скопировать curl
+                  <BIcon name="terminal-2" :size="14" /> {{ t('Скопировать curl') }}
                 </button>
               </div>
             </div>

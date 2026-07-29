@@ -4,6 +4,9 @@ import { watchesApi, type WatchedItem } from "@/api/watches";
 import { PLATFORM_UPDATING_MESSAGE } from "@/api/client";
 import { useEntityEditor } from "@/composables/useEntityEditor";
 import { useToast } from "@/composables/useToast";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const { openTask, openProject } = useEntityEditor();
 const toast = useToast();
@@ -141,9 +144,9 @@ async function unfollow(it: WatchedItem, ev: Event) {
     <!-- Header -->
     <div class="fl-head">
       <div class="fl-head-l">
-        <div class="fl-eyebrow">UzAssets · Отслеживание</div>
-        <h1 class="fl-title">Отслеживаемое</h1>
-        <div class="fl-sub">Проекты и задачи, об изменениях которых вы получаете уведомления</div>
+        <div class="fl-eyebrow">{{ t('UzAssets · Отслеживание') }}</div>
+        <h1 class="fl-title">{{ t('Отслеживаемое') }}</h1>
+        <div class="fl-sub">{{ t('Проекты и задачи, об изменениях которых вы получаете уведомления') }}</div>
       </div>
       <div class="fl-live" :title="`${items.length} в отслеживании`">
         <span class="fl-live-dot"></span>{{ items.length }}
@@ -154,37 +157,37 @@ async function unfollow(it: WatchedItem, ev: Event) {
     <div class="fl-stats">
       <div class="fl-stat" :class="{ pop: !loading }" style="--d:0ms">
         <div class="fl-stat-n">{{ disp.total }}</div>
-        <div class="fl-stat-l">Всего</div>
+        <div class="fl-stat-l">{{ t('Всего') }}</div>
       </div>
       <div class="fl-stat danger" :class="{ pop: !loading, on: stats.overdue > 0 }" style="--d:60ms">
         <div class="fl-stat-n">{{ disp.overdue }}</div>
-        <div class="fl-stat-l">Просрочено</div>
+        <div class="fl-stat-l">{{ t('Просрочено') }}</div>
       </div>
       <div class="fl-stat warn" :class="{ pop: !loading, on: stats.risk > 0 }" style="--d:120ms">
         <div class="fl-stat-n">{{ disp.risk }}</div>
-        <div class="fl-stat-l">Под риском</div>
+        <div class="fl-stat-l">{{ t('Под риском') }}</div>
       </div>
       <div class="fl-stat ok" :class="{ pop: !loading, on: stats.done > 0 }" style="--d:180ms">
         <div class="fl-stat-n">{{ disp.done }}</div>
-        <div class="fl-stat-l">Завершено</div>
+        <div class="fl-stat-l">{{ t('Завершено') }}</div>
       </div>
     </div>
 
     <!-- Toolbar -->
     <div v-if="!loading && items.length" class="fl-toolbar">
       <div class="uza-seg">
-        <button :class="['uza-seg-btn', { on: fType === 'all' }]" @click="fType = 'all'">Все</button>
-        <button :class="['uza-seg-btn', { on: fType === 'project' }]" @click="fType = 'project'">Проекты</button>
-        <button :class="['uza-seg-btn', { on: fType === 'task' }]" @click="fType = 'task'">Задачи</button>
+        <button :class="['uza-seg-btn', { on: fType === 'all' }]" @click="fType = 'all'">{{ t('Все') }}</button>
+        <button :class="['uza-seg-btn', { on: fType === 'project' }]" @click="fType = 'project'">{{ t('Проекты') }}</button>
+        <button :class="['uza-seg-btn', { on: fType === 'task' }]" @click="fType = 'task'">{{ t('Задачи') }}</button>
       </div>
       <button class="fl-chip" :class="{ active: fOverdue }" @click="fOverdue = !fOverdue">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-        Просроченные
+        {{ t('Просроченные') }}
       </button>
       <div class="fl-search">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input v-model="search" type="text" placeholder="Поиск по названию, № или компании" />
-        <button v-if="search" class="fl-search-x" @click="search = ''" title="Очистить">
+        <input v-model="search" type="text" :placeholder="t('Поиск по названию, № или компании')" />
+        <button v-if="search" class="fl-search-x" @click="search = ''" :title="t('Очистить')">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
@@ -204,9 +207,9 @@ async function unfollow(it: WatchedItem, ev: Event) {
       <div class="fl-empty-ic">
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#E24B4A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
       </div>
-      <div class="fl-empty-t">Не удалось загрузить</div>
+      <div class="fl-empty-t">{{ t('Не удалось загрузить') }}</div>
       <div class="fl-empty-s">{{ PLATFORM_UPDATING_MESSAGE }}</div>
-      <button class="fl-reset" @click="load">Повторить</button>
+      <button class="fl-reset" @click="load">{{ t('Повторить') }}</button>
     </div>
 
     <!-- Empty (nothing followed at all) -->
@@ -214,15 +217,15 @@ async function unfollow(it: WatchedItem, ev: Event) {
       <div class="fl-empty-ic">
         <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#C7CCD9" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
       </div>
-      <div class="fl-empty-t">Пока ничего не отслеживается</div>
-      <div class="fl-empty-s">Откройте проект или задачу и нажмите «Отслеживать». Подписка добавляется автоматически, когда вы создаёте, комментируете или обновляете статус.</div>
+      <div class="fl-empty-t">{{ t('Пока ничего не отслеживается') }}</div>
+      <div class="fl-empty-s">{{ t('Откройте проект или задачу и нажмите «Отслеживать». Подписка добавляется автоматически, когда вы создаёте, комментируете или обновляете статус.') }}</div>
     </div>
 
     <!-- Empty (filtered out) -->
     <div v-else-if="!filtered.length" class="fl-empty sm">
-      <div class="fl-empty-t">Ничего не найдено</div>
-      <div class="fl-empty-s">Под текущие фильтры ничего не подошло.</div>
-      <button class="fl-reset" @click="fType = 'all'; fOverdue = false; search = ''">Сбросить фильтры</button>
+      <div class="fl-empty-t">{{ t('Ничего не найдено') }}</div>
+      <div class="fl-empty-s">{{ t('Под текущие фильтры ничего не подошло.') }}</div>
+      <button class="fl-reset" @click="fType = 'all'; fOverdue = false; search = ''">{{ t('Сбросить фильтры') }}</button>
     </div>
 
     <!-- List -->
@@ -263,9 +266,9 @@ async function unfollow(it: WatchedItem, ev: Event) {
         </span>
         <div class="fl-due" :class="{ overdue: overdueDays(it.due_date, it.status) }">
           <span class="fl-due-d">{{ fmtDue(it.due_date) }}</span>
-          <span v-if="overdueDays(it.due_date, it.status)" class="fl-overdue">просрочено {{ overdueDays(it.due_date, it.status) }} дн</span>
+          <span v-if="overdueDays(it.due_date, it.status)" class="fl-overdue">{{ t('просрочено') }} {{ overdueDays(it.due_date, it.status) }} {{ t('дн') }}</span>
         </div>
-        <button class="fl-unfollow" @click="unfollow(it, $event)" title="Перестать отслеживать">
+        <button class="fl-unfollow" @click="unfollow(it, $event)" :title="t('Перестать отслеживать')">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
         </button>
       </div>

@@ -39,6 +39,9 @@ import { usePermissions } from "@/composables/usePermissions";
 import { useAuthStore } from "@/stores/auth";
 import { watch } from "vue";
 import type { ESGMaturityHeatmap, ESGMaturityCompany, ESGSwotResponse, ESGSwotItemBrief } from "@/api/esg";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 // ───────────────────────────────────────────────────────────────
 //   State
@@ -714,13 +717,13 @@ onMounted(() => { load(); loadMaturity(); loadSwot(); });
         <div class="ev-topbar">
           <SidebarBurger />
           <div class="ev-tb-l">
-            <h1 class="ev-tb-title">ESG-рейтинги портфеля</h1>
+            <h1 class="ev-tb-title">{{ t('ESG-рейтинги портфеля') }}</h1>
             <div class="ev-tb-sub" v-if="k">
-              <span><b>{{ k.total_companies }}</b> компаний</span>
+              <span><b>{{ k.total_companies }}</b> {{ t('компаний') }}</span>
               <span class="ev-dot">·</span>
-              <span><b>{{ k.covered_count }}</b> с рейтингом</span>
+              <span><b>{{ k.covered_count }}</b> {{ t('с рейтингом') }}</span>
               <span class="ev-dot">·</span>
-              <span><b>{{ ESG_AGENCIES.length }}</b> агентств</span>
+              <span><b>{{ ESG_AGENCIES.length }}</b> {{ t('агентств') }}</span>
             </div>
           </div>
         </div>
@@ -735,49 +738,49 @@ onMounted(() => { load(); loadMaturity(); loadSwot(); });
             <div class="ev-kpi-strip ev-mat-kpis kpi-rail">
               <!-- 1. ИСО (база) -->
               <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#378ADD; --kpi2-d:0ms" @click="openKpiDrill('iso')">
-                <div class="kpi2-lbl">ИСО</div>
+                <div class="kpi2-lbl">{{ t('ИСО') }}</div>
                 <div class="kpi2-val"><Odometer :value="heatmap.iso_full_count" /><span class="ev-kpi-unit"> / {{ totalD1 }}</span></div>
-                <div class="kpi2-sub">все три стандарта</div>
+                <div class="kpi2-sub">{{ t('все три стандарта') }}</div>
               </div>
               <!-- 2. Отчётность 2024 (плейсхолдер — данные вносятся) -->
-              <div class="kpi2 fin-shimmer ev-kpi ev-kpi-ph" style="--kpi2-accent:#94A3B8; --kpi2-d:80ms" title="Данные за 2024 отчётный год вносятся">
-                <div class="kpi2-lbl">Отчётность 2024</div>
+              <div class="kpi2 fin-shimmer ev-kpi ev-kpi-ph" style="--kpi2-accent:#94A3B8; --kpi2-d:80ms" :title="t('Данные за 2024 отчётный год вносятся')">
+                <div class="kpi2-lbl">{{ t('Отчётность 2024') }}</div>
                 <div class="kpi2-val ev-kpi-xx">—</div>
-                <div class="kpi2-sub">по результатам 2024 года · вносится</div>
+                <div class="kpi2-sub">{{ t('по результатам 2024 года · вносится') }}</div>
               </div>
               <!-- 3. Отчётность 2025 · IFRS SDS (выделен ярко) -->
               <div class="kpi2 fin-shimmer ev-kpi ev-kpi-hl" style="--kpi2-accent:#7C6FF7; --kpi2-d:160ms" @click="openKpiDrill('ifrssds')">
-                <div class="kpi2-lbl">Отчётность 2025 <span class="ev-kpi-badge">IFRS SDS</span></div>
+                <div class="kpi2-lbl">{{ t('Отчётность 2025') }} <span class="ev-kpi-badge">IFRS SDS</span></div>
                 <div class="kpi2-val"><Odometer :value="ifrsSdsCount" /><span class="ev-kpi-unit"> / {{ totalD2 }}</span></div>
-                <div class="kpi2-sub">подготовка в процессе · обновляется в июле</div>
+                <div class="kpi2-sub">{{ t('подготовка в процессе · обновляется в июле') }}</div>
               </div>
               <!-- 4. Климатические стратегии (разработанные / в процессе) -->
               <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#1D9E75; --kpi2-d:240ms" @click="openKpiDrill('climate')">
-                <div class="kpi2-lbl">Климатические стратегии</div>
+                <div class="kpi2-lbl">{{ t('Климатические стратегии') }}</div>
                 <div class="kpi2-val ev-baskets">
                   <span style="color:#1D9E75">{{ climateDeveloped }}</span><span class="ev-bsep">/</span><span style="color:#D97706">{{ climateInProgress }}</span>
                 </div>
-                <div class="kpi2-sub">разработанные · в процессе</div>
+                <div class="kpi2-sub">{{ t('разработанные · в процессе') }}</div>
               </div>
               <!-- 5. Кол-во рейтингов в предприятиях -->
               <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#D97706; --kpi2-d:320ms" @click="openKpiDrill('coverage')">
-                <div class="kpi2-lbl">Рейтинги в предприятиях</div>
+                <div class="kpi2-lbl">{{ t('Рейтинги в предприятиях') }}</div>
                 <div class="kpi2-val"><Odometer :value="heatmap.rated_count" /><span class="ev-kpi-unit"> / {{ totalD3 }}</span></div>
-                <div class="kpi2-sub">{{ coveragePct }}% портфеля</div>
+                <div class="kpi2-sub">{{ coveragePct }}{{ t('% портфеля') }}</div>
               </div>
               <!-- 6. Уровни зрелости по цветам -->
               <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#378ADD; --kpi2-d:400ms" @click="openKpiDrill('baskets')">
-                <div class="kpi2-lbl">Уровни зрелости</div>
+                <div class="kpi2-lbl">{{ t('Уровни зрелости') }}</div>
                 <div class="kpi2-val ev-baskets">
                   <span style="color:#1D9E75">{{ heatmap.baskets.mature }}</span><span class="ev-bsep">/</span><span style="color:#D97706">{{ heatmap.baskets.developing }}</span><span class="ev-bsep">/</span><span style="color:#E24B4A">{{ heatmap.baskets.starting }}</span>
                 </div>
-                <div class="kpi2-sub">зрелые · развив. · начин.</div>
+                <div class="kpi2-sub">{{ t('зрелые · развив. · начин.') }}</div>
               </div>
             </div>
 
             <!-- Лента «Требует внимания» (вычисляется из матрицы) -->
             <div v-if="matAlerts.length" class="ev-alerts">
-              <span class="ev-alerts-h">Требует внимания</span>
+              <span class="ev-alerts-h">{{ t('Требует внимания') }}</span>
               <div v-for="a in matAlerts" :key="a.key" class="ev-alert">
                 <button type="button" class="ev-alert-chip" :style="{ '--ac': a.color }"
                         :title="`Показать ${a.count} компаний`" @click="openAlertDrill(a)">
@@ -788,14 +791,14 @@ onMounted(() => { load(); loadMaturity(); loadSwot(); });
 
             <!-- Воронки климата/рисков + покрытие -->
             <div class="ev-fn-row">
-              <ESGFunnel title="Климатические стратегии"
+              <ESGFunnel :title="t('Климатические стратегии')"
                          :stages="climateStages" :total="totalD4" scheme="climate"
                          @stage-click="(i) => openFunnelDrill('climate', i)" />
-              <ESGFunnel title="Управление ESG-рисками"
+              <ESGFunnel :title="t('Управление ESG-рисками')"
                          :stages="riskStages" :total="totalD5" scheme="risk"
                          @stage-click="(i) => openFunnelDrill('risk', i)" />
               <div class="ev-fn-donut">
-                <div class="fn-don-h">Покрытие по агентствам</div>
+                <div class="fn-don-h">{{ t('Покрытие по агентствам') }}</div>
                 <CreditDonut :entries="matDonut" :center-value="coveragePct + '%'" center-label="покрытие" :size="128" />
               </div>
             </div>
@@ -803,13 +806,13 @@ onMounted(() => { load(); loadMaturity(); loadSwot(); });
             <div class="ev-mat-tools">
               <div class="ev-search">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
-                <input v-model="matSearch" type="text" placeholder="Поиск компании…" />
+                <input v-model="matSearch" type="text" :placeholder="t('Поиск компании…')" />
               </div>
               <div class="ev-legend">
-                <span class="ev-lg"><i class="ev-lg-c" style="background:#DCFCE7;color:#1D9E75">✓</i>есть</span>
-                <span class="ev-lg"><i class="ev-lg-c" style="background:#FEF9C3;color:#D97706">◐</i>в процессе</span>
-                <span class="ev-lg"><i class="ev-lg-c" style="background:#F1F5F9;color:#94A3B8">—</i>нет</span>
-                <span class="ev-lg ev-lg-edit" v-if="canEditMaturity">клик по ячейке → подтвердите ✓ (защита от случайной правки)</span>
+                <span class="ev-lg"><i class="ev-lg-c" style="background:#DCFCE7;color:#1D9E75">✓</i>{{ t('есть') }}</span>
+                <span class="ev-lg"><i class="ev-lg-c" style="background:#FEF9C3;color:#D97706">◐</i>{{ t('в процессе') }}</span>
+                <span class="ev-lg"><i class="ev-lg-c" style="background:#F1F5F9;color:#94A3B8">—</i>{{ t('нет') }}</span>
+                <span class="ev-lg ev-lg-edit" v-if="canEditMaturity">{{ t('клик по ячейке → подтвердите ✓ (защита от случайной правки)') }}</span>
               </div>
             </div>
 
@@ -833,19 +836,19 @@ onMounted(() => { load(); loadMaturity(); loadSwot(); });
               <div class="ev-kpi-icn ok">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg>
               </div>
-              <div class="kpi2-lbl">Покрытие</div>
+              <div class="kpi2-lbl">{{ t('Покрытие') }}</div>
               <div class="kpi2-val">
                 <span :data-countup="k.covered_count"><Odometer :value="k.covered_count" /></span>
                 <span class="unit"> / {{ k.total_companies }}</span>
               </div>
-              <div class="kpi2-sub">с хотя бы одним <b>ESG-рейтингом · {{ k.coverage_pct }}%</b></div>
+              <div class="kpi2-sub">{{ t('с хотя бы одним') }} <b>{{ t('ESG-рейтингом ·') }} {{ k.coverage_pct }}%</b></div>
             </div>
 
             <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#EF9F27; --kpi2-d:80ms" @click="kpiDrill = 'leader'">
               <div class="ev-kpi-icn amber">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 010-5H6M18 9h1.5a2.5 2.5 0 000-5H18M4 22h16M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22M18 2H6v7a6 6 0 0012 0V2z"/></svg>
               </div>
-              <div class="kpi2-lbl">Лидер</div>
+              <div class="kpi2-lbl">{{ t('Лидер') }}</div>
               <div class="kpi2-val ev-kpi-name" :style="{
                 fontSize: (k.leader_company_name && k.leader_company_name.length > 14) ? '22px'
                           : (k.leader_company_name && k.leader_company_name.length > 10) ? '26px' : '30px'
@@ -854,9 +857,9 @@ onMounted(() => { load(); loadMaturity(); loadSwot(); });
               </div>
               <div class="kpi2-sub">
                 <template v-if="k.leader_composite != null">
-                  {{ k.leader_ratings_count }} рейтинга<template v-if="leaderNativeScore"> · <b>{{ leaderNativeScore }} балл</b></template>
+                  {{ k.leader_ratings_count }} {{ t('рейтинга') }}<template v-if="leaderNativeScore"> · <b>{{ leaderNativeScore }} {{ t('балл') }}</b></template>
                 </template>
-                <template v-else>нет данных</template>
+                <template v-else>{{ t('нет данных') }}</template>
               </div>
             </div>
 
@@ -864,14 +867,14 @@ onMounted(() => { load(); loadMaturity(); loadSwot(); });
               <div class="ev-kpi-icn red">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>
               </div>
-              <div class="kpi2-lbl">Без рейтинга</div>
+              <div class="kpi2-lbl">{{ t('Без рейтинга') }}</div>
               <div class="kpi2-val">
                 <span :data-countup="k.unrated_count"><Odometer :value="k.unrated_count" /></span>
-                <span class="unit"> компаний</span>
+                <span class="unit"> {{ t('компаний') }}</span>
               </div>
               <div class="kpi2-sub">
                 <span style="color:#EF4444"><b>{{ k.total_companies > 0 ? Math.round(k.unrated_count / k.total_companies * 100) : 0 }}%</b></span>
-                портфеля · нужны рейтинги
+                {{ t('портфеля · нужны рейтинги') }}
               </div>
             </div>
 
@@ -879,12 +882,12 @@ onMounted(() => { load(); loadMaturity(); loadSwot(); });
               <div class="ev-kpi-icn blue">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
               </div>
-              <div class="kpi2-lbl">Обновления</div>
+              <div class="kpi2-lbl">{{ t('Обновления') }}</div>
               <div class="kpi2-val">
                 <span v-if="k.recent_updates_count > 0" style="color:#1D9E75">+</span>
                 <span :data-countup="k.recent_updates_count"><Odometer :value="k.recent_updates_count" /></span>
               </div>
-              <div class="kpi2-sub">за <b>текущий и прошлый год</b></div>
+              <div class="kpi2-sub">{{ t('за') }} <b>{{ t('текущий и прошлый год') }}</b></div>
             </div>
           </div>
 
@@ -896,9 +899,9 @@ onMounted(() => { load(); loadMaturity(); loadSwot(); });
               <div class="ev-panel-h">
                 <h3>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/></svg>
-                  Покрытие портфеля
+                  {{ t('Покрытие портфеля') }}
                 </h3>
-                <span class="ev-panel-meta">по агентствам</span>
+                <span class="ev-panel-meta">{{ t('по агентствам') }}</span>
               </div>
               <div class="ev-panel-body ev-donut-body">
                 <CreditDonut
@@ -943,7 +946,7 @@ onMounted(() => { load(); loadMaturity(); loadSwot(); });
                       </td>
                     </tr>
                     <tr v-if="!kpiDrillRows.length">
-                      <td colspan="4" class="empty">Нет данных</td>
+                      <td colspan="4" class="empty">{{ t('Нет данных') }}</td>
                     </tr>
                   </tbody>
                 </table>

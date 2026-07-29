@@ -13,6 +13,9 @@ import { useToast } from "@/composables/useToast";
 import ModalShell from "@/components/ModalShell.vue";
 import EptLogo from "@/components/EptLogo.vue";
 import { useCompanyScope } from "@/composables/useCompanyScope";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 interface Co { id: string; code: string; name: string; }
 interface Dir { id: string; code: string; name: string; }
@@ -226,11 +229,11 @@ async function submit() {
     <div class="pb-top">
       <div class="pb-brand">
         <div class="pb-logo"><EptLogo :size="22" /></div>
-        <div><div class="pb-eyebrow">МАССОВОЕ ЗАВЕДЕНИЕ</div><div class="pb-tt">Конструктор проектов и задач</div></div>
+        <div><div class="pb-eyebrow">{{ t('МАССОВОЕ ЗАВЕДЕНИЕ') }}</div><div class="pb-tt">{{ t('Конструктор проектов и задач') }}</div></div>
       </div>
       <div class="pb-top-r">
         <input ref="fileInput" type="file" accept=".xlsx,.xlsm,.xls,.csv,.tsv,.txt,.pdf,.docx" class="pb-file" @change="onFile" />
-        <button class="pb-import" :disabled="importing" @click="pickFile" title="Excel / CSV / PDF — ИИ распознает и заполнит">
+        <button class="pb-import" :disabled="importing" @click="pickFile" :title="t('Excel / CSV / PDF — ИИ распознает и заполнит')">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
           {{ importing ? "Распознаю…" : "Импорт из файла" }}
         </button>
@@ -245,10 +248,10 @@ async function submit() {
       <div v-if="ingest && ingest.target === 'projects_tasks'" class="pb-ai-banner ok">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
         <div class="pb-ai-txt">
-          <b>ИИ распознал дашборд: «{{ ingest.target_label }}»</b>
-          <span v-if="ingest.confidence"> · уверенность {{ Math.round(ingest.confidence * 100) }}%</span>
+          <b>{{ t('ИИ распознал дашборд: «') }}{{ ingest.target_label }}»</b>
+          <span v-if="ingest.confidence"> {{ t('· уверенность') }} {{ Math.round(ingest.confidence * 100) }}%</span>
           <div v-if="ingest.notes" class="pb-ai-notes">{{ ingest.notes }}</div>
-          <div class="pb-ai-hint">Данные подставлены в шаги ниже — отредактируйте при необходимости, выберите компании и нажмите «Создать всё».</div>
+          <div class="pb-ai-hint">{{ t('Данные подставлены в шаги ниже — отредактируйте при необходимости, выберите компании и нажмите «Создать всё».') }}</div>
         </div>
         <button class="pb-ai-x" @click="ingest = null"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
       </div>
@@ -258,9 +261,9 @@ async function submit() {
       <!-- 1. КОМПАНИИ (скрыт при единственной доступной компании) -->
       <div v-if="scope.showCompanyPicker.value" class="pb-card">
         <div class="pb-card-h">
-          <span class="pb-step">1</span><span class="pb-card-t">Компании</span>
-          <span class="pb-card-cap">{{ selected.size }} выбрано</span>
-          <div class="pb-card-r"><button class="pb-mini" @click="selectAll">Все</button><button class="pb-mini" @click="clearCo">Сброс</button></div>
+          <span class="pb-step">1</span><span class="pb-card-t">{{ t('Компании') }}</span>
+          <span class="pb-card-cap">{{ selected.size }} {{ t('выбрано') }}</span>
+          <div class="pb-card-r"><button class="pb-mini" @click="selectAll">{{ t('Все') }}</button><button class="pb-mini" @click="clearCo">{{ t('Сброс') }}</button></div>
         </div>
         <div class="pb-cos">
           <button v-for="c in companies" :key="c.id" class="pb-co" :class="{ on: selected.has(c.id) }" @click="toggleCo(c.id)">{{ c.name }}</button>
@@ -269,51 +272,51 @@ async function submit() {
 
       <!-- 2. ОБЩИЕ НАСТРОЙКИ -->
       <div class="pb-card">
-        <div class="pb-card-h"><span class="pb-step">{{ stepNo(2) }}</span><span class="pb-card-t">Общие настройки</span><span class="pb-card-cap">применяются ко всему</span></div>
+        <div class="pb-card-h"><span class="pb-step">{{ stepNo(2) }}</span><span class="pb-card-t">{{ t('Общие настройки') }}</span><span class="pb-card-cap">{{ t('применяются ко всему') }}</span></div>
         <div class="pb-common">
-          <div class="pb-fld"><label>Год портфеля</label><input type="number" v-model.number="common.portfolio_year" class="pb-in" /></div>
-          <div class="pb-fld"><label>Направление (по умолч.)</label>
+          <div class="pb-fld"><label>{{ t('Год портфеля') }}</label><input type="number" v-model.number="common.portfolio_year" class="pb-in" /></div>
+          <div class="pb-fld"><label>{{ t('Направление (по умолч.)') }}</label>
             <select v-model="common.direction_id" class="pb-in"><option value="">—</option><option v-for="d in directions" :key="d.id" :value="d.id">{{ d.name }}</option></select>
           </div>
-          <div class="pb-fld"><label>Дедлайн (по умолч.)</label><input type="date" v-model="common.due_date" class="pb-in" /></div>
+          <div class="pb-fld"><label>{{ t('Дедлайн (по умолч.)') }}</label><input type="date" v-model="common.due_date" class="pb-in" /></div>
         </div>
       </div>
 
       <!-- 3. ПРОЕКТЫ -->
       <div class="pb-card">
-        <div class="pb-card-h"><span class="pb-step">{{ stepNo(3) }}</span><span class="pb-card-t">Проекты</span><span class="pb-card-cap">{{ projects.length }}</span>
-          <div class="pb-card-r"><button class="pb-add" @click="addProject">＋ Проект</button></div>
+        <div class="pb-card-h"><span class="pb-step">{{ stepNo(3) }}</span><span class="pb-card-t">{{ t('Проекты') }}</span><span class="pb-card-cap">{{ projects.length }}</span>
+          <div class="pb-card-r"><button class="pb-add" @click="addProject">{{ t('＋ Проект') }}</button></div>
         </div>
-        <div v-if="!projects.length" class="pb-empty">Проектов нет. Добавьте проект или сразу отдельные задачи ниже.</div>
+        <div v-if="!projects.length" class="pb-empty">{{ t('Проектов нет. Добавьте проект или сразу отдельные задачи ниже.') }}</div>
         <div v-for="(p, pi) in projects" :key="pi" class="pb-proj">
           <div class="pb-proj-head">
-            <input v-model="p.title" class="pb-in title" placeholder="Название проекта" />
+            <input v-model="p.title" class="pb-in title" :placeholder="t('Название проекта')" />
             <select v-model="p.status" class="pb-in sm"><option v-for="s in STATUSES" :key="s.v" :value="s.v">{{ s.l }}</option></select>
-            <select v-model="p.direction_id" class="pb-in sm"><option value="">направление…</option><option v-for="d in directions" :key="d.id" :value="d.id">{{ d.name }}</option></select>
+            <select v-model="p.direction_id" class="pb-in sm"><option value="">{{ t('направление…') }}</option><option v-for="d in directions" :key="d.id" :value="d.id">{{ d.name }}</option></select>
             <input type="date" v-model="p.due_date" class="pb-in sm" />
             <button class="pb-del" @click="rmProject(pi)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button>
           </div>
           <div v-if="p.comment" class="pb-cmt-row">
-            <span class="pb-cmt-tag">Комментарий</span>
-            <textarea v-model="p.comment" class="pb-cmt" rows="2" placeholder="Комментарий из документа"></textarea>
+            <span class="pb-cmt-tag">{{ t('Комментарий') }}</span>
+            <textarea v-model="p.comment" class="pb-cmt" rows="2" :placeholder="t('Комментарий из документа')"></textarea>
           </div>
           <div class="pb-tasks">
             <div v-for="(t, ti) in p.tasks" :key="ti" class="pb-task-wrap">
               <div class="pb-task">
                 <span class="pb-task-dot" />
-                <input v-model="t.title" class="pb-in" placeholder="Задача" />
+                <input v-model="t.title" class="pb-in" :placeholder="t('Задача')" />
                 <select v-model="t.status" class="pb-in sm"><option v-for="s in STATUSES" :key="s.v" :value="s.v">{{ s.l }}</option></select>
                 <input type="date" v-model="t.due_date" class="pb-in sm" />
                 <button class="pb-del" @click="rmTask(p, ti)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg></button>
               </div>
               <div v-if="t.comment" class="pb-cmt-row sub">
-                <span class="pb-cmt-tag">Комментарий</span>
-                <textarea v-model="t.comment" class="pb-cmt" rows="2" placeholder="Комментарий из документа"></textarea>
+                <span class="pb-cmt-tag">{{ t('Комментарий') }}</span>
+                <textarea v-model="t.comment" class="pb-cmt" rows="2" :placeholder="t('Комментарий из документа')"></textarea>
               </div>
             </div>
             <div class="pb-task-actions">
-              <button class="pb-add sm" @click="addTask(p)">＋ Задача</button>
-              <button class="pb-paste" @click="openPaste('project', pi)">⤓ Вставить списком</button>
+              <button class="pb-add sm" @click="addTask(p)">{{ t('＋ Задача') }}</button>
+              <button class="pb-paste" @click="openPaste('project', pi)">{{ t('⤓ Вставить списком') }}</button>
             </div>
           </div>
         </div>
@@ -321,49 +324,46 @@ async function submit() {
 
       <!-- 4. ОТДЕЛЬНЫЕ ЗАДАЧИ -->
       <div class="pb-card">
-        <div class="pb-card-h"><span class="pb-step">{{ stepNo(4) }}</span><span class="pb-card-t">Отдельные задачи</span><span class="pb-card-cap">{{ standalone.length }}</span>
-          <div class="pb-card-r"><button class="pb-add" @click="addStandalone">＋ Задача</button><button class="pb-paste" @click="openPaste('standalone', 0)">⤓ Вставить списком</button></div>
+        <div class="pb-card-h"><span class="pb-step">{{ stepNo(4) }}</span><span class="pb-card-t">{{ t('Отдельные задачи') }}</span><span class="pb-card-cap">{{ standalone.length }}</span>
+          <div class="pb-card-r"><button class="pb-add" @click="addStandalone">{{ t('＋ Задача') }}</button><button class="pb-paste" @click="openPaste('standalone', 0)">{{ t('⤓ Вставить списком') }}</button></div>
         </div>
         <div v-for="(t, ti) in standalone" :key="ti" class="pb-task-wrap">
           <div class="pb-task">
             <span class="pb-task-dot" />
-            <input v-model="t.title" class="pb-in" placeholder="Задача" />
+            <input v-model="t.title" class="pb-in" :placeholder="t('Задача')" />
             <select v-model="t.status" class="pb-in sm"><option v-for="s in STATUSES" :key="s.v" :value="s.v">{{ s.l }}</option></select>
             <select v-model="t.priority" class="pb-in sm"><option v-for="p in PRIOS" :key="p.v" :value="p.v">{{ p.l }}</option></select>
             <input type="date" v-model="t.due_date" class="pb-in sm" />
             <button class="pb-del" @click="rmStandalone(ti)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg></button>
           </div>
           <div v-if="t.comment" class="pb-cmt-row sub">
-            <span class="pb-cmt-tag">Комментарий</span>
-            <textarea v-model="t.comment" class="pb-cmt" rows="2" placeholder="Комментарий из документа"></textarea>
+            <span class="pb-cmt-tag">{{ t('Комментарий') }}</span>
+            <textarea v-model="t.comment" class="pb-cmt" rows="2" :placeholder="t('Комментарий из документа')"></textarea>
           </div>
         </div>
       </div>
 
       <div class="pb-summary">
-        Итого на <b>{{ selected.size }}</b> компаний: <b>{{ perCompany }}</b> ·
-        всего будет создано <b>{{ totalProjects * (selected.size||1) }}</b> проектов и <b>{{ totalTasks * (selected.size||1) }}</b> задач
+        {{ t('Итого на') }} <b>{{ selected.size }}</b> {{ t('компаний:') }} <b>{{ perCompany }}</b> {{ t('· всего будет создано') }} <b>{{ totalProjects * (selected.size||1) }}</b> {{ t('проектов и') }} <b>{{ totalTasks * (selected.size||1) }}</b> {{ t('задач') }}
       </div>
     </div>
 
     <!-- ПРЕВЬЮ для других дашбордов (распознано, авто-создание пока не подключено) -->
     <ModalShell :open="!!previewRows" size="xl" @close="previewRows = null">
       <template v-if="previewRows" #header>
-        <div class="pb-mod-t">Распознан дашборд: «{{ previewRows.target_label }}»
+        <div class="pb-mod-t">{{ t('Распознан дашборд: «') }}{{ previewRows.target_label }}»
           <span v-if="previewRows.confidence" class="pb-conf">{{ Math.round(previewRows.confidence * 100) }}%</span>
         </div>
       </template>
       <template v-if="previewRows">
               <p v-if="previewRows.supported" class="pb-mod-hint">
-                ИИ отнёс документ к дашборду <b>«{{ previewRows.target_label }}»</b> и распознал
-                <b>{{ previewRows.rows.length }}</b> строк. Проверьте/отредактируйте и нажмите
-                «Создать» — показатели добавятся в компании <b>по имени</b> за выбранный год,
-                <b>не затирая</b> существующие. <span v-if="previewRows.notes">{{ previewRows.notes }}</span>
+                {{ t('ИИ отнёс документ к дашборду') }} <b>«{{ previewRows.target_label }}»</b> {{ t('и распознал') }}
+                <b>{{ previewRows.rows.length }}</b> {{ t('строк. Проверьте/отредактируйте и нажмите «Создать» — показатели добавятся в компании') }} <b>{{ t('по имени') }}</b> {{ t('за выбранный год,') }}
+                <b>{{ t('не затирая') }}</b> {{ t('существующие.') }} <span v-if="previewRows.notes">{{ previewRows.notes }}</span>
               </p>
               <p v-else class="pb-mod-hint">
-                ИИ отнёс документ к дашборду <b>«{{ previewRows.target_label }}»</b> и распознал
-                <b>{{ previewRows.rows.length }}</b> строк. Авто-создание для этого дашборда ещё не
-                подключено — ниже распознанные данные. <span v-if="previewRows.notes">{{ previewRows.notes }}</span>
+                {{ t('ИИ отнёс документ к дашборду') }} <b>«{{ previewRows.target_label }}»</b> {{ t('и распознал') }}
+                <b>{{ previewRows.rows.length }}</b> {{ t('строк. Авто-создание для этого дашборда ещё не подключено — ниже распознанные данные.') }} <span v-if="previewRows.notes">{{ previewRows.notes }}</span>
               </p>
               <div class="pb-tbl-wrap">
                 <table class="pb-tbl edit">
@@ -371,47 +371,47 @@ async function submit() {
                   <tbody>
                     <tr v-for="(r, ri) in previewRows.rows" :key="ri">
                       <td v-for="f in previewRows.fields" :key="f.name"><input v-model="r[f.name]" class="pb-cell" :placeholder="f.type" /></td>
-                      <td class="pb-tbl-act"><button class="pb-del" @click="previewRows.rows.splice(ri, 1)" title="Удалить строку"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg></button></td>
+                      <td class="pb-tbl-act"><button class="pb-del" @click="previewRows.rows.splice(ri, 1)" :title="t('Удалить строку')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg></button></td>
                     </tr>
                   </tbody>
                 </table>
               </div>
       </template>
       <template v-if="previewRows" #footer>
-              <button class="pb-add" @click="addPreviewRow"><span>＋ Строка</span></button>
+              <button class="pb-add" @click="addPreviewRow"><span>{{ t('＋ Строка') }}</span></button>
               <span class="pb-mod-spacer" />
               <template v-if="previewRows.supported && previewRows.target === 'kpi'">
-                <label class="pb-kpi-fld">Год <input type="number" v-model.number="kpiYear" class="pb-in sm" /></label>
-                <label class="pb-kpi-fld">Менеджер <input v-model="kpiManager" class="pb-in sm wide" /></label>
+                <label class="pb-kpi-fld">{{ t('Год') }} <input type="number" v-model.number="kpiYear" class="pb-in sm" /></label>
+                <label class="pb-kpi-fld">{{ t('Менеджер') }} <input v-model="kpiManager" class="pb-in sm wide" /></label>
                 <button class="pb-save" :disabled="creatingKpi || !previewRows.rows.length" @click="createKpi">
                   {{ creatingKpi ? "Создаю…" : `Создать в KPI → ${previewRows.rows.length}` }}
                 </button>
               </template>
               <template v-else-if="previewRows.supported && previewRows.target === 'financials'">
-                <label class="pb-kpi-fld">Год <input type="number" v-model.number="finYear" class="pb-in sm" /></label>
-                <label class="pb-kpi-fld">Стандарт
-                  <select v-model="finStandard" class="pb-in sm"><option value="IFRS">МСФО</option><option value="NSBU">НСБУ</option></select>
+                <label class="pb-kpi-fld">{{ t('Год') }} <input type="number" v-model.number="finYear" class="pb-in sm" /></label>
+                <label class="pb-kpi-fld">{{ t('Стандарт') }}
+                  <select v-model="finStandard" class="pb-in sm"><option value="IFRS">{{ t('МСФО') }}</option><option value="NSBU">{{ t('НСБУ') }}</option></select>
                 </label>
-                <label class="pb-kpi-fld">Отчёт
-                  <select v-model="finReportType" class="pb-in sm"><option value="PL">ОПУ</option><option value="BS">Баланс</option><option value="CF">ДДС</option></select>
+                <label class="pb-kpi-fld">{{ t('Отчёт') }}
+                  <select v-model="finReportType" class="pb-in sm"><option value="PL">{{ t('ОПУ') }}</option><option value="BS">{{ t('Баланс') }}</option><option value="CF">{{ t('ДДС') }}</option></select>
                 </label>
                 <button class="pb-save" :disabled="creatingFin || !previewRows.rows.length" @click="createFin">
                   {{ creatingFin ? "Создаю…" : `Создать в Финансы → ${previewRows.rows.length}` }}
                 </button>
               </template>
-              <button class="pb-cancel" @click="previewRows = null">Закрыть</button>
+              <button class="pb-cancel" @click="previewRows = null">{{ t('Закрыть') }}</button>
       </template>
     </ModalShell>
 
     <!-- PASTE -->
-    <ModalShell :open="!!pasteFor" size="md" title="Вставить списком" @close="pasteFor = null">
+    <ModalShell :open="!!pasteFor" size="md" :title="t('Вставить списком')" @close="pasteFor = null">
       <div class="pb-mod-b">
-        <p class="pb-mod-hint">Каждая строка станет отдельной задачей.</p>
-        <textarea v-model="pasteText" rows="10" class="pb-area" placeholder="Разработать стратегию&#10;Привлечь консультанта&#10;Провести инвентаризацию&#10;…"></textarea>
+        <p class="pb-mod-hint">{{ t('Каждая строка станет отдельной задачей.') }}</p>
+        <textarea v-model="pasteText" rows="10" class="pb-area" :placeholder="t('Разработать стратегию Привлечь консультанта Провести инвентаризацию …')"></textarea>
       </div>
       <template #footer>
-        <button class="pb-cancel" @click="pasteFor = null">Отмена</button>
-        <button class="pb-save" @click="applyPaste">Добавить</button>
+        <button class="pb-cancel" @click="pasteFor = null">{{ t('Отмена') }}</button>
+        <button class="pb-save" @click="applyPaste">{{ t('Добавить') }}</button>
       </template>
     </ModalShell>
   </div>

@@ -9,6 +9,9 @@ import {
   type PartnerResources, type PartnerStatus, type PartnerTier,
 } from "@/api/partners";
 import { useConfirm } from "@/composables/useConfirm";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const { confirmDialog } = useConfirm();
 
@@ -151,22 +154,22 @@ const totalResources = computed(() => {
       <!-- LEFT: list -->
       <div class="pt-side">
         <div class="pt-side-hd">
-          <div class="pt-side-t">Партнёры</div>
+          <div class="pt-side-t">{{ t('Партнёры') }}</div>
           <button class="pt-add" @click="showCreate = true">
             <BIcon name="plus" :size="14" />
           </button>
         </div>
         <div class="pt-filt">
-          <input v-model="searchQ" @input="loadList" placeholder="Поиск…" class="pt-i"/>
+          <input v-model="searchQ" @input="loadList" :placeholder="t('Поиск…')" class="pt-i"/>
           <select v-model="filterStatus" @change="loadList" class="pt-s">
-            <option value="">все</option>
+            <option value="">{{ t('все') }}</option>
             <option value="active">active</option>
             <option value="suspended">suspended</option>
             <option value="terminated">terminated</option>
           </select>
         </div>
 
-        <UzaStateBlock v-if="!partners.length" state="empty" variant="block" title="Партнёров нет" desc="Создайте первого">
+        <UzaStateBlock v-if="!partners.length" state="empty" variant="block" :title="t('Партнёров нет')" desc="Создайте первого">
           <template #icon><BIcon name="building-arch" :size="14" /></template>
         </UzaStateBlock>
 
@@ -219,7 +222,7 @@ const totalResources = computed(() => {
             </div>
             <div class="pt-hero-actions">
               <button class="pt-btn" @click="openEdit">
-                <BIcon name="pencil" :size="14" /> Изменить
+                <BIcon name="pencil" :size="14" /> {{ t('Изменить') }}
               </button>
               <button class="pt-btn pt-btn-danger" @click="showDelete = selected">
                 <BIcon name="trash" :size="14" />
@@ -229,11 +232,11 @@ const totalResources = computed(() => {
 
           <div class="pt-grid">
             <div class="pt-card">
-              <div class="pt-card-hd">Контракт</div>
+              <div class="pt-card-hd">{{ t('Контракт') }}</div>
               <div class="pt-kv">
                 <div><span>Reference</span><code>{{ selected.contract_ref || "—" }}</code></div>
-                <div><span>Начало</span><span>{{ fmtDate(selected.contract_start) }}</span></div>
-                <div><span>Конец</span><span>{{ fmtDate(selected.contract_end) }}</span></div>
+                <div><span>{{ t('Начало') }}</span><span>{{ fmtDate(selected.contract_start) }}</span></div>
+                <div><span>{{ t('Конец') }}</span><span>{{ fmtDate(selected.contract_end) }}</span></div>
               </div>
             </div>
             <div class="pt-card">
@@ -246,16 +249,16 @@ const totalResources = computed(() => {
           </div>
 
           <div v-if="selected.notes" class="pt-notes">
-            <div class="pt-card-hd">Заметки</div>
+            <div class="pt-card-hd">{{ t('Заметки') }}</div>
             <pre>{{ selected.notes }}</pre>
           </div>
 
           <!-- ─── Linked resources ─── -->
           <div class="pt-res">
             <div class="pt-res-hd">
-              <span>Связанные ресурсы · {{ totalResources }}</span>
+              <span>{{ t('Связанные ресурсы ·') }} {{ totalResources }}</span>
               <span style="font-size: 10.5px; color: var(--color-text-tertiary);">
-                Привязывайте Service accounts / External APIs / Webhooks через их собственные tabs (PATCH с partner_id)
+                {{ t('Привязывайте Service accounts / External APIs / Webhooks через их собственные tabs (PATCH с partner_id)') }}
               </span>
             </div>
 
@@ -268,7 +271,7 @@ const totalResources = computed(() => {
                     <div class="pt-res-l">{{ r.label }}</div>
                     <div v-if="r.extra" class="pt-res-sub">{{ r.extra.email }}</div>
                   </div>
-                  <button class="pt-icon-btn" @click="detach(r)" title="Отвязать"><BIcon name="x" :size="14" /></button>
+                  <button class="pt-icon-btn" @click="detach(r)" :title="t('Отвязать')"><BIcon name="x" :size="14" /></button>
                 </div>
               </div>
 
@@ -280,7 +283,7 @@ const totalResources = computed(() => {
                     <div class="pt-res-l">{{ r.label }}</div>
                     <div v-if="r.extra" class="pt-res-sub"><code>{{ r.extra.slug }}</code> · {{ r.extra.status }}</div>
                   </div>
-                  <button class="pt-icon-btn" @click="detach(r)" title="Отвязать"><BIcon name="x" :size="14" /></button>
+                  <button class="pt-icon-btn" @click="detach(r)" :title="t('Отвязать')"><BIcon name="x" :size="14" /></button>
                 </div>
               </div>
 
@@ -292,7 +295,7 @@ const totalResources = computed(() => {
                     <div class="pt-res-l">{{ r.label }}</div>
                     <div v-if="r.extra" class="pt-res-sub"><code>{{ r.extra.target_url }}</code></div>
                   </div>
-                  <button class="pt-icon-btn" @click="detach(r)" title="Отвязать"><BIcon name="x" :size="14" /></button>
+                  <button class="pt-icon-btn" @click="detach(r)" :title="t('Отвязать')"><BIcon name="x" :size="14" /></button>
                 </div>
               </div>
             </div>
@@ -306,7 +309,7 @@ const totalResources = computed(() => {
     </div>
 
     <!-- ───── Modal: create ───── -->
-    <ModalShell :open="showCreate" size="lg" title="Новый партнёр" @close="showCreate = false">
+    <ModalShell :open="showCreate" size="lg" :title="t('Новый партнёр')" @close="showCreate = false">
         <div class="pt-modal-body">
           <div class="pt-mgrid">
             <div class="pt-field">
@@ -314,7 +317,7 @@ const totalResources = computed(() => {
               <input v-model="newPartner.slug" placeholder="minfin, sap_uzb, central_bank"/>
             </div>
             <div class="pt-field">
-              <label>Тип</label>
+              <label>{{ t('Тип') }}</label>
               <select v-model="newPartner.kind">
                 <option value="">—</option>
                 <option v-for="(label, code) in PARTNER_KIND_LABELS" :key="code" :value="code">{{ label }}</option>
@@ -322,20 +325,20 @@ const totalResources = computed(() => {
             </div>
           </div>
           <div class="pt-field">
-            <label>Имя</label>
-            <input v-model="newPartner.name" placeholder="Министерство финансов Республики Узбекистан"/>
+            <label>{{ t('Имя') }}</label>
+            <input v-model="newPartner.name" :placeholder="t('Министерство финансов Республики Узбекистан')"/>
           </div>
           <div class="pt-field">
-            <label>Юридическое наименование</label>
-            <input v-model="newPartner.legal_name" placeholder="(полное)"/>
+            <label>{{ t('Юридическое наименование') }}</label>
+            <input v-model="newPartner.legal_name" :placeholder="t('(полное)')"/>
           </div>
           <div class="pt-field">
-            <label>Описание</label>
+            <label>{{ t('Описание') }}</label>
             <textarea v-model="newPartner.description" rows="2"></textarea>
           </div>
           <div class="pt-mgrid" style="grid-template-columns: 1fr 1fr;">
             <div class="pt-field">
-              <label>Статус</label>
+              <label>{{ t('Статус') }}</label>
               <select v-model="newPartner.status">
                 <option value="active">active</option>
                 <option value="suspended">suspended</option>
@@ -343,7 +346,7 @@ const totalResources = computed(() => {
               </select>
             </div>
             <div class="pt-field">
-              <label>Тир</label>
+              <label>{{ t('Тир') }}</label>
               <select v-model="newPartner.tier">
                 <option value="">—</option>
                 <option value="platinum">platinum</option>
@@ -354,31 +357,31 @@ const totalResources = computed(() => {
             </div>
           </div>
           <div class="pt-field">
-            <label>Reference контракта</label>
+            <label>{{ t('Reference контракта') }}</label>
             <input v-model="newPartner.contract_ref" placeholder="UZA-2026-001"/>
           </div>
           <div class="pt-mgrid">
             <div class="pt-field">
-              <label>Начало контракта</label>
+              <label>{{ t('Начало контракта') }}</label>
               <input v-model="newPartner.contract_start" type="date"/>
             </div>
             <div class="pt-field">
-              <label>Конец контракта</label>
+              <label>{{ t('Конец контракта') }}</label>
               <input v-model="newPartner.contract_end" type="date"/>
             </div>
           </div>
           <div class="pt-field">
-            <label>Tags (через запятую)</label>
+            <label>{{ t('Tags (через запятую)') }}</label>
             <input v-model="newPartner.tags" placeholder="strategic, government, regulatory"/>
           </div>
           <div class="pt-field">
-            <label>Заметки</label>
+            <label>{{ t('Заметки') }}</label>
             <textarea v-model="newPartner.notes" rows="2"></textarea>
           </div>
         </div>
       <template #footer>
-        <button class="pt-btn pt-btn-ghost" @click="showCreate = false">Отмена</button>
-        <button class="pt-btn pt-btn-primary" @click="submitCreate">Создать</button>
+        <button class="pt-btn pt-btn-ghost" @click="showCreate = false">{{ t('Отмена') }}</button>
+        <button class="pt-btn pt-btn-primary" @click="submitCreate">{{ t('Создать') }}</button>
       </template>
     </ModalShell>
 
@@ -387,16 +390,16 @@ const totalResources = computed(() => {
                 :title="selected ? 'Изменить · ' + selected.name : ''" @close="showEdit = false">
         <div class="pt-modal-body" v-if="selected">
           <div class="pt-field">
-            <label>Имя</label>
+            <label>{{ t('Имя') }}</label>
             <input v-model="editingDraft.name"/>
           </div>
           <div class="pt-field">
-            <label>Описание</label>
+            <label>{{ t('Описание') }}</label>
             <textarea v-model="editingDraft.description" rows="2"></textarea>
           </div>
           <div class="pt-mgrid" style="grid-template-columns: 1fr 1fr 1fr;">
             <div class="pt-field">
-              <label>Статус</label>
+              <label>{{ t('Статус') }}</label>
               <select v-model="editingDraft.status">
                 <option value="active">active</option>
                 <option value="suspended">suspended</option>
@@ -404,7 +407,7 @@ const totalResources = computed(() => {
               </select>
             </div>
             <div class="pt-field">
-              <label>Тир</label>
+              <label>{{ t('Тир') }}</label>
               <select v-model="editingDraft.tier">
                 <option :value="null">—</option>
                 <option value="platinum">platinum</option>
@@ -414,7 +417,7 @@ const totalResources = computed(() => {
               </select>
             </div>
             <div class="pt-field">
-              <label>Тип</label>
+              <label>{{ t('Тип') }}</label>
               <select v-model="editingDraft.kind">
                 <option :value="null">—</option>
                 <option v-for="(label, code) in PARTNER_KIND_LABELS" :key="code" :value="code">{{ label }}</option>
@@ -422,29 +425,29 @@ const totalResources = computed(() => {
             </div>
           </div>
           <div class="pt-field">
-            <label>Заметки</label>
+            <label>{{ t('Заметки') }}</label>
             <textarea v-model="editingDraft.notes" rows="3"></textarea>
           </div>
         </div>
       <template #footer>
-        <button class="pt-btn pt-btn-ghost" @click="showEdit = false">Отмена</button>
-        <button class="pt-btn pt-btn-primary" @click="saveEdit">Сохранить</button>
+        <button class="pt-btn pt-btn-ghost" @click="showEdit = false">{{ t('Отмена') }}</button>
+        <button class="pt-btn pt-btn-primary" @click="saveEdit">{{ t('Сохранить') }}</button>
       </template>
     </ModalShell>
 
     <!-- ───── Modal: delete ───── -->
     <ModalShell :open="!!showDelete" size="sm" @close="showDelete = null">
       <template v-if="showDelete" #header>
-        <h2 style="margin:0; font-size:15px; font-weight:500; color:#A32D2D;">Удалить "{{ showDelete.name }}"?</h2>
+        <h2 style="margin:0; font-size:15px; font-weight:500; color:#A32D2D;">{{ t('Удалить "') }}{{ showDelete.name }}"?</h2>
       </template>
       <div class="pt-modal-body" v-if="showDelete">
           <div style="font-size: 11.5px; color: var(--color-text-secondary);">
-            Связанные ресурсы (SA, API, webhooks) НЕ удаляются — у них просто отвяжется partner_id.
+            {{ t('Связанные ресурсы (SA, API, webhooks) НЕ удаляются — у них просто отвяжется partner_id.') }}
           </div>
         </div>
       <template #footer>
-        <button class="pt-btn pt-btn-ghost" @click="showDelete = null">Отмена</button>
-        <button class="pt-btn pt-btn-danger" @click="confirmDelete">Удалить</button>
+        <button class="pt-btn pt-btn-ghost" @click="showDelete = null">{{ t('Отмена') }}</button>
+        <button class="pt-btn pt-btn-danger" @click="confirmDelete">{{ t('Удалить') }}</button>
       </template>
     </ModalShell>
 

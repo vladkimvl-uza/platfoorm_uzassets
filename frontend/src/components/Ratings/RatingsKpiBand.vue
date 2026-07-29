@@ -12,6 +12,9 @@ import {
   buildRatingIndex, getRating,
   ensureRatingsCss,
 } from "./ratingsHelpers";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const props = defineProps<{
   companies: CompanyListItem[];
@@ -134,7 +137,7 @@ function dynamicColor(n: number): string {
 
     <!-- 4. ESG -->
     <div class="rkb-card" style="--accent:#378ADD; --d:240ms;">
-      <div class="rkb-lbl">ESG рейтинг</div>
+      <div class="rkb-lbl">{{ t('ESG рейтинг') }}</div>
       <div class="rkb-val">
         <Odometer :value="esgCount" /><span class="rkb-tot"> / {{ tot }}</span>
       </div>
@@ -145,18 +148,18 @@ function dynamicColor(n: number): string {
 
     <!-- 5. Median Fitch -->
     <div class="rkb-card" style="--accent:#EF9F27; --d:320ms;">
-      <div class="rkb-lbl">Медианный рейтинг</div>
+      <div class="rkb-lbl">{{ t('Медианный рейтинг') }}</div>
       <div class="rkb-val rkb-val-letter" style="color:#D97706">{{ medianFitch }}</div>
-      <div class="rkb-sub">Fitch / портфель</div>
+      <div class="rkb-sub">{{ t('Fitch / портфель') }}</div>
     </div>
 
     <!-- 6. Coverage (dual progress bar) -->
     <div class="rkb-card" style="--accent:#E24B4A; --d:400ms;">
-      <div class="rkb-lbl">Покрытие</div>
+      <div class="rkb-lbl">{{ t('Покрытие') }}</div>
       <div class="rkb-bars">
         <div class="rkb-bar-row">
           <div class="rkb-bar-head">
-            <span class="rkb-bar-key">кредит</span>
+            <span class="rkb-bar-key">{{ t('кредит') }}</span>
             <span class="rkb-bar-val" :style="{ color: pctColor(credPct) }"><Odometer :value="credPct" />%</span>
           </div>
           <div class="rkb-bar-track">

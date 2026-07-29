@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
 defineProps<{
   daysOverdue?: number;  // если задано — добавляет "N дн" в бейдж
   size?: "sm" | "md";
@@ -8,7 +10,7 @@ defineProps<{
 <template>
   <span class="ov-badge" :class="`size-${size || 'md'}`">
     <span class="ov-dot"></span>
-    Просрочено<span v-if="daysOverdue" class="ov-days"> · {{ daysOverdue }} дн</span>
+    {{ t('Просрочено') }}<span v-if="daysOverdue" class="ov-days"> · {{ daysOverdue }} {{ t('дн') }}</span>
   </span>
 </template>
 

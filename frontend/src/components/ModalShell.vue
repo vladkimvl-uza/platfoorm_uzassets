@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref, watch, nextTick, computed, useSlots } from "vue";
 import { useConfirm } from "@/composables/useConfirm";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 // Глобальное (на все инстансы) состояние scroll-lock — поддержка вложенных модалок.
 let _openModals = 0;
@@ -165,7 +168,7 @@ onBeforeUnmount(() => {
               </slot>
             </div>
             <button v-if="!hideClose" type="button" class="uza-modal-close"
-                    @click="requestClose" aria-label="Закрыть">
+                    @click="requestClose" :aria-label="t('Закрыть')">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="18" y1="6" x2="6" y2="18"/>

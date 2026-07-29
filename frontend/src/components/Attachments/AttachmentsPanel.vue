@@ -14,14 +14,14 @@
           @change="onFilePicked"
           :accept="acceptAttr"
         />
-        <span v-if="uploading">Загрузка…</span>
-        <span v-else>+ Загрузить</span>
+        <span v-if="uploading">{{ t('Загрузка…') }}</span>
+        <span v-else>{{ t('+ Загрузить') }}</span>
       </label>
     </header>
 
     <div v-if="error" class="ap-error">{{ error }}</div>
 
-    <div v-if="loading" class="ap-empty">Загрузка…</div>
+    <div v-if="loading" class="ap-empty">{{ t('Загрузка…') }}</div>
     <div v-else-if="items.length === 0" class="ap-empty">{{ emptyText }}</div>
     <ul v-else class="ap-list">
       <li v-for="a in items" :key="a.id" class="ap-item">
@@ -63,7 +63,7 @@
         <button
           v-if="canDelete(a)"
           class="ap-del"
-          title="Удалить файл"
+          :title="t('Удалить файл')"
           @click="onDelete(a)"
           :disabled="deletingId === a.id"
         >×</button>
@@ -92,6 +92,9 @@ import {
 } from "@/api/attachments";
 import { useConfirm } from "@/composables/useConfirm";
 import AttachmentDenyModal from "./AttachmentDenyModal.vue";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const { confirmDialog } = useConfirm();
 

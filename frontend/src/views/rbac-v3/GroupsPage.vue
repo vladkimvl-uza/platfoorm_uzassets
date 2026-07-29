@@ -9,9 +9,12 @@ import UserAvatar from '@/components/rbac-v3/UserAvatar.vue';
 import ModuleSelectGrid from '@/components/rbac-v3/ModuleSelectGrid.vue';
 import { useToast } from '@/composables/useToast';
 import { useConfirm } from '@/composables/useConfirm';
+import { useI18n } from '@/composables/useI18n';
+import { INTL_LOCALE } from '@/locale';
 
 const toast = useToast();
 const { confirmDialog } = useConfirm();
+const { t, locale } = useI18n();
 
 // ─── Точечные правила (deny / срок / scope по компаниям) ────────
 interface AdvGrant { permission_code: string; grant_type: 'grant' | 'deny'; expires_at: string | null; scope_companies: string[]; }
@@ -44,10 +47,11 @@ const pickerRoleCode = ref<string>('viewer');
 
 async function loadGroups() {
   try {
-    groups.value = (await groupsApi.list()).sort((a, b) => a.name.localeCompare(b.name));
+    groups.value = (await groupsApi.list())
+      .sort((a, b) => a.name.localeCompare(b.name, INTL_LOCALE[locale.value]));
     if (!selectedId.value && groups.value.length > 0) selectedId.value = groups.value[0].id;
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || 'Не удалось загрузить группы';
+    error.value = e?.response?.data?.detail || t('Не удалось загрузить группы');
   }
 }
 async function loadDetail() {
@@ -69,7 +73,7 @@ async function loadDetail() {
     }));
     levels.value = permissionsToLevels(basePerms.map(p => p.code));
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || 'Ошибка загрузки группы';
+    error.value = e?.response?.data?.detail || t('Ошибка загрузки группы');
   } finally {
     loading.value = false;
   }
@@ -101,7 +105,7 @@ function toggleScopeCompany(g: AdvGrant, code: string) {
 watch(selectedId, loadDetail);
 
 async function selectGroup(id: string) {
-  if (dirty.value && !(await confirmDialog('Есть несохранённые изменения. Перейти к другой группе?'))) return;
+  if (dirty.value && !(await confirmDialog(t('Есть несохранённые изменения. Перейти к другой группе?')))) return;
   selectedId.value = id;
 }
 function onLevelChange(newLevels: Record<string, AccessLevel>) {
@@ -149,7 +153,7 @@ async function save() {
     await loadDetail();
     dirty.value = false;
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || 'Ошибка сохранения';
+    error.value = e?.response?.data?.detail || t('Ошибка сохранения');
   } finally {
     saving.value = false;
   }
@@ -157,7 +161,7 @@ async function save() {
 
 async function removeMember(userId: string) {
   if (!detail.value || !selectedId.value) return;
-  if (!(await confirmDialog({ message: 'Убрать пользователя из группы?', danger: true }))) return;
+  if (!(await confirmDialog({ message: t('Убрать пользователя из группы?'), danger: true }))) return;
   try {
     // Pack 147: preserve each remaining member's role_code (default 'viewer')
     const remaining = detail.value.members
@@ -167,7 +171,7 @@ async function removeMember(userId: string) {
     await loadDetail();
     await loadGroups();
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || 'Ошибка';
+    error.value = e?.response?.data?.detail || t('Ошибка');
   }
 }
 async function addMember(userId: string) {
@@ -184,7 +188,7 @@ async function addMember(userId: string) {
     await loadGroups();
     showMemberPicker.value = false;
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || 'Ошибка';
+    error.value = e?.response?.data?.detail || t('Ошибка');
   }
 }
 
@@ -198,7 +202,7 @@ async function changeMemberRole(userId: string, newRoleCode: string) {
     await groupsApi.setMembers(selectedId.value, updated);
     await loadDetail();
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || 'Не удалось сменить роль';
+    error.value = e?.response?.data?.detail || t('Не удалось сменить роль');
   }
 }
 async function openMemberPicker() {
@@ -208,14 +212,14 @@ async function openMemberPicker() {
       const resp = await rbacV3Api.listUsers({ limit: 200, is_active: true });
       allUsers.value = resp.items;
     } catch (e: any) {
-      error.value = e?.response?.data?.detail || 'Ошибка загрузки пользователей';
+      error.value = e?.response?.data?.detail || t('Ошибка загрузки пользователей');
     }
   }
 }
 
 async function onCreate() {
   if (!newGroup.value.code.trim() || !newGroup.value.name.trim()) {
-    error.value = 'Код и название обязательны';
+    error.value = t('Код и название обязательны');
     return;
   }
   saving.value = true;
@@ -231,7 +235,7 @@ async function onCreate() {
     await loadGroups();
     selectedId.value = created.id;
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || 'Не удалось создать группу';
+    error.value = e?.response?.data?.detail || t('Не удалось создать группу');
   } finally {
     saving.value = false;
   }
@@ -240,17 +244,22 @@ async function onCreate() {
 async function onDelete() {
   if (!detail.value || !selectedId.value) return;
   if (detail.value.member_count > 0) {
-    toast.error(`Нельзя удалить группу с участниками (${detail.value.member_count} чел). Сначала уберите всех.`);
+    toast.error(t('Нельзя удалить группу с участниками: {count}. Сначала уберите всех.', {
+      count: formatCount(detail.value.member_count),
+    }));
     return;
   }
-  if (!(await confirmDialog({ message: `Удалить группу "${detail.value.name}"?`, danger: true }))) return;
+  if (!(await confirmDialog({
+    message: t('Удалить группу «{name}»?', { name: detail.value.name }),
+    danger: true,
+  }))) return;
   try {
     await groupsApi.remove(selectedId.value);
     selectedId.value = null;
     detail.value = null;
     await loadGroups();
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || 'Не удалось удалить группу';
+    error.value = e?.response?.data?.detail || t('Не удалось удалить группу');
   }
 }
 
@@ -267,12 +276,17 @@ const availableMembers = computed(() => {
 const byDept = computed(() => {
   const map = new Map<string, RbacV3Group[]>();
   for (const g of groups.value) {
-    const key = g.department || 'Без отдела';
+    const key = g.department || t('Без отдела');
     if (!map.has(key)) map.set(key, []);
     map.get(key)!.push(g);
   }
-  return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  return Array.from(map.entries())
+    .sort((a, b) => a[0].localeCompare(b[0], INTL_LOCALE[locale.value]));
 });
+
+function formatCount(value: number): string {
+  return value.toLocaleString(INTL_LOCALE[locale.value]);
+}
 </script>
 
 <template>
@@ -280,14 +294,17 @@ const byDept = computed(() => {
     <!-- LEFT -->
     <div class="rv3-gr-list">
       <div class="rv3-gr-list-hd">
-        <span class="rv3-rl-section-hd">Группы · {{ groups.length }}</span>
-        <button class="rv3-gr-plus" @click="showCreate = true" aria-label="add">
+        <span class="rv3-rl-section-hd">{{ t('Группы: {count}', { count: formatCount(groups.length) }) }}</span>
+        <button class="rv3-gr-plus" :aria-label="t('Создать группу')" @click="showCreate = true">
           <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="8" y1="3" x2="8" y2="13"/><line x1="3" y1="8" x2="13" y2="8"/></svg>
         </button>
       </div>
 
       <template v-for="[dept, list] in byDept" :key="dept">
-        <div class="rv3-rl-section-hd" style="padding-top:14px">{{ dept }} · {{ list.length }}</div>
+        <div class="rv3-rl-section-hd" style="padding-top:14px">{{ t('{department} · Групп: {count}', {
+          department: dept,
+          count: formatCount(list.length),
+        }) }}</div>
         <div
           v-for="g in list"
           :key="g.id"
@@ -295,16 +312,19 @@ const byDept = computed(() => {
           @click="selectGroup(g.id)"
         >
           <div class="rv3-gr-name">{{ g.name }}</div>
-          <div class="rv3-gr-meta">{{ g.member_count }} чел · {{ g.permission_count }} разреш.</div>
+          <div class="rv3-gr-meta">{{ t('Участников: {members} · Разрешений: {permissions}', {
+            members: formatCount(g.member_count),
+            permissions: formatCount(g.permission_count),
+          }) }}</div>
         </div>
       </template>
 
-      <div v-if="groups.length === 0" class="rv3-state">Групп пока нет</div>
+      <div v-if="groups.length === 0" class="rv3-state">{{ t('Групп пока нет') }}</div>
     </div>
 
     <!-- RIGHT -->
     <div class="rv3-gr-edit">
-      <div v-if="loading" class="rv3-state">Загрузка...</div>
+      <div v-if="loading" class="rv3-state">{{ t('Загрузка...') }}</div>
       <div v-else-if="error" class="rv3-state rv3-err">{{ error }}</div>
       <template v-else-if="detail">
         <div class="rv3-gr-edit-hd">
@@ -319,40 +339,40 @@ const byDept = computed(() => {
           <div style="flex:1;">
             <input v-model="editName" class="rv3-gr-title-input" @input="dirty = true" />
             <div class="rv3-gr-meta-row">
-              <span>code: <code>{{ detail.code }}</code></span>
+              <span>{{ t('Код:') }} <code>{{ detail.code }}</code></span>
               <span>·</span>
-              <span>{{ detail.member_count }} участников</span>
+              <span>{{ t('Участников: {count}', { count: formatCount(detail.member_count) }) }}</span>
             </div>
           </div>
           <button class="rv3-save" :disabled="!dirty || saving" @click="save">
-            {{ saving ? 'Сохранение...' : (dirty ? 'Сохранить' : 'Сохранено') }}
+            {{ saving ? t('Сохранение...') : (dirty ? t('Сохранить') : t('Сохранено')) }}
           </button>
         </div>
 
         <div class="rv3-edit-section">
-          <div class="rv3-edit-label">Описание</div>
+          <div class="rv3-edit-label">{{ t('Описание') }}</div>
           <textarea
             v-model="editDescription"
             class="rv3-textarea"
             @input="dirty = true"
-            placeholder="Назначение группы"
+            :placeholder="t('Назначение группы')"
           ></textarea>
         </div>
 
         <div class="rv3-edit-section">
-          <div class="rv3-edit-label">Отдел</div>
+          <div class="rv3-edit-label">{{ t('Отдел') }}</div>
           <input
             v-model="editDepartment"
             class="rv3-input"
             @input="dirty = true"
-            placeholder="Финансовый блок / Юр.управление / ..."
+            :placeholder="t('Финансовый блок / Юр.управление / ...')"
           />
         </div>
 
         <div class="rv3-edit-section">
           <div class="rv3-edit-label rv3-edit-label-row">
-            <span>Участники · {{ detail.members.length }}</span>
-            <button class="rv3-link-btn" @click="openMemberPicker">+ добавить</button>
+            <span>{{ t('Участники: {count}', { count: formatCount(detail.members.length) }) }}</span>
+            <button class="rv3-link-btn" @click="openMemberPicker">+ {{ t('Добавить') }}</button>
           </div>
           <div class="rv3-members">
             <div v-for="m in detail.members" :key="m.id" class="rv3-member">
@@ -362,18 +382,18 @@ const byDept = computed(() => {
                 class="rv3-member-role"
                 :value="m.role_code || 'viewer'"
                 @change="changeMemberRole(m.id, ($event.target as HTMLSelectElement).value)"
-                :title="`Роль в группе: ${m.role_name || m.role_code || 'viewer'}`"
+                :title="t('Роль в группе: {role}', { role: m.role_name || m.role_code || 'viewer' })"
               >
                 <option v-for="r in allRoles" :key="r.code" :value="r.code">{{ r.name_ru }}</option>
               </select>
               <span class="rv3-member-x" @click="removeMember(m.id)">×</span>
             </div>
-            <span v-if="detail.members.length === 0" class="rv3-empty">никого нет — добавьте через кнопку справа</span>
+            <span v-if="detail.members.length === 0" class="rv3-empty">{{ t('Никого нет. Добавьте участника кнопкой справа.') }}</span>
           </div>
         </div>
 
         <div class="rv3-edit-section">
-          <div class="rv3-edit-label">Групповые разрешения · выдаются всем участникам</div>
+          <div class="rv3-edit-label">{{ t('Групповые разрешения · выдаются всем участникам') }}</div>
           <ModuleSelectGrid
             :model-value="levels"
             :editable="true"
@@ -385,35 +405,35 @@ const byDept = computed(() => {
         <!-- Точечные правила: deny / срок действия / scope по компаниям -->
         <div class="rv3-edit-section">
           <div class="rv3-edit-label rv3-adv-hd">
-            <span>Точечные правила · запрет, срок действия, ограничение по компаниям</span>
-            <button class="rv3-adv-add" @click="addAdvGrant">+ Правило</button>
+            <span>{{ t('Точечные правила · запрет, срок действия, ограничение по компаниям') }}</span>
+            <button class="rv3-adv-add" @click="addAdvGrant">+ {{ t('Правило') }}</button>
           </div>
           <div v-if="!advGrants.length" class="rv3-adv-empty">
-            Нет точечных правил. Используйте, чтобы <b>запретить</b> конкретное право, выдать его <b>на срок</b> или только для <b>выбранных компаний</b>.
+            {{ t('Нет точечных правил. Здесь можно запретить конкретное право, выдать его на срок или только для выбранных компаний.') }}
           </div>
           <div v-for="(g, i) in advGrants" :key="i" class="rv3-adv-row" :class="{ deny: g.grant_type === 'deny' }">
             <div class="rv3-adv-main">
               <select v-model="g.grant_type" class="rv3-adv-type" :class="g.grant_type" @change="dirty = true">
-                <option value="grant">Разрешить</option>
-                <option value="deny">Запретить</option>
+                <option value="grant">{{ t('Разрешить') }}</option>
+                <option value="deny">{{ t('Запретить') }}</option>
               </select>
               <select v-model="g.permission_code" class="rv3-adv-perm" @change="dirty = true">
                 <option v-for="p in allPerms" :key="p.code" :value="p.code">{{ p.name || p.code }} ({{ p.code }})</option>
               </select>
-              <label class="rv3-adv-exp" title="Срок действия (необязательно)">
-                до <input type="date" v-model="g.expires_at" @change="dirty = true" />
+              <label class="rv3-adv-exp" :title="t('Срок действия (необязательно)')">
+                {{ t('до') }} <input v-model="g.expires_at" type="date" @change="dirty = true" />
               </label>
-              <button class="rv3-adv-del" @click="removeAdvGrant(i)" title="Удалить правило">×</button>
+              <button class="rv3-adv-del" :title="t('Удалить правило')" @click="removeAdvGrant(i)">×</button>
             </div>
             <div class="rv3-adv-scope">
-              <span class="rv3-adv-scope-l">Компании (пусто = все):</span>
+              <span class="rv3-adv-scope-l">{{ t('Компании (пусто = все):') }}</span>
               <div class="rv3-adv-chips">
                 <button
                   v-for="c in allCompanies" :key="c.code"
                   class="rv3-adv-chip" :class="{ on: g.scope_companies.includes(c.code) }"
                   @click="toggleScopeCompany(g, c.code)"
                 >{{ c.name }}</button>
-                <span v-if="!allCompanies.length" class="rv3-adv-scope-empty">список компаний недоступен</span>
+                <span v-if="!allCompanies.length" class="rv3-adv-scope-empty">{{ t('Список компаний недоступен') }}</span>
               </div>
             </div>
           </div>
@@ -421,19 +441,19 @@ const byDept = computed(() => {
 
         <div class="rv3-edit-foot">
           <div style="flex:1"></div>
-          <button class="rv3-btn rv3-btn-red" @click="onDelete">Удалить группу</button>
+          <button class="rv3-btn rv3-btn-red" @click="onDelete">{{ t('Удалить группу') }}</button>
         </div>
       </template>
-      <div v-else-if="groups.length > 0" class="rv3-state">Выберите группу слева</div>
+      <div v-else-if="groups.length > 0" class="rv3-state">{{ t('Выберите группу слева') }}</div>
     </div>
 
     <!-- Member picker modal -->
-    <ModalShell :open="showMemberPicker" size="md" title="Добавить участника" @close="showMemberPicker = false">
-        <div class="rv3-edit-label" style="margin-top:4px">Роль в этой группе</div>
+    <ModalShell :open="showMemberPicker" size="md" :title="t('Добавить участника')" @close="showMemberPicker = false">
+        <div class="rv3-edit-label" style="margin-top:4px">{{ t('Роль в этой группе') }}</div>
         <select v-model="pickerRoleCode" class="rv3-input" style="margin-bottom:10px">
           <option v-for="r in allRoles" :key="r.code" :value="r.code">{{ r.name_ru }}</option>
         </select>
-        <input v-model="memberSearch" class="rv3-input" placeholder="Поиск по имени/email..." style="margin-bottom:10px" autofocus />
+        <input v-model="memberSearch" class="rv3-input" :placeholder="t('Поиск по имени/email...')" style="margin-bottom:10px" autofocus />
         <div class="rv3-picker-list">
           <div v-for="u in availableMembers" :key="u.id" class="rv3-picker-item" @click="addMember(u.id)">
             <UserAvatar :email="u.email" :full-name="u.full_name" :avatar-url="(u as any).avatar_url" :size="26" />
@@ -442,27 +462,27 @@ const byDept = computed(() => {
               <div class="rv3-picker-email">{{ u.email }}</div>
             </div>
           </div>
-          <div v-if="availableMembers.length === 0" class="rv3-empty">никого не найдено</div>
+          <div v-if="availableMembers.length === 0" class="rv3-empty">{{ t('Никого не найдено') }}</div>
         </div>
       <template #footer>
-        <button class="rv3-btn rv3-btn-ghost" @click="showMemberPicker = false">Закрыть</button>
+        <button class="rv3-btn rv3-btn-ghost" @click="showMemberPicker = false">{{ t('Закрыть') }}</button>
       </template>
     </ModalShell>
 
     <!-- Create group modal -->
-    <ModalShell :open="showCreate" size="md" title="Новая группа" @close="showCreate = false">
-        <div class="rv3-edit-label" style="margin-top:8px">Код (slug)</div>
+    <ModalShell :open="showCreate" size="md" :title="t('Новая группа')" @close="showCreate = false">
+        <div class="rv3-edit-label" style="margin-top:8px">{{ t('Код (slug)') }}</div>
         <input v-model="newGroup.code" class="rv3-input" placeholder="legal / finance / mining_team" />
-        <div class="rv3-edit-label" style="margin-top:8px">Название</div>
-        <input v-model="newGroup.name" class="rv3-input" placeholder="Юридический блок" />
-        <div class="rv3-edit-label" style="margin-top:8px">Отдел (опционально)</div>
-        <input v-model="newGroup.department" class="rv3-input" placeholder="Юр.управление" />
-        <div class="rv3-edit-label" style="margin-top:8px">Описание (опционально)</div>
+        <div class="rv3-edit-label" style="margin-top:8px">{{ t('Название') }}</div>
+        <input v-model="newGroup.name" class="rv3-input" :placeholder="t('Юридический блок')" />
+        <div class="rv3-edit-label" style="margin-top:8px">{{ t('Отдел (опционально)') }}</div>
+        <input v-model="newGroup.department" class="rv3-input" :placeholder="t('Юр.управление')" />
+        <div class="rv3-edit-label" style="margin-top:8px">{{ t('Описание (опционально)') }}</div>
         <textarea v-model="newGroup.description" class="rv3-textarea" />
       <template #footer>
-        <button class="rv3-btn rv3-btn-ghost" @click="showCreate = false">Отмена</button>
+        <button class="rv3-btn rv3-btn-ghost" @click="showCreate = false">{{ t('Отмена') }}</button>
         <button class="rv3-save" :disabled="saving" @click="onCreate">
-          {{ saving ? 'Создание...' : 'Создать' }}
+          {{ saving ? t('Создание...') : t('Создать') }}
         </button>
       </template>
     </ModalShell>

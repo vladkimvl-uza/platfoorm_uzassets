@@ -20,6 +20,9 @@
  *   • width     — макс. ширина плашки в px (default 280)
  */
 import { ref, computed } from "vue";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const props = withDefaults(
   defineProps<{
@@ -112,7 +115,7 @@ const arrowStyle = computed(() => {
       :style="{ width: `${iconSize}px`, height: `${iconSize}px`, fontSize: `${Math.round(iconSize * 0.62)}px` }"
       role="button"
       tabindex="0"
-      aria-label="Показать подсказку"
+      :aria-label="t('Показать подсказку')"
     >
       ?
     </span>

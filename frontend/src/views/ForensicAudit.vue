@@ -35,6 +35,9 @@ import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 // M-6: единый канон цвета/зоны исполнения (тот же порог, что был локально в
 // таблице; редактор ForensicEditModal импортирует тот же helper — конец расхождения).
 import { execCol as pctCol, execZone as pctZone } from "@/utils/execBand";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const fmt = useFormatters();
 const toast = useToast();
@@ -740,13 +743,13 @@ onBeforeUnmount(() => {
         <div class="pr-topbar">
           <SidebarBurger />
           <div class="pr-tb-l">
-            <h1 class="pr-tb-title">Закупки и Форензик аудит</h1>
+            <h1 class="pr-tb-title">{{ t('Закупки и Форензик аудит') }}</h1>
             <div class="pr-tb-sub" v-if="kpis.total_companies">
-              <span><b>{{ kpis.total_companies }}</b> компаний</span>
+              <span><b>{{ kpis.total_companies }}</b> {{ t('компаний') }}</span>
               <span class="pr-dot">·</span>
-              <span><b>{{ kpis.plan_approved }}</b> план утверждён</span>
+              <span><b>{{ kpis.plan_approved }}</b> {{ t('план утверждён') }}</span>
               <span class="pr-dot">·</span>
-              <span><b>{{ kpis.forensic_done }}</b> форензик завершён</span>
+              <span><b>{{ kpis.forensic_done }}</b> {{ t('форензик завершён') }}</span>
             </div>
           </div>
           <div class="pr-tb-r" @click="closeMenus()">
@@ -756,15 +759,15 @@ onBeforeUnmount(() => {
 
             <!-- Period segmented -->
             <div class="pr-seg">
-              <button :class="{ on: periodFilter === 'year' }" @click="periodFilter = 'year'">Год</button>
-              <button :class="{ on: periodFilter === '9m'   }" @click="periodFilter = '9m'  ">9 мес</button>
+              <button :class="{ on: periodFilter === 'year' }" @click="periodFilter = 'year'">{{ t('Год') }}</button>
+              <button :class="{ on: periodFilter === '9m'   }" @click="periodFilter = '9m'  ">{{ t('9 мес') }}</button>
               <button v-for="q in (['q1','q2','q3','q4'] as const)" :key="q"
                 :class="{ on: periodFilter === q }" @click="periodFilter = q">{{ q.toUpperCase() }}</button>
             </div>
 
             <!-- Edit menu (▤) -->
             <div class="pr-edit-wrap" @click.stop>
-              <button class="pr-edit-btn" @click="editMenuOpen = !editMenuOpen" title="Действия">
+              <button class="pr-edit-btn" @click="editMenuOpen = !editMenuOpen" :title="t('Действия')">
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                   <circle cx="8" cy="3" r="1.4" fill="currentColor"/>
                   <circle cx="8" cy="8" r="1.4" fill="currentColor"/>
@@ -772,9 +775,9 @@ onBeforeUnmount(() => {
                 </svg>
               </button>
               <div v-if="editMenuOpen" class="pr-edit-menu">
-                <button @click="editAction('edit')"><span class="pr-em-ico"></span>Редактировать данные</button>
+                <button @click="editAction('edit')"><span class="pr-em-ico"></span>{{ t('Редактировать данные') }}</button>
                 <div class="pr-em-sep"></div>
-                <button class="danger" @click="editAction('clear')"><span class="pr-em-ico">×</span>Очистить все данные</button>
+                <button class="danger" @click="editAction('clear')"><span class="pr-em-ico">×</span>{{ t('Очистить все данные') }}</button>
               </div>
             </div>
           </div>
@@ -796,11 +799,11 @@ onBeforeUnmount(() => {
             >
               <div class="pr-comp-grid">
                 <div class="pr-comp-cell">
-                  <div class="kpi2-lbl">План</div>
+                  <div class="kpi2-lbl">{{ t('План') }}</div>
                   <div class="kpi2-val"><span :data-countup="totals.kPlan">{{ totals.kPlan }}</span></div>
                   <div class="pr-comp-unit"
                        :title="anyEstimatedPlan ? 'Включает оценочные квартальные планы (год÷период): квартальная разбивка заведена не по всем компаниям' : ''">
-                    <span v-if="anyEstimatedPlan">≈ </span>трлн сум
+                    <span v-if="anyEstimatedPlan">≈ </span>{{ t('трлн сум') }}
                   </div>
                 </div>
                 <div class="pr-comp-divider"></div>
@@ -811,14 +814,14 @@ onBeforeUnmount(() => {
                 </div>
                 <div class="pr-comp-divider"></div>
                 <div class="pr-comp-cell">
-                  <div class="kpi2-lbl">Исполнение</div>
+                  <div class="kpi2-lbl">{{ t('Исполнение') }}</div>
                   <div class="kpi2-val pr-comp-pct" :style="{ color: hasFact ? pctCol(totals.avgP) : 'var(--t3)' }">
                     <span :data-countup="hasFact ? totals.avgP : 0">{{ hasFact ? totals.avgP : 0 }}</span><span class="pr-comp-pct-sign">%</span>
                   </div>
                   <!-- M-5: охват composite — по скольким компаниям с фактом считалось -->
                   <div v-if="hasFact && totals.covN < totals.count" class="pr-comp-unit"
                        :title="'Сводное исполнение считается только по компаниям с заведённым фактом. Остальные (' + (totals.count - totals.covN) + ') — план без факта, в среднее не входят.'">
-                    по {{ totals.covN }} из {{ totals.count }}
+                    {{ t('по') }} {{ totals.covN }} {{ t('из') }} {{ totals.count }}
                   </div>
                 </div>
               </div>
@@ -826,7 +829,7 @@ onBeforeUnmount(() => {
 
             <!-- Планы утверждены -->
             <div class="kpi2 fin-shimmer" style="--kpi2-accent:#7F77DD; --kpi2-d:80ms">
-              <div class="kpi2-lbl">Планы утверждены</div>
+              <div class="kpi2-lbl">{{ t('Планы утверждены') }}</div>
               <div class="kpi2-val">
                 <span :data-countup="totals.appr">{{ totals.appr }}</span>
                 <span class="pr-of"> / {{ totals.count }}</span>
@@ -835,22 +838,22 @@ onBeforeUnmount(() => {
 
             <!-- Аудит завершён (H-3: только «Завершён» + аудитор + годы) -->
             <div class="kpi2 fin-shimmer" style="--kpi2-accent:#1D9E75; --kpi2-d:160ms">
-              <div class="kpi2-lbl">Аудит завершён</div>
+              <div class="kpi2-lbl">{{ t('Аудит завершён') }}</div>
               <div class="kpi2-val">
                 <span :data-countup="totals.fDn">{{ totals.fDn }}</span>
                 <span class="pr-of"> / {{ totals.count }}</span>
               </div>
-              <div class="pr-kpi-sub" title="Компаний, у которых указан аудитор">с аудитором: {{ totals.withAud }}</div>
+              <div class="pr-kpi-sub" :title="t('Компаний, у которых указан аудитор')">{{ t('с аудитором:') }} {{ totals.withAud }}</div>
             </div>
           </div>
 
           <!-- ═══ 2. Bar chart (Plan vs Fact) ═══ -->
           <div class="pr-cc pr-chart-card" :class="{ 'pr-zoomed': zoomed === 'chart' }" style="--d:200ms">
             <div class="pr-cc-h">
-              <div class="pr-cc-t">Исполнение плана закупок, {{ periodLabel }}</div>
+              <div class="pr-cc-t">{{ t('Исполнение плана закупок,') }} {{ periodLabel }}</div>
               <div class="pr-cc-rt">
                 <div v-if="scope.showSectorPicker.value" class="pr-seg">
-                  <button :class="{ on: !sectorFilter }" @click="sectorFilter = ''">Все</button>
+                  <button :class="{ on: !sectorFilter }" @click="sectorFilter = ''">{{ t('Все') }}</button>
                   <button
                     v-for="sid in (['mining','oilgas','energy','transport','other'] as const)"
                     :key="sid"
@@ -879,19 +882,19 @@ onBeforeUnmount(() => {
                   <line x1="12" y1="20" x2="12" y2="4"/>
                   <line x1="6"  y1="20" x2="6"  y2="14"/>
                 </svg>
-                <div class="pr-empty-t">Нет данных за {{ periodLabel }}</div>
+                <div class="pr-empty-t">{{ t('Нет данных за') }} {{ periodLabel }}</div>
                 <div class="pr-empty-s">
-                  Ни у одной из {{ D.length }} компаний нет плана за этот период.
+                  {{ t('Ни у одной из') }} {{ D.length }} {{ t('компаний нет плана за этот период.') }}
                   <template v-if="periodFilter !== 'year'">
-                    Попробуй переключиться на «Год» или другой квартал —
-                    <button class="pr-empty-link" @click="periodFilter = 'year'">переключить на «Год»</button>.
+                    {{ t('Попробуй переключиться на «Год» или другой квартал —') }}
+                    <button class="pr-empty-link" @click="periodFilter = 'year'">{{ t('переключить на «Год»') }}</button>.
                   </template>
                 </div>
               </div>
             </div>
             <div v-if="hasFact && chartData.length" class="pr-chart-legend">
-              <span><span class="pr-leg-dot" style="background: rgba(127,119,221,.15)"></span> План</span>
-              <span><span class="pr-leg-dot" style="background: rgba(127,119,221,.50)"></span> Факт</span>
+              <span><span class="pr-leg-dot" style="background: rgba(127,119,221,.15)"></span> {{ t('План') }}</span>
+              <span><span class="pr-leg-dot" style="background: rgba(127,119,221,.50)"></span> {{ t('Факт') }}</span>
             </div>
           </div>
 
@@ -901,12 +904,12 @@ onBeforeUnmount(() => {
             <!-- LEFT: Plan -->
             <div class="pr-cc" :class="{ 'pr-zoomed': zoomed === 'plan' }" style="--d:280ms">
               <div class="pr-cc-h">
-                <div class="pr-cc-t">План закупок</div>
+                <div class="pr-cc-t">{{ t('План закупок') }}</div>
                 <div class="pr-cc-rt">
                   <div class="pr-seg">
-                    <button :class="{ on: planFilter === '' }" @click="planFilter = ''">Все</button>
-                    <button :class="{ on: planFilter === 'Утверждён' }" @click="planFilter = 'Утверждён'">Утверждён</button>
-                    <button :class="{ on: planFilter === 'Не утверждён' }" @click="planFilter = 'Не утверждён'">Не утверждён</button>
+                    <button :class="{ on: planFilter === '' }" @click="planFilter = ''">{{ t('Все') }}</button>
+                    <button :class="{ on: planFilter === 'Утверждён' }" @click="planFilter = 'Утверждён'">{{ t('Утверждён') }}</button>
+                    <button :class="{ on: planFilter === 'Не утверждён' }" @click="planFilter = 'Не утверждён'">{{ t('Не утверждён') }}</button>
                   </div>
                   <button class="pr-zoom-btn" @click="toggleZoom('plan')" :title="zoomed === 'plan' ? 'Свернуть' : 'Развернуть'">
                     <svg v-if="zoomed !== 'plan'" width="14" height="14" viewBox="0 0 16 16" fill="none">
@@ -924,10 +927,10 @@ onBeforeUnmount(() => {
                 <table class="pr-tbl">
                   <thead>
                     <tr>
-                      <th class="lt">Компания</th>
-                      <th>Статус</th>
-                      <th class="rt">План, млрд</th>
-                      <th class="rt">Факт, млрд</th>
+                      <th class="lt">{{ t('Компания') }}</th>
+                      <th>{{ t('Статус') }}</th>
+                      <th class="rt">{{ t('План, млрд') }}</th>
+                      <th class="rt">{{ t('Факт, млрд') }}</th>
                       <th class="rt">%</th>
                     </tr>
                   </thead>
@@ -945,14 +948,14 @@ onBeforeUnmount(() => {
                       </td>
                       <td class="rt num muted"
                           :title="gPisEstimate(c) ? 'Оценка: годовой план ÷ доля периода (квартальный план не заведён)' : ''">
-                        <span v-if="gPisEstimate(c)" style="color:var(--t3);font-weight:400" title="оценка">≈</span>{{ fN(gP(c)) }}
+                        <span v-if="gPisEstimate(c)" style="color:var(--t3);font-weight:400" :title="t('оценка')">≈</span>{{ fN(gP(c)) }}
                       </td>
                       <td class="rt num muted">{{ fN(gF(c)) }}</td>
                       <td class="rt num" :style="{ color: pctCol(gPct(c)), fontWeight: 600 }"
                           :title="pctZone(gPct(c)) + (gPisEstimate(c) && gPctState(c) === 'pct' ? ' · % от оценочного плана (год÷период)' : '')">
                         <!-- H-4: 0% (факт=0 при плане) красным; «факт —» когда план есть, а факта нет; «—» когда плана нет -->
                         <template v-if="gPctState(c) === 'pct'">{{ gPct(c) }}%</template>
-                        <span v-else-if="gPctState(c) === 'nofact'" class="pr-nofact" title="План есть, факт не заведён">факт —</span>
+                        <span v-else-if="gPctState(c) === 'nofact'" class="pr-nofact" :title="t('План есть, факт не заведён')">{{ t('факт —') }}</span>
                         <span v-else style="color:var(--t3)">—</span>
                       </td>
                     </tr>
@@ -965,14 +968,14 @@ onBeforeUnmount(() => {
             <!-- RIGHT: Forensic + auditor breakdown -->
             <div class="pr-cc" :class="{ 'pr-zoomed': zoomed === 'forensic' }" style="--d:330ms">
               <div class="pr-cc-h">
-                <div class="pr-cc-t">Форензик аудит</div>
+                <div class="pr-cc-t">{{ t('Форензик аудит') }}</div>
                 <div class="pr-cc-rt">
                   <div class="pr-seg">
-                    <button :class="{ on: forFilter === '' }" @click="forFilter = ''">Все</button>
-                    <button :class="{ on: forFilter === 'Завершён' }"  @click="forFilter = 'Завершён'">Завершён</button>
-                    <button :class="{ on: forFilter === 'В процессе' }" @click="forFilter = 'В процессе'">В процессе</button>
-                    <button :class="{ on: forFilter === 'Тендер' }"   @click="forFilter = 'Тендер'">Тендер</button>
-                    <button :class="{ on: forFilter === 'Не начат' }"  @click="forFilter = 'Не начат'">Не начат</button>
+                    <button :class="{ on: forFilter === '' }" @click="forFilter = ''">{{ t('Все') }}</button>
+                    <button :class="{ on: forFilter === 'Завершён' }"  @click="forFilter = 'Завершён'">{{ t('Завершён') }}</button>
+                    <button :class="{ on: forFilter === 'В процессе' }" @click="forFilter = 'В процессе'">{{ t('В процессе') }}</button>
+                    <button :class="{ on: forFilter === 'Тендер' }"   @click="forFilter = 'Тендер'">{{ t('Тендер') }}</button>
+                    <button :class="{ on: forFilter === 'Не начат' }"  @click="forFilter = 'Не начат'">{{ t('Не начат') }}</button>
                   </div>
                   <button class="pr-zoom-btn" @click="toggleZoom('forensic')" :title="zoomed === 'forensic' ? 'Свернуть' : 'Развернуть'">
                     <svg v-if="zoomed !== 'forensic'" width="14" height="14" viewBox="0 0 16 16" fill="none">
@@ -989,7 +992,7 @@ onBeforeUnmount(() => {
 
               <!-- Auditor breakdown -->
               <div v-if="auditorStats.length" class="pr-aud-block">
-                <div class="pr-aud-title">По аудиторам</div>
+                <div class="pr-aud-title">{{ t('По аудиторам') }}</div>
                 <div v-for="ag in auditorStats" :key="ag.key" class="pr-aud-row uza-side-stripe-host" :class="{ on: audFilter === ag.key }" @click="toggleAuditor(ag.key)">
                   <span class="uza-stripe-el" :style="{ '--stripe-color': ag.color }" />
                   <span class="pr-aud-legend">
@@ -1013,10 +1016,10 @@ onBeforeUnmount(() => {
                 <table class="pr-tbl">
                   <thead>
                     <tr>
-                      <th class="lt">Компания</th>
-                      <th>Статус</th>
-                      <th class="lt-sub">Аудитор</th>
-                      <th class="lt-sub">Период</th>
+                      <th class="lt">{{ t('Компания') }}</th>
+                      <th>{{ t('Статус') }}</th>
+                      <th class="lt-sub">{{ t('Аудитор') }}</th>
+                      <th class="lt-sub">{{ t('Период') }}</th>
                     </tr>
                   </thead>
                   <tbody>

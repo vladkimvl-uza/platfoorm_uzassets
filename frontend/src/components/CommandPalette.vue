@@ -83,7 +83,7 @@ function logout() { close(); auth.clear(); router.push({ name: "login" }); }
 const navCommands = computed<Cmd[]>(() => {
   // [показывать?, заголовок, подзаголовок, путь, иконка, ключевые слова]
   const defs: Array<[boolean, string, string, string, string, string]> = [
-    [can("exec_dashboard.view") && scope.showPortfolioViews.value, "Executive Dashboard", t("Обзор портфеля"), "/executive-dashboard", "chart", "дашборд executive обзор"],
+    [can("exec_dashboard.view") && (scope.showPortfolioViews.value || auth.hasDirectPermission("exec_dashboard.view")), "Executive Dashboard", t("Обзор портфеля"), "/executive-dashboard", "chart", "дашборд executive обзор"],
     [isAdmin.value, "Execution Summary", t("Мониторинг прогрессов"), "/execution-summary", "activity", "control tower live мониторинг"],
     [can("projects.view") || can("tasks.view"), t("Проекты трансформации"), t("Портфель проектов и задач"), "/dashboard", "grid", "проекты задачи доска kanban"],
     [can("tasks.view"), t("Отслеживаемое"), t("Подписки на изменения"), "/followed", "eye", "watch подписки отслеживание"],

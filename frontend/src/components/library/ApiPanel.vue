@@ -9,6 +9,9 @@ import { computed, ref, watch } from "vue";
 import { useApiCatalogStore } from "@/stores/apiCatalog";
 import type { CatalogEndpointWithSubstitution } from "@/api/apiCatalog";
 import EndpointCard from "./EndpointCard.vue";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const props = defineProps<{
   companyId: string;
@@ -76,13 +79,13 @@ const shortId = computed(() => props.companyId.slice(0, 8) + "…");
         </svg>
         API · {{ tabLabel }}
       </span>
-      <button class="ap-refresh" @click="refresh" title="Обновить" :disabled="loading">↻</button>
+      <button class="ap-refresh" @click="refresh" :title="t('Обновить')" :disabled="loading">↻</button>
     </header>
 
-    <div v-if="loading && endpoints.length === 0" class="ap-loading">Загружаю…</div>
+    <div v-if="loading && endpoints.length === 0" class="ap-loading">{{ t('Загружаю…') }}</div>
     <div v-else-if="error" class="ap-error">{{ error }}</div>
     <div v-else-if="endpoints.length === 0" class="ap-empty">
-      Для этой вкладки нет company-scoped endpoints
+      {{ t('Для этой вкладки нет company-scoped endpoints') }}
     </div>
 
     <div v-else class="ap-list">
@@ -97,7 +100,7 @@ const shortId = computed(() => props.companyId.slice(0, 8) + "…");
 
     <!-- Substitutions hint -->
     <div class="ap-subs">
-      <div class="ap-subs-label">Подставлено в пути</div>
+      <div class="ap-subs-label">{{ t('Подставлено в пути') }}</div>
       <div class="ap-subs-row">
         <code class="mono">{id}</code>
         <span class="ap-subs-arrow">→</span>
@@ -106,7 +109,7 @@ const shortId = computed(() => props.companyId.slice(0, 8) + "…");
     </div>
 
     <p class="ap-foot-hint">
-      Все endpoints требуют JWT, кроме помеченных <span class="ap-hint-public">public</span>.
+      {{ t('Все endpoints требуют JWT, кроме помеченных') }} <span class="ap-hint-public">public</span>.
     </p>
   </aside>
 </template>

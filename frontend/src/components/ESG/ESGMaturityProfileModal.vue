@@ -10,6 +10,9 @@ import ModalShell from "@/components/ModalShell.vue";
 import ESGReportsTable from "@/components/ESG/ESGReportsTable.vue";
 import type { ESGMaturityCompany } from "@/api/esg";
 import { ratingsApi, type AgencyRatingBrief, type AgencyRatingHistoryItem } from "@/api/ratings";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const props = defineProps<{ company: ESGMaturityCompany | null; canEdit?: boolean }>();
 const emit = defineEmits<{ (e: "close"): void }>();
@@ -60,7 +63,7 @@ watch(() => props.company, (c) => {
     <template #header v-if="company">
       <div class="mp-head">
         <div>
-          <div class="mp-eyebrow">{{ company.sector_name || company.company_code }} · ESG-зрелость</div>
+          <div class="mp-eyebrow">{{ company.sector_name || company.company_code }} {{ t('· ESG-зрелость') }}</div>
           <div class="mp-title">{{ company.company_name || company.company_code }}</div>
         </div>
       </div>
@@ -69,10 +72,10 @@ watch(() => props.company, (c) => {
     <!-- Динамика (история) ESG-рейтингов — read-only -->
     <div v-if="company" class="mp-rh">
       <div class="mp-rh-head">
-        <span class="mp-rh-title">Динамика рейтингов</span>
-        <span class="mp-rh-src">ESG-рейтинги агентств · история изменений</span>
+        <span class="mp-rh-title">{{ t('Динамика рейтингов') }}</span>
+        <span class="mp-rh-src">{{ t('ESG-рейтинги агентств · история изменений') }}</span>
       </div>
-      <div v-if="ratingsLoading" class="mp-rh-empty">Загрузка…</div>
+      <div v-if="ratingsLoading" class="mp-rh-empty">{{ t('Загрузка…') }}</div>
       <template v-else>
         <div v-if="ratings.length" class="mp-rh-list">
           <div v-for="r in ratings" :key="r.id" class="mp-rh-wrap">
@@ -84,14 +87,14 @@ watch(() => props.company, (c) => {
               </div>
               <div class="mp-rh-r">
                 <span v-if="r.rating_date_text" class="mp-rh-date">{{ r.rating_date_text }}</span>
-                <a v-if="r.report_url" class="mp-rh-doc" :href="r.report_url" target="_blank" rel="noopener">отчёт</a>
+                <a v-if="r.report_url" class="mp-rh-doc" :href="r.report_url" target="_blank" rel="noopener">{{ t('отчёт') }}</a>
                 <button class="mp-rh-btn" type="button" :class="{ on: histOpen === r.agency }"
-                        @click="toggleHistory(r.agency)">история</button>
+                        @click="toggleHistory(r.agency)">{{ t('история') }}</button>
               </div>
             </div>
             <Transition name="mp-hist">
               <div v-if="histOpen === r.agency" class="mp-hist">
-                <div v-if="histLoading" class="mp-hist-empty">Загрузка истории…</div>
+                <div v-if="histLoading" class="mp-hist-empty">{{ t('Загрузка истории…') }}</div>
                 <template v-else>
                   <div v-if="histItems.length" class="mp-hist-tl">
                     <div v-for="(h, i) in histItems" :key="h.id" class="mp-hist-row" :style="{ '--d': (i*40)+'ms' }">
@@ -103,13 +106,13 @@ watch(() => props.company, (c) => {
                       <span v-if="h.changed_by_name" class="mp-hist-who">· {{ h.changed_by_name }}</span>
                     </div>
                   </div>
-                  <div v-else class="mp-hist-empty">История пуста — изменения появятся после правок рейтинга</div>
+                  <div v-else class="mp-hist-empty">{{ t('История пуста — изменения появятся после правок рейтинга') }}</div>
                 </template>
               </div>
             </Transition>
           </div>
         </div>
-        <div v-else class="mp-rh-empty">Независимых ESG-рейтингов пока нет</div>
+        <div v-else class="mp-rh-empty">{{ t('Независимых ESG-рейтингов пока нет') }}</div>
       </template>
     </div>
 

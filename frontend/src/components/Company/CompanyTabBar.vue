@@ -40,7 +40,7 @@
     <button
       v-if="hiddenTabs.length > 0"
       class="tab-overflow"
-      title="Ещё разделы"
+      :title="t('Ещё разделы')"
       @click.stop="showOverflowMenu = !showOverflowMenu"
     >
       ⋯
@@ -86,6 +86,9 @@ import {
   type TabConfig,
   type TabIndicators,
 } from './companyNavConfig';
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const props = defineProps<{
   activeTab: TabId;

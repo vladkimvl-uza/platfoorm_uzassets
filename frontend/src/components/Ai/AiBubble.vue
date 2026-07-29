@@ -6,8 +6,8 @@
       class="ai-bubble-fab"
       :class="{ 'is-active': panelOpen, 'is-thinking': chat.isStreaming.value, 'is-disabled': noAccess }"
       type="button"
-      :title="noAccess ? 'ИИ-ассистент недоступен (нет доступа)' : (ctx?.label ? `ИИ-сводка: ${ctx.label}` : 'ИИ-помощник')"
-      :aria-label="noAccess ? 'ИИ-ассистент недоступен' : (ctx?.label ? `ИИ-сводка: ${ctx.label}` : 'ИИ-помощник')"
+      :title="fabTitle"
+      :aria-label="fabAriaLabel"
       @click="togglePanel"
     >
       <span class="ai-bubble-fab-text">AI</span>
@@ -26,12 +26,12 @@
           <div class="aibp-head-l">
             <div class="aibp-icon"><EptLogo :size="22" /></div>
             <div>
-              <h3>{{ ctx?.label || "ИИ-помощник" }}</h3>
+              <h3>{{ panelTitle }}</h3>
               <p v-if="ctx?.describeState">{{ stateLine }}</p>
-              <p v-else>контекст страницы</p>
+              <p v-else>{{ t('контекст страницы') }}</p>
             </div>
           </div>
-          <button class="aibp-x" type="button" @click="closePanel" aria-label="Закрыть">
+          <button class="aibp-x" type="button" @click="closePanel" :aria-label="t('Закрыть')">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
                  stroke="currentColor" stroke-width="2"
                  stroke-linecap="round" stroke-linejoin="round">
@@ -42,7 +42,7 @@
 
         <!-- Empty state — quick actions -->
         <section v-if="!chat.messages.value.length" class="aibp-actions">
-          <h4>Быстрые действия</h4>
+          <h4>{{ t('Быстрые действия') }}</h4>
           <button
             class="aibp-action aibp-action-primary"
             type="button"
@@ -52,7 +52,7 @@
             <span class="aibp-action-icon" aria-hidden="true">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg>
             </span>
-            <span>Сводка страницы</span>
+            <span>{{ t('Сводка страницы') }}</span>
           </button>
           <button
             v-for="(qa, idx) in ctx?.quickActions || []"
@@ -65,10 +65,10 @@
             <span class="aibp-action-icon" aria-hidden="true">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 4.8L19 9.5l-4.1 2.5L16 17l-4-3-4 3 1.1-5L5 9.5l5.1-1.7z"/></svg>
             </span>
-            <span>{{ qa.label }}</span>
+            <span>{{ t(qa.label) }}</span>
           </button>
           <p v-if="!ctx" class="aibp-no-ctx">
-            На этой странице нет AI-контекста. Открой полный чат для свободных запросов.
+            {{ t('На этой странице нет AI-контекста. Открой полный чат для свободных запросов.') }}
           </p>
         </section>
 
@@ -99,7 +99,7 @@
         <footer class="aibp-foot">
           <AiInput
             :disabled="chat.isStreaming.value"
-            placeholder="Свой вопрос про эту страницу…"
+            :placeholder="t('Свой вопрос про эту страницу…')"
             @submit="run($event)"
           />
           <div class="aibp-foot-row">
@@ -110,7 +110,7 @@
               @click="chat.abort"
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="vertical-align:-1px"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
-              Остановить
+              {{ t('Остановить') }}
             </button>
             <button
               v-if="chat.messages.value.length > 0 && !chat.isStreaming.value"
@@ -119,10 +119,10 @@
               @click="chat.reset"
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-              Новый запрос
+              {{ t('Новый запрос') }}
             </button>
             <RouterLink to="/ai-chat" class="aibp-full" @click="closePanel">
-              Полный чат
+              {{ t('Полный чат') }}
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
             </RouterLink>
           </div>
@@ -139,9 +139,11 @@ import EptLogo from "@/components/EptLogo.vue";
 import AiMessage from "@/components/Ai/AiMessage.vue";
 import AiInput from "@/components/Ai/AiInput.vue";
 import { useAiChat } from "@/composables/useAiChat";
+import { useI18n } from "@/composables/useI18n";
 import { getCurrentPageContext, buildSummaryPrompt } from "@/composables/useAiPageContext";
 import { useAiActivation } from "@/composables/useAiActivation";
 
+const { t } = useI18n();
 const route = useRoute();
 const ctx = getCurrentPageContext();
 const chat = useAiChat();
@@ -152,6 +154,19 @@ const msgsBoxRef = ref<HTMLElement | null>(null);
 
 // Нет доступа (режим owner_only и не владелец) → «серый» неактивный ассистент.
 const noAccess = computed(() => activation.state.loaded && !activation.state.hasAccess);
+const panelTitle = computed(() => ctx.value?.label ? t(ctx.value.label) : t("ИИ-помощник"));
+const fabTitle = computed(() => {
+  if (noAccess.value) return t("ИИ-ассистент недоступен (нет доступа)");
+  return ctx.value?.label
+    ? t("ИИ-сводка: {page}", { page: t(ctx.value.label) })
+    : t("ИИ-помощник");
+});
+const fabAriaLabel = computed(() => {
+  if (noAccess.value) return t("ИИ-ассистент недоступен");
+  return ctx.value?.label
+    ? t("ИИ-сводка: {page}", { page: t(ctx.value.label) })
+    : t("ИИ-помощник");
+});
 
 const HIDDEN_ROUTES = new Set(["/login", "/forgot-password", "/ai-chat", "/twa"]);
 const showFab = computed(() => {

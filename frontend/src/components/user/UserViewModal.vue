@@ -12,6 +12,9 @@ import UserAffiliationBadge from "@/components/rbac-v3/UserAffiliationBadge.vue"
 import SocialLinks from "@/components/user/SocialLinks.vue";
 import { formatRelativeTime } from "@/api/audit";
 import ModalShell from "@/components/ModalShell.vue";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const { state, close } = useUserModal();
 
@@ -32,34 +35,34 @@ const isOnline = computed(() =>
         <div class="uvm-avatar" :style="{ background: u.accent || '#7F77DD' }">
           <img v-if="u.avatar_url" :src="u.avatar_url" alt="" />
           <span v-else>{{ u.initials || (u.full_name || '?').slice(0, 1).toUpperCase() }}</span>
-          <span v-if="isOnline" class="uvm-online" title="В сети"></span>
+          <span v-if="isOnline" class="uvm-online" :title="t('В сети')"></span>
         </div>
         <div class="uvm-id">
           <div class="uvm-name">
             {{ u.full_name || '—' }}
-            <span v-if="u.is_owner" class="uvm-owner" title="Владелец">★</span>
+            <span v-if="u.is_owner" class="uvm-owner" :title="t('Владелец')">★</span>
           </div>
           <div v-if="u.role" class="uvm-role">{{ u.role }}</div>
-          <span v-if="u.is_active === false" class="uvm-inactive">Аккаунт отключён</span>
+          <span v-if="u.is_active === false" class="uvm-inactive">{{ t('Аккаунт отключён') }}</span>
         </div>
       </div>
     </template>
 
     <!-- Принадлежность -->
     <div v-if="u.company || u.sector || u.department || u.job_title" class="uvm-sec">
-      <div class="uvm-sec-t">Принадлежность</div>
+      <div class="uvm-sec-t">{{ t('Принадлежность') }}</div>
       <UserAffiliationBadge :company="u.company" :sector="u.sector" :department="u.department" :job-title="u.job_title" />
     </div>
 
     <!-- Контакты -->
     <div v-if="hasContacts" class="uvm-sec">
-      <div class="uvm-sec-t">Контакты</div>
+      <div class="uvm-sec-t">{{ t('Контакты') }}</div>
       <div v-if="u.email" class="uvm-contact">
         <span class="uvm-contact-k">Email</span>
         <a :href="'mailto:' + u.email" class="uvm-contact-v">{{ u.email }}</a>
       </div>
       <div v-if="u.phone" class="uvm-contact">
-        <span class="uvm-contact-k">Телефон</span>
+        <span class="uvm-contact-k">{{ t('Телефон') }}</span>
         <a :href="'tel:' + u.phone" class="uvm-contact-v">{{ u.phone }}</a>
       </div>
       <SocialLinks
@@ -72,10 +75,10 @@ const isOnline = computed(() =>
     <!-- Активность -->
     <div class="uvm-foot">
       <span class="uvm-foot-dot" :class="{ on: isOnline }"></span>
-      <template v-if="isOnline">Сейчас в сети</template>
-      <template v-else-if="lastActive">Последняя активность: {{ lastActive }}</template>
-      <template v-else-if="state.loading">загрузка…</template>
-      <template v-else>нет данных об активности</template>
+      <template v-if="isOnline">{{ t('Сейчас в сети') }}</template>
+      <template v-else-if="lastActive">{{ t('Последняя активность:') }} {{ lastActive }}</template>
+      <template v-else-if="state.loading">{{ t('загрузка…') }}</template>
+      <template v-else>{{ t('нет данных об активности') }}</template>
     </div>
   </ModalShell>
 </template>

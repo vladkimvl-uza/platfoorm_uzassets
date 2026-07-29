@@ -16,6 +16,9 @@ import { useDirectionsStore } from "@/stores/directions";
 import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
 import BIcon from "@/components/broadcasts/BIcon.vue";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const directionsStore = useDirectionsStore();
 const toast = useToast();
@@ -256,16 +259,16 @@ onMounted(() => {
   <div class="cat-page">
     <header class="cat-header">
       <div>
-        <div class="cat-eyebrow">Администрирование</div>
-        <h1 class="cat-title">Каталоги</h1>
-        <p class="cat-sub">Управление направлениями трансформации и консультационными фирмами</p>
+        <div class="cat-eyebrow">{{ t('Администрирование') }}</div>
+        <h1 class="cat-title">{{ t('Каталоги') }}</h1>
+        <p class="cat-sub">{{ t('Управление направлениями трансформации и консультационными фирмами') }}</p>
       </div>
       <div class="cat-tabs">
         <button :class="['cat-tab', { active: activeTab === 'directions' }]" @click="activeTab = 'directions'">
-          Направления <span class="cat-tab-count">{{ directions.length }}</span>
+          {{ t('Направления') }} <span class="cat-tab-count">{{ directions.length }}</span>
         </button>
         <button :class="['cat-tab', { active: activeTab === 'consultants' }]" @click="activeTab = 'consultants'">
-          Консультанты <span class="cat-tab-count">{{ consultants.filter(c => c.is_active !== false).length }}</span>
+          {{ t('Консультанты') }} <span class="cat-tab-count">{{ consultants.filter(c => c.is_active !== false).length }}</span>
         </button>
       </div>
     </header>
@@ -273,19 +276,19 @@ onMounted(() => {
     <!-- ════════════ DIRECTIONS ════════════ -->
     <section v-if="activeTab === 'directions'" class="cat-panel">
       <div class="cat-toolbar">
-        <button class="cat-btn-primary" @click="openCreateDir"><BIcon name="plus" :size="14" /> Новое направление</button>
-        <button class="cat-btn-ghost" @click="loadDirections" :disabled="dirsLoading"><BIcon name="refresh" :size="13" /> Обновить</button>
+        <button class="cat-btn-primary" @click="openCreateDir"><BIcon name="plus" :size="14" /> {{ t('Новое направление') }}</button>
+        <button class="cat-btn-ghost" @click="loadDirections" :disabled="dirsLoading"><BIcon name="refresh" :size="13" /> {{ t('Обновить') }}</button>
       </div>
 
-      <div v-if="dirsLoading" class="cat-state">Загрузка…</div>
+      <div v-if="dirsLoading" class="cat-state">{{ t('Загрузка…') }}</div>
       <div v-else-if="dirsError" class="cat-state cat-state-err">{{ dirsError }}</div>
       <div v-else class="cat-list">
         <div v-for="d in directions" :key="d.id" class="cat-row">
           <div class="cat-row-color" :style="{ background: d.color }"></div>
           <div class="cat-row-main">
             <div class="cat-row-name">{{ d.label }}
-              <span v-if="!d.is_custom" class="cat-row-tag" title="Встроенное направление">встроенное</span>
-              <span v-else class="cat-row-tag cat-row-tag-custom">кастомное</span>
+              <span v-if="!d.is_custom" class="cat-row-tag" :title="t('Встроенное направление')">{{ t('встроенное') }}</span>
+              <span v-else class="cat-row-tag cat-row-tag-custom">{{ t('кастомное') }}</span>
             </div>
             <div class="cat-row-meta">
               <code>{{ d.code }}</code>
@@ -296,7 +299,7 @@ onMounted(() => {
             <div v-if="d.description" class="cat-row-desc">{{ d.description }}</div>
           </div>
           <div class="cat-row-actions">
-            <button class="cat-btn-icon" title="Редактировать" @click="openEditDir(d)"><BIcon name="edit" :size="14" /></button>
+            <button class="cat-btn-icon" :title="t('Редактировать')" @click="openEditDir(d)"><BIcon name="edit" :size="14" /></button>
             <button class="cat-btn-icon cat-btn-icon-danger"
                     :title="d.is_custom ? 'Удалить' : 'Удалить встроенное направление (с переносом записей)'"
                     @click="deleteDir(d)"><BIcon name="trash" :size="14" /></button>
@@ -308,15 +311,15 @@ onMounted(() => {
     <!-- ════════════ CONSULTANTS ════════════ -->
     <section v-if="activeTab === 'consultants'" class="cat-panel">
       <div class="cat-toolbar">
-        <button class="cat-btn-primary" @click="openCreateCons"><BIcon name="plus" :size="14" /> Новый консультант</button>
-        <button class="cat-btn-ghost" @click="loadConsultants" :disabled="consLoading"><BIcon name="refresh" :size="13" /> Обновить</button>
+        <button class="cat-btn-primary" @click="openCreateCons"><BIcon name="plus" :size="14" /> {{ t('Новый консультант') }}</button>
+        <button class="cat-btn-ghost" @click="loadConsultants" :disabled="consLoading"><BIcon name="refresh" :size="13" /> {{ t('Обновить') }}</button>
         <label class="cat-checkbox">
           <input type="checkbox" v-model="showInactive" />
-          <span>Показать неактивные</span>
+          <span>{{ t('Показать неактивные') }}</span>
         </label>
       </div>
 
-      <div v-if="consLoading" class="cat-state">Загрузка…</div>
+      <div v-if="consLoading" class="cat-state">{{ t('Загрузка…') }}</div>
       <div v-else-if="consError" class="cat-state cat-state-err">{{ consError }}</div>
       <div v-else class="cat-list">
         <div v-for="c in visibleConsultants" :key="c.id"
@@ -327,7 +330,7 @@ onMounted(() => {
           <div class="cat-row-main">
             <div class="cat-row-name">{{ c.name_ru }}
               <span v-if="c.is_big4" class="cat-row-tag cat-row-tag-big4">Big-4</span>
-              <span v-if="c.is_active === false" class="cat-row-tag">неактивен</span>
+              <span v-if="c.is_active === false" class="cat-row-tag">{{ t('неактивен') }}</span>
             </div>
             <div class="cat-row-meta">
               <code>{{ c.code }}</code>
@@ -339,8 +342,8 @@ onMounted(() => {
                     @click="toggleConsActive(c)">
               <BIcon :name="c.is_active === false ? 'refresh' : 'power'" :size="14" />
             </button>
-            <button class="cat-btn-icon" title="Редактировать" @click="openEditCons(c)"><BIcon name="edit" :size="14" /></button>
-            <button class="cat-btn-icon cat-btn-icon-danger" title="Удалить полностью"
+            <button class="cat-btn-icon" :title="t('Редактировать')" @click="openEditCons(c)"><BIcon name="edit" :size="14" /></button>
+            <button class="cat-btn-icon cat-btn-icon-danger" :title="t('Удалить полностью')"
                     @click="hardDeleteCons(c)"><BIcon name="trash" :size="14" /></button>
           </div>
         </div>
@@ -353,41 +356,41 @@ onMounted(() => {
                 @close="dirEditorOpen = false">
         <div class="cat-modal-body">
           <label class="cat-fld">
-            <span>Название (RU) *</span>
-            <input v-model="dirEditor.label" type="text" placeholder="Стратегическое управление" />
+            <span>{{ t('Название (RU) *') }}</span>
+            <input v-model="dirEditor.label" type="text" :placeholder="t('Стратегическое управление')" />
           </label>
           <label v-if="dirEditor.isNew" class="cat-fld">
-            <span>Код (a-z, 0-9, _) — авто-генерация если пусто</span>
+            <span>{{ t('Код (a-z, 0-9, _) — авто-генерация если пусто') }}</span>
             <input v-model="dirEditor.code" type="text" placeholder="strategy" />
           </label>
           <div class="cat-fld-row">
             <label class="cat-fld">
-              <span>Название (UZ)</span>
+              <span>{{ t('Название (UZ)') }}</span>
               <input v-model="dirEditor.name_uz" type="text" />
             </label>
             <label class="cat-fld">
-              <span>Название (EN)</span>
+              <span>{{ t('Название (EN)') }}</span>
               <input v-model="dirEditor.name_en" type="text" />
             </label>
           </div>
           <label class="cat-fld">
-            <span>Описание</span>
+            <span>{{ t('Описание') }}</span>
             <textarea v-model="dirEditor.description" rows="2"></textarea>
           </label>
           <div class="cat-fld-row">
             <label class="cat-fld cat-fld-narrow">
-              <span>Цвет</span>
+              <span>{{ t('Цвет') }}</span>
               <input v-model="dirEditor.color" type="color" />
             </label>
             <label class="cat-fld">
-              <span>Порядок</span>
+              <span>{{ t('Порядок') }}</span>
               <input v-model.number="dirEditor.sort_order" type="number" />
             </label>
           </div>
         </div>
       <template #footer>
-        <button class="cat-btn-ghost" @click="dirEditorOpen = false">Отмена</button>
-        <button class="cat-btn-primary" @click="saveDir">Сохранить</button>
+        <button class="cat-btn-ghost" @click="dirEditorOpen = false">{{ t('Отмена') }}</button>
+        <button class="cat-btn-primary" @click="saveDir">{{ t('Сохранить') }}</button>
       </template>
     </ModalShell>
 
@@ -397,26 +400,26 @@ onMounted(() => {
                 @close="consEditorOpen = false">
         <div class="cat-modal-body">
           <label class="cat-fld">
-            <span>Название (RU) *</span>
-            <input v-model="consEditor.name_ru" type="text" placeholder="PwC Узбекистан" />
+            <span>{{ t('Название (RU) *') }}</span>
+            <input v-model="consEditor.name_ru" type="text" :placeholder="t('PwC Узбекистан')" />
           </label>
           <label v-if="consEditor.isNew" class="cat-fld">
-            <span>Код — авто-генерация если пусто</span>
+            <span>{{ t('Код — авто-генерация если пусто') }}</span>
             <input v-model="consEditor.code" type="text" placeholder="pwc" />
           </label>
           <div class="cat-fld-row">
             <label class="cat-fld">
-              <span>Аббревиатура (для бейджа)</span>
+              <span>{{ t('Аббревиатура (для бейджа)') }}</span>
               <input v-model="consEditor.abbr" type="text" maxlength="6" placeholder="PwC" />
             </label>
             <label class="cat-fld">
-              <span>Название (EN)</span>
+              <span>{{ t('Название (EN)') }}</span>
               <input v-model="consEditor.name_en" type="text" />
             </label>
           </div>
           <div class="cat-fld-row">
             <label class="cat-fld cat-fld-narrow">
-              <span>Цвет бейджа</span>
+              <span>{{ t('Цвет бейджа') }}</span>
               <input v-model="consEditor.color_hex" type="color" />
             </label>
             <label class="cat-fld cat-fld-narrow cat-fld-check">
@@ -425,13 +428,13 @@ onMounted(() => {
             </label>
             <label class="cat-fld cat-fld-narrow cat-fld-check">
               <input v-model="consEditor.is_active" type="checkbox" />
-              <span>Активен</span>
+              <span>{{ t('Активен') }}</span>
             </label>
           </div>
         </div>
       <template #footer>
-        <button class="cat-btn-ghost" @click="consEditorOpen = false">Отмена</button>
-        <button class="cat-btn-primary" @click="saveCons">Сохранить</button>
+        <button class="cat-btn-ghost" @click="consEditorOpen = false">{{ t('Отмена') }}</button>
+        <button class="cat-btn-primary" @click="saveCons">{{ t('Сохранить') }}</button>
       </template>
     </ModalShell>
   </div>

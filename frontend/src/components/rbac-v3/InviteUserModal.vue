@@ -11,6 +11,8 @@ import {
 import { companiesApi, type SectorBrief } from '@/api/companies';
 import ModalShell from '@/components/ModalShell.vue';
 import BIcon from '@/components/broadcasts/BIcon.vue';
+import { useI18n } from '@/composables/useI18n';
+import { INTL_LOCALE } from '@/locale';
 import RoleAssignmentPicker from './RoleAssignmentPicker.vue';
 
 const props = defineProps<{
@@ -21,6 +23,7 @@ const emit = defineEmits<{
   (e: 'close'): void;
   (e: 'created', userId: string): void;
 }>();
+const { t, locale } = useI18n();
 
 type ScopeMode = 'company' | 'sector' | 'global';
 type BulkResult = {
@@ -76,7 +79,7 @@ onMounted(async () => {
     }
     companyGroups.value = (groups || [])
       .filter(group => group.company_id)
-      .sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+      .sort((a, b) => a.name.localeCompare(b.name, INTL_LOCALE[locale.value]));
     sectors.value = loadedSectors || [];
 
     const items = (companies as any)?.items
@@ -88,9 +91,10 @@ onMounted(async () => {
         name: company.name_ru || company.name || company.code,
       }))
       .filter((company: { id?: string }) => company.id)
-      .sort((a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name, 'ru'));
+      .sort((a: { name: string }, b: { name: string }) =>
+        a.name.localeCompare(b.name, INTL_LOCALE[locale.value]));
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || 'Не удалось загрузить роли и области доступа';
+    error.value = e?.response?.data?.detail || t('Не удалось загрузить роли и области доступа');
   } finally {
     loadingCatalogs.value = false;
   }
@@ -104,12 +108,13 @@ const roleByCode = computed<Record<string, RbacV3Role>>(() => {
 
 const selectedCompanyGroupIds = computed(() => Object.keys(companyRoleAssignments.value));
 const filteredCompanyGroups = computed(() => {
-  const query = companySearch.value.trim().toLocaleLowerCase('ru');
+  const intlLocale = INTL_LOCALE[locale.value];
+  const query = companySearch.value.trim().toLocaleLowerCase(intlLocale);
   return companyGroups.value
-    .filter(group => !query || `${group.name} ${group.code}`.toLocaleLowerCase('ru').includes(query))
+    .filter(group => !query || `${group.name} ${group.code}`.toLocaleLowerCase(intlLocale).includes(query))
     .sort((a, b) => {
       const selectedDelta = Number(!!companyRoleAssignments.value[b.id]) - Number(!!companyRoleAssignments.value[a.id]);
-      return selectedDelta || a.name.localeCompare(b.name, 'ru');
+      return selectedDelta || a.name.localeCompare(b.name, intlLocale);
     });
 });
 
@@ -157,37 +162,46 @@ function roleName(code: string): string {
   return roleByCode.value[code]?.name_ru || code;
 }
 
-function plural(value: number, one: string, few: string, many: string): string {
-  const mod100 = value % 100;
-  const mod10 = value % 10;
-  if (mod100 >= 11 && mod100 <= 19) return many;
-  if (mod10 === 1) return one;
-  if (mod10 >= 2 && mod10 <= 4) return few;
-  return many;
+function formatCount(value: number): string {
+  return value.toLocaleString(INTL_LOCALE[locale.value]);
 }
 
 const accessSummary = computed(() => {
   if (scopeMode.value === 'company') {
     const count = selectedCompanyGroupIds.value.length;
-    if (!count) return 'Компании не выбраны';
+    if (!count) return t('Компании не выбраны');
     const roles = [...new Set(Object.values(companyRoleAssignments.value))].map(roleName);
-    return `${count} ${plural(count, 'компания', 'компании', 'компаний')} · ${roles.join(', ')}`;
+    return t('Компаний: {count} · Роли: {roles}', {
+      count: formatCount(count),
+      roles: roles.join(', '),
+    });
   }
   if (scopeMode.value === 'sector') {
     const count = selectedSectors.value.length;
-    if (!count) return 'Секторы не выбраны';
-    return `${count} ${plural(count, 'сектор', 'сектора', 'секторов')} · ${selectedRoles.value.map(roleName).join(', ') || 'роль не выбрана'}`;
+    if (!count) return t('Секторы не выбраны');
+    return t('Секторов: {count} · Роли: {roles}', {
+      count: formatCount(count),
+      roles: selectedRoles.value.map(roleName).join(', ') || t('Роль не выбрана'),
+    });
   }
-  return `Вся платформа · ${selectedRoles.value.map(roleName).join(', ') || 'роль не выбрана'}`;
+  return t('Вся платформа · Роли: {roles}', {
+    roles: selectedRoles.value.map(roleName).join(', ') || t('Роль не выбрана'),
+  });
 });
 
 const validationMessage = computed(() => {
   if (!profileValid.value) {
-    return bulkMode.value ? 'Добавьте хотя бы один корректный email' : 'Заполните ФИО и корректный email';
+    return bulkMode.value
+      ? t('Добавьте хотя бы один корректный email')
+      : t('Заполните ФИО и корректный email');
   }
-  if (scopeMode.value === 'company' && !selectedCompanyGroupIds.value.length) return 'Выберите хотя бы одну компанию';
-  if (scopeMode.value === 'sector' && !selectedSectors.value.length) return 'Выберите хотя бы один сектор';
-  if (scopeMode.value !== 'company' && !selectedRoles.value.length) return 'Выберите роль';
+  if (scopeMode.value === 'company' && !selectedCompanyGroupIds.value.length) {
+    return t('Выберите хотя бы одну компанию');
+  }
+  if (scopeMode.value === 'sector' && !selectedSectors.value.length) {
+    return t('Выберите хотя бы один сектор');
+  }
+  if (scopeMode.value !== 'company' && !selectedRoles.value.length) return t('Выберите роль');
   return accessSummary.value;
 });
 
@@ -294,7 +308,7 @@ async function submit() {
           results.push({
             email: row.email,
             ok: false,
-            error: e?.response?.data?.detail || 'Не удалось создать пользователя',
+            error: e?.response?.data?.detail || t('Не удалось создать пользователя'),
           });
         }
       }
@@ -311,7 +325,7 @@ async function submit() {
     };
     emit('created', created.id);
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || 'Не удалось создать пользователя';
+    error.value = e?.response?.data?.detail || t('Не удалось создать пользователя');
   } finally {
     saving.value = false;
   }
@@ -342,47 +356,50 @@ function requestClose() {
     :dirty="isDirty && !hasResult && !saving"
     :close-on-overlay="!saving"
     :hide-close="saving"
-    confirm-text="Закрыть форму? Введённые данные будут потеряны."
+    :confirm-text="t('Закрыть форму? Введённые данные будут потеряны.')"
     @close="requestClose"
   >
     <template #header>
       <div class="iu-header">
         <div>
-          <h2>{{ prefill ? 'Создать похожего пользователя' : 'Создать пользователя' }}</h2>
-          <p v-if="!hasResult">Профиль и доступ сохранятся одной операцией</p>
+          <h2>{{ prefill ? t('Создать похожего пользователя') : t('Создать пользователя') }}</h2>
+          <p v-if="!hasResult">{{ t('Профиль и доступ сохранятся одной операцией') }}</p>
         </div>
-        <div v-if="!prefill && !hasResult" class="iu-mode" aria-label="Режим создания">
-          <button type="button" :class="{ on: !bulkMode }" @click="setBulkMode(false)">Один</button>
-          <button type="button" :class="{ on: bulkMode }" @click="setBulkMode(true)">Несколько</button>
+        <div v-if="!prefill && !hasResult" class="iu-mode" :aria-label="t('Режим создания')">
+          <button type="button" :class="{ on: !bulkMode }" @click="setBulkMode(false)">{{ t('Один') }}</button>
+          <button type="button" :class="{ on: bulkMode }" @click="setBulkMode(true)">{{ t('Несколько') }}</button>
         </div>
       </div>
     </template>
 
     <div v-if="singleResult" class="iu-success">
       <div class="iu-success-icon"><BIcon name="user-check" :size="26" /></div>
-      <h3>Пользователь создан</h3>
+      <h3>{{ t('Пользователь создан') }}</h3>
       <p v-if="singleResult.emailSent === true" class="iu-success-note ok">
-        Приглашение отправлено на {{ singleResult.email }}
+        {{ t('Приглашение отправлено на {email}', { email: singleResult.email }) }}
       </p>
       <p v-else-if="singleResult.emailSent === false" class="iu-success-note warn">
-        Письмо не отправлено. Передайте временный пароль безопасным способом.
+        {{ t('Письмо не отправлено. Передайте временный пароль безопасным способом.') }}
       </p>
       <p v-else class="iu-success-note neutral">
-        Статус доставки письма недоступен. Данные для входа сохранены ниже.
+        {{ t('Статус доставки письма недоступен. Данные для входа сохранены ниже.') }}
       </p>
       <div class="iu-credentials">
-        <div><span>Логин</span><code>{{ singleResult.email }}</code></div>
-        <div><span>Временный пароль</span><code>{{ singleResult.password }}</code></div>
+        <div><span>{{ t('Логин') }}</span><code>{{ singleResult.email }}</code></div>
+        <div><span>{{ t('Временный пароль') }}</span><code>{{ singleResult.password }}</code></div>
       </div>
       <button type="button" class="iu-copy-result" @click="copyCredentials">
         <BIcon :name="resultCopied ? 'check' : 'copy'" :size="15" />
-        {{ resultCopied ? 'Скопировано' : 'Скопировать данные для входа' }}
+        {{ resultCopied ? t('Скопировано') : t('Скопировать данные для входа') }}
       </button>
     </div>
 
     <div v-else-if="bulkResults" class="iu-success iu-success-bulk">
       <div class="iu-success-icon"><BIcon name="user-check" :size="26" /></div>
-      <h3>Создано {{ bulkResults.filter(result => result.ok).length }} из {{ bulkResults.length }}</h3>
+      <h3>{{ t('Создано: {created} из {total}', {
+        created: formatCount(bulkResults.filter(result => result.ok).length),
+        total: formatCount(bulkResults.length),
+      }) }}</h3>
       <div class="iu-result-list">
         <div
           v-for="result in bulkResults"
@@ -402,7 +419,7 @@ function requestClose() {
         @click="copyBulkResults"
       >
         <BIcon :name="bulkCopied ? 'check' : 'copy'" :size="15" />
-        {{ bulkCopied ? 'Скопировано' : 'Скопировать логины и пароли' }}
+        {{ bulkCopied ? t('Скопировано') : t('Скопировать логины и пароли') }}
       </button>
     </div>
 
@@ -411,46 +428,48 @@ function requestClose() {
         <div class="iu-section-head">
           <span class="iu-section-icon"><BIcon name="user-check" :size="17" /></span>
           <div>
-            <h3 id="iu-profile-heading">Учётная запись</h3>
-            <p>{{ bulkMode ? `${parsedBulk.length} распознано` : 'Основные данные пользователя' }}</p>
+            <h3 id="iu-profile-heading">{{ t('Учётная запись') }}</h3>
+            <p>{{ bulkMode
+              ? t('Распознано: {count}', { count: formatCount(parsedBulk.length) })
+              : t('Основные данные пользователя') }}</p>
           </div>
         </div>
 
         <div v-if="bulkMode" class="iu-field">
-          <label for="iu-bulk-users">Email и ФИО</label>
+          <label for="iu-bulk-users">{{ t('Email и ФИО') }}</label>
           <textarea
             id="iu-bulk-users"
             v-model="bulkText"
             rows="9"
-            placeholder="user@company.uz, Имя Фамилия"
+            :placeholder="t('user@company.uz, Имя Фамилия')"
             spellcheck="false"
           ></textarea>
-          <span class="iu-field-meta">{{ parsedBulk.length }} корректных записей</span>
+          <span class="iu-field-meta">{{ t('Корректных записей: {count}', { count: formatCount(parsedBulk.length) }) }}</span>
         </div>
 
         <template v-else>
           <div class="iu-field">
-            <label for="iu-full-name">ФИО <b>*</b></label>
-            <input id="iu-full-name" v-model="fullName" autocomplete="name" placeholder="Имя Фамилия" />
+            <label for="iu-full-name">{{ t('ФИО') }} <b>*</b></label>
+            <input id="iu-full-name" v-model="fullName" autocomplete="name" :placeholder="t('Имя Фамилия')" />
           </div>
           <div class="iu-field">
-            <label for="iu-email">Рабочий email <b>*</b></label>
+            <label for="iu-email">{{ t('Рабочий email') }} <b>*</b></label>
             <input id="iu-email" v-model="email" type="email" autocomplete="email" placeholder="name@company.uz" />
           </div>
           <div class="iu-field-grid">
             <div class="iu-field">
-              <label for="iu-department">Подразделение</label>
-              <input id="iu-department" v-model="department" autocomplete="organization-title" placeholder="Департамент" />
+              <label for="iu-department">{{ t('Подразделение') }}</label>
+              <input id="iu-department" v-model="department" autocomplete="organization-title" :placeholder="t('Департамент')" />
             </div>
             <div class="iu-field">
-              <label for="iu-job-title">Должность</label>
-              <input id="iu-job-title" v-model="jobTitle" autocomplete="organization-title" placeholder="Должность" />
+              <label for="iu-job-title">{{ t('Должность') }}</label>
+              <input id="iu-job-title" v-model="jobTitle" autocomplete="organization-title" :placeholder="t('Должность')" />
             </div>
           </div>
           <div class="iu-field">
-            <label for="iu-organization">Организация</label>
+            <label for="iu-organization">{{ t('Организация') }}</label>
             <select id="iu-organization" v-model="organizationId">
-              <option value="">Не выбрана</option>
+              <option value="">{{ t('Не выбрана') }}</option>
               <option v-for="company in allCompanies" :key="company.id" :value="company.id">
                 {{ company.name }}
               </option>
@@ -459,22 +478,22 @@ function requestClose() {
         </template>
 
         <div v-if="bulkMode" class="iu-field">
-          <label for="iu-bulk-department">Подразделение</label>
-          <input id="iu-bulk-department" v-model="department" placeholder="Общее для списка" />
+          <label for="iu-bulk-department">{{ t('Подразделение') }}</label>
+          <input id="iu-bulk-department" v-model="department" :placeholder="t('Общее для списка')" />
         </div>
 
         <div v-if="!bulkMode" class="iu-password">
           <div class="iu-field">
-            <label for="iu-password">Временный пароль</label>
+            <label for="iu-password">{{ t('Временный пароль') }}</label>
             <div class="iu-password-control">
               <input id="iu-password" v-model="password" autocomplete="new-password" spellcheck="false" />
               <button
                 type="button"
-                :title="copied ? 'Скопировано' : 'Скопировать пароль'"
-                :aria-label="copied ? 'Скопировано' : 'Скопировать пароль'"
+                :title="copied ? t('Скопировано') : t('Скопировать пароль')"
+                :aria-label="copied ? t('Скопировано') : t('Скопировать пароль')"
                 @click="copyText(password, 'password')"
               ><BIcon :name="copied ? 'check' : 'copy'" :size="14" /></button>
-              <button type="button" title="Создать другой пароль" aria-label="Создать другой пароль" @click="regeneratePassword">
+              <button type="button" :title="t('Создать другой пароль')" :aria-label="t('Создать другой пароль')" @click="regeneratePassword">
                 <BIcon name="refresh" :size="14" />
               </button>
             </div>
@@ -484,8 +503,8 @@ function requestClose() {
         <label class="iu-check-row">
           <input v-model="mustChangePassword" type="checkbox" />
           <span>
-            <b>Сменить пароль при первом входе</b>
-            <small>Активные разделы откроются после смены</small>
+            <b>{{ t('Сменить пароль при первом входе') }}</b>
+            <small>{{ t('Активные разделы откроются после смены') }}</small>
           </span>
         </label>
       </section>
@@ -494,12 +513,12 @@ function requestClose() {
         <div class="iu-section-head iu-access-head">
           <span class="iu-section-icon access"><BIcon name="shield-check" :size="17" /></span>
           <div>
-            <h3 id="iu-access-heading">Доступ и роли</h3>
+            <h3 id="iu-access-heading">{{ t('Доступ и роли') }}</h3>
             <p>{{ accessSummary }}</p>
           </div>
         </div>
 
-        <div class="iu-scope" role="tablist" aria-label="Область доступа">
+        <div class="iu-scope" role="tablist" :aria-label="t('Область доступа')">
           <button
             type="button"
             role="tab"
@@ -508,7 +527,7 @@ function requestClose() {
             @click="setScope('company')"
           >
             <BIcon name="building-bank" :size="17" />
-            <span><b>Компании</b><small>Роль для каждой компании</small></span>
+            <span><b>{{ t('Компании') }}</b><small>{{ t('Роль для каждой компании') }}</small></span>
           </button>
           <button
             type="button"
@@ -518,7 +537,7 @@ function requestClose() {
             @click="setScope('sector')"
           >
             <BIcon name="route" :size="17" />
-            <span><b>Секторы</b><small>Все компании сектора</small></span>
+            <span><b>{{ t('Секторы') }}</b><small>{{ t('Все компании сектора') }}</small></span>
           </button>
           <button
             type="button"
@@ -528,7 +547,7 @@ function requestClose() {
             @click="setScope('global')"
           >
             <BIcon name="shield-check" :size="17" />
-            <span><b>Вся платформа</b><small>Без ограничения компаний</small></span>
+            <span><b>{{ t('Вся платформа') }}</b><small>{{ t('Без ограничения компаний') }}</small></span>
           </button>
         </div>
 
@@ -536,29 +555,29 @@ function requestClose() {
           <div class="iu-access-toolbar">
             <label class="iu-search">
               <BIcon name="search" :size="14" />
-              <input v-model="companySearch" type="search" autocomplete="off" placeholder="Найти компанию" />
-              <button v-if="companySearch" type="button" title="Очистить поиск" aria-label="Очистить поиск" @click="companySearch = ''">
+              <input v-model="companySearch" type="search" autocomplete="off" :placeholder="t('Найти компанию')" />
+              <button v-if="companySearch" type="button" :title="t('Очистить поиск')" :aria-label="t('Очистить поиск')" @click="companySearch = ''">
                 <BIcon name="x" :size="13" />
               </button>
             </label>
             <div class="iu-bulk-role">
-              <span>Роль для выбранных</span>
+              <span>{{ t('Роль для выбранных') }}</span>
               <select v-model="defaultCompanyRole" :disabled="!selectedCompanyGroupIds.length">
                 <option v-for="role in allRoles" :key="role.code" :value="role.code">{{ role.name_ru }}</option>
               </select>
               <button
                 type="button"
                 :disabled="!selectedCompanyGroupIds.length"
-                title="Применить роль ко всем выбранным компаниям"
+                :title="t('Применить роль ко всем выбранным компаниям')"
                 @click="applyDefaultRole"
-              >Применить</button>
+              >{{ t('Применить') }}</button>
             </div>
           </div>
 
           <div class="iu-company-list">
-            <div v-if="loadingCatalogs" class="iu-empty">Загрузка компаний...</div>
-            <div v-else-if="!companyGroups.length" class="iu-empty">Компании с группами доступа не найдены</div>
-            <div v-else-if="!filteredCompanyGroups.length" class="iu-empty">Компании не найдены</div>
+            <div v-if="loadingCatalogs" class="iu-empty">{{ t('Загрузка компаний...') }}</div>
+            <div v-else-if="!companyGroups.length" class="iu-empty">{{ t('Компании с группами доступа не найдены') }}</div>
+            <div v-else-if="!filteredCompanyGroups.length" class="iu-empty">{{ t('Компании не найдены') }}</div>
             <div
               v-for="group in filteredCompanyGroups"
               :key="group.id"
@@ -576,7 +595,7 @@ function requestClose() {
               <select
                 :value="companyRoleAssignments[group.id] || defaultCompanyRole"
                 :disabled="!companyRoleAssignments[group.id]"
-                :aria-label="`Роль в ${group.name}`"
+                :aria-label="t('Роль в компании {company}', { company: group.name })"
                 @change="setCompanyRole(group.id, ($event.target as HTMLSelectElement).value)"
               >
                 <option v-for="role in allRoles" :key="role.code" :value="role.code">{{ role.name_ru }}</option>
@@ -587,8 +606,8 @@ function requestClose() {
 
         <div v-else-if="scopeMode === 'sector'" class="iu-sector-access">
           <div class="iu-subheading">
-            <span>Секторы</span>
-            <b>{{ selectedSectors.length }} выбрано</b>
+            <span>{{ t('Секторы') }}</span>
+            <b>{{ t('Выбрано: {count}', { count: formatCount(selectedSectors.length) }) }}</b>
           </div>
           <div class="iu-sector-list">
             <button
@@ -602,9 +621,9 @@ function requestClose() {
               <span class="iu-sector-dot" :style="{ background: sector.color_hex || '#6257c8' }"></span>
               {{ sector.name_ru }}
             </button>
-            <div v-if="!loadingCatalogs && !sectors.length" class="iu-empty">Секторы не найдены</div>
+            <div v-if="!loadingCatalogs && !sectors.length" class="iu-empty">{{ t('Секторы не найдены') }}</div>
           </div>
-          <div class="iu-subheading roles"><span>Роли в выбранных секторах</span></div>
+          <div class="iu-subheading roles"><span>{{ t('Роли в выбранных секторах') }}</span></div>
           <RoleAssignmentPicker v-model="selectedRoles" :roles="allRoles" compact />
         </div>
 
@@ -616,17 +635,15 @@ function requestClose() {
                Прежняя формулировка обещала доступ, который бэкенд не даёт. -->
           <div class="iu-global-note">
             <BIcon name="info-circle" :size="16" />
-            <span>Ограничение по компаниям не задаётся. Данные всех компаний откроются
-              только если выбранная роль несёт право companies.view_all — иначе список
-              компаний останется пустым, выберите область «Компании» или «Секторы».</span>
+            <span>{{ t('Ограничение по компаниям не задаётся. Данные всех компаний откроются только если выбранная роль несёт право companies.view_all; иначе список компаний останется пустым. Выберите область «Компании» или «Секторы».') }}</span>
           </div>
-          <div class="iu-subheading roles"><span>Роли на платформе</span></div>
+          <div class="iu-subheading roles"><span>{{ t('Роли на платформе') }}</span></div>
           <RoleAssignmentPicker v-model="selectedRoles" :roles="allRoles" compact />
         </div>
 
         <div v-if="hasAdminRole" class="iu-admin-warning">
           <BIcon name="lock" :size="15" />
-          <span>Роль admin даёт полный доступ и может назначаться только владельцем платформы.</span>
+          <span>{{ t('Роль admin даёт полный доступ и может назначаться только владельцем платформы.') }}</span>
         </div>
       </section>
     </div>
@@ -644,7 +661,7 @@ function requestClose() {
         </div>
         <div class="iu-footer-actions">
           <button type="button" class="iu-btn secondary" :disabled="saving" @click="requestClose">
-            {{ hasResult ? 'Закрыть' : 'Отмена' }}
+            {{ hasResult ? t('Закрыть') : t('Отмена') }}
           </button>
           <button
             v-if="!hasResult"
@@ -654,7 +671,11 @@ function requestClose() {
             @click="submit"
           >
             <BIcon v-if="!saving" name="user-check" :size="15" />
-            {{ saving ? 'Создание...' : (bulkMode ? `Создать ${parsedBulk.length || ''}` : 'Создать пользователя') }}
+            {{ saving
+              ? t('Создание...')
+              : (bulkMode
+                ? t('Создать пользователей: {count}', { count: formatCount(parsedBulk.length) })
+                : t('Создать пользователя')) }}
           </button>
         </div>
       </div>

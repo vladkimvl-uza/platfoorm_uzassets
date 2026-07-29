@@ -13,7 +13,7 @@
       ref="taRef"
       v-model="text"
       class="ai-inp-ta"
-      :placeholder="recording ? 'Говорите…' : (placeholder || rotatingPlaceholder)"
+      :placeholder="recording ? t('Говорите…') : (placeholder || rotatingPlaceholder)"
       :disabled="disabled"
       rows="1"
       @keydown.enter.exact.prevent="onSubmit"
@@ -29,8 +29,8 @@
       :class="{ 'is-recording': recording }"
       type="button"
       :disabled="disabled"
-      :title="recording ? 'Остановить запись' : 'Голосовой ввод'"
-      :aria-label="recording ? 'Остановить запись' : 'Голосовой ввод'"
+      :title="recording ? t('Остановить запись') : t('Голосовой ввод')"
+      :aria-label="recording ? t('Остановить запись') : t('Голосовой ввод')"
       @click="toggleVoice"
     >
       <svg v-if="!recording" width="15" height="15" viewBox="0 0 24 24" fill="none"
@@ -56,8 +56,8 @@
       class="ai-inp-send"
       type="button"
       :disabled="!canSend"
-      aria-label="Отправить сообщение"
-      :title="canSend ? 'Отправить (Enter)' : 'Введите сообщение'"
+      :aria-label="t('Отправить сообщение')"
+      :title="canSend ? t('Отправить (Enter)') : t('Введите сообщение')"
       @click="onSubmit"
     >
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
@@ -77,7 +77,7 @@
           <line x1="12" y1="16" x2="12.01" y2="16"/>
         </svg>
         <span>{{ micError }}</span>
-        <button type="button" class="ai-mic-err-close" @click="micError = ''" aria-label="Закрыть">×</button>
+        <button type="button" class="ai-mic-err-close" @click="micError = ''" :aria-label="t('Закрыть')">×</button>
       </div>
     </transition>
   </div>
@@ -85,6 +85,9 @@
 
 <script setup lang="ts">
 import { ref, computed, nextTick, onBeforeUnmount, onMounted } from "vue";
+import { useI18n } from "@/composables/useI18n";
+
+const { t, locale } = useI18n();
 
 const props = defineProps<{
   disabled?: boolean;
@@ -104,22 +107,22 @@ const canSend = computed(() => !props.disabled && text.value.trim().length > 0);
 // ─── Premium polish: placeholder rotation ──────────────────────
 // Меняем placeholder каждые 4s через простой index, CSS вешает
 // fade-transition на ::placeholder, чтобы переход был плавным.
-const PLACEHOLDERS = [
-  "Спросите о портфеле, проектах, рейтингах…",
-  "Сделай сводку по 2026 и покажи отстающих",
-  "Какие задачи просрочены у Навоийского ГМК?",
-  "Сравни выручку 2024 vs 2025 по секторам",
-  "Топ-10 рисков по кредитному портфелю",
-  "Какие BP-показатели не выполнены за Q1?",
-];
+const placeholders = computed(() => [
+  t("Спросите о портфеле, проектах, рейтингах…"),
+  t("Сделай сводку по 2026 и покажи отстающих"),
+  t("Какие задачи просрочены у Навоийского ГМК?"),
+  t("Сравни выручку 2024 vs 2025 по секторам"),
+  t("Топ-10 рисков по кредитному портфелю"),
+  t("Какие BP-показатели не выполнены за Q1?"),
+]);
 const rotatingIdx = ref(0);
-const rotatingPlaceholder = computed(() => PLACEHOLDERS[rotatingIdx.value]);
+const rotatingPlaceholder = computed(() => placeholders.value[rotatingIdx.value]);
 let placeholderTimer: number | null = null;
 onMounted(() => {
   placeholderTimer = window.setInterval(() => {
     // Не крутим, если юзер сейчас активно печатает или в фокусе.
     if (focused.value || text.value.length > 0) return;
-    rotatingIdx.value = (rotatingIdx.value + 1) % PLACEHOLDERS.length;
+    rotatingIdx.value = (rotatingIdx.value + 1) % placeholders.value.length;
   }, 4000);
 });
 onBeforeUnmount(() => {
@@ -141,11 +144,11 @@ function onShiftEnter() {
 
 function onSubmit() {
   if (!canSend.value) return;
-  const t = text.value.trim();
+  const message = text.value.trim();
   // Premium polish: burst-animation на кнопке (см. .is-burst в CSS)
   bursting.value = true;
   window.setTimeout(() => { bursting.value = false; }, 650);
-  emit("submit", t);
+  emit("submit", message);
   text.value = "";
   nextTick(() => {
     if (taRef.value) {
@@ -170,6 +173,12 @@ let recognition: any = null;
 let baseText = "";          // Текст в input ДО старта записи (чтобы не затирать)
 let silenceTimer: any = null;
 const SILENCE_MS = 2000;    // Авто-стоп через 2 сек тишины
+const SPEECH_LOCALE = {
+  ru: "ru-RU",
+  "uz-latn": "uz-UZ",
+  "uz-cyr": "uz-UZ",
+  en: "en-US",
+} as const;
 
 function startVoice() {
   if (!SpeechRecognition || recording.value) return;
@@ -177,7 +186,7 @@ function startVoice() {
   try {
     micError.value = "";
     recognition = new SpeechRecognition();
-    recognition.lang = "ru-RU";
+    recognition.lang = SPEECH_LOCALE[locale.value];
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.maxAlternatives = 1;
@@ -213,17 +222,17 @@ function startVoice() {
       const err = e?.error || "unknown";
       console.warn("[AiInput] Speech recognition error:", err);
       if (err === "not-allowed") {
-        micError.value = "Доступ к микрофону заблокирован. Разрешите его в настройках сайта (значок слева от адресной строки) и обновите страницу.";
+        micError.value = t("Доступ к микрофону заблокирован. Разрешите его в настройках сайта (значок слева от адресной строки) и обновите страницу.");
       } else if (err === "service-not-allowed") {
-        micError.value = "Сервис распознавания речи недоступен. Проверьте соединение или попробуйте позже.";
+        micError.value = t("Сервис распознавания речи недоступен. Проверьте соединение или попробуйте позже.");
       } else if (err === "no-speech") {
-        micError.value = "Не услышал речь. Попробуйте ещё раз.";
+        micError.value = t("Не услышал речь. Попробуйте ещё раз.");
       } else if (err === "audio-capture") {
-        micError.value = "Микрофон не найден. Подключите устройство и попробуйте снова.";
+        micError.value = t("Микрофон не найден. Подключите устройство и попробуйте снова.");
       } else if (err === "network") {
-        micError.value = "Ошибка сети распознавания. Проверьте интернет.";
+        micError.value = t("Ошибка сети распознавания. Проверьте интернет.");
       } else {
-        micError.value = "Ошибка распознавания: " + err;
+        micError.value = t("Ошибка распознавания: {error}", { error: err });
       }
       setTimeout(() => { micError.value = ""; }, 7000);
       stopVoice();

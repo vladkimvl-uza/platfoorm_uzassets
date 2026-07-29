@@ -16,21 +16,20 @@
     <!-- ═══════════════ 1. HEADER ═══════════════ -->
     <div class="cnt-hdr">
       <div>
-        <div class="cnt-eyebrow">admin · сценарии и прогнозы</div>
+        <div class="cnt-eyebrow">{{ t('admin · сценарии и прогнозы') }}</div>
         <h2 class="cnt-title">
-          Кредитная нагрузка по 22 SOEs
+          {{ t('Кредитная нагрузка по 22 SOEs') }}
           <span class="cnt-tip" :title="TT.intro">?</span>
         </h2>
         <p class="cnt-sub" v-if="summary">
-          {{ fmtCount(summary.loans_count) }} кредитов ·
-          {{ fmtCount(summary.companies_count) }} предприятий ·
-          {{ fmtCount(summary.banks_count) }} банков ·
-          в области охвата: <strong>{{ scopeLabel }}</strong>
+          {{ fmtCount(summary.loans_count) }} {{ t('кредитов ·') }}
+          {{ fmtCount(summary.companies_count) }} {{ t('предприятий ·') }}
+          {{ fmtCount(summary.banks_count) }} {{ t('банков · в области охвата:') }} <strong>{{ scopeLabel }}</strong>
         </p>
       </div>
       <div class="cnt-hdr-r">
         <label class="cnt-field">
-          <span class="cnt-field-l">Активный сценарий<span class="cnt-tip" :title="TT.activeScenario">?</span></span>
+          <span class="cnt-field-l">{{ t('Активный сценарий') }}<span class="cnt-tip" :title="TT.activeScenario">?</span></span>
           <select v-model="activeScenarioIdProxy" class="cnt-input">
             <option v-for="sc in scenarios" :key="sc.id" :value="sc.id">
               {{ sc.name_ru || sc.macro_scenario_key }}
@@ -58,46 +57,46 @@
     <div v-if="error" class="cnt-alert cnt-alert-bad">{{ error }}</div>
 
     <!-- ═══════════════ 2. KPI STRIP ═══════════════ -->
-    <div class="cnt-l"><span>KPI портфеля<span class="cnt-tip" :title="TT.kpi">?</span></span><span class="cnt-l-hint">пересчитывается при смене scope / сценария</span></div>
+    <div class="cnt-l"><span>{{ t('KPI портфеля') }}<span class="cnt-tip" :title="TT.kpi">?</span></span><span class="cnt-l-hint">{{ t('пересчитывается при смене scope / сценария') }}</span></div>
     <div class="cnt-kpi-grid" v-if="summary">
       <div class="cnt-kpi" style="--kc:#534AB7;">
         <div class="cnt-kpi-l">Outstanding<span class="cnt-tip" :title="TT.outstanding">?</span></div>
         <div class="cnt-kpi-v">{{ fmtUsdMlrd(summary.debt_outstanding_usd) }}</div>
-        <div class="cnt-kpi-d">из ${{ (Number(summary.sum_total_usd) / 1e9).toFixed(2) }} млрд программы</div>
+        <div class="cnt-kpi-d">{{ t('из $') }}{{ (Number(summary.sum_total_usd) / 1e9).toFixed(2) }} {{ t('млрд программы') }}</div>
       </div>
       <div class="cnt-kpi" style="--kc:#1D9E75;">
-        <div class="cnt-kpi-l">Возвращено<span class="cnt-tip" :title="TT.repaid">?</span></div>
+        <div class="cnt-kpi-l">{{ t('Возвращено') }}<span class="cnt-tip" :title="TT.repaid">?</span></div>
         <div class="cnt-kpi-v">{{ fmtUsdMlrd(summary.repaid_usd) }}</div>
         <div class="cnt-kpi-d">{{ fmtPct(summary.repaid_pct) }}</div>
       </div>
       <div class="cnt-kpi" style="--kc:#EF9F27;">
-        <div class="cnt-kpi-l">Средневзв. ставка<span class="cnt-tip" :title="TT.rate">?</span></div>
+        <div class="cnt-kpi-l">{{ t('Средневзв. ставка') }}<span class="cnt-tip" :title="TT.rate">?</span></div>
         <div class="cnt-kpi-v">{{ fmtPct(summary.avg_rate_pct, 2) }}</div>
-        <div class="cnt-kpi-d">взвеш. по долгу</div>
+        <div class="cnt-kpi-d">{{ t('взвеш. по долгу') }}</div>
       </div>
       <div class="cnt-kpi" style="--kc:#378ADD;">
-        <div class="cnt-kpi-l">С госгарантией<span class="cnt-tip" :title="TT.guaranteed">?</span></div>
+        <div class="cnt-kpi-l">{{ t('С госгарантией') }}<span class="cnt-tip" :title="TT.guaranteed">?</span></div>
         <div class="cnt-kpi-v">{{ fmtPct(summary.guaranteed_pct) }}</div>
         <div class="cnt-kpi-d">{{ fmtUsdMlrd(summary.guaranteed_usd) }}</div>
       </div>
       <div class="cnt-kpi" style="--kc:#7F77DD;">
-        <div class="cnt-kpi-l">К погашению 12мес<span class="cnt-tip" :title="TT.due12">?</span></div>
+        <div class="cnt-kpi-l">{{ t('К погашению 12мес') }}<span class="cnt-tip" :title="TT.due12">?</span></div>
         <div class="cnt-kpi-v">{{ fmtUsdMlrd(summary.next_12mo_payments_usd) }}</div>
-        <div class="cnt-kpi-d">{{ summary.debt_outstanding_usd > 0 ? fmtPct(summary.next_12mo_payments_usd / summary.debt_outstanding_usd * 100) : '—' }} от долга</div>
+        <div class="cnt-kpi-d">{{ summary.debt_outstanding_usd > 0 ? fmtPct(summary.next_12mo_payments_usd / summary.debt_outstanding_usd * 100) : '—' }} {{ t('от долга') }}</div>
       </div>
       <div class="cnt-kpi" style="--kc:#E24B4A;">
-        <div class="cnt-kpi-l">Ожидаемые потери EL<span class="cnt-tip" :title="TT.el">?</span></div>
+        <div class="cnt-kpi-l">{{ t('Ожидаемые потери EL') }}<span class="cnt-tip" :title="TT.el">?</span></div>
         <div class="cnt-kpi-v">{{ fmtUsdMlrd(summary.expected_loss_usd) }}</div>
-        <div class="cnt-kpi-d">{{ fmtCount(summary.flagged_loans_count) }} флагнуто</div>
+        <div class="cnt-kpi-d">{{ fmtCount(summary.flagged_loans_count) }} {{ t('флагнуто') }}</div>
       </div>
     </div>
 
     <!-- ═══════════════ 3. ASSUMPTIONS EDITOR ═══════════════ -->
-    <div class="cnt-l"><span>Базовые допущения сценария<span class="cnt-tip" :title="TT.assumptions">?</span></span><span class="cnt-l-hint">автосохранение при потере фокуса</span></div>
+    <div class="cnt-l"><span>{{ t('Базовые допущения сценария') }}<span class="cnt-tip" :title="TT.assumptions">?</span></span><span class="cnt-l-hint">{{ t('автосохранение при потере фокуса') }}</span></div>
     <div class="cnt-card" v-if="activeScenario">
       <div class="cnt-ae-grid">
         <label class="cnt-ae-field">
-          <span class="cnt-ae-l">Списание госкредитов %<span class="cnt-tip" :title="TT.stateForg">?</span></span>
+          <span class="cnt-ae-l">{{ t('Списание госкредитов %') }}<span class="cnt-tip" :title="TT.stateForg">?</span></span>
           <input
             type="number" step="0.1" min="0" max="100"
             class="cnt-input cnt-input-num"
@@ -105,11 +104,11 @@
             @blur="saveField('state_forgiveness_pct')"
             :class="{ 'cnt-saved': savedFields.state_forgiveness_pct }"
           />
-          <small class="cnt-ae-hint">сколько % основного долга государство спишет</small>
+          <small class="cnt-ae-hint">{{ t('сколько % основного долга государство спишет') }}</small>
         </label>
 
         <label class="cnt-ae-field">
-          <span class="cnt-ae-l">Изм. ставки рефин. (п.п.)<span class="cnt-tip" :title="TT.refDelta">?</span></span>
+          <span class="cnt-ae-l">{{ t('Изм. ставки рефин. (п.п.)') }}<span class="cnt-tip" :title="TT.refDelta">?</span></span>
           <input
             type="number" step="0.25"
             class="cnt-input cnt-input-num"
@@ -117,11 +116,11 @@
             @blur="saveField('refinance_rate_delta_pp')"
             :class="{ 'cnt-saved': savedFields.refinance_rate_delta_pp }"
           />
-          <small class="cnt-ae-hint">+1.5 = ставка вырастет на 1.5 п.п. для гос. и местных</small>
+          <small class="cnt-ae-hint">{{ t('+1.5 = ставка вырастет на 1.5 п.п. для гос. и местных') }}</small>
         </label>
 
         <label class="cnt-ae-field">
-          <span class="cnt-ae-l">Базовый default rate %<span class="cnt-tip" :title="TT.defaultRate">?</span></span>
+          <span class="cnt-ae-l">{{ t('Базовый default rate %') }}<span class="cnt-tip" :title="TT.defaultRate">?</span></span>
           <input
             type="number" step="0.5" min="0" max="100"
             class="cnt-input cnt-input-num"
@@ -129,11 +128,11 @@
             @blur="saveField('default_rate_pct')"
             :class="{ 'cnt-saved': savedFields.default_rate_pct }"
           />
-          <small class="cnt-ae-hint">вероятность дефолта в сценарии (PD baseline)</small>
+          <small class="cnt-ae-hint">{{ t('вероятность дефолта в сценарии (PD baseline)') }}</small>
         </label>
 
         <label class="cnt-ae-field">
-          <span class="cnt-ae-l">Ускорение выплат %<span class="cnt-tip" :title="TT.accel">?</span></span>
+          <span class="cnt-ae-l">{{ t('Ускорение выплат %') }}<span class="cnt-tip" :title="TT.accel">?</span></span>
           <input
             type="number" step="1" min="0" max="100"
             class="cnt-input cnt-input-num"
@@ -141,51 +140,50 @@
             @blur="saveField('repayment_acceleration_pct')"
             :class="{ 'cnt-saved': savedFields.repayment_acceleration_pct }"
           />
-          <small class="cnt-ae-hint">на сколько % быстрее графика идут выплаты</small>
+          <small class="cnt-ae-hint">{{ t('на сколько % быстрее графика идут выплаты') }}</small>
         </label>
       </div>
     </div>
 
     <!-- ═══════════════ 4. RISK FORMULA EDITOR ═══════════════ -->
-    <div class="cnt-l"><span>Формула риска (Basel EL)<span class="cnt-tip" :title="TT.formula">?</span></span><span class="cnt-l-hint">EL = долг × PD × (1 − RR)</span></div>
+    <div class="cnt-l"><span>{{ t('Формула риска (Basel EL)') }}<span class="cnt-tip" :title="TT.formula">?</span></span><span class="cnt-l-hint">{{ t('EL = долг × PD × (1 − RR)') }}</span></div>
     <div class="cnt-card cnt-rfe">
       <div class="cnt-rfe-vars">
-        <strong>Доступные переменные:</strong>
+        <strong>{{ t('Доступные переменные:') }}</strong>
         <code>debt_usd</code>, <code>rate</code>, <code>is_guaranteed</code>,
         <code>lender_type</code>, <code>currency</code>, <code>overdue_days</code>,
         <code>days_to_maturity</code>, <code>repayments_remaining</code>,
         <code>scenario.default_rate_pct</code>, <code>scenario.state_forgiveness_pct</code>,
-        <code>loan.default_probability</code>, <code>custom.&lt;key&gt;</code>.
-        Функции: <code>min</code>, <code>max</code>, <code>abs</code>, <code>round</code>.
+        <code>loan.default_probability</code>, <code>custom.&lt;key&gt;</code>{{ t('. Функции:') }} <code>min</code>, <code>max</code>, <code>abs</code>, <code>round</code>.
       </div>
       <textarea
         v-model="formulaText"
         class="cnt-textarea"
         rows="8"
         spellcheck="false"
-        placeholder="# Введите Python-выражение или используйте дефолт..."
+        :placeholder="t('# Введите Python-выражение или используйте дефолт...')"
       ></textarea>
       <div class="cnt-rfe-actions">
-        <button type="button" class="cnt-btn" @click="loadDefaultFormula">Загрузить дефолт</button>
-        <button type="button" class="cnt-btn" @click="onValidate">Валидировать</button>
-        <button type="button" class="cnt-btn cnt-btn-p" @click="onTest">Тестировать на крупн. кредите</button>
-        <button type="button" class="cnt-btn cnt-btn-g" @click="onSaveFormula" :disabled="!formulaValid">Сохранить в сценарий</button>
+        <button type="button" class="cnt-btn" @click="loadDefaultFormula">{{ t('Загрузить дефолт') }}</button>
+        <button type="button" class="cnt-btn" @click="onValidate">{{ t('Валидировать') }}</button>
+        <button type="button" class="cnt-btn cnt-btn-p" @click="onTest">{{ t('Тестировать на крупн. кредите') }}</button>
+        <button type="button" class="cnt-btn cnt-btn-g" @click="onSaveFormula" :disabled="!formulaValid">{{ t('Сохранить в сценарий') }}</button>
       </div>
 
       <div v-if="formulaValidate" class="cnt-rfe-result" :class="formulaValidate.ok ? 'cnt-rfe-ok' : 'cnt-rfe-bad'">
         <strong>{{ formulaValidate.ok ? '✓ Синтаксис корректен' : '✗ Ошибка' }}</strong>
-        <div v-if="formulaValidate.error">{{ formulaValidate.error }}<span v-if="formulaValidate.error_position != null"> (позиция {{ formulaValidate.error_position }})</span></div>
+        <div v-if="formulaValidate.error">{{ formulaValidate.error }}<span v-if="formulaValidate.error_position != null"> {{ t('(позиция') }} {{ formulaValidate.error_position }})</span></div>
         <div v-if="formulaValidate.variables_used?.length">
-          Обнаружены: <code v-for="v in formulaValidate.variables_used" :key="v">{{ v }}</code>
+          {{ t('Обнаружены:') }} <code v-for="v in formulaValidate.variables_used" :key="v">{{ v }}</code>
         </div>
       </div>
 
       <div v-if="formulaTest" class="cnt-rfe-test">
-        <strong>Тест на крупнейшем кредите:</strong>
+        <strong>{{ t('Тест на крупнейшем кредите:') }}</strong>
         <div v-if="formulaTest.ok">
-          Результат = <b>{{ fmtUsdMln(formulaTest.final_value) }}</b>
+          {{ t('Результат =') }} <b>{{ fmtUsdMln(formulaTest.final_value) }}</b>
           <details v-if="formulaTest.steps?.length" class="cnt-rfe-steps">
-            <summary>Промежуточные шаги ({{ formulaTest.steps.length }})</summary>
+            <summary>{{ t('Промежуточные шаги (') }}{{ formulaTest.steps.length }})</summary>
             <ul>
               <li v-for="(s, i) in formulaTest.steps" :key="i"><code>{{ s }}</code></li>
             </ul>
@@ -196,12 +194,12 @@
     </div>
 
     <!-- ═══════════════ 5. CUSTOM INDICATORS ═══════════════ -->
-    <div class="cnt-l"><span>Кастомные индикаторы<span class="cnt-tip" :title="TT.customInd">?</span></span><span class="cnt-l-hint">переменные доступные в формуле как custom.&lt;key&gt;</span></div>
+    <div class="cnt-l"><span>{{ t('Кастомные индикаторы') }}<span class="cnt-tip" :title="TT.customInd">?</span></span><span class="cnt-l-hint">{{ t('переменные доступные в формуле как custom.&lt;key&gt;') }}</span></div>
     <div class="cnt-card">
       <table class="cnt-tbl" v-if="customIndicators.length">
         <thead>
           <tr>
-            <th>Key</th><th>Название</th><th>Тип</th><th class="r">мин</th><th class="r">макс</th><th class="r">значение</th><th>агрегация</th><th></th>
+            <th>Key</th><th>{{ t('Название') }}</th><th>{{ t('Тип') }}</th><th class="r">{{ t('мин') }}</th><th class="r">{{ t('макс') }}</th><th class="r">{{ t('значение') }}</th><th>{{ t('агрегация') }}</th><th></th>
           </tr>
         </thead>
         <tbody>
@@ -220,42 +218,42 @@
               />
             </td>
             <td><small>{{ ind.aggregation || '—' }}</small></td>
-            <td><button class="cnt-btn-x" @click="onDeleteIndicator(ind.id)" title="Удалить">×</button></td>
+            <td><button class="cnt-btn-x" @click="onDeleteIndicator(ind.id)" :title="t('Удалить')">×</button></td>
           </tr>
         </tbody>
       </table>
-      <div v-else class="cnt-empty">Нет кастомных индикаторов. Используйте форму ниже чтобы добавить первый.</div>
+      <div v-else class="cnt-empty">{{ t('Нет кастомных индикаторов. Используйте форму ниже чтобы добавить первый.') }}</div>
 
       <!-- Add form -->
       <div class="cnt-ci-add">
-        <strong>Добавить индикатор:</strong>
+        <strong>{{ t('Добавить индикатор:') }}</strong>
         <div class="cnt-ci-add-row">
           <input v-model="newInd.key" placeholder="key (yuan_share)" class="cnt-input" />
-          <input v-model="newInd.name_ru" placeholder="Название (Доля юаня)" class="cnt-input" />
+          <input v-model="newInd.name_ru" :placeholder="t('Название (Доля юаня)')" class="cnt-input" />
           <select v-model="newInd.input_type" class="cnt-input">
             <option v-for="t in CI_TYPES" :key="t" :value="t">{{ t }}</option>
           </select>
-          <input v-model.number="newInd.min_value" type="number" step="0.01" placeholder="мин" class="cnt-input cnt-input-num" />
-          <input v-model.number="newInd.max_value" type="number" step="0.01" placeholder="макс" class="cnt-input cnt-input-num" />
-          <input v-model.number="newInd.current_value" type="number" step="0.01" placeholder="значение" class="cnt-input cnt-input-num" />
-          <button class="cnt-btn cnt-btn-p" @click="onCreateIndicator" :disabled="!newInd.key || !newInd.name_ru">+ Добавить</button>
+          <input v-model.number="newInd.min_value" type="number" step="0.01" :placeholder="t('мин')" class="cnt-input cnt-input-num" />
+          <input v-model.number="newInd.max_value" type="number" step="0.01" :placeholder="t('макс')" class="cnt-input cnt-input-num" />
+          <input v-model.number="newInd.current_value" type="number" step="0.01" :placeholder="t('значение')" class="cnt-input cnt-input-num" />
+          <button class="cnt-btn cnt-btn-p" @click="onCreateIndicator" :disabled="!newInd.key || !newInd.name_ru">{{ t('+ Добавить') }}</button>
         </div>
       </div>
     </div>
 
     <!-- ═══════════════ 6. TOP LOANS TABLE ═══════════════ -->
-    <div class="cnt-l"><span>TOP-{{ topLoans.length }} кредитов<span class="cnt-tip" :title="TT.topLoans">?</span></span><span class="cnt-l-hint">inline-редактирование per-loan override</span></div>
+    <div class="cnt-l"><span>TOP-{{ topLoans.length }} {{ t('кредитов') }}<span class="cnt-tip" :title="TT.topLoans">?</span></span><span class="cnt-l-hint">{{ t('inline-редактирование per-loan override') }}</span></div>
     <div class="cnt-card cnt-tl-wrap" v-if="topLoans.length">
       <table class="cnt-tbl">
         <thead>
           <tr>
-            <th>Заёмщик / банк</th>
-            <th class="r">долг $ млн</th>
-            <th class="r">ставка</th>
-            <th class="r">срок</th>
-            <th class="r" title="% списания этого конкретного кредита">списать %</th>
-            <th class="r" title="новая ставка для этого конкретного кредита">нов. ставка</th>
-            <th>статус</th>
+            <th>{{ t('Заёмщик / банк') }}</th>
+            <th class="r">{{ t('долг $ млн') }}</th>
+            <th class="r">{{ t('ставка') }}</th>
+            <th class="r">{{ t('срок') }}</th>
+            <th class="r" :title="t('% списания этого конкретного кредита')">{{ t('списать %') }}</th>
+            <th class="r" :title="t('новая ставка для этого конкретного кредита')">{{ t('нов. ставка') }}</th>
+            <th>{{ t('статус') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -285,8 +283,8 @@
               />
             </td>
             <td>
-              <span v-if="ln.is_guaranteed" class="cnt-tag cnt-tag-guar">госгарантия</span>
-              <button v-if="overrideOf(ln.loan_id)" class="cnt-btn-x" @click="onDeleteOverride(ln.loan_id)" title="Удалить override">×</button>
+              <span v-if="ln.is_guaranteed" class="cnt-tag cnt-tag-guar">{{ t('госгарантия') }}</span>
+              <button v-if="overrideOf(ln.loan_id)" class="cnt-btn-x" @click="onDeleteOverride(ln.loan_id)" :title="t('Удалить override')">×</button>
             </td>
           </tr>
         </tbody>
@@ -294,10 +292,10 @@
     </div>
 
     <!-- ═══════════════ 7. READ-ONLY VIZ: Debt ratios + Waterfall ═══════════════ -->
-    <div class="cnt-l"><span>Аналитика портфеля<span class="cnt-tip" :title="TT.viz">?</span></span><span class="cnt-l-hint">read-only: отношения долга + квартальный график</span></div>
+    <div class="cnt-l"><span>{{ t('Аналитика портфеля') }}<span class="cnt-tip" :title="TT.viz">?</span></span><span class="cnt-l-hint">{{ t('read-only: отношения долга + квартальный график') }}</span></div>
     <div class="cnt-2col">
       <div class="cnt-card">
-        <div class="cnt-card-h">TOP-6 по Debt/EBITDA<span class="cnt-tip" :title="TT.debtEbitda">?</span></div>
+        <div class="cnt-card-h">{{ t('TOP-6 по Debt/EBITDA') }}<span class="cnt-tip" :title="TT.debtEbitda">?</span></div>
         <table class="cnt-tbl cnt-tbl-tight" v-if="ratios.length">
           <tbody>
             <tr v-for="r in ratios" :key="r.company_id">
@@ -307,21 +305,21 @@
             </tr>
           </tbody>
         </table>
-        <div v-else class="cnt-empty">Нет данных.</div>
+        <div v-else class="cnt-empty">{{ t('Нет данных.') }}</div>
       </div>
 
       <div class="cnt-card">
-        <div class="cnt-card-h">Квартальный график погашения<span class="cnt-tip" :title="TT.waterfall">?</span></div>
+        <div class="cnt-card-h">{{ t('Квартальный график погашения') }}<span class="cnt-tip" :title="TT.waterfall">?</span></div>
         <div class="cnt-wf" v-if="forecast.length">
           <div v-for="(y, yi) in forecast" :key="yi" class="cnt-wf-yr">
-            <div class="cnt-wf-yr-l">{{ y.period_year }} Q{{ y.period_quarter }}<span v-if="y.is_history" class="cnt-wf-tag">факт</span></div>
+            <div class="cnt-wf-yr-l">{{ y.period_year }} Q{{ y.period_quarter }}<span v-if="y.is_history" class="cnt-wf-tag">{{ t('факт') }}</span></div>
             <div class="cnt-wf-bar-area">
               <div class="cnt-wf-bar" :style="{ height: `${barHeight(y.scheduled_usd)}%` }"></div>
             </div>
             <div class="cnt-wf-v">{{ fmtUsdMln(y.scheduled_usd) }}</div>
           </div>
         </div>
-        <div v-else class="cnt-empty">Нет данных.</div>
+        <div v-else class="cnt-empty">{{ t('Нет данных.') }}</div>
       </div>
     </div>
 
@@ -333,6 +331,9 @@ import { computed, onMounted, reactive, ref, watch } from "vue"
 import { useCreditScenario, fmtUsdMlrd, fmtUsdMln, fmtPct, fmtCount } from "@/composables/useCreditScenario"
 import * as creditApi from "@/api/creditScenario"
 import { useConfirm } from "@/composables/useConfirm"
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const { confirmDialog } = useConfirm()
 

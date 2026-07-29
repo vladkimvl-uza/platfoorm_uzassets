@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
 /**
  * ReportAppendix — опциональные премиум-секции в конце «Отчёта по проектам»:
  *   1. Статус-матрица (направления × статусы) — тепловая сетка.
@@ -74,16 +76,16 @@ const BP_GROUP_LABEL: Record<string, string> = {
     <!-- ═══ 1. Статус-матрица ═══ -->
     <section v-if="show.matrix && matrix.grand" class="apx-sec">
       <div class="apx-head">
-        <span class="apx-title">Статус-матрица</span>
-        <span class="apx-sub">направления × статусы · {{ matrix.grand }} элементов</span>
+        <span class="apx-title">{{ t('Статус-матрица') }}</span>
+        <span class="apx-sub">{{ t('направления × статусы ·') }} {{ matrix.grand }} {{ t('элементов') }}</span>
       </div>
       <div class="apx-scroll">
         <table class="apx-tbl mx">
           <thead>
             <tr>
-              <th class="c-left">Направление</th>
+              <th class="c-left">{{ t('Направление') }}</th>
               <th v-for="c in matrixCols" :key="c.key">{{ c.label }}</th>
-              <th class="c-tot">Всего</th>
+              <th class="c-tot">{{ t('Всего') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -95,7 +97,7 @@ const BP_GROUP_LABEL: Record<string, string> = {
           </tbody>
           <tfoot>
             <tr>
-              <td class="c-left">Итого</td>
+              <td class="c-left">{{ t('Итого') }}</td>
               <td v-for="c in matrixCols" :key="c.key" class="c-num">{{ matrix.colTotals[c.key] || 0 }}</td>
               <td class="c-tot">{{ matrix.grand }}</td>
             </tr>
@@ -107,15 +109,15 @@ const BP_GROUP_LABEL: Record<string, string> = {
     <!-- ═══ 2. Основные фин. показатели ═══ -->
     <section v-if="show.fin" class="apx-sec">
       <div class="apx-head">
-        <span class="apx-title">Основные финансовые показатели</span>
-        <span class="apx-sub">за {{ fin.year }} год · млрд сум · {{ fin.standard }}</span>
+        <span class="apx-title">{{ t('Основные финансовые показатели') }}</span>
+        <span class="apx-sub">{{ t('за') }} {{ fin.year }} {{ t('год · млрд сум ·') }} {{ fin.standard }}</span>
       </div>
-      <div v-if="fin.loading" class="apx-state">Загрузка…</div>
-      <div v-else-if="fin.empty" class="apx-state">Нет финансовых данных для компании.</div>
+      <div v-if="fin.loading" class="apx-state">{{ t('Загрузка…') }}</div>
+      <div v-else-if="fin.empty" class="apx-state">{{ t('Нет финансовых данных для компании.') }}</div>
       <div v-else class="apx-scroll">
         <table class="apx-tbl fin">
           <thead>
-            <tr><th class="c-left">Показатель</th><th class="c-prev">{{ fin.prev }}</th><th class="c-cur">{{ fin.year }}</th><th class="c-yoy">Δ г/г</th></tr>
+            <tr><th class="c-left">{{ t('Показатель') }}</th><th class="c-prev">{{ fin.prev }}</th><th class="c-cur">{{ fin.year }}</th><th class="c-yoy">{{ t('Δ г/г') }}</th></tr>
           </thead>
           <tbody>
             <tr v-for="r in fin.rows" :key="r.key">
@@ -138,16 +140,16 @@ const BP_GROUP_LABEL: Record<string, string> = {
     <!-- ═══ 3. Исполнение KPI ═══ -->
     <section v-if="show.kpi" class="apx-sec">
       <div class="apx-head">
-        <span class="apx-title">Исполнение KPI</span>
+        <span class="apx-title">{{ t('Исполнение KPI') }}</span>
         <span class="apx-sub">{{ kpi.year }} · {{ kpi.periodLabel }}</span>
-        <span v-if="kpi.overall != null" class="apx-badge" :style="pctStyle(kpi.overall)">Итого {{ pct(kpi.overall) }}</span>
+        <span v-if="kpi.overall != null" class="apx-badge" :style="pctStyle(kpi.overall)">{{ t('Итого') }} {{ pct(kpi.overall) }}</span>
       </div>
-      <div v-if="kpi.loading" class="apx-state">Загрузка…</div>
-      <div v-else-if="kpi.empty" class="apx-state">Нет данных KPI за выбранный год.</div>
+      <div v-if="kpi.loading" class="apx-state">{{ t('Загрузка…') }}</div>
+      <div v-else-if="kpi.empty" class="apx-state">{{ t('Нет данных KPI за выбранный год.') }}</div>
       <div v-else class="apx-scroll">
         <table class="apx-tbl kpi">
           <thead>
-            <tr><th class="c-left">КПЭ</th><th class="c-unit">Ед.</th><th class="c-pf">План</th><th class="c-pf">Факт</th><th class="c-w">Вес</th><th class="c-exec">Исполн.</th></tr>
+            <tr><th class="c-left">{{ t('КПЭ') }}</th><th class="c-unit">{{ t('Ед.') }}</th><th class="c-pf">{{ t('План') }}</th><th class="c-pf">{{ t('Факт') }}</th><th class="c-w">{{ t('Вес') }}</th><th class="c-exec">{{ t('Исполн.') }}</th></tr>
           </thead>
           <tbody>
             <template v-for="g in kpi.groups" :key="g.id">
@@ -175,16 +177,16 @@ const BP_GROUP_LABEL: Record<string, string> = {
     <!-- ═══ 4. Исполнение бизнес-плана ═══ -->
     <section v-if="show.bp" class="apx-sec">
       <div class="apx-head">
-        <span class="apx-title">Исполнение бизнес-плана</span>
-        <span class="apx-sub">{{ bp.year }} · {{ bp.periodLabel }} · млрд сум</span>
-        <span v-if="bp.overall != null" class="apx-badge" :style="pctStyle(bp.overall)">Выручка {{ pct(bp.overall) }}</span>
+        <span class="apx-title">{{ t('Исполнение бизнес-плана') }}</span>
+        <span class="apx-sub">{{ bp.year }} · {{ bp.periodLabel }} {{ t('· млрд сум') }}</span>
+        <span v-if="bp.overall != null" class="apx-badge" :style="pctStyle(bp.overall)">{{ t('Выручка') }} {{ pct(bp.overall) }}</span>
       </div>
-      <div v-if="bp.loading" class="apx-state">Загрузка…</div>
-      <div v-else-if="bp.empty" class="apx-state">Нет данных бизнес-плана за выбранный период.</div>
+      <div v-if="bp.loading" class="apx-state">{{ t('Загрузка…') }}</div>
+      <div v-else-if="bp.empty" class="apx-state">{{ t('Нет данных бизнес-плана за выбранный период.') }}</div>
       <div v-else class="apx-scroll">
         <table class="apx-tbl bp">
           <thead>
-            <tr><th class="c-left">Показатель</th><th class="c-pf">План</th><th class="c-pf">Ожид.</th><th class="c-pf">Факт</th><th class="c-exec">Исполн.</th></tr>
+            <tr><th class="c-left">{{ t('Показатель') }}</th><th class="c-pf">{{ t('План') }}</th><th class="c-pf">{{ t('Ожид.') }}</th><th class="c-pf">{{ t('Факт') }}</th><th class="c-exec">{{ t('Исполн.') }}</th></tr>
           </thead>
           <tbody>
             <tr v-for="r in bp.rows" :key="r.key" :class="{ 'apx-auto': r.auto }">
@@ -211,15 +213,15 @@ const BP_GROUP_LABEL: Record<string, string> = {
     <!-- ═══ 5. Рейтинги (кредитные + ESG) ═══ -->
     <section v-if="show.ratings && !rat.empty" class="apx-sec">
       <div class="apx-head">
-        <span class="apx-title">Рейтинги</span>
-        <span class="apx-sub">кредитные и ESG</span>
+        <span class="apx-title">{{ t('Рейтинги') }}</span>
+        <span class="apx-sub">{{ t('кредитные и ESG') }}</span>
       </div>
       <template v-for="grp in [{ t: 'Кредитные рейтинги', rows: rat.credit }, { t: 'ESG-рейтинги', rows: rat.esg }]" :key="grp.t">
         <div v-if="grp.rows.length" class="apx-scroll apx-rat-block">
           <div class="apx-subcap">{{ grp.t }}</div>
           <table class="apx-tbl rat">
             <thead>
-              <tr><th class="c-left">Агентство</th><th class="c-rt">Рейтинг</th><th class="c-rt">Прогноз</th><th class="c-rt">Дата</th></tr>
+              <tr><th class="c-left">{{ t('Агентство') }}</th><th class="c-rt">{{ t('Рейтинг') }}</th><th class="c-rt">{{ t('Прогноз') }}</th><th class="c-rt">{{ t('Дата') }}</th></tr>
             </thead>
             <tbody>
               <tr v-for="r in grp.rows" :key="r.agency">

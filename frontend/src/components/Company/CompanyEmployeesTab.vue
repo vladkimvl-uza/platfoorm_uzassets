@@ -12,6 +12,9 @@ import { computed, ref, watch } from "vue";
 import { companiesApi, type CompanyEmployee } from "@/api/companies";
 import { formatRelativeTime } from "@/api/audit";
 import UserCardAnchor from "@/components/user/UserCardAnchor.vue";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const props = defineProps<{ code: string }>();
 
@@ -96,12 +99,12 @@ const filtered = computed(() => {
     <!-- Header (тулбар как в governance) -->
     <div class="cet-hd">
       <div class="cet-hd-l">
-        <h2 class="cet-title">Сотрудники</h2>
+        <h2 class="cet-title">{{ t('Сотрудники') }}</h2>
         <span v-if="!loading" class="cet-count">{{ employees.length }}</span>
       </div>
       <div v-if="!loading && employees.length" class="cet-search-wrap">
         <svg class="cet-search-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-        <input v-model="search" class="cet-search" placeholder="Поиск по имени, отделу, должности…" />
+        <input v-model="search" class="cet-search" :placeholder="t('Поиск по имени, отделу, должности…')" />
       </div>
     </div>
 
@@ -116,8 +119,8 @@ const filtered = computed(() => {
     <!-- Empty (honest: нет данных ≠ 0) -->
     <div v-else-if="!employees.length" class="cet-empty">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-      <div>К этой компании пока не привязан ни один пользователь</div>
-      <p>Привязка задаётся в профиле сотрудника (поле «Компания») или администратором.</p>
+      <div>{{ t('К этой компании пока не привязан ни один пользователь') }}</div>
+      <p>{{ t('Привязка задаётся в профиле сотрудника (поле «Компания») или администратором.') }}</p>
     </div>
 
     <template v-else>
@@ -141,8 +144,8 @@ const filtered = computed(() => {
       <!-- Отделы — чипы (как «Комитеты совета»), клик = фильтр -->
       <div v-if="deptList.length > 1" class="cet-sec">
         <div class="cet-sec-l">
-          Отделы
-          <button v-if="deptFilter" class="cet-sec-clear" @click="deptFilter = null">сбросить фильтр</button>
+          {{ t('Отделы') }}
+          <button v-if="deptFilter" class="cet-sec-clear" @click="deptFilter = null">{{ t('сбросить фильтр') }}</button>
         </div>
         <div class="cet-chips">
           <button
@@ -160,12 +163,12 @@ const filtered = computed(() => {
       <!-- Состав — карточки людей в стиле членов совета -->
       <div class="cet-sec">
         <div class="cet-sec-l">
-          Состав ({{ filtered.length }} {{ filtered.length === 1 ? 'чел.' : 'чел.' }})
+          {{ t('Состав (') }}{{ filtered.length }} {{ filtered.length === 1 ? 'чел.' : 'чел.' }})
         </div>
 
         <div v-if="filtered.length === 0" class="cet-empty cet-empty--sm">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-          <div>Никто не найден</div>
+          <div>{{ t('Никто не найден') }}</div>
         </div>
 
         <div v-else class="cet-members">
@@ -182,18 +185,18 @@ const filtered = computed(() => {
             <div class="cet-mav" :style="{ background: e.accent }">
               <img v-if="e.avatar_url" :src="e.avatar_url" alt="" />
               <span v-else>{{ e.initials }}</span>
-              <span v-if="isOnline(e)" class="cet-online" title="В сети"></span>
+              <span v-if="isOnline(e)" class="cet-online" :title="t('В сети')"></span>
             </div>
             <div class="cet-minfo">
               <div class="cet-mname">
                 {{ e.full_name }}
-                <span v-if="e.is_owner" class="cet-owner" title="Владелец">★</span>
+                <span v-if="e.is_owner" class="cet-owner" :title="t('Владелец')">★</span>
               </div>
               <div v-if="e.job_title || e.role" class="cet-mpos">{{ e.job_title || e.role }}</div>
               <div class="cet-mmeta">
                 <span v-if="e.department" class="cet-mpill">{{ e.department }}</span>
-                <span v-if="isOnline(e)" class="cet-mbadge cet-mbadge--on">В сети</span>
-                <span v-else-if="!e.is_active" class="cet-mbadge">Неактивен</span>
+                <span v-if="isOnline(e)" class="cet-mbadge cet-mbadge--on">{{ t('В сети') }}</span>
+                <span v-else-if="!e.is_active" class="cet-mbadge">{{ t('Неактивен') }}</span>
               </div>
               <div class="cet-mdates">{{ e.last_active ? formatRelativeTime(e.last_active) : 'нет активности' }}</div>
             </div>

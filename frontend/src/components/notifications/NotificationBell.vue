@@ -13,6 +13,9 @@ import UserCardAnchor from "@/components/user/UserCardAnchor.vue";
 import ActorLine from "@/components/user/ActorLine.vue";
 import { describeNotification, NOTIF_ICON_PATHS } from "@/composables/useNotificationMeta";
 import { useNotificationDetail } from "@/composables/useNotificationDetail";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const router = useRouter();
 const store = useNotificationsStore();
@@ -156,7 +159,7 @@ function priorityColorFor(p: string): string { return PRIORITY_LABELS[p as "crit
       <span v-if="store.unreadCount > 0" class="nb-badge" :class="{ critical: store.criticalCount > 0 }">
         {{ store.unreadCount > 99 ? "99+" : store.unreadCount }}
       </span>
-      <span v-if="!store.isConnected" class="nb-offline" title="Подключение к live..."></span>
+      <span v-if="!store.isConnected" class="nb-offline" :title="t('Подключение к live...')"></span>
     </button>
 
     <Teleport to="body">
@@ -172,29 +175,29 @@ function priorityColorFor(p: string): string { return PRIORITY_LABELS[p as "crit
 
         <div class="nb-hd">
           <div class="nb-hd-l">
-            <span class="nb-hd-title">Уведомления</span>
-            <span v-if="store.unreadCount > 0" class="nb-hd-badge">{{ store.unreadCount }} новых</span>
+            <span class="nb-hd-title">{{ t('Уведомления') }}</span>
+            <span v-if="store.unreadCount > 0" class="nb-hd-badge">{{ store.unreadCount }} {{ t('новых') }}</span>
           </div>
           <div class="nb-hd-r">
-            <button v-if="store.unreadCount > 0" class="nb-act-link" @click="store.markAllRead()">Прочитать всё</button>
-            <button class="nb-act-icon" @click="router.push('/notifications/settings'); close()" title="Настройки">
+            <button v-if="store.unreadCount > 0" class="nb-act-link" @click="store.markAllRead()">{{ t('Прочитать всё') }}</button>
+            <button class="nb-act-icon" @click="router.push('/notifications/settings'); close()" :title="t('Настройки')">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
             </button>
           </div>
         </div>
 
         <div class="nb-tabs">
-          <button :class="{ active: activeFilter === 'all' }" @click="activeFilter = 'all'">Все · {{ store.unreadCount }}</button>
+          <button :class="{ active: activeFilter === 'all' }" @click="activeFilter = 'all'">{{ t('Все ·') }} {{ store.unreadCount }}</button>
           <button :class="{ active: activeFilter === 'moderation' }" @click="activeFilter = 'moderation'">
-            Модерация
+            {{ t('Модерация') }}
             <span v-if="filterCounts.moderation > 0" class="nb-tab-cnt" :style="{ background: '#A32D2D' }">{{ filterCounts.moderation }}</span>
           </button>
           <button :class="{ active: activeFilter === 'mentions' }" @click="activeFilter = 'mentions'">
-            Упоминания
+            {{ t('Упоминания') }}
             <span v-if="filterCounts.mentions > 0" class="nb-tab-cnt">{{ filterCounts.mentions }}</span>
           </button>
           <button :class="{ active: activeFilter === 'deadlines' }" @click="activeFilter = 'deadlines'">
-            Дедлайны
+            {{ t('Дедлайны') }}
             <span v-if="filterCounts.deadlines > 0" class="nb-tab-cnt">{{ filterCounts.deadlines }}</span>
           </button>
         </div>
@@ -205,7 +208,7 @@ function priorityColorFor(p: string): string { return PRIORITY_LABELS[p as "crit
               <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/>
               <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
             </svg>
-            <div>Все уведомления прочитаны</div>
+            <div>{{ t('Все уведомления прочитаны') }}</div>
           </div>
           <div v-for="(n, idx) in filteredItems" :key="n.id" class="nb-item"
                :class="[
@@ -260,13 +263,13 @@ function priorityColorFor(p: string): string { return PRIORITY_LABELS[p as "crit
               <div v-if="n.type.startsWith('moderation.pending')" class="nb-quick">
                 <button class="nb-q-approve" @click.stop="quickAction(n.id, 'approve')">
                   <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M3 8l4 4 6-8"/></svg>
-                  Принять
+                  {{ t('Принять') }}
                 </button>
                 <button class="nb-q-reject" @click.stop="quickAction(n.id, 'reject')">
                   <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13"/></svg>
-                  Отклонить
+                  {{ t('Отклонить') }}
                 </button>
-                <button class="nb-q-open" @click.stop="quickAction(n.id, 'open')">Открыть</button>
+                <button class="nb-q-open" @click.stop="quickAction(n.id, 'open')">{{ t('Открыть') }}</button>
               </div>
             </div>
             <span v-if="!n.is_read" class="nb-dot" :style="{ background: priorityColorFor(n.priority) }"></span>
@@ -275,7 +278,7 @@ function priorityColorFor(p: string): string { return PRIORITY_LABELS[p as "crit
 
         <div class="nb-foot">
           <button class="nb-foot-l" @click="router.push('/notifications'); close()">
-            Все уведомления
+            {{ t('Все уведомления') }}
             <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l5 5-5 5"/></svg>
           </button>
           <div class="nb-foot-r">

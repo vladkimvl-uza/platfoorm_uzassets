@@ -15,6 +15,9 @@ import { ref, computed, watch } from "vue";
 import { ratingsApi, type AgencyRatingBrief } from "@/api/ratings";
 import { isModerationQueued } from "@/api/client";
 import { useConfirm } from "@/composables/useConfirm";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const { confirmDialog } = useConfirm();
 
@@ -215,7 +218,7 @@ async function remove() {
           <div class="rem-grid">
             <!-- Rating -->
             <div class="rem-fld">
-              <label class="rem-fld-l">Рейтинг</label>
+              <label class="rem-fld-l">{{ t('Рейтинг') }}</label>
               <input
                 v-model="rating"
                 type="text"
@@ -225,24 +228,24 @@ async function remove() {
               />
               <div class="rem-fld-hint">
                 <template v-if="isEsg">
-                  Sustainable Fitch / S&amp;P ESG: число 1-5 (tier) или 0-100 (score). CDP: A/A-/B/B-/C/C-/D
+                  {{ t('Sustainable Fitch / S&amp;P ESG: число 1-5 (tier) или 0-100 (score). CDP: A/A-/B/B-/C/C-/D') }}
                 </template>
                 <template v-else>
-                  Шкала: D · CCC · B · BB · BBB · A · AA · AAA (+/-)
+                  {{ t('Шкала: D · CCC · B · BB · BBB · A · AA · AAA (+/-)') }}
                 </template>
               </div>
             </div>
 
             <!-- Score (ESG only) -->
             <div class="rem-fld" v-if="isEsg">
-              <label class="rem-fld-l">Score (доп.)</label>
+              <label class="rem-fld-l">{{ t('Score (доп.)') }}</label>
               <input
                 v-model="score"
                 type="text"
                 class="rem-fld-i"
-                placeholder="опционально, напр. 54"
+                :placeholder="t('опционально, напр. 54')"
               />
-              <div class="rem-fld-hint">Если рейтинг = «Level 3», score = «54» (отображается как «3 · 54»)</div>
+              <div class="rem-fld-hint">{{ t('Если рейтинг = «Level 3», score = «54» (отображается как «3 · 54»)') }}</div>
             </div>
 
             <!-- Outlook -->
@@ -255,30 +258,30 @@ async function remove() {
 
             <!-- Date text -->
             <div class="rem-fld">
-              <label class="rem-fld-l">Дата (текст)</label>
+              <label class="rem-fld-l">{{ t('Дата (текст)') }}</label>
               <input
                 v-model="ratingDateText"
                 type="text"
                 class="rem-fld-i"
-                placeholder="напр. июл 2025 или 27.02.2026"
+                :placeholder="t('напр. июл 2025 или 27.02.2026')"
               />
-              <div class="rem-fld-hint">Свободный формат — отображается в таблице как есть</div>
+              <div class="rem-fld-hint">{{ t('Свободный формат — отображается в таблице как есть') }}</div>
             </div>
 
             <!-- ISO date (optional, for sorting) -->
             <div class="rem-fld">
-              <label class="rem-fld-l">Дата ISO (опц.)</label>
+              <label class="rem-fld-l">{{ t('Дата ISO (опц.)') }}</label>
               <input
                 v-model="ratingDate"
                 type="date"
                 class="rem-fld-i"
               />
-              <div class="rem-fld-hint">Точная дата для сортировки «Последние изменения»</div>
+              <div class="rem-fld-hint">{{ t('Точная дата для сортировки «Последние изменения»') }}</div>
             </div>
 
             <!-- Report URL -->
             <div class="rem-fld rem-fld-wide">
-              <label class="rem-fld-l">Ссылка на отчёт</label>
+              <label class="rem-fld-l">{{ t('Ссылка на отчёт') }}</label>
               <input
                 v-model="reportUrl"
                 type="url"
@@ -302,7 +305,7 @@ async function remove() {
             {{ deleting ? "Удаление…" : "Удалить" }}
           </button>
           <div style="flex:1"></div>
-          <button class="rem-btn" :disabled="saving || deleting" @click="requestClose">Отмена</button>
+          <button class="rem-btn" :disabled="saving || deleting" @click="requestClose">{{ t('Отмена') }}</button>
           <button class="rem-btn rem-btn-primary" :disabled="saving || deleting || !rating.trim()" @click="save">
             {{ saving ? "Сохранение…" : (isEdit ? "Сохранить" : "Создать") }}
           </button>

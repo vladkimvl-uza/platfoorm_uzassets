@@ -6,6 +6,9 @@
 import { computed } from "vue";
 import SyncIndicator from "./SyncIndicator.vue";
 import type { LibraryActivityEntry } from "@/api/companyLibrary";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const props = defineProps<{ entries: LibraryActivityEntry[] }>();
 
@@ -39,8 +42,8 @@ function actionLabel(action: string): string {
 <template>
   <article class="af-card">
     <header class="af-card-h">
-      Последняя активность
-      <span class="af-card-h-sub">· изменения в этой компании</span>
+      {{ t('Последняя активность') }}
+      <span class="af-card-h-sub">{{ t('· изменения в этой компании') }}</span>
     </header>
     <ul v-if="visible.length" class="af-list">
       <li v-for="(e, i) in visible" :key="i" class="af-row">
@@ -55,7 +58,7 @@ function actionLabel(action: string): string {
         </div>
       </li>
     </ul>
-    <div v-else class="af-empty">Изменений пока нет</div>
+    <div v-else class="af-empty">{{ t('Изменений пока нет') }}</div>
   </article>
 </template>
 

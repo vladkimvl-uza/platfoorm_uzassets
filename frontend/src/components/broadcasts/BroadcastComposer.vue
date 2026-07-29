@@ -9,6 +9,9 @@ import { useFormatters } from "@/composables/useFormatters";
 import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
 import BIcon from "./BIcon.vue";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const toast = useToast();
 const { confirmDialog } = useConfirm();
@@ -163,16 +166,16 @@ const targetCount = computed(() => preview.value?.total ?? 0);
       <!-- Section 1: Content -->
       <div class="bc-card">
         <div class="bc-card-hd">
-          <span class="bc-num">1</span> Содержание
+          <span class="bc-num">1</span> {{ t('Содержание') }}
         </div>
         <div class="bc-card-body">
           <div class="bc-field">
-            <label>Имя шаблона</label>
+            <label>{{ t('Имя шаблона') }}</label>
             <input v-model="draft.name" @input="markDirty"/>
           </div>
 
           <div class="bc-field">
-            <label>Тип</label>
+            <label>{{ t('Тип') }}</label>
             <div class="bc-chips">
               <button v-for="t in ['announcement','policy','training','survey','reminder']" :key="t"
                       class="bc-chip" :class="{ active: draft.type === t }"
@@ -183,7 +186,7 @@ const targetCount = computed(() => preview.value?.total ?? 0);
           </div>
 
           <div class="bc-field">
-            <label>Приоритет</label>
+            <label>{{ t('Приоритет') }}</label>
             <div class="bc-chips">
               <button v-for="p in ['low','normal','high','critical']" :key="p"
                       class="bc-chip" :class="`prio-${p}`" :class-list="{ active: draft.priority === p }"
@@ -195,17 +198,17 @@ const targetCount = computed(() => preview.value?.total ?? 0);
           </div>
 
           <div class="bc-field">
-            <label>Заголовок</label>
+            <label>{{ t('Заголовок') }}</label>
             <input v-model="draft.title" @input="markDirty"/>
           </div>
 
           <div class="bc-field">
-            <label>Текст (markdown)</label>
+            <label>{{ t('Текст (markdown)') }}</label>
             <textarea v-model="draft.body" rows="4" @input="markDirty"></textarea>
           </div>
 
           <div class="bc-field">
-            <label>Ссылка</label>
+            <label>{{ t('Ссылка') }}</label>
             <input v-model="draft.link_url" placeholder="https://..." @input="markDirty"/>
           </div>
         </div>
@@ -214,9 +217,9 @@ const targetCount = computed(() => preview.value?.total ?? 0);
       <!-- Section 2: Targeting -->
       <div class="bc-card">
         <div class="bc-card-hd">
-          <span class="bc-num">2</span> Получатели
+          <span class="bc-num">2</span> {{ t('Получатели') }}
           <span class="bc-target-cnt" :class="{ loading: previewLoading }">
-            {{ previewLoading ? "..." : targetCount }} чел.
+            {{ previewLoading ? "..." : targetCount }} {{ t('чел.') }}
           </span>
         </div>
         <div class="bc-card-body">
@@ -224,24 +227,24 @@ const targetCount = computed(() => preview.value?.total ?? 0);
           <label class="bc-check">
             <input type="checkbox" :checked="draft.target_all"
                    @change="(e) => { draft.target_all = (e.target as HTMLInputElement).checked; markDirty(); refreshPreview(); }"/>
-            <b>Все активные пользователи</b>
+            <b>{{ t('Все активные пользователи') }}</b>
           </label>
 
           <div v-if="!draft.target_all" class="bc-target-block">
             <div class="bc-field">
-              <label>Группы (codes через запятую)</label>
+              <label>{{ t('Группы (codes через запятую)') }}</label>
               <input :value="(draft.target_group_codes || []).join(', ')"
                      placeholder="cfo, head_of_finance, ..."
                      @blur="(e) => { setGroupCodesFromText((e.target as HTMLInputElement).value); refreshPreview(); }"/>
             </div>
             <div class="bc-field">
-              <label>Роли (codes через запятую)</label>
+              <label>{{ t('Роли (codes через запятую)') }}</label>
               <input :value="(draft.target_role_codes || []).join(', ')"
                      placeholder="financier, department_head, ..."
                      @blur="(e) => { setRoleCodesFromText((e.target as HTMLInputElement).value); refreshPreview(); }"/>
             </div>
             <div class="bc-field">
-              <label>Конкретные UserIDs (UUID через запятую)</label>
+              <label>{{ t('Конкретные UserIDs (UUID через запятую)') }}</label>
               <input :value="(draft.target_user_ids || []).join(', ')"
                      placeholder="uuid1, uuid2..."
                      @blur="(e) => { const t = (e.target as HTMLInputElement).value; draft.target_user_ids = t.trim() ? t.split(',').map(s => s.trim()).filter(Boolean) : null; markDirty(); refreshPreview(); }"/>
@@ -249,7 +252,7 @@ const targetCount = computed(() => preview.value?.total ?? 0);
           </div>
 
           <div v-if="preview && preview.sample.length" class="bc-preview">
-            <div class="bc-preview-hd">Образец получателей · показано {{ preview.sample.length }} из {{ preview.total }}</div>
+            <div class="bc-preview-hd">{{ t('Образец получателей · показано') }} {{ preview.sample.length }} {{ t('из') }} {{ preview.total }}</div>
             <div class="bc-preview-list">
               <span v-for="u in preview.sample.slice(0, 12)" :key="u.id" class="bc-preview-chip">
                 {{ u.full_name || u.email }}
@@ -263,20 +266,20 @@ const targetCount = computed(() => preview.value?.total ?? 0);
       <!-- Section 3: Schedule -->
       <div class="bc-card">
         <div class="bc-card-hd">
-          <span class="bc-num">3</span> Расписание
+          <span class="bc-num">3</span> {{ t('Расписание') }}
         </div>
         <div class="bc-card-body">
           <div class="bc-chips">
-            <button class="bc-chip" :class="{ active: draft.schedule_mode === 'oneshot' }" @click="setScheduleMode('oneshot')">Однократно</button>
-            <button class="bc-chip" :class="{ active: draft.schedule_mode === 'interval' }" @click="setScheduleMode('interval')">Повторяющееся</button>
+            <button class="bc-chip" :class="{ active: draft.schedule_mode === 'oneshot' }" @click="setScheduleMode('oneshot')">{{ t('Однократно') }}</button>
+            <button class="bc-chip" :class="{ active: draft.schedule_mode === 'interval' }" @click="setScheduleMode('interval')">{{ t('Повторяющееся') }}</button>
             <button class="bc-chip" disabled
-                    title="Cron-режим не реализован в планировщике — используйте «Повторяющееся»"
+                    :title="t('Cron-режим не реализован в планировщике — используйте «Повторяющееся»')"
                     style="opacity:.45;cursor:not-allowed;">Cron</button>
           </div>
 
           <div v-if="draft.schedule_mode === 'oneshot'" class="bc-sched-block">
             <div class="bc-field">
-              <label>Когда отправить (datetime)</label>
+              <label>{{ t('Когда отправить (datetime)') }}</label>
               <input type="datetime-local"
                      :value="draft.schedule_start_at ? draft.schedule_start_at.slice(0, 16) : ''"
                      @change="(e) => { const v = (e.target as HTMLInputElement).value; draft.schedule_start_at = v ? new Date(v).toISOString() : null; markDirty(); }"/>
@@ -285,7 +288,7 @@ const targetCount = computed(() => preview.value?.total ?? 0);
 
           <div v-else-if="draft.schedule_mode === 'interval'" class="bc-sched-block">
             <div class="bc-field">
-              <label>Дни недели</label>
+              <label>{{ t('Дни недели') }}</label>
               <div class="bc-weekdays">
                 <button v-for="(d, i) in WEEKDAYS" :key="i"
                         class="bc-wd"
@@ -297,7 +300,7 @@ const targetCount = computed(() => preview.value?.total ?? 0);
             </div>
             <div class="bc-field bc-field-row">
               <div style="flex: 1">
-                <label>Время</label>
+                <label>{{ t('Время') }}</label>
                 <input type="time"
                        :value="draft.schedule_config?.time || '09:00'"
                        @input="(e) => { draft.schedule_config = { ...(draft.schedule_config || {}), time: (e.target as HTMLInputElement).value }; markDirty(); }"/>
@@ -310,13 +313,13 @@ const targetCount = computed(() => preview.value?.total ?? 0);
             </div>
             <div class="bc-field bc-field-row">
               <div style="flex: 1">
-                <label>Окно от</label>
+                <label>{{ t('Окно от') }}</label>
                 <input type="date"
                        :value="draft.schedule_start_at ? draft.schedule_start_at.slice(0, 10) : ''"
                        @change="(e) => { const v = (e.target as HTMLInputElement).value; draft.schedule_start_at = v ? new Date(v).toISOString() : null; markDirty(); }"/>
               </div>
               <div style="flex: 1">
-                <label>до</label>
+                <label>{{ t('до') }}</label>
                 <input type="date"
                        :value="draft.schedule_end_at ? draft.schedule_end_at.slice(0, 10) : ''"
                        @change="(e) => { const v = (e.target as HTMLInputElement).value; draft.schedule_end_at = v ? new Date(v).toISOString() : null; markDirty(); }"/>
@@ -324,7 +327,7 @@ const targetCount = computed(() => preview.value?.total ?? 0);
             </div>
             <div v-if="template.next_run_at" class="bc-next-run">
               <BIcon name="clock" :size="12" />
-              Следующая отправка: <b>{{ fmt.fmtDateTime(template.next_run_at) }}</b>
+              {{ t('Следующая отправка:') }} <b>{{ fmt.fmtDateTime(template.next_run_at) }}</b>
             </div>
           </div>
 
@@ -336,7 +339,7 @@ const targetCount = computed(() => preview.value?.total ?? 0);
                      @input="(e) => { draft.schedule_config = { ...(draft.schedule_config || {}), cron: (e.target as HTMLInputElement).value }; markDirty(); }"/>
             </div>
             <div style="font-size: 10px; color: var(--color-text-tertiary);">
-              Cron-режим ещё не реализован в scheduler. Используйте interval с weekdays.
+              {{ t('Cron-режим ещё не реализован в scheduler. Используйте interval с weekdays.') }}
             </div>
           </div>
         </div>
@@ -345,11 +348,11 @@ const targetCount = computed(() => preview.value?.total ?? 0);
       <!-- Section 4: Ack -->
       <div class="bc-card">
         <div class="bc-card-hd">
-          <span class="bc-num">4</span> Обратная связь
+          <span class="bc-num">4</span> {{ t('Обратная связь') }}
         </div>
         <div class="bc-card-body">
           <div class="bc-field">
-            <label>Режим</label>
+            <label>{{ t('Режим') }}</label>
             <div class="bc-chips">
               <button v-for="m in (['none','click','text','select','yesno'] as AckMode[])" :key="m"
                       class="bc-chip"
@@ -362,14 +365,14 @@ const targetCount = computed(() => preview.value?.total ?? 0);
 
           <div v-if="draft.ack_mode !== 'none'" class="bc-ack-block">
             <div class="bc-field">
-              <label>Вопрос для получателя</label>
+              <label>{{ t('Вопрос для получателя') }}</label>
               <input v-model="draft.ack_question"
-                     placeholder="Когда будете готовы?"
+                     :placeholder="t('Когда будете готовы?')"
                      @input="markDirty"/>
             </div>
 
             <div v-if="draft.ack_mode === 'select'" class="bc-field">
-              <label>Варианты ответа</label>
+              <label>{{ t('Варианты ответа') }}</label>
               <div class="bc-ack-options">
                 <div v-for="(opt, i) in (draft.ack_options || [])" :key="i" class="bc-ack-opt">
                   <input :value="opt"
@@ -377,7 +380,7 @@ const targetCount = computed(() => preview.value?.total ?? 0);
                   <button class="bc-x" @click="removeAckOption(i)"><BIcon name="x" :size="13" /></button>
                 </div>
                 <button class="bc-add" @click="addAckOption">
-                  <BIcon name="plus" :size="12" /> вариант
+                  <BIcon name="plus" :size="12" /> {{ t('вариант') }}
                 </button>
               </div>
             </div>
@@ -387,32 +390,32 @@ const targetCount = computed(() => preview.value?.total ?? 0);
             <label class="bc-toggle">
               <input type="checkbox" :checked="draft.is_sticky"
                      @change="(e) => { draft.is_sticky = (e.target as HTMLInputElement).checked; markDirty(); }"/>
-              <span><b>Sticky</b> — модалка блокирует UI пока не подтверждено</span>
-              <span v-if="draft.is_sticky" class="bc-warn-pill">ВНИМАНИЕ</span>
+              <span><b>Sticky</b> {{ t('— модалка блокирует UI пока не подтверждено') }}</span>
+              <span v-if="draft.is_sticky" class="bc-warn-pill">{{ t('ВНИМАНИЕ') }}</span>
             </label>
             <label class="bc-toggle">
-              <span>Дедлайн ответа через</span>
+              <span>{{ t('Дедлайн ответа через') }}</span>
               <input type="number" :value="draft.ack_deadline_hours ?? ''" placeholder="—"
                      @input="(e) => { const v = (e.target as HTMLInputElement).valueAsNumber; draft.ack_deadline_hours = Number.isFinite(v) ? v : null; markDirty(); }"
                      style="width: 70px;"/>
-              <span>часов</span>
+              <span>{{ t('часов') }}</span>
             </label>
             <label class="bc-toggle">
-              <span>Авто-resend если не открыто через</span>
+              <span>{{ t('Авто-resend если не открыто через') }}</span>
               <input type="number" :value="draft.auto_resend_hours ?? ''" placeholder="—"
                      @input="(e) => { const v = (e.target as HTMLInputElement).valueAsNumber; draft.auto_resend_hours = Number.isFinite(v) ? v : null; markDirty(); }"
                      style="width: 70px;"/>
-              <span>часов</span>
+              <span>{{ t('часов') }}</span>
             </label>
             <label class="bc-toggle">
               <input type="checkbox" :checked="draft.escalate_to_manager"
                      @change="(e) => { draft.escalate_to_manager = (e.target as HTMLInputElement).checked; markDirty(); }"/>
-              <span>Эскалировать руководителю после дедлайна</span>
+              <span>{{ t('Эскалировать руководителю после дедлайна') }}</span>
             </label>
             <label class="bc-toggle">
               <input type="checkbox" :checked="draft.show_site_banner_on_overdue"
                      @change="(e) => { draft.show_site_banner_on_overdue = (e.target as HTMLInputElement).checked; markDirty(); }"/>
-              <span>Site-wide banner при просрочке (для sticky)</span>
+              <span>{{ t('Site-wide banner при просрочке (для sticky)') }}</span>
             </label>
           </div>
         </div>
@@ -422,25 +425,25 @@ const targetCount = computed(() => preview.value?.total ?? 0);
 
     <div class="bc-footer">
       <button class="bc-btn bc-btn-danger" @click="removeTemplate">
-        <BIcon name="trash" :size="13" /> Удалить
+        <BIcon name="trash" :size="13" /> {{ t('Удалить') }}
       </button>
       <div style="flex: 1"></div>
-      <span v-if="dirty" class="bc-dirty">несохранённые изменения</span>
+      <span v-if="dirty" class="bc-dirty">{{ t('несохранённые изменения') }}</span>
       <button class="bc-btn bc-btn-ghost" @click="testOnSelf">
-        <BIcon name="test-pipe" :size="13" /> Test на себя
+        <BIcon name="test-pipe" :size="13" /> {{ t('Test на себя') }}
       </button>
       <button class="bc-btn bc-btn-ghost" @click="save" :disabled="saving || !dirty">
         {{ saving ? "Сохраняем..." : "Сохранить" }}
       </button>
       <button v-if="!template.is_active" class="bc-btn bc-btn-primary" @click="activate">
-        <BIcon name="power" :size="13" /> Активировать
+        <BIcon name="power" :size="13" /> {{ t('Активировать') }}
       </button>
       <button v-else class="bc-btn bc-btn-primary" @click="sendNow">
-        <BIcon name="send" :size="13" /> Отправить сейчас
+        <BIcon name="send" :size="13" /> {{ t('Отправить сейчас') }}
       </button>
     </div>
   </div>
-  <div v-else class="bc-loading">Загрузка…</div>
+  <div v-else class="bc-loading">{{ t('Загрузка…') }}</div>
 </template>
 
 <style scoped>

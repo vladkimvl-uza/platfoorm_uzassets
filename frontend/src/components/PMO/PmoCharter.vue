@@ -11,6 +11,9 @@ import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import NoteAssigneePicker from "@/components/NoteAssigneePicker.vue";
 import { useToast } from "@/composables/useToast";
 import { pmoApi, type Charter, type CharterPayload } from "@/api/pmo";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const props = defineProps<{
   companyCode: string;
@@ -177,9 +180,9 @@ function secVal(c: Charter, k: keyof Charter): string {
     <!-- header strip -->
     <div class="pc-head">
       <div class="pc-stats">
-        <div class="pc-stat"><span class="pc-stat-n">{{ stats.total }}</span><span class="pc-stat-l">всего</span></div>
-        <div class="pc-stat pc-stat-ok"><span class="pc-stat-n">{{ stats.approved }}</span><span class="pc-stat-l">утверждено</span></div>
-        <div class="pc-stat pc-stat-draft"><span class="pc-stat-n">{{ stats.draft }}</span><span class="pc-stat-l">черновик</span></div>
+        <div class="pc-stat"><span class="pc-stat-n">{{ stats.total }}</span><span class="pc-stat-l">{{ t('всего') }}</span></div>
+        <div class="pc-stat pc-stat-ok"><span class="pc-stat-n">{{ stats.approved }}</span><span class="pc-stat-l">{{ t('утверждено') }}</span></div>
+        <div class="pc-stat pc-stat-draft"><span class="pc-stat-n">{{ stats.draft }}</span><span class="pc-stat-l">{{ t('черновик') }}</span></div>
       </div>
     </div>
 
@@ -204,13 +207,13 @@ function secVal(c: Charter, k: keyof Charter): string {
                 class="pc-badge"
                 :class="t.charter.status === 'approved' ? 'pc-badge-ok' : 'pc-badge-draft'"
               >{{ t.charter.status === "approved" ? "Утверждён" : "Черновик" }}</span>
-              <span v-else class="pc-badge pc-badge-none">Нет устава</span>
+              <span v-else class="pc-badge pc-badge-none">{{ t('Нет устава') }}</span>
             </div>
             <div v-if="t.charter" class="pc-tile-meta">
-              <span v-if="t.charter.manager_name" class="pc-tile-m">РП: {{ t.charter.manager_name }}</span>
+              <span v-if="t.charter.manager_name" class="pc-tile-m">{{ t('РП:') }} {{ t.charter.manager_name }}</span>
               <span v-if="t.charter.budget_amount != null" class="pc-tile-m">{{ fmtMoney(t.charter.budget_amount) }}</span>
             </div>
-            <div v-else-if="canEdit" class="pc-tile-cta">+ Создать устав</div>
+            <div v-else-if="canEdit" class="pc-tile-cta">{{ t('+ Создать устав') }}</div>
             <div v-else class="pc-tile-cta pc-tile-cta-muted">—</div>
           </button>
         </div>
@@ -221,13 +224,13 @@ function secVal(c: Charter, k: keyof Charter): string {
             v-if="!selected"
             state="empty"
             variant="block"
-            title="Выберите устав"
+            :title="t('Выберите устав')"
             text="Слева — проекты портфеля. Откройте существующий устав или создайте новый для формальной инициации проекта."
           />
           <div v-else class="pc-doc" :key="selected.id">
             <div class="pc-doc-head">
               <div>
-                <div class="pc-doc-eyebrow">Устав проекта</div>
+                <div class="pc-doc-eyebrow">{{ t('Устав проекта') }}</div>
                 <div class="pc-doc-title">{{ selected.project_title || "Программа / портфель" }}</div>
               </div>
               <span
@@ -238,11 +241,11 @@ function secVal(c: Charter, k: keyof Charter): string {
 
             <!-- key facts -->
             <div class="pc-facts">
-              <div class="pc-fact"><span class="pc-fact-l">Спонсор</span><span class="pc-fact-v">{{ selected.sponsor_name || "—" }}</span></div>
-              <div class="pc-fact"><span class="pc-fact-l">Руководитель</span><span class="pc-fact-v">{{ selected.manager_name || "—" }}</span></div>
-              <div class="pc-fact"><span class="pc-fact-l">Бюджет</span><span class="pc-fact-v">{{ fmtMoney(selected.budget_amount) }}</span></div>
-              <div class="pc-fact"><span class="pc-fact-l">Старт</span><span class="pc-fact-v">{{ fmtDate(selected.start_date) }}</span></div>
-              <div class="pc-fact"><span class="pc-fact-l">Завершение</span><span class="pc-fact-v">{{ fmtDate(selected.target_end_date) }}</span></div>
+              <div class="pc-fact"><span class="pc-fact-l">{{ t('Спонсор') }}</span><span class="pc-fact-v">{{ selected.sponsor_name || "—" }}</span></div>
+              <div class="pc-fact"><span class="pc-fact-l">{{ t('Руководитель') }}</span><span class="pc-fact-v">{{ selected.manager_name || "—" }}</span></div>
+              <div class="pc-fact"><span class="pc-fact-l">{{ t('Бюджет') }}</span><span class="pc-fact-v">{{ fmtMoney(selected.budget_amount) }}</span></div>
+              <div class="pc-fact"><span class="pc-fact-l">{{ t('Старт') }}</span><span class="pc-fact-v">{{ fmtDate(selected.start_date) }}</span></div>
+              <div class="pc-fact"><span class="pc-fact-l">{{ t('Завершение') }}</span><span class="pc-fact-v">{{ fmtDate(selected.target_end_date) }}</span></div>
             </div>
 
             <!-- sections -->
@@ -255,19 +258,19 @@ function secVal(c: Charter, k: keyof Charter): string {
 
             <div v-if="selected.status === 'approved' && selected.approved_by" class="pc-approved">
               <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 8.5 L6.5 12 L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
-              Утверждён: {{ selected.approved_by }}<template v-if="selected.approved_at"> · {{ fmtDate(selected.approved_at) }}</template>
+              {{ t('Утверждён:') }} {{ selected.approved_by }}<template v-if="selected.approved_at"> · {{ fmtDate(selected.approved_at) }}</template>
             </div>
 
             <!-- actions -->
             <div v-if="canEdit" class="pc-actions">
-              <button class="pc-btn pc-btn-ghost" @click="openEdit(selected)">Редактировать</button>
+              <button class="pc-btn pc-btn-ghost" @click="openEdit(selected)">{{ t('Редактировать') }}</button>
               <button
                 class="pc-btn"
                 :class="selected.status === 'approved' ? 'pc-btn-ghost' : 'pc-btn-ok'"
                 :disabled="saving"
                 @click="toggleApprove(selected)"
               >{{ selected.status === "approved" ? "Вернуть в черновик" : "Утвердить" }}</button>
-              <button class="pc-btn pc-btn-del" @click="remove(selected)">Удалить</button>
+              <button class="pc-btn pc-btn-del" @click="remove(selected)">{{ t('Удалить') }}</button>
             </div>
           </div>
         </div>
@@ -284,36 +287,36 @@ function secVal(c: Charter, k: keyof Charter): string {
           </div>
           <div class="pc-mb">
             <div class="pc-row3">
-              <div class="pc-f"><label>Спонсор</label>
-                <NoteAssigneePicker :id="sponsorId" :name="form.sponsor_name || null" placeholder="Спонсор"
+              <div class="pc-f"><label>{{ t('Спонсор') }}</label>
+                <NoteAssigneePicker :id="sponsorId" :name="form.sponsor_name || null" :placeholder="t('Спонсор')"
                   @update:id="sponsorId = $event" @update:name="form.sponsor_name = $event || ''" />
               </div>
-              <div class="pc-f"><label>Руководитель</label>
-                <NoteAssigneePicker :id="managerId" :name="form.manager_name || null" placeholder="РП"
+              <div class="pc-f"><label>{{ t('Руководитель') }}</label>
+                <NoteAssigneePicker :id="managerId" :name="form.manager_name || null" :placeholder="t('РП')"
                   @update:id="managerId = $event" @update:name="form.manager_name = $event || ''" />
               </div>
             </div>
             <div class="pc-row3">
-              <div class="pc-f"><label>Бюджет</label><input v-model.number="form.budget_amount" type="number" min="0" placeholder="0" /></div>
-              <div class="pc-f"><label>Старт</label><input v-model="form.start_date" type="date" /></div>
-              <div class="pc-f"><label>Завершение</label><input v-model="form.target_end_date" type="date" /></div>
+              <div class="pc-f"><label>{{ t('Бюджет') }}</label><input v-model.number="form.budget_amount" type="number" min="0" placeholder="0" /></div>
+              <div class="pc-f"><label>{{ t('Старт') }}</label><input v-model="form.start_date" type="date" /></div>
+              <div class="pc-f"><label>{{ t('Завершение') }}</label><input v-model="form.target_end_date" type="date" /></div>
             </div>
-            <div class="pc-f"><label>Обоснование и назначение</label><textarea v-model="form.purpose" rows="2" placeholder="Зачем проект, какую проблему решает"></textarea></div>
-            <div class="pc-f"><label>Цели проекта</label><textarea v-model="form.objectives" rows="2" placeholder="Измеримые цели"></textarea></div>
+            <div class="pc-f"><label>{{ t('Обоснование и назначение') }}</label><textarea v-model="form.purpose" rows="2" :placeholder="t('Зачем проект, какую проблему решает')"></textarea></div>
+            <div class="pc-f"><label>{{ t('Цели проекта') }}</label><textarea v-model="form.objectives" rows="2" :placeholder="t('Измеримые цели')"></textarea></div>
             <div class="pc-row2">
-              <div class="pc-f"><label>В границах</label><textarea v-model="form.scope_in" rows="2"></textarea></div>
-              <div class="pc-f"><label>Вне границ</label><textarea v-model="form.scope_out" rows="2"></textarea></div>
+              <div class="pc-f"><label>{{ t('В границах') }}</label><textarea v-model="form.scope_in" rows="2"></textarea></div>
+              <div class="pc-f"><label>{{ t('Вне границ') }}</label><textarea v-model="form.scope_out" rows="2"></textarea></div>
             </div>
-            <div class="pc-f"><label>Критерии успеха</label><textarea v-model="form.success_criteria" rows="2"></textarea></div>
-            <div class="pc-f"><label>Ключевые результаты</label><textarea v-model="form.deliverables" rows="2"></textarea></div>
-            <div class="pc-f"><label>Вехи</label><textarea v-model="form.milestones" rows="2"></textarea></div>
+            <div class="pc-f"><label>{{ t('Критерии успеха') }}</label><textarea v-model="form.success_criteria" rows="2"></textarea></div>
+            <div class="pc-f"><label>{{ t('Ключевые результаты') }}</label><textarea v-model="form.deliverables" rows="2"></textarea></div>
+            <div class="pc-f"><label>{{ t('Вехи') }}</label><textarea v-model="form.milestones" rows="2"></textarea></div>
             <div class="pc-row2">
-              <div class="pc-f"><label>Допущения</label><textarea v-model="form.assumptions" rows="2"></textarea></div>
-              <div class="pc-f"><label>Ограничения</label><textarea v-model="form.constraints" rows="2"></textarea></div>
+              <div class="pc-f"><label>{{ t('Допущения') }}</label><textarea v-model="form.assumptions" rows="2"></textarea></div>
+              <div class="pc-f"><label>{{ t('Ограничения') }}</label><textarea v-model="form.constraints" rows="2"></textarea></div>
             </div>
           </div>
           <div class="pc-mf">
-            <button class="pc-btn pc-btn-ghost" @click="modalOpen = false">Отмена</button>
+            <button class="pc-btn pc-btn-ghost" @click="modalOpen = false">{{ t('Отмена') }}</button>
             <button class="pc-btn pc-btn-primary" :disabled="saving" @click="save">{{ saving ? "Сохраняю…" : "Сохранить" }}</button>
           </div>
         </div>

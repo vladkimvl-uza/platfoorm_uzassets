@@ -9,6 +9,9 @@ import { esgApi, type ESGSwotItemBrief } from "@/api/esg";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import { useToast } from "@/composables/useToast";
 import { isModerationQueued } from "@/api/client";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const props = defineProps<{ companyId: string; canEdit?: boolean }>();
 const emit = defineEmits<{ (e: "changed"): void }>();
@@ -90,8 +93,8 @@ async function save() {
         <!-- Сильные стороны -->
         <div class="sw-col sw-col-good">
           <div class="sw-col-h">
-            <span class="sw-col-t">Сильные стороны</span>
-            <button v-if="canEdit && !(editing && editing.id === null && editing.kind === 'strength')" class="sw-add" @click="startAdd('strength')">+ добавить</button>
+            <span class="sw-col-t">{{ t('Сильные стороны') }}</span>
+            <button v-if="canEdit && !(editing && editing.id === null && editing.kind === 'strength')" class="sw-add" @click="startAdd('strength')">{{ t('+ добавить') }}</button>
           </div>
           <div class="sw-list">
             <div v-for="it in strengths" :key="it.id || it.order_idx" class="sw-item"
@@ -99,28 +102,28 @@ async function save() {
               <template v-if="editing && editing.id === it.id">
                 <textarea v-model="draft" class="sw-ta" rows="2" :disabled="saving" @click.stop></textarea>
                 <div class="sw-acts">
-                  <button class="sw-ok" :disabled="saving" @click.stop="save">Сохранить</button>
-                  <button class="sw-x" @click.stop="cancel">Отмена</button>
+                  <button class="sw-ok" :disabled="saving" @click.stop="save">{{ t('Сохранить') }}</button>
+                  <button class="sw-x" @click.stop="cancel">{{ t('Отмена') }}</button>
                 </div>
               </template>
               <span v-else class="sw-body">{{ it.body }}</span>
             </div>
             <div v-if="editing && editing.id === null && editing.kind === 'strength'" class="sw-item sw-item-new">
-              <textarea v-model="draft" class="sw-ta" rows="2" :disabled="saving" placeholder="Новая сильная сторона…" @click.stop></textarea>
+              <textarea v-model="draft" class="sw-ta" rows="2" :disabled="saving" :placeholder="t('Новая сильная сторона…')" @click.stop></textarea>
               <div class="sw-acts">
-                <button class="sw-ok" :disabled="saving" @click.stop="save">Добавить</button>
-                <button class="sw-x" @click.stop="cancel">Отмена</button>
+                <button class="sw-ok" :disabled="saving" @click.stop="save">{{ t('Добавить') }}</button>
+                <button class="sw-x" @click.stop="cancel">{{ t('Отмена') }}</button>
               </div>
             </div>
-            <div v-if="!strengths.length && !(editing && editing.kind === 'strength' && editing.id === null)" class="sw-empty">Не указаны</div>
+            <div v-if="!strengths.length && !(editing && editing.kind === 'strength' && editing.id === null)" class="sw-empty">{{ t('Не указаны') }}</div>
           </div>
         </div>
 
         <!-- Проблемные зоны -->
         <div class="sw-col sw-col-bad">
           <div class="sw-col-h">
-            <span class="sw-col-t">Проблемные зоны</span>
-            <button v-if="canEdit && !(editing && editing.id === null && editing.kind === 'weakness')" class="sw-add" @click="startAdd('weakness')">+ добавить</button>
+            <span class="sw-col-t">{{ t('Проблемные зоны') }}</span>
+            <button v-if="canEdit && !(editing && editing.id === null && editing.kind === 'weakness')" class="sw-add" @click="startAdd('weakness')">{{ t('+ добавить') }}</button>
           </div>
           <div class="sw-list">
             <div v-for="it in weaknesses" :key="it.id || it.order_idx" class="sw-item"
@@ -128,20 +131,20 @@ async function save() {
               <template v-if="editing && editing.id === it.id">
                 <textarea v-model="draft" class="sw-ta" rows="2" :disabled="saving" @click.stop></textarea>
                 <div class="sw-acts">
-                  <button class="sw-ok" :disabled="saving" @click.stop="save">Сохранить</button>
-                  <button class="sw-x" @click.stop="cancel">Отмена</button>
+                  <button class="sw-ok" :disabled="saving" @click.stop="save">{{ t('Сохранить') }}</button>
+                  <button class="sw-x" @click.stop="cancel">{{ t('Отмена') }}</button>
                 </div>
               </template>
               <span v-else class="sw-body">{{ it.body }}</span>
             </div>
             <div v-if="editing && editing.id === null && editing.kind === 'weakness'" class="sw-item sw-item-new">
-              <textarea v-model="draft" class="sw-ta" rows="2" :disabled="saving" placeholder="Новая проблемная зона…" @click.stop></textarea>
+              <textarea v-model="draft" class="sw-ta" rows="2" :disabled="saving" :placeholder="t('Новая проблемная зона…')" @click.stop></textarea>
               <div class="sw-acts">
-                <button class="sw-ok" :disabled="saving" @click.stop="save">Добавить</button>
-                <button class="sw-x" @click.stop="cancel">Отмена</button>
+                <button class="sw-ok" :disabled="saving" @click.stop="save">{{ t('Добавить') }}</button>
+                <button class="sw-x" @click.stop="cancel">{{ t('Отмена') }}</button>
               </div>
             </div>
-            <div v-if="!weaknesses.length && !(editing && editing.kind === 'weakness' && editing.id === null)" class="sw-empty">Не указаны</div>
+            <div v-if="!weaknesses.length && !(editing && editing.kind === 'weakness' && editing.id === null)" class="sw-empty">{{ t('Не указаны') }}</div>
           </div>
         </div>
       </div>

@@ -22,6 +22,9 @@ import {
 } from "@/api/statusUpdates";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const { confirmDialog } = useConfirm();
 const toast = useToast();
@@ -194,7 +197,7 @@ function healthLabel(h: StatusHealth | null): string { return h ? HEALTH_META[h]
 <template>
   <div class="st-root">
     <div class="st-head">
-      <span class="st-label">Текущий статус проекта</span>
+      <span class="st-label">{{ t('Текущий статус проекта') }}</span>
       <span v-if="isStale && entityId" class="st-stale">
         <span class="st-stale-dot"></span>{{ staleDays === null ? "Нет статуса" : "Обновить" }}
       </span>
@@ -239,7 +242,7 @@ function healthLabel(h: StatusHealth | null): string { return h ? HEALTH_META[h]
           </div>
         </div>
         <div v-else-if="!composing && !selectedLatest" class="st-empty">
-          Обновления за этот месяц ещё нет.
+          {{ t('Обновления за этот месяц ещё нет.') }}
         </div>
       </transition>
 
@@ -261,22 +264,22 @@ function healthLabel(h: StatusHealth | null): string { return h ? HEALTH_META[h]
             v-model="draftText"
             class="st-textarea"
             rows="3"
-            placeholder="Опишите текущий ход проекта словами…"
+            :placeholder="t('Опишите текущий ход проекта словами…')"
           ></textarea>
           <div v-if="entityId" class="st-composer-actions">
-            <button class="st-btn-ghost" @click="cancelComposer">Отмена</button>
+            <button class="st-btn-ghost" @click="cancelComposer">{{ t('Отмена') }}</button>
             <button class="st-btn-save" :disabled="saving || !draftText.trim()" @click="save">
               {{ saving ? "Сохранение…" : "Сохранить статус" }}
             </button>
           </div>
-          <div v-else class="st-create-hint">Будет сохранено как первый статус после создания.</div>
+          <div v-else class="st-create-hint">{{ t('Будет сохранено как первый статус после создания.') }}</div>
         </div>
       </transition>
     </div>
 
     <!-- ═══ Динамичный таймлайн истории ═══ -->
     <div v-if="entityId && entries.length" class="st-history">
-      <div class="st-history-label">История статусов · {{ entries.length }}</div>
+      <div class="st-history-label">{{ t('История статусов ·') }} {{ entries.length }}</div>
       <transition-group tag="div" class="st-timeline" name="st-tl">
         <div
           v-for="e in entries"
@@ -292,7 +295,7 @@ function healthLabel(h: StatusHealth | null): string { return h ? HEALTH_META[h]
               <span class="st-hpill st-hpill-sm" :style="{ '--hc': healthColor(e.health) }">
                 <span class="st-hpill-dot"></span>{{ healthLabel(e.health) }}
               </span>
-              <button v-if="canModify(e)" class="st-tl-del" title="Удалить" @click="removeEntry(e)">×</button>
+              <button v-if="canModify(e)" class="st-tl-del" :title="t('Удалить')" @click="removeEntry(e)">×</button>
             </div>
             <div class="st-tl-body">{{ e.body }}</div>
             <div class="st-tl-author">{{ e.author_name || "—" }}</div>

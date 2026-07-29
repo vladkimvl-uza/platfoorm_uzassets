@@ -16,6 +16,9 @@
  */
 import { ref, computed, watch, onBeforeUnmount } from "vue";
 import { api } from "@/api/client";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 interface UserSearchItem {
   id: string;
@@ -118,7 +121,7 @@ const displayName = computed(() => props.name || "");
       <input
         class="ua-input"
         :value="displayName"
-        placeholder="Имя Фамилия"
+        :placeholder="t('Имя Фамилия')"
         :disabled="disabled"
         @input="emit('update:name', ($event.target as HTMLInputElement).value)"
       />
@@ -139,7 +142,7 @@ const displayName = computed(() => props.name || "");
 
     <!-- Выпадающий список — на всю ширину контрола, чтобы имена/почта не обрезались -->
     <div v-if="open" class="ua-dropdown">
-      <div v-if="loading" class="ua-loading">Поиск…</div>
+      <div v-if="loading" class="ua-loading">{{ t('Поиск…') }}</div>
       <button
         v-for="(u, i) in results"
         :key="u.id"
@@ -158,7 +161,7 @@ const displayName = computed(() => props.name || "");
           </span>
         </span>
       </button>
-      <div v-if="!loading && results.length === 0" class="ua-empty">Никого не найдено</div>
+      <div v-if="!loading && results.length === 0" class="ua-empty">{{ t('Никого не найдено') }}</div>
     </div>
   </div>
 </template>

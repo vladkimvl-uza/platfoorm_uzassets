@@ -11,6 +11,9 @@ import ModalShell from "@/components/ModalShell.vue";
 import { esgApi, type ESGSwotResponse, type ESGSwotItemBrief, type ESGKpiBrief, type ESGKpiManagerBrief } from "@/api/esg";
 import { useToast } from "@/composables/useToast";
 import { useCompanyScope } from "@/composables/useCompanyScope";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 interface CoBrief {
   company_id: string; company_name: string;
@@ -202,8 +205,8 @@ const kpiCompanies = computed(() =>
 <template>
   <div class="swe">
     <div class="swe-head">
-      <h2 class="swe-title">Выводы</h2>
-      <span class="swe-sub">ESG-аналитика: портфель и по компаниям (по секторам)</span>
+      <h2 class="swe-title">{{ t('Выводы') }}</h2>
+      <span class="swe-sub">{{ t('ESG-аналитика: портфель и по компаниям (по секторам)') }}</span>
     </div>
 
     <!-- Две панели «по типу KPI»: Сильные стороны (зелёная) · Проблемные зоны (красная) -->
@@ -237,7 +240,7 @@ const kpiCompanies = computed(() =>
                 </div>
 
                 <div v-if="editKey === newKey(row.scope!, kind, row.cid!)" class="swe-item swe-item-new" :class="kind === 'strength' ? 'good' : 'bad'">
-                  <textarea ref="taRef" v-model="draft" class="swe-ta" rows="2" placeholder="Текст…"
+                  <textarea ref="taRef" v-model="draft" class="swe-ta" rows="2" :placeholder="t('Текст…')"
                             @keydown.enter.exact.prevent="commit(row.scope!, kind, row.cid!, null, itemsFor(row.scope!, row.cid!, kind).length)"
                             @keydown.esc.prevent="cancelEdit"></textarea>
                   <div class="swe-confirm">
@@ -245,7 +248,7 @@ const kpiCompanies = computed(() =>
                     <button class="swe-no" @click="cancelEdit">✕</button>
                   </div>
                 </div>
-                <button v-else-if="canEdit" class="swe-add" @click="startAdd(row.scope!, kind, row.cid!)">+ добавить</button>
+                <button v-else-if="canEdit" class="swe-add" @click="startAdd(row.scope!, kind, row.cid!)">{{ t('+ добавить') }}</button>
                 <span v-if="!itemsFor(row.scope!, row.cid!, kind).length && !canEdit" class="swe-empty">—</span>
               </div>
             </div>
@@ -256,7 +259,7 @@ const kpiCompanies = computed(() =>
 
     <!-- ESG-KPI по компаниям (из модуля KPI) — отдельной лентой под панелями -->
     <div v-if="kpiCompanies.length" class="swe-w swe-kpi-sec">
-      <div class="swe-w-t" style="color:#7C6FF7">ESG-KPI по компаниям{{ year ? ' · ' + year : '' }}</div>
+      <div class="swe-w-t" style="color:#7C6FF7">{{ t('ESG-KPI по компаниям') }}{{ year ? ' · ' + year : '' }}</div>
       <div class="swe-kpi-grid">
         <div v-for="row in kpiCompanies" :key="'k:'+row.cid" class="swe-kpi-co">
           <div class="swe-kpi-co-h"><span class="swe-obj-dot" :style="{ background: row.color }"></span>{{ row.label }}</div>
@@ -279,30 +282,30 @@ const kpiCompanies = computed(() =>
 
     <!-- Модалка ручного добавления ESG-KPI (пишет в модуль KPI) -->
     <ModalShell :open="!!addKpi" size="sm" @close="closeKpi">
-      <template #header><div class="swe-km-title">Добавить ESG-KPI · {{ addKpi?.name }}</div></template>
+      <template #header><div class="swe-km-title">{{ t('Добавить ESG-KPI ·') }} {{ addKpi?.name }}</div></template>
       <div v-if="addKpi" class="swe-km">
-        <label class="swe-km-f"><span>Название KPI *</span>
-          <input v-model="kName" type="text" placeholder="напр.: Снижение выбросов CO₂, % к 2022" @keydown.enter="submitKpi" />
+        <label class="swe-km-f"><span>{{ t('Название KPI *') }}</span>
+          <input v-model="kName" type="text" :placeholder="t('напр.: Снижение выбросов CO₂, % к 2022')" @keydown.enter="submitKpi" />
         </label>
-        <label class="swe-km-f"><span>Должность (ответственный)</span>
+        <label class="swe-km-f"><span>{{ t('Должность (ответственный)') }}</span>
           <select v-model="kMgr">
-            <option value="">ESG / Устойчивое развитие (по умолчанию)</option>
+            <option value="">{{ t('ESG / Устойчивое развитие (по умолчанию)') }}</option>
             <option v-for="m in kMgrs" :key="m.id" :value="m.id">{{ m.short_title || m.title }}</option>
           </select>
         </label>
         <div class="swe-km-row">
-          <label class="swe-km-f"><span>Ед. изм.</span><input v-model="kUnit" type="text" placeholder="%, т, чел…" /></label>
-          <label class="swe-km-f"><span>Направление</span>
-            <select v-model="kDir"><option value="up">больше — лучше</option><option value="down">меньше — лучше</option></select>
+          <label class="swe-km-f"><span>{{ t('Ед. изм.') }}</span><input v-model="kUnit" type="text" :placeholder="t('%, т, чел…')" /></label>
+          <label class="swe-km-f"><span>{{ t('Направление') }}</span>
+            <select v-model="kDir"><option value="up">{{ t('больше — лучше') }}</option><option value="down">{{ t('меньше — лучше') }}</option></select>
           </label>
         </div>
         <div class="swe-km-row">
-          <label class="swe-km-f"><span>План{{ year ? ' · ' + year : '' }}</span><input v-model="kPlan" type="number" step="any" placeholder="—" /></label>
-          <label class="swe-km-f"><span>Факт{{ year ? ' · ' + year : '' }}</span><input v-model="kFact" type="number" step="any" placeholder="—" /></label>
+          <label class="swe-km-f"><span>{{ t('План') }}{{ year ? ' · ' + year : '' }}</span><input v-model="kPlan" type="number" step="any" placeholder="—" /></label>
+          <label class="swe-km-f"><span>{{ t('Факт') }}{{ year ? ' · ' + year : '' }}</span><input v-model="kFact" type="number" step="any" placeholder="—" /></label>
         </div>
-        <div class="swe-km-note">Сохранится в модуле «KPI» под менеджером «ESG / Устойчивое развитие» — появится и в <b>/kpi</b>.</div>
+        <div class="swe-km-note">{{ t('Сохранится в модуле «KPI» под менеджером «ESG / Устойчивое развитие» — появится и в') }} <b>/kpi</b>.</div>
         <div class="swe-km-actions">
-          <button class="swe-km-cancel" type="button" @click="closeKpi">Отмена</button>
+          <button class="swe-km-cancel" type="button" @click="closeKpi">{{ t('Отмена') }}</button>
           <button class="swe-km-save" type="button" :disabled="kSaving || !kName.trim()" @click="submitKpi">{{ kSaving ? 'Сохранение…' : 'Добавить KPI' }}</button>
         </div>
       </div>

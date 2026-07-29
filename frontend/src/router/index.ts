@@ -57,17 +57,14 @@ const router = createRouter({
           redirect: () => {
             try {
               const a = useAuthStore();
-              // Экран министра — портфельный: пользователю, ограниченному
-              // своими компаниями, он не показывается (решение владельца
-              // 29.07.2026), поэтому и стартовой страницей быть не может.
+              // Портфельный экран скрыт у пользователей, ограниченных своими
+              // компаниями, — КРОМЕ случая, когда право выдано лично (сетка
+              // «Доступ к модулям»): тогда «дал доступ — появился».
               const portfolio =
                 !!a.user?.is_owner || a.user?.scope_unrestricted !== false;
-              // Право экрана министра теперь собственное (exec_dashboard.view),
-              // а не заимствованное financials.view — иначе стартовой
-              // страницей стал бы экран, куда гейт маршрута не пустит.
-              return portfolio && a.hasPermission("exec_dashboard.view")
-                ? "/executive-dashboard"
-                : "/home";
+              const allowed = a.hasPermission("exec_dashboard.view")
+                && (portfolio || a.hasDirectPermission("exec_dashboard.view"));
+              return allowed ? "/executive-dashboard" : "/home";
             } catch {
               // Если Pinia ещё не готова — fallback на исходный /home.
               return "/home";
@@ -91,16 +88,19 @@ const router = createRouter({
           // одно право открывало сразу четыре разных экрана (Финансы, министр,
           // SOE Health, себестоимость), и админ не мог выдать их по отдельности.
           meta: { requiresAuth: true, requiresPermission: "exec_dashboard.view" },
-          // Портфельный экран: закрыт для пользователей, ограниченных своими
-          // компаниями — иначе прямая ссылка обходила бы скрытый пункт меню.
+          // Портфельный экран: скрыт у ограниченных компаниями пользователей,
+          // но ЛИЧНАЯ выдача права его открывает (иначе выданный доступ молча
+          // не срабатывал). Данные экрана бэкенд и так режет областью.
           beforeEnter: (_to, _from, next) => {
             try {
               const a = useAuthStore();
               const portfolio =
                 !!a.user?.is_owner || a.user?.scope_unrestricted !== false;
-              if (!portfolio) return next("/home");
+              if (!portfolio && !a.hasDirectPermission("exec_dashboard.view")) {
+                return next("/home");
+              }
             } catch {
-              /* Pinia не готова — пропускаем, гейт по праву отработает выше */
+              /* Pinia не готова — гейт по праву отработает выше */
             }
             next();
           },

@@ -13,6 +13,9 @@ import { computed, ref, watch } from "vue";
 import { useCompanyLibraryStore } from "@/stores/companyLibrary";
 import { companyLibraryApi, type FieldDefinition } from "@/api/companyLibrary";
 import ModalShell from "@/components/ModalShell.vue";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const props = defineProps<{ open: boolean }>();
 const emit  = defineEmits<{ (e: "close"): void; (e: "open-builder"): void }>();
@@ -97,14 +100,14 @@ async function save() {
   <ModalShell :open="open" size="md" @close="emit('close')">
     <template #header>
       <div>
-        <div class="cl-modal-eyebrow">Библиотека</div>
-        <h3 class="cl-modal-title">Настройка колонок</h3>
+        <div class="cl-modal-eyebrow">{{ t('Библиотека') }}</div>
+        <h3 class="cl-modal-title">{{ t('Настройка колонок') }}</h3>
       </div>
     </template>
 
     <!-- BASIC -->
     <section class="cl-cm-section">
-      <h4 class="cl-cm-section-h">Базовые · для всех</h4>
+      <h4 class="cl-cm-section-h">{{ t('Базовые · для всех') }}</h4>
       <ul class="cl-cm-list">
         <li
           v-for="f in baseFields"
@@ -117,8 +120,8 @@ async function save() {
             <span v-if="f.unit" class="cl-cm-unit">· {{ f.unit }}</span>
           </span>
           <div class="cl-cm-actions">
-            <button class="cl-cm-arrow" @click="moveUp(f.code)" title="Вверх">↑</button>
-            <button class="cl-cm-arrow" @click="moveDown(f.code)" title="Вниз">↓</button>
+            <button class="cl-cm-arrow" @click="moveUp(f.code)" :title="t('Вверх')">↑</button>
+            <button class="cl-cm-arrow" @click="moveDown(f.code)" :title="t('Вниз')">↓</button>
             <label class="cl-cm-toggle">
               <input type="checkbox" :checked="isVisible(f.code)" @change="toggle(f.code)" />
               <span class="cl-cm-slider"></span>
@@ -131,7 +134,7 @@ async function save() {
     <!-- SECTOR-SCOPED -->
     <section v-if="sectorFields.length" class="cl-cm-section">
       <h4 class="cl-cm-section-h">
-        Отраслевые<span v-if="store.sectorFilter"> · {{ store.sectorFilter }}</span>
+        {{ t('Отраслевые') }}<span v-if="store.sectorFilter"> · {{ store.sectorFilter }}</span>
       </h4>
       <ul class="cl-cm-list">
         <li
@@ -154,7 +157,7 @@ async function save() {
 
     <!-- CUSTOM -->
     <section v-if="customFields.length" class="cl-cm-section">
-      <h4 class="cl-cm-section-h">Пользовательские</h4>
+      <h4 class="cl-cm-section-h">{{ t('Пользовательские') }}</h4>
       <ul class="cl-cm-list">
         <li v-for="f in customFields" :key="f.code" class="cl-cm-row cl-cm-row-custom">
           <span class="cl-cm-drag" aria-hidden="true">⋮⋮</span>
@@ -171,12 +174,12 @@ async function save() {
     </section>
 
     <button class="cl-cm-create" @click="emit('open-builder')">
-      + Создать новую колонку
+      {{ t('+ Создать новую колонку') }}
     </button>
 
     <template #footer>
       <span v-if="saveError" class="cl-modal-err">{{ saveError }}</span>
-      <button class="cl-btn cl-btn-secondary" @click="emit('close')">Отмена</button>
+      <button class="cl-btn cl-btn-secondary" @click="emit('close')">{{ t('Отмена') }}</button>
       <button class="cl-btn cl-btn-primary" :disabled="saving" @click="save">
         {{ saving ? "Сохраняем…" : "Сохранить" }}
       </button>

@@ -18,6 +18,9 @@ import {
   type ScopeType,
 } from "@/api/companyLibrary";
 import ModalShell from "@/components/ModalShell.vue";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const props = defineProps<{ open: boolean }>();
 const emit  = defineEmits<{ (e: "close"): void; (e: "created", code: string): void }>();
@@ -117,26 +120,26 @@ async function submit() {
   <ModalShell :open="open" size="md" @close="emit('close')">
     <template #header>
       <div class="ctb-head-l">
-        <div class="ctb-eyebrow">Библиотека · Новый раздел</div>
-        <h3 class="ctb-title">Создать раздел в карточке компании</h3>
+        <div class="ctb-eyebrow">{{ t('Библиотека · Новый раздел') }}</div>
+        <h3 class="ctb-title">{{ t('Создать раздел в карточке компании') }}</h3>
       </div>
     </template>
 
     <div class="ctb-body">
       <div class="ctb-row">
-              <label class="ctb-label">Название</label>
+              <label class="ctb-label">{{ t('Название') }}</label>
               <input
                 v-model="name_ru"
                 @blur="autoCode"
                 type="text"
                 class="ctb-input"
-                placeholder="Compliance, Documents, ESG детали…"
+                :placeholder="t('Compliance, Documents, ESG детали…')"
                 maxlength="255"
               />
             </div>
 
             <div class="ctb-row">
-              <label class="ctb-label">Код <span class="ctb-hint">(латиница, авто)</span></label>
+              <label class="ctb-label">{{ t('Код') }} <span class="ctb-hint">{{ t('(латиница, авто)') }}</span></label>
               <input
                 v-model="code"
                 type="text"
@@ -147,37 +150,37 @@ async function submit() {
             </div>
 
             <div class="ctb-row">
-              <label class="ctb-label">Расположение</label>
+              <label class="ctb-label">{{ t('Расположение') }}</label>
               <div class="ctb-chips">
                 <button
                   type="button"
                   class="ctb-chip"
                   :class="{ active: layout === 'one_col' }"
                   @click="layout = 'one_col'"
-                >Одна колонка</button>
+                >{{ t('Одна колонка') }}</button>
                 <button
                   type="button"
                   class="ctb-chip"
                   :class="{ active: layout === 'two_col' }"
                   @click="layout = 'two_col'"
-                >Две колонки</button>
+                >{{ t('Две колонки') }}</button>
                 <button
                   type="button"
                   class="ctb-chip"
                   :class="{ active: layout === 'grid' }"
                   @click="layout = 'grid'"
-                >Сетка</button>
+                >{{ t('Сетка') }}</button>
               </div>
             </div>
 
             <div class="ctb-row">
               <label class="ctb-label">
-                Поля
-                <span class="ctb-hint">· выбрано {{ pickedFields.length }}</span>
+                {{ t('Поля') }}
+                <span class="ctb-hint">{{ t('· выбрано') }} {{ pickedFields.length }}</span>
               </label>
               <div class="ctb-fields">
                 <div v-if="baseFields.length" class="ctb-field-section">
-                  <div class="ctb-field-section-h">Базовые</div>
+                  <div class="ctb-field-section-h">{{ t('Базовые') }}</div>
                   <label
                     v-for="f in baseFields"
                     :key="f.code"
@@ -195,7 +198,7 @@ async function submit() {
                 </div>
 
                 <div v-if="sectorFields.length" class="ctb-field-section">
-                  <div class="ctb-field-section-h">Отраслевые</div>
+                  <div class="ctb-field-section-h">{{ t('Отраслевые') }}</div>
                   <label
                     v-for="f in sectorFields"
                     :key="f.code"
@@ -215,25 +218,25 @@ async function submit() {
             </div>
 
             <div class="ctb-row">
-              <label class="ctb-label">Видимость</label>
+              <label class="ctb-label">{{ t('Видимость') }}</label>
               <div class="ctb-chips">
                 <button
                   type="button"
                   class="ctb-chip"
                   :class="{ active: scope_type === 'all' }"
                   @click="scope_type = 'all'"
-                >Все компании</button>
+                >{{ t('Все компании') }}</button>
                 <button
                   type="button"
                   class="ctb-chip"
                   :class="{ active: scope_type === 'sector' }"
                   @click="scope_type = 'sector'"
-                >Сектор</button>
+                >{{ t('Сектор') }}</button>
               </div>
             </div>
 
             <div v-if="scope_type === 'sector' && availableSectors.length" class="ctb-row">
-              <label class="ctb-label">Какие сектора?</label>
+              <label class="ctb-label">{{ t('Какие сектора?') }}</label>
               <div class="ctb-chips">
                 <label
                   v-for="s in availableSectors"
@@ -259,7 +262,7 @@ async function submit() {
 
     <template #footer>
       <span v-if="error" class="ctb-err">{{ error }}</span>
-      <button class="ctb-btn ctb-btn-secondary" @click="emit('close')">Отмена</button>
+      <button class="ctb-btn ctb-btn-secondary" @click="emit('close')">{{ t('Отмена') }}</button>
       <button class="ctb-btn ctb-btn-primary" :disabled="saving || !name_ru" @click="submit">
         {{ saving ? "Создаём…" : "Создать раздел" }}
       </button>

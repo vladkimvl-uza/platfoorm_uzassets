@@ -297,14 +297,14 @@ function overdueDays(e: CalendarEvent): number {
     <!-- Топбар -->
     <div class="cal-top">
       <div class="cal-nav">
-        <button v-if="view !== 'agenda'" class="cal-arrow" @click="go(-1)" title="Назад">
+        <button v-if="view !== 'agenda'" class="cal-arrow" @click="go(-1)" :title="t('Назад')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
         </button>
         <div class="cal-month">{{ titleText }}</div>
-        <button v-if="view !== 'agenda'" class="cal-arrow" @click="go(1)" title="Вперёд">
+        <button v-if="view !== 'agenda'" class="cal-arrow" @click="go(1)" :title="t('Вперёд')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
-        <button class="cal-today-btn" @click="goToday">Сегодня</button>
+        <button class="cal-today-btn" @click="goToday">{{ t('Сегодня') }}</button>
       </div>
       <div class="cal-controls">
         <!-- Виды -->
@@ -316,23 +316,23 @@ function overdueDays(e: CalendarEvent): number {
           </button>
         </div>
         <!-- Фильтры -->
-        <select v-model="fStatus" class="cal-fselect" aria-label="Фильтр по статусу">
-          <option :value="null">Все статусы</option>
+        <select v-model="fStatus" class="cal-fselect" :aria-label="t('Фильтр по статусу')">
+          <option :value="null">{{ t('Все статусы') }}</option>
           <option v-for="s in STATUS_OPTS" :key="s.v" :value="s.v">{{ s.l }}</option>
         </select>
-        <button class="cal-fchip" :class="{ on: fOverdue }" @click="fOverdue = !fOverdue">Просроченные</button>
-        <button class="cal-fchip" :class="{ on: fWatched }" @click="fWatched = !fWatched">Отслеживаемые</button>
+        <button class="cal-fchip" :class="{ on: fOverdue }" @click="fOverdue = !fOverdue">{{ t('Просроченные') }}</button>
+        <button class="cal-fchip" :class="{ on: fWatched }" @click="fWatched = !fWatched">{{ t('Отслеживаемые') }}</button>
       </div>
     </div>
 
     <div class="cal-legend-row">
-      <span class="cal-stat"><b>{{ filteredEvents.length }}</b> событий</span>
-      <span v-if="overdueTotal" class="cal-stat cal-stat-over"><b>{{ overdueTotal }}</b> просрочено</span>
+      <span class="cal-stat"><b>{{ filteredEvents.length }}</b> {{ t('событий') }}</span>
+      <span v-if="overdueTotal" class="cal-stat cal-stat-over"><b>{{ overdueTotal }}</b> {{ t('просрочено') }}</span>
       <span class="cal-legend">
-        <span class="cal-lg"><i style="background:#E24B4A"></i>просрочено</span>
-        <span class="cal-lg"><i style="background:#EF9F27"></i>скоро</span>
-        <span class="cal-lg"><i style="background:#7F77DD"></i>впереди</span>
-        <span class="cal-lg"><i style="background:#1D9E75"></i>готово</span>
+        <span class="cal-lg"><i style="background:#E24B4A"></i>{{ t('просрочено') }}</span>
+        <span class="cal-lg"><i style="background:#EF9F27"></i>{{ t('скоро') }}</span>
+        <span class="cal-lg"><i style="background:#7F77DD"></i>{{ t('впереди') }}</span>
+        <span class="cal-lg"><i style="background:#1D9E75"></i>{{ t('готово') }}</span>
       </span>
     </div>
 
@@ -389,16 +389,16 @@ function overdueDays(e: CalendarEvent): number {
     <!-- ═══ ПОВЕСТКА ═══ -->
     <template v-else>
       <div class="cal-agenda">
-        <div v-if="!agendaGroups.length" class="cal-ag-empty">Нет предстоящих дедлайнов</div>
+        <div v-if="!agendaGroups.length" class="cal-ag-empty">{{ t('Нет предстоящих дедлайнов') }}</div>
         <div v-for="(g, gi) in agendaGroups" :key="g.key" class="cal-ag-group" :style="{ '--gi': gi }">
-          <div class="cal-ag-date" :class="{ 'cal-ag-today': g.key === ymd(today) }">{{ fmtFull(g.date) }}<span v-if="g.key === ymd(today)" class="cal-ag-badge">сегодня</span></div>
+          <div class="cal-ag-date" :class="{ 'cal-ag-today': g.key === ymd(today) }">{{ fmtFull(g.date) }}<span v-if="g.key === ymd(today)" class="cal-ag-badge">{{ t('сегодня') }}</span></div>
           <button v-for="(e, ei) in g.items" :key="e.entity_id" class="cal-ag-item" :style="{ '--ec': STATE_COLOR[evState(e)], '--ai': ei }" @click="openEvent(e)">
             <span class="cal-ag-bar"></span>
             <div class="cal-ag-main">
               <div class="cal-ag-title"><span v-if="e.num" class="cal-ag-num">{{ e.num }}</span>{{ e.title }}</div>
               <div class="cal-ag-meta">{{ e.entity_type === 'project' ? 'Проект' : 'Задача' }}<template v-if="isGlobal && e.company_name"> · {{ e.company_name }}</template></div>
             </div>
-            <span v-if="evState(e) === 'overdue'" class="cal-ag-over">просрочено {{ overdueDays(e) }} дн</span>
+            <span v-if="evState(e) === 'overdue'" class="cal-ag-over">{{ t('просрочено') }} {{ overdueDays(e) }} {{ t('дн') }}</span>
           </button>
         </div>
       </div>
@@ -410,38 +410,38 @@ function overdueDays(e: CalendarEvent): number {
         <div class="cal-sp-head">
           <div class="cal-sp-head-l">
             <div class="cal-sp-date">{{ selectedDate?.getDate() }} {{ MONTHS[selectedDate!.getMonth()].toLowerCase() }}</div>
-            <div class="cal-sp-wd">{{ selectedWeekday }}<template v-if="selectedKey === ymd(today)"> · сегодня</template></div>
+            <div class="cal-sp-wd">{{ selectedWeekday }}<template v-if="selectedKey === ymd(today)"> {{ t('· сегодня') }}</template></div>
           </div>
-          <button class="cal-sp-x" @click="selectedKey = null" aria-label="Закрыть">
+          <button class="cal-sp-x" @click="selectedKey = null" :aria-label="t('Закрыть')">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
           </button>
         </div>
 
         <!-- Сводка по статусам -->
         <div v-if="selectedEvents.length" class="cal-sp-summary">
-          <span v-if="daySummary.overdue" class="cal-sp-sum over"><b>{{ daySummary.overdue }}</b> просрочено</span>
-          <span v-if="daySummary.soon" class="cal-sp-sum soon"><b>{{ daySummary.soon }}</b> скоро</span>
-          <span v-if="daySummary.future" class="cal-sp-sum fut"><b>{{ daySummary.future }}</b> впереди</span>
-          <span v-if="daySummary.done" class="cal-sp-sum done"><b>{{ daySummary.done }}</b> готово</span>
+          <span v-if="daySummary.overdue" class="cal-sp-sum over"><b>{{ daySummary.overdue }}</b> {{ t('просрочено') }}</span>
+          <span v-if="daySummary.soon" class="cal-sp-sum soon"><b>{{ daySummary.soon }}</b> {{ t('скоро') }}</span>
+          <span v-if="daySummary.future" class="cal-sp-sum fut"><b>{{ daySummary.future }}</b> {{ t('впереди') }}</span>
+          <span v-if="daySummary.done" class="cal-sp-sum done"><b>{{ daySummary.done }}</b> {{ t('готово') }}</span>
         </div>
 
         <div class="cal-sp-list">
           <template v-if="selectedEvents.length">
-            <div class="cal-sp-gl">Дедлайны · {{ selectedEvents.length }}</div>
+            <div class="cal-sp-gl">{{ t('Дедлайны ·') }} {{ selectedEvents.length }}</div>
             <button v-for="e in selectedEvents" :key="e.entity_id" class="cal-sp-item" :style="{ '--ec': STATE_COLOR[evState(e)] }" @click="openEvent(e)">
               <span class="cal-sp-bar"></span>
               <div class="cal-sp-main">
                 <div class="cal-sp-title"><span v-if="e.num" class="cal-sp-num">{{ e.num }}</span>{{ e.title }}</div>
                 <div class="cal-sp-meta">
                   {{ e.entity_type === 'project' ? 'Проект' : 'Задача' }}<template v-if="isGlobal && e.company_name"> · {{ e.company_name }}</template>
-                  <span v-if="evState(e) === 'overdue'" class="cal-sp-od">просрочено {{ overdueDays(e) }} дн</span>
+                  <span v-if="evState(e) === 'overdue'" class="cal-sp-od">{{ t('просрочено') }} {{ overdueDays(e) }} {{ t('дн') }}</span>
                 </div>
               </div>
               <svg class="cal-sp-go" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
             </button>
           </template>
           <template v-if="selectedNotes.length">
-            <div class="cal-sp-gl">Заметки · {{ selectedNotes.length }}</div>
+            <div class="cal-sp-gl">{{ t('Заметки ·') }} {{ selectedNotes.length }}</div>
             <div v-for="n in selectedNotes" :key="n.id" class="cal-sp-item cal-sp-note"
                  :class="{ editing: noteEditId === n.id }" style="--ec:#EF9F27"
                  @click="startEditNote(n)">
@@ -450,10 +450,10 @@ function overdueDays(e: CalendarEvent): number {
                 <div class="cal-sp-title">{{ n.title || (n.body || '').slice(0, 60) }}</div>
                 <div v-if="n.title && n.body" class="cal-sp-meta">{{ n.body.slice(0, 80) }}</div>
               </div>
-              <button class="cal-sp-nedit" title="Редактировать" @click.stop="startEditNote(n)">
+              <button class="cal-sp-nedit" :title="t('Редактировать')" @click.stop="startEditNote(n)">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
               </button>
-              <button class="cal-sp-ndel" title="Удалить" :disabled="noteDeletingId === n.id" @click.stop="deleteNote(n)">
+              <button class="cal-sp-ndel" :title="t('Удалить')" :disabled="noteDeletingId === n.id" @click.stop="deleteNote(n)">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
               </button>
             </div>
@@ -461,8 +461,8 @@ function overdueDays(e: CalendarEvent): number {
           <!-- Пустой день -->
           <div v-if="!selectedEvents.length && !selectedNotes.length" class="cal-sp-empty">
             <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#C7CCD9" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            <span>На этот день дедлайнов нет</span>
-            <em v-if="selectedIsPast">прошедшая дата</em>
+            <span>{{ t('На этот день дедлайнов нет') }}</span>
+            <em v-if="selectedIsPast">{{ t('прошедшая дата') }}</em>
           </div>
         </div>
 
@@ -470,14 +470,14 @@ function overdueDays(e: CalendarEvent): number {
         <div v-if="noteAdding" class="cal-sp-noteform">
           <div class="cal-sp-noteformh">{{ noteEditId ? 'Редактирование заметки' : 'Новая заметка' }}</div>
           <select v-if="!props.companyId && !noteEditId" v-model="noteCompanyId" class="cal-sp-noteco">
-            <option value="">— выберите компанию —</option>
+            <option value="">{{ t('— выберите компанию —') }}</option>
             <option v-for="c in noteCompanies" :key="c.id" :value="c.id">{{ c.name }}</option>
           </select>
-          <textarea v-model="noteBody" class="cal-sp-noteinput" rows="2" placeholder="Текст заметки на этот день…"
+          <textarea v-model="noteBody" class="cal-sp-noteinput" rows="2" :placeholder="t('Текст заметки на этот день…')"
                     @keydown.meta.enter="saveNote" @keydown.ctrl.enter="saveNote" autofocus></textarea>
           <div v-if="noteError" class="cal-sp-noteerr">{{ noteError }}</div>
           <div class="cal-sp-noteact">
-            <button class="cal-sp-ncancel" @click="cancelNote" :disabled="noteSaving">Отмена</button>
+            <button class="cal-sp-ncancel" @click="cancelNote" :disabled="noteSaving">{{ t('Отмена') }}</button>
             <button class="cal-sp-nsave" @click="saveNote" :disabled="noteSaving || !noteBody.trim()">{{ noteSaving ? 'Сохранение…' : 'Сохранить' }}</button>
           </div>
         </div>
@@ -486,15 +486,15 @@ function overdueDays(e: CalendarEvent): number {
         <div class="cal-sp-create">
           <button class="cal-sp-cbtn task" @click="createOnDay('task')">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Задача
+            {{ t('Задача') }}
           </button>
           <button class="cal-sp-cbtn proj" @click="createOnDay('project')">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Проект
+            {{ t('Проект') }}
           </button>
           <button v-if="!noteAdding" class="cal-sp-cbtn note" @click="startAddNote">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
-            Заметка
+            {{ t('Заметка') }}
           </button>
         </div>
       </div>

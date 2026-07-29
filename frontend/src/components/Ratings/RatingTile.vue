@@ -13,6 +13,9 @@
 import { reactive, ref, computed } from "vue";
 import { ratingsApi, type AgencyRatingBrief } from "@/api/ratings";
 import { isModerationQueued } from "@/api/client";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const props = withDefaults(defineProps<{
   companyId: string;
@@ -158,12 +161,12 @@ async function save(): Promise<void> {
         <select v-if="mode === 'credit'" v-model="buf.outlook" class="rt-in" :disabled="saving">
           <option v-for="o in OUTLOOKS" :key="o.v" :value="o.v">{{ o.l }}</option>
         </select>
-        <input v-model="buf.date" class="rt-in" placeholder="дата (окт 2025)"
+        <input v-model="buf.date" class="rt-in" :placeholder="t('дата (окт 2025)')"
                maxlength="64" :disabled="saving" />
         <p v-if="err" class="rt-err">{{ err }}</p>
-        <p v-if="queued" class="rt-queued">⏳ Отправлено на модерацию</p>
+        <p v-if="queued" class="rt-queued">{{ t('⏳ Отправлено на модерацию') }}</p>
         <div class="rt-actions">
-          <button class="rt-btn rt-btn-ghost" @click="cancel" :disabled="saving">Отмена</button>
+          <button class="rt-btn rt-btn-ghost" @click="cancel" :disabled="saving">{{ t('Отмена') }}</button>
           <button class="rt-btn rt-btn-save" @click="save" :disabled="saving">
             <span v-if="saving" class="rt-spin" aria-hidden="true"></span>
             {{ saving ? "" : "Сохранить" }}
@@ -179,12 +182,12 @@ async function save(): Promise<void> {
           <span class="rt-agency-name">{{ label }}</span>
         </div>
         <div class="rt-plus">{{ canEdit ? "+" : "—" }}</div>
-        <div v-if="canEdit" class="rt-add-hint">добавить</div>
+        <div v-if="canEdit" class="rt-add-hint">{{ t('добавить') }}</div>
       </div>
 
       <!-- ─── DISPLAY ─── -->
       <div v-else key="view" class="rt-view">
-        <button v-if="canEdit" class="rt-edit-btn" @click="startEdit" title="Редактировать рейтинг">
+        <button v-if="canEdit" class="rt-edit-btn" @click="startEdit" :title="t('Редактировать рейтинг')">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>
@@ -211,7 +214,7 @@ async function save(): Promise<void> {
         <div v-if="rating.rating_date_text" class="rt-date">
           {{ rating.rating_date_text }}
           <a v-if="rating.report_url" :href="rating.report_url" target="_blank"
-             class="rt-link" @click.stop title="Открыть отчёт">↗</a>
+             class="rt-link" @click.stop :title="t('Открыть отчёт')">↗</a>
         </div>
       </div>
     </Transition>

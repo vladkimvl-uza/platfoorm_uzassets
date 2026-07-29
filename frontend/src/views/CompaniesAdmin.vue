@@ -13,6 +13,9 @@ import type {
   CompanyCreatePayload, CompanyUpdatePayload,
   SectorCreatePayload,
 } from "@/api/companies";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const auth = useAuthStore();
 const companiesStore = useCompaniesStore();
@@ -423,8 +426,8 @@ async function submitDeleteSector() {
 <template>
   <div class="p-6 max-w-[1400px] mx-auto">
     <div class="mb-4">
-      <div class="uza-section-label">Администрирование</div>
-      <h1 class="text-[15px] font-medium tracking-uza-snug mt-1">Компании и сектора</h1>
+      <div class="uza-section-label">{{ t('Администрирование') }}</div>
+      <h1 class="text-[15px] font-medium tracking-uza-snug mt-1">{{ t('Компании и сектора') }}</h1>
     </div>
 
     <!-- Tabs -->
@@ -444,18 +447,18 @@ async function submitDeleteSector() {
     <!-- TAB: COMPANIES -->
     <div v-if="activeTab === 'companies'">
       <div class="uza-card p-4 mb-4 flex items-center gap-3 flex-wrap">
-        <input v-model="search" @input="onSearch" type="text" placeholder="Поиск..."
+        <input v-model="search" @input="onSearch" type="text" :placeholder="t('Поиск...')"
                class="flex-1 min-w-[200px] px-3 py-2 text-sm rounded-uza-pill border border-slate-200 focus:border-uza-purple focus:outline-none"/>
         <select v-model="filterSector" @change="loadCompanies"
                 class="px-3 py-2 text-sm rounded-uza-pill border border-slate-200 bg-white focus:border-uza-purple">
-          <option value="">Все сектора</option>
+          <option value="">{{ t('Все сектора') }}</option>
           <option v-for="s in sectors" :key="s.code" :value="s.code">{{ s.name_ru }}</option>
         </select>
         <select v-model="filterActive" @change="loadCompanies"
                 class="px-3 py-2 text-sm rounded-uza-pill border border-slate-200 bg-white focus:border-uza-purple">
-          <option value="active">Активные</option>
-          <option value="inactive">Отключенные</option>
-          <option value="all">Все</option>
+          <option value="active">{{ t('Активные') }}</option>
+          <option value="inactive">{{ t('Отключенные') }}</option>
+          <option value="all">{{ t('Все') }}</option>
         </select>
         <button v-if="canCreateCompanies" @click="toggleInlineCreate"
                 class="px-4 py-2 text-sm bg-uza-purple text-white rounded-uza-pill hover:bg-uza-purple/90">
@@ -465,32 +468,31 @@ async function submitDeleteSector() {
 
       <!-- Pack 148 D: minimal inline Add-Company form above the list. -->
       <div v-if="showInlineCreate && canCreateCompanies" class="uza-card p-4 mb-4 border border-uza-purple/30">
-        <div class="uza-section-label mb-2">Новая компания</div>
+        <div class="uza-section-label mb-2">{{ t('Новая компания') }}</div>
         <div v-if="formError" class="text-xs text-uza-red mb-2">{{ formError }}</div>
         <div class="grid grid-cols-2 gap-2">
-          <input v-model="companyForm.code" placeholder="Тикер (lowercase, напр. uzbekugol)"
+          <input v-model="companyForm.code" :placeholder="t('Тикер (lowercase, напр. uzbekugol)')"
                  class="px-3 py-2 text-sm rounded-uza-pill border border-slate-200 focus:border-uza-purple focus:outline-none font-mono"/>
-          <input v-model="companyForm.name_short" placeholder="Короткое имя"
+          <input v-model="companyForm.name_short" :placeholder="t('Короткое имя')"
                  class="px-3 py-2 text-sm rounded-uza-pill border border-slate-200 focus:border-uza-purple focus:outline-none"/>
-          <input v-model="companyForm.name_ru" placeholder="Полное название (RU) *"
+          <input v-model="companyForm.name_ru" :placeholder="t('Полное название (RU) *')"
                  class="col-span-2 px-3 py-2 text-sm rounded-uza-pill border border-slate-200 focus:border-uza-purple focus:outline-none"/>
           <select v-model="companyForm.sector_code"
                   class="px-3 py-2 text-sm rounded-uza-pill border border-slate-200 bg-white focus:border-uza-purple">
-            <option value="">— выбрать сектор —</option>
+            <option value="">{{ t('— выбрать сектор —') }}</option>
             <option v-for="s in sectors" :key="s.code" :value="s.code">{{ s.name_ru }}</option>
           </select>
           <select v-model="companyForm.legal_form"
                   class="px-3 py-2 text-sm rounded-uza-pill border border-slate-200 bg-white focus:border-uza-purple">
-            <option>АО</option><option>ООО</option><option>ГП</option>
+            <option>{{ t('АО') }}</option><option>{{ t('ООО') }}</option><option>{{ t('ГП') }}</option>
           </select>
         </div>
         <div class="mt-3 flex items-center gap-2 justify-end">
           <span class="text-[10px] text-slate-500 mr-auto">
-            При создании автоматически появится 1:1 группа RBAC v3 с тем же кодом — её можно
-            сразу использовать для добавления пользователей.
+            {{ t('При создании автоматически появится 1:1 группа RBAC v3 с тем же кодом — её можно сразу использовать для добавления пользователей.') }}
           </span>
           <button @click="showInlineCreate = false"
-                  class="px-3 py-1.5 text-xs text-slate-600 hover:text-slate-900">Отмена</button>
+                  class="px-3 py-1.5 text-xs text-slate-600 hover:text-slate-900">{{ t('Отмена') }}</button>
           <button @click="submitCreateCompany"
                   :disabled="!companyForm.code || !companyForm.name_ru || formSubmitting"
                   class="px-4 py-1.5 text-sm bg-uza-purple text-white rounded-uza-pill hover:bg-uza-purple/90 disabled:opacity-50">
@@ -499,20 +501,20 @@ async function submitDeleteSector() {
         </div>
       </div>
 
-      <div v-if="loading" class="uza-card p-12 text-center text-slate-400 text-sm">Загрузка…</div>
+      <div v-if="loading" class="uza-card p-12 text-center text-slate-400 text-sm">{{ t('Загрузка…') }}</div>
       <div v-else-if="companies.length === 0" class="uza-card p-12 text-center text-slate-400 text-sm">
-        Компании не найдены.
+        {{ t('Компании не найдены.') }}
       </div>
       <div v-else class="uza-card overflow-hidden">
         <table class="w-full text-sm">
           <thead class="bg-slate-50/60 border-b border-slate-100 text-[10px] uppercase tracking-uza-label2 text-slate-500">
             <tr>
-              <th class="text-left px-4 py-3 font-medium">Тикер</th>
-              <th class="text-left px-3 py-3 font-medium">Название</th>
-              <th class="text-left px-3 py-3 font-medium">Сектор</th>
-              <th class="text-center px-3 py-3 font-medium">Статус</th>
-              <th class="text-center px-3 py-3 font-medium">Тип</th>
-              <th class="text-right px-4 py-3 font-medium">Действия</th>
+              <th class="text-left px-4 py-3 font-medium">{{ t('Тикер') }}</th>
+              <th class="text-left px-3 py-3 font-medium">{{ t('Название') }}</th>
+              <th class="text-left px-3 py-3 font-medium">{{ t('Сектор') }}</th>
+              <th class="text-center px-3 py-3 font-medium">{{ t('Статус') }}</th>
+              <th class="text-center px-3 py-3 font-medium">{{ t('Тип') }}</th>
+              <th class="text-right px-4 py-3 font-medium">{{ t('Действия') }}</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-100">
@@ -526,13 +528,13 @@ async function submitDeleteSector() {
                   <CompanyAvatar :name="c.name_short || c.code" :color="c.sector_color || '#888780'" :size="28" />
                   <!-- Inline-редактирование названия -->
                   <div v-if="inline.code === c.code && inline.field === 'name'" style="display:flex;flex-direction:column;gap:4px;min-width:0;width:100%;">
-                    <input :ref="el => focusInline(el)" v-model="inlineDraft.name_short" placeholder="Короткое имя"
+                    <input :ref="el => focusInline(el)" v-model="inlineDraft.name_short" :placeholder="t('Короткое имя')"
                            @keyup.enter="saveInline(c)" @keyup.esc="cancelInline" class="ca-iedit" />
-                    <input v-model="inlineDraft.name_ru" placeholder="Полное название"
+                    <input v-model="inlineDraft.name_ru" :placeholder="t('Полное название')"
                            @keyup.enter="saveInline(c)" @keyup.esc="cancelInline" class="ca-iedit ca-iedit-sm" />
                     <div style="display:flex;gap:6px;">
                       <button class="ca-iedit-ok" :disabled="inlineSaving" @click="saveInline(c)">{{ inlineSaving ? '…' : 'Сохранить' }}</button>
-                      <button class="ca-iedit-cancel" @click="cancelInline">Отмена</button>
+                      <button class="ca-iedit-cancel" @click="cancelInline">{{ t('Отмена') }}</button>
                     </div>
                     <div v-if="formError" class="ca-iedit-err">{{ formError }}</div>
                   </div>
@@ -562,9 +564,9 @@ async function submitDeleteSector() {
                         :title="canEditCompanies ? 'Кликните, чтобы переключить статус' : ''"
                         @click="toggleActive(c)">
                   <span v-if="c.is_active" class="inline-block px-2 py-0.5 rounded-uza-pill text-[10px]"
-                        style="background:#1D9E7515;color:#1D9E75">Активна</span>
+                        style="background:#1D9E7515;color:#1D9E75">{{ t('Активна') }}</span>
                   <span v-else class="inline-block px-2 py-0.5 rounded-uza-pill text-[10px]"
-                        style="background:#94A3B815;color: var(--t3, #64748B)">Отключена</span>
+                        style="background:#94A3B815;color: var(--t3, #64748B)">{{ t('Отключена') }}</span>
                 </button>
               </td>
               <td class="px-3 py-3 text-center text-[10px] uppercase tracking-uza-label2 text-slate-500">
@@ -572,9 +574,9 @@ async function submitDeleteSector() {
               </td>
               <td class="px-4 py-3 text-right whitespace-nowrap">
                 <button v-if="canEditCompanies" @click="openEditCompany(c)"
-                        class="text-uza-purple text-xs hover:underline mr-3">Изменить</button>
+                        class="text-uza-purple text-xs hover:underline mr-3">{{ t('Изменить') }}</button>
                 <button v-if="canDeleteCompanies" @click="openDeleteCompany(c)"
-                        class="text-uza-red text-xs hover:underline">Удалить</button>
+                        class="text-uza-red text-xs hover:underline">{{ t('Удалить') }}</button>
               </td>
             </tr>
           </tbody>
@@ -586,30 +588,30 @@ async function submitDeleteSector() {
     <div v-else-if="activeTab === 'sectors'">
       <div class="uza-card p-4 mb-4 flex items-center justify-between">
         <div class="text-sm text-slate-600">
-          {{ sectors.length }} секторов · сортировка по `sort_order`
+          {{ sectors.length }} {{ t('секторов · сортировка по `sort_order`') }}
         </div>
         <button v-if="canCreateSectors" @click="openCreateSector"
                 class="px-4 py-2 text-sm bg-uza-purple text-white rounded-uza-pill hover:bg-uza-purple/90">
-          + Добавить сектор
+          {{ t('+ Добавить сектор') }}
         </button>
       </div>
 
-      <div v-if="loading" class="uza-card p-12 text-center text-slate-400 text-sm">Загрузка…</div>
+      <div v-if="loading" class="uza-card p-12 text-center text-slate-400 text-sm">{{ t('Загрузка…') }}</div>
       <div v-else-if="sectors.length === 0" class="uza-card p-12 text-center text-slate-400 text-sm">
-        Секторов нет.
+        {{ t('Секторов нет.') }}
       </div>
       <div v-else class="uza-card overflow-hidden">
         <table class="w-full text-sm">
           <thead class="bg-slate-50/60 border-b border-slate-100 text-[10px] uppercase tracking-uza-label2 text-slate-500">
             <tr>
-              <th class="text-left px-4 py-3 font-medium">Код</th>
+              <th class="text-left px-4 py-3 font-medium">{{ t('Код') }}</th>
               <th class="text-left px-3 py-3 font-medium">RU</th>
               <th class="text-left px-3 py-3 font-medium">UZ</th>
               <th class="text-left px-3 py-3 font-medium">EN</th>
-              <th class="text-center px-3 py-3 font-medium">Цвет</th>
-              <th class="text-center px-3 py-3 font-medium">Компаний</th>
-              <th class="text-center px-3 py-3 font-medium">Порядок</th>
-              <th class="text-right px-4 py-3 font-medium">Действия</th>
+              <th class="text-center px-3 py-3 font-medium">{{ t('Цвет') }}</th>
+              <th class="text-center px-3 py-3 font-medium">{{ t('Компаний') }}</th>
+              <th class="text-center px-3 py-3 font-medium">{{ t('Порядок') }}</th>
+              <th class="text-right px-4 py-3 font-medium">{{ t('Действия') }}</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-100">
@@ -632,12 +634,12 @@ async function submitDeleteSector() {
               <td class="px-3 py-3 text-center tabular-nums text-xs text-slate-500">{{ s.sort_order }}</td>
               <td class="px-4 py-3 text-right whitespace-nowrap">
                 <button v-if="canEditSectors" @click="openEditSector(s)"
-                        class="text-uza-purple text-xs hover:underline mr-3">Изменить</button>
+                        class="text-uza-purple text-xs hover:underline mr-3">{{ t('Изменить') }}</button>
                 <button v-if="canDeleteSectors && s.company_count === 0" @click="openDeleteSector(s)"
-                        class="text-uza-red text-xs hover:underline">Удалить</button>
+                        class="text-uza-red text-xs hover:underline">{{ t('Удалить') }}</button>
                 <span v-else-if="(s.company_count ?? 0) > 0" class="text-slate-300 text-xs"
-                      title="Сначала переподключите компании на другой сектор">
-                  Используется
+                      :title="t('Сначала переподключите компании на другой сектор')">
+                  {{ t('Используется') }}
                 </span>
               </td>
             </tr>
@@ -654,67 +656,67 @@ async function submitDeleteSector() {
         <div class="space-y-3" @keydown.enter="onCompanyModalEnter">
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="block text-xs text-slate-600 mb-1">Тикер (lowercase)</label>
+              <label class="block text-xs text-slate-600 mb-1">{{ t('Тикер (lowercase)') }}</label>
               <input v-model="companyForm.code" type="text"
                      :readonly="showEditCompany"
-                     placeholder="например: ngmk"
+                     :placeholder="t('например: ngmk')"
                      class="w-full px-3 py-2 text-sm rounded-uza-pill border border-slate-200 focus:border-uza-purple font-mono"
                      :class="showEditCompany ? 'bg-slate-50 cursor-not-allowed' : ''"/>
             </div>
             <div>
-              <label class="block text-xs text-slate-600 mb-1">Сектор</label>
+              <label class="block text-xs text-slate-600 mb-1">{{ t('Сектор') }}</label>
               <select v-model="companyForm.sector_code"
                       class="w-full px-3 py-2 text-sm rounded-uza-pill border border-slate-200 bg-white focus:border-uza-purple">
-                <option value="">— не указан —</option>
+                <option value="">{{ t('— не указан —') }}</option>
                 <option v-for="s in sectors" :key="s.code" :value="s.code">{{ s.name_ru }}</option>
               </select>
             </div>
           </div>
           <div>
-            <label class="block text-xs text-slate-600 mb-1">Название (RU)</label>
+            <label class="block text-xs text-slate-600 mb-1">{{ t('Название (RU)') }}</label>
             <input v-model="companyForm.name_ru" type="text"
-                   placeholder="АО «Навоийский ГМК»"
+                   :placeholder="t('АО «Навоийский ГМК»')"
                    class="w-full px-3 py-2 text-sm rounded-uza-pill border border-slate-200 focus:border-uza-purple"/>
           </div>
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="block text-xs text-slate-600 mb-1">Короткое имя</label>
+              <label class="block text-xs text-slate-600 mb-1">{{ t('Короткое имя') }}</label>
               <input v-model="companyForm.name_short" type="text"
-                     placeholder="НГМК"
+                     :placeholder="t('НГМК')"
                      class="w-full px-3 py-2 text-sm rounded-uza-pill border border-slate-200 focus:border-uza-purple"/>
             </div>
             <div>
-              <label class="block text-xs text-slate-600 mb-1">Правовая форма</label>
+              <label class="block text-xs text-slate-600 mb-1">{{ t('Правовая форма') }}</label>
               <select v-model="companyForm.legal_form"
                       class="w-full px-3 py-2 text-sm rounded-uza-pill border border-slate-200 bg-white focus:border-uza-purple">
-                <option value="АО">АО</option>
-                <option value="ГП">ГП</option>
-                <option value="ООО">ООО</option>
-                <option value="">— не указано —</option>
+                <option value="АО">{{ t('АО') }}</option>
+                <option value="ГП">{{ t('ГП') }}</option>
+                <option value="ООО">{{ t('ООО') }}</option>
+                <option value="">{{ t('— не указано —') }}</option>
               </select>
             </div>
           </div>
           <div>
-            <label class="block text-xs text-slate-600 mb-1">Название (UZ кириллица)</label>
+            <label class="block text-xs text-slate-600 mb-1">{{ t('Название (UZ кириллица)') }}</label>
             <input v-model="companyForm.name_uz" type="text"
-                   placeholder="“Навоий КМК” АЖ"
+                   :placeholder="t('“Навоий КМК” АЖ')"
                    class="w-full px-3 py-2 text-sm rounded-uza-pill border border-slate-200 focus:border-uza-purple"/>
           </div>
           <div>
-            <label class="block text-xs text-slate-600 mb-1">Название (EN)</label>
+            <label class="block text-xs text-slate-600 mb-1">{{ t('Название (EN)') }}</label>
             <input v-model="companyForm.name_en" type="text"
                    placeholder='"Navoiy MMC" JSC'
                    class="w-full px-3 py-2 text-sm rounded-uza-pill border border-slate-200 focus:border-uza-purple"/>
           </div>
           <label v-if="showEditCompany" class="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
             <input v-model="companyForm.is_active" type="checkbox"/>
-            Активна
+            {{ t('Активна') }}
           </label>
 
           <!-- Per-year visibility: скрыть компанию и её данные из выбранных годов -->
           <div v-if="showEditCompany" class="ca-hide-block">
-            <div class="ca-hide-label">Скрыть из годов</div>
-            <div class="ca-hide-sub">В отмеченных годах компания и все её данные не показываются на дашбордах.</div>
+            <div class="ca-hide-label">{{ t('Скрыть из годов') }}</div>
+            <div class="ca-hide-sub">{{ t('В отмеченных годах компания и все её данные не показываются на дашбордах.') }}</div>
             <div class="ca-hide-years">
               <button v-for="y in yearOptions" :key="y" type="button"
                       :class="['ca-hide-year', { on: (companyForm.hidden_years || []).includes(y) }]"
@@ -726,7 +728,7 @@ async function submitDeleteSector() {
         </div>
       <template #footer>
         <button @click="closeCompanyModal"
-                class="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-uza-pill">Отмена</button>
+                class="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-uza-pill">{{ t('Отмена') }}</button>
         <button @click="showCreateCompany ? submitCreateCompany() : submitEditCompany()"
                 :disabled="formSubmitting || !companyForm.code || !companyForm.name_ru"
                 class="px-4 py-2 text-sm bg-uza-purple text-white rounded-uza-pill hover:bg-uza-purple/90 disabled:opacity-40">
@@ -736,7 +738,7 @@ async function submitDeleteSector() {
     </ModalShell>
 
     <!-- COMPANY: Delete confirmation -->
-    <ModalShell :open="showDeleteCompany" size="sm" title="Удаление компании"
+    <ModalShell :open="showDeleteCompany" size="sm" :title="t('Удаление компании')"
                 @close="showDeleteCompany = false">
         <div class="text-sm text-slate-700 mb-4">
           {{ editingCompany?.name_short || editingCompany?.code }} ({{ editingCompany?.code }})
@@ -746,10 +748,9 @@ async function submitDeleteSector() {
                  :class="!deleteCascade ? 'border-uza-purple bg-uza-purple/5' : 'border-slate-200'">
             <input v-model="deleteCascade" type="radio" :value="false" class="mt-0.5"/>
             <div>
-              <div class="font-medium">Деактивировать (рекомендуется)</div>
+              <div class="font-medium">{{ t('Деактивировать (рекомендуется)') }}</div>
               <div class="text-xs text-slate-500 mt-0.5">
-                Компания скрывается из активных списков, но все данные сохраняются.
-                Можно вернуть установив «Активна».
+                {{ t('Компания скрывается из активных списков, но все данные сохраняются. Можно вернуть установив «Активна».') }}
               </div>
             </div>
           </label>
@@ -758,10 +759,9 @@ async function submitDeleteSector() {
                  v-if="canCascadeDelete">
             <input v-model="deleteCascade" type="radio" :value="true" class="mt-0.5"/>
             <div>
-              <div class="font-medium text-uza-red">Полное удаление (необратимо)</div>
+              <div class="font-medium text-uza-red">{{ t('Полное удаление (необратимо)') }}</div>
               <div class="text-xs text-slate-500 mt-0.5">
-                Удаляет компанию И ВСЕ связанные данные: финансы, рейтинги, задачи, проекты.
-                Только владелец платформы.
+                {{ t('Удаляет компанию И ВСЕ связанные данные: финансы, рейтинги, задачи, проекты. Только владелец платформы.') }}
               </div>
             </div>
           </label>
@@ -769,7 +769,7 @@ async function submitDeleteSector() {
         </div>
       <template #footer>
         <button @click="showDeleteCompany = false"
-                class="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-uza-pill">Отмена</button>
+                class="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-uza-pill">{{ t('Отмена') }}</button>
         <button @click="submitDeleteCompany" :disabled="formSubmitting"
                 class="px-4 py-2 text-sm rounded-uza-pill text-white disabled:opacity-40"
                 :class="deleteCascade ? 'bg-uza-red hover:bg-red-700' : 'bg-uza-amber hover:bg-amber-600'">
@@ -784,36 +784,36 @@ async function submitDeleteSector() {
                 @close="showCreateSector = false; showEditSector = false">
         <div class="space-y-3">
           <div>
-            <label class="block text-xs text-slate-600 mb-1">Код (latin lowercase)</label>
+            <label class="block text-xs text-slate-600 mb-1">{{ t('Код (latin lowercase)') }}</label>
             <input v-model="sectorForm.code" type="text"
                    :readonly="showEditSector"
-                   placeholder="например: mining_metallurgy"
+                   :placeholder="t('например: mining_metallurgy')"
                    class="w-full px-3 py-2 text-sm rounded-uza-pill border border-slate-200 focus:border-uza-purple font-mono"
                    :class="showEditSector ? 'bg-slate-50 cursor-not-allowed' : ''"/>
           </div>
           <div>
-            <label class="block text-xs text-slate-600 mb-1">Название (RU)</label>
+            <label class="block text-xs text-slate-600 mb-1">{{ t('Название (RU)') }}</label>
             <input v-model="sectorForm.name_ru" type="text"
                    class="w-full px-3 py-2 text-sm rounded-uza-pill border border-slate-200 focus:border-uza-purple"/>
           </div>
           <div>
-            <label class="block text-xs text-slate-600 mb-1">Название (UZ кириллица)</label>
+            <label class="block text-xs text-slate-600 mb-1">{{ t('Название (UZ кириллица)') }}</label>
             <input v-model="sectorForm.name_uz" type="text"
                    class="w-full px-3 py-2 text-sm rounded-uza-pill border border-slate-200 focus:border-uza-purple"/>
           </div>
           <div>
-            <label class="block text-xs text-slate-600 mb-1">Название (EN)</label>
+            <label class="block text-xs text-slate-600 mb-1">{{ t('Название (EN)') }}</label>
             <input v-model="sectorForm.name_en" type="text"
                    class="w-full px-3 py-2 text-sm rounded-uza-pill border border-slate-200 focus:border-uza-purple"/>
           </div>
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="block text-xs text-slate-600 mb-1">Цвет (hex)</label>
+              <label class="block text-xs text-slate-600 mb-1">{{ t('Цвет (hex)') }}</label>
               <input v-model="sectorForm.color_hex" type="text" placeholder="#7F77DD"
                      class="w-full px-3 py-2 text-sm rounded-uza-pill border border-slate-200 focus:border-uza-purple font-mono"/>
             </div>
             <div>
-              <label class="block text-xs text-slate-600 mb-1">Порядок</label>
+              <label class="block text-xs text-slate-600 mb-1">{{ t('Порядок') }}</label>
               <input v-model.number="sectorForm.sort_order" type="number"
                      class="w-full px-3 py-2 text-sm rounded-uza-pill border border-slate-200 focus:border-uza-purple"/>
             </div>
@@ -822,7 +822,7 @@ async function submitDeleteSector() {
         </div>
       <template #footer>
         <button @click="showCreateSector = false; showEditSector = false"
-                class="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-uza-pill">Отмена</button>
+                class="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-uza-pill">{{ t('Отмена') }}</button>
         <button @click="showCreateSector ? submitCreateSector() : submitEditSector()"
                 :disabled="formSubmitting || !sectorForm.code || !sectorForm.name_ru"
                 class="px-4 py-2 text-sm bg-uza-purple text-white rounded-uza-pill hover:bg-uza-purple/90 disabled:opacity-40">
@@ -832,18 +832,18 @@ async function submitDeleteSector() {
     </ModalShell>
 
     <!-- SECTOR: Delete confirmation -->
-    <ModalShell :open="showDeleteSector" size="sm" title="Удаление сектора"
+    <ModalShell :open="showDeleteSector" size="sm" :title="t('Удаление сектора')"
                 @close="showDeleteSector = false">
         <div class="text-sm text-slate-700 mb-3">
           {{ editingSector?.name_ru }} (<code>{{ editingSector?.code }}</code>)
         </div>
         <div class="text-xs text-slate-500 mb-3">
-          Удаление возможно только если сектор не содержит активных компаний.
+          {{ t('Удаление возможно только если сектор не содержит активных компаний.') }}
         </div>
         <div v-if="formError" class="text-uza-red text-xs">{{ formError }}</div>
       <template #footer>
         <button @click="showDeleteSector = false"
-                class="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-uza-pill">Отмена</button>
+                class="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-uza-pill">{{ t('Отмена') }}</button>
         <button @click="submitDeleteSector" :disabled="formSubmitting"
                 class="px-4 py-2 text-sm bg-uza-red text-white rounded-uza-pill hover:bg-red-700 disabled:opacity-40">
           {{ formSubmitting ? "Удаление…" : "Удалить" }}

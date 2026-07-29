@@ -11,6 +11,9 @@
  */
 import { onBeforeUnmount, onMounted, ref } from "vue";
 
+import flagGb from "@/assets/flags/gb.svg";
+import flagRu from "@/assets/flags/ru.svg";
+import flagUz from "@/assets/flags/uz.svg";
 import {
   APP_LOCALES,
   LOCALE_NAME,
@@ -23,6 +26,12 @@ withDefaults(defineProps<{ variant?: "dark" | "light" }>(), { variant: "dark" })
 
 const store = useLocaleStore();
 const open = ref(false);
+const localeFlag: Record<AppLocale, string> = {
+  ru: flagRu,
+  "uz-latn": flagUz,
+  "uz-cyr": flagUz,
+  en: flagGb,
+};
 
 function pick(loc: AppLocale) {
   store.set(loc);
@@ -45,11 +54,7 @@ onBeforeUnmount(() => document.removeEventListener("click", onDocClick));
       :aria-label="`Til / Язык / Language: ${LOCALE_NAME[store.current]}`"
       @click.stop="open = !open"
     >
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="10" />
-        <line x1="2" y1="12" x2="22" y2="12" />
-        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-      </svg>
+      <img class="lsw-flag" :src="localeFlag[store.current]" alt="" aria-hidden="true" />
       <span class="lsw-code">{{ LOCALE_SHORT[store.current] }}</span>
       <svg class="lsw-chev" :class="{ open }" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
     </button>
@@ -64,6 +69,7 @@ onBeforeUnmount(() => document.removeEventListener("click", onDocClick));
         :class="{ on: store.current === loc }"
         @click="pick(loc)"
       >
+        <img class="lsw-menu-flag" :src="localeFlag[loc]" alt="" aria-hidden="true" />
         <span class="lsw-mcode">{{ LOCALE_SHORT[loc] }}</span>
         <span>{{ LOCALE_NAME[loc] }}</span>
       </button>
@@ -83,6 +89,17 @@ onBeforeUnmount(() => document.removeEventListener("click", onDocClick));
   font-family: inherit;
   transition: background 0.15s ease, border-color 0.15s ease;
 }
+.lsw-flag,
+.lsw-menu-flag {
+  display: block;
+  object-fit: cover;
+  flex: 0 0 auto;
+  border-radius: 2px;
+  box-shadow: 0 0 0 0.5px rgba(15, 23, 60, 0.24);
+}
+.lsw-flag { width: 15px; height: 10px; }
+.lsw-menu-flag { width: 18px; height: 12px; }
+.lsw-dark .lsw-flag { box-shadow: 0 0 0 0.5px rgba(255, 255, 255, 0.28); }
 .lsw-dark .lsw-btn {
   background: rgba(255, 255, 255, 0.07);
   border: 0.5px solid rgba(255, 255, 255, 0.14);

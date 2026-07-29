@@ -52,6 +52,9 @@ import { exportProcurementYear, downloadProcurementTemplate } from "@/utils/proc
 import ForensicUploadModal from "@/components/Procurement/ForensicUploadModal.vue";
 import { api } from "@/api/client";
 import { useFormatters } from "@/composables/useFormatters";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const fmt = useFormatters();
 
@@ -339,11 +342,11 @@ onMounted(() => {
     <div class="pa-topbar" @click.stop>
       <SidebarBurger />
       <div class="pa-tb-l">
-        <h1 class="pa-tb-title">Анализ закупочной деятельности государственных компаний</h1>
+        <h1 class="pa-tb-title">{{ t('Анализ закупочной деятельности государственных компаний') }}</h1>
         <div class="pa-tb-sub" v-if="k">
-          <span><b>{{ k.total_companies }}</b> компаний</span>
+          <span><b>{{ k.total_companies }}</b> {{ t('компаний') }}</span>
           <span class="pa-dot">·</span>
-          <span><b>{{ fmt.fmtNumber(k.total_lots) }}</b> уник. лотов</span>
+          <span><b>{{ fmt.fmtNumber(k.total_lots) }}</b> {{ t('уник. лотов') }}</span>
           <span class="pa-dot">·</span>
           <span><b>{{ paFmtMoneyShort(k.total_spend) }}</b></span>
           <span class="pa-dot">·</span>
@@ -356,13 +359,13 @@ onMounted(() => {
       <div class="pa-tb-r" @click="closeAllDropdowns()">
         <!-- Sector -->
         <div v-if="scope.showSectorPicker.value" class="pa-badge-wrap" @click.stop>
-          <button class="pa-badge" @click="sectorOpen = !sectorOpen" title="Фильтр по сектору">
+          <button class="pa-badge" @click="sectorOpen = !sectorOpen" :title="t('Фильтр по сектору')">
             <span class="pa-sec-icon" :style="{ background: sectorColor + '33', borderColor: sectorColor }"></span>
             <span :style="{ color: sectorColor }">{{ sectorLabel }}</span>
             <svg class="pa-chev" width="10" height="10" viewBox="0 0 10 10" fill="none" :stroke="sectorColor" stroke-width="1.6"><path d="M2 4l3 3 3-3"/></svg>
           </button>
           <div v-if="sectorOpen" class="pa-dd">
-            <div class="pa-dd-item" :class="{ active: !sectorCode }" @click="setSector(null)">Все секторы</div>
+            <div class="pa-dd-item" :class="{ active: !sectorCode }" @click="setSector(null)">{{ t('Все секторы') }}</div>
             <div v-for="s in SECTOR_META" :key="s.id" class="pa-dd-item" :class="{ active: sectorCode === s.id }" @click="setSector(s.id)">
               <span class="pa-sec-dot" :style="{ background: s.color }"></span>{{ s.label }}
             </div>
@@ -371,13 +374,13 @@ onMounted(() => {
 
         <!-- Year -->
         <div class="pa-badge-wrap" @click.stop>
-          <button class="pa-badge" @click="yearOpen = !yearOpen" title="Год">
+          <button class="pa-badge" @click="yearOpen = !yearOpen" :title="t('Год')">
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M2 7h12M5 1.5v3M11 1.5v3" stroke-linecap="round"/></svg>
             <span>{{ year ? `${year} · Q1` : 'Все годы' }}</span>
             <svg class="pa-chev" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 4l3 3 3-3"/></svg>
           </button>
           <div v-if="yearOpen" class="pa-dd">
-            <div class="pa-dd-item" :class="{ active: !year }" @click="setYear(null)">Все годы</div>
+            <div class="pa-dd-item" :class="{ active: !year }" @click="setYear(null)">{{ t('Все годы') }}</div>
             <div v-for="y in (aggregate?.available_years || [])" :key="y" class="pa-dd-item" :class="{ active: year === y }" @click="setYear(y)">{{ y }}</div>
           </div>
         </div>
@@ -402,7 +405,7 @@ onMounted(() => {
     <div v-else-if="error && !aggregate" class="pa-state pa-state-err">
       <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#E2807F" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.01" stroke-linecap="round"/></svg>
       <p>{{ error }}</p>
-      <button class="pa-mf-btn primary" @click="load()">Повторить</button>
+      <button class="pa-mf-btn primary" @click="load()">{{ t('Повторить') }}</button>
     </div>
 
     <div v-else-if="aggregate" class="pa-body">
@@ -422,12 +425,12 @@ onMounted(() => {
         <div class="pa-empty-icon">
           <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="#7F77DD" stroke-width="1.5"><rect x="8" y="10" width="32" height="32" rx="3"/><path d="M8 18h32M16 4v8M32 4v8"/><path d="M16 26h16M16 32h12"/></svg>
         </div>
-        <h3>Анализ закупок · нет данных за {{ year || 'выбранный год' }}</h3>
-        <p v-if="year || sectorCode">Активные фильтры могут скрывать данные. Попробуйте сбросить.</p>
-        <p v-else>Загрузите контракты Q1 2026 (xarid, 22 листа) или прайс-лист Excel.</p>
+        <h3>{{ t('Анализ закупок · нет данных за') }} {{ year || 'выбранный год' }}</h3>
+        <p v-if="year || sectorCode">{{ t('Активные фильтры могут скрывать данные. Попробуйте сбросить.') }}</p>
+        <p v-else>{{ t('Загрузите контракты Q1 2026 (xarid, 22 листа) или прайс-лист Excel.') }}</p>
         <div class="pa-empty-actions">
-          <button v-if="year || sectorCode" class="pa-mf-btn primary" @click="year = null; sectorCode = null; load()">↻ Сбросить фильтры</button>
-          <button v-if="_perm.canEdit.value" class="pa-mf-btn" :class="{ primary: !year && !sectorCode }" @click="editAction('import-contracts')">↓ Импорт контрактов</button>
+          <button v-if="year || sectorCode" class="pa-mf-btn primary" @click="year = null; sectorCode = null; load()">{{ t('↻ Сбросить фильтры') }}</button>
+          <button v-if="_perm.canEdit.value" class="pa-mf-btn" :class="{ primary: !year && !sectorCode }" @click="editAction('import-contracts')">{{ t('↓ Импорт контрактов') }}</button>
         </div>
       </div>
 
@@ -454,13 +457,13 @@ onMounted(() => {
                   </div>
                   <div class="pa-card-rt">
                     <div class="pa-seg pa-seg-light">
-                      <button :class="{ on: heroMode === 'products' }" @click="heroMode = 'products'">Товары</button>
-                      <button :class="{ on: heroMode === 'services' }" @click="heroMode = 'services'">Услуги</button>
-                      <button :class="{ on: heroMode === 'works' }" @click="heroMode = 'works'">Работы</button>
+                      <button :class="{ on: heroMode === 'products' }" @click="heroMode = 'products'">{{ t('Товары') }}</button>
+                      <button :class="{ on: heroMode === 'services' }" @click="heroMode = 'services'">{{ t('Услуги') }}</button>
+                      <button :class="{ on: heroMode === 'works' }" @click="heroMode = 'works'">{{ t('Работы') }}</button>
                     </div>
                     <div v-if="heroMode === 'products'" class="pa-seg pa-seg-light">
                       <button :class="{ on: fmtMode === 'pct' }" @click="fmtMode = 'pct'">%</button>
-                      <button :class="{ on: fmtMode === 'rub' }" @click="fmtMode = 'rub'">сум</button>
+                      <button :class="{ on: fmtMode === 'rub' }" @click="fmtMode = 'rub'">{{ t('сум') }}</button>
                     </div>
                     <button class="pa-zoom-btn" @click="heroZoom = !heroZoom" :title="heroZoom ? 'Свернуть' : 'Развернуть'">
                       <svg v-if="!heroZoom" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -476,8 +479,8 @@ onMounted(() => {
 
               <div class="pa-card pa-side">
                 <div class="pa-side-tabs">
-                  <button class="pa-side-tab" :class="{ active: !selectedCoId }" @click="onSelectCo(null)">Рейтинг компаний</button>
-                  <button class="pa-side-tab" :class="{ active: !!selectedCoId }" @click="onSelectCo(selectedCoId || aggregate.rating[0]?.company_id || null)">Профиль</button>
+                  <button class="pa-side-tab" :class="{ active: !selectedCoId }" @click="onSelectCo(null)">{{ t('Рейтинг компаний') }}</button>
+                  <button class="pa-side-tab" :class="{ active: !!selectedCoId }" @click="onSelectCo(selectedCoId || aggregate.rating[0]?.company_id || null)">{{ t('Профиль') }}</button>
                 </div>
                 <PaSidePanel :rating="aggregate.rating" :categories="aggregate.categories" :selected-co-id="selectedCoId" @select-co="onSelectCo" />
               </div>
@@ -485,7 +488,7 @@ onMounted(() => {
 
             <!-- Pain points -->
             <div class="pa-card">
-              <div class="pa-card-h"><div class="pa-card-t-wrap"><span class="pa-card-t">Топ болевых товаров портфеля</span><span class="pa-card-s">по потенциалу экономии · клик — все покупатели</span></div></div>
+              <div class="pa-card-h"><div class="pa-card-t-wrap"><span class="pa-card-t">{{ t('Топ болевых товаров портфеля') }}</span><span class="pa-card-s">{{ t('по потенциалу экономии · клик — все покупатели') }}</span></div></div>
               <PaPainPoints :products-by-code="aggregate.products_by_code" @drill-product="onDrillProduct" />
             </div>
           </div>
@@ -504,7 +507,7 @@ onMounted(() => {
           <div :key="tab" v-else-if="tab === 'products'" class="pa-tabpane">
             <PaProductsPanel :data="aggregate" @drill-product="onDrillProduct" @select-company="onPanelSelectCompany" />
             <div class="pa-card">
-              <div class="pa-card-h"><div class="pa-card-t-wrap"><span class="pa-card-t">15 категорий централизованных закупок</span><span class="pa-card-s">клик по строке — top-товары · клик по товару — все покупатели</span></div></div>
+              <div class="pa-card-h"><div class="pa-card-t-wrap"><span class="pa-card-t">{{ t('15 категорий централизованных закупок') }}</span><span class="pa-card-s">{{ t('клик по строке — top-товары · клик по товару — все покупатели') }}</span></div></div>
               <PaCategoryGrid :categories="aggregate.categories" :category-aggregates="aggregate.category_aggregates" :products-by-code="aggregate.products_by_code" :source="aggregate.meta?.source" :purchases="aggregate.purchases" @drill-closure="onPurchaseDrill" @drill-product="onDrillProduct" />
             </div>
           </div>
@@ -512,7 +515,7 @@ onMounted(() => {
           <!-- ═══ СРАВНЕНИЕ ═══ -->
           <div :key="tab" v-else-if="tab === 'compare' && scope.showPortfolioViews.value" class="pa-tabpane">
             <div class="pa-card">
-              <div class="pa-card-h"><div class="pa-card-t-wrap"><span class="pa-card-t">Сравнение цен по компаниям и категориям</span><span class="pa-card-s">отклонение от средней цены рынка</span></div></div>
+              <div class="pa-card-h"><div class="pa-card-t-wrap"><span class="pa-card-t">{{ t('Сравнение цен по компаниям и категориям') }}</span><span class="pa-card-s">{{ t('отклонение от средней цены рынка') }}</span></div></div>
               <CategoryCompareTable :rating="aggregate.rating" :categories="aggregate.categories" @drill-company="onDrillCompany" />
             </div>
           </div>
@@ -525,7 +528,7 @@ onMounted(() => {
     <PaPurchaseDrillModal v-if="purchaseDrill && aggregate" :purchase="purchaseDrill" :data="aggregate" :can-edit="_perm.canEdit.value" @close="purchaseDrill = null" @select-co="onChainSelectCo" @updated="onConclusionUpdated" />
     <PaProductDrillModal v-if="productDrillCode && aggregate" :product-code="productDrillCode" :data="aggregate" @close="productDrillCode = null" @drill-purchase="onPurchaseDrill" />
     <PaSupplierDrillModal v-if="supplierDrill && aggregate" :supplier-key="supplierDrill.key" :supplier-name="supplierDrill.name" :purchases="aggregate.purchases" :companies="aggregate.rating" :categories="aggregate.categories" @close="supplierDrill = null" @drill-closure="(c: ClosureRow) => { supplierDrill = null; onPurchaseDrill(c); }" @select-company="onSupplierSelectCompany" />
-    <ForensicUploadModal v-if="showUploadModal" :year="year" endpoint="/procurement/closures/import-excel" title="Импорт закупок · Excel" description="Формат xarid_corporate_contracts: 22 листа (1 per SOE). Headers: lotId / organ / vendor / Unit price / amount / Category / productCode. Median per productCode → benchmark." :sheet-match="null" :format-result="fmtPaUploadResult" @close="showUploadModal = false" @uploaded="load" />
+    <ForensicUploadModal v-if="showUploadModal" :year="year" endpoint="/procurement/closures/import-excel" :title="t('Импорт закупок · Excel')" description="Формат xarid_corporate_contracts: 22 листа (1 per SOE). Headers: lotId / organ / vendor / Unit price / amount / Category / productCode. Median per productCode → benchmark." :sheet-match="null" :format-result="fmtPaUploadResult" @close="showUploadModal = false" @uploaded="load" />
     <PaEditTableModal v-model="editTableOpen" :rows="aggregate?.purchases || []" :year="year" :can-edit="_perm.canEdit.value" @saved="load" />
   </div>
 </template>

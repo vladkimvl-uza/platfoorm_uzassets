@@ -13,6 +13,9 @@
  */
 import { ref, computed, nextTick, onBeforeUnmount } from "vue";
 import { api } from "@/api/client";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 interface UserSearchItem {
   id: string;
@@ -140,7 +143,7 @@ onBeforeUnmount(() => {
     >
       <span class="ap-avatar">{{ initials }}</span>
       <span class="ap-name">{{ name }}</span>
-      <span v-if="!disabled" class="ap-clear" @click="clearAssignee" title="Убрать">
+      <span v-if="!disabled" class="ap-clear" @click="clearAssignee" :title="t('Убрать')">
         <svg width="10" height="10" viewBox="0 0 16 16" fill="none">
           <path d="M3 3 L13 13 M13 3 L3 13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
         </svg>
@@ -174,13 +177,13 @@ onBeforeUnmount(() => {
             ref="inputEl"
             :value="q"
             type="text"
-            placeholder="Имя или email…"
+            :placeholder="t('Имя или email…')"
             @input="onInput"
             @keydown="onKeydown"
           />
         </div>
         <div class="ap-results">
-          <div v-if="loading" class="ap-hint">Поиск…</div>
+          <div v-if="loading" class="ap-hint">{{ t('Поиск…') }}</div>
           <button
             v-for="(u, i) in results"
             :key="u.id"
@@ -196,8 +199,8 @@ onBeforeUnmount(() => {
               <span class="ap-item-meta">{{ u.email }}<span v-if="u.department"> · {{ u.department }}</span></span>
             </span>
           </button>
-          <div v-if="!loading && q && results.length === 0" class="ap-hint">Никого не найдено</div>
-          <div v-if="!loading && !q" class="ap-hint ap-hint-muted">Начните вводить имя</div>
+          <div v-if="!loading && q && results.length === 0" class="ap-hint">{{ t('Никого не найдено') }}</div>
+          <div v-if="!loading && !q" class="ap-hint ap-hint-muted">{{ t('Начните вводить имя') }}</div>
         </div>
       </div>
     </Transition>

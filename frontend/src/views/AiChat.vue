@@ -26,27 +26,21 @@
             <EptLogo :size="32" />
           </div>
           <div>
-            <h1>ИИ-ассистент</h1>
+            <h1>{{ t('ИИ-ассистент') }}</h1>
             <p v-if="health">
               <span v-if="!aiActive" class="ai-page-warn">
-                <span class="ai-page-status-dot off"></span>
-                выключен владельцем
-              </span>
+                <span class="ai-page-status-dot off"></span> {{ t('выключен владельцем') }} </span>
               <span v-else-if="health.enabled && !chat.isStreaming.value">
-                <span class="ai-page-status-dot"></span>
-                онлайн
-              </span>
+                <span class="ai-page-status-dot"></span> {{ t('онлайн') }} </span>
               <span v-else-if="health.enabled && chat.isStreaming.value" class="ai-page-thinking">
                 <span class="ai-typing-dots">
                   <span class="ai-typing-dot"></span>
                   <span class="ai-typing-dot"></span>
                   <span class="ai-typing-dot"></span>
                 </span>
-                <span class="ai-thinking-text">думаю…</span>
+                <span class="ai-thinking-text">{{ t('думаю…') }}</span>
               </span>
-              <span v-else class="ai-page-warn">
-                AI недоступен
-              </span>
+              <span v-else class="ai-page-warn"> {{ t('AI недоступен') }} </span>
             </p>
           </div>
         </div>
@@ -56,8 +50,8 @@
             class="ai-page-btn ai-page-btn-icon"
             type="button"
             @click="toggleSidebar"
-            :title="sidebarHidden ? 'Показать историю чатов' : 'Скрыть историю чатов'"
-            :aria-label="sidebarHidden ? 'Показать историю чатов' : 'Скрыть историю чатов'"
+            :title="sidebarHidden ? t('Показать историю чатов') : t('Скрыть историю чатов')"
+            :aria-label="sidebarHidden ? t('Показать историю чатов') : t('Скрыть историю чатов')"
           >
             <svg v-if="sidebarHidden" width="14" height="14" viewBox="0 0 24 24" fill="none"
                  stroke="currentColor" stroke-width="2"
@@ -81,8 +75,8 @@
             type="button"
             :class="{ 'ai-page-btn-voice-on': voice.state.voiceMode }"
             @click="voice.toggleVoiceMode()"
-            :title="voice.state.voiceMode ? 'Голосовой режим включён — ответы озвучиваются' : 'Включить голосовой режим (озвучка ответов)'"
-            :aria-label="'Голосовой режим'"
+            :title="voice.state.voiceMode ? t('Голосовой режим включён — ответы озвучиваются') : t('Включить голосовой режим (озвучка ответов)')"
+            :aria-label="t('Голосовой режим')"
           >
             <svg v-if="voice.state.voiceMode" width="15" height="15" viewBox="0 0 24 24" fill="none"
                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -102,8 +96,8 @@
             type="button"
             :disabled="chat.isStreaming.value"
             @click="settingsOpen = true"
-            title="Настройки"
-            aria-label="Настройки"
+            :title="t('Настройки')"
+            :aria-label="t('Настройки')"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
                  stroke="currentColor" stroke-width="2"
@@ -124,9 +118,7 @@
                  stroke-linecap="round" stroke-linejoin="round">
               <path d="M3 12a9 9 0 1 0 9-9 9.74 9.74 0 0 0-7 3l-2 2"/>
               <path d="M3 4v5h5"/>
-            </svg>
-            Новый разговор
-          </button>
+            </svg> {{ t('Новый разговор') }} </button>
         </div>
       </header>
 
@@ -140,18 +132,15 @@
         aria-live="polite"
         aria-relevant="additions text"
         :aria-busy="chat.isStreaming.value ? 'true' : 'false'"
-        aria-label="Переписка с ассистентом"
+        :aria-label="t('Переписка с ассистентом')"
       >
         <div v-if="!chat.messages.value.length" class="ai-page-empty">
           <div class="ai-page-empty-card">
             <div class="ai-page-empty-icon ai-page-empty-icon-logo">
               <EptLogo :size="88" />
             </div>
-            <h2>Чем могу помочь?</h2>
-            <p>
-              Аналитика портфеля — компании, финансы, рейтинги, задачи, ESG, корп. управление.
-              Все ответы строятся на данных вашей платформы.
-            </p>
+            <h2>{{ t('Чем могу помочь?') }}</h2>
+            <p> {{ t('Аналитика портфеля — компании, финансы, рейтинги, задачи, ESG, корп. управление. Все ответы строятся на данных вашей платформы.') }} </p>
           </div>
         </div>
 
@@ -179,14 +168,12 @@
                 <line x1="12" y1="16" x2="12.01" y2="16"/>
               </svg>
             </span>
-            <span>Ответ обрезан по лимиту токенов</span>
+            <span>{{ t('Ответ обрезан по лимиту токенов') }}</span>
             <button
               type="button"
               class="ai-page-btn ai-page-btn-prim"
               @click="onContinue"
-            >
-              Продолжить
-            </button>
+            > {{ t('Продолжить') }} </button>
           </div>
         </div>
       </main>
@@ -195,17 +182,15 @@
         <AiInput
           :disabled="!health?.enabled || !aiActive || chat.isStreaming.value"
           :placeholder="health?.enabled
-            ? (chat.isStreaming.value ? 'Подождите ответа…' : 'Спросите о портфеле, проектах, рейтингах…')
-            : 'AI недоступен — обратитесь к администратору'"
+            ? (chat.isStreaming.value ? t('Подождите ответа…') : t('Спросите о портфеле, проектах, рейтингах…'))
+            : t('AI недоступен — обратитесь к администратору')"
           @submit="onSubmit"
         />
         <div v-if="chat.isStreaming.value" class="ai-page-controls">
-          <button class="ai-page-stop" type="button" @click="onStop" title="Остановить генерацию">
+          <button class="ai-page-stop" type="button" @click="onStop" :title="t('Остановить генерацию')">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
               <rect x="6" y="6" width="12" height="12" rx="1.5"/>
-            </svg>
-            Остановить
-          </button>
+            </svg> {{ t('Остановить') }} </button>
         </div>
         <!-- a11y: role=alert — иначе незрячий пользователь не узнаёт об ошибке -->
         <div v-if="chat.error.value" class="ai-page-err" role="alert">
@@ -219,19 +204,15 @@
           <span>{{ chat.error.value }}</span>
         </div>
         <div v-if="chat.error.value && lastUserMsg" class="ai-page-controls">
-          <button class="ai-page-retry" type="button" @click="onRetry" title="Повторить запрос">
+          <button class="ai-page-retry" type="button" @click="onRetry" :title="t('Повторить запрос')">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
                  stroke="currentColor" stroke-width="2"
                  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M3 12a9 9 0 1 0 9-9 9.74 9.74 0 0 0-7 3l-2 2"/>
               <path d="M3 4v5h5"/>
-            </svg>
-            Повторить
-          </button>
+            </svg> {{ t('Повторить') }} </button>
         </div>
-        <p class="ai-page-disclaimer">
-          ответы строятся на актуальном снимке БД портфеля
-        </p>
+        <p class="ai-page-disclaimer"> {{ t('ответы строятся на актуальном снимке БД портфеля') }} </p>
       </footer>
     </section>
 
@@ -256,15 +237,17 @@ import { useAiChat } from "@/composables/useAiChat";
 import { useAiConfig } from "@/composables/useAiConfig";
 import { useAiActivation } from "@/composables/useAiActivation";
 import { useAiVoice } from "@/composables/useAiVoice";
+import { useConfirm } from "@/composables/useConfirm";
+import { useI18n } from "@/composables/useI18n";
+import { useToast } from "@/composables/useToast";
 import AiMessage from "@/components/Ai/AiMessage.vue";
 import AiInput from "@/components/Ai/AiInput.vue";
 import AiSidebar from "@/components/Ai/AiSidebar.vue";
 import AiSettings from "@/components/Ai/AiSettings.vue";
 import EptLogo from "@/components/EptLogo.vue";
-import { useToast } from "@/composables/useToast";
-import { useConfirm } from "@/composables/useConfirm";
 import "@/styles/ai-aurora.css";
 
+const { t } = useI18n();
 const toast = useToast();
 const { confirmDialog } = useConfirm();
 
@@ -314,7 +297,8 @@ async function loadConversations() {
     conversations.value = await listConversations();
   } catch (e: any) {
     // НЕ затираем уже загруженный список ошибкой обновления.
-    convError.value = e?.response?.data?.detail || e?.message || "не удалось загрузить";
+    const detail = e?.response?.data?.detail || e?.message;
+    convError.value = detail ? t(detail) : t("не удалось загрузить");
     if (!conversations.value.length) conversations.value = [];
   } finally {
     convLoading.value = false;
@@ -329,13 +313,13 @@ async function selectConversation(id: string) {
 }
 
 async function onDeleteConv(id: string) {
-  if (!(await confirmDialog({ message: "Удалить разговор? Это действие необратимо.", danger: true }))) return;
+  if (!(await confirmDialog({ message: t("Удалить разговор? Это действие необратимо."), danger: true }))) return;
   try {
     await deleteConversation(id);
     conversations.value = conversations.value.filter((c) => c.id !== id);
     if (chat.conversationId.value === id) chat.reset();
   } catch (e: unknown) {
-    toast.error(e instanceof Error ? e.message : "Не удалось удалить");
+    toast.error(e instanceof Error ? t(e.message) : t("Не удалось удалить"));
   }
 }
 

@@ -1389,14 +1389,14 @@ function formatHistoryDate(iso: string | null): string {
         <div v-if="historyOpen" class="ne-hist-drawer">
           <div class="ne-hist-hdr">
             <div>
-              <div class="ne-hist-eyebrow">ИСТОРИЯ ПРАВОК</div>
+              <div class="ne-hist-eyebrow">{{ t('ИСТОРИЯ ПРАВОК') }}</div>
               <div class="ne-hist-title">{{ currentCompany?.name_short || currentCompany?.code }}</div>
             </div>
             <button class="ne-btn-x" @click="closeHistory">×</button>
           </div>
           <div class="ne-hist-body">
-            <div v-if="historyLoading" class="ne-empty">Загрузка…</div>
-            <div v-else-if="!historyEntries.length" class="ne-empty">Сохранений ещё не было</div>
+            <div v-if="historyLoading" class="ne-empty">{{ t('Загрузка…') }}</div>
+            <div v-else-if="!historyEntries.length" class="ne-empty">{{ t('Сохранений ещё не было') }}</div>
             <div v-else>
               <div v-for="e in historyEntries" :key="e.id" class="ne-hist-row">
                 <div class="ne-hist-row-hdr">
@@ -1405,16 +1405,16 @@ function formatHistoryDate(iso: string | null): string {
                 </div>
                 <div class="ne-hist-row-stats">
                   <template v-if="(e.diff as any)?.lines_upserted">
-                    <span class="ne-hist-pill ok">{{ (e.diff as any).lines_upserted }} значений</span>
+                    <span class="ne-hist-pill ok">{{ (e.diff as any).lines_upserted }} {{ t('значений') }}</span>
                   </template>
                   <template v-if="(e.diff as any)?.lines_deleted">
-                    <span class="ne-hist-pill warn">−{{ (e.diff as any).lines_deleted }} удалено</span>
+                    <span class="ne-hist-pill warn">−{{ (e.diff as any).lines_deleted }} {{ t('удалено') }}</span>
                   </template>
                   <template v-if="(e.diff as any)?.reports_created">
-                    <span class="ne-hist-pill">{{ (e.diff as any).reports_created }} новых отчёта</span>
+                    <span class="ne-hist-pill">{{ (e.diff as any).reports_created }} {{ t('новых отчёта') }}</span>
                   </template>
                   <template v-if="((e.diff as any)?.years || []).length">
-                    <span class="ne-hist-pill">годы: {{ ((e.diff as any).years || []).join(", ") }}</span>
+                    <span class="ne-hist-pill">{{ t('годы:') }} {{ ((e.diff as any).years || []).join(", ") }}</span>
                   </template>
                 </div>
                 <div v-if="((e.diff as any)?.fields || []).length" class="ne-hist-fields">
@@ -1429,17 +1429,17 @@ function formatHistoryDate(iso: string | null): string {
         <div class="ne-ftr">
           <span class="ne-status">
             <span :style="{ color: dirtyCount ? '#EF9F27' : '#1D9E75' }">●</span>
-            auto-backup в localStorage каждые 20с
-            <template v-if="currentState?.dirty"> · есть несохранённые изменения</template>
+            {{ t('auto-backup в localStorage каждые 20с') }}
+            <template v-if="currentState?.dirty"> {{ t('· есть несохранённые изменения') }}</template>
           </span>
-          <button class="ne-btn-g" @click="revertCurrent" :disabled="!currentState?.dirty">↺ Откатить</button>
-          <button class="ne-btn-g" @click="close">Закрыть</button>
+          <button class="ne-btn-g" @click="revertCurrent" :disabled="!currentState?.dirty">{{ t('↺ Откатить') }}</button>
+          <button class="ne-btn-g" @click="close">{{ t('Закрыть') }}</button>
           <button v-if="_perm.canEdit.value" class="ne-btn-p" @click="saveCurrent" :disabled="!currentState?.dirty || saving">
-            <template v-if="saving">Сохраняю…</template>
-            <template v-else>Сохранить</template>
+            <template v-if="saving">{{ t('Сохраняю…') }}</template>
+            <template v-else>{{ t('Сохранить') }}</template>
           </button>
           <span v-else class="ne-no-edit-note" style="font-size:11px;color: var(--t3, #888780);font-style:italic;">
-            Только просмотр
+            {{ t('Только просмотр') }}
           </span>
         </div>
       </div>

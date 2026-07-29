@@ -6,6 +6,9 @@
 import { computed } from "vue";
 import { useApiCatalogStore } from "@/stores/apiCatalog";
 import { useAuthStore } from "@/stores/auth";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const catalog = useApiCatalogStore();
 const auth    = useAuthStore();
@@ -36,7 +39,7 @@ const internalModules = computed(() =>
     <section class="ds-section">
       <div class="ds-section-title">Getting started</div>
       <RouterLink to="/api-docs" class="ds-link" exact-active-class="active">Quickstart</RouterLink>
-      <RouterLink to="/api-docs/authentication" class="ds-link" active-class="active">Аутентификация</RouterLink>
+      <RouterLink to="/api-docs/authentication" class="ds-link" active-class="active">{{ t('Аутентификация') }}</RouterLink>
       <RouterLink to="/api-docs/rate-limits" class="ds-link" active-class="active">Rate limits</RouterLink>
       <RouterLink to="/api-docs/webhooks" class="ds-link" active-class="active">Webhooks</RouterLink>
       <RouterLink to="/api-docs/sdk" class="ds-link" active-class="active">SDK · TS + Python</RouterLink>
@@ -59,7 +62,7 @@ const internalModules = computed(() =>
     <section v-if="internalModules.length" class="ds-section">
       <div class="ds-section-title">
         Internal API
-        <span v-if="!user" class="ds-lock" title="Требуется вход"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>authed</span>
+        <span v-if="!user" class="ds-lock" :title="t('Требуется вход')"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>authed</span>
       </div>
       <RouterLink
         v-for="m in internalModules"
@@ -73,8 +76,8 @@ const internalModules = computed(() =>
         <span class="ds-count">{{ m.count }}</span>
       </RouterLink>
       <div v-if="!user" class="ds-login-hint">
-        Для try-it-out на этих endpoints —
-        <RouterLink to="/login?redirect=/api-docs">войдите</RouterLink>
+        {{ t('Для try-it-out на этих endpoints —') }}
+        <RouterLink to="/login?redirect=/api-docs">{{ t('войдите') }}</RouterLink>
       </div>
     </section>
   </aside>

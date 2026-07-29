@@ -27,6 +27,11 @@ from app.models.company import (
     Direction,
     Sector,
 )
+from app.models.document import (
+    Document,
+    DocumentFolder,
+    DocumentLink,
+)
 from app.models.esg import (
     ESGIssue,
     ESGMetric,
@@ -148,6 +153,9 @@ __all__ = [
     "UserGroupRole",
     # org
     "Company",
+    "Document",
+    "DocumentFolder",
+    "DocumentLink",
     "Sector",
     "Direction",
     "CompanyDirection",

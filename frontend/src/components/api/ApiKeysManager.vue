@@ -11,6 +11,9 @@ import {
   type Environment, type ScopeItem,
   type ServiceAccount,
 } from "@/api/api_catalog";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const emit = defineEmits<{ changed: [] }>();
 
@@ -188,7 +191,7 @@ function fmtRel(iso: string | null): string {
         </div>
 
         <UzaStateBlock v-if="loading && !sas.length" state="loading" variant="text" />
-        <UzaStateBlock v-else-if="!sas.length" state="empty" title="Нет service accounts" desc="Создайте первый">
+        <UzaStateBlock v-else-if="!sas.length" state="empty" :title="t('Нет service accounts')" desc="Создайте первый">
           <template #icon><BIcon name="robot" :size="14" /></template>
         </UzaStateBlock>
 
@@ -201,7 +204,7 @@ function fmtRel(iso: string | null): string {
             <div class="km-sa-info">
               <div class="km-sa-name">{{ sa.full_name || sa.email }}</div>
               <div class="km-sa-meta">
-                <span>{{ sa.keys_count ?? 0 }} ключей</span>
+                <span>{{ sa.keys_count ?? 0 }} {{ t('ключей') }}</span>
                 <span v-if="!sa.is_active" class="km-sa-disabled">disabled</span>
               </div>
             </div>
@@ -218,12 +221,12 @@ function fmtRel(iso: string | null): string {
               <div class="km-col-s">{{ selectedSa.email }} · {{ selectedSa.description || "без описания" }}</div>
             </div>
             <div style="display: flex; gap: 6px;">
-              <button class="km-add" @click="deactivateSa(selectedSa)" title="Деактивировать SA"
+              <button class="km-add" @click="deactivateSa(selectedSa)" :title="t('Деактивировать SA')"
                       style="background: rgba(226,75,74,.08); color: #A32D2D;">
                 <BIcon name="trash" :size="14" />
               </button>
               <button class="km-add km-add-primary" @click="openKeyCreate">
-                <BIcon name="plus" :size="14" /> Выпустить ключ
+                <BIcon name="plus" :size="14" /> {{ t('Выпустить ключ') }}
               </button>
             </div>
           </div>
@@ -235,13 +238,13 @@ function fmtRel(iso: string | null): string {
           <table v-else class="km-keys">
             <thead>
               <tr>
-                <th>Имя</th>
-                <th>Префикс</th>
+                <th>{{ t('Имя') }}</th>
+                <th>{{ t('Префикс') }}</th>
                 <th>Env</th>
                 <th>Scopes</th>
                 <th>Last used</th>
                 <th>Calls</th>
-                <th>Статус</th>
+                <th>{{ t('Статус') }}</th>
                 <th></th>
               </tr>
             </thead>
@@ -259,7 +262,7 @@ function fmtRel(iso: string | null): string {
                   </span>
                 </td>
                 <td>
-                  <span v-if="k.scopes.length === 0" style="color: var(--color-text-tertiary); font-size: 10.5px;">(нет)</span>
+                  <span v-if="k.scopes.length === 0" style="color: var(--color-text-tertiary); font-size: 10.5px;">{{ t('(нет)') }}</span>
                   <span v-else class="km-scope-chip">{{ k.scopes[0] }}</span>
                   <span v-if="k.scopes.length > 1" class="km-scope-chip km-scope-more">+ {{ k.scopes.length - 1 }}</span>
                 </td>
@@ -271,7 +274,7 @@ function fmtRel(iso: string | null): string {
                   </span>
                 </td>
                 <td>
-                  <button v-if="!k.revoked_at" class="km-icon-btn" title="Отозвать" @click="revokeTarget = k">
+                  <button v-if="!k.revoked_at" class="km-icon-btn" :title="t('Отозвать')" @click="revokeTarget = k">
                     <BIcon name="shield-x" :size="14" />
                   </button>
                 </td>
@@ -287,24 +290,24 @@ function fmtRel(iso: string | null): string {
     </div>
 
     <!-- ───── Modal: create SA ───── -->
-    <ModalShell :open="showSaCreate" size="md" title="Новый service account" @close="showSaCreate = false">
+    <ModalShell :open="showSaCreate" size="md" :title="t('Новый service account')" @close="showSaCreate = false">
         <div class="km-modal-body">
           <div class="km-field">
-            <label>Email (идентификатор)</label>
+            <label>{{ t('Email (идентификатор)') }}</label>
             <input v-model="newSa.email" type="email" placeholder="sa-minfin-reporting@uz-assets.uz"/>
           </div>
           <div class="km-field">
-            <label>Имя · назначение</label>
-            <input v-model="newSa.full_name" placeholder="МинФин · отчёты SAP→UzAssets"/>
+            <label>{{ t('Имя · назначение') }}</label>
+            <input v-model="newSa.full_name" :placeholder="t('МинФин · отчёты SAP→UzAssets')"/>
           </div>
           <div class="km-field">
-            <label>Описание</label>
-            <textarea v-model="newSa.description" rows="2" placeholder="Контактное лицо, контракт, цель интеграции"></textarea>
+            <label>{{ t('Описание') }}</label>
+            <textarea v-model="newSa.description" rows="2" :placeholder="t('Контактное лицо, контракт, цель интеграции')"></textarea>
           </div>
         </div>
       <template #footer>
-        <button class="km-btn km-btn-ghost" @click="showSaCreate = false">Отмена</button>
-        <button class="km-btn km-btn-primary" @click="createServiceAccount">Создать</button>
+        <button class="km-btn km-btn-ghost" @click="showSaCreate = false">{{ t('Отмена') }}</button>
+        <button class="km-btn km-btn-primary" @click="createServiceAccount">{{ t('Создать') }}</button>
       </template>
     </ModalShell>
 
@@ -315,36 +318,36 @@ function fmtRel(iso: string | null): string {
         <div class="km-modal-body">
           <div class="km-field-grid">
             <div class="km-field">
-              <label>Имя ключа</label>
+              <label>{{ t('Имя ключа') }}</label>
               <input v-model="newKey.name" placeholder="Production · IFRS export"/>
             </div>
             <div class="km-field">
-              <label>Окружение</label>
+              <label>{{ t('Окружение') }}</label>
               <select v-model="newKey.environment">
                 <option value="sandbox">Sandbox</option>
                 <option value="production">Production</option>
               </select>
             </div>
             <div class="km-field">
-              <label>Истекает</label>
+              <label>{{ t('Истекает') }}</label>
               <input v-model="newKey.expires_at" type="datetime-local"/>
             </div>
             <div class="km-field">
-              <label>Rate limit (req/мин)</label>
+              <label>{{ t('Rate limit (req/мин)') }}</label>
               <input v-model.number="newKey.rate_limit_per_minute" type="number" min="10" max="60000"/>
             </div>
           </div>
           <div class="km-field">
-            <label>IP allowlist (CIDR через запятую)</label>
+            <label>{{ t('IP allowlist (CIDR через запятую)') }}</label>
             <input v-model="newKey.ip_allowlist" placeholder="195.158.0.0/16, 84.54.96.32"/>
           </div>
           <div class="km-field">
-            <label>Описание</label>
-            <input v-model="newKey.description" placeholder="(необязательно)"/>
+            <label>{{ t('Описание') }}</label>
+            <input v-model="newKey.description" :placeholder="t('(необязательно)')"/>
           </div>
 
           <div class="km-field">
-            <label>Scopes · {{ newKey.scopes.size }} выбрано из {{ Object.values(scopesByModule).flat().length }}</label>
+            <label>Scopes · {{ newKey.scopes.size }} {{ t('выбрано из') }} {{ Object.values(scopesByModule).flat().length }}</label>
             <div class="km-scope-tree">
               <div v-for="(items, module) in scopesByModule" :key="module" class="km-scope-grp">
                 <div class="km-scope-grp-hd">{{ module }}</div>
@@ -360,9 +363,9 @@ function fmtRel(iso: string | null): string {
           </div>
         </div>
       <template #footer>
-        <button class="km-btn km-btn-ghost" @click="showKeyCreate = false">Отмена</button>
+        <button class="km-btn km-btn-ghost" @click="showKeyCreate = false">{{ t('Отмена') }}</button>
         <button class="km-btn km-btn-primary" @click="submitKeyCreate">
-          <BIcon name="key" :size="14" /> Выпустить
+          <BIcon name="key" :size="14" /> {{ t('Выпустить') }}
         </button>
       </template>
     </ModalShell>
@@ -370,47 +373,47 @@ function fmtRel(iso: string | null): string {
     <!-- ───── Modal: plaintext token display (без закрытия по фону) ───── -->
     <ModalShell :open="!!plaintextDisplay" size="md" :close-on-overlay="false" @close="plaintextDisplay = null">
       <template v-if="plaintextDisplay" #header>
-        <h2 style="margin:0; font-size:15px; font-weight:500; color:#0F6E56; display:flex; align-items:center; gap:6px;"><BIcon name="check" :size="14" /> Ключ выпущен — сохраните токен СЕЙЧАС</h2>
+        <h2 style="margin:0; font-size:15px; font-weight:500; color:#0F6E56; display:flex; align-items:center; gap:6px;"><BIcon name="check" :size="14" /> {{ t('Ключ выпущен — сохраните токен СЕЙЧАС') }}</h2>
       </template>
       <div class="km-modal-body" v-if="plaintextDisplay">
           <div class="km-amber-banner">
-            <b>Полный токен показывается ОДИН раз.</b> После закрытия окна его восстановить нельзя — только выпустить новый.
+            <b>{{ t('Полный токен показывается ОДИН раз.') }}</b> {{ t('После закрытия окна его восстановить нельзя — только выпустить новый.') }}
           </div>
           <div class="km-token-box">
             <code>{{ plaintextDisplay.plaintext_token }}</code>
             <button class="km-btn km-btn-primary" @click="copyToken">
-              <BIcon name="copy" :size="14" /> Скопировать
+              <BIcon name="copy" :size="14" /> {{ t('Скопировать') }}
             </button>
           </div>
           <div style="font-size: 10.5px; color: var(--color-text-tertiary); margin-top: 8px;">
-            Префикс: <code>{{ plaintextDisplay.prefix }}</code> ·
+            {{ t('Префикс:') }} <code>{{ plaintextDisplay.prefix }}</code> ·
             Scopes: {{ plaintextDisplay.scopes.length }} ·
             Env: {{ plaintextDisplay.environment }}
           </div>
         </div>
       <template #footer>
-        <button class="km-btn km-btn-primary" @click="plaintextDisplay = null">Я сохранил — закрыть</button>
+        <button class="km-btn km-btn-primary" @click="plaintextDisplay = null">{{ t('Я сохранил — закрыть') }}</button>
       </template>
     </ModalShell>
 
     <!-- ───── Modal: revoke key ───── -->
     <ModalShell :open="!!revokeTarget" size="sm" @close="revokeTarget = null">
       <template v-if="revokeTarget" #header>
-        <h2 style="margin:0; font-size:15px; font-weight:500; color:#A32D2D;">Отозвать ключ "{{ revokeTarget.name }}"</h2>
+        <h2 style="margin:0; font-size:15px; font-weight:500; color:#A32D2D;">{{ t('Отозвать ключ "') }}{{ revokeTarget.name }}"</h2>
       </template>
       <div class="km-modal-body" v-if="revokeTarget">
           <div style="font-size: 11.5px; color: var(--color-text-secondary); margin-bottom: 9px;">
-            После отзыва все запросы с этим токеном начнут получать 401. Действие необратимо.
+            {{ t('После отзыва все запросы с этим токеном начнут получать 401. Действие необратимо.') }}
           </div>
           <div class="km-field">
-            <label>Причина (для audit log)</label>
-            <textarea v-model="revokeReason" rows="2" placeholder="Скомпрометирован / не используется / истек контракт..."></textarea>
+            <label>{{ t('Причина (для audit log)') }}</label>
+            <textarea v-model="revokeReason" rows="2" :placeholder="t('Скомпрометирован / не используется / истек контракт...')"></textarea>
           </div>
         </div>
       <template #footer>
-        <button class="km-btn km-btn-ghost" @click="revokeTarget = null">Отмена</button>
+        <button class="km-btn km-btn-ghost" @click="revokeTarget = null">{{ t('Отмена') }}</button>
         <button class="km-btn" style="background: #E24B4A; color: #fff;" @click="confirmRevoke">
-          <BIcon name="shield-x" :size="14" /> Отозвать
+          <BIcon name="shield-x" :size="14" /> {{ t('Отозвать') }}
         </button>
       </template>
     </ModalShell>

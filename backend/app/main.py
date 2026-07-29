@@ -384,6 +384,7 @@ ROUTER_MODULES = [
     "attachments",    # Pack 149: file uploads (task/project/company) + S3 backend
     "user_search",    # Pack 149: lightweight /users/search + /users/card (hover-карточка)
     "company_activity",  # Pack 149: per-company activity feed for workspace widget
+    "documents",         # Библиотека документов компании (вкладка «Документы»)
     "storage_admin",     # Pack 149: storage backend status + smoke test (S3/local)
     "auth",
     "oneid",  # ЕСИ / One ID (O'zMSt 149 п.6.8) — backend-скаффолд, off by default

@@ -15,6 +15,9 @@ import { tlsApi, formatDaysLeft, shortDate } from "@/api/tlsAdmin";
 import type { CertStatus, InstallResult } from "@/api/tlsAdmin";
 import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const toast = useToast();
 const { confirmDialog } = useConfirm();
@@ -142,50 +145,49 @@ onMounted(async () => {
     <!-- Header -->
     <div class="tls-header">
       <div class="tls-eyebrow">ADMIN · INFRASTRUCTURE</div>
-      <h1 class="tls-title">TLS-сертификат</h1>
+      <h1 class="tls-title">{{ t('TLS-сертификат') }}</h1>
       <div class="tls-sub">
-        HTTPS-сертификат для <code>{{ status?.config?.domain || "domain (не задан)" }}</code> ·
-        управление через Let's Encrypt или ручную загрузку
+        {{ t('HTTPS-сертификат для') }} <code>{{ status?.config?.domain || "domain (не задан)" }}</code> {{ t('· управление через Let\'s Encrypt или ручную загрузку') }}
       </div>
     </div>
 
     <div v-if="error" class="tls-error">{{ error }}</div>
-    <div v-else-if="loading && !status" class="tls-loading">Загрузка…</div>
+    <div v-else-if="loading && !status" class="tls-loading">{{ t('Загрузка…') }}</div>
 
     <template v-else-if="status">
       <!-- ────── Текущий сертификат ────── -->
       <section class="tls-card">
         <div class="tls-card-head">
-          <h2>Текущий сертификат</h2>
+          <h2>{{ t('Текущий сертификат') }}</h2>
           <span class="tls-tag" :class="`tls-tag-${status.active_label === 'production' ? 'ok' : 'warn'}`">
             {{ status.active_label === "production" ? "PRODUCTION" : status.active_label === "dev-fallback" ? "DEV FALLBACK" : "НЕТ" }}
           </span>
-          <button class="tls-btn-icon" @click="load" title="Обновить" aria-label="Обновить">
+          <button class="tls-btn-icon" @click="load" :title="t('Обновить')" :aria-label="t('Обновить')">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
           </button>
         </div>
         <div class="tls-grid">
           <div class="tls-field">
-            <div class="tls-field-label">Домен (CN/SAN)</div>
+            <div class="tls-field-label">{{ t('Домен (CN/SAN)') }}</div>
             <div class="tls-field-value tls-mono">{{ status.info?.san?.[0] || status.info?.subject || "—" }}</div>
           </div>
           <div class="tls-field">
-            <div class="tls-field-label">Издатель</div>
+            <div class="tls-field-label">{{ t('Издатель') }}</div>
             <div class="tls-field-value tls-mono tls-issuer">{{ status.info?.issuer || "—" }}</div>
           </div>
           <div class="tls-field">
-            <div class="tls-field-label">Действителен с</div>
+            <div class="tls-field-label">{{ t('Действителен с') }}</div>
             <div class="tls-field-value">{{ shortDate(status.info?.not_before) }}</div>
           </div>
           <div class="tls-field">
-            <div class="tls-field-label">Истекает</div>
+            <div class="tls-field-label">{{ t('Истекает') }}</div>
             <div class="tls-field-value">
               {{ shortDate(status.info?.not_after) }}
               <span class="tls-pill" :class="`tls-pill-${daysLeftFmt.tone}`">{{ daysLeftFmt.text }}</span>
             </div>
           </div>
           <div class="tls-field tls-field-full">
-            <div class="tls-field-label">Срок жизни</div>
+            <div class="tls-field-label">{{ t('Срок жизни') }}</div>
             <div class="tls-bar">
               <div class="tls-bar-fill" :class="`tls-bar-${daysLeftFmt.tone}`" :style="{ width: `${expiryBarPct}%` }"></div>
             </div>
@@ -195,11 +197,11 @@ onMounted(async () => {
             <div class="tls-field-value tls-mono">{{ status.info.san.join(", ") }}</div>
           </div>
           <div class="tls-field">
-            <div class="tls-field-label">Источник</div>
+            <div class="tls-field-label">{{ t('Источник') }}</div>
             <div class="tls-field-value">
               {{ status.config?.source === "letsencrypt" ? "Let's Encrypt" : status.config?.source === "manual" ? "Ручная загрузка" : "—" }}
               <span v-if="status.config?.renewed_at" class="tls-meta">
-                · обновлён {{ shortDate(status.config.renewed_at) }}
+                {{ t('· обновлён') }} {{ shortDate(status.config.renewed_at) }}
               </span>
             </div>
           </div>
@@ -210,11 +212,11 @@ onMounted(async () => {
       <section class="tls-card">
         <div class="tls-card-head">
           <h2>Let's Encrypt</h2>
-          <span class="tls-meta">бесплатный выпуск через ACME HTTP-01</span>
+          <span class="tls-meta">{{ t('бесплатный выпуск через ACME HTTP-01') }}</span>
         </div>
         <div class="tls-form">
           <div class="tls-form-row">
-            <label class="tls-label">Домен
+            <label class="tls-label">{{ t('Домен') }}
               <input v-model="leDomain" type="text" placeholder="platform.uz-assets.uz" class="tls-input tls-mono"/>
             </label>
             <label class="tls-label">Email
@@ -223,7 +225,7 @@ onMounted(async () => {
           </div>
           <label class="tls-check">
             <input v-model="leStaging" type="checkbox"/>
-            <span>Staging environment (для тестов — выдаёт untrusted cert; production limit 5 issuances/week)</span>
+            <span>{{ t('Staging environment (для тестов — выдаёт untrusted cert; production limit 5 issuances/week)') }}</span>
           </label>
           <div class="tls-actions">
             <button class="tls-btn tls-btn-primary" :disabled="leBusy || !leDomain || !leEmail" @click="runLe">
@@ -234,9 +236,7 @@ onMounted(async () => {
             </div>
           </div>
           <div class="tls-hint">
-            <strong>Условие:</strong> домен должен указывать на IP nginx-app, порт 80 открыт наружу.
-            certbot валидирует через <code>/.well-known/acme-challenge/</code>.
-            После успеха — выполните <code>docker exec uza-nginx nginx -s reload</code>.
+            <strong>{{ t('Условие:') }}</strong> {{ t('домен должен указывать на IP nginx-app, порт 80 открыт наружу. certbot валидирует через') }} <code>/.well-known/acme-challenge/</code>{{ t('. После успеха — выполните') }} <code>docker exec uza-nginx nginx -s reload</code>.
           </div>
         </div>
       </section>
@@ -244,18 +244,18 @@ onMounted(async () => {
       <!-- ────── Manual upload ────── -->
       <section class="tls-card">
         <div class="tls-card-head">
-          <h2>Ручная загрузка</h2>
-          <span class="tls-meta">PEM из любого источника (uzcloud LE, корпоративный CA, paid cert)</span>
+          <h2>{{ t('Ручная загрузка') }}</h2>
+          <span class="tls-meta">{{ t('PEM из любого источника (uzcloud LE, корпоративный CA, paid cert)') }}</span>
         </div>
         <div class="tls-form">
           <div class="tls-form-row">
             <label class="tls-label">
-              <span>Сертификат (fullchain.pem)</span>
+              <span>{{ t('Сертификат (fullchain.pem)') }}</span>
               <input type="file" accept=".pem,.crt,.cer,.txt" @change="onFile('cert', $event)" class="tls-file"/>
               <textarea v-model="certPem" rows="6" placeholder="-----BEGIN CERTIFICATE-----&#10;...&#10;-----END CERTIFICATE-----" class="tls-textarea tls-mono"/>
             </label>
             <label class="tls-label">
-              <span>Приватный ключ (privkey.pem)</span>
+              <span>{{ t('Приватный ключ (privkey.pem)') }}</span>
               <input type="file" accept=".pem,.key,.txt" @change="onFile('key', $event)" class="tls-file"/>
               <textarea v-model="keyPem" rows="6" placeholder="-----BEGIN PRIVATE KEY-----&#10;...&#10;-----END PRIVATE KEY-----" class="tls-textarea tls-mono"/>
             </label>
@@ -269,9 +269,7 @@ onMounted(async () => {
             </div>
           </div>
           <div class="tls-hint">
-            <strong>Замечание:</strong> валидация PEM-формата на сервере (cryptography lib).
-            Текущий cert будет забэкаплен в <code>certs/backups/</code>.
-            После установки выполните <code>docker exec uza-nginx nginx -s reload</code>.
+            <strong>{{ t('Замечание:') }}</strong> {{ t('валидация PEM-формата на сервере (cryptography lib). Текущий cert будет забэкаплен в') }} <code>certs/backups/</code>{{ t('. После установки выполните') }} <code>docker exec uza-nginx nginx -s reload</code>.
           </div>
         </div>
       </section>
@@ -279,29 +277,29 @@ onMounted(async () => {
       <!-- ────── Schedule ────── -->
       <section class="tls-card">
         <div class="tls-card-head">
-          <h2>Автоматическое обновление</h2>
-          <span class="tls-meta">Background-job проверяет раз в 24h</span>
+          <h2>{{ t('Автоматическое обновление') }}</h2>
+          <span class="tls-meta">{{ t('Background-job проверяет раз в 24h') }}</span>
         </div>
         <div class="tls-form">
           <label class="tls-check tls-check-big">
             <input v-model="scheduleEnabled" type="checkbox"/>
-            <span>Включить автоматический renewal через Let's Encrypt</span>
+            <span>{{ t('Включить автоматический renewal через Let\'s Encrypt') }}</span>
           </label>
           <div class="tls-form-row" v-if="scheduleEnabled">
-            <label class="tls-label">Интервал
+            <label class="tls-label">{{ t('Интервал') }}
               <select v-model.number="scheduleInterval" class="tls-input">
-                <option :value="60">60 дней</option>
-                <option :value="90">90 дней (квартал) — рекомендуется</option>
-                <option :value="120">120 дней</option>
-                <option :value="180">180 дней (полгода)</option>
+                <option :value="60">{{ t('60 дней') }}</option>
+                <option :value="90">{{ t('90 дней (квартал) — рекомендуется') }}</option>
+                <option :value="120">{{ t('120 дней') }}</option>
+                <option :value="180">{{ t('180 дней (полгода)') }}</option>
               </select>
             </label>
             <div class="tls-label">
-              <span>Условия запуска</span>
+              <span>{{ t('Условия запуска') }}</span>
               <div class="tls-cond-list">
-                <div>• С предыдущего renewal прошло ≥ выбранного интервала</div>
-                <div>• ИЛИ до expiry осталось &lt; 30 дней</div>
-                <div>• Домен/email берутся из последнего успешного LE</div>
+                <div>{{ t('• С предыдущего renewal прошло ≥ выбранного интервала') }}</div>
+                <div>{{ t('• ИЛИ до expiry осталось &lt; 30 дней') }}</div>
+                <div>{{ t('• Домен/email берутся из последнего успешного LE') }}</div>
               </div>
             </div>
           </div>
@@ -311,8 +309,8 @@ onMounted(async () => {
             </button>
           </div>
           <div v-if="status.config?.last_le_attempt" class="tls-hint">
-            <strong>Последняя попытка:</strong> {{ shortDate(status.config.last_le_attempt) }}
-            <span v-if="status.config.last_le_result?.code === 0" class="tls-pill tls-pill-ok">УСПЕХ</span>
+            <strong>{{ t('Последняя попытка:') }}</strong> {{ shortDate(status.config.last_le_attempt) }}
+            <span v-if="status.config.last_le_result?.code === 0" class="tls-pill tls-pill-ok">{{ t('УСПЕХ') }}</span>
             <span v-else-if="status.config.last_le_result?.code !== undefined" class="tls-pill tls-pill-crit">
               EXIT {{ status.config.last_le_result.code }}
             </span>

@@ -8,6 +8,9 @@ import {
   type WebhookDelivery, type WebhookEventDef, type WebhookStats, type DeliveryStatus,
 } from "@/api/webhooks";
 import { apiKeysApi, type ServiceAccount } from "@/api/api_catalog";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const subs        = ref<WebhookSubscription[]>([]);
 const deliveries  = ref<WebhookDelivery[]>([]);
@@ -162,26 +165,26 @@ const successRatePct = computed(() => {
 
     <div v-if="stats" class="wh-stats">
       <div class="wh-stat">
-        <div class="wh-stat-l">Подписок</div>
+        <div class="wh-stat-l">{{ t('Подписок') }}</div>
         <div class="wh-stat-v">{{ stats.subscriptions.active }}<span class="wh-stat-tot">/{{ stats.subscriptions.total }}</span></div>
       </div>
       <div class="wh-stat">
-        <div class="wh-stat-l">В очереди</div>
+        <div class="wh-stat-l">{{ t('В очереди') }}</div>
         <div class="wh-stat-v" :class="{ 'wh-stat-warn': stats.pending_deliveries > 50 }">{{ stats.pending_deliveries }}</div>
       </div>
       <div class="wh-stat">
-        <div class="wh-stat-l">Доставок · 24ч</div>
+        <div class="wh-stat-l">{{ t('Доставок · 24ч') }}</div>
         <div class="wh-stat-v">{{ stats.last_24h.total }}</div>
       </div>
       <div class="wh-stat">
-        <div class="wh-stat-l">Success rate · 24ч</div>
+        <div class="wh-stat-l">{{ t('Success rate · 24ч') }}</div>
         <div class="wh-stat-v" :style="{ color: (successRatePct ?? 100) >= 95 ? '#0F6E56' : ((successRatePct ?? 0) >= 80 ? '#854F0B' : '#A32D2D') }">
           {{ successRatePct === null ? "—" : `${successRatePct}%` }}
         </div>
       </div>
       <div class="wh-stat" style="flex: 0; margin-left: auto;">
         <button class="wh-btn wh-btn-primary" @click="showCreate = true">
-          <BIcon name="plus" :size="14" /> Новая подписка
+          <BIcon name="plus" :size="14" /> {{ t('Новая подписка') }}
         </button>
       </div>
     </div>
@@ -190,13 +193,13 @@ const successRatePct = computed(() => {
 
       <!-- Left: subscriptions list -->
       <div class="wh-side">
-        <div class="wh-side-hd">Подписки {{ subs.length ? `· ${subs.length}` : "" }}</div>
-        <UzaStateBlock v-if="!subs.length" state="empty" variant="block" title="Нет подписок" desc="Создайте первую">
+        <div class="wh-side-hd">{{ t('Подписки') }} {{ subs.length ? `· ${subs.length}` : "" }}</div>
+        <UzaStateBlock v-if="!subs.length" state="empty" variant="block" :title="t('Нет подписок')" desc="Создайте первую">
           <template #icon><BIcon name="webhook" :size="14" /></template>
         </UzaStateBlock>
         <div v-else class="wh-sub-list">
           <div class="wh-sub-all" :class="{ active: !selectedSub }" @click="selectSub(null)">
-            <span>Все подписки</span>
+            <span>{{ t('Все подписки') }}</span>
             <span class="wh-c">{{ deliveries.length }}</span>
           </div>
           <div v-for="s in subs" :key="s.id" class="wh-sub" :class="{ active: selectedSub?.id === s.id, off: !s.is_active }"
@@ -226,12 +229,12 @@ const successRatePct = computed(() => {
               </span>
               <span>secret: <code>{{ selectedSub.secret_hint }}</code></span>
               <span>{{ selectedSub.events.join(", ") || "(нет events)" }}</span>
-              <span v-if="selectedSub.disabled_reason" style="color: #A32D2D;">причина: {{ selectedSub.disabled_reason }}</span>
+              <span v-if="selectedSub.disabled_reason" style="color: #A32D2D;">{{ t('причина:') }} {{ selectedSub.disabled_reason }}</span>
             </div>
           </div>
           <div class="wh-sel-actions">
             <button class="wh-btn" @click="sendTest(selectedSub)">
-              <BIcon name="send" :size="14" /> Тест
+              <BIcon name="send" :size="14" /> {{ t('Тест') }}
             </button>
             <button class="wh-btn" @click="toggleActive(selectedSub)">
               <BIcon :name="selectedSub.is_active ? 'player-pause' : 'player-play'" :size="14" />
@@ -244,15 +247,15 @@ const successRatePct = computed(() => {
         </div>
 
         <div class="wh-log-hd">
-          <div class="wh-log-t">Журнал доставки {{ selectedSub ? `· ${selectedSub.name}` : "· все" }}</div>
+          <div class="wh-log-t">{{ t('Журнал доставки') }} {{ selectedSub ? `· ${selectedSub.name}` : "· все" }}</div>
           <select v-model="filterStatus" @change="loadDeliveries" class="wh-filter">
-            <option value="">Все статусы</option>
+            <option value="">{{ t('Все статусы') }}</option>
             <option value="pending">pending</option>
             <option value="succeeded">succeeded</option>
             <option value="failed">retry</option>
             <option value="exhausted">exhausted</option>
           </select>
-          <button class="wh-btn" @click="loadDeliveries" title="Обновить">
+          <button class="wh-btn" @click="loadDeliveries" :title="t('Обновить')">
             <BIcon name="refresh" :size="14" />
           </button>
         </div>
@@ -264,12 +267,12 @@ const successRatePct = computed(() => {
         <table v-else class="wh-deliv">
           <thead>
             <tr>
-              <th>Время</th>
+              <th>{{ t('Время') }}</th>
               <th>Event</th>
-              <th>Статус</th>
+              <th>{{ t('Статус') }}</th>
               <th>HTTP</th>
-              <th>Попытка</th>
-              <th>Длит.</th>
+              <th>{{ t('Попытка') }}</th>
+              <th>{{ t('Длит.') }}</th>
               <th></th>
             </tr>
           </thead>
@@ -309,20 +312,20 @@ const successRatePct = computed(() => {
     <!-- ───── Modal: create subscription ───── -->
     <div v-if="showCreate" class="wh-modal-bg" @click.self="showCreate = false">
       <div class="wh-modal" style="max-width: 680px;">
-        <div class="wh-modal-hd">Новая webhook подписка</div>
+        <div class="wh-modal-hd">{{ t('Новая webhook подписка') }}</div>
         <div class="wh-modal-body">
           <div class="wh-grid">
             <div class="wh-field">
               <label>Service account</label>
               <select v-model="newSub.service_account_id">
-                <option value="">— выберите —</option>
+                <option value="">{{ t('— выберите —') }}</option>
                 <option v-for="sa in sas" :key="sa.id" :value="sa.id" :disabled="!sa.is_active">
                   {{ sa.full_name || sa.email }}{{ sa.is_active ? "" : " (disabled)" }}
                 </option>
               </select>
             </div>
             <div class="wh-field">
-              <label>Имя подписки</label>
+              <label>{{ t('Имя подписки') }}</label>
               <input v-model="newSub.name" placeholder="ERP integration · prod"/>
             </div>
           </div>
@@ -331,27 +334,27 @@ const successRatePct = computed(() => {
             <input v-model="newSub.target_url" placeholder="https://erp.example.com/webhooks/uzassets"/>
           </div>
           <div class="wh-field">
-            <label>Описание</label>
-            <input v-model="newSub.description" placeholder="(необязательно)"/>
+            <label>{{ t('Описание') }}</label>
+            <input v-model="newSub.description" :placeholder="t('(необязательно)')"/>
           </div>
           <div class="wh-grid">
             <div class="wh-field">
-              <label>Макс попыток</label>
+              <label>{{ t('Макс попыток') }}</label>
               <input v-model.number="newSub.max_attempts" type="number" min="1" max="12"/>
             </div>
             <div class="wh-field">
-              <label>Timeout (сек)</label>
+              <label>{{ t('Timeout (сек)') }}</label>
               <input v-model.number="newSub.timeout_seconds" type="number" min="2" max="60"/>
             </div>
             <div class="wh-field">
               <label class="wh-check">
-                <input v-model="newSub.verify_ssl" type="checkbox"/> Проверять SSL сертификат
+                <input v-model="newSub.verify_ssl" type="checkbox"/> {{ t('Проверять SSL сертификат') }}
               </label>
             </div>
           </div>
 
           <div class="wh-field">
-            <label>События · {{ newSub.events.size }} выбрано</label>
+            <label>{{ t('События ·') }} {{ newSub.events.size }} {{ t('выбрано') }}</label>
             <div class="wh-evt-tree">
               <div v-for="(items, module) in events" :key="module" class="wh-evt-grp">
                 <div class="wh-evt-grp-hd">{{ module }}</div>
@@ -367,9 +370,9 @@ const successRatePct = computed(() => {
           </div>
         </div>
         <div class="wh-modal-footer">
-          <button class="wh-btn wh-btn-ghost" @click="showCreate = false">Отмена</button>
+          <button class="wh-btn wh-btn-ghost" @click="showCreate = false">{{ t('Отмена') }}</button>
           <button class="wh-btn wh-btn-primary" @click="submitCreate">
-            <BIcon name="webhook" :size="14" /> Создать
+            <BIcon name="webhook" :size="14" /> {{ t('Создать') }}
           </button>
         </div>
       </div>
@@ -379,17 +382,16 @@ const successRatePct = computed(() => {
     <div v-if="plaintextSecret" class="wh-modal-bg">
       <div class="wh-modal" style="max-width: 580px;">
         <div class="wh-modal-hd" style="background: linear-gradient(90deg, rgba(29,158,117,.1), transparent); color: #0F6E56;">
-          <BIcon name="check" :size="14" /> Подписка создана — сохраните signing secret
+          <BIcon name="check" :size="14" /> {{ t('Подписка создана — сохраните signing secret') }}
         </div>
         <div class="wh-modal-body">
           <div class="wh-amber-banner">
-            <b>Signing secret показывается ОДИН раз.</b> Используется для HMAC-SHA256 подписи payload'а.
-            Получатель должен проверять <code>X-UzAssets-Signature: sha256=...</code>.
+            <b>{{ t('Signing secret показывается ОДИН раз.') }}</b> {{ t('Используется для HMAC-SHA256 подписи payload\'а. Получатель должен проверять') }} <code>X-UzAssets-Signature: sha256=...</code>.
           </div>
           <div class="wh-token-box">
             <code>{{ plaintextSecret.plaintext_secret }}</code>
             <button class="wh-btn wh-btn-primary" @click="copySecret">
-              <BIcon name="copy" :size="14" /> Скопировать
+              <BIcon name="copy" :size="14" /> {{ t('Скопировать') }}
             </button>
           </div>
           <div style="font-size: 10.5px; color: var(--color-text-tertiary); margin-top: 8px;">
@@ -397,7 +399,7 @@ const successRatePct = computed(() => {
           </div>
         </div>
         <div class="wh-modal-footer">
-          <button class="wh-btn wh-btn-primary" @click="plaintextSecret = null">Я сохранил — закрыть</button>
+          <button class="wh-btn wh-btn-primary" @click="plaintextSecret = null">{{ t('Я сохранил — закрыть') }}</button>
         </div>
       </div>
     </div>
@@ -405,15 +407,15 @@ const successRatePct = computed(() => {
     <!-- ───── Modal: delete confirm ───── -->
     <div v-if="deleteTarget" class="wh-modal-bg" @click.self="deleteTarget = null">
       <div class="wh-modal">
-        <div class="wh-modal-hd" style="color: #A32D2D;">Удалить подписку "{{ deleteTarget.name }}"?</div>
+        <div class="wh-modal-hd" style="color: #A32D2D;">{{ t('Удалить подписку "') }}{{ deleteTarget.name }}"?</div>
         <div class="wh-modal-body">
           <div style="font-size: 11.5px; color: var(--color-text-secondary);">
-            История доставок ({{ deleteTarget.total_deliveries }} записей) будет удалена каскадно. Действие необратимо.
+            {{ t('История доставок (') }}{{ deleteTarget.total_deliveries }} {{ t('записей) будет удалена каскадно. Действие необратимо.') }}
           </div>
         </div>
         <div class="wh-modal-footer">
-          <button class="wh-btn wh-btn-ghost" @click="deleteTarget = null">Отмена</button>
-          <button class="wh-btn wh-btn-danger" @click="confirmDelete">Удалить</button>
+          <button class="wh-btn wh-btn-ghost" @click="deleteTarget = null">{{ t('Отмена') }}</button>
+          <button class="wh-btn wh-btn-danger" @click="confirmDelete">{{ t('Удалить') }}</button>
         </div>
       </div>
     </div>
@@ -444,12 +446,12 @@ const successRatePct = computed(() => {
           </div>
 
           <div v-if="showDeliveryDetail.error_message" class="wh-detail-sec">
-            <div class="wh-detail-hd" style="color: #A32D2D;">Ошибка</div>
+            <div class="wh-detail-hd" style="color: #A32D2D;">{{ t('Ошибка') }}</div>
             <pre style="background: rgba(226,75,74,.05); color: #A32D2D;">{{ showDeliveryDetail.error_message }}</pre>
           </div>
 
           <div v-if="showDeliveryDetail.response_body_snippet" class="wh-detail-sec">
-            <div class="wh-detail-hd">Ответ (первые 4 KB)</div>
+            <div class="wh-detail-hd">{{ t('Ответ (первые 4 KB)') }}</div>
             <pre>{{ showDeliveryDetail.response_body_snippet }}</pre>
           </div>
         </div>
@@ -458,7 +460,7 @@ const successRatePct = computed(() => {
                   class="wh-btn" @click="replay(showDeliveryDetail); showDeliveryDetail = null">
             <BIcon name="refresh" :size="14" /> Replay
           </button>
-          <button class="wh-btn wh-btn-ghost" @click="showDeliveryDetail = null">Закрыть</button>
+          <button class="wh-btn wh-btn-ghost" @click="showDeliveryDetail = null">{{ t('Закрыть') }}</button>
         </div>
       </div>
     </div>

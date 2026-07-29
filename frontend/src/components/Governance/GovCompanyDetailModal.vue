@@ -8,7 +8,7 @@
         <!-- Header -->
         <div class="gd-header">
           <div class="gd-header-l">
-            <div class="gd-eyebrow">Корп. управление · детали</div>
+            <div class="gd-eyebrow">{{ t('Корп. управление · детали') }}</div>
             <h2 class="gd-title">{{ detail.company_name || detail.company_code }}</h2>
             <div class="gd-meta">
               <span v-if="detail.sector_code" class="gd-sector">{{ sectorName }}</span>
@@ -16,7 +16,7 @@
               <span>FY {{ detail.year }}</span>
               <span v-if="detail.score != null" class="gd-meta-sep">·</span>
               <span v-if="detail.score != null" class="gd-score-pill" :style="{ background: scoreColor(detail.score) + '18', color: scoreColor(detail.score) }">
-                Балл КУ {{ fmt.fmtNumber(detail.score, { decimals: 0 }) }}/100
+                {{ t('Балл КУ') }} {{ fmt.fmtNumber(detail.score, { decimals: 0 }) }}/100
               </span>
             </div>
           </div>
@@ -33,12 +33,12 @@
               v-if="govPerm.canEdit.value"
               class="gd-edit-btn"
               @click="editorOpen = true"
-              title="Редактировать показатели и совет директоров"
+              :title="t('Редактировать показатели и совет директоров')"
             >
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
                 <path d="M11.5 2.5l2 2L6 12l-2.6.6.6-2.6 7.5-7.5z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
               </svg>
-              Редактировать
+              {{ t('Редактировать') }}
             </button>
             <button class="gd-close" @click="$emit('close')">×</button>
           </div>
@@ -48,25 +48,25 @@
         <div class="gd-body">
           <!-- Diversity bars -->
           <div class="gd-sec">
-            <div class="gd-sec-h">Состав совета директоров</div>
+            <div class="gd-sec-h">{{ t('Состав совета директоров') }}</div>
             <UzaStateBlock v-if="!detail.data" state="empty" variant="inline" :text="`Данные за ${detail.year} ещё не заведены`" />
             <div v-else class="gd-diversity">
               <div class="gd-div-row">
                 <div class="gd-div-l">
-                  <span class="gd-div-label">Независимые директора</span>
-                  <span class="gd-div-target">цель ≥33%</span>
+                  <span class="gd-div-label">{{ t('Независимые директора') }}</span>
+                  <span class="gd-div-target">{{ t('цель ≥33%') }}</span>
                 </div>
                 <div class="gd-div-bar-wrap">
                   <div class="gd-div-bar">
                     <div class="gd-div-bar-fill" :style="{ width: Math.min(100, Math.max(0, detail.independent_pct || 0)) + '%', backgroundColor: divBarFill(detail.independent_pct, 33) }" />
-                    <div class="gd-div-bar-target" :style="{ left: '33%' }" title="Целевой порог 33%" />
+                    <div class="gd-div-bar-target" :style="{ left: '33%' }" :title="t('Целевой порог 33%')" />
                   </div>
                   <div class="gd-div-vals">
                     <span class="gd-div-pct" :style="{ color: diversityColor(detail.independent_pct, 33) }">
                       {{ fmt.fmtPercent(detail.independent_pct, { decimals: 0 }) }}
                     </span>
                     <span class="gd-div-count">
-                      {{ detail.data.independent_directors_count ?? "—" }} из {{ detail.data.board_size ?? "—" }}
+                      {{ detail.data.independent_directors_count ?? "—" }} {{ t('из') }} {{ detail.data.board_size ?? "—" }}
                     </span>
                   </div>
                 </div>
@@ -74,20 +74,20 @@
 
               <div class="gd-div-row">
                 <div class="gd-div-l">
-                  <span class="gd-div-label">Женщины-директора</span>
-                  <span class="gd-div-target">цель ≥20%</span>
+                  <span class="gd-div-label">{{ t('Женщины-директора') }}</span>
+                  <span class="gd-div-target">{{ t('цель ≥20%') }}</span>
                 </div>
                 <div class="gd-div-bar-wrap">
                   <div class="gd-div-bar">
                     <div class="gd-div-bar-fill" :style="{ width: Math.min(100, Math.max(0, detail.women_pct || 0)) + '%', backgroundColor: divBarFill(detail.women_pct, 20) }" />
-                    <div class="gd-div-bar-target" :style="{ left: '20%' }" title="Целевой порог 20%" />
+                    <div class="gd-div-bar-target" :style="{ left: '20%' }" :title="t('Целевой порог 20%')" />
                   </div>
                   <div class="gd-div-vals">
                     <span class="gd-div-pct" :style="{ color: diversityColor(detail.women_pct, 20) }">
                       {{ fmt.fmtPercent(detail.women_pct, { decimals: 0 }) }}
                     </span>
                     <span class="gd-div-count">
-                      {{ detail.data.women_directors_count ?? "—" }} из {{ detail.data.board_size ?? "—" }}
+                      {{ detail.data.women_directors_count ?? "—" }} {{ t('из') }} {{ detail.data.board_size ?? "—" }}
                     </span>
                   </div>
                 </div>
@@ -95,20 +95,20 @@
 
               <div class="gd-div-row">
                 <div class="gd-div-l">
-                  <span class="gd-div-label">Иностранные директора</span>
-                  <span class="gd-div-target">цель ≥10%</span>
+                  <span class="gd-div-label">{{ t('Иностранные директора') }}</span>
+                  <span class="gd-div-target">{{ t('цель ≥10%') }}</span>
                 </div>
                 <div class="gd-div-bar-wrap">
                   <div class="gd-div-bar">
                     <div class="gd-div-bar-fill" :style="{ width: Math.min(100, Math.max(0, detail.foreign_pct || 0)) + '%', backgroundColor: divBarFill(detail.foreign_pct, 10) }" />
-                    <div class="gd-div-bar-target" :style="{ left: '10%' }" title="Целевой порог 10%" />
+                    <div class="gd-div-bar-target" :style="{ left: '10%' }" :title="t('Целевой порог 10%')" />
                   </div>
                   <div class="gd-div-vals">
                     <span class="gd-div-pct" :style="{ color: diversityColor(detail.foreign_pct, 10) }">
                       {{ fmt.fmtPercent(detail.foreign_pct, { decimals: 0 }) }}
                     </span>
                     <span class="gd-div-count">
-                      {{ detail.data.foreign_directors_count ?? "—" }} из {{ detail.data.board_size ?? "—" }}
+                      {{ detail.data.foreign_directors_count ?? "—" }} {{ t('из') }} {{ detail.data.board_size ?? "—" }}
                     </span>
                   </div>
                 </div>
@@ -118,65 +118,65 @@
 
           <!-- Committees + meetings -->
           <div v-if="detail.data" class="gd-sec">
-            <div class="gd-sec-h">Комитеты и заседания</div>
+            <div class="gd-sec-h">{{ t('Комитеты и заседания') }}</div>
             <div class="gd-grid">
               <div class="gd-card">
-                <div class="gd-card-l">Комитеты</div>
+                <div class="gd-card-l">{{ t('Комитеты') }}</div>
                 <div class="gd-comm">
-                  <span class="gd-comm-pill" :class="{ has: detail.data.has_audit_committee }" title="Комитет по аудиту">Аудит</span>
-                  <span class="gd-comm-pill" :class="{ has: detail.data.has_strategy_committee }" title="Комитет по стратегии">Стратегия</span>
-                  <span class="gd-comm-pill" :class="{ has: detail.data.has_nomination_committee || detail.data.has_remuneration_committee }" title="Комитет по назначениям и вознаграждениям">Назначения и вознагр.</span>
-                  <span class="gd-comm-pill" :class="{ has: detail.data.has_anticorr_committee }" title="Антикоррупционный комитет">Антикор.</span>
-                  <span class="gd-comm-pill" :class="{ has: detail.data.has_induction_program }" title="Программа введения в должность">Введение</span>
+                  <span class="gd-comm-pill" :class="{ has: detail.data.has_audit_committee }" :title="t('Комитет по аудиту')">{{ t('Аудит') }}</span>
+                  <span class="gd-comm-pill" :class="{ has: detail.data.has_strategy_committee }" :title="t('Комитет по стратегии')">{{ t('Стратегия') }}</span>
+                  <span class="gd-comm-pill" :class="{ has: detail.data.has_nomination_committee || detail.data.has_remuneration_committee }" :title="t('Комитет по назначениям и вознаграждениям')">{{ t('Назначения и вознагр.') }}</span>
+                  <span class="gd-comm-pill" :class="{ has: detail.data.has_anticorr_committee }" :title="t('Антикоррупционный комитет')">{{ t('Антикор.') }}</span>
+                  <span class="gd-comm-pill" :class="{ has: detail.data.has_induction_program }" :title="t('Программа введения в должность')">{{ t('Введение') }}</span>
                 </div>
                 <div class="gd-card-meta">
-                  {{ committeeCount }} из 5
+                  {{ committeeCount }} {{ t('из 5') }}
                 </div>
               </div>
 
               <div class="gd-card">
-                <div class="gd-card-l">Заседаний/год</div>
+                <div class="gd-card-l">{{ t('Заседаний/год') }}</div>
                 <div class="gd-card-v" :style="{ color: meetingsColor }">
                   {{ detail.data.meetings_per_year ?? "—" }}
                 </div>
-                <div class="gd-card-meta">цель ≥4</div>
+                <div class="gd-card-meta">{{ t('цель ≥4') }}</div>
               </div>
 
               <div class="gd-card">
-                <div class="gd-card-l">Посещаемость</div>
+                <div class="gd-card-l">{{ t('Посещаемость') }}</div>
                 <div class="gd-card-v" :style="{ color: attendanceColor }">
                   {{ detail.data.avg_attendance_pct != null ? detail.data.avg_attendance_pct + "%" : "—" }}
                 </div>
-                <div class="gd-card-meta">цель ≥80%</div>
+                <div class="gd-card-meta">{{ t('цель ≥80%') }}</div>
               </div>
 
               <div class="gd-card">
-                <div class="gd-card-l">Средний возраст</div>
+                <div class="gd-card-l">{{ t('Средний возраст') }}</div>
                 <div class="gd-card-v">
                   {{ detail.data.avg_age ?? "—" }}
                 </div>
-                <div class="gd-card-meta">лет</div>
+                <div class="gd-card-meta">{{ t('лет') }}</div>
               </div>
             </div>
             <div v-if="detail.data.notes" class="gd-notes">
-              <span class="gd-notes-l">Примечания:</span>
+              <span class="gd-notes-l">{{ t('Примечания:') }}</span>
               <span>{{ detail.data.notes }}</span>
             </div>
           </div>
 
           <!-- Board members table -->
           <div class="gd-sec">
-            <div class="gd-sec-h">Члены совета директоров · {{ detail.board_members.length }}</div>
+            <div class="gd-sec-h">{{ t('Члены совета директоров ·') }} {{ detail.board_members.length }}</div>
             <UzaStateBlock v-if="!detail.board_members.length" state="empty" variant="inline" text="Список членов совета не заполнен" />
             <table v-else class="gd-tbl">
               <thead>
                 <tr>
-                  <th>ФИО</th>
-                  <th>Должность</th>
-                  <th>Тип роли</th>
-                  <th class="flags">Призн.</th>
-                  <th>Назначен</th>
-                  <th>Срок до</th>
+                  <th>{{ t('ФИО') }}</th>
+                  <th>{{ t('Должность') }}</th>
+                  <th>{{ t('Тип роли') }}</th>
+                  <th class="flags">{{ t('Призн.') }}</th>
+                  <th>{{ t('Назначен') }}</th>
+                  <th>{{ t('Срок до') }}</th>
                 </tr>
               </thead>
               <tbody>
@@ -194,9 +194,9 @@
                     <span v-else class="gd-na">—</span>
                   </td>
                   <td class="flags">
-                    <span v-if="m.is_independent" class="gd-flag gd-flag-i" title="Независимый">i</span>
-                    <span v-if="m.is_woman" class="gd-flag gd-flag-w" title="Женщина">♀</span>
-                    <span v-if="m.is_foreign" class="gd-flag gd-flag-f" title="Иностранный">⏚</span>
+                    <span v-if="m.is_independent" class="gd-flag gd-flag-i" :title="t('Независимый')">i</span>
+                    <span v-if="m.is_woman" class="gd-flag gd-flag-w" :title="t('Женщина')">♀</span>
+                    <span v-if="m.is_foreign" class="gd-flag gd-flag-f" :title="t('Иностранный')">⏚</span>
                   </td>
                   <td class="date">{{ formatDate(m.appointed_date) }}</td>
                   <td class="date">{{ formatDate(m.term_end_date) }}</td>
@@ -238,6 +238,9 @@ import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import GovernanceEditor from "@/components/Governance/GovernanceEditor.vue";
 import { useCompaniesStore } from "@/stores/companies";
 import { usePermissions } from "@/composables/usePermissions";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const fmt = useFormatters();
 const companiesStore = useCompaniesStore();

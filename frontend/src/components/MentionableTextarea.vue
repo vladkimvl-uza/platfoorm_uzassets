@@ -16,6 +16,9 @@
  */
 import { ref, computed, onBeforeUnmount, nextTick } from "vue";
 import { api } from "@/api/client";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 interface UserSearchItem {
   id: string;
@@ -214,8 +217,8 @@ onBeforeUnmount(() => { if (debounceTimer) clearTimeout(debounceTimer); });
     <div v-if="popupOpen"
          class="mt-popup"
          :style="{ top: popupPos.top + 'px', left: popupPos.left + 'px' }">
-      <div v-if="popupQuery.length < 2" class="mt-hint">Введите 2+ символа имени или email</div>
-      <div v-else-if="results.length === 0" class="mt-hint">Никого не найдено</div>
+      <div v-if="popupQuery.length < 2" class="mt-hint">{{ t('Введите 2+ символа имени или email') }}</div>
+      <div v-else-if="results.length === 0" class="mt-hint">{{ t('Никого не найдено') }}</div>
       <button
         v-for="(u, i) in results"
         :key="u.id"

@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { useI18n } from '@/composables/useI18n';
 import type { PresenceStatus } from '@/composables/usePresence';
 import { presenceLabel } from '@/composables/usePresence';
+
+const { t } = useI18n();
 
 const props = defineProps<{
   email?: string;
@@ -27,7 +30,7 @@ const sz = computed(() => props.size || 30);
 const fs = computed(() => Math.round(sz.value * 0.4));
 // Диаметр точки ~32% аватара, ограничен 8–14px; бордер белый «вырез».
 const dot = computed(() => Math.max(8, Math.min(14, Math.round(sz.value * 0.32))));
-const dotTitle = computed(() => (props.status ? presenceLabel(props.status) : ''));
+const dotTitle = computed(() => (props.status ? t(presenceLabel(props.status)) : ''));
 </script>
 
 <template>

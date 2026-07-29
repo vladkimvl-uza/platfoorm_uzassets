@@ -9,6 +9,9 @@
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { broadcastsApi, PRIORITY_PILL, type StickyNotification, type AckPayload } from "@/api/admin_broadcasts";
 import BIcon from "./BIcon.vue";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const queue = ref<StickyNotification[]>([]);
 const submitting = ref(false);
@@ -150,11 +153,11 @@ const remaining = computed(() => queue.value.filter((n) => !postponedIds.value.h
               <BIcon name="pin" :size="11" /> sticky
             </span>
             <span v-if="remaining > 1" class="sam-queue-pill">
-              + ещё {{ remaining - 1 }} в очереди
+              {{ t('+ ещё') }} {{ remaining - 1 }} {{ t('в очереди') }}
             </span>
           </div>
           <div class="sam-lock-lbl">
-            <BIcon name="lock" :size="12" /> Окно нельзя закрыть до ответа
+            <BIcon name="lock" :size="12" /> {{ t('Окно нельзя закрыть до ответа') }}
           </div>
         </div>
 
@@ -163,12 +166,12 @@ const remaining = computed(() => queue.value.filter((n) => !postponedIds.value.h
           <div v-if="current.body" class="sam-text">{{ current.body }}</div>
 
           <a v-if="current.link_url" :href="current.link_url" target="_blank" rel="noopener noreferrer" class="sam-link">
-            <BIcon name="external-link" :size="13" /> Открыть ссылку
+            <BIcon name="external-link" :size="13" /> {{ t('Открыть ссылку') }}
           </a>
 
           <div v-if="countdownText" class="sam-deadline">
             <BIcon name="alarm" :size="13" />
-            Ответ ожидается через: <b>{{ countdownText }}</b>
+            {{ t('Ответ ожидается через:') }} <b>{{ countdownText }}</b>
           </div>
 
           <!-- Ack form per mode -->
@@ -178,7 +181,7 @@ const remaining = computed(() => queue.value.filter((n) => !postponedIds.value.h
             <div v-if="current.ack_mode === 'text'">
               <textarea v-model="textResponse"
                         rows="3"
-                        placeholder="Ваш ответ..."
+                        :placeholder="t('Ваш ответ...')"
                         class="sam-textarea"></textarea>
             </div>
 
@@ -194,11 +197,11 @@ const remaining = computed(() => queue.value.filter((n) => !postponedIds.value.h
             <div v-else-if="current.ack_mode === 'yesno'" class="sam-yesno">
               <button class="sam-yn-btn sam-yn-yes" :class="{ selected: yesnoResponse === 'yes' }"
                       @click="yesnoResponse = 'yes'">
-                <BIcon name="check" :size="14" /> Да
+                <BIcon name="check" :size="14" /> {{ t('Да') }}
               </button>
               <button class="sam-yn-btn sam-yn-no" :class="{ selected: yesnoResponse === 'no' }"
                       @click="yesnoResponse = 'no'">
-                <BIcon name="x" :size="14" /> Нет
+                <BIcon name="x" :size="14" /> {{ t('Нет') }}
               </button>
             </div>
 
@@ -211,7 +214,7 @@ const remaining = computed(() => queue.value.filter((n) => !postponedIds.value.h
           <button class="sam-btn sam-btn-ghost"
                   @click="postpone1h"
                   :disabled="submitting">
-            <BIcon name="clock" :size="13" /> Отложить на 1 ч
+            <BIcon name="clock" :size="13" /> {{ t('Отложить на 1 ч') }}
           </button>
           <div style="flex: 1"></div>
           <button class="sam-btn sam-btn-primary"

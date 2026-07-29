@@ -23,6 +23,9 @@ import UzaYearStepper from "@/components/UZA/UzaYearStepper.vue";
 import TaskProjectEditor from "@/components/TaskProjectEditor.vue";
 import { tasksApi, type TaskDetail } from "@/api/tasks";
 import { useToast } from "@/composables/useToast";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 const _perm = usePermissions("consultants");
 const toast = useToast();
 
@@ -270,13 +273,13 @@ onMounted(load);
     <div class="cv-topbar" @click.stop>
       <SidebarBurger />
       <div class="cv-tb-l">
-        <h1 class="cv-tb-title">Консультанты</h1>
+        <h1 class="cv-tb-title">{{ t('Консультанты') }}</h1>
         <div class="cv-tb-sub" v-if="data?.kpis">
-          <span><b v-count-up="data.kpis.consultants_active">0</b> активны</span>
+          <span><b v-count-up="data.kpis.consultants_active">0</b> {{ t('активны') }}</span>
           <span class="cv-dot">·</span>
-          <span><b v-count-up="data.kpis.tasks_covered">0</b> задач</span>
+          <span><b v-count-up="data.kpis.tasks_covered">0</b> {{ t('задач') }}</span>
           <span class="cv-dot">·</span>
-          <span><b v-count-up="data.kpis.companies_covered">0</b> компаний</span>
+          <span><b v-count-up="data.kpis.companies_covered">0</b> {{ t('компаний') }}</span>
         </div>
       </div>
 
@@ -298,19 +301,19 @@ onMounted(load);
       <!-- ═══ 1. KPI strip (4 cells, .kpi2 .fin-shimmer with count-up) ═══ -->
       <div class="kpi-row cv-kpi-row kpi-rail">
         <div class="kpi2 fin-shimmer cv-kpi" style="--kpi2-accent:#3B82F6; --kpi2-d:0ms">
-          <div class="kpi2-lbl">Задач охвачено</div>
+          <div class="kpi2-lbl">{{ t('Задач охвачено') }}</div>
           <div class="kpi2-val"><span :data-countup="data.kpis.tasks_covered">{{ data.kpis.tasks_covered }}</span></div>
         </div>
         <div class="kpi2 fin-shimmer cv-kpi" style="--kpi2-accent:#7F77DD; --kpi2-d:80ms">
-          <div class="kpi2-lbl">Компаний</div>
+          <div class="kpi2-lbl">{{ t('Компаний') }}</div>
           <div class="kpi2-val"><span :data-countup="data.kpis.companies_covered">{{ data.kpis.companies_covered }}</span></div>
         </div>
         <div class="kpi2 fin-shimmer cv-kpi" style="--kpi2-accent:#EF9F27; --kpi2-d:160ms">
-          <div class="kpi2-lbl">Консультантов</div>
+          <div class="kpi2-lbl">{{ t('Консультантов') }}</div>
           <div class="kpi2-val"><span :data-countup="data.kpis.consultants_active">{{ data.kpis.consultants_active }}</span></div>
         </div>
         <div class="kpi2 fin-shimmer cv-kpi" style="--kpi2-accent:#1D9E75; --kpi2-d:240ms">
-          <div class="kpi2-lbl">Среднее завершение</div>
+          <div class="kpi2-lbl">{{ t('Среднее завершение') }}</div>
           <div class="kpi2-val" style="color:#1D9E75">
             <span :data-countup="data.kpis.avg_completion_pct">{{ data.kpis.avg_completion_pct }}</span><span class="cv-pct-sign">%</span>
           </div>
@@ -323,17 +326,17 @@ onMounted(load);
         <!-- LEFT: Consultants list (1.5fr 2fr 1fr 1fr) -->
         <div class="cv-cc" style="--d:300ms">
           <div class="cv-cc-h">
-            <span class="cv-cc-t">Консультанты</span>
+            <span class="cv-cc-t">{{ t('Консультанты') }}</span>
             <span v-if="filterConsultantCode" class="cv-filter-chip">
               {{ consultantByCode[filterConsultantCode]?.name }}
               <span class="cv-filter-x" @click="filterConsultantCode = null">×</span>
             </span>
           </div>
           <div class="cv-list-head">
-            <span>КОНСУЛЬТАНТ</span>
-            <span>ПРОГРЕСС</span>
-            <span class="r">ЗАДАЧИ</span>
-            <span class="r">ПРОСРОЧЕНО</span>
+            <span>{{ t('КОНСУЛЬТАНТ') }}</span>
+            <span>{{ t('ПРОГРЕСС') }}</span>
+            <span class="r">{{ t('ЗАДАЧИ') }}</span>
+            <span class="r">{{ t('ПРОСРОЧЕНО') }}</span>
           </div>
           <div class="cv-list-body">
             <!-- Big4 -->
@@ -346,7 +349,7 @@ onMounted(load);
               @click="openDrillConsultant(c)"
               @keydown.enter="openDrillConsultant(c)"
               @keydown.space.prevent="openDrillConsultant(c)"
-              title="Открыть детализацию"
+              :title="t('Открыть детализацию')"
             >
               <span class="uza-stripe-el" :style="{ '--stripe-color': c.color || '#888' }" />
               <div class="cv-name">
@@ -374,7 +377,7 @@ onMounted(load);
               </div>
             </div>
 
-            <div v-if="others.length" class="cv-section-label">Другие консультанты</div>
+            <div v-if="others.length" class="cv-section-label">{{ t('Другие консультанты') }}</div>
 
             <!-- Others -->
             <div
@@ -386,7 +389,7 @@ onMounted(load);
               @click="openDrillConsultant(c)"
               @keydown.enter="openDrillConsultant(c)"
               @keydown.space.prevent="openDrillConsultant(c)"
-              title="Открыть детализацию"
+              :title="t('Открыть детализацию')"
             >
               <div class="cv-name">
                 <span v-if="filterConsultantCode === c.code" class="cv-active-strip" :style="{ background: c.color || '#888' }"></span>
@@ -417,11 +420,11 @@ onMounted(load);
         <!-- RIGHT: Heatmap (board × consultant) -->
         <div class="cv-cc cv-heat-card" :class="{ 'cv-zoomed': heatmapZoomed }" style="--d:380ms">
           <div class="cv-cc-h">
-            <span class="cv-cc-t">Покрытие: доска × консультант</span>
+            <span class="cv-cc-t">{{ t('Покрытие: доска × консультант') }}</span>
             <div class="cv-cc-rt">
               <div class="cv-heat-legend">
                 <div class="cv-heat-grad"></div>
-                <span class="cv-heat-grad-label">мало → много</span>
+                <span class="cv-heat-grad-label">{{ t('мало → много') }}</span>
               </div>
               <button class="cv-zoom-btn" @click="heatmapZoomed = !heatmapZoomed" :title="heatmapZoomed ? 'Свернуть' : 'Развернуть'">
                 <svg v-if="!heatmapZoomed" width="14" height="14" viewBox="0 0 16 16" fill="none">
@@ -484,13 +487,13 @@ onMounted(load);
         <!-- LEFT: Direction stats -->
         <div class="cv-cc" style="--d:460ms">
           <div class="cv-cc-h">
-            <span class="cv-cc-t">Статистика по направлениям</span>
+            <span class="cv-cc-t">{{ t('Статистика по направлениям') }}</span>
           </div>
           <div class="dir-list-head">
-            <span style="grid-column: span 4">НАПРАВЛЕНИЕ</span>
-            <span style="grid-column: span 4">ПРОГРЕСС</span>
-            <span style="grid-column: span 1; text-align: center">ПРОСРОЧЕНО</span>
-            <span style="grid-column: span 3; text-align: right">КОНСУЛЬТАНТЫ</span>
+            <span style="grid-column: span 4">{{ t('НАПРАВЛЕНИЕ') }}</span>
+            <span style="grid-column: span 4">{{ t('ПРОГРЕСС') }}</span>
+            <span style="grid-column: span 1; text-align: center">{{ t('ПРОСРОЧЕНО') }}</span>
+            <span style="grid-column: span 3; text-align: right">{{ t('КОНСУЛЬТАНТЫ') }}</span>
           </div>
           <div class="dir-list-body">
             <div
@@ -501,7 +504,7 @@ onMounted(load);
               @click="openDrillDirection(d)"
               @keydown.enter="openDrillDirection(d)"
               @keydown.space.prevent="openDrillDirection(d)"
-              title="Открыть детализацию по направлению"
+              :title="t('Открыть детализацию по направлению')"
             >
               <span class="dir-label">{{ d.label }}</span>
               <div class="dir-bar-wrap">
@@ -533,7 +536,7 @@ onMounted(load);
         <div class="cv-cc" style="--d:520ms">
           <div class="cv-cc-h">
             <span class="cv-cc-t">
-              Задачи с участием консультантов
+              {{ t('Задачи с участием консультантов') }}
               <span v-if="filterConsultantCode" class="cv-filter-chip-inline">
                 · {{ consultantByCode[filterConsultantCode]?.name }}
                 <span class="cv-filter-x" @click="filterConsultantCode = null">×</span>
@@ -550,7 +553,7 @@ onMounted(load);
               @click="openTaskEditor(p.id)"
               @keydown.enter="openTaskEditor(p.id)"
               @keydown.space.prevent="openTaskEditor(p.id)"
-              title="Открыть задачу"
+              :title="t('Открыть задачу')"
             >
               <span class="proj-status-dot" :style="{ background: statusDot(p.status) }"></span>
               <div class="proj-main">
@@ -574,8 +577,8 @@ onMounted(load);
             </div>
             <UzaStateBlock v-if="!filteredProjects.length" state="empty" variant="inline" text="Нет проектов" />
             <div v-else class="proj-foot">
-              <span>{{ filteredProjects.length }} задач{{ filterConsultantCode ? " · " + consultantByCode[filterConsultantCode]?.name : "" }}</span>
-              <span v-if="filteredProjects.length > 50" class="proj-more">показано первые 50</span>
+              <span>{{ filteredProjects.length }} {{ t('задач') }}{{ filterConsultantCode ? " · " + consultantByCode[filterConsultantCode]?.name : "" }}</span>
+              <span v-if="filteredProjects.length > 50" class="proj-more">{{ t('показано первые 50') }}</span>
             </div>
           </div>
         </div>

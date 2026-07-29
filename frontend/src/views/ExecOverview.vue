@@ -566,28 +566,28 @@ watch(data, (d) => {
             <span class="eo-chev" :class="{ open: isOpen(s.id) }"></span>
             <span class="eo-sec-dot" :style="{ background: s.color || '#7C6FF7' }"></span>
             <span class="eo-sec-name">{{ s.name }}</span>
-            <span class="eo-sec-meta">{{ s.company_count }} комп · {{ s.total }} проектов</span>
-            <span v-if="s.overdue" class="eo-sec-ov">{{ s.overdue }} просрочено</span>
+            <span class="eo-sec-meta">{{ s.company_count }} {{ t('комп ·') }} {{ s.total }} {{ t('проектов') }}</span>
+            <span v-if="s.overdue" class="eo-sec-ov">{{ s.overdue }} {{ t('просрочено') }}</span>
           </button>
           <div v-show="isOpen(s.id)" class="eo-companies">
             <div v-for="c in s.companies" :key="c.id" class="eo-company">
               <div class="eo-co-head">
                 <span class="eo-co-name">{{ c.name }}</span>
                 <span class="eo-co-meta">{{ c.total }} {{ c.total === 1 ? "проект" : "проектов" }}</span>
-                <span v-if="c.overdue" class="eo-co-ov">{{ c.overdue }} просрочено</span>
-                <button v-if="matrixPerm.canEdit.value" class="eo-co-mtx" title="Заполнить «Сводный обзор» вручную: направления, проекты по кварталам и детали в выноску" @click="openMatrixEditor(c)">
+                <span v-if="c.overdue" class="eo-co-ov">{{ c.overdue }} {{ t('просрочено') }}</span>
+                <button v-if="matrixPerm.canEdit.value" class="eo-co-mtx" :title="t('Заполнить «Сводный обзор» вручную: направления, проекты по кварталам и детали в выноску')" @click="openMatrixEditor(c)">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="1.5"/><path d="M3 9h18M9 9v12"/></svg>
-                  Заполнить отчёт<span v-if="matrixConfigs[c.id]" class="eo-co-mtx-dot" title="Отчёт заполнен"></span>
+                  {{ t('Заполнить отчёт') }}<span v-if="matrixConfigs[c.id]" class="eo-co-mtx-dot" :title="t('Отчёт заполнен')"></span>
                 </button>
                 <div class="eo-co-aside">
-                  <span v-if="hasBp(c)" class="eo-bp" title="Ключевые результаты бизнес-плана за Q1 (факт / план)">
-                    <span class="eo-bp-tag">БП Q1</span>
+                  <span v-if="hasBp(c)" class="eo-bp" :title="t('Ключевые результаты бизнес-плана за Q1 (факт / план)')">
+                    <span class="eo-bp-tag">{{ t('БП Q1') }}</span>
                     <span v-if="c.q1_revenue_fact != null || c.q1_revenue_plan != null" class="eo-bp-i">
-                      <span class="eo-bp-l">Выручка</span> {{ fmtFin(c.q1_revenue_fact) }}<span class="eo-bp-sep">/</span>{{ fmtFin(c.q1_revenue_plan) }}
+                      <span class="eo-bp-l">{{ t('Выручка') }}</span> {{ fmtFin(c.q1_revenue_fact) }}<span class="eo-bp-sep">/</span>{{ fmtFin(c.q1_revenue_plan) }}
                       <span v-if="bpPct(c.q1_revenue_fact, c.q1_revenue_plan) != null" class="eo-bp-pct" :class="pctCls(bpPct(c.q1_revenue_fact, c.q1_revenue_plan))">{{ bpPct(c.q1_revenue_fact, c.q1_revenue_plan) }}%</span>
                     </span>
                     <span v-if="c.q1_profit_fact != null || c.q1_profit_plan != null" class="eo-bp-i">
-                      <span class="eo-bp-l">Прибыль</span> <span :class="{ neg: (c.q1_profit_fact ?? 0) < 0 }">{{ fmtFin(c.q1_profit_fact) }}</span><span class="eo-bp-sep">/</span>{{ fmtFin(c.q1_profit_plan) }}
+                      <span class="eo-bp-l">{{ t('Прибыль') }}</span> <span :class="{ neg: (c.q1_profit_fact ?? 0) < 0 }">{{ fmtFin(c.q1_profit_fact) }}</span><span class="eo-bp-sep">/</span>{{ fmtFin(c.q1_profit_plan) }}
                       <span v-if="bpPct(c.q1_profit_fact, c.q1_profit_plan) != null" class="eo-bp-pct" :class="pctCls(bpPct(c.q1_profit_fact, c.q1_profit_plan))">{{ bpPct(c.q1_profit_fact, c.q1_profit_plan) }}%</span>
                     </span>
                   </span>
@@ -611,9 +611,9 @@ watch(data, (d) => {
                       <div class="eo-kb-card-meta">
                         <span class="eo-duetx" :style="{ color: DL[p.deadline_state].c }">{{ fmtDue(p.due_date) }}</span>
                       </div>
-                      <div v-if="p.last_update" class="eo-kb-upd"><span class="eo-kb-upd-d">Ход{{ p.last_update_at ? ' · ' + fmtDue(p.last_update_at) : '' }}:</span> {{ p.last_update }}</div>
+                      <div v-if="p.last_update" class="eo-kb-upd"><span class="eo-kb-upd-d">{{ t('Ход') }}{{ p.last_update_at ? ' · ' + fmtDue(p.last_update_at) : '' }}:</span> {{ p.last_update }}</div>
                       <div v-if="expanded.has(p.id)" class="eo-tasks" @click.stop>
-                        <div v-if="tasksLoading.has(p.id)" class="eo-tasks-msg">Загрузка задач…</div>
+                        <div v-if="tasksLoading.has(p.id)" class="eo-tasks-msg">{{ t('Загрузка задач…') }}</div>
                         <template v-else>
                           <div v-for="t in (tasksByProject[p.id] || [])" :key="t.id" class="eo-task">
                             <span class="eo-task-dot"></span>
@@ -621,7 +621,7 @@ watch(data, (d) => {
                             <span v-if="t.assignee_name" class="eo-task-as">{{ t.assignee_name }}</span>
                             <span class="eo-task-due" :style="{ color: DL[t.deadline_state].c }">{{ fmtDue(t.due_date) }}</span>
                           </div>
-                          <div v-if="!(tasksByProject[p.id] || []).length" class="eo-tasks-msg">У проекта нет задач</div>
+                          <div v-if="!(tasksByProject[p.id] || []).length" class="eo-tasks-msg">{{ t('У проекта нет задач') }}</div>
                         </template>
                       </div>
                     </div>
@@ -717,7 +717,7 @@ watch(data, (d) => {
         <section v-for="c in printCompanies" :key="'ppc_' + c.id" class="eo-pp-page">
           <div class="eo-pp-head">
             <div class="eo-pp-toprow">
-              <img :src="minfinLogoUrl" class="eo-pp-imv-img" alt="Иқтисодиёт ва молия вазирлиги" />
+              <img :src="minfinLogoUrl" class="eo-pp-imv-img" :alt="t('Иқтисодиёт ва молия вазирлиги')" />
               <div class="eo-pp-brand">
                 <svg class="eo-pp-logo" viewBox="0 0 240 220" width="26" height="24" aria-hidden="true">
                   <path d="M 80 30 L 210 110 L 80 190 L 115 110 Z" fill="#534AB7" />

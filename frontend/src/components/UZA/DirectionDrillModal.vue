@@ -31,6 +31,9 @@ import {
   type ExecDirectionDrillResponse,
   type ExecDirectionDrillTask,
 } from "@/api/executiveDashboard";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 interface Props {
   directionCode: string;
@@ -182,7 +185,7 @@ function pluralDays(n: number): string {
           <div class="ddm-shim" aria-hidden="true" />
           <div class="ddm-glow" aria-hidden="true" />
 
-          <button class="ddm-x" @click="close" aria-label="Закрыть">
+          <button class="ddm-x" @click="close" :aria-label="t('Закрыть')">
             <svg viewBox="0 0 14 14" class="svg-ic" width="13" height="13"><path d="M3.5 3.5l7 7M10.5 3.5l-7 7"/></svg>
           </button>
 
@@ -190,23 +193,23 @@ function pluralDays(n: number): string {
           <div class="ddm-sect ddm-row" style="--si:0; padding-top:20px;">
             <div class="ddm-h-top">
               <div>
-                <div class="ddm-h-l">Направление</div>
+                <div class="ddm-h-l">{{ t('Направление') }}</div>
                 <div class="ddm-h-title">{{ directionLabel }}</div>
                 <div v-if="data" class="ddm-h-v">
                   <span class="num">{{ data.progress_pct }}</span>
-                  <span class="unit">процентов выполнения · по задачам</span>
+                  <span class="unit">{{ t('процентов выполнения · по задачам') }}</span>
                 </div>
                 <span v-if="data" class="ddm-h-d">
-                  {{ data.companies_count }} компаний · {{ data.projects_done }} из {{ data.projects_total }} проектов завершено · {{ data.tasks_done }} из {{ data.tasks_total }} задач
+                  {{ data.companies_count }} {{ t('компаний ·') }} {{ data.projects_done }} {{ t('из') }} {{ data.projects_total }} {{ t('проектов завершено ·') }} {{ data.tasks_done }} {{ t('из') }} {{ data.tasks_total }} {{ t('задач') }}
                 </span>
               </div>
               <div v-if="data" class="ddm-h-right">
-                <div>{{ data.assignees_count }} ответственных</div>
+                <div>{{ data.assignees_count }} {{ t('ответственных') }}</div>
                 <div v-if="data.tasks_overdue > 0" class="ddm-h-right-bad">
-                  {{ data.tasks_overdue }} задач просрочено
+                  {{ data.tasks_overdue }} {{ t('задач просрочено') }}
                 </div>
-                <div v-else style="color: #1D9E75;">нет просроченных задач</div>
-                <div class="ddm-h-year">{{ year }} финансовый год</div>
+                <div v-else style="color: #1D9E75;">{{ t('нет просроченных задач') }}</div>
+                <div class="ddm-h-year">{{ year }} {{ t('финансовый год') }}</div>
               </div>
             </div>
           </div>
@@ -224,20 +227,20 @@ function pluralDays(n: number): string {
             <div class="ddm-sect ddm-row" style="--si:1;">
               <div class="ddm-mini-grid">
                 <div class="ddm-mini" style="--kc:#7F77DD; --ki:0;">
-                  <div class="ddm-mk-l">Компаний с активностью</div>
-                  <div class="ddm-mk-v">{{ data.companies_count }}<span class="ddm-mk-u">с проектами или задачами</span></div>
+                  <div class="ddm-mk-l">{{ t('Компаний с активностью') }}</div>
+                  <div class="ddm-mk-v">{{ data.companies_count }}<span class="ddm-mk-u">{{ t('с проектами или задачами') }}</span></div>
                 </div>
                 <div class="ddm-mini" style="--kc:#1D9E75; --ki:1;">
-                  <div class="ddm-mk-l">Проекты завершены</div>
-                  <div class="ddm-mk-v">{{ data.projects_done }}<span class="ddm-mk-u">из {{ data.projects_total }}</span></div>
+                  <div class="ddm-mk-l">{{ t('Проекты завершены') }}</div>
+                  <div class="ddm-mk-v">{{ data.projects_done }}<span class="ddm-mk-u">{{ t('из') }} {{ data.projects_total }}</span></div>
                 </div>
                 <div class="ddm-mini" style="--kc:#EF9F27; --ki:2;">
-                  <div class="ddm-mk-l">Задачи завершены</div>
-                  <div class="ddm-mk-v">{{ data.tasks_done }}<span class="ddm-mk-u">из {{ data.tasks_total }}</span></div>
+                  <div class="ddm-mk-l">{{ t('Задачи завершены') }}</div>
+                  <div class="ddm-mk-v">{{ data.tasks_done }}<span class="ddm-mk-u">{{ t('из') }} {{ data.tasks_total }}</span></div>
                 </div>
                 <div class="ddm-mini" style="--kc:#E24B4A; --ki:3;">
-                  <div class="ddm-mk-l">Просрочено</div>
-                  <div class="ddm-mk-v">{{ data.tasks_overdue }}<span class="ddm-mk-u">задач</span></div>
+                  <div class="ddm-mk-l">{{ t('Просрочено') }}</div>
+                  <div class="ddm-mk-v">{{ data.tasks_overdue }}<span class="ddm-mk-u">{{ t('задач') }}</span></div>
                 </div>
               </div>
             </div>
@@ -245,8 +248,8 @@ function pluralDays(n: number): string {
             <!-- Companies list -->
             <div class="ddm-sect ddm-row" style="--si:2;">
               <div class="ddm-l-sec">
-                <span>Компании в направлении · отсортированы по числу проектов</span>
-                <span class="side">{{ data.companies_count }} компаний</span>
+                <span>{{ t('Компании в направлении · отсортированы по числу проектов') }}</span>
+                <span class="side">{{ data.companies_count }} {{ t('компаний') }}</span>
               </div>
 
               <UzaStateBlock
@@ -287,8 +290,8 @@ function pluralDays(n: number): string {
                     <!-- Projects -->
                     <div v-if="c.projects.length" class="ddm-co-section">
                       <div class="ddm-co-sub">
-                        <span>Проекты · {{ c.projects_total }}</span>
-                        <span class="ddm-co-sub-hint">клик — открыть проект</span>
+                        <span>{{ t('Проекты ·') }} {{ c.projects_total }}</span>
+                        <span class="ddm-co-sub-hint">{{ t('клик — открыть проект') }}</span>
                       </div>
                       <div
                         v-for="p in c.projects"
@@ -310,15 +313,15 @@ function pluralDays(n: number): string {
                         <span class="ddm-itm-status" :style="{ color: statusTextColor(p) }">{{ statusIcon(p).label }}</span>
                       </div>
                     </div>
-                    <div v-else class="ddm-co-empty">Проектов в этом направлении нет</div>
+                    <div v-else class="ddm-co-empty">{{ t('Проектов в этом направлении нет') }}</div>
 
                     <!-- Tasks -->
                     <div v-if="c.tasks.length" class="ddm-co-section">
                       <div class="ddm-co-sub">
                         <span>
-                          Задачи · {{ c.tasks_total }}
+                          {{ t('Задачи ·') }} {{ c.tasks_total }}
                           <template v-if="!tasksFullyShown.has(c.company_id) && c.tasks.length > TASKS_VISIBLE">
-                            · показано {{ TASKS_VISIBLE }} из {{ c.tasks.length }}
+                            {{ t('· показано') }} {{ TASKS_VISIBLE }} {{ t('из') }} {{ c.tasks.length }}
                           </template>
                         </span>
                         <span
@@ -326,7 +329,7 @@ function pluralDays(n: number): string {
                           class="ddm-co-sub-cta"
                           @click.stop="showAllTasks(c.company_id)"
                         >
-                          показать все задачи →
+                          {{ t('показать все задачи →') }}
                         </span>
                       </div>
                       <div
@@ -347,7 +350,7 @@ function pluralDays(n: number): string {
                         <span class="ddm-itm-status" :style="{ color: statusTextColor(t) }">{{ statusIcon(t).label }}</span>
                       </div>
                     </div>
-                    <div v-else class="ddm-co-empty">Задач в этом направлении нет</div>
+                    <div v-else class="ddm-co-empty">{{ t('Задач в этом направлении нет') }}</div>
                   </div>
                 </div>
               </div>
@@ -359,7 +362,7 @@ function pluralDays(n: number): string {
                 @click="companiesExpanded = true"
               >
                 <svg viewBox="0 0 14 14" class="svg-ic" width="11" height="11" style="color:#7F77DD;"><path d="M3.5 5l3.5 3.5L10.5 5"/></svg>
-                Показать ещё {{ data.companies_count - VISIBLE_COMPANIES }} компаний направления
+                {{ t('Показать ещё') }} {{ data.companies_count - VISIBLE_COMPANIES }} {{ t('компаний направления') }}
               </button>
               <button
                 v-else-if="data.companies_count > VISIBLE_COMPANIES"
@@ -367,16 +370,16 @@ function pluralDays(n: number): string {
                 @click="companiesExpanded = false"
               >
                 <svg viewBox="0 0 14 14" class="svg-ic" width="11" height="11" style="color:#7F77DD; transform:rotate(180deg);"><path d="M3.5 5l3.5 3.5L10.5 5"/></svg>
-                Свернуть · показано {{ data.companies_count }}
+                {{ t('Свернуть · показано') }} {{ data.companies_count }}
               </button>
             </div>
           </template>
 
           <!-- Footer -->
           <div class="ddm-ftr ddm-row" style="--si:3;">
-            <button class="ddm-btn ddm-btn-g" @click="close">Закрыть</button>
+            <button class="ddm-btn ddm-btn-g" @click="close">{{ t('Закрыть') }}</button>
             <button class="ddm-btn ddm-btn-p" @click="gotoProjects">
-              Перейти к проектам направления
+              {{ t('Перейти к проектам направления') }}
               <svg viewBox="0 0 14 14" class="svg-ic" width="12" height="12"><path d="M3 7h8M7.5 3.5L11 7l-3.5 3.5"/></svg>
             </button>
           </div>

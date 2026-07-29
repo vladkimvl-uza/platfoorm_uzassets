@@ -24,6 +24,9 @@ import { projectsApi, type ProjectBrief } from "@/api/projects";
 import type { TaskBrief } from "@/api/tasks";
 import { reportWizardApi } from "@/api/reportWizard";
 import { useToast } from "@/composables/useToast";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const props = defineProps<{
   companyName: string;
@@ -260,17 +263,17 @@ function printReport() {
   <div class="rw">
     <div class="rw-head">
       <div class="rw-head-t">
-        <h2 class="rw-title">Мастер отчёта</h2>
-        <p class="rw-desc">Соберите управленческий отчёт по компании на листах A4 (альбом): лист на направление с нарративом или «Статус по ключевым направлениям» матрицей. Заполните и распечатайте с фирменной шапкой.</p>
+        <h2 class="rw-title">{{ t('Мастер отчёта') }}</h2>
+        <p class="rw-desc">{{ t('Соберите управленческий отчёт по компании на листах A4 (альбом): лист на направление с нарративом или «Статус по ключевым направлениям» матрицей. Заполните и распечатайте с фирменной шапкой.') }}</p>
       </div>
       <div class="rw-head-actions">
-        <button class="rw-btn" @click="addNarrative">+ Направление</button>
-        <button class="rw-btn" @click="addMatrix">+ Статус-матрица</button>
-        <button v-if="loadError" class="rw-btn rw-btn-retry" @click="loadSaved" title="Перезагрузить сохранённый отчёт">↻ Повторить</button>
+        <button class="rw-btn" @click="addNarrative">{{ t('+ Направление') }}</button>
+        <button class="rw-btn" @click="addMatrix">{{ t('+ Статус-матрица') }}</button>
+        <button v-if="loadError" class="rw-btn rw-btn-retry" @click="loadSaved" :title="t('Перезагрузить сохранённый отчёт')">{{ t('↻ Повторить') }}</button>
         <button class="rw-btn rw-btn-save" :disabled="saving || loadError" @click="saveReport">{{ saving ? 'Сохранение…' : 'Сохранить' }}</button>
         <button class="rw-btn rw-btn-print" :disabled="!printablePages.length" @click="printReport">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-          Печать отчёта<template v-if="printablePages.length"> ({{ printablePages.length }})</template>
+          {{ t('Печать отчёта') }}<template v-if="printablePages.length"> ({{ printablePages.length }})</template>
         </button>
       </div>
     </div>
@@ -278,19 +281,19 @@ function printReport() {
     <TransitionGroup tag="div" name="rwpage" class="rw-pages" appear>
       <div v-for="(page, i) in pages" :key="page.id" class="rw-pg" :style="{ '--d': i * 50 + 'ms' }">
         <div class="rw-pg-top">
-          <span class="rw-pg-n" :class="{ mx: page.type === 'matrix' }">Лист {{ i + 1 }} · {{ page.type === 'matrix' ? 'Статус-матрица' : 'Направление' }}</span>
+          <span class="rw-pg-n" :class="{ mx: page.type === 'matrix' }">{{ t('Лист') }} {{ i + 1 }} · {{ page.type === 'matrix' ? 'Статус-матрица' : 'Направление' }}</span>
           <select v-if="page.type === 'narrative'" v-model="page.directionId" class="rw-select">
-            <option value="" disabled>Выберите направление…</option>
+            <option value="" disabled>{{ t('Выберите направление…') }}</option>
             <option v-for="d in directions" :key="d.id" :value="d.id">{{ d.label }}</option>
           </select>
-          <input v-else v-model="page.matrixTitle" class="rw-input rw-grow" placeholder="Заголовок матрицы…" />
-          <button v-if="pages.length > 1" class="rw-rm" @click="removePage(page.id)">Удалить лист</button>
+          <input v-else v-model="page.matrixTitle" class="rw-input rw-grow" :placeholder="t('Заголовок матрицы…')" />
+          <button v-if="pages.length > 1" class="rw-rm" @click="removePage(page.id)">{{ t('Удалить лист') }}</button>
         </div>
 
         <!-- ── narrative ── -->
         <template v-if="page.type === 'narrative'">
           <div v-if="page.directionId" class="rw-field">
-            <label class="rw-label">Ключевые проекты и задачи</label>
+            <label class="rw-label">{{ t('Ключевые проекты и задачи') }}</label>
             <div class="rw-projlist">
               <div v-for="p in projectsForDir(page.directionId)" :key="p.id" class="rw-pj" :class="{ on: isProjSel(page, p.id) }">
                 <button class="rw-pj-head" @click="toggleProj(page, p.id)">
@@ -299,10 +302,10 @@ function printReport() {
                   <span class="rw-pj-d">{{ fmtDate(p.due_date) }}</span>
                 </button>
                 <div v-if="isProjSel(page, p.id)" class="rw-pj-tasks">
-                  <div v-if="tasksLoading.has(p.id)" class="rw-empty rw-empty-sm">Загрузка задач…</div>
+                  <div v-if="tasksLoading.has(p.id)" class="rw-empty rw-empty-sm">{{ t('Загрузка задач…') }}</div>
                   <template v-else>
                     <div v-if="(tasksByProject[p.id] || []).length" class="rw-tk-head">
-                      <span class="rw-tk-head-l">Задачи — отметьте нужные</span>
+                      <span class="rw-tk-head-l">{{ t('Задачи — отметьте нужные') }}</span>
                       <button class="rw-tk-all" @click="toggleAllTasks(page, p.id)">{{ allTasksSel(page, p.id) ? 'Снять все' : 'Выбрать все' }}</button>
                     </div>
                     <button v-for="t in (tasksByProject[p.id] || [])" :key="t.id"
@@ -311,21 +314,21 @@ function printReport() {
                       <span class="rw-tk-t">{{ t.title }}</span>
                       <span class="rw-tk-d">{{ fmtDate(t.due_date) }}</span>
                     </button>
-                    <span v-if="!(tasksByProject[p.id] || []).length" class="rw-empty rw-empty-sm">У проекта нет задач</span>
+                    <span v-if="!(tasksByProject[p.id] || []).length" class="rw-empty rw-empty-sm">{{ t('У проекта нет задач') }}</span>
                   </template>
                 </div>
               </div>
-              <span v-if="!projectsForDir(page.directionId).length" class="rw-empty">В этом направлении пока нет проектов</span>
+              <span v-if="!projectsForDir(page.directionId).length" class="rw-empty">{{ t('В этом направлении пока нет проектов') }}</span>
             </div>
           </div>
           <div class="rw-two">
             <div class="rw-field">
-              <label class="rw-label">Текущий статус</label>
-              <textarea v-model="page.status" class="rw-ta" rows="5" @input="autoGrow" placeholder="Опишите словами текущее положение по направлению…"></textarea>
+              <label class="rw-label">{{ t('Текущий статус') }}</label>
+              <textarea v-model="page.status" class="rw-ta" rows="5" @input="autoGrow" :placeholder="t('Опишите словами текущее положение по направлению…')"></textarea>
             </div>
             <div class="rw-field">
-              <label class="rw-label">Предложения по дальнейшим шагам</label>
-              <textarea v-model="page.nextSteps" class="rw-ta" rows="5" @input="autoGrow" placeholder="Опишите предлагаемые следующие шаги…"></textarea>
+              <label class="rw-label">{{ t('Предложения по дальнейшим шагам') }}</label>
+              <textarea v-model="page.nextSteps" class="rw-ta" rows="5" @input="autoGrow" :placeholder="t('Опишите предлагаемые следующие шаги…')"></textarea>
             </div>
           </div>
         </template>
@@ -333,27 +336,27 @@ function printReport() {
         <!-- ── matrix ── -->
         <template v-else>
           <div class="rw-field">
-            <label class="rw-label">Быстрое добавление направлений</label>
+            <label class="rw-label">{{ t('Быстрое добавление направлений') }}</label>
             <div class="rw-presets">
               <button v-for="pr in PRESETS" :key="pr.label" class="rw-preset" @click="addRow(page, pr)">
-                + {{ pr.label }}<span v-if="pr.auto" class="rw-auto-tag">авто</span>
+                + {{ pr.label }}<span v-if="pr.auto" class="rw-auto-tag">{{ t('авто') }}</span>
               </button>
             </div>
           </div>
           <TransitionGroup tag="div" name="rwrow" class="rw-rows">
             <div v-for="(r, ri) in page.rows" :key="r.id" class="rw-row">
               <span class="rw-row-n">{{ ri + 1 }}</span>
-              <input v-model="r.label" class="rw-input rw-row-label" placeholder="Направление…" />
+              <input v-model="r.label" class="rw-input rw-row-label" :placeholder="t('Направление…')" />
               <div class="rw-row-val">
-                <div v-if="r.auto" class="rw-auto-val"><span class="rw-auto-tag rw-auto-tag-on">авто</span>{{ autoValue(r.auto) }}</div>
-                <textarea v-else v-model="r.value" class="rw-ta rw-row-ta" rows="1" @input="autoGrow" placeholder="Статус / значение…"></textarea>
+                <div v-if="r.auto" class="rw-auto-val"><span class="rw-auto-tag rw-auto-tag-on">{{ t('авто') }}</span>{{ autoValue(r.auto) }}</div>
+                <textarea v-else v-model="r.value" class="rw-ta rw-row-ta" rows="1" @input="autoGrow" :placeholder="t('Статус / значение…')"></textarea>
               </div>
-              <button class="rw-row-rm" @click="removeRow(page, r.id)" title="Удалить строку">
+              <button class="rw-row-rm" @click="removeRow(page, r.id)" :title="t('Удалить строку')">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
               </button>
             </div>
           </TransitionGroup>
-          <button class="rw-addrow" @click="addRow(page)">+ Своя строка</button>
+          <button class="rw-addrow" @click="addRow(page)">{{ t('+ Своя строка') }}</button>
         </template>
       </div>
     </TransitionGroup>
@@ -361,8 +364,8 @@ function printReport() {
     <!-- ── Нижняя панель сохранения ── -->
     <div class="rw-savebar">
       <span class="rw-saved-info">
-        <template v-if="savedBy || savedAt">Сохранено: <b>{{ savedBy || '—' }}</b><template v-if="savedAt"> · {{ fmtSavedAt() }}</template></template>
-        <template v-else>Черновик ещё не сохранён</template>
+        <template v-if="savedBy || savedAt">{{ t('Сохранено:') }} <b>{{ savedBy || '—' }}</b><template v-if="savedAt"> · {{ fmtSavedAt() }}</template></template>
+        <template v-else>{{ t('Черновик ещё не сохранён') }}</template>
       </span>
       <button class="rw-btn rw-btn-save rw-savebar-btn" :disabled="saving || loadError" @click="saveReport">
         {{ saving ? 'Сохранение…' : 'Сохранить отчёт' }}
@@ -376,21 +379,21 @@ function printReport() {
         <div class="rw-pp-page">
           <div class="rw-pp-head">
             <div class="rw-pp-toprow">
-              <img :src="minfinLogoUrl" class="rw-pp-imv-img" alt="Иқтисодиёт ва молия вазирлиги" />
+              <img :src="minfinLogoUrl" class="rw-pp-imv-img" :alt="t('Иқтисодиёт ва молия вазирлиги')" />
               <div class="rw-pp-brand">
                 <svg class="rw-pp-logo" viewBox="0 0 240 220" width="26" height="24" aria-hidden="true">
                   <path d="M 80 30 L 210 110 L 80 190 L 115 110 Z" fill="#534AB7" />
                   <g fill="#7F77DD"><rect x="56" y="50" width="8" height="8" /><rect x="42" y="64" width="7" height="7" /><rect x="50" y="96" width="7" height="7" /><rect x="36" y="116" width="7" height="7" /><rect x="48" y="150" width="7" height="7" /></g>
                 </svg>
-                <span class="rw-pp-brand-txt">Единая платформа<br />трансформации</span>
+                <span class="rw-pp-brand-txt">{{ t('Единая платформа') }}<br />{{ t('трансформации') }}</span>
               </div>
               <img :src="uzassetsLogoUrl" class="rw-pp-uza-img" alt="UzAssets" />
             </div>
             <div class="rw-pp-titlerow">
               <h2>{{ companyName }}</h2>
-              <span class="rw-pp-doc">Отчёт о ходе</span>
+              <span class="rw-pp-doc">{{ t('Отчёт о ходе') }}</span>
             </div>
-            <div class="rw-pp-sub">FY {{ fy }}<template v-if="sectorName"> · {{ sectorName }}</template> · на {{ todayStr }}</div>
+            <div class="rw-pp-sub">FY {{ fy }}<template v-if="sectorName"> · {{ sectorName }}</template> {{ t('· на') }} {{ todayStr }}</div>
           </div>
 
           <div v-for="page in printablePages" :key="'rwpp_' + page.id" class="rw-pp-block">
@@ -399,7 +402,7 @@ function printReport() {
             <!-- narrative -->
             <template v-if="page.type === 'narrative'">
               <div v-if="selProjects(page).length" class="rw-pp-keys">
-                <div class="rw-pp-keys-l">Ключевые проекты</div>
+                <div class="rw-pp-keys-l">{{ t('Ключевые проекты') }}</div>
                 <div v-for="sp in selProjects(page)" :key="'k_' + sp.p.id" class="rw-pp-keyproj">
                   <div class="rw-pp-keyp-t">{{ sp.p.title }}<span class="rw-pp-key-d"> — {{ fmtDate(sp.p.due_date) }}</span></div>
                   <div v-for="t in sp.tasks" :key="'kt_' + t.id" class="rw-pp-keyt">— {{ t.title }}<span class="rw-pp-key-d"> · {{ fmtDate(t.due_date) }}</span></div>
@@ -407,11 +410,11 @@ function printReport() {
               </div>
               <div class="rw-pp-cols">
                 <div class="rw-pp-col">
-                  <div class="rw-pp-col-h">Текущий статус</div>
+                  <div class="rw-pp-col-h">{{ t('Текущий статус') }}</div>
                   <div class="rw-pp-col-b">{{ page.status || '—' }}</div>
                 </div>
                 <div class="rw-pp-col">
-                  <div class="rw-pp-col-h">Предложения по дальнейшим шагам</div>
+                  <div class="rw-pp-col-h">{{ t('Предложения по дальнейшим шагам') }}</div>
                   <div class="rw-pp-col-b">{{ page.nextSteps || '—' }}</div>
                 </div>
               </div>
@@ -420,7 +423,7 @@ function printReport() {
             <!-- matrix -->
             <table v-else class="rw-pp-mx">
               <thead>
-                <tr><th class="rw-pp-mx-dir">Ключевое направление</th><th class="rw-pp-mx-vh">Статус</th></tr>
+                <tr><th class="rw-pp-mx-dir">{{ t('Ключевое направление') }}</th><th class="rw-pp-mx-vh">{{ t('Статус') }}</th></tr>
               </thead>
               <tbody>
                 <tr v-for="(r, ri) in page.rows.filter(x => x.label || x.value || x.auto)" :key="'mr_' + r.id">

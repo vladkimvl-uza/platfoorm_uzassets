@@ -2,6 +2,9 @@
 import { onMounted, ref } from "vue";
 import BIcon from "@/components/broadcasts/BIcon.vue";
 import { moderationApi, type ModeratorUser } from "@/api/moderation";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const items = ref<ModeratorUser[]>([]);
 const loading = ref(false);
@@ -30,16 +33,16 @@ function initials(u: ModeratorUser): string {
   <div class="mm-wrap">
     <div class="mm-hd">
       <BIcon name="info-circle" :size="14" />
-      <span>Список формируется автоматически из правил модерации: всех, кого указали как primary, co-approver или owner. Чтобы добавить нового — назначьте в правиле.</span>
+      <span>{{ t('Список формируется автоматически из правил модерации: всех, кого указали как primary, co-approver или owner. Чтобы добавить нового — назначьте в правиле.') }}</span>
     </div>
 
     <div v-if="error" class="mm-err">{{ error }}</div>
 
-    <div v-if="loading" class="mm-empty">Загрузка…</div>
+    <div v-if="loading" class="mm-empty">{{ t('Загрузка…') }}</div>
     <div v-else-if="!items.length" class="mm-empty">
       <BIcon name="user-check" :size="14" />
-      <div>Модераторов пока нет</div>
-      <div style="font-size: 10px; margin-top: 4px;">Назначьте модераторов в правилах</div>
+      <div>{{ t('Модераторов пока нет') }}</div>
+      <div style="font-size: 10px; margin-top: 4px;">{{ t('Назначьте модераторов в правилах') }}</div>
     </div>
 
     <div v-else class="mm-grid">
@@ -58,7 +61,7 @@ function initials(u: ModeratorUser): string {
           </div>
         </div>
         <div class="mm-status">
-          <span v-if="!u.is_active" class="mm-inactive">неактивен</span>
+          <span v-if="!u.is_active" class="mm-inactive">{{ t('неактивен') }}</span>
         </div>
       </div>
     </div>

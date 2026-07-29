@@ -16,6 +16,9 @@ import {
   type WorkloadResponse, type WorkloadPerson, type Capacity,
   type RaciEntry, type RaciRole,
 } from "@/api/pmo";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const props = defineProps<{
   companyCode: string;
@@ -140,10 +143,10 @@ async function clearItem(item: string) {
 
     <div class="tm-bar">
       <div class="tm-seg">
-        <button :class="{ on: view === 'workload' }" @click="view = 'workload'">Загрузка</button>
+        <button :class="{ on: view === 'workload' }" @click="view = 'workload'">{{ t('Загрузка') }}</button>
         <button :class="{ on: view === 'raci' }" @click="view = 'raci'">RACI <span v-if="raci.length" class="tm-n">{{ raci.length }}</span></button>
       </div>
-      <button v-if="canEdit && view === 'raci'" class="tm-add" @click="openAdd()">+ Назначение</button>
+      <button v-if="canEdit && view === 'raci'" class="tm-add" @click="openAdd()">{{ t('+ Назначение') }}</button>
     </div>
 
     <UzaStateBlock v-if="loading" state="loading" text="Загрузка данных команды…" />
@@ -152,12 +155,12 @@ async function clearItem(item: string) {
       <!-- ── Загрузка ── -->
       <div v-if="view === 'workload'">
         <div v-if="wl" class="tm-stats">
-          <div class="tm-stat"><span class="tm-stat-n">{{ wl.total_people }}</span><span class="tm-stat-l">в команде</span></div>
-          <div class="tm-stat"><span class="tm-stat-n">{{ wl.total_open }}</span><span class="tm-stat-l">открытых задач</span></div>
-          <div class="tm-stat" :class="{ 'tm-stat-warn': wl.unassigned_open > 0 }"><span class="tm-stat-n">{{ wl.unassigned_open }}</span><span class="tm-stat-l">без исполнителя</span></div>
+          <div class="tm-stat"><span class="tm-stat-n">{{ wl.total_people }}</span><span class="tm-stat-l">{{ t('в команде') }}</span></div>
+          <div class="tm-stat"><span class="tm-stat-n">{{ wl.total_open }}</span><span class="tm-stat-l">{{ t('открытых задач') }}</span></div>
+          <div class="tm-stat" :class="{ 'tm-stat-warn': wl.unassigned_open > 0 }"><span class="tm-stat-n">{{ wl.unassigned_open }}</span><span class="tm-stat-l">{{ t('без исполнителя') }}</span></div>
         </div>
 
-        <UzaStateBlock v-if="!wl || !wl.people.length" state="empty" variant="block" title="Нет назначений" text="Назначьте исполнителей на задачи — здесь появится их загрузка и сигналы перегрузки." />
+        <UzaStateBlock v-if="!wl || !wl.people.length" state="empty" variant="block" :title="t('Нет назначений')" text="Назначьте исполнителей на задачи — здесь появится их загрузка и сигналы перегрузки." />
         <div v-else class="tm-people">
           <div v-for="(p, i) in wl.people" :key="p.person_id || p.name" class="tm-person" :style="{ animationDelay: Math.min(i*0.03, 0.4)+'s' }">
             <div class="tm-av" :style="{ background: 'linear-gradient(135deg, ' + CAP[p.capacity].c + ', ' + CAP[p.capacity].c + 'cc)' }">{{ avInitials(p.name) }}</div>
@@ -168,20 +171,20 @@ async function clearItem(item: string) {
               </div>
               <div class="tm-loadbar"><span class="tm-loadbar-fill" :style="{ width: loadPct(p) + '%', background: CAP[p.capacity].c }"></span></div>
               <div class="tm-pmeta">
-                <span class="tm-m">Загрузка <b>{{ p.load }}</b></span>
-                <span class="tm-m">Открыто <b>{{ p.open }}</b></span>
-                <span class="tm-m" :class="{ 'tm-m-bad': p.overdue > 0 }">Просрочено <b>{{ p.overdue }}</b></span>
-                <span class="tm-m tm-m-ok">Завершено <b>{{ p.done }}</b></span>
+                <span class="tm-m">{{ t('Загрузка') }} <b>{{ p.load }}</b></span>
+                <span class="tm-m">{{ t('Открыто') }} <b>{{ p.open }}</b></span>
+                <span class="tm-m" :class="{ 'tm-m-bad': p.overdue > 0 }">{{ t('Просрочено') }} <b>{{ p.overdue }}</b></span>
+                <span class="tm-m tm-m-ok">{{ t('Завершено') }} <b>{{ p.done }}</b></span>
               </div>
             </div>
           </div>
         </div>
-        <div v-if="wl && wl.people.length" class="tm-foot">Загрузка = сумма весов открытых задач исполнителя. Считается из назначений задач на {{ new Date(wl.as_of).toLocaleDateString("ru-RU") }}.</div>
+        <div v-if="wl && wl.people.length" class="tm-foot">{{ t('Загрузка = сумма весов открытых задач исполнителя. Считается из назначений задач на') }} {{ new Date(wl.as_of).toLocaleDateString("ru-RU") }}.</div>
       </div>
 
       <!-- ── RACI ── -->
       <div v-else>
-        <UzaStateBlock v-if="!raci.length" state="empty" variant="block" title="Матрица RACI пуста" text="Добавьте назначения: для каждой активности укажите, кто Ответственный (A), Исполнитель (R), Консультируемый (C), Информируемый (I)." />
+        <UzaStateBlock v-if="!raci.length" state="empty" variant="block" :title="t('Матрица RACI пуста')" text="Добавьте назначения: для каждой активности укажите, кто Ответственный (A), Исполнитель (R), Консультируемый (C), Информируемый (I)." />
         <template v-else>
           <div class="tm-legend">
             <span v-for="r in RACI_ROLES" :key="r.v" class="tm-leg"><span class="tm-leg-b" :style="{ color: r.c, background: r.c + '1a' }">{{ r.v }}</span>{{ r.l }}</span>
@@ -190,7 +193,7 @@ async function clearItem(item: string) {
             <table class="tm-mx">
               <thead>
                 <tr>
-                  <th class="tm-mx-corner">Активность / результат</th>
+                  <th class="tm-mx-corner">{{ t('Активность / результат') }}</th>
                   <th v-for="pn in raciPersons" :key="pn" class="tm-mx-ph"><span>{{ pn }}</span></th>
                   <th v-if="canEdit" class="tm-mx-act"></th>
                 </tr>
@@ -207,8 +210,8 @@ async function clearItem(item: string) {
                     >{{ e.role }}</span>
                   </td>
                   <td v-if="canEdit" class="tm-mx-act">
-                    <button class="tm-ia" title="Добавить в строку" @click="openAdd(item)"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1 V11 M1 6 H11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
-                    <button class="tm-ia tm-ia-del" title="Удалить строку" @click="clearItem(item)"><svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 3 L13 13 M13 3 L3 13" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
+                    <button class="tm-ia" :title="t('Добавить в строку')" @click="openAdd(item)"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1 V11 M1 6 H11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
+                    <button class="tm-ia tm-ia-del" :title="t('Удалить строку')" @click="clearItem(item)"><svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 3 L13 13 M13 3 L3 13" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
                   </td>
                 </tr>
               </tbody>
@@ -222,25 +225,25 @@ async function clearItem(item: string) {
     <Transition name="tm-modal">
       <div v-if="addOpen" class="tm-ov" @click.self="addOpen = false">
         <div class="tm-modal">
-          <div class="tm-mh">Назначение ответственности</div>
+          <div class="tm-mh">{{ t('Назначение ответственности') }}</div>
           <div class="tm-mb">
-            <div class="tm-f"><label>Активность / результат</label><input v-model="fItem" placeholder="Например: Утверждение бюджета" /></div>
-            <div class="tm-f"><label>Человек</label>
-              <NoteAssigneePicker :id="fPersonId" :name="fPersonName" placeholder="Выбрать пользователя"
+            <div class="tm-f"><label>{{ t('Активность / результат') }}</label><input v-model="fItem" :placeholder="t('Например: Утверждение бюджета')" /></div>
+            <div class="tm-f"><label>{{ t('Человек') }}</label>
+              <NoteAssigneePicker :id="fPersonId" :name="fPersonName" :placeholder="t('Выбрать пользователя')"
                 @update:id="fPersonId = $event" @update:name="fPersonName = $event" />
             </div>
-            <div class="tm-f"><label>Роль</label>
+            <div class="tm-f"><label>{{ t('Роль') }}</label>
               <div class="tm-roles">
                 <button v-for="r in RACI_ROLES" :key="r.v" type="button" class="tm-role" :class="{ on: fRole === r.v }" :style="fRole === r.v ? { color: r.c, background: r.c + '1a', borderColor: r.c + '66' } : {}" @click="fRole = r.v">
                   <b>{{ r.v }}</b> {{ r.l.split(" ")[0] }}
                 </button>
               </div>
             </div>
-            <div v-if="projects && projects.length" class="tm-f"><label>Проект (опционально)</label>
-              <select v-model="fProject"><option :value="null">— без проекта —</option><option v-for="p in projects" :key="p.id" :value="p.id">{{ p.title }}</option></select>
+            <div v-if="projects && projects.length" class="tm-f"><label>{{ t('Проект (опционально)') }}</label>
+              <select v-model="fProject"><option :value="null">{{ t('— без проекта —') }}</option><option v-for="p in projects" :key="p.id" :value="p.id">{{ p.title }}</option></select>
             </div>
           </div>
-          <div class="tm-mf"><button class="tm-bg" @click="addOpen = false">Отмена</button><button class="tm-b" :disabled="saving" @click="addRaci">{{ saving ? "Сохраняю…" : "Добавить" }}</button></div>
+          <div class="tm-mf"><button class="tm-bg" @click="addOpen = false">{{ t('Отмена') }}</button><button class="tm-b" :disabled="saving" @click="addRaci">{{ saving ? "Сохраняю…" : "Добавить" }}</button></div>
         </div>
       </div>
     </Transition>

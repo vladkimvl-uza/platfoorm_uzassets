@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
 defineProps<{
   linkedYear: number | null | undefined;
   size?: "sm" | "md";
@@ -12,7 +14,7 @@ defineProps<{
       <line x1="5" y1="12" x2="19" y2="12"/>
       <polyline points="12 5 19 12 12 19"/>
     </svg>
-    Перенесена на {{ linkedYear }}
+    {{ t('Перенесена на') }} {{ linkedYear }}
   </span>
 </template>
 

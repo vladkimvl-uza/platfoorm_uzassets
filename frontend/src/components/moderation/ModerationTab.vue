@@ -11,6 +11,9 @@ import ModerationQueue from "./ModerationQueue.vue";
 import ModerationRulesEditor from "./ModerationRulesEditor.vue";
 import ModerationModerators from "./ModerationModerators.vue";
 import ModerationSubmittedUsers from "./ModerationSubmittedUsers.vue";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 type SubTab = "queue" | "rules" | "moderators" | "submitted";
 
@@ -49,22 +52,22 @@ const openSubmissionId = computed(() => (route.query.open as string) || null);
     <div class="mod-subtabs">
       <button class="mod-st" :class="{ active: subTab === 'rules' }" @click="subTab = 'rules'">
         <BIcon name="route" :size="14" />
-        Правила
+        {{ t('Правила') }}
         <span v-if="overview" class="mod-st-cnt">{{ overview.rules_active_count }}</span>
       </button>
       <button class="mod-st" :class="{ active: subTab === 'moderators' }" @click="subTab = 'moderators'">
         <BIcon name="user-check" :size="14" />
-        Модераторы
+        {{ t('Модераторы') }}
         <span v-if="overview" class="mod-st-cnt">{{ overview.moderators_count }}</span>
       </button>
       <button class="mod-st" :class="{ active: subTab === 'submitted' }" @click="subTab = 'submitted'">
         <BIcon name="user-exclamation" :size="14" />
-        Подмодерируемые
+        {{ t('Подмодерируемые') }}
         <span v-if="overview" class="mod-st-cnt">{{ overview.external_users_count }}</span>
       </button>
       <button class="mod-st" :class="{ active: subTab === 'queue' }" @click="subTab = 'queue'">
         <BIcon name="inbox" :size="14" />
-        Очередь
+        {{ t('Очередь') }}
         <span v-if="overview && overview.pending > 0" class="mod-st-cnt mod-st-cnt-hot">{{ overview.pending }}</span>
       </button>
     </div>
@@ -79,29 +82,29 @@ const openSubmissionId = computed(() => (route.query.open as string) || null);
 
     <div v-if="overview" class="mod-overview-strip">
       <div class="mod-ov-card">
-        <span class="mod-ov-label">Ожидают</span>
+        <span class="mod-ov-label">{{ t('Ожидают') }}</span>
         <span class="mod-ov-val mod-ov-pending">{{ overview.pending }}</span>
       </div>
       <div class="mod-ov-card">
-        <span class="mod-ov-label">На рассмотрении</span>
+        <span class="mod-ov-label">{{ t('На рассмотрении') }}</span>
         <span class="mod-ov-val mod-ov-review">{{ overview.under_review }}</span>
       </div>
       <div class="mod-ov-card">
-        <span class="mod-ov-label">Сегодня одобрено</span>
+        <span class="mod-ov-label">{{ t('Сегодня одобрено') }}</span>
         <span class="mod-ov-val mod-ov-approved">{{ overview.approved_today }}</span>
       </div>
       <div class="mod-ov-card">
-        <span class="mod-ov-label">Сегодня отклонено</span>
+        <span class="mod-ov-label">{{ t('Сегодня отклонено') }}</span>
         <span class="mod-ov-val mod-ov-rejected">{{ overview.rejected_today }}</span>
       </div>
       <div class="mod-ov-card">
-        <span class="mod-ov-label">Средн. время</span>
+        <span class="mod-ov-label">{{ t('Средн. время') }}</span>
         <span class="mod-ov-val">
           {{ overview.avg_resolution_hours !== null ? overview.avg_resolution_hours.toFixed(1) + " ч" : "—" }}
         </span>
       </div>
       <div class="mod-ov-card mod-ov-mine">
-        <span class="mod-ov-label">У меня</span>
+        <span class="mod-ov-label">{{ t('У меня') }}</span>
         <span class="mod-ov-val">{{ overview.my_pending_count }}</span>
       </div>
     </div>

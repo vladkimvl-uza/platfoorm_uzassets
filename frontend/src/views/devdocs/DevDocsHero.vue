@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 import { apiCatalog, type CatalogStatus } from "@/api/apiCatalog";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const status = ref<CatalogStatus | null>(null);
 
@@ -14,17 +17,16 @@ onMounted(async () => {
     <div class="dh-inner">
       <div class="dh-text">
         <div class="dh-eyebrow">UzAssets Platform · API</div>
-        <h1 class="dh-title">API для интеграции с платформой</h1>
+        <h1 class="dh-title">{{ t('API для интеграции с платформой') }}</h1>
         <p class="dh-desc">
-          Дёргайте финансовые показатели, KPI, рейтинги, кредитный портфель и закупки
-          напрямую из своих систем. REST · WebSocket · webhooks.
+          {{ t('Дёргайте финансовые показатели, KPI, рейтинги, кредитный портфель и закупки напрямую из своих систем. REST · WebSocket · webhooks.') }}
         </p>
         <div class="dh-cta">
           <RouterLink to="/api-docs/authentication" class="dh-btn dh-btn-primary">
-            Получить токен →
+            {{ t('Получить токен →') }}
           </RouterLink>
           <RouterLink to="/api-docs/endpoints/companies" class="dh-btn dh-btn-secondary">
-            Каталог endpoints
+            {{ t('Каталог endpoints') }}
           </RouterLink>
         </div>
       </div>

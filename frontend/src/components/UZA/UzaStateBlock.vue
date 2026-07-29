@@ -16,6 +16,9 @@
  * (перебивает text/desc). События: action (CTA empty), retry, dismiss.
  */
 import { computed, useSlots } from "vue";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const props = withDefaults(
   defineProps<{
@@ -95,7 +98,7 @@ const role = computed(() =>
       </template>
       <template v-else>
         <span class="usb-msg"><slot>{{ text }}</slot></span>
-        <button v-if="dismissible" class="usb-x" type="button" aria-label="Закрыть" @click="emit('dismiss')">×</button>
+        <button v-if="dismissible" class="usb-x" type="button" :aria-label="t('Закрыть')" @click="emit('dismiss')">×</button>
       </template>
     </template>
 

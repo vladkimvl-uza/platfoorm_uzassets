@@ -34,6 +34,9 @@ import { useCompaniesStore } from "@/stores/companies";
 import { useCompanyScope } from "@/composables/useCompanyScope";
 import { usePermissions } from "@/composables/usePermissions";
 import { useToast } from "@/composables/useToast";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const companiesStore = useCompaniesStore();
 // Область доступа: пользователю со своими компаниями фильтр по секторам не нужен.
@@ -628,18 +631,18 @@ onMounted(() => {
         <div class="gv-topbar">
           <SidebarBurger />
           <div class="gv-tb-l">
-            <h1 class="gv-tb-title">Корпоративное управление</h1>
+            <h1 class="gv-tb-title">{{ t('Корпоративное управление') }}</h1>
             <span class="gv-tb-sub">UzAssets Corp Management · {{ headerSub }}</span>
           </div>
           <div class="gv-tb-r">
             <select :value="String(year || '')" @change="onYearChange" class="gv-in">
-              <option value="">Все годы</option>
+              <option value="">{{ t('Все годы') }}</option>
               <option v-for="y in (overview?.available_years || [])" :key="y" :value="y">{{ y }}</option>
             </select>
             <!-- Селектор секторов: скрыт, когда пользователь ограничен своими
                  компаниями (выбирать не из чего) — решение владельца. -->
             <select v-if="scope.showSectorPicker.value" :value="sectorCode || ''" @change="onSectorChange" class="gv-in">
-              <option value="">Все сектора</option>
+              <option value="">{{ t('Все сектора') }}</option>
               <option v-for="s in (overview?.sectors || [])" :key="s.code" :value="s.code">
                 {{ companiesStore.getSectorName(s.code) }} ({{ s.count }})
               </option>
@@ -660,67 +663,67 @@ onMounted(() => {
 
             <!-- 1. Средний балл -->
             <div class="kpi2 fin-shimmer gv-kpi" style="--kpi2-accent:#7F77DD; --kpi2-d: 0ms" @click="kpiDrill = 'score'">
-              <div class="kpi2-lbl">Средний балл</div>
+              <div class="kpi2-lbl">{{ t('Средний балл') }}</div>
               <div class="kpi2-val">
                 <span :data-countup="totals.avgScore">{{ totals.avgScore }}</span>
                 <span class="unit"> / 1200</span>
               </div>
-              <div class="kpi2-sub">Оценка корпоративного управления</div>
+              <div class="kpi2-sub">{{ t('Оценка корпоративного управления') }}</div>
             </div>
 
             <!-- 2. Заседания НС -->
             <div class="kpi2 fin-shimmer gv-kpi" style="--kpi2-accent:#6E66D6; --kpi2-d: 80ms" @click="kpiDrill = 'meetings'">
-              <div class="kpi2-lbl">Заседания НС<template v-if="year"> {{ year }}</template></div>
+              <div class="kpi2-lbl">{{ t('Заседания НС') }}<template v-if="year"> {{ year }}</template></div>
               <div class="kpi2-val">
                 <span :data-countup="totals.totalMeetings">{{ totals.totalMeetings }}</span>
               </div>
-              <div class="kpi2-sub">ср. {{ totals.avgMeetings }} на компанию · {{ totals.meetingCos }} комп.</div>
+              <div class="kpi2-sub">{{ t('ср.') }} {{ totals.avgMeetings }} {{ t('на компанию ·') }} {{ totals.meetingCos }} {{ t('комп.') }}</div>
             </div>
 
             <!-- 3. Независимые директора % -->
             <div class="kpi2 fin-shimmer gv-kpi" style="--kpi2-accent:#1D9E75; --kpi2-d: 160ms" @click="kpiDrill = 'indep'">
-              <div class="kpi2-lbl">Независимые директора</div>
+              <div class="kpi2-lbl">{{ t('Независимые директора') }}</div>
               <div class="kpi2-val">
                 <span :data-countup="totals.indepPct">{{ totals.indepPct }}</span><span class="unit-pct">%</span>
               </div>
-              <div class="kpi2-sub">{{ totals.totalIndep }} из {{ totals.totalMembers }} членов НС</div>
+              <div class="kpi2-sub">{{ totals.totalIndep }} {{ t('из') }} {{ totals.totalMembers }} {{ t('членов НС') }}</div>
             </div>
 
             <!-- 4. Всего членов НС -->
             <div class="kpi2 fin-shimmer gv-kpi" style="--kpi2-accent:#378ADD; --kpi2-d: 240ms" @click="kpiDrill = 'members'">
-              <div class="kpi2-lbl">Всего членов НС</div>
+              <div class="kpi2-lbl">{{ t('Всего членов НС') }}</div>
               <div class="kpi2-val">
                 <span :data-countup="totals.totalMembers">{{ totals.totalMembers }}</span>
               </div>
-              <div class="kpi2-sub">{{ totals.cosCount }} компаний</div>
+              <div class="kpi2-sub">{{ totals.cosCount }} {{ t('компаний') }}</div>
             </div>
 
             <!-- 5. Вакансии -->
             <div class="kpi2 fin-shimmer gv-kpi" style="--kpi2-accent:#E24B4A; --kpi2-d: 320ms" @click="kpiDrill = 'vacant'">
-              <div class="kpi2-lbl">Вакансии</div>
+              <div class="kpi2-lbl">{{ t('Вакансии') }}</div>
               <div class="kpi2-val" style="color:#E24B4A">
                 <span :data-countup="totals.totalVacant">{{ totals.totalVacant }}</span>
               </div>
-              <div class="kpi2-sub">в {{ totals.vacantCos }} компаниях</div>
+              <div class="kpi2-sub">{{ t('в') }} {{ totals.vacantCos }} {{ t('компаниях') }}</div>
             </div>
 
             <!-- 6. Женщины в НС -->
             <div class="kpi2 fin-shimmer gv-kpi" style="--kpi2-accent:#EF9F27; --kpi2-d: 400ms" @click="kpiDrill = 'women'">
-              <div class="kpi2-lbl">Женщины в НС</div>
+              <div class="kpi2-lbl">{{ t('Женщины в НС') }}</div>
               <div class="kpi2-val" style="color:#EF9F27">
                 <span :data-countup="totals.weightedWomenPct">{{ totals.weightedWomenPct }}</span><span class="unit-pct">%</span>
               </div>
-              <div class="kpi2-sub">{{ totals.totalWomen }} из {{ totals.totalMembers }} членов НС</div>
+              <div class="kpi2-sub">{{ totals.totalWomen }} {{ t('из') }} {{ totals.totalMembers }} {{ t('членов НС') }}</div>
             </div>
 
             <!-- 7. Страхование D&O -->
             <div class="kpi2 fin-shimmer gv-kpi" style="--kpi2-accent:#378ADD; --kpi2-d: 480ms" @click="kpiDrill = 'dno'">
-              <div class="kpi2-lbl">Страхование D&amp;O</div>
+              <div class="kpi2-lbl">{{ t('Страхование D&amp;O') }}</div>
               <div class="kpi2-val">
                 <span :data-countup="totals.dnoCount">{{ totals.dnoCount }}</span>
                 <span class="unit"> / {{ totals.cosCount }}</span>
               </div>
-              <div class="kpi2-sub">компаний со страховкой</div>
+              <div class="kpi2-sub">{{ t('компаний со страховкой') }}</div>
             </div>
           </div>
 
@@ -730,13 +733,13 @@ onMounted(() => {
             <!-- LEFT: Composition matrix -->
             <div class="gv-cc gv-matrix" style="--d:600ms" :class="{ 'gv-zoomed': zoomed === 'matrix' }">
               <div class="gv-cc-h">
-                <span class="gv-cc-t">Состав наблюдательных советов</span>
+                <span class="gv-cc-t">{{ t('Состав наблюдательных советов') }}</span>
                 <div class="gv-cc-rt">
                   <button
                     v-if="matrixSort"
                     class="gv-mat-clear"
                     @click="clearMatrixSort()"
-                  >× сбросить</button>
+                  >{{ t('× сбросить') }}</button>
                   <button class="gv-zoom-btn" @click="zoomed = zoomed === 'matrix' ? null : 'matrix'" title="Zoom">
                     <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
                       <path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4"
@@ -749,24 +752,24 @@ onMounted(() => {
                 <table class="gv-mat-tbl">
                   <thead>
                     <tr>
-                      <th class="lt">Компания</th>
+                      <th class="lt">{{ t('Компания') }}</th>
                       <th @click="setMatrixSort('score')" class="sortable" :class="{ on: matrixSort === 'score' }">
-                        Балл <span class="arr">{{ sortIcon('score') }}</span>
+                        {{ t('Балл') }} <span class="arr">{{ sortIcon('score') }}</span>
                       </th>
                       <th @click="setMatrixSort('members')" class="sortable" :class="{ on: matrixSort === 'members' }">
-                        Члены <span class="arr">{{ sortIcon('members') }}</span>
+                        {{ t('Члены') }} <span class="arr">{{ sortIcon('members') }}</span>
                       </th>
                       <th @click="setMatrixSort('indep')" class="sortable" :class="{ on: matrixSort === 'indep' }">
-                        Независимые <span class="arr">{{ sortIcon('indep') }}</span>
+                        {{ t('Независимые') }} <span class="arr">{{ sortIcon('indep') }}</span>
                       </th>
                       <th @click="setMatrixSort('meetings')" class="sortable" :class="{ on: matrixSort === 'meetings' }">
-                        Заседания <span class="arr">{{ sortIcon('meetings') }}</span>
+                        {{ t('Заседания') }} <span class="arr">{{ sortIcon('meetings') }}</span>
                       </th>
                       <th @click="setMatrixSort('women')" class="sortable" :class="{ on: matrixSort === 'women' }">
-                        Женщины <span class="arr">{{ sortIcon('women') }}</span>
+                        {{ t('Женщины') }} <span class="arr">{{ sortIcon('women') }}</span>
                       </th>
                       <th @click="setMatrixSort('age')" class="sortable" :class="{ on: matrixSort === 'age' }">
-                        Средний возраст <span class="arr">{{ sortIcon('age') }}</span>
+                        {{ t('Средний возраст') }} <span class="arr">{{ sortIcon('age') }}</span>
                       </th>
                     </tr>
                   </thead>
@@ -804,7 +807,7 @@ onMounted(() => {
                       </td>
                       <td class="num">
                         <template v-if="r.age_avg != null">
-                          {{ r.age_avg }}<span class="gv-mat-pct">лет</span>
+                          {{ r.age_avg }}<span class="gv-mat-pct">{{ t('лет') }}</span>
                         </template>
                         <span v-else>—</span>
                       </td>
@@ -813,17 +816,17 @@ onMounted(() => {
                 </table>
               </div>
               <div class="gv-mat-legend">
-                <span><span class="dot" style="background:#1D9E75"></span> Более 900</span>
+                <span><span class="dot" style="background:#1D9E75"></span> {{ t('Более 900') }}</span>
                 <span><span class="dot" style="background:#378ADD"></span> 700-900</span>
                 <span><span class="dot" style="background:#EF9F27"></span> 600-700</span>
-                <span><span class="dot" style="background:#E24B4A"></span> Менее 600</span>
+                <span><span class="dot" style="background:#E24B4A"></span> {{ t('Менее 600') }}</span>
               </div>
             </div>
 
             <!-- RIGHT: Committees — кол-во заседаний по периодам -->
             <div class="gv-cc gv-committees" style="--d:650ms" :class="{ 'gv-zoomed': zoomed === 'committees' }">
               <div class="gv-cc-h">
-                <span class="gv-cc-t">Информация о заседаниях, проведённых Наблюдательным советом и комитетами</span>
+                <span class="gv-cc-t">{{ t('Информация о заседаниях, проведённых Наблюдательным советом и комитетами') }}</span>
                 <div class="gv-cc-rt">
                   <button class="gv-zoom-btn" @click="zoomed = zoomed === 'committees' ? null : 'committees'" title="Zoom">
                     <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
@@ -850,22 +853,22 @@ onMounted(() => {
                     class="gv-cm-chip gv-cm-add"
                     :class="{ on: periodPickerOpen }"
                     @click="periodPickerOpen = !periodPickerOpen"
-                  >+ период</button>
+                  >{{ t('+ период') }}</button>
                   <Transition name="uza-fade">
                     <div v-if="periodPickerOpen" class="gv-cm-picker" @click.stop>
                       <input
                         v-model="pickerYear"
                         type="number" min="2000" max="2100"
-                        class="gv-cm-pin" placeholder="Год"
+                        class="gv-cm-pin" :placeholder="t('Год')"
                       />
                       <select v-model="pickerQuarter" class="gv-cm-psel">
-                        <option value="0">Год</option>
+                        <option value="0">{{ t('Год') }}</option>
                         <option value="1">Q1</option>
                         <option value="2">Q2</option>
                         <option value="3">Q3</option>
                         <option value="4">Q4</option>
                       </select>
-                      <button class="gv-cm-pbtn" @click="addPeriod">Добавить</button>
+                      <button class="gv-cm-pbtn" @click="addPeriod">{{ t('Добавить') }}</button>
                     </div>
                   </Transition>
                 </div>
@@ -878,7 +881,7 @@ onMounted(() => {
                 <table class="gv-mat-tbl gv-cm-tbl">
                   <thead>
                     <tr>
-                      <th class="lt">Компания</th>
+                      <th class="lt">{{ t('Компания') }}</th>
                       <th v-for="col in ALL_CM_COLS" :key="col.key" :title="col.full || col.label" :class="{ 'gv-cm-sep': col.key === 'audit_mtg' }">{{ col.label }}</th>
                     </tr>
                   </thead>
@@ -923,16 +926,16 @@ onMounted(() => {
                       </td>
                     </tr>
                     <tr v-if="!committeeRows.length">
-                      <td :colspan="ALL_CM_COLS.length + 1" class="empty">Нет компаний</td>
+                      <td :colspan="ALL_CM_COLS.length + 1" class="empty">{{ t('Нет компаний') }}</td>
                     </tr>
                   </tbody>
                 </table>
               </div>
 
               <div class="gv-mat-legend">
-                <span v-if="canEditCommittees" class="gv-cm-hint">Клик по ячейке — правка количества заседаний</span>
+                <span v-if="canEditCommittees" class="gv-cm-hint">{{ t('Клик по ячейке — правка количества заседаний') }}</span>
                 <span class="gv-mat-legend-meta">
-                  Σ заседаний комитетов за {{ activePeriod ? activePeriod.label : '—' }}: <b>{{ committeeSum }}</b>
+                  {{ t('Σ заседаний комитетов за') }} {{ activePeriod ? activePeriod.label : '—' }}: <b>{{ committeeSum }}</b>
                 </span>
               </div>
             </div>
@@ -965,7 +968,7 @@ onMounted(() => {
                       <td class="sub">{{ row.secondary }}</td>
                     </tr>
                     <tr v-if="!kpiDrillRows.length">
-                      <td colspan="3" class="empty">Нет данных</td>
+                      <td colspan="3" class="empty">{{ t('Нет данных') }}</td>
                     </tr>
                   </tbody>
                 </table>

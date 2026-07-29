@@ -210,7 +210,7 @@ export const MODULE_REGISTRY = [
   { code: 'companies',    label: 'Компании (карточка и рабочее пространство)', hasExport: false, hasEdit: true, hasImport: false },
   // Экран министра: только чтение — на /executive-dashboard нет ни одного
   // пишущего действия, поэтому уровень «Редактировать» ему недоступен.
-  { code: 'exec_dashboard', label: 'Экран министра (Executive Dashboard)', hasExport: false, hasEdit: false, hasImport: false },
+  { code: 'exec_dashboard', label: 'Executive Dashboard', hasExport: false, hasEdit: false, hasImport: false },
   // Сводный обзор портфеля: чтение данных обзора. Заполнение печатной формы
   // («Заполнить отчёт») живёт в отдельном модуле «Задачи» (/overview-matrix
   // под tasks.edit), поэтому .edit у обзора нет — иначе сетка выдавала бы

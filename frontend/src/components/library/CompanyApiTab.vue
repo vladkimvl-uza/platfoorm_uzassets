@@ -8,6 +8,9 @@ import { computed, onMounted, ref, watch } from "vue";
 import { useApiCatalogStore } from "@/stores/apiCatalog";
 import type { CatalogEndpointWithSubstitution, HttpMethod } from "@/api/apiCatalog";
 import EndpointCard from "./EndpointCard.vue";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const props = defineProps<{ companyId: string }>();
 const emit  = defineEmits<{
@@ -88,7 +91,7 @@ const methodOptions: ("all" | HttpMethod)[] = ["all", "GET", "PATCH", "POST", "P
       <input
         v-model="searchQuery"
         type="text"
-        placeholder="Поиск: financials, kpi, /companies…"
+        :placeholder="t('Поиск: financials, kpi, /companies…')"
         class="cat-search"
       />
       <div class="cat-methods">
@@ -104,16 +107,16 @@ const methodOptions: ("all" | HttpMethod)[] = ["all", "GET", "PATCH", "POST", "P
         </button>
       </div>
       <select v-model="groupBy" class="cat-group">
-        <option value="module">Группировка: модуль</option>
-        <option value="method">HTTP метод</option>
-        <option value="none">Без группировки</option>
+        <option value="module">{{ t('Группировка: модуль') }}</option>
+        <option value="method">{{ t('HTTP метод') }}</option>
+        <option value="none">{{ t('Без группировки') }}</option>
       </select>
     </div>
 
-    <div v-if="loading && endpoints.length === 0" class="cat-loading">Загружаю endpoints…</div>
+    <div v-if="loading && endpoints.length === 0" class="cat-loading">{{ t('Загружаю endpoints…') }}</div>
     <div v-else-if="error" class="cat-error">{{ error }}</div>
     <div v-else-if="filtered.length === 0" class="cat-empty">
-      По текущим фильтрам нет endpoints
+      {{ t('По текущим фильтрам нет endpoints') }}
     </div>
 
     <!-- Grouped lists -->
@@ -137,15 +140,15 @@ const methodOptions: ("all" | HttpMethod)[] = ["all", "GET", "PATCH", "POST", "P
     <!-- Footer legend -->
     <footer class="cat-foot">
       <span class="cat-legend">
-        <span class="cat-legend-pill cat-legend-public">public</span> без токена
+        <span class="cat-legend-pill cat-legend-public">public</span> {{ t('без токена') }}
       </span>
       <span class="cat-legend">
-        <span class="cat-legend-pill cat-legend-authed">authed</span> JWT обязателен
+        <span class="cat-legend-pill cat-legend-authed">authed</span> {{ t('JWT обязателен') }}
       </span>
       <span class="cat-legend">
-        <span class="cat-legend-pill cat-legend-admin">admin</span> только owner
+        <span class="cat-legend-pill cat-legend-admin">admin</span> {{ t('только owner') }}
       </span>
-      <RouterLink to="/api-docs" class="cat-docs-link">Открыть в API-документации →</RouterLink>
+      <RouterLink to="/api-docs" class="cat-docs-link">{{ t('Открыть в API-документации →') }}</RouterLink>
     </footer>
   </div>
 </template>

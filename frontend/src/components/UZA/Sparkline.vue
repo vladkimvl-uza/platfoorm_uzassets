@@ -82,10 +82,10 @@
     <!-- Legend -->
     <div class="bpd-spark-legend" v-if="showLegend">
       <span class="bpd-leg-i">
-        <span class="bpd-leg-line" :style="{ background: color }" />факт
+        <span class="bpd-leg-line" :style="{ background: color }" />{{ t('факт') }}
       </span>
       <span v-if="planPts.length >= 2" class="bpd-leg-i">
-        <span class="bpd-leg-line bpd-leg-dashed" />план
+        <span class="bpd-leg-line bpd-leg-dashed" />{{ t('план') }}
       </span>
     </div>
   </div>
@@ -109,6 +109,9 @@
  * zero line and scale extends to actual min.
  */
 import { computed } from "vue";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const props = withDefaults(
   defineProps<{

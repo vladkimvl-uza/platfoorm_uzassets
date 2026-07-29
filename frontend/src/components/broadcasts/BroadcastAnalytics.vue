@@ -3,6 +3,9 @@ import { computed, onMounted, ref, watch } from "vue";
 import { broadcastsApi, formatRelativeTime, type BroadcastAnalytics } from "@/api/admin_broadcasts";
 import { useConfirm } from "@/composables/useConfirm";
 import BIcon from "./BIcon.vue";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const { confirmDialog } = useConfirm();
 
@@ -61,17 +64,17 @@ function initials(name: string | null, email: string): string {
 <template>
   <div class="ba-wrap">
     <div v-if="error" class="ba-err">{{ error }}</div>
-    <div v-if="loading && !data" class="ba-loading">Загрузка…</div>
+    <div v-if="loading && !data" class="ba-loading">{{ t('Загрузка…') }}</div>
 
     <template v-else-if="data">
       <div class="ba-header">
         <div class="ba-h-l">
-          <div class="ba-eyebrow">Активность · {{ data.dispatches_total }} запусков</div>
+          <div class="ba-eyebrow">{{ t('Активность ·') }} {{ data.dispatches_total }} {{ t('запусков') }}</div>
           <div class="ba-title">{{ data.template_name }}</div>
           <div class="ba-meta">
-            <span v-if="data.last_run_at">Последняя: <b>{{ formatRelativeTime(data.last_run_at) }}</b></span>
-            <span v-if="data.next_run_at"> · следующая: <b>{{ formatRelativeTime(data.next_run_at) }}</b></span>
-            <span v-if="!data.last_run_at && !data.next_run_at">Запусков ещё не было</span>
+            <span v-if="data.last_run_at">{{ t('Последняя:') }} <b>{{ formatRelativeTime(data.last_run_at) }}</b></span>
+            <span v-if="data.next_run_at"> {{ t('· следующая:') }} <b>{{ formatRelativeTime(data.next_run_at) }}</b></span>
+            <span v-if="!data.last_run_at && !data.next_run_at">{{ t('Запусков ещё не было') }}</span>
           </div>
         </div>
         <div>
@@ -83,31 +86,31 @@ function initials(name: string | null, email: string): string {
 
       <div class="ba-kpis">
         <div class="ba-kpi">
-          <div class="ba-kpi-lbl">Получатели</div>
+          <div class="ba-kpi-lbl">{{ t('Получатели') }}</div>
           <div class="ba-kpi-val">{{ data.last_recipients }}</div>
-          <div class="ba-kpi-sub">последний запуск</div>
+          <div class="ba-kpi-sub">{{ t('последний запуск') }}</div>
         </div>
         <div class="ba-kpi">
-          <div class="ba-kpi-lbl">Доставлено</div>
+          <div class="ba-kpi-lbl">{{ t('Доставлено') }}</div>
           <div class="ba-kpi-val">{{ data.last_delivered }}<span class="ba-kpi-of">/ {{ data.last_recipients }}</span></div>
           <div class="ba-kpi-sub" style="color: #0F6E56;">{{ deliveredPct }}%</div>
         </div>
         <div class="ba-kpi">
-          <div class="ba-kpi-lbl">Прочитано</div>
+          <div class="ba-kpi-lbl">{{ t('Прочитано') }}</div>
           <div class="ba-kpi-val">{{ data.last_read }}<span class="ba-kpi-of">/ {{ data.last_recipients }}</span></div>
           <div class="ba-kpi-sub" :style="{ color: readPct >= 80 ? '#0F6E56' : '#854F0B' }">{{ readPct }}%</div>
         </div>
         <div class="ba-kpi ba-kpi-acked">
-          <div class="ba-kpi-lbl">Подтверждено</div>
+          <div class="ba-kpi-lbl">{{ t('Подтверждено') }}</div>
           <div class="ba-kpi-val">{{ data.last_acked }}<span class="ba-kpi-of">/ {{ data.last_recipients }}</span></div>
           <div class="ba-kpi-sub" :style="{ color: ackedPct >= 80 ? '#0F6E56' : '#854F0B' }">
-            {{ ackedPct }}% · ждём {{ Math.max(0, data.last_recipients - data.last_acked) }}
+            {{ ackedPct }}{{ t('% · ждём') }} {{ Math.max(0, data.last_recipients - data.last_acked) }}
           </div>
         </div>
       </div>
 
       <div v-if="Object.keys(data.response_distribution).length > 0" class="ba-section">
-        <div class="ba-section-hd">Распределение ответов · последний запуск</div>
+        <div class="ba-section-hd">{{ t('Распределение ответов · последний запуск') }}</div>
         <div class="ba-bars">
           <div v-for="(count, key) in data.response_distribution" :key="key" class="ba-bar-row">
             <div class="ba-bar-lbl">{{ key }}</div>
@@ -121,32 +124,32 @@ function initials(name: string | null, email: string): string {
 
       <div v-if="data.non_responders.length" class="ba-section ba-section-warn">
         <div class="ba-section-hd ba-section-hd-warn">
-          Не ответили · {{ data.non_responders.length }}
+          {{ t('Не ответили ·') }} {{ data.non_responders.length }}
         </div>
         <div class="ba-non-responders">
           <span v-for="u in data.non_responders.slice(0, 20)" :key="u.id" class="ba-nr-chip">
             <span class="ba-nr-avatar">{{ initials(u.full_name, u.email) }}</span>
             {{ u.full_name || u.email }}
           </span>
-          <span v-if="data.non_responders.length > 20" class="ba-nr-more">+ {{ data.non_responders.length - 20 }} ещё</span>
+          <span v-if="data.non_responders.length > 20" class="ba-nr-more">+ {{ data.non_responders.length - 20 }} {{ t('ещё') }}</span>
         </div>
         <div class="ba-actions">
           <button class="ba-btn ba-btn-amber" @click="resendNonResponders">
-            <BIcon name="send" :size="13" /> Re-send всем не ответившим
+            <BIcon name="send" :size="13" /> {{ t('Re-send всем не ответившим') }}
           </button>
         </div>
       </div>
 
       <div v-if="data.history.length" class="ba-section">
-        <div class="ba-section-hd">История запусков</div>
+        <div class="ba-section-hd">{{ t('История запусков') }}</div>
         <table class="ba-history">
           <thead>
             <tr>
-              <th>Когда</th>
-              <th>Триггер</th>
-              <th class="r">Получатели</th>
-              <th class="r">Доставлено</th>
-              <th class="r">Прочитано</th>
+              <th>{{ t('Когда') }}</th>
+              <th>{{ t('Триггер') }}</th>
+              <th class="r">{{ t('Получатели') }}</th>
+              <th class="r">{{ t('Доставлено') }}</th>
+              <th class="r">{{ t('Прочитано') }}</th>
               <th class="r">Ack</th>
             </tr>
           </thead>

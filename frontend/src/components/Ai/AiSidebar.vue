@@ -6,25 +6,21 @@
              stroke="currentColor" stroke-width="2"
              stroke-linecap="round" stroke-linejoin="round">
           <path d="M12 5v14M5 12h14"/>
-        </svg>
-        Новый разговор
-      </button>
+        </svg> {{ t('Новый разговор') }} </button>
     </header>
 
     <div v-if="loading" class="ai-sb-empty">
       <span class="ai-sb-empty-spinner"></span>
-      <span>Загрузка</span>
+      <span>{{ t('Загрузка') }}</span>
     </div>
     <!-- P1 аудита: «ошибка» больше не выдаётся за «пусто» — иначе сбой сети
          читался как «вся переписка удалена». -->
     <div v-else-if="error && !items.length" class="ai-sb-err" role="alert">
-      <span>Не удалось загрузить историю разговоров.</span>
+      <span>{{ t('Не удалось загрузить историю разговоров.') }}</span>
       <span class="ai-sb-err-why">{{ error }}</span>
-      <button type="button" class="ai-sb-retry" @click="$emit('retry')">Повторить</button>
+      <button type="button" class="ai-sb-retry" @click="$emit('retry')">{{ t('Повторить') }}</button>
     </div>
-    <div v-else-if="!items.length" class="ai-sb-empty">
-      Здесь появятся ваши разговоры
-    </div>
+    <div v-else-if="!items.length" class="ai-sb-empty"> {{ t('Здесь появятся ваши разговоры') }} </div>
     <ul v-else class="ai-sb-list">
       <!-- a11y (P2 аудита): строка беседы была <li @click> без tabindex/role/
            keydown — выбрать беседу с клавиатуры было НЕВОЗМОЖНО (фокус
@@ -38,7 +34,7 @@
         :tabindex="editingId === c.id ? -1 : 0"
         role="button"
         :aria-current="c.id === activeId ? 'true' : undefined"
-        :aria-label="`Открыть разговор: ${c.title || 'Без названия'}`"
+        :aria-label="t('Открыть разговор: {title}', { title: c.title || t('Без названия') })"
         @click="editingId === c.id ? null : $emit('select', c.id)"
         @keydown.enter.prevent="editingId === c.id ? null : $emit('select', c.id)"
         @keydown.space.prevent="editingId === c.id ? null : $emit('select', c.id)"
@@ -57,13 +53,13 @@
             @blur="commitRename(c.id)"
           />
           <div v-else class="ai-sb-item-title">
-            {{ c.title || "Без названия" }}
+            {{ c.title || t("Без названия") }}
           </div>
           <button
             v-if="editingId !== c.id"
             class="ai-sb-item-act"
             type="button"
-            title="Переименовать"
+            :title="t('Переименовать')"
             @click.stop="startRename(c)"
           >
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
@@ -77,7 +73,7 @@
             v-if="editingId !== c.id"
             class="ai-sb-item-del"
             type="button"
-            title="Удалить"
+            :title="t('Удалить')"
             @click.stop="$emit('delete', c.id)"
           >
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
@@ -108,25 +104,25 @@
       <div v-if="canToggle" class="ai-sb-act" :class="{ off: !aiActive }">
         <span class="ai-sb-act-l">
           <span class="ai-sb-act-dot" :class="{ on: aiActive }" />
-          ИИ-ассистент {{ aiActive ? 'активен' : 'выключен' }}
+          {{ t('ИИ-ассистент') }} {{ aiActive ? t('активен') : t('выключен') }}
         </span>
         <button class="ai-sb-switch" :class="{ on: aiActive }" :disabled="toggling"
-                @click="toggleActive" :title="aiActive ? 'Деактивировать' : 'Активировать'">
+                @click="toggleActive" :title="aiActive ? t('Деактивировать') : t('Активировать')">
           <span class="ai-sb-knob" />
         </button>
       </div>
-      <div v-if="canToggle" class="ai-sb-act" :title="accessMode === 'owner_only' ? 'Сейчас доступ только у владельца' : 'Доступ по праву ai.view'">
+      <div v-if="canToggle" class="ai-sb-act" :title="accessMode === 'owner_only' ? t('Сейчас доступ только у владельца') : t('Доступ по праву ai.view')">
         <span class="ai-sb-act-l">
           <span class="ai-sb-act-dot" :class="{ on: accessMode === 'owner_only' }" />
-          Доступ: {{ accessMode === 'owner_only' ? 'только владелец' : 'по правам (ai.view)' }}
+          {{ t('Доступ:') }} {{ accessMode === 'owner_only' ? t('только владелец') : t('по правам (ai.view)') }}
         </span>
         <button class="ai-sb-switch" :class="{ on: accessMode === 'owner_only' }" :disabled="savingMode"
-                @click="toggleAccessMode" :title="accessMode === 'owner_only' ? 'Открыть по правам RBAC' : 'Ограничить владельцем'">
+                @click="toggleAccessMode" :title="accessMode === 'owner_only' ? t('Открыть по правам RBAC') : t('Ограничить владельцем')">
           <span class="ai-sb-knob" />
         </button>
       </div>
       <div v-else-if="!aiActive" class="ai-sb-act off">
-        <span class="ai-sb-act-l"><span class="ai-sb-act-dot" /> ИИ-ассистент выключен владельцем</span>
+        <span class="ai-sb-act-l"><span class="ai-sb-act-dot" /> {{ t('ИИ-ассистент выключен владельцем') }}</span>
       </div>
       <button v-if="canToggle" class="ai-sb-set" type="button" @click="kbOpen = true">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -134,7 +130,7 @@
           <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
           <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
         </svg>
-        <span>База знаний</span>
+        <span>{{ t('База знаний') }}</span>
       </button>
       <button class="ai-sb-set" type="button" @click="$emit('open-settings')">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
@@ -143,7 +139,7 @@
           <circle cx="12" cy="12" r="3"/>
           <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
         </svg>
-        <span>Настройки</span>
+        <span>{{ t('Настройки') }}</span>
       </button>
     </footer>
 
@@ -154,10 +150,14 @@
 <script setup lang="ts">
 import { ref, nextTick, onMounted, computed } from "vue";
 import { renameConversation, type ConversationListItem } from "@/api/aiClient";
-import { useAiActivation } from "@/composables/useAiActivation";
 import KnowledgeBaseModal from "@/components/Ai/KnowledgeBaseModal.vue";
+import { useAiActivation } from "@/composables/useAiActivation";
+import { useFormatters } from "@/composables/useFormatters";
+import { useI18n } from "@/composables/useI18n";
 import { useToast } from "@/composables/useToast";
 
+const { t } = useI18n();
+const fmt = useFormatters();
 const toast = useToast();
 const kbOpen = ref(false);
 
@@ -229,43 +229,40 @@ async function commitRename(id: string) {
     emit("renamed", id, title);
   } catch (e) {
     console.warn("[AiSidebar] rename failed", e);
-    toast.error("Не удалось переименовать разговор");
+    toast.error(t("Не удалось переименовать разговор"));
   }
 }
 
 // Тема разговора — выводим из заголовка/превью по ключевым словам, чтобы
 // в истории было видно чего касался запрос (рейтинги/компании/финансы/…).
-const TAG_RULES: { re: RegExp; label: string; color: string }[] = [
-  { re: /рейтинг|fitch|moody|s&p|s\s*&\s*p|агентств/i, label: "Рейтинги", color: "#534AB7" },
-  { re: /кредит|займ|долг|loan|ковенант|просрочк.*кредит/i, label: "Кредиты", color: "#E24B4A" },
+const tagRules = computed<{ re: RegExp; label: string; color: string }[]>(() => [
+  { re: /рейтинг|fitch|moody|s&p|s\s*&\s*p|агентств/i, label: t("Рейтинги"), color: "#534AB7" },
+  { re: /кредит|займ|долг|loan|ковенант|просрочк.*кредит/i, label: t("Кредиты"), color: "#E24B4A" },
   { re: /kpi|кипиай|ключев.* показател/i, label: "KPI", color: "#EF9F27" },
   { re: /esg|углерод|выброс|экологи/i, label: "ESG", color: "#1D9E75" },
-  { re: /закуп|поставщик|тендер|контракт/i, label: "Закупки", color: "#7F77DD" },
-  { re: /бизнес[\s-]?план|\bбп\b|план[\s-]?факт/i, label: "Бизнес-план", color: "#0F6E56" },
-  { re: /финанс|выручк|ebitda|прибыл|мсфо|нсбу|баланс|opex|capex/i, label: "Финансы", color: "#0F6E56" },
-  { re: /governance|корп.*управлен|совет директор|наблюдат/i, label: "Корпуправление", color: "#854F0B" },
-  { re: /сценари|симуляц|what.?if|шок|эластичн/i, label: "Сценарии", color: "#534AB7" },
-  { re: /задач|проект|дедлайн|просроч|срок/i, label: "Задачи", color: "#378ADD" },
-  { re: /консультант|big\s?4|аудитор/i, label: "Консультанты", color: "#888780" },
-  { re: /нефтегаз|горнодоб|энергетик|транспорт|сектор/i, label: "Сектор", color: "#1E2A4A" },
-  { re: /компани|предприят|портфел/i, label: "Компании", color: "#1E2A4A" },
-];
+  { re: /закуп|поставщик|тендер|контракт/i, label: t("Закупки"), color: "#7F77DD" },
+  { re: /бизнес[\s-]?план|\bбп\b|план[\s-]?факт/i, label: t("Бизнес-план"), color: "#0F6E56" },
+  { re: /финанс|выручк|ebitda|прибыл|мсфо|нсбу|баланс|opex|capex/i, label: t("Финансы"), color: "#0F6E56" },
+  { re: /governance|корп.*управлен|совет директор|наблюдат/i, label: t("Корпуправление"), color: "#854F0B" },
+  { re: /сценари|симуляц|what.?if|шок|эластичн/i, label: t("Сценарии"), color: "#534AB7" },
+  { re: /задач|проект|дедлайн|просроч|срок/i, label: t("Задачи"), color: "#378ADD" },
+  { re: /консультант|big\s?4|аудитор/i, label: t("Консультанты"), color: "#888780" },
+  { re: /нефтегаз|горнодоб|энергетик|транспорт|сектор/i, label: t("Сектор"), color: "#1E2A4A" },
+  { re: /компани|предприят|портфел/i, label: t("Компании"), color: "#1E2A4A" },
+]);
 function tagFor(c: ConversationListItem): { label: string; color: string } | null {
   const hay = `${c.title || ""} ${c.last_message_preview || ""}`;
-  for (const r of TAG_RULES) if (r.re.test(hay)) return { label: r.label, color: r.color };
+  for (const r of tagRules.value) if (r.re.test(hay)) return { label: r.label, color: r.color };
   return null;
 }
 
 function formatDate(s: string) {
   try {
     const d = new Date(s);
-    const now = new Date();
-    const diff = (now.getTime() - d.getTime()) / 1000;
-    if (diff < 60) return "только что";
-    if (diff < 3600) return `${Math.floor(diff / 60)} мин`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)} ч`;
-    if (diff < 604800) return `${Math.floor(diff / 86400)} дн`;
-    return d.toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
+    const diff = (Date.now() - d.getTime()) / 1000;
+    return diff < 604800
+      ? fmt.fmtRelativeTime(d)
+      : fmt.fmtDate(d, { includeYear: false });
   } catch {
     return s;
   }

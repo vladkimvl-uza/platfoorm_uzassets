@@ -7,6 +7,9 @@
 import { computed, ref, watch } from "vue";
 import { companiesApi, type CompanyEmployee } from "@/api/companies";
 import UserCardAnchor from "@/components/user/UserCardAnchor.vue";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const props = defineProps<{ code: string }>();
 const emit = defineEmits<{ "open-people": [] }>();
@@ -41,11 +44,11 @@ const onlineCount = computed(() =>
     <div class="ces-hd">
       <div class="ces-hd-l">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        <span class="ces-title">Сотрудники</span>
+        <span class="ces-title">{{ t('Сотрудники') }}</span>
         <span v-if="!loading" class="ces-count">{{ employees.length }}</span>
       </div>
       <button v-if="!loading" class="ces-all" @click="emit('open-people')">
-        Все
+        {{ t('Все') }}
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 3l5 5-5 5"/></svg>
       </button>
     </div>
@@ -70,7 +73,7 @@ const onlineCount = computed(() =>
 
       <div class="ces-meta">
         <span><b>{{ departments }}</b> {{ departments === 1 ? 'отдел' : 'отделов' }}</span>
-        <span v-if="onlineCount" class="ces-online"><span class="ces-dot"></span>{{ onlineCount }} в сети</span>
+        <span v-if="onlineCount" class="ces-online"><span class="ces-dot"></span>{{ onlineCount }} {{ t('в сети') }}</span>
       </div>
     </template>
   </div>

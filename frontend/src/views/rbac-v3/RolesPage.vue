@@ -11,8 +11,9 @@ import { rolesApiExt } from '@/api/rbacV3';
 import { useToast } from '@/composables/useToast';
 import { useConfirm } from '@/composables/useConfirm';
 import { useI18n } from '@/composables/useI18n';
+import { INTL_LOCALE } from '@/locale';
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const toast = useToast();
 const { confirmDialog, promptDialog } = useConfirm();
 
@@ -33,7 +34,7 @@ async function loadRoles() {
       selectedCode.value = roles.value[0].code;
     }
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || 'Не удалось загрузить роли';
+    error.value = e?.response?.data?.detail || t('Не удалось загрузить роли');
   }
 }
 
@@ -45,7 +46,7 @@ async function loadDetail() {
     description.value = detail.value.description_ru || '';
     levels.value = permissionsToLevels(detail.value.permissions.map(p => p.code));
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || 'Ошибка загрузки роли';
+    error.value = e?.response?.data?.detail || t('Ошибка загрузки роли');
   } finally {
     loading.value = false;
   }
@@ -55,7 +56,7 @@ onMounted(loadRoles);
 watch(selectedCode, loadDetail);
 
 async function selectRole(code: string) {
-  if (dirty.value && !(await confirmDialog('Есть несохранённые изменения. Перейти к другой роли?'))) return;
+  if (dirty.value && !(await confirmDialog(t('Есть несохранённые изменения. Перейти к другой роли?')))) return;
   selectedCode.value = code;
 }
 
@@ -83,7 +84,7 @@ function openDuplicate() {
   if (!detail.value) return;
   createPrefill.value = {
     from: detail.value.code,
-    name: detail.value.name_ru + ' (копия)',
+    name: detail.value.name_ru + ' (копия)', // i18n-exempt: persisted name_ru content
     description: detail.value.description_ru || '',
     levels: { ...levels.value },
   };
@@ -104,16 +105,18 @@ async function saveDescription() {
     await loadRoles();
     await loadDetail();
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || 'Не удалось сохранить описание';
+    error.value = e?.response?.data?.detail || t('Не удалось сохранить описание');
   }
 }
 
 async function removeRole() {
   if (!detail.value || !selectedCode.value) return;
   if (detail.value.is_system) return;
-  const input = await promptDialog(`Удалить роль "${detail.value.code}"?\nВведите code для подтверждения: ${detail.value.code}`);
+  const input = await promptDialog(t('Удалить роль "{code}"?\nВведите код для подтверждения: {code}', {
+    code: detail.value.code,
+  }));
   if (!input || input.trim() !== detail.value.code) {
-    if (input !== null) toast.error('Code не совпадает');
+    if (input !== null) toast.error(t('Код не совпадает'));
     return;
   }
   try {
@@ -122,7 +125,7 @@ async function removeRole() {
     detail.value = null;
     await loadRoles();
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || 'Не удалось удалить роль';
+    error.value = e?.response?.data?.detail || t('Не удалось удалить роль');
   }
 }
 
@@ -143,7 +146,7 @@ async function save() {
     dirty.value = false;
     await loadRoles();
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || 'Ошибка сохранения';
+    error.value = e?.response?.data?.detail || t('Ошибка сохранения');
   } finally {
     saving.value = false;
   }
@@ -155,6 +158,10 @@ const ROLE_COLOR: Record<string, string> = {
 };
 function roleColor(code: string) { return ROLE_COLOR[code] || '#7F77DD'; }
 
+function formatCount(value: number): string {
+  return value.toLocaleString(INTL_LOCALE[locale.value]);
+}
+
 const sysRoles = computed(() => roles.value.filter(r => r.is_system));
 const customRoles = computed(() => roles.value.filter(r => !r.is_system));
 </script>
@@ -164,7 +171,7 @@ const customRoles = computed(() => roles.value.filter(r => !r.is_system));
     <!-- LEFT: list -->
     <div class="rv3-roles-list">
       <div class="rv3-rl-section">
-        <div class="rv3-rl-section-hd">Системные · {{ sysRoles.length }}</div>
+        <div class="rv3-rl-section-hd">{{ t('Системные роли: {count}', { count: formatCount(sysRoles.length) }) }}</div>
         <div
           v-for="r in sysRoles"
           :key="r.code"
@@ -179,12 +186,12 @@ const customRoles = computed(() => roles.value.filter(r => !r.is_system));
               <path d="M5 5V3a1 1 0 0 1 2 0v2"/>
             </svg>
           </div>
-          <div class="rv3-rl-meta">{{ r.name_ru }} · {{ r.permission_count }} разреш.</div>
+          <div class="rv3-rl-meta">{{ r.name_ru }} · {{ t('Разрешений: {count}', { count: formatCount(r.permission_count) }) }}</div>
         </div>
       </div>
 
       <div class="rv3-rl-section" v-if="customRoles.length > 0">
-        <div class="rv3-rl-section-hd">Пользовательские · {{ customRoles.length }}</div>
+        <div class="rv3-rl-section-hd">{{ t('Пользовательские роли: {count}', { count: formatCount(customRoles.length) }) }}</div>
         <div
           v-for="r in customRoles"
           :key="r.code"
@@ -195,18 +202,18 @@ const customRoles = computed(() => roles.value.filter(r => !r.is_system));
             <span class="rv3-rl-dot" :style="{ background: roleColor(r.code) }"></span>
             <span class="rv3-rl-name">{{ r.code }}</span>
           </div>
-          <div class="rv3-rl-meta">{{ r.name_ru }} · {{ r.permission_count }} разреш.</div>
+          <div class="rv3-rl-meta">{{ r.name_ru }} · {{ t('Разрешений: {count}', { count: formatCount(r.permission_count) }) }}</div>
         </div>
       </div>
 
       <button class="rv3-rl-add" @click="openCreate">
-        + Новая роль
+        + {{ t('Новая роль') }}
       </button>
     </div>
 
     <!-- RIGHT: editor -->
     <div class="rv3-roles-edit">
-      <div v-if="loading" class="rv3-state">Загрузка...</div>
+      <div v-if="loading" class="rv3-state">{{ t('Загрузка...') }}</div>
       <div v-else-if="error" class="rv3-state rv3-err">{{ error }}</div>
       <template v-else-if="detail">
         <div class="rv3-edit-hd">
@@ -219,12 +226,12 @@ const customRoles = computed(() => roles.value.filter(r => !r.is_system));
               <RoleChip :code="detail.code" size="sm" />
             </div>
             <div class="rv3-edit-meta">
-              <span>code: <code>{{ detail.code }}</code></span>
+              <span>{{ t('Код:') }} <code>{{ detail.code }}</code></span>
               <span v-if="detail.is_system" class="rv3-sys">
                 <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="5" width="6" height="5" rx="1"/><path d="M5 5V3a1 1 0 0 1 2 0v2"/></svg>
-                системная
+                {{ t('Системная роль') }}
               </span>
-              <span>· {{ detail.permission_count }} разрешений</span>
+              <span>· {{ t('Разрешений: {count}', { count: formatCount(detail.permission_count) }) }}</span>
             </div>
           </div>
           <button
@@ -232,23 +239,23 @@ const customRoles = computed(() => roles.value.filter(r => !r.is_system));
             :disabled="!dirty || saving"
             @click="save"
           >
-            {{ saving ? 'Сохранение...' : (dirty ? 'Сохранить' : 'Сохранено') }}
+            {{ saving ? t('Сохранение...') : (dirty ? t('Сохранить') : t('Сохранено')) }}
           </button>
         </div>
 
         <div class="rv3-edit-section">
-          <div class="rv3-edit-label">Описание</div>
+          <div class="rv3-edit-label">{{ t('Описание') }}</div>
           <textarea
             v-model="description"
             class="rv3-textarea"
-            placeholder="Описание роли — для чего используется"
+            :placeholder="t('Описание роли — для чего используется')"
             @blur="saveDescription"
           ></textarea>
         </div>
 
         <div class="rv3-edit-section">
           <div class="rv3-edit-label rv3-edit-label-row">
-            <span>Доступ к модулям</span>
+            <span>{{ t('Доступ к модулям') }}</span>
             <div class="rv3-quick">
               <button class="rv3-quick-btn rv3-quick-admin" @click="setAllLevels('write')">{{ t("ВСЕМ РЕДАКТИРОВАТЬ") }}</button>
               <button class="rv3-quick-btn" @click="setAllLevels('read')">{{ t("ВСЕМ НАБЛЮДАТЬ") }}</button>
@@ -264,13 +271,13 @@ const customRoles = computed(() => roles.value.filter(r => !r.is_system));
         </div>
 
         <div class="rv3-edit-foot">
-          <button class="rv3-btn rv3-btn-ghost" @click="openDuplicate">Дублировать роль</button>
+          <button class="rv3-btn rv3-btn-ghost" @click="openDuplicate">{{ t('Дублировать роль') }}</button>
           <div style="flex:1"></div>
           <button
             v-if="!detail.is_system"
             class="rv3-btn rv3-btn-red"
             @click="removeRole"
-          >Удалить роль</button>
+          >{{ t('Удалить роль') }}</button>
         </div>
       </template>
     </div>

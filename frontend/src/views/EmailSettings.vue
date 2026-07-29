@@ -9,6 +9,9 @@
 import { ref, reactive, computed, onMounted } from "vue";
 import { emailSettingsApi, type EmailSettings } from "@/api/emailSettings";
 import { useAuthStore } from "@/stores/auth";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const auth = useAuthStore();
 const canManage = computed(() => !!auth.user?.is_owner || auth.hasPermission?.("admin.users"));
@@ -84,56 +87,56 @@ async function sendTest() {
 <template>
   <div class="es-wrap">
     <header class="es-hdr">
-      <div class="es-eyebrow">Уведомления · канал e-mail</div>
-      <h1 class="es-title">Настройка SMTP</h1>
-      <p class="es-sub">Параметры применяются сразу, без передеплоя. Пароль не отображается — оставьте пустым, чтобы не менять.</p>
+      <div class="es-eyebrow">{{ t('Уведомления · канал e-mail') }}</div>
+      <h1 class="es-title">{{ t('Настройка SMTP') }}</h1>
+      <p class="es-sub">{{ t('Параметры применяются сразу, без передеплоя. Пароль не отображается — оставьте пустым, чтобы не менять.') }}</p>
     </header>
 
-    <div v-if="!canManage" class="es-card es-deny">Недостаточно прав. Требуется OWNER или admin.users.</div>
-    <div v-else-if="loading" class="es-card">Загрузка…</div>
+    <div v-if="!canManage" class="es-card es-deny">{{ t('Недостаточно прав. Требуется OWNER или admin.users.') }}</div>
+    <div v-else-if="loading" class="es-card">{{ t('Загрузка…') }}</div>
 
     <div v-else class="es-card">
       <!-- Главный тумблер -->
       <label class="es-switch-row">
         <span>
-          <span class="es-switch-title">Отправка писем включена</span>
-          <span class="es-switch-sub">Когда выключено — письма не отправляются (логируются).</span>
+          <span class="es-switch-title">{{ t('Отправка писем включена') }}</span>
+          <span class="es-switch-sub">{{ t('Когда выключено — письма не отправляются (логируются).') }}</span>
         </span>
         <input type="checkbox" v-model="form.SMTP_ENABLED" class="es-switch" />
       </label>
 
       <div class="es-grid">
         <label class="es-field">
-          <span class="es-lbl">SMTP-сервер (host)</span>
+          <span class="es-lbl">{{ t('SMTP-сервер (host)') }}</span>
           <input v-model="form.SMTP_HOST" class="es-in" placeholder="smtp.yandex.ru" />
         </label>
         <label class="es-field es-field-sm">
-          <span class="es-lbl">Порт</span>
+          <span class="es-lbl">{{ t('Порт') }}</span>
           <input v-model.number="form.SMTP_PORT" type="number" class="es-in" placeholder="587" />
         </label>
         <label class="es-field">
-          <span class="es-lbl">Логин (SMTP user)</span>
+          <span class="es-lbl">{{ t('Логин (SMTP user)') }}</span>
           <input v-model="form.SMTP_USER" class="es-in" placeholder="no-reply@uz-assets.uz" />
         </label>
         <label class="es-field">
-          <span class="es-lbl">Пароль <span v-if="passwordSet" class="es-pwd-set">(задан — оставьте пустым, чтобы не менять)</span></span>
+          <span class="es-lbl">{{ t('Пароль') }} <span v-if="passwordSet" class="es-pwd-set">{{ t('(задан — оставьте пустым, чтобы не менять)') }}</span></span>
           <input v-model="form.SMTP_PASSWORD" type="password" class="es-in" :placeholder="passwordSet ? '••••••••' : 'пароль приложения'" autocomplete="new-password" />
         </label>
         <label class="es-field es-field-wide">
-          <span class="es-lbl">Отправитель (From)</span>
+          <span class="es-lbl">{{ t('Отправитель (From)') }}</span>
           <input v-model="form.SMTP_FROM" class="es-in" placeholder="UzAssets &lt;no-reply@uz-assets.uz&gt;" />
         </label>
       </div>
 
       <div class="es-tls">
-        <label class="es-check"><input type="checkbox" v-model="form.SMTP_USE_TLS" @change="onTlsToggle" /><span>STARTTLS (порт 587)</span></label>
-        <label class="es-check"><input type="checkbox" v-model="form.SMTP_USE_SSL" @change="onSslToggle" /><span>SSL/TLS (порт 465)</span></label>
-        <label class="es-check"><input type="checkbox" v-model="form.SMTP_VERIFY_CERT" /><span>Проверять сертификат</span></label>
+        <label class="es-check"><input type="checkbox" v-model="form.SMTP_USE_TLS" @change="onTlsToggle" /><span>{{ t('STARTTLS (порт 587)') }}</span></label>
+        <label class="es-check"><input type="checkbox" v-model="form.SMTP_USE_SSL" @change="onSslToggle" /><span>{{ t('SSL/TLS (порт 465)') }}</span></label>
+        <label class="es-check"><input type="checkbox" v-model="form.SMTP_VERIFY_CERT" /><span>{{ t('Проверять сертификат') }}</span></label>
       </div>
-      <p class="es-tls-note">Корпоративный Exchange: порт <b>25</b>, STARTTLS и SSL <b>выключены</b>, логин/пароль <b>пустые</b> (анонимный релей с доверенного IP). Если включаете STARTTLS с самоподписанным сертификатом — снимите «Проверять сертификат».</p>
+      <p class="es-tls-note">{{ t('Корпоративный Exchange: порт') }} <b>25</b>{{ t(', STARTTLS и SSL') }} <b>{{ t('выключены') }}</b>{{ t(', логин/пароль') }} <b>{{ t('пустые') }}</b> {{ t('(анонимный релей с доверенного IP). Если включаете STARTTLS с самоподписанным сертификатом — снимите «Проверять сертификат».') }}</p>
 
       <label class="es-field es-field-wide" style="margin-top:14px">
-        <span class="es-lbl">Публичный URL платформы (для ссылок в письмах)</span>
+        <span class="es-lbl">{{ t('Публичный URL платформы (для ссылок в письмах)') }}</span>
         <input v-model="form.PUBLIC_URL" class="es-in" placeholder="https://platform.uz-assets.uz" />
       </label>
 
@@ -153,9 +156,8 @@ async function sendTest() {
     </div>
 
     <div v-if="canManage && !loading" class="es-hint">
-      <b>Подсказки по провайдерам:</b> Yandex — host <code>smtp.yandex.ru</code>, порт <code>465</code>, SSL;
-      Gmail — <code>smtp.gmail.com</code>:<code>587</code>, STARTTLS (нужен «пароль приложения»);
-      корпоративный — уточните у администратора почты. Шаблоны писем — фирменные (см. превью в docs/).
+      <b>{{ t('Подсказки по провайдерам:') }}</b> Yandex — host <code>smtp.yandex.ru</code>{{ t(', порт') }} <code>465</code>, SSL;
+      Gmail — <code>smtp.gmail.com</code>:<code>587</code>{{ t(', STARTTLS (нужен «пароль приложения»); корпоративный — уточните у администратора почты. Шаблоны писем — фирменные (см. превью в docs/).') }}
     </div>
   </div>
 </template>

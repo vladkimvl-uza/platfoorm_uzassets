@@ -74,6 +74,12 @@ class UserPublic(BaseModel):
     telegram_username: Optional[str] = None
     # Язык интерфейса (ru | uz-latn | uz-cyr | en) — фронт применяет при логине
     ui_locale: str = "ru"
+    # Права, выданные ЛИЧНО этому пользователю (сетка «Доступ к модулям»), а не
+    # унаследованные от роли. Нужны там, где личная выдача должна перекрывать
+    # общее правило: напр. Executive Dashboard по умолчанию скрыт у
+    # пользователей, ограниченных своими компаниями, но выданный вручную —
+    # показывается («дал доступ — появился»).
+    direct_permissions: list[str] = []
     last_login_at: Optional[datetime]
     welcome_seen: bool = False
     # Step-up / обяз. MFA: для привилегированных (owner/admin) без включённой MFA

@@ -11,7 +11,7 @@
 
 export type TabId =
   | 'overview' | 'people'
-  | 'work' | 'kanban' | 'list' | 'notes' | 'pmo' | 'reporting'
+  | 'work' | 'documents' | 'kanban' | 'list' | 'notes' | 'pmo' | 'reporting'
   | 'ifrs' | 'nsbu' | 'hlf' | 'bp' | 'unitcost' | 'credit'
   | 'invest' | 'kpi' | 'procurement'
   | 'governance' | 'consultants' | 'esg';
@@ -50,6 +50,9 @@ export const COMPANY_TABS: TabConfig[] = [
 
   // Канбан + Список объединены в «Работа» (переключатель вида внутри таба).
   { id: 'work',        label: 'Работа',         groupId: 'tasks', gated: 'tasks' },
+  // Документы — библиотека компании. Файлы из карточек задач/проектов/отчётов
+  // лежат здесь же (document_links), поэтому вкладка идёт сразу за «Работой».
+  { id: 'documents',   label: 'Документы',      groupId: 'tasks', gated: 'companies' },
   // PMO — только для роли с правом pmo.view (расписание/Гантт; позже RAID/здоровье).
   { id: 'pmo',         label: 'PMO',            groupId: 'tasks', gated: 'pmo' },
   { id: 'notes',       label: 'Календарь',      groupId: 'tasks', gated: 'tasks' },
@@ -84,6 +87,7 @@ export const MOCK_INDICATORS: Record<TabId, TabIndicators> = {
   overview:    {},
   people:      {},
   work:        {},
+  documents:   {},
   kanban:      {},
   list:        {},
   pmo:         {},

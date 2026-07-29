@@ -18,9 +18,10 @@ import { presenceStatus, presenceLabel } from '@/composables/usePresence';
 import { useToast } from '@/composables/useToast';
 import { useI18n } from '@/composables/useI18n';
 import { useConfirm } from '@/composables/useConfirm';
+import { INTL_LOCALE } from '@/locale';
 
 const toast = useToast();
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const { confirmDialog, promptDialog } = useConfirm();
 
 const fmt = useFormatters();
@@ -59,7 +60,7 @@ watch(() => props.user?.id, async (newId) => {
   try {
     detail.value = await rbacV3Api.getUser(newId);
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || 'Не удалось загрузить данные';
+    error.value = e?.response?.data?.detail || t('Не удалось загрузить данные');
   } finally {
     loading.value = false;
   }
@@ -72,14 +73,7 @@ const accessCount = computed(() => {
 const lastLoginRelative = computed(() => {
   const dt = detail.value?.last_login_at;
   if (!dt) return '—';
-  const diff = (Date.now() - new Date(dt).getTime()) / 1000;
-  if (diff < 60) return 'только что';
-  if (diff < 3600) return Math.floor(diff / 60) + ' мин назад';
-  if (diff < 86400) return Math.floor(diff / 3600) + ' ч назад';
-  const days = Math.floor(diff / 86400);
-  if (days === 1) return 'вчера';
-  if (days < 30) return days + ' дн назад';
-  return Math.floor(days / 30) + ' мес назад';
+  return fmt.fmtRelativeTime(dt);
 });
 
 // ─── Module access editor (прямые per-user гранты, OWNER/ADMIN) ──
@@ -182,7 +176,7 @@ async function saveScope(): Promise<void> {
     editingScope.value = false;
     emit('changed');
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || 'Не удалось сохранить область доступа';
+    error.value = e?.response?.data?.detail || t('Не удалось сохранить область доступа');
   } finally {
     savingScope.value = false;
   }
@@ -197,7 +191,8 @@ onMounted(async () => {
     const r = await companiesApi.list({ per_page: 500 } as any);
     const items = (r as any)?.items || (r as any)?.companies || (Array.isArray(r) ? r : []);
     allCompanies.value = (items || []).map((c: any) => ({ id: c.id, name: c.name_ru || c.name || c.code }))
-      .filter((c: any) => c.id).sort((a: any, b: any) => a.name.localeCompare(b.name, 'ru'));
+      .filter((c: any) => c.id)
+      .sort((a: any, b: any) => a.name.localeCompare(b.name, INTL_LOCALE[locale.value]));
   } catch { /* best-effort */ }
 });
 
@@ -263,7 +258,7 @@ async function saveRoles() {
     editingRoles.value = false;
     emit('changed');
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || 'Не удалось сохранить роли';
+    error.value = e?.response?.data?.detail || t('Не удалось сохранить роли');
   } finally {
     savingRoles.value = false;
   }
@@ -293,7 +288,7 @@ async function addMembership() {
     draftAddRoleCode.value = 'viewer';
     emit('changed');
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || 'Не удалось добавить членство';
+    error.value = e?.response?.data?.detail || t('Не удалось добавить членство');
   } finally {
     savingMembership.value = false;
   }
@@ -307,19 +302,22 @@ async function changeMembershipRole(groupId: string, newCode: string) {
     );
     emit('changed');
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || 'Не удалось сменить роль';
+    error.value = e?.response?.data?.detail || t('Не удалось сменить роль');
   }
 }
 
 async function removeMembership(groupId: string, groupName: string) {
   if (!detail.value) return;
-  if (!(await confirmDialog({ message: `Убрать пользователя из группы «${groupName}»?`, danger: true }))) return;
+  if (!(await confirmDialog({
+    message: t('Убрать пользователя из группы «{group}»?', { group: groupName }),
+    danger: true,
+  }))) return;
   try {
     await rbacV3Api.removeMembership(detail.value.id, groupId);
     detail.value = await rbacV3Api.getUser(detail.value.id);
     emit('changed');
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || 'Не удалось убрать членство';
+    error.value = e?.response?.data?.detail || t('Не удалось убрать членство');
   }
 }
 
@@ -360,7 +358,7 @@ async function loadActivity() {
     activityLoaded.value = true;
   } catch (e: any) {
     if (e?.response?.status === 403) activityDenied.value = true;
-    else error.value = e?.response?.data?.detail || 'Не удалось загрузить активность';
+    else error.value = e?.response?.data?.detail || t('Не удалось загрузить активность');
   } finally {
     activityLoading.value = false;
   }
@@ -387,9 +385,9 @@ const activityGroups = computed(() => {
     let g = byKey.get(k);
     if (!g) {
       let label: string;
-      if (dd.getTime() === today.getTime()) label = 'Сегодня';
-      else if (dd.getTime() === yest.getTime()) label = 'Вчера';
-      else label = d.toLocaleDateString('ru-RU', { day: '2-digit', month: 'long', year: 'numeric' });
+      if (dd.getTime() === today.getTime()) label = t('Сегодня');
+      else if (dd.getTime() === yest.getTime()) label = t('Вчера');
+      else label = fmt.fmtDate(d, { long: true });
       g = { key: k, label, events: [] };
       byKey.set(k, g); groups.push(g);
     }
@@ -437,14 +435,13 @@ const forcingDisable = ref(false);
 async function forceDisableMfa() {
   if (!detail.value) return;
   if (!auth.isOwner) {
-    error.value = 'Только владелец платформы может принудительно отключать 2FA';
+    error.value = t('Только владелец платформы может принудительно отключать 2FA');
     return;
   }
   if (!(await confirmDialog({
-    message:
-      `Принудительно отключить 2FA у ${detail.value.email}?\n\n` +
-      `Будет очищено: TOTP-секрет, привязка Telegram, recovery-коды.\n` +
-      `Пользователь сможет войти только по паролю. Действие записывается в Аудит.`,
+    message: t('Принудительно отключить 2FA у {email}?\n\nБудет очищено: TOTP-секрет, привязка Telegram, recovery-коды.\nПользователь сможет войти только по паролю. Действие записывается в аудит.', {
+      email: detail.value.email,
+    }),
     danger: true,
   }))) return;
   forcingDisable.value = true;
@@ -453,7 +450,7 @@ async function forceDisableMfa() {
     await loadMfaStatus();
     emit('changed');
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || 'Не удалось отключить 2FA';
+    error.value = e?.response?.data?.detail || t('Не удалось отключить 2FA');
   } finally {
     forcingDisable.value = false;
   }
@@ -496,25 +493,23 @@ async function copyPwd() {
 async function submitForceChange() {
   if (!detail.value) return;
   if (!(await confirmDialog({
-    message:
-      `Заставить «${detail.value.full_name || detail.value.email}» сменить пароль ` +
-      `при следующем защищённом запросе?\n\n` +
-      `Текущий пароль будет работать только для входа (/auth/login). ` +
-      `После входа доступ к любому API закрыт до смены через /change-password.`,
+    message: t('Заставить «{name}» сменить пароль при следующем защищённом запросе?\n\nТекущий пароль будет работать только для входа (/auth/login). После входа доступ к любому API закрыт до смены через /change-password.', {
+      name: detail.value.full_name || detail.value.email,
+    }),
   }))) return;
   try {
     await rbacV3Api.forcePasswordChange(detail.value.id);
     detail.value = await rbacV3Api.getUser(detail.value.id);
     emit('changed');
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || 'Не удалось установить флаг';
+    error.value = e?.response?.data?.detail || t('Не удалось установить флаг');
   }
 }
 
 async function submitPwdReset() {
   if (!detail.value || !pwdValue.value) return;
   if (pwdValue.value.length < 12) {
-    error.value = 'Пароль должен быть минимум 12 символов';
+    error.value = t('Пароль должен быть минимум 12 символов');
     return;
   }
   pwdSaving.value = true;
@@ -530,7 +525,7 @@ async function submitPwdReset() {
     pwdDone.value = true;
     void copyPwd();
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || 'Не удалось сбросить пароль';
+    error.value = e?.response?.data?.detail || t('Не удалось сбросить пароль');
   } finally {
     pwdSaving.value = false;
   }
@@ -548,7 +543,7 @@ async function patchModerationFlag(field: 'is_external' | 'bypass_moderation', v
     detail.value = { ...detail.value, [field]: value };
     emit('changed');
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || 'Не удалось обновить флаг модерации';
+    error.value = e?.response?.data?.detail || t('Не удалось обновить флаг модерации');
   } finally {
     modSaving.value = false;
   }
@@ -564,7 +559,7 @@ async function patchModerationOrg() {
     detail.value = { ...detail.value, external_org_name: modOrgDraft.value || null };
     emit('changed');
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || 'Не удалось сохранить организацию';
+    error.value = e?.response?.data?.detail || t('Не удалось сохранить организацию');
   } finally {
     modSaving.value = false;
   }
@@ -585,7 +580,11 @@ function onCloneCreated(newId: string) {
 const impersonating = ref(false);
 async function startImpersonate() {
   if (!detail.value) return;
-  if (!(await confirmDialog({ message: `Войти как ${detail.value.email}?\n\nТокен действует 30 минут. После этого вернётесь в свой аккаунт.\n\nДействие будет залогировано в Аудит.` }))) return;
+  if (!(await confirmDialog({
+    message: t('Войти как {email}?\n\nТокен действует 30 минут. После этого вы вернётесь в свой аккаунт.\n\nДействие будет записано в аудит.', {
+      email: detail.value.email,
+    }),
+  }))) return;
   impersonating.value = true;
   try {
     const resp = await createPreviewToken(detail.value.id);
@@ -594,7 +593,7 @@ async function startImpersonate() {
               + '&preview_email=' + encodeURIComponent(resp.target_email);
     window.open(url, '_blank');
   } catch (e: any) {
-    toast.error(e?.response?.data?.detail || 'Не удалось получить preview-token');
+    toast.error(e?.response?.data?.detail || t('Не удалось получить preview-token'));
   } finally {
     impersonating.value = false;
   }
@@ -604,26 +603,29 @@ async function toggleOwner() {
   if (!detail.value) return;
   const grant = !detail.value.is_owner;
   const msg = grant
-    ? `Назначить «${detail.value.email}» владельцем платформы (OWNER)?\nOWNER получает полный доступ ко всему и может управлять статусом OWNER.`
-    : `Снять статус OWNER с «${detail.value.email}»?`;
+    ? t('Назначить «{email}» владельцем платформы (OWNER)?\nOWNER получает полный доступ ко всему и может управлять статусом OWNER.', { email: detail.value.email })
+    : t('Снять статус OWNER с «{email}»?', { email: detail.value.email });
   if (!(await confirmDialog({ message: msg, danger: true }))) return;
   ownerBusy.value = true; error.value = null;
   try {
     detail.value = await rbacV3Api.setOwner(detail.value.id, grant);
     emit('changed');
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || 'Не удалось изменить статус OWNER';
+    error.value = e?.response?.data?.detail || t('Не удалось изменить статус OWNER');
   } finally { ownerBusy.value = false; }
 }
 async function onDeactivate() {
   if (!detail.value) return;
-  if (!(await confirmDialog({ message: `Деактивировать пользователя ${detail.value.email}?`, danger: true }))) return;
+  if (!(await confirmDialog({
+    message: t('Деактивировать пользователя {email}?', { email: detail.value.email }),
+    danger: true,
+  }))) return;
   try {
     await rbacV3Api.deactivate(detail.value.id);
     emit('changed');
     emit('close');
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || 'Ошибка';
+    error.value = e?.response?.data?.detail || t('Ошибка');
   }
 }
 async function onReactivate() {
@@ -633,14 +635,18 @@ async function onReactivate() {
     detail.value = updated;       // дровер остаётся открытым, показывает активный аккаунт
     emit('changed');
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || 'Ошибка';
+    error.value = e?.response?.data?.detail || t('Ошибка');
   }
 }
 async function onDeletePermanent() {
   if (!detail.value) return;
-  const input = await promptDialog({ message: `Это удалит пользователя НАВСЕГДА.\nВведите email для подтверждения: ${detail.value.email}` });
+  const input = await promptDialog({
+    message: t('Это удалит пользователя НАВСЕГДА.\nВведите email для подтверждения: {email}', {
+      email: detail.value.email,
+    }),
+  });
   if (!input || input.trim().toLowerCase() !== detail.value.email.toLowerCase()) {
-    if (input !== null) toast.error('Email не совпадает');
+    if (input !== null) toast.error(t('Email не совпадает'));
     return;
   }
   try {
@@ -648,14 +654,14 @@ async function onDeletePermanent() {
     emit('changed');
     emit('close');
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || 'Ошибка';
+    error.value = e?.response?.data?.detail || t('Ошибка');
   }
 }
 </script>
 
 <template>
   <div v-if="user" class="rv3-drawer">
-    <div v-if="loading" class="rv3-loading">Загрузка...</div>
+    <div v-if="loading" class="rv3-loading">{{ t('Загрузка...') }}</div>
     <div v-else-if="error" class="rv3-error">{{ error }}</div>
     <template v-else-if="detail">
       <!-- Header -->
@@ -665,21 +671,21 @@ async function onDeletePermanent() {
           <div style="flex:1;min-width:0;">
             <div class="rv3-dr-name">
               {{ detail.full_name }}
-              <span class="rv3-dr-presence" :class="'rv3-dr-presence-' + headStatus">{{ presenceLabel(headStatus) }}</span>
+              <span class="rv3-dr-presence" :class="'rv3-dr-presence-' + headStatus">{{ t(presenceLabel(headStatus)) }}</span>
             </div>
             <div class="rv3-dr-meta">
-              {{ detail.email }} · последний вход {{ lastLoginRelative }}
+              {{ t('{email} · Последний вход: {time}', { email: detail.email, time: lastLoginRelative }) }}
             </div>
           </div>
-          <button class="rv3-dr-close" @click="emit('close')" aria-label="close">
+          <button class="rv3-dr-close" :aria-label="t('Закрыть карточку пользователя')" @click="emit('close')">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </div>
         <div class="rv3-dr-tabs">
-          <button :class="['rv3-dr-tab', { on: tab === 'access' }]" @click="tab = 'access'">Доступ</button>
-          <button :class="['rv3-dr-tab', { on: tab === 'profile' }]" @click="tab = 'profile'">Профиль</button>
-          <button :class="['rv3-dr-tab', { on: tab === 'activity' }]" @click="tab = 'activity'">Активность</button>
-          <button :class="['rv3-dr-tab', { on: tab === 'security' }]" @click="tab = 'security'">Безопасность</button>
+          <button :class="['rv3-dr-tab', { on: tab === 'access' }]" @click="tab = 'access'">{{ t('Доступ') }}</button>
+          <button :class="['rv3-dr-tab', { on: tab === 'profile' }]" @click="tab = 'profile'">{{ t('Профиль') }}</button>
+          <button :class="['rv3-dr-tab', { on: tab === 'activity' }]" @click="tab = 'activity'">{{ t('Активность') }}</button>
+          <button :class="['rv3-dr-tab', { on: tab === 'security' }]" @click="tab = 'security'">{{ t('Безопасность') }}</button>
         </div>
       </div>
 
@@ -688,12 +694,12 @@ async function onDeletePermanent() {
         <div v-if="tab === 'access'">
           <div class="rv3-dr-section">
             <div class="rv3-dr-section-title rv3-dr-section-title-row">
-              <span>Роли на платформе</span>
+              <span>{{ t('Роли на платформе') }}</span>
               <button
                 v-if="canManage && !detail.is_owner && !editingRoles"
                 class="rv3-dr-edit-link"
                 @click="openRoleEditor"
-              >Изменить</button>
+              >{{ t('Изменить') }}</button>
             </div>
             <!-- Read-only chips -->
             <div v-if="!editingRoles" class="rv3-dr-role-summary">
@@ -704,7 +710,7 @@ async function onDeletePermanent() {
                   <small v-if="roleByCode[rc]?.description_ru">{{ roleByCode[rc].description_ru }}</small>
                 </span>
               </div>
-              <span v-if="detail.role_codes.length === 0" class="rv3-empty">нет ролей</span>
+              <span v-if="detail.role_codes.length === 0" class="rv3-empty">{{ t('Нет ролей') }}</span>
             </div>
             <!-- Editor -->
             <div v-else class="rv3-dr-role-editor">
@@ -714,12 +720,11 @@ async function onDeletePermanent() {
                   <!-- Бэкенд отклоняет назначение 'admin' не-владельцем (403), поэтому
                        предупреждение должно называть это до сохранения — как в модалке
                        создания пользователя. -->
-                  <b>Полный доступ:</b> роль admin снимает ограничения по компаниям
-                  и назначается только владельцем платформы.
+                  {{ t('Полный доступ: роль admin снимает ограничения по компаниям и назначается только владельцем платформы.') }}
                 </span>
-                <button class="rv3-btn rv3-btn-ghost" @click="editingRoles = false" :disabled="savingRoles">Отмена</button>
+                <button class="rv3-btn rv3-btn-ghost" :disabled="savingRoles" @click="editingRoles = false">{{ t('Отмена') }}</button>
                 <button class="rv3-btn rv3-btn-purple" @click="saveRoles" :disabled="savingRoles">
-                  {{ savingRoles ? 'Сохранение…' : 'Сохранить роли' }}
+                  {{ savingRoles ? t('Сохранение…') : t('Сохранить роли') }}
                 </button>
               </div>
             </div>
@@ -727,44 +732,46 @@ async function onDeletePermanent() {
 
           <div class="rv3-dr-section">
             <div class="rv3-dr-section-title rv3-dr-section-title-row">
-              <span>Доступ по компаниям и группам ({{ (detail.group_memberships || []).length }})</span>
+              <span>{{ t('Доступ по компаниям и группам: {count}', {
+                count: fmt.fmtNumber((detail.group_memberships || []).length),
+              }) }}</span>
               <button
                 v-if="canManage && !detail.is_owner && !showAddMembership && availableGroupsForAdd.length"
                 class="rv3-dr-edit-link"
                 @click="showAddMembership = true"
-              >Добавить</button>
+              >{{ t('Добавить') }}</button>
             </div>
 
             <!-- Add-membership inline form -->
             <div v-if="showAddMembership" class="rv3-dr-mem-add">
               <div class="rv3-dr-mem-fields">
                 <label>
-                  <span>Компания или группа</span>
+                  <span>{{ t('Компания или группа') }}</span>
                   <select v-model="draftAddGroupId" class="rv3-dr-mem-sel">
-                    <option value="">Выберите область доступа</option>
+                    <option value="">{{ t('Выберите область доступа') }}</option>
                     <option v-for="g in availableGroupsForAdd" :key="g.id" :value="g.id">
                       {{ g.name }}
                     </option>
                   </select>
                 </label>
                 <label>
-                  <span>Роль в этой области</span>
+                  <span>{{ t('Роль в этой области') }}</span>
                   <select v-model="draftAddRoleCode" class="rv3-dr-mem-sel">
                     <option v-for="r in allRoles" :key="r.code" :value="r.code">{{ r.name_ru }}</option>
                   </select>
                 </label>
               </div>
               <div class="rv3-dr-mem-actions">
-                <button class="rv3-btn rv3-btn-ghost" @click="showAddMembership = false" :disabled="savingMembership">Отмена</button>
+                <button class="rv3-btn rv3-btn-ghost" :disabled="savingMembership" @click="showAddMembership = false">{{ t('Отмена') }}</button>
                 <button class="rv3-btn rv3-btn-purple" @click="addMembership"
                         :disabled="!draftAddGroupId || savingMembership">
-                  {{ savingMembership ? 'Добавление…' : 'Добавить доступ' }}
+                  {{ savingMembership ? t('Добавление…') : t('Добавить доступ') }}
                 </button>
               </div>
             </div>
 
             <div v-if="(detail.group_memberships || []).length === 0 && !showAddMembership && !hasDataScope" class="rv3-empty">
-              доступ по компаниям и группам не назначен
+              {{ t('Доступ по компаниям и группам не назначен') }}
             </div>
             <div v-else-if="(detail.group_memberships || []).length" class="rv3-dr-memberships">
               <div
@@ -781,7 +788,7 @@ async function onDeletePermanent() {
                   :value="m.role_code"
                   class="rv3-dr-mem-rolesel"
                   @change="changeMembershipRole(m.group_id, ($event.target as HTMLSelectElement).value)"
-                  title="Сменить роль в этой группе"
+                  :title="t('Сменить роль в этой группе')"
                 >
                   <option v-for="r in allRoles" :key="r.code" :value="r.code">{{ r.name_ru }}</option>
                 </select>
@@ -790,7 +797,7 @@ async function onDeletePermanent() {
                   v-if="canManage && !detail.is_owner"
                   class="rv3-dr-mem-x"
                   @click="removeMembership(m.group_id, m.group_name)"
-                  title="Убрать из группы"
+                  :title="t('Убрать из группы')"
                 >×</button>
               </div>
             </div>
@@ -799,12 +806,12 @@ async function onDeletePermanent() {
                  управлять — иначе секторы нельзя выдать впервые. -->
             <div v-if="hasDataScope || (canManage && !detail.is_owner)" class="rv3-dr-scope">
               <div class="rv3-dr-scope-h rv3-dr-scope-h-row">
-                <span>Доступ к данным компаний</span>
+                <span>{{ t('Доступ к данным компаний') }}</span>
                 <button
                   v-if="canManage && !detail.is_owner && !editingScope"
                   class="rv3-dr-edit-link"
                   @click="openScopeEditor"
-                >Изменить</button>
+                >{{ t('Изменить') }}</button>
               </div>
 
               <!-- Режим правки: чекбоксы секторов -->
@@ -816,51 +823,54 @@ async function onDeletePermanent() {
                   <span class="rv3-dr-scope-dot" :style="{ background: sec.color_hex || '#7F77DD' }"></span>
                   <span>{{ sec.name_ru || sec.code }}</span>
                 </label>
-                <div v-if="!allSectors.length" class="rv3-dr-scope-note">Справочник секторов не загружен.</div>
+                <div v-if="!allSectors.length" class="rv3-dr-scope-note">{{ t('Справочник секторов не загружен.') }}</div>
                 <div class="rv3-dr-scope-actions">
                   <button class="rv3-btn rv3-btn-ghost" :disabled="savingScope"
-                          @click="editingScope = false">Отмена</button>
+                          @click="editingScope = false">{{ t('Отмена') }}</button>
                   <button class="rv3-btn rv3-btn-purple" :disabled="savingScope" @click="saveScope">
-                    {{ savingScope ? 'Сохранение…' : 'Сохранить' }}
+                    {{ savingScope ? t('Сохранение…') : t('Сохранить') }}
                   </button>
                 </div>
                 <div class="rv3-dr-scope-note">
-                  Пусто — доступ по секторам снят; компании из групп при этом остаются.
+                  {{ t('Пусто: доступ по секторам снят, компании из групп при этом остаются.') }}
                 </div>
               </div>
 
               <div v-else-if="!hasDataScope" class="rv3-dr-scope-note">
-                Область по секторам не задана — доступ определяется группами компаний.
+                {{ t('Область по секторам не задана: доступ определяется группами компаний.') }}
               </div>
               <div v-else class="rv3-dr-scope-chips">
                 <span v-for="s in (detail.allowed_sectors || [])" :key="'sec-' + s"
                       class="rv3-dr-scope-chip"
                       :style="{ color: sectorColor(s), background: sectorColor(s) + '14', borderColor: sectorColor(s) + '33' }"
-                      :title="`Доступ ко всем компаниям сектора «${sectorLabel(s)}»`">
+                      :title="t('Доступ ко всем компаниям сектора «{sector}»', { sector: sectorLabel(s) })">
                   <span class="rv3-dr-scope-dot" :style="{ background: sectorColor(s) }"></span>
-                  Сектор: {{ sectorLabel(s) }}
+                  {{ t('Сектор: {sector}', { sector: sectorLabel(s) }) }}
                 </span>
                 <span v-for="c in (detail.allowed_companies || [])" :key="'co-' + c"
                       class="rv3-dr-scope-chip rv3-dr-scope-chip-co">{{ c }}</span>
               </div>
               <div v-if="(detail.allowed_sectors || []).length" class="rv3-dr-scope-note">
-                Пользователь видит все компании выбранных секторов.
+                {{ t('Пользователь видит все компании выбранных секторов.') }}
               </div>
             </div>
 
             <div v-if="!canManage" class="rv3-dr-mem-hint">
-              Для редактирования членства нужны права admin.users.
+              {{ t('Для редактирования членства нужны права admin.users.') }}
             </div>
           </div>
 
           <div class="rv3-dr-section">
             <div class="rv3-dr-section-title rv3-dr-section-title-row">
-              <span>Доступ к модулям · {{ accessCount }} из {{ MODULE_REGISTRY.length }}</span>
+              <span>{{ t('Доступ к модулям: {count} из {total}', {
+                count: fmt.fmtNumber(accessCount),
+                total: fmt.fmtNumber(MODULE_REGISTRY.length),
+              }) }}</span>
               <button
                 v-if="canManage && !detail.is_owner && !editingAccess"
                 class="rv3-dr-edit-link"
                 @click="openAccessEditor"
-              >Изменить</button>
+              >{{ t('Изменить') }}</button>
             </div>
             <ModuleSelectGrid
               v-if="!editingAccess"
@@ -876,15 +886,13 @@ async function onDeletePermanent() {
                 @update:modelValue="(v) => draftLevels = v"
               />
               <div class="rv3-dr-acc-hint">
-                Изменения сохраняются как персональные права поверх ролей: повышение —
-                grant, понижение — deny. Влияет только на этого пользователя.
-                Администрирование платформы здесь не выдаётся — оно даётся ролью.
+                {{ t('Изменения сохраняются как персональные права поверх ролей: повышение — grant, понижение — deny. Это влияет только на данного пользователя. Администрирование платформы выдаётся ролью.') }}
               </div>
               <div class="rv3-dr-role-foot">
                 <div style="flex:1"></div>
-                <button class="rv3-btn rv3-btn-ghost" @click="cancelAccessEditor" :disabled="savingAccess">Отмена</button>
+                <button class="rv3-btn rv3-btn-ghost" :disabled="savingAccess" @click="cancelAccessEditor">{{ t('Отмена') }}</button>
                 <button class="rv3-btn rv3-btn-purple" @click="saveAccess" :disabled="savingAccess">
-                  {{ savingAccess ? 'Сохранение…' : 'Сохранить доступ' }}
+                  {{ savingAccess ? t('Сохранение…') : t('Сохранить доступ') }}
                 </button>
               </div>
             </template>
@@ -901,43 +909,43 @@ async function onDeletePermanent() {
         <div v-else-if="tab === 'profile'">
           <div class="rv3-dr-section">
             <div class="rv3-dr-section-title">
-              Профиль
-              <button v-if="!editingProfile" class="rv3-prof-edit" @click="openProfileEditor">Редактировать</button>
+              {{ t('Профиль') }}
+              <button v-if="!editingProfile" class="rv3-prof-edit" @click="openProfileEditor">{{ t('Редактировать') }}</button>
             </div>
             <!-- Read-only -->
             <template v-if="!editingProfile">
-              <div class="rv3-prof-row"><span class="rv3-prof-l">ФИО</span><span>{{ detail.full_name }}</span></div>
-              <div class="rv3-prof-row"><span class="rv3-prof-l">Email</span><span>{{ detail.email }}</span></div>
-              <div class="rv3-prof-row"><span class="rv3-prof-l">Должность</span><span>{{ detail.job_title || '—' }}</span></div>
-              <div class="rv3-prof-row"><span class="rv3-prof-l">Отдел</span><span>{{ detail.department || '—' }}</span></div>
-              <div class="rv3-prof-row"><span class="rv3-prof-l">Компания</span><span>{{ companyName(detail.organization_id) }}</span></div>
+              <div class="rv3-prof-row"><span class="rv3-prof-l">{{ t('ФИО') }}</span><span>{{ detail.full_name }}</span></div>
+              <div class="rv3-prof-row"><span class="rv3-prof-l">{{ t('Email') }}</span><span>{{ detail.email }}</span></div>
+              <div class="rv3-prof-row"><span class="rv3-prof-l">{{ t('Должность') }}</span><span>{{ detail.job_title || '—' }}</span></div>
+              <div class="rv3-prof-row"><span class="rv3-prof-l">{{ t('Отдел') }}</span><span>{{ detail.department || '—' }}</span></div>
+              <div class="rv3-prof-row"><span class="rv3-prof-l">{{ t('Компания') }}</span><span>{{ companyName(detail.organization_id) }}</span></div>
             </template>
             <!-- Admin edit -->
             <template v-else>
               <div class="rv3-prof-edit-grid">
-                <label class="rv3-pe-field"><span>ФИО</span><input v-model="profForm.full_name" class="rv3-pe-in" /></label>
-                <label class="rv3-pe-field"><span>Должность</span><input v-model="profForm.job_title" class="rv3-pe-in" placeholder="Финансовый аналитик" /></label>
-                <label class="rv3-pe-field"><span>Отдел</span><input v-model="profForm.department" class="rv3-pe-in" placeholder="Финансовый блок" /></label>
-                <label class="rv3-pe-field"><span>Компания</span>
+                <label class="rv3-pe-field"><span>{{ t('ФИО') }}</span><input v-model="profForm.full_name" class="rv3-pe-in" /></label>
+                <label class="rv3-pe-field"><span>{{ t('Должность') }}</span><input v-model="profForm.job_title" class="rv3-pe-in" :placeholder="t('Финансовый аналитик')" /></label>
+                <label class="rv3-pe-field"><span>{{ t('Отдел') }}</span><input v-model="profForm.department" class="rv3-pe-in" :placeholder="t('Финансовый блок')" /></label>
+                <label class="rv3-pe-field"><span>{{ t('Компания') }}</span>
                   <select v-model="profForm.organization_id" class="rv3-pe-in">
-                    <option value="">— Не указана</option>
+                    <option value="">— {{ t('Не указана') }}</option>
                     <option v-for="c in allCompanies" :key="c.id" :value="c.id">{{ c.name }}</option>
                   </select>
                 </label>
               </div>
               <div class="rv3-pe-actions">
-                <button class="rv3-pe-cancel" :disabled="savingProfile" @click="editingProfile = false">Отмена</button>
-                <button class="rv3-pe-save" :disabled="savingProfile" @click="saveProfile">{{ savingProfile ? 'Сохранение…' : 'Сохранить' }}</button>
+                <button class="rv3-pe-cancel" :disabled="savingProfile" @click="editingProfile = false">{{ t('Отмена') }}</button>
+                <button class="rv3-pe-save" :disabled="savingProfile" @click="saveProfile">{{ savingProfile ? t('Сохранение…') : t('Сохранить') }}</button>
               </div>
             </template>
-            <div class="rv3-prof-row"><span class="rv3-prof-l">Создан</span><span>{{ new Date(detail.created_at).toLocaleDateString('ru-RU') }}</span></div>
-            <div class="rv3-prof-row"><span class="rv3-prof-l">Статус</span><span :style="{ color: detail.is_active ? '#1D9E75' : '#E24B4A' }">{{ detail.is_active ? 'активен' : 'заблокирован' }}</span></div>
-            <div class="rv3-prof-row" v-if="detail.is_owner"><span class="rv3-prof-l">Особое</span><span style="color:#B27015;font-weight:500;">владелец платформы (OWNER)</span></div>
+            <div class="rv3-prof-row"><span class="rv3-prof-l">{{ t('Создан') }}</span><span>{{ fmt.fmtDate(detail.created_at) }}</span></div>
+            <div class="rv3-prof-row"><span class="rv3-prof-l">{{ t('Статус') }}</span><span :style="{ color: detail.is_active ? '#1D9E75' : '#E24B4A' }">{{ detail.is_active ? t('Активен') : t('Заблокирован') }}</span></div>
+            <div v-if="detail.is_owner" class="rv3-prof-row"><span class="rv3-prof-l">{{ t('Особое') }}</span><span style="color:#B27015;font-weight:500;">{{ t('Владелец платформы (OWNER)') }}</span></div>
             <!-- OWNER может назначать/снимать статус OWNER (бэк гейтит owner-only) -->
             <div class="rv3-prof-row" v-if="auth.isOwner && detail.id !== auth.user?.id">
               <span class="rv3-prof-l">OWNER</span>
               <button class="rv3-owner-toggle" :class="{ on: detail.is_owner }" :disabled="ownerBusy" @click="toggleOwner">
-                {{ ownerBusy ? '…' : (detail.is_owner ? '✓ снять статус OWNER' : 'назначить OWNER') }}
+                {{ ownerBusy ? '…' : (detail.is_owner ? t('✓ Снять статус OWNER') : t('Назначить OWNER')) }}
               </button>
             </div>
           </div>
@@ -947,9 +955,9 @@ async function onDeletePermanent() {
         <div v-else-if="tab === 'activity'">
           <!-- Последний вход -->
           <div class="rv3-dr-section">
-            <div class="rv3-dr-section-title">Вход в систему</div>
+            <div class="rv3-dr-section-title">{{ t('Вход в систему') }}</div>
             <div class="rv3-prof-row">
-              <span class="rv3-prof-l">Последний вход</span>
+              <span class="rv3-prof-l">{{ t('Последний вход') }}</span>
               <span>
                 {{ detail.last_login_at ? fmt.fmtDateTime(detail.last_login_at) : '—' }}
                 <span v-if="(detail as any).last_login_ip" style="color: var(--t3, #888780)">· {{ (detail as any).last_login_ip }}</span>
@@ -961,13 +969,13 @@ async function onDeletePermanent() {
           <!-- История действий (аудит) -->
           <div class="rv3-dr-section">
             <div class="rv3-dr-section-title rv3-dr-section-title-row">
-              <span>История действий</span>
-              <span v-if="activityEvents.length" class="rv3-act-count">{{ activityEvents.length }}</span>
+              <span>{{ t('История действий') }}</span>
+              <span v-if="activityEvents.length" class="rv3-act-count">{{ fmt.fmtNumber(activityEvents.length) }}</span>
             </div>
 
-            <div v-if="activityLoading" class="rv3-empty">Загрузка истории…</div>
-            <div v-else-if="activityDenied" class="rv3-empty">Для просмотра истории нужно право audit.view.</div>
-            <div v-else-if="!activityEvents.length" class="rv3-empty">Действий пока нет.</div>
+            <div v-if="activityLoading" class="rv3-empty">{{ t('Загрузка истории…') }}</div>
+            <div v-else-if="activityDenied" class="rv3-empty">{{ t('Для просмотра истории нужно право audit.view.') }}</div>
+            <div v-else-if="!activityEvents.length" class="rv3-empty">{{ t('Действий пока нет.') }}</div>
 
             <div v-else class="rv3-act-groups">
               <div v-for="grp in activityGroups" :key="grp.key" class="rv3-act-group">
@@ -978,8 +986,8 @@ async function onDeletePermanent() {
                       <span class="rv3-act-dot" :style="{ background: evMeta(ev.action).color }"></span>
                       <div class="rv3-act-body">
                         <div class="rv3-act-top">
-                          <span class="rv3-act-action" :style="{ color: evMeta(ev.action).color }">{{ evMeta(ev.action).label }}</span>
-                          <span v-if="ev.is_critical" class="rv3-act-crit">critical</span>
+                          <span class="rv3-act-action" :style="{ color: evMeta(ev.action).color }">{{ t(evMeta(ev.action).label) }}</span>
+                          <span v-if="ev.is_critical" class="rv3-act-crit">{{ t('Критическое') }}</span>
                           <span v-if="ev.entity_label" class="rv3-act-entity">{{ ev.entity_label }}</span>
                         </div>
                         <div class="rv3-act-meta">
@@ -994,25 +1002,25 @@ async function onDeletePermanent() {
 
                     <!-- Подробности -->
                     <div v-if="expandedId === ev.id" class="rv3-act-detail">
-                      <div v-if="detailLoadingId === ev.id" class="rv3-empty">Загрузка деталей…</div>
+                      <div v-if="detailLoadingId === ev.id" class="rv3-empty">{{ t('Загрузка деталей…') }}</div>
                       <template v-else>
                         <div class="rv3-act-dl">
                           <div v-if="ev.http_method || ev.http_path" class="rv3-act-drow">
-                            <span class="rv3-act-dk">Запрос</span>
-                            <span class="rv3-act-dv mono"><b>{{ ev.http_method }}</b> {{ ev.http_path }}<span v-if="ev.http_status"> → {{ ev.http_status }}</span><span v-if="ev.duration_ms"> · {{ ev.duration_ms }} мс</span></span>
+                            <span class="rv3-act-dk">{{ t('Запрос') }}</span>
+                            <span class="rv3-act-dv mono"><b>{{ ev.http_method }}</b> {{ ev.http_path }}<span v-if="ev.http_status"> → {{ ev.http_status }}</span><span v-if="ev.duration_ms"> · {{ t('{duration} мс', { duration: fmt.fmtNumber(ev.duration_ms) }) }}</span></span>
                           </div>
                           <div v-if="ev.entity_type || ev.entity_id" class="rv3-act-drow">
-                            <span class="rv3-act-dk">Объект</span>
+                            <span class="rv3-act-dk">{{ t('Объект') }}</span>
                             <span class="rv3-act-dv">{{ ev.entity_type }}<span v-if="ev.entity_id" class="mono"> · {{ String(ev.entity_id).slice(0, 8) }}</span></span>
                           </div>
-                          <div v-if="ev.actor_role" class="rv3-act-drow"><span class="rv3-act-dk">Роль</span><span class="rv3-act-dv">{{ ev.actor_role }}</span></div>
-                          <div v-if="detailCache[ev.id]?.notes" class="rv3-act-drow"><span class="rv3-act-dk">Заметка</span><span class="rv3-act-dv">{{ detailCache[ev.id]?.notes }}</span></div>
-                          <div v-if="detailCache[ev.id]?.user_agent" class="rv3-act-drow"><span class="rv3-act-dk">Устройство</span><span class="rv3-act-dv rv3-act-ua">{{ detailCache[ev.id]?.user_agent }}</span></div>
+                          <div v-if="ev.actor_role" class="rv3-act-drow"><span class="rv3-act-dk">{{ t('Роль') }}</span><span class="rv3-act-dv">{{ ev.actor_role }}</span></div>
+                          <div v-if="detailCache[ev.id]?.notes" class="rv3-act-drow"><span class="rv3-act-dk">{{ t('Заметка') }}</span><span class="rv3-act-dv">{{ detailCache[ev.id]?.notes }}</span></div>
+                          <div v-if="detailCache[ev.id]?.user_agent" class="rv3-act-drow"><span class="rv3-act-dk">{{ t('Устройство') }}</span><span class="rv3-act-dv rv3-act-ua">{{ detailCache[ev.id]?.user_agent }}</span></div>
                         </div>
 
                         <!-- Изменения (diff) -->
                         <div v-if="diffRows(detailCache[ev.id]?.diff).length" class="rv3-act-diff">
-                          <div class="rv3-act-difflbl">Изменения</div>
+                          <div class="rv3-act-difflbl">{{ t('Изменения') }}</div>
                           <div v-for="(dr, i) in diffRows(detailCache[ev.id]?.diff)" :key="i" class="rv3-act-diffrow">
                             <span class="rv3-act-diff-f">{{ dr.field }}</span>
                             <span class="rv3-act-diff-v"><span v-if="dr.from" class="rv3-act-diff-old">{{ dr.from }}</span><span v-if="dr.from" class="rv3-act-diff-arr">→</span><span class="rv3-act-diff-new">{{ dr.to }}</span></span>
@@ -1033,40 +1041,41 @@ async function onDeletePermanent() {
           <!-- ── Password ── -->
           <div class="rv3-dr-section">
             <div class="rv3-dr-section-title rv3-dr-section-title-row">
-              <span>Пароль</span>
+              <span>{{ t('Пароль') }}</span>
               <div v-if="canManage && !detail.is_owner && !showPwdReset" class="rv3-dr-pwd-actions">
                 <button
                   v-if="!detail.must_change_password"
                   class="rv3-dr-edit-link"
                   @click="submitForceChange"
-                  title="Установить флаг must_change_password=true без смены пароля"
-                ><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Заставить сменить</button>
-                <button class="rv3-dr-edit-link" @click="openPwdReset"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="5.5"/><path d="M11.4 11.6 21 2l-2 2 2 2-3 3-2-2"/></svg>Сбросить</button>
+                  :title="t('Установить флаг must_change_password=true без смены пароля')"
+                ><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>{{ t('Заставить сменить') }}</button>
+                <button class="rv3-dr-edit-link" @click="openPwdReset"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="5.5"/><path d="M11.4 11.6 21 2l-2 2 2 2-3 3-2-2"/></svg>{{ t('Сбросить') }}</button>
               </div>
             </div>
             <div v-if="!showPwdReset" class="rv3-prof-row">
-              <span class="rv3-prof-l">Статус</span>
+              <span class="rv3-prof-l">{{ t('Статус') }}</span>
               <span :class="{ 'rv3-status-warn': detail.must_change_password }">
-                {{ detail.must_change_password ? '⚠ требуется смена при следующем входе' : '✓ действителен' }}
+                {{ detail.must_change_password ? t('⚠ Требуется смена при следующем входе') : t('✓ Действителен') }}
               </span>
             </div>
             <div v-if="!showPwdReset && (detail as any).password_changed_at" class="rv3-prof-row">
-              <span class="rv3-prof-l">Последняя смена</span>
-              <span class="rv3-status-mono">{{ new Date((detail as any).password_changed_at).toLocaleString('ru-RU') }}</span>
+              <span class="rv3-prof-l">{{ t('Последняя смена') }}</span>
+              <span class="rv3-status-mono">{{ fmt.fmtDateTime((detail as any).password_changed_at) }}</span>
             </div>
 
             <div v-else class="rv3-dr-pwd-panel" :class="{ 'rv3-dr-pwd-panel-done': pwdDone }">
               <!-- До сброса: подсказка -->
               <div v-if="!pwdDone" class="rv3-dr-pwd-hint">
-                Сгенерирован новый пароль. После сброса он применяется немедленно,
-                а все активные сессии этого пользователя завершаются.
+                {{ t('Сгенерирован новый пароль. После сброса он применяется немедленно, а все активные сессии этого пользователя завершаются.') }}
               </div>
               <!-- После сброса: success -->
               <div v-else class="rv3-dr-pwd-success">
                 <span class="rv3-dr-pwd-success-ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"/></svg></span>
                 <div>
-                  <div class="rv3-dr-pwd-success-t">Пароль сброшен · скопирован в буфер</div>
-                  <div class="rv3-dr-pwd-success-s">Сессии пользователя завершены<template v-if="pwdMustChange"> · потребуется смена при входе</template>.</div>
+                  <div class="rv3-dr-pwd-success-t">{{ t('Пароль сброшен · скопирован в буфер') }}</div>
+                  <div class="rv3-dr-pwd-success-s">{{ pwdMustChange
+                    ? t('Сессии пользователя завершены · потребуется смена при входе.')
+                    : t('Сессии пользователя завершены.') }}</div>
                 </div>
               </div>
 
@@ -1081,31 +1090,31 @@ async function onDeletePermanent() {
                   data-lpignore="true"
                   data-1p-ignore
                 />
-                <button class="rv3-dr-pwd-mini" @click="pwdShown = !pwdShown" :title="pwdShown ? 'Скрыть' : 'Показать'">
+                <button class="rv3-dr-pwd-mini" :title="pwdShown ? t('Скрыть') : t('Показать')" @click="pwdShown = !pwdShown">
                   <svg v-if="pwdShown" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19M1 1l22 22"/></svg>
                   <svg v-else width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                 </button>
-                <button v-if="!pwdDone" class="rv3-dr-pwd-mini" @click="pwdValue = generatePassword()" title="Сгенерировать новый"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></button>
-                <button class="rv3-dr-pwd-mini" :class="{ 'rv3-dr-pwd-mini-ok': pwdCopied }" @click="copyPwd" :title="pwdCopied ? 'Скопировано' : 'Скопировать'">
+                <button v-if="!pwdDone" class="rv3-dr-pwd-mini" :title="t('Сгенерировать новый')" @click="pwdValue = generatePassword()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></button>
+                <button class="rv3-dr-pwd-mini" :class="{ 'rv3-dr-pwd-mini-ok': pwdCopied }" :title="pwdCopied ? t('Скопировано') : t('Скопировать')" @click="copyPwd">
                   {{ pwdCopied ? '✓' : '⧉' }}
                 </button>
               </div>
 
               <label v-if="!pwdDone" class="rv3-dr-pwd-check">
                 <input type="checkbox" v-model="pwdMustChange"/>
-                Требовать смену пароля при следующем входе
+                {{ t('Требовать смену пароля при следующем входе') }}
               </label>
 
               <div class="rv3-dr-role-foot">
-                <span class="rv3-dr-pwd-warn">⚠ Передайте пароль безопасным каналом (не в email).</span>
+                <span class="rv3-dr-pwd-warn">{{ t('⚠ Передайте пароль безопасным каналом (не в email).') }}</span>
                 <template v-if="!pwdDone">
-                  <button class="rv3-btn rv3-btn-ghost" @click="closePwdReset" :disabled="pwdSaving">Отмена</button>
+                  <button class="rv3-btn rv3-btn-ghost" :disabled="pwdSaving" @click="closePwdReset">{{ t('Отмена') }}</button>
                   <button class="rv3-btn rv3-btn-purple" @click="submitPwdReset"
                           :disabled="pwdSaving || !pwdValue || pwdValue.length < 12">
-                    {{ pwdSaving ? 'Сброс…' : 'Сбросить пароль' }}
+                    {{ pwdSaving ? t('Сброс…') : t('Сбросить пароль') }}
                   </button>
                 </template>
-                <button v-else class="rv3-btn rv3-btn-purple" @click="closePwdReset">Готово</button>
+                <button v-else class="rv3-btn rv3-btn-purple" @click="closePwdReset">{{ t('Готово') }}</button>
               </div>
             </div>
           </div>
@@ -1113,22 +1122,22 @@ async function onDeletePermanent() {
           <!-- ── MFA ── -->
           <div class="rv3-dr-section">
             <div class="rv3-dr-section-title rv3-dr-section-title-row">
-              <span>Двухфакторная аутентификация</span>
+              <span>{{ t('Двухфакторная аутентификация') }}</span>
               <button
                 v-if="auth.isOwner && !detail.is_owner && mfaRow?.mfa_enabled"
                 class="rv3-dr-edit-link rv3-dr-edit-link-danger"
                 @click="forceDisableMfa"
                 :disabled="forcingDisable"
-              >{{ forcingDisable ? '…' : 'Сбросить 2FA' }}</button>
+              >{{ forcingDisable ? '…' : t('Сбросить 2FA') }}</button>
             </div>
 
-            <div v-if="mfaLoading" class="rv3-empty">Загрузка статуса…</div>
-            <div v-else-if="!mfaRow" class="rv3-empty">статус не доступен</div>
+            <div v-if="mfaLoading" class="rv3-empty">{{ t('Загрузка статуса…') }}</div>
+            <div v-else-if="!mfaRow" class="rv3-empty">{{ t('Статус недоступен') }}</div>
             <div v-else>
               <div class="rv3-prof-row">
                 <span class="rv3-prof-l">MFA</span>
                 <span :style="{ color: mfaRow.mfa_enabled ? '#1D9E75' : '#E24B4A' }">
-                  {{ mfaRow.mfa_enabled ? 'включена' : 'отключена' }}
+                  {{ mfaRow.mfa_enabled ? t('Включена') : t('Отключена') }}
                   <span v-if="mfaRow.mfa_enabled" style="color: var(--t3, #888780)">· {{ mfaRow.mfa_method }}</span>
                 </span>
               </div>
@@ -1138,20 +1147,20 @@ async function onDeletePermanent() {
                   <template v-if="mfaRow.telegram_linked">
                     @{{ mfaRow.telegram_username || '—' }}
                     <span style="color: var(--t3, #888780)" v-if="mfaRow.telegram_linked_at">
-                      · с {{ new Date(mfaRow.telegram_linked_at).toLocaleDateString('ru-RU') }}
+                      · {{ t('с {date}', { date: fmt.fmtDate(mfaRow.telegram_linked_at) }) }}
                     </span>
                   </template>
-                  <span v-else style="color: var(--t3, #888780)">не привязан</span>
+                  <span v-else style="color: var(--t3, #888780)">{{ t('Не привязан') }}</span>
                 </span>
               </div>
               <div class="rv3-prof-row">
-                <span class="rv3-prof-l">Recovery-коды</span>
+                <span class="rv3-prof-l">{{ t('Recovery-коды') }}</span>
                 <span :style="{ color: mfaRow.recovery_codes_remaining > 2 ? '#1D9E75' : (mfaRow.recovery_codes_remaining > 0 ? '#EF9F27' : '#E24B4A') }">
-                  {{ mfaRow.recovery_codes_remaining }} осталось
+                  {{ t('Осталось: {count}', { count: fmt.fmtNumber(mfaRow.recovery_codes_remaining) }) }}
                 </span>
               </div>
               <div class="rv3-prof-row" v-if="mfaRow.last_login_at">
-                <span class="rv3-prof-l">Последний вход</span>
+                <span class="rv3-prof-l">{{ t('Последний вход') }}</span>
                 <span>
                   {{ fmt.fmtDateTime(mfaRow.last_login_at) }}
                   <span v-if="mfaRow.last_login_ip" style="color: var(--t3, #888780)">· {{ mfaRow.last_login_ip }}</span>
@@ -1159,29 +1168,29 @@ async function onDeletePermanent() {
               </div>
 
               <div v-if="!auth.isOwner && mfaRow.mfa_enabled" class="rv3-dr-mem-hint">
-                Сбросить 2FA пользователя может только владелец платформы.
+                {{ t('Сбросить 2FA пользователя может только владелец платформы.') }}
               </div>
               <div v-if="!mfaRow.mfa_enabled" class="rv3-dr-mem-hint">
-                Пользователь не настроил 2FA. Сам пользователь делает это в Настройках профиля.
+                {{ t('Пользователь не настроил 2FA. Настройка доступна пользователю в профиле.') }}
               </div>
             </div>
           </div>
 
           <!-- ── Moderation flags (Pack 148-followup) ── -->
           <div class="rv3-dr-section">
-            <div class="rv3-dr-section-title">Модерация</div>
+            <div class="rv3-dr-section-title">{{ t('Модерация') }}</div>
             <div v-if="!canManage" class="rv3-dr-mem-hint">
-              Управление флагами модерации требует право admin.users.
+              {{ t('Управление флагами модерации требует право admin.users.') }}
             </div>
             <div v-else-if="detail.is_owner" class="rv3-dr-mem-hint">
-              Владелец платформы всегда обходит модерацию.
+              {{ t('Владелец платформы всегда обходит модерацию.') }}
             </div>
             <div v-else>
               <div class="rv3-dr-mod-row">
                 <span class="rv3-dr-mod-lbl">
-                  <span class="rv3-dr-mod-name">External (внешний пользователь)</span>
+                  <span class="rv3-dr-mod-name">{{ t('External (внешний пользователь)') }}</span>
                   <span class="rv3-dr-mod-hint">
-                    Включает матчинг по правилам с <code>trigger_is_external=true</code>.
+                    {{ t('Включает сопоставление по правилам с {flag}.', { flag: 'trigger_is_external=true' }) }}
                   </span>
                 </span>
                 <label class="rv3-dr-mod-switch">
@@ -1197,9 +1206,9 @@ async function onDeletePermanent() {
 
               <div class="rv3-dr-mod-row">
                 <span class="rv3-dr-mod-lbl">
-                  <span class="rv3-dr-mod-name">Bypass moderation (обход)</span>
+                  <span class="rv3-dr-mod-name">{{ t('Bypass moderation (обход)') }}</span>
                   <span class="rv3-dr-mod-hint">
-                    Запись идёт напрямую, даже если правило матчится.
+                    {{ t('Запись идёт напрямую, даже если правило совпало.') }}
                   </span>
                 </span>
                 <label class="rv3-dr-mod-switch">
@@ -1215,14 +1224,14 @@ async function onDeletePermanent() {
 
               <div v-if="detail.is_external" class="rv3-dr-mod-row rv3-dr-mod-row-input">
                 <span class="rv3-dr-mod-lbl">
-                  <span class="rv3-dr-mod-name">Организация</span>
-                  <span class="rv3-dr-mod-hint">Видна в списке «Подмодерируемые».</span>
+                  <span class="rv3-dr-mod-name">{{ t('Организация') }}</span>
+                  <span class="rv3-dr-mod-hint">{{ t('Видна в списке «Подмодерируемые».') }}</span>
                 </span>
                 <div class="rv3-dr-mod-input-wrap">
                   <input
                     v-model="modOrgDraft"
                     class="rv3-dr-mod-input"
-                    placeholder="напр. АО Контрагент"
+                    :placeholder="t('напр. АО Контрагент')"
                     @blur="patchModerationOrg"
                     @keydown.enter="patchModerationOrg"
                     :disabled="modSaving"
@@ -1236,16 +1245,16 @@ async function onDeletePermanent() {
 
       <!-- Footer actions -->
       <div class="rv3-dr-foot" v-if="!detail.is_owner">
-        <button class="rv3-btn rv3-btn-purple" @click="showClone = true">Создать аналогичного</button>
+        <button class="rv3-btn rv3-btn-purple" @click="showClone = true">{{ t('Создать аналогичного') }}</button>
         <button
           v-if="detail.is_active && !detail.role_codes.includes('admin') && !detail.role_codes.includes('ceo')"
           class="rv3-btn rv3-btn-ghost rv3-btn-imp"
           @click="startImpersonate"
           :disabled="impersonating"
-          title="Открыть платформу глазами этого пользователя (30 мин)"
+          :title="t('Открыть платформу глазами этого пользователя (30 мин)')"
         >
           <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="8" cy="5" r="2.5"/><path d="M3 13c0-2.5 2-4 5-4s5 1.5 5 4"/></svg>
-          {{ impersonating ? 'Загрузка...' : 'Войти как' }}
+          {{ impersonating ? t('Загрузка...') : t('Войти как') }}
         </button>
         <div style="flex:1;"></div>
         <button
@@ -1254,10 +1263,10 @@ async function onDeletePermanent() {
           @click="onReactivate"
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
-          {{ !detail.is_active ? 'Активировать' : 'Разблокировать' }}
+          {{ !detail.is_active ? t('Активировать') : t('Разблокировать') }}
         </button>
-        <button class="rv3-btn rv3-btn-ghost" @click="onDeactivate" v-if="detail.is_active">Деактивировать</button>
-        <button class="rv3-btn rv3-btn-red" @click="onDeletePermanent">Удалить</button>
+        <button v-if="detail.is_active" class="rv3-btn rv3-btn-ghost" @click="onDeactivate">{{ t('Деактивировать') }}</button>
+        <button class="rv3-btn rv3-btn-red" @click="onDeletePermanent">{{ t('Удалить') }}</button>
       </div>
     </template>
 

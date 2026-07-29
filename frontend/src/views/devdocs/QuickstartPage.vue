@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useApiCatalogStore } from "@/stores/apiCatalog";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const catalog = useApiCatalogStore();
 
@@ -25,20 +28,19 @@ const curlSnippet = computed(() => {
 <template>
   <article class="qs">
     <header class="qs-head">
-      <h1 class="qs-h1">3 шага до первого запроса</h1>
-      <p class="qs-sub">Получите токен, найдите endpoint, отправьте запрос.</p>
+      <h1 class="qs-h1">{{ t('3 шага до первого запроса') }}</h1>
+      <p class="qs-sub">{{ t('Получите токен, найдите endpoint, отправьте запрос.') }}</p>
     </header>
 
     <ol class="qs-steps">
       <li class="qs-step">
         <div class="qs-num">1</div>
         <div>
-          <div class="qs-step-h">Получите JWT-токен</div>
+          <div class="qs-step-h">{{ t('Получите JWT-токен') }}</div>
           <p class="qs-step-p">
-            POST <code class="qs-code">/auth/login</code> с email и паролем. В ответе —
-            <code class="qs-code">access_token</code> со сроком действия 30 мин.
-            Также возвращается <code class="qs-code">refresh_token</code> для обновления.
-            <RouterLink to="/api-docs/authentication" class="qs-link">Подробнее →</RouterLink>
+            POST <code class="qs-code">/auth/login</code> {{ t('с email и паролем. В ответе —') }}
+            <code class="qs-code">access_token</code> {{ t('со сроком действия 30 мин. Также возвращается') }} <code class="qs-code">refresh_token</code> {{ t('для обновления.') }}
+            <RouterLink to="/api-docs/authentication" class="qs-link">{{ t('Подробнее →') }}</RouterLink>
           </p>
         </div>
       </li>
@@ -46,11 +48,9 @@ const curlSnippet = computed(() => {
       <li class="qs-step">
         <div class="qs-num">2</div>
         <div>
-          <div class="qs-step-h">Найдите нужный endpoint</div>
+          <div class="qs-step-h">{{ t('Найдите нужный endpoint') }}</div>
           <p class="qs-step-p">
-            Откройте каталог endpoints в боковой панели. Можно фильтровать по модулю,
-            HTTP методу и правам доступа. Каждая страница endpoint'а содержит описание
-            параметров, схему ответа и code samples на 4 языках.
+            {{ t('Откройте каталог endpoints в боковой панели. Можно фильтровать по модулю, HTTP методу и правам доступа. Каждая страница endpoint\'а содержит описание параметров, схему ответа и code samples на 4 языках.') }}
           </p>
         </div>
       </li>
@@ -58,32 +58,30 @@ const curlSnippet = computed(() => {
       <li class="qs-step">
         <div class="qs-num">3</div>
         <div>
-          <div class="qs-step-h">Отправьте запрос</div>
+          <div class="qs-step-h">{{ t('Отправьте запрос') }}</div>
           <p class="qs-step-p">
-            Добавьте header <code class="qs-code">Authorization: Bearer &lt;token&gt;</code>
-            и сделайте HTTP запрос. Для тестирования есть «Try it out» прямо на странице
-            endpoint'а — без необходимости писать клиент.
+            {{ t('Добавьте header') }} <code class="qs-code">Authorization: Bearer &lt;token&gt;</code>
+            {{ t('и сделайте HTTP запрос. Для тестирования есть «Try it out» прямо на странице endpoint\'а — без необходимости писать клиент.') }}
           </p>
         </div>
       </li>
     </ol>
 
     <section class="qs-example">
-      <h2 class="qs-h2">Пример: получить список компаний портфеля</h2>
+      <h2 class="qs-h2">{{ t('Пример: получить список компаний портфеля') }}</h2>
       <pre class="qs-snippet">{{ curlSnippet }}</pre>
       <p class="qs-resp">
-        Ответ — JSON с массивом из 22 SOE: <code class="qs-code">id</code>, <code class="qs-code">code</code>,
-        <code class="qs-code">name_ru</code>, <code class="qs-code">sector_id</code>,
-        и базовая мета (сотрудники, год основания, директор).
+        {{ t('Ответ — JSON с массивом из 22 SOE:') }} <code class="qs-code">id</code>, <code class="qs-code">code</code>,
+        <code class="qs-code">name_ru</code>, <code class="qs-code">sector_id</code>{{ t(', и базовая мета (сотрудники, год основания, директор).') }}
       </p>
     </section>
 
     <section class="qs-next">
-      <h2 class="qs-h2">Что дальше</h2>
+      <h2 class="qs-h2">{{ t('Что дальше') }}</h2>
       <div class="qs-next-grid">
         <RouterLink to="/api-docs/endpoints/companies" class="qs-card">
-          <div class="qs-card-h">Каталог endpoints</div>
-          <div class="qs-card-p">Полный список с описаниями и code samples</div>
+          <div class="qs-card-h">{{ t('Каталог endpoints') }}</div>
+          <div class="qs-card-p">{{ t('Полный список с описаниями и code samples') }}</div>
         </RouterLink>
         <RouterLink to="/api-docs/authentication" class="qs-card">
           <div class="qs-card-h">Authentication</div>
@@ -91,15 +89,15 @@ const curlSnippet = computed(() => {
         </RouterLink>
         <RouterLink to="/api-docs/rate-limits" class="qs-card">
           <div class="qs-card-h">Rate limits</div>
-          <div class="qs-card-p">Лимиты по типу endpoint'а и обработка 429</div>
+          <div class="qs-card-p">{{ t('Лимиты по типу endpoint\'а и обработка 429') }}</div>
         </RouterLink>
         <RouterLink to="/api-docs/webhooks" class="qs-card">
           <div class="qs-card-h">Webhooks</div>
-          <div class="qs-card-p">Push-уведомления о событиях в платформе</div>
+          <div class="qs-card-p">{{ t('Push-уведомления о событиях в платформе') }}</div>
         </RouterLink>
         <RouterLink to="/api-docs/sdk" class="qs-card">
           <div class="qs-card-h">SDK · TS + Python</div>
-          <div class="qs-card-p">Готовые клиенты с типами и авто-аутентификацией</div>
+          <div class="qs-card-p">{{ t('Готовые клиенты с типами и авто-аутентификацией') }}</div>
         </RouterLink>
       </div>
     </section>

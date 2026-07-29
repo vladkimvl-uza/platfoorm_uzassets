@@ -11,6 +11,9 @@ import { ratingsApi, type AgencyRatingBrief, type AgencyRatingHistoryItem } from
 import ESGReportsTable from "@/components/ESG/ESGReportsTable.vue";
 import ESGMaturityMatrix from "@/components/ESG/ESGMaturityMatrix.vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const props = defineProps<{
   companyId: string;
@@ -91,7 +94,7 @@ function histDate(iso: string): string {
     <template v-else>
       <!-- Матрица зрелости (срез по компании) — 1:1 с /esg, редактируемая -->
       <div v-if="hasRow" class="mpp-matrix">
-        <div class="cw-section-label">Матрица ESG-зрелости</div>
+        <div class="cw-section-label">{{ t('Матрица ESG-зрелости') }}</div>
         <div class="mpp-matrix-scroll">
           <ESGMaturityMatrix :heatmap="singleHeatmap" :can-edit="canEdit" @saved="loadMaturity" />
         </div>
@@ -101,10 +104,10 @@ function histDate(iso: string): string {
       <!-- Динамика рейтингов -->
       <div class="mpp-rh">
         <div class="mpp-rh-head">
-          <span class="mpp-rh-title">Динамика рейтингов</span>
-          <span class="mpp-rh-src">ESG-рейтинги агентств · история изменений</span>
+          <span class="mpp-rh-title">{{ t('Динамика рейтингов') }}</span>
+          <span class="mpp-rh-src">{{ t('ESG-рейтинги агентств · история изменений') }}</span>
         </div>
-        <div v-if="ratingsLoading" class="mpp-rh-empty">Загрузка…</div>
+        <div v-if="ratingsLoading" class="mpp-rh-empty">{{ t('Загрузка…') }}</div>
         <template v-else>
           <div v-if="ratings.length" class="mpp-rh-list">
             <div v-for="r in ratings" :key="r.id" class="mpp-rh-wrap">
@@ -116,13 +119,13 @@ function histDate(iso: string): string {
                 </div>
                 <div class="mpp-rh-r">
                   <span v-if="r.rating_date_text" class="mpp-rh-date">{{ r.rating_date_text }}</span>
-                  <a v-if="r.report_url" class="mpp-rh-doc" :href="r.report_url" target="_blank" rel="noopener">отчёт</a>
-                  <button class="mpp-rh-btn" type="button" :class="{ on: histOpen === r.agency }" @click="toggleHistory(r.agency)">история</button>
+                  <a v-if="r.report_url" class="mpp-rh-doc" :href="r.report_url" target="_blank" rel="noopener">{{ t('отчёт') }}</a>
+                  <button class="mpp-rh-btn" type="button" :class="{ on: histOpen === r.agency }" @click="toggleHistory(r.agency)">{{ t('история') }}</button>
                 </div>
               </div>
               <Transition name="mpp-hist">
                 <div v-if="histOpen === r.agency" class="mpp-hist">
-                  <div v-if="histLoading" class="mpp-hist-empty">Загрузка истории…</div>
+                  <div v-if="histLoading" class="mpp-hist-empty">{{ t('Загрузка истории…') }}</div>
                   <template v-else>
                     <div v-if="histItems.length" class="mpp-hist-tl">
                       <div v-for="(h, i) in histItems" :key="h.id" class="mpp-hist-row" :style="{ '--d': (i*40)+'ms' }">
@@ -134,13 +137,13 @@ function histDate(iso: string): string {
                         <span v-if="h.changed_by_name" class="mpp-hist-who">· {{ h.changed_by_name }}</span>
                       </div>
                     </div>
-                    <div v-else class="mpp-hist-empty">История пуста — изменения появятся после правок рейтинга</div>
+                    <div v-else class="mpp-hist-empty">{{ t('История пуста — изменения появятся после правок рейтинга') }}</div>
                   </template>
                 </div>
               </Transition>
             </div>
           </div>
-          <div v-else class="mpp-rh-empty">Независимых ESG-рейтингов пока нет</div>
+          <div v-else class="mpp-rh-empty">{{ t('Независимых ESG-рейтингов пока нет') }}</div>
         </template>
       </div>
 

@@ -9,6 +9,9 @@ import {
   notificationsApi,
   type NotificationPreference, type NotificationType,
 } from "@/api/notifications";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const types = ref<NotificationType[]>([]);
 const categories = ref<string[]>([]);
@@ -120,13 +123,13 @@ function typesIn(category: string): NotificationType[] {
       <div class="np-tb-l">
         <div class="np-eyebrow">
           <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="8" r="2"/><path d="M12.5 9.5l1 1M2.5 9.5l-1 1M9.5 12.5l1 1M9.5 2.5l1-1M6.5 12.5l-1 1M6.5 2.5l-1-1M12.5 6.5l1-1M2.5 6.5l-1-1"/></svg>
-          Настройки · уведомления
+          {{ t('Настройки · уведомления') }}
         </div>
-        <div class="np-title">Каналы и предпочтения</div>
-        <div class="np-sub">Управление тем, какие уведомления вы получаете и где</div>
+        <div class="np-title">{{ t('Каналы и предпочтения') }}</div>
+        <div class="np-sub">{{ t('Управление тем, какие уведомления вы получаете и где') }}</div>
       </div>
       <div class="np-tb-r">
-        <button class="np-btn np-btn-ghost" @click="sendTest">Отправить тест</button>
+        <button class="np-btn np-btn-ghost" @click="sendTest">{{ t('Отправить тест') }}</button>
         <button class="np-btn np-btn-primary" :disabled="saving" @click="saveAll">{{ saving ? "Сохраняем..." : "Сохранить" }}</button>
       </div>
     </div>
@@ -138,12 +141,12 @@ function typesIn(category: string): NotificationType[] {
       <div v-for="cat in categories" :key="cat" class="np-card">
         <div class="np-card-hd">
           <span class="np-card-ttl">{{ cat }}</span>
-          <span class="np-card-cnt">{{ typesIn(cat).length }} типов</span>
+          <span class="np-card-cnt">{{ typesIn(cat).length }} {{ t('типов') }}</span>
         </div>
 
         <div class="np-row np-row-head">
-          <div class="np-row-l">Тип уведомления</div>
-          <div class="np-row-prio">Приоритет</div>
+          <div class="np-row-l">{{ t('Тип уведомления') }}</div>
+          <div class="np-row-prio">{{ t('Приоритет') }}</div>
           <div class="np-row-ch">In-app</div>
           <div class="np-row-ch">Email</div>
           <div class="np-row-ch">Telegram</div>

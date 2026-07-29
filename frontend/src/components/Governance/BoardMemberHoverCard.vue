@@ -115,20 +115,20 @@ const tags = computed(() => {
             <span class="bmh-meta-v bmh-meta-v--trunc">{{ member.email }}</span>
           </div>
           <div v-if="member.phone" class="bmh-meta-row">
-            <span class="bmh-meta-l">Телефон</span>
+            <span class="bmh-meta-l">{{ t('Телефон') }}</span>
             <span class="bmh-meta-v">{{ member.phone }}</span>
           </div>
           <div class="bmh-meta-row">
-            <span class="bmh-meta-l">Назначен</span>
+            <span class="bmh-meta-l">{{ t('Назначен') }}</span>
             <span class="bmh-meta-v">{{ member.appointed }}</span>
           </div>
           <div v-if="tenure" class="bmh-meta-row">
-            <span class="bmh-meta-l">В совете</span>
+            <span class="bmh-meta-l">{{ t('В совете') }}</span>
             <span class="bmh-meta-v">{{ tenure }}</span>
           </div>
         </div>
 
-        <div class="bmh-cta">Открыть профиль
+        <div class="bmh-cta">{{ t('Открыть профиль') }}
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
         </div>
       </div>

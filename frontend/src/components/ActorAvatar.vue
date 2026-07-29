@@ -6,6 +6,9 @@
  */
 import { ref, watch } from "vue";
 import { api } from "@/api/client";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const props = withDefaults(defineProps<{
   userId?: string | null;
@@ -37,7 +40,7 @@ const dim = () => (props.size || 32);
         :title="card?.full_name || ''">
     <img v-if="card?.avatar_url" :src="card.avatar_url" alt="" />
     <span v-else>{{ card?.initials || '•' }}</span>
-    <span v-if="star && card?.is_owner" class="actor-av-star" title="Владелец платформы"
+    <span v-if="star && card?.is_owner" class="actor-av-star" :title="t('Владелец платформы')"
           :style="{ width: Math.max(8, Math.round(dim() * 0.36)) + 'px', height: Math.max(8, Math.round(dim() * 0.36)) + 'px' }">
       <svg viewBox="0 0 16 16" fill="currentColor" width="100%" height="100%"><path d="M8 1 L10 5.6 L15 6.2 L11.3 9.6 L12.3 14.5 L8 12 L3.7 14.5 L4.7 9.6 L1 6.2 L6 5.6 Z"/></svg>
     </span>

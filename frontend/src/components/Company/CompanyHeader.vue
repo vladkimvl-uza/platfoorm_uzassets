@@ -8,7 +8,7 @@
         {{ sectorAbbr }}
       </div>
       <div class="ch-title-block">
-        <a class="ch-eyebrow" @click="$emit('back-to-portfolio')">← Портфель</a>
+        <a class="ch-eyebrow" @click="$emit('back-to-portfolio')">{{ t('← Портфель') }}</a>
         <div class="ch-title" :title="company.name">{{ company.name }}</div>
       </div>
     </div>
@@ -19,10 +19,10 @@
         online
       </span>
       <span class="ch-pill ch-pill-year" @click="$emit('year-click')">
-        Год: {{ year }}
+        {{ t('Год:') }} {{ year }}
       </span>
-      <button class="ch-btn-ghost" @click="$emit('export-click')">⌃ Экспорт</button>
-      <button class="ch-btn-icon" @click="$emit('more-click')" aria-label="Ещё">⋯</button>
+      <button class="ch-btn-ghost" @click="$emit('export-click')">{{ t('⌃ Экспорт') }}</button>
+      <button class="ch-btn-icon" @click="$emit('more-click')" :aria-label="t('Ещё')">⋯</button>
     </div>
   </header>
 </template>
@@ -30,6 +30,9 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { SECTOR_META, type SectorId } from './companyNavConfig';
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const props = defineProps<{
   company: { name: string; abbr: string; sector: SectorId };

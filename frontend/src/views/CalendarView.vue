@@ -7,6 +7,9 @@ import { useEntityEditor } from "@/composables/useEntityEditor";
 import { useToast } from "@/composables/useToast";
 import ModalShell from "@/components/ModalShell.vue";
 import { useCompanyScope } from "@/composables/useCompanyScope";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const { openTask, openProject } = useEntityEditor();
 const toast = useToast();
@@ -79,22 +82,22 @@ async function copyIcal() {
     <!-- Hero header -->
     <div class="gc-head">
       <div class="gc-head-l">
-        <div class="gc-eyebrow">UzAssets · Планирование</div>
-        <h1 class="gc-title">Календарь дедлайнов</h1>
-        <div class="gc-sub">Сроки проектов и задач по всему портфелю — синхронно с платформой</div>
+        <div class="gc-eyebrow">{{ t('UzAssets · Планирование') }}</div>
+        <h1 class="gc-title">{{ t('Календарь дедлайнов') }}</h1>
+        <div class="gc-sub">{{ t('Сроки проектов и задач по всему портфелю — синхронно с платформой') }}</div>
       </div>
       <div class="gc-head-r">
         <div v-if="scope.showCompanyPicker.value" class="gc-filter">
           <svg class="gc-filter-ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18M6 12h12M10 17h4"/></svg>
-          <select v-model="selectedCompany" class="gc-select" :title="selectedName" aria-label="Фильтр по компании">
-            <option :value="null">Все компании</option>
+          <select v-model="selectedCompany" class="gc-select" :title="selectedName" :aria-label="t('Фильтр по компании')">
+            <option :value="null">{{ t('Все компании') }}</option>
             <option v-for="c in companies" :key="c.id" :value="c.id">{{ c.name }}</option>
           </select>
           <svg class="gc-filter-chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
         </div>
         <button class="gc-ical-btn" @click="openIcal">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-          Подписаться
+          {{ t('Подписаться') }}
         </button>
       </div>
     </div>
@@ -111,27 +114,26 @@ async function copyIcal() {
           <div class="gc-modal-ic">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
           </div>
-          <span>Подписка в календаре</span>
+          <span>{{ t('Подписка в календаре') }}</span>
         </div>
       </template>
       <p class="gc-modal-text">
-        Добавьте эту ссылку как <b>подписку на календарь</b> в Outlook / Google Calendar / Apple Calendar —
-        дедлайны будут появляться и обновляться автоматически.
+        {{ t('Добавьте эту ссылку как') }} <b>{{ t('подписку на календарь') }}</b> {{ t('в Outlook / Google Calendar / Apple Calendar — дедлайны будут появляться и обновляться автоматически.') }}
       </p>
       <div v-if="icalError" class="gc-ical-err">
-        Не удалось получить ссылку подписки.
-        <button class="gc-copy" @click="openIcal">Повторить</button>
+        {{ t('Не удалось получить ссылку подписки.') }}
+        <button class="gc-copy" @click="openIcal">{{ t('Повторить') }}</button>
       </div>
-      <div v-else-if="!icalUrl" class="gc-ical-err">Загрузка ссылки…</div>
+      <div v-else-if="!icalUrl" class="gc-ical-err">{{ t('Загрузка ссылки…') }}</div>
       <div v-else class="gc-url-row">
-        <input class="gc-url" :value="icalUrl" readonly aria-label="Ссылка подписки iCal" @focus="($event.target as HTMLInputElement).select()" />
+        <input class="gc-url" :value="icalUrl" readonly :aria-label="t('Ссылка подписки iCal')" @focus="($event.target as HTMLInputElement).select()" />
         <button class="gc-copy" :class="{ done: copied }" @click="copyIcal">
           <svg v-if="copied" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
           {{ copied ? "Скопировано" : "Копировать" }}
         </button>
       </div>
       <div class="gc-hint">
-        Google: «Другие календари → Добавить по URL». Outlook: «Добавить календарь → Подписаться из интернета».
+        {{ t('Google: «Другие календари → Добавить по URL». Outlook: «Добавить календарь → Подписаться из интернета».') }}
       </div>
     </ModalShell>
   </div>

@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 250">
+  <path fill="#0099b5" d="M0 0h500v80H0z"/>
+  <path fill="#ce1126" d="M0 80h500v10H0z"/>
+  <path fill="#fff" d="M0 90h500v70H0z"/>
+  <path fill="#ce1126" d="M0 160h500v10H0z"/>
+  <path fill="#1eb53a" d="M0 170h500v80H0z"/>
+  <circle cx="56" cy="40" r="28" fill="#fff"/>
+  <circle cx="68" cy="35" r="23" fill="#0099b5"/>
+  <defs>
+    <path id="s" d="M0-5l1.12 3.45h3.64L1.82.59l1.12 3.46L0 1.91l-2.94 2.14L-1.82.59l-2.94-2.14h3.64z"/>
+  </defs>
+  <g fill="#fff">
+    <use href="#s" transform="translate(105 21)"/>
+    <use href="#s" transform="translate(125 21)"/>
+    <use href="#s" transform="translate(145 21)"/>
+    <use href="#s" transform="translate(95 40)"/>
+    <use href="#s" transform="translate(115 40)"/>
+    <use href="#s" transform="translate(135 40)"/>
+    <use href="#s" transform="translate(155 40)"/>
+    <use href="#s" transform="translate(85 59)"/>
+    <use href="#s" transform="translate(105 59)"/>
+    <use href="#s" transform="translate(125 59)"/>
+    <use href="#s" transform="translate(145 59)"/>
+    <use href="#s" transform="translate(165 59)"/>
+  </g>
+</svg>

@@ -6,6 +6,9 @@
 import { ref, computed, watch, onMounted } from "vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import { pmoApi, type RaidItem, type RaidPayload, type RaidKind, type RaidSeverity, type RaidStatus } from "@/api/pmo";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const props = defineProps<{ companyCode: string; canEdit?: boolean }>();
 
@@ -145,15 +148,15 @@ const fmtDue = (s: string | null) => s ? new Date(s + "T00:00:00").toLocaleDateS
     <!-- Тулбар -->
     <div class="pr-bar">
       <div class="pr-chips">
-        <button class="pr-chip" :class="{ on: kindFilter === '' }" @click="kindFilter = ''">Все типы</button>
+        <button class="pr-chip" :class="{ on: kindFilter === '' }" @click="kindFilter = ''">{{ t('Все типы') }}</button>
         <button v-for="k in KINDS" :key="k.v" class="pr-chip" :class="{ on: kindFilter === k.v }" @click="kindFilter = k.v">{{ k.l }}</button>
       </div>
       <div class="pr-pol-seg">
-        <button class="pr-pol" :class="{ on: polarityFilter === '' }" @click="polarityFilter = ''">Все</button>
-        <button class="pr-pol pol-threat" :class="{ on: polarityFilter === 'threat' }" @click="polarityFilter = 'threat'">Угрозы</button>
-        <button class="pr-pol pol-opp" :class="{ on: polarityFilter === 'opportunity' }" @click="polarityFilter = 'opportunity'">Возможности</button>
+        <button class="pr-pol" :class="{ on: polarityFilter === '' }" @click="polarityFilter = ''">{{ t('Все') }}</button>
+        <button class="pr-pol pol-threat" :class="{ on: polarityFilter === 'threat' }" @click="polarityFilter = 'threat'">{{ t('Угрозы') }}</button>
+        <button class="pr-pol pol-opp" :class="{ on: polarityFilter === 'opportunity' }" @click="polarityFilter = 'opportunity'">{{ t('Возможности') }}</button>
       </div>
-      <button v-if="canEdit" class="pr-add" @click="openCreate">+ Запись RAID</button>
+      <button v-if="canEdit" class="pr-add" @click="openCreate">{{ t('+ Запись RAID') }}</button>
     </div>
 
     <UzaStateBlock v-if="loading" state="loading" text="Загрузка реестра…" />
@@ -162,7 +165,7 @@ const fmtDue = (s: string | null) => s ? new Date(s + "T00:00:00").toLocaleDateS
       <div class="pr-cols">
         <!-- Матрица P×I -->
         <div class="pr-matrix">
-          <div class="pr-matrix-t">Вероятность × Влияние</div>
+          <div class="pr-matrix-t">{{ t('Вероятность × Влияние') }}</div>
           <table class="pr-mx">
             <tbody>
               <tr v-for="i in [5,4,3,2,1]" :key="'i'+i">
@@ -180,22 +183,22 @@ const fmtDue = (s: string | null) => s ? new Date(s + "T00:00:00").toLocaleDateS
               <tr><th class="pr-mx-corner"></th><th v-for="p in [1,2,3,4,5]" :key="'x'+p" class="pr-mx-xl">{{ p }}</th></tr>
             </tbody>
           </table>
-          <div class="pr-mx-axis"><span>← влияние</span><span>вероятность →</span></div>
+          <div class="pr-mx-axis"><span>{{ t('← влияние') }}</span><span>{{ t('вероятность →') }}</span></div>
         </div>
 
         <!-- Таблица -->
         <div class="pr-table-wrap">
           <div v-if="matrixCell" class="pr-filterhint">
-            Фильтр: P{{ matrixCell.p }}×I{{ matrixCell.i }}
-            <button @click="matrixCell = null">сбросить ×</button>
+            {{ t('Фильтр: P') }}{{ matrixCell.p }}×I{{ matrixCell.i }}
+            <button @click="matrixCell = null">{{ t('сбросить ×') }}</button>
           </div>
-          <UzaStateBlock v-if="!filtered.length" state="empty" variant="block" title="Записей нет" text="Добавьте риск/проблему/допущение/зависимость." />
+          <UzaStateBlock v-if="!filtered.length" state="empty" variant="block" :title="t('Записей нет')" text="Добавьте риск/проблему/допущение/зависимость." />
           <table v-else class="uza-table pr-tbl">
             <thead>
               <tr>
-                <th>Тип</th><th>Название</th><th>Владелец</th><th>Серьёзн.</th>
+                <th>{{ t('Тип') }}</th><th>{{ t('Название') }}</th><th>{{ t('Владелец') }}</th><th>{{ t('Серьёзн.') }}</th>
                 <th style="text-align:center">P×I</th><th style="text-align:center">Score</th>
-                <th>Статус</th><th>Срок</th><th></th>
+                <th>{{ t('Статус') }}</th><th>{{ t('Срок') }}</th><th></th>
               </tr>
             </thead>
             <tbody>
@@ -206,7 +209,7 @@ const fmtDue = (s: string | null) => s ? new Date(s + "T00:00:00").toLocaleDateS
                 </td>
                 <td>
                   <div class="pr-title">{{ it.title }}</div>
-                  <div v-if="it.response_strategy" class="pr-resp">Реакция: {{ RESP_L[it.response_strategy] || it.response_strategy }}</div>
+                  <div v-if="it.response_strategy" class="pr-resp">{{ t('Реакция:') }} {{ RESP_L[it.response_strategy] || it.response_strategy }}</div>
                   <div v-if="it.mitigation" class="pr-mit">↳ {{ it.mitigation }}</div>
                 </td>
                 <td>{{ it.owner_name || "—" }}</td>
@@ -216,10 +219,10 @@ const fmtDue = (s: string | null) => s ? new Date(s + "T00:00:00").toLocaleDateS
                 <td><span class="pr-stat" :style="{ color: STAT_M[it.status]?.c }">{{ STAT_M[it.status]?.l }}</span></td>
                 <td class="is-mono">{{ fmtDue(it.due_date) }}</td>
                 <td style="text-align:right">
-                  <button v-if="canEdit" class="pr-ia" title="Править" @click="openEdit(it)">
+                  <button v-if="canEdit" class="pr-ia" :title="t('Править')" @click="openEdit(it)">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                   </button>
-                  <button v-if="canEdit" class="pr-ia pr-ia-del" title="Удалить" @click="removeItem(it)">
+                  <button v-if="canEdit" class="pr-ia pr-ia-del" :title="t('Удалить')" @click="removeItem(it)">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                   </button>
                 </td>
@@ -236,44 +239,44 @@ const fmtDue = (s: string | null) => s ? new Date(s + "T00:00:00").toLocaleDateS
         <div class="pr-modal-h">{{ editingId ? "Правка записи" : "Новая запись RAID" }}</div>
         <div class="pr-modal-b">
           <div class="pr-f2">
-            <div class="pr-f"><label>Тип</label>
+            <div class="pr-f"><label>{{ t('Тип') }}</label>
               <select v-model="form.kind"><option v-for="k in KINDS" :key="k.v" :value="k.v">{{ k.l }}</option></select>
             </div>
-            <div class="pr-f"><label>Полярность</label>
+            <div class="pr-f"><label>{{ t('Полярность') }}</label>
               <div class="pr-pol-toggle">
-                <button type="button" class="pol-threat" :class="{ on: form.polarity === 'threat' }" @click="form.polarity = 'threat'; onPolarityChange()">Угроза</button>
-                <button type="button" class="pol-opp" :class="{ on: form.polarity === 'opportunity' }" @click="form.polarity = 'opportunity'; onPolarityChange()">Возможность</button>
+                <button type="button" class="pol-threat" :class="{ on: form.polarity === 'threat' }" @click="form.polarity = 'threat'; onPolarityChange()">{{ t('Угроза') }}</button>
+                <button type="button" class="pol-opp" :class="{ on: form.polarity === 'opportunity' }" @click="form.polarity = 'opportunity'; onPolarityChange()">{{ t('Возможность') }}</button>
               </div>
             </div>
           </div>
-          <div class="pr-f"><label>Название</label><input v-model="form.title" placeholder="Кратко суть" /></div>
-          <div class="pr-f"><label>Описание</label><textarea v-model="form.description" rows="2"></textarea></div>
+          <div class="pr-f"><label>{{ t('Название') }}</label><input v-model="form.title" :placeholder="t('Кратко суть')" /></div>
+          <div class="pr-f"><label>{{ t('Описание') }}</label><textarea v-model="form.description" rows="2"></textarea></div>
           <div class="pr-f2">
-            <div class="pr-f"><label>Владелец</label><input v-model="form.owner_name" placeholder="Имя" /></div>
-            <div class="pr-f"><label>Серьёзность</label>
+            <div class="pr-f"><label>{{ t('Владелец') }}</label><input v-model="form.owner_name" :placeholder="t('Имя')" /></div>
+            <div class="pr-f"><label>{{ t('Серьёзность') }}</label>
               <select v-model="form.severity"><option v-for="s in SEVERITIES" :key="s.v" :value="s.v">{{ s.l }}</option></select>
             </div>
           </div>
           <div class="pr-f2">
-            <div class="pr-f"><label>Вероятность (1–5)</label><input type="number" min="1" max="5" v-model.number="form.probability" /></div>
-            <div class="pr-f"><label>Влияние (1–5)</label><input type="number" min="1" max="5" v-model.number="form.impact" /></div>
+            <div class="pr-f"><label>{{ t('Вероятность (1–5)') }}</label><input type="number" min="1" max="5" v-model.number="form.probability" /></div>
+            <div class="pr-f"><label>{{ t('Влияние (1–5)') }}</label><input type="number" min="1" max="5" v-model.number="form.impact" /></div>
           </div>
           <div class="pr-f2">
-            <div class="pr-f"><label>Статус</label>
+            <div class="pr-f"><label>{{ t('Статус') }}</label>
               <select v-model="form.status"><option v-for="s in STATUSES" :key="s.v" :value="s.v">{{ s.l }}</option></select>
             </div>
-            <div class="pr-f"><label>Срок</label><input type="date" v-model="form.due_date" /></div>
+            <div class="pr-f"><label>{{ t('Срок') }}</label><input type="date" v-model="form.due_date" /></div>
           </div>
-          <div class="pr-f"><label>Стратегия реагирования ({{ form.polarity === 'opportunity' ? 'возможность' : 'угроза' }})</label>
+          <div class="pr-f"><label>{{ t('Стратегия реагирования (') }}{{ form.polarity === 'opportunity' ? 'возможность' : 'угроза' }})</label>
             <select v-model="form.response_strategy">
-              <option :value="null">— Не выбрана</option>
+              <option :value="null">{{ t('— Не выбрана') }}</option>
               <option v-for="r in respOptions" :key="r.v" :value="r.v">{{ r.l }}</option>
             </select>
           </div>
           <div class="pr-f"><label>{{ form.polarity === 'opportunity' ? 'План реализации' : 'Митигировка / план' }}</label><textarea v-model="form.mitigation" rows="2"></textarea></div>
         </div>
         <div class="pr-modal-f">
-          <button class="pr-btn-ghost" @click="formOpen = false">Отмена</button>
+          <button class="pr-btn-ghost" @click="formOpen = false">{{ t('Отмена') }}</button>
           <button class="pr-btn" :disabled="saving" @click="save">{{ saving ? "Сохраняю…" : "Сохранить" }}</button>
         </div>
       </div>

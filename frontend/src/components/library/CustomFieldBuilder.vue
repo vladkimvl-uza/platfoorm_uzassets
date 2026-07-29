@@ -12,6 +12,9 @@ import {
   type FieldType,
   type ScopeType,
 } from "@/api/companyLibrary";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const props = defineProps<{ open: boolean }>();
 const emit  = defineEmits<{ (e: "close"): void; (e: "created", code: string): void }>();
@@ -132,26 +135,26 @@ async function submit() {
   <ModalShell :open="open" size="md" @close="emit('close')">
     <template #header>
       <div>
-        <div class="cl-modal-eyebrow">Библиотека · Новая колонка</div>
-        <h3 class="cl-modal-title">Создать пользовательское поле</h3>
+        <div class="cl-modal-eyebrow">{{ t('Библиотека · Новая колонка') }}</div>
+        <h3 class="cl-modal-title">{{ t('Создать пользовательское поле') }}</h3>
       </div>
     </template>
 
     <div class="cl-modal-body">
       <div class="cl-form-row">
-              <label class="cl-form-label">Название</label>
+              <label class="cl-form-label">{{ t('Название') }}</label>
               <input
                 v-model="name_ru"
                 @blur="autoCode"
                 type="text"
                 class="cl-form-input"
-                placeholder="Au-эквивалент, выбросы CO₂…"
+                :placeholder="t('Au-эквивалент, выбросы CO₂…')"
                 maxlength="255"
               />
             </div>
 
             <div class="cl-form-row">
-              <label class="cl-form-label">Код <span class="cl-form-hint">(латиница, генерируется автоматически)</span></label>
+              <label class="cl-form-label">{{ t('Код') }} <span class="cl-form-hint">{{ t('(латиница, генерируется автоматически)') }}</span></label>
               <input
                 v-model="code"
                 type="text"
@@ -163,30 +166,30 @@ async function submit() {
 
             <div class="cl-form-row cl-form-row-2col">
               <div>
-                <label class="cl-form-label">Тип</label>
+                <label class="cl-form-label">{{ t('Тип') }}</label>
                 <select v-model="field_type" class="cl-form-input">
-                  <option value="number">Число</option>
-                  <option value="text">Текст</option>
-                  <option value="date">Дата</option>
-                  <option value="enum">Список</option>
-                  <option value="boolean">Да / Нет</option>
-                  <option value="formula">Формула</option>
+                  <option value="number">{{ t('Число') }}</option>
+                  <option value="text">{{ t('Текст') }}</option>
+                  <option value="date">{{ t('Дата') }}</option>
+                  <option value="enum">{{ t('Список') }}</option>
+                  <option value="boolean">{{ t('Да / Нет') }}</option>
+                  <option value="formula">{{ t('Формула') }}</option>
                 </select>
               </div>
               <div>
-                <label class="cl-form-label">Единица <span class="cl-form-hint">(опц.)</span></label>
+                <label class="cl-form-label">{{ t('Единица') }} <span class="cl-form-hint">{{ t('(опц.)') }}</span></label>
                 <input
                   v-model="unit"
                   type="text"
                   class="cl-form-input"
-                  placeholder="т, %, млрд UZS"
+                  :placeholder="t('т, %, млрд UZS')"
                   maxlength="32"
                 />
               </div>
             </div>
 
             <div v-if="field_type === 'enum'" class="cl-form-row">
-              <label class="cl-form-label">Значения <span class="cl-form-hint">(через запятую)</span></label>
+              <label class="cl-form-label">{{ t('Значения') }} <span class="cl-form-hint">{{ t('(через запятую)') }}</span></label>
               <input
                 v-model="enum_values"
                 type="text"
@@ -196,25 +199,25 @@ async function submit() {
             </div>
 
             <div class="cl-form-row">
-              <label class="cl-form-label">Видимость</label>
+              <label class="cl-form-label">{{ t('Видимость') }}</label>
               <div class="cl-form-chips">
                 <button
                   type="button"
                   class="cl-chip"
                   :class="{ active: scope_type === 'all' }"
                   @click="scope_type = 'all'"
-                >Все компании</button>
+                >{{ t('Все компании') }}</button>
                 <button
                   type="button"
                   class="cl-chip"
                   :class="{ active: scope_type === 'sector' }"
                   @click="scope_type = 'sector'"
-                >Сектор</button>
+                >{{ t('Сектор') }}</button>
               </div>
             </div>
 
             <div v-if="scope_type === 'sector' && availableSectors.length" class="cl-form-row">
-              <label class="cl-form-label">Какие сектора?</label>
+              <label class="cl-form-label">{{ t('Какие сектора?') }}</label>
               <div class="cl-form-chips">
                 <label
                   v-for="s in availableSectors"
@@ -240,7 +243,7 @@ async function submit() {
 
     <template #footer>
       <span v-if="error" class="cl-modal-err">{{ error }}</span>
-      <button class="cl-btn cl-btn-secondary" @click="emit('close')">Отмена</button>
+      <button class="cl-btn cl-btn-secondary" @click="emit('close')">{{ t('Отмена') }}</button>
       <button class="cl-btn cl-btn-primary" :disabled="saving || !name_ru" @click="submit">
         {{ saving ? "Создаём…" : "Создать колонку" }}
       </button>

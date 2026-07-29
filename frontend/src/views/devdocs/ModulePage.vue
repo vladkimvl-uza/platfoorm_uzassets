@@ -6,6 +6,9 @@ import { computed, onMounted } from "vue";
 import { useRoute } from "vue-router";
 import { useApiCatalogStore } from "@/stores/apiCatalog";
 import EndpointCard from "@/components/library/EndpointCard.vue";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const route = useRoute();
 const catalog = useApiCatalogStore();
@@ -33,16 +36,16 @@ const endpoints = computed(() => {
 <template>
   <article class="mp">
     <header class="mp-head">
-      <div class="mp-eyebrow">Модуль</div>
+      <div class="mp-eyebrow">{{ t('Модуль') }}</div>
       <h1 class="mp-h1">{{ moduleCode }}</h1>
       <p v-if="moduleMeta" class="mp-sub">
-        Группа: <b>{{ moduleMeta.group || "Прочее" }}</b>
+        {{ t('Группа:') }} <b>{{ moduleMeta.group || "Прочее" }}</b>
         · {{ moduleMeta.endpoints_count }} endpoints
       </p>
     </header>
 
-    <div v-if="!catalog.summary" class="mp-loading">Загружаю каталог…</div>
-    <div v-else-if="endpoints.length === 0" class="mp-empty">В этом модуле endpoints не найдены.</div>
+    <div v-if="!catalog.summary" class="mp-loading">{{ t('Загружаю каталог…') }}</div>
+    <div v-else-if="endpoints.length === 0" class="mp-empty">{{ t('В этом модуле endpoints не найдены.') }}</div>
 
     <div v-else class="mp-list">
       <EndpointCard

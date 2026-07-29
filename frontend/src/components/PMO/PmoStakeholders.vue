@@ -6,6 +6,9 @@
 import { ref, computed, watch, onMounted } from "vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import { pmoApi, type Stakeholder, type StakeholderPayload, type Engagement } from "@/api/pmo";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const props = defineProps<{ companyCode: string; canEdit?: boolean }>();
 
@@ -88,15 +91,15 @@ async function removeItem(s: Stakeholder) {
     <UzaStateBlock v-if="error" state="error" variant="banner" :text="error" dismissible @dismiss="error = null" />
 
     <div class="ps-bar">
-      <div class="ps-bar-t">Заинтересованные стороны <span class="ps-cnt">{{ items.length }}</span></div>
-      <button v-if="canEdit" class="ps-add" @click="openCreate">+ Стейкхолдер</button>
+      <div class="ps-bar-t">{{ t('Заинтересованные стороны') }} <span class="ps-cnt">{{ items.length }}</span></div>
+      <button v-if="canEdit" class="ps-add" @click="openCreate">{{ t('+ Стейкхолдер') }}</button>
     </div>
 
     <UzaStateBlock v-if="loading" state="loading" text="Загрузка реестра…" />
     <UzaStateBlock
       v-else-if="!items.length"
       state="empty" variant="block"
-      title="Стейкхолдеров нет"
+      :title="t('Стейкхолдеров нет')"
       text="Добавьте заинтересованные стороны — появятся на сетке власть×интерес и в матрице вовлечённости."
     />
 
@@ -104,14 +107,14 @@ async function removeItem(s: Stakeholder) {
       <div class="ps-cols">
         <!-- Сетка власть × интерес -->
         <div class="ps-grid-card">
-          <div class="ps-card-t">Власть × Интерес</div>
+          <div class="ps-card-t">{{ t('Власть × Интерес') }}</div>
           <div class="ps-grid">
-            <div class="ps-q ps-q-tl"><span>Удовлетворять</span></div>
-            <div class="ps-q ps-q-tr"><span>Управлять тесно</span></div>
-            <div class="ps-q ps-q-bl"><span>Мониторить</span></div>
-            <div class="ps-q ps-q-br"><span>Информировать</span></div>
-            <div class="ps-axis-y">Власть →</div>
-            <div class="ps-axis-x">Интерес →</div>
+            <div class="ps-q ps-q-tl"><span>{{ t('Удовлетворять') }}</span></div>
+            <div class="ps-q ps-q-tr"><span>{{ t('Управлять тесно') }}</span></div>
+            <div class="ps-q ps-q-bl"><span>{{ t('Мониторить') }}</span></div>
+            <div class="ps-q ps-q-br"><span>{{ t('Информировать') }}</span></div>
+            <div class="ps-axis-y">{{ t('Власть →') }}</div>
+            <div class="ps-axis-x">{{ t('Интерес →') }}</div>
             <button
               v-for="s in items"
               :key="'d' + s.id"
@@ -125,7 +128,7 @@ async function removeItem(s: Stakeholder) {
 
         <!-- Матрица вовлечённости -->
         <div class="ps-eng-card">
-          <div class="ps-card-t">Вовлечённость: <b>●</b> текущая → <b>○</b> целевая</div>
+          <div class="ps-card-t">{{ t('Вовлечённость:') }} <b>●</b> {{ t('текущая →') }} <b>○</b> {{ t('целевая') }}</div>
           <div class="ps-eng-wrap">
             <table class="ps-eng">
               <thead>
@@ -149,7 +152,7 @@ async function removeItem(s: Stakeholder) {
       <div class="ps-table-wrap">
         <table class="uza-table ps-tbl">
           <thead>
-            <tr><th>Имя</th><th>Роль</th><th>Организация</th><th style="text-align:center">Вл.</th><th style="text-align:center">Инт.</th><th>Квадрант</th><th>Вовлечённость</th><th></th></tr>
+            <tr><th>{{ t('Имя') }}</th><th>{{ t('Роль') }}</th><th>{{ t('Организация') }}</th><th style="text-align:center">{{ t('Вл.') }}</th><th style="text-align:center">{{ t('Инт.') }}</th><th>{{ t('Квадрант') }}</th><th>{{ t('Вовлечённость') }}</th><th></th></tr>
           </thead>
           <tbody>
             <tr v-for="(s, idx) in items" :key="s.id" class="ps-row" :style="{ animationDelay: Math.min(idx * 0.03, 0.4) + 's' }">
@@ -161,10 +164,10 @@ async function removeItem(s: Stakeholder) {
               <td><span class="ps-quad" :style="{ color: quadrant(s.power, s.interest).c }">{{ quadrant(s.power, s.interest).l }}</span></td>
               <td><span class="ps-eng-txt">{{ ENG.find(e => e.v === s.engagement_current)?.l }}<span v-if="s.engagement_desired !== s.engagement_current"> → {{ ENG.find(e => e.v === s.engagement_desired)?.l }}</span></span></td>
               <td style="text-align:right">
-                <button v-if="canEdit" class="ps-ia" title="Править" @click="openEdit(s)">
+                <button v-if="canEdit" class="ps-ia" :title="t('Править')" @click="openEdit(s)">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                 </button>
-                <button v-if="canEdit" class="ps-ia ps-ia-del" title="Удалить" @click="removeItem(s)">
+                <button v-if="canEdit" class="ps-ia ps-ia-del" :title="t('Удалить')" @click="removeItem(s)">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                 </button>
               </td>
@@ -179,28 +182,28 @@ async function removeItem(s: Stakeholder) {
       <div class="ps-modal">
         <div class="ps-modal-h">{{ editingId ? "Правка стейкхолдера" : "Новый стейкхолдер" }}</div>
         <div class="ps-modal-b">
-          <div class="ps-f"><label>Имя</label><input v-model="form.name" placeholder="ФИО / название стороны" /></div>
+          <div class="ps-f"><label>{{ t('Имя') }}</label><input v-model="form.name" :placeholder="t('ФИО / название стороны')" /></div>
           <div class="ps-f2">
-            <div class="ps-f"><label>Роль</label><input v-model="form.role" placeholder="Напр. Спонсор" /></div>
-            <div class="ps-f"><label>Организация</label><input v-model="form.organization" /></div>
+            <div class="ps-f"><label>{{ t('Роль') }}</label><input v-model="form.role" :placeholder="t('Напр. Спонсор')" /></div>
+            <div class="ps-f"><label>{{ t('Организация') }}</label><input v-model="form.organization" /></div>
           </div>
           <div class="ps-f2">
-            <div class="ps-f"><label>Власть (1–5)</label><input type="number" min="1" max="5" v-model.number="form.power" /></div>
-            <div class="ps-f"><label>Интерес (1–5)</label><input type="number" min="1" max="5" v-model.number="form.interest" /></div>
+            <div class="ps-f"><label>{{ t('Власть (1–5)') }}</label><input type="number" min="1" max="5" v-model.number="form.power" /></div>
+            <div class="ps-f"><label>{{ t('Интерес (1–5)') }}</label><input type="number" min="1" max="5" v-model.number="form.interest" /></div>
           </div>
           <div class="ps-f2">
-            <div class="ps-f"><label>Вовлечённость сейчас</label>
+            <div class="ps-f"><label>{{ t('Вовлечённость сейчас') }}</label>
               <select v-model="form.engagement_current"><option v-for="e in ENG" :key="e.v" :value="e.v">{{ e.l }}</option></select>
             </div>
-            <div class="ps-f"><label>Цель</label>
+            <div class="ps-f"><label>{{ t('Цель') }}</label>
               <select v-model="form.engagement_desired"><option v-for="e in ENG" :key="e.v" :value="e.v">{{ e.l }}</option></select>
             </div>
           </div>
-          <div class="ps-f"><label>Контакт</label><input v-model="form.contact" placeholder="email / телефон" /></div>
-          <div class="ps-f"><label>Стратегия вовлечения</label><textarea v-model="form.strategy" rows="2"></textarea></div>
+          <div class="ps-f"><label>{{ t('Контакт') }}</label><input v-model="form.contact" :placeholder="t('email / телефон')" /></div>
+          <div class="ps-f"><label>{{ t('Стратегия вовлечения') }}</label><textarea v-model="form.strategy" rows="2"></textarea></div>
         </div>
         <div class="ps-modal-f">
-          <button class="ps-btn-ghost" @click="formOpen = false">Отмена</button>
+          <button class="ps-btn-ghost" @click="formOpen = false">{{ t('Отмена') }}</button>
           <button class="ps-btn" :disabled="saving" @click="save">{{ saving ? "Сохраняю…" : "Сохранить" }}</button>
         </div>
       </div>

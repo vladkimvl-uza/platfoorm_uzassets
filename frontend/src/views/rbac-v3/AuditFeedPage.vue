@@ -17,10 +17,13 @@ import AuditChart from "@/components/audit/AuditChart.vue";
 import UserAffiliationBadge from "@/components/rbac-v3/UserAffiliationBadge.vue";
 import UserCardAnchor from "@/components/user/UserCardAnchor.vue";
 import { useFormatters } from "@/composables/useFormatters";
+import { useI18n } from "@/composables/useI18n";
+import { INTL_LOCALE } from "@/locale";
 import { useAuthStore } from "@/stores/auth";
 import type { ChartConfiguration } from "@/utils/chartjsRegister";
 
 const fmt = useFormatters();
+const { t, locale } = useI18n();
 const auth = useAuthStore();
 const isOwner = computed(() => auth.isOwner);
 
@@ -29,10 +32,10 @@ type Mode = "users" | "feed" | "modules";
 const mode = ref<Mode>("users");
 type Period = "today" | "24h" | "7d" | "30d" | "all";
 const period = ref<Period>("today");
-const PERIODS: { v: Period; l: string }[] = [
-  { v: "today", l: "Сегодня" }, { v: "24h", l: "24 часа" },
-  { v: "7d", l: "7 дней" }, { v: "30d", l: "30 дней" }, { v: "all", l: "Всё время" },
-];
+const PERIODS = computed<{ v: Period; l: string }[]>(() => [
+  { v: "today", l: t("Сегодня") }, { v: "24h", l: t("24 часа") },
+  { v: "7d", l: t("7 дней") }, { v: "30d", l: t("30 дней") }, { v: "all", l: t("Всё время") },
+]);
 const search = ref("");
 const loading = ref(true);
 const error = ref<string | null>(null);
@@ -44,7 +47,6 @@ const companies = ref<AuditCompanyRow[]>([]);
 const feed = ref<AuditEventRead[]>([]);
 const feedTotal = ref(0);
 
-const ACCENTS = ["#7C6FF7", "#1D9E75", "#0891B2", "#534AB7", "#5B7CFA", "#0F6E56", "#9A6FD4", "#D97706"];
 // Единая палитра для баров: бренд-пурпур с убыванием насыщенности по рангу.
 function barColor(i: number, n: number): string {
   const a = 0.92 - (n > 1 ? (i / (n - 1)) * 0.52 : 0);
@@ -97,7 +99,7 @@ async function load(silent = false) {
     if (mode.value === "feed") await loadFeed();
     lastUpdated.value = Date.now();
   } catch (e: any) {
-    if (!silent) error.value = e?.response?.data?.detail || "Не удалось загрузить журнал";
+    if (!silent) error.value = e?.response?.data?.detail || t("Не удалось загрузить журнал");
   } finally {
     if (!silent) loading.value = false;
   }
@@ -128,10 +130,8 @@ function startPoll() {
 function stopPoll() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
 function onVisibility() { if (!document.hidden && autoRefresh.value) load(true); }
 const agoLabel = computed(() => {
-  const s = Math.round((nowTick.value - lastUpdated.value) / 1000);
-  if (s < 5) return "обновлено только что";
-  if (s < 60) return `обновлено ${s} сек назад`;
-  return `обновлено ${Math.round(s / 60)} мин назад`;
+  void nowTick.value;
+  return t("Обновлено {time}", { time: fmt.fmtRelativeTime(new Date(lastUpdated.value)) });
 });
 
 watch(mode, async (m) => { if (m === "feed" && !feed.value.length) await loadFeed(); });
@@ -172,32 +172,32 @@ function tween(key: string, target: number) {
   requestAnimationFrame(step);
 }
 const KPIS = computed(() => [
-  { key: "total", label: "Всего действий", accent: "#7C6FF7" },
-  { key: "users", label: "Активных людей", accent: "#1D9E75" },
-  { key: "online", label: "Сейчас онлайн", accent: "#0891B2" },
-  { key: "changes", label: "Изменений", accent: "#534AB7" },
-  { key: "views", label: "Просмотров", accent: "#5B7CFA" },
-  { key: "errors", label: "Ошибок/отказов", accent: "#EF4444" },
+  { key: "total", label: t("Всего действий"), accent: "#7C6FF7" },
+  { key: "users", label: t("Активных людей"), accent: "#1D9E75" },
+  { key: "online", label: t("Сейчас онлайн"), accent: "#0891B2" },
+  { key: "changes", label: t("Изменений"), accent: "#534AB7" },
+  { key: "views", label: t("Просмотров"), accent: "#5B7CFA" },
+  { key: "errors", label: t("Ошибок/отказов"), accent: "#EF4444" },
 ]);
 
 // ─── Charts ─────────────────────────────────────────────────────
 const typeTotals = computed(() => {
-  const t = { changes: 0, views: 0, logins: 0, deletions: 0, errors: 0 };
+  const totals = { changes: 0, views: 0, logins: 0, deletions: 0, errors: 0 };
   for (const u of users.value) {
-    t.changes += u.changes; t.views += u.views; t.logins += u.logins;
-    t.deletions += u.deletions; t.errors += u.errors;
+    totals.changes += u.changes; totals.views += u.views; totals.logins += u.logins;
+    totals.deletions += u.deletions; totals.errors += u.errors;
   }
-  return t;
+  return totals;
 });
 // Дефолтный стиль пайчартов проекта: тонкое кольцо (cutout), белые зазоры
 // (borderColor+borderWidth), скруглённые концы (borderRadius), число в центре,
 // кастомная HTML-легенда справа (точка · название · значение).
 const donutSegments = computed(() => [
-  { label: "Изменения", value: typeTotals.value.changes, color: "#7C6FF7" },
-  { label: "Просмотры", value: typeTotals.value.views, color: "#0891B2" },
-  { label: "Входы", value: typeTotals.value.logins, color: "#1D9E75" },
-  { label: "Удаления", value: typeTotals.value.deletions, color: "#EF4444" },
-  { label: "Ошибки", value: typeTotals.value.errors, color: "#94A3B8" },
+  { label: t("Изменения"), category: "changes", value: typeTotals.value.changes, color: "#7C6FF7" },
+  { label: t("Просмотры"), category: "views", value: typeTotals.value.views, color: "#0891B2" },
+  { label: t("Входы"), category: "logins", value: typeTotals.value.logins, color: "#1D9E75" },
+  { label: t("Удаления"), category: "deletions", value: typeTotals.value.deletions, color: "#EF4444" },
+  { label: t("Ошибки"), category: "errors", value: typeTotals.value.errors, color: "#94A3B8" },
 ].filter((s) => s.value > 0));
 const donutTotal = computed(() => donutSegments.value.reduce((a, s) => a + s.value, 0));
 const donutConfig = computed<ChartConfiguration>(() => ({
@@ -218,14 +218,14 @@ const donutConfig = computed<ChartConfiguration>(() => ({
 }));
 const timelineConfig = computed<ChartConfiguration>(() => {
   const b = overview.value?.timeline.buckets || [];
-  const labels = b.map((x) => fmt.fmtTime ? shortTs(x.ts) : x.ts);
+  const labels = b.map((x) => shortTs(x.ts));
   return {
     type: "line",
     data: {
       labels,
       datasets: [
-        { label: "Изменения", data: b.map((x) => x.create + x.update + x.delete), borderColor: "#7C6FF7", backgroundColor: "rgba(124,111,247,.13)", fill: true, tension: 0.35, pointRadius: 0, borderWidth: 2 },
-        { label: "Просмотры", data: b.map((x) => x.view), borderColor: "#0891B2", backgroundColor: "rgba(8,145,178,.10)", fill: true, tension: 0.35, pointRadius: 0, borderWidth: 2 },
+        { label: t("Изменения"), data: b.map((x) => x.create + x.update + x.delete), borderColor: "#7C6FF7", backgroundColor: "rgba(124,111,247,.13)", fill: true, tension: 0.35, pointRadius: 0, borderWidth: 2 },
+        { label: t("Просмотры"), data: b.map((x) => x.view), borderColor: "#0891B2", backgroundColor: "rgba(8,145,178,.10)", fill: true, tension: 0.35, pointRadius: 0, borderWidth: 2 },
       ],
     },
     options: {
@@ -254,44 +254,36 @@ const modulesConfig = computed<ChartConfiguration>(() => {
 });
 function shortTs(ts: string): string {
   const d = new Date(ts);
-  return overview.value?.timeline.bucket === "day"
-    ? d.toLocaleDateString("ru", { day: "2-digit", month: "2-digit" })
-    : d.toLocaleTimeString("ru", { hour: "2-digit", minute: "2-digit" });
+  return new Intl.DateTimeFormat(INTL_LOCALE[locale.value], overview.value?.timeline.bucket === "day"
+    ? { day: "2-digit", month: "2-digit" }
+    : { hour: "2-digit", minute: "2-digit" }).format(d);
 }
 
 // ─── Helpers (читаемые описания) ────────────────────────────────
 function fmtRelative(s: string | null): string {
-  if (!s) return "";
-  const diff = (Date.now() - new Date(s).getTime()) / 1000;
-  if (diff < 60) return "только что";
-  if (diff < 3600) return Math.floor(diff / 60) + " мин назад";
-  if (diff < 86400) return Math.floor(diff / 3600) + " ч назад";
-  const days = Math.floor(diff / 86400);
-  if (days === 1) return "вчера";
-  if (days < 30) return days + " дн назад";
-  return Math.floor(days / 30) + " мес назад";
+  return s ? fmt.fmtRelativeTime(s) : "";
 }
-const MODULE_LABELS: Record<string, string> = {
-  rbac: "Доступы", users: "Пользователи", roles: "Роли", groups: "Группы",
-  kpi: "KPI", bp: "Бизнес-план", business_plan: "Бизнес-план", credit: "Кредитный портфель",
-  finance: "Финансы", financials: "Финансы", invest: "Инвест-проекты", investment: "Инвест-проекты",
-  procurement: "Закупки", esg: "ESG", governance: "Корп. управление", ratings: "Рейтинги",
-  companies: "Компании", tasks: "Задачи", auth: "Вход и сессии", admin: "Администрирование",
-  moderation: "Модерация", notification: "Уведомления",
-};
-const PATH_SECTION: Record<string, string> = {
-  "rbac-v3": "Доступы", rbac: "Доступы", users: "Пользователи", roles: "Роли", groups: "Группы",
-  audit: "Журнал аудита", companies: "Компании", company: "Компании", kpi: "KPI", bp: "Бизнес-план",
-  financials: "Финансы", credit: "Кредитный портфель", procurement: "Закупки", esg: "ESG",
-  governance: "Корп. управление", ratings: "Рейтинги", tasks: "Задачи", projects: "Проекты",
-  admin: "Администрирование", dashboard: "Дашборд", "invest-projects": "Инвест-проекты",
-  consultants: "Консультанты", auth: "Вход и сессии", export: "Экспорт",
-};
-function moduleLabel(m: string | null): string { return m ? (MODULE_LABELS[m] || m) : ""; }
+const MODULE_LABELS = computed<Record<string, string>>(() => ({
+  rbac: t("Доступы"), users: t("Пользователи"), roles: t("Роли"), groups: t("Группы"),
+  kpi: "KPI", bp: t("Бизнес-план"), business_plan: t("Бизнес-план"), credit: t("Кредитный портфель"),
+  finance: t("Финансы"), financials: t("Финансы"), invest: t("Инвест-проекты"), investment: t("Инвест-проекты"),
+  procurement: t("Закупки"), esg: "ESG", governance: t("Корп. управление"), ratings: t("Рейтинги"),
+  companies: t("Компании"), tasks: t("Задачи"), auth: t("Вход и сессии"), admin: t("Администрирование"),
+  moderation: t("Модерация"), notification: t("Уведомления"),
+}));
+const PATH_SECTION = computed<Record<string, string>>(() => ({
+  "rbac-v3": t("Доступы"), rbac: t("Доступы"), users: t("Пользователи"), roles: t("Роли"), groups: t("Группы"),
+  audit: t("Журнал аудита"), companies: t("Компании"), company: t("Компании"), kpi: "KPI", bp: t("Бизнес-план"),
+  financials: t("Финансы"), credit: t("Кредитный портфель"), procurement: t("Закупки"), esg: "ESG",
+  governance: t("Корп. управление"), ratings: t("Рейтинги"), tasks: t("Задачи"), projects: t("Проекты"),
+  admin: t("Администрирование"), dashboard: t("Дашборд"), "invest-projects": t("Инвест-проекты"),
+  consultants: t("Консультанты"), auth: t("Вход и сессии"), export: t("Экспорт"),
+}));
+function moduleLabel(m: string | null): string { return m ? (MODULE_LABELS.value[m] || m) : ""; }
 function prettyPath(path: string | null): string {
   if (!path) return "";
   const segs = path.split("?")[0].split("/").filter((s) => s && s !== "api" && s !== "v1");
-  for (const s of segs) if (PATH_SECTION[s]) return PATH_SECTION[s];
+  for (const s of segs) if (PATH_SECTION.value[s]) return PATH_SECTION.value[s];
   return segs.find((s) => !/^[0-9a-f-]{8,}$/i.test(s) && !/^\d+$/.test(s)) || "";
 }
 function whereText(e: any): string {
@@ -302,9 +294,9 @@ function severity(e: any): { color: string; ru: string } {
   // «Важное» (красный) — только реально деструктивные/security-действия.
   // is_critical (= DELETE или 5xx) больше НЕ красит обычный UPDATE: рутинная
   // правка (напр. «Система изменил(а)») — это «Изменение», а не риск.
-  if (/delete|delete_permanent|revoke|deactivate|purge|impersonate/i.test(e.action || "")) return { color: "#EF4444", ru: "Важное" };
-  if (/update|change|grant|assign|create|import|approve|reject|login/i.test(e.action || "")) return { color: "#7C6FF7", ru: "Изменение" };
-  return { color: "#94A3B8", ru: "Просмотр" };
+  if (/delete|delete_permanent|revoke|deactivate|purge|impersonate/i.test(e.action || "")) return { color: "#EF4444", ru: t("Важное") };
+  if (/update|change|grant|assign|create|import|approve|reject|login/i.test(e.action || "")) return { color: "#7C6FF7", ru: t("Изменение") };
+  return { color: "#94A3B8", ru: t("Просмотр") };
 }
 function describe(e: any): string {
   const a = e.action as string;
@@ -312,41 +304,61 @@ function describe(e: any): string {
   const mod = e.module || "";
   // Запрос к ИИ-ассистенту — показываем сам текст запроса.
   if (a === "AI_QUERY" || a === "ai.query") {
-    const q = String(e.notes || "").replace(/^Запрос:\s*/i, "").trim();
-    return q ? `спросил(а) ИИ: «${q}»` : "обратил(ся/ась) к ИИ-ассистенту";
+    const q = String(e.notes || "").replace(/^Запрос:\s*/i, "").trim(); // i18n-exempt: backend note prefix
+    return q ? t("спросил(а) ИИ: «{query}»", { query: q }) : t("обратил(ся/ась) к ИИ-ассистенту");
   }
   const map: Record<string, string> = {
-    "user.create": `пригласил(а) пользователя ${entity}`, "user.invite": `пригласил(а) пользователя ${entity}`,
-    "user.delete_permanent": `удалил(а) пользователя навсегда: ${entity}`, "user.deactivate": `деактивировал(а) ${entity}`,
-    "user.activate": `активировал(а) ${entity}`, "user.update": `изменил(а) данные пользователя ${entity}`,
-    "user.password_reset": `сбросил(а) пароль ${entity}`, "user.unlock": `разблокировал(а) ${entity}`,
-    "user.assign_role": `назначил(а) роль «${entity}»`, "role.assign": `назначил(а) роль «${entity}»`,
-    "user.remove_role": `убрал(а) роль «${entity}»`, "user.assign_group": `добавил(а) в группу «${entity}»`,
-    "user.remove_group": `убрал(а) из группы «${entity}»`,
-    "role.create": `создал(а) роль «${entity}»`, "role.delete": `удалил(а) роль «${entity}»`,
-    "role.update": `изменил(а) роль «${entity}»`, "role.update_permissions": `изменил(а) разрешения роли «${entity}»`,
-    "group.create": `создал(а) группу «${entity}»`, "group.delete": `удалил(а) группу «${entity}»`,
-    "group.update_permissions": `изменил(а) разрешения группы «${entity}»`,
-    "permission.grant": `выдал(а) разрешение «${entity}»`, "permission.revoke": `отозвал(а) разрешение «${entity}»`,
-    "auth.login.success": "успешный вход", "login.success": "успешный вход",
-    "auth.login.failed": "неудачная попытка входа", "login.failed": "неудачная попытка входа",
-    "logout": "вышел(а) из системы", "auth.logout": "вышел(а) из системы",
-    "mfa.enabled": "включил(а) MFA", "mfa.disabled": "отключил(а) MFA",
-    "session.idle_timeout": "сессия завершена по простою", "session.absolute_timeout": "сессия завершена (срок)",
-    "session.revoked_self": "завершил(а) сессию", "session.revoked_others": "завершил(а) другие сессии",
-    "oneid.login.success": "вход через One ID",
-    "company.create": `создал(а) компанию «${entity}»`, "company.update": `изменил(а) компанию «${entity}»`,
-    "company.delete": `удалил(а) компанию «${entity}»`, "kpi.import": `импортировал(а) KPI «${entity}»`,
-    "bp.import": `импортировал(а) Бизнес-план «${entity}»`, "financials.import": `импортировал(а) фин. отчёт «${entity}»`,
-    "comment.created": entity ? `комментарий в «${entity}»` : "оставил(а) комментарий",
-    "status_update.created": entity ? `обновил(а) ход «${entity}»` : "обновил(а) ход",
-    "broadcast.send": `отправил(а) рассылку «${entity}»`,
+    "user.create": t("пригласил(а) пользователя {entity}", { entity }),
+    "user.invite": t("пригласил(а) пользователя {entity}", { entity }),
+    "user.delete_permanent": t("удалил(а) пользователя навсегда: {entity}", { entity }),
+    "user.deactivate": t("деактивировал(а) {entity}", { entity }),
+    "user.activate": t("активировал(а) {entity}", { entity }),
+    "user.update": t("изменил(а) данные пользователя {entity}", { entity }),
+    "user.password_reset": t("сбросил(а) пароль {entity}", { entity }),
+    "user.unlock": t("разблокировал(а) {entity}", { entity }),
+    "user.assign_role": t("назначил(а) роль «{entity}»", { entity }),
+    "role.assign": t("назначил(а) роль «{entity}»", { entity }),
+    "user.remove_role": t("убрал(а) роль «{entity}»", { entity }),
+    "user.assign_group": t("добавил(а) в группу «{entity}»", { entity }),
+    "user.remove_group": t("убрал(а) из группы «{entity}»", { entity }),
+    "role.create": t("создал(а) роль «{entity}»", { entity }),
+    "role.delete": t("удалил(а) роль «{entity}»", { entity }),
+    "role.update": t("изменил(а) роль «{entity}»", { entity }),
+    "role.update_permissions": t("изменил(а) разрешения роли «{entity}»", { entity }),
+    "group.create": t("создал(а) группу «{entity}»", { entity }),
+    "group.delete": t("удалил(а) группу «{entity}»", { entity }),
+    "group.update_permissions": t("изменил(а) разрешения группы «{entity}»", { entity }),
+    "permission.grant": t("выдал(а) разрешение «{entity}»", { entity }),
+    "permission.revoke": t("отозвал(а) разрешение «{entity}»", { entity }),
+    "auth.login.success": t("успешный вход"), "login.success": t("успешный вход"),
+    "auth.login.failed": t("неудачная попытка входа"), "login.failed": t("неудачная попытка входа"),
+    "logout": t("вышел(а) из системы"), "auth.logout": t("вышел(а) из системы"),
+    "mfa.enabled": t("включил(а) MFA"), "mfa.disabled": t("отключил(а) MFA"),
+    "session.idle_timeout": t("сессия завершена по простою"),
+    "session.absolute_timeout": t("сессия завершена по сроку"),
+    "session.revoked_self": t("завершил(а) сессию"),
+    "session.revoked_others": t("завершил(а) другие сессии"),
+    "oneid.login.success": t("вход через One ID"),
+    "company.create": t("создал(а) компанию «{entity}»", { entity }),
+    "company.update": t("изменил(а) компанию «{entity}»", { entity }),
+    "company.delete": t("удалил(а) компанию «{entity}»", { entity }),
+    "kpi.import": t("импортировал(а) KPI «{entity}»", { entity }),
+    "bp.import": t("импортировал(а) Бизнес-план «{entity}»", { entity }),
+    "financials.import": t("импортировал(а) финансовый отчёт «{entity}»", { entity }),
+    "comment.created": entity ? t("комментарий в «{entity}»", { entity }) : t("оставил(а) комментарий"),
+    "status_update.created": entity ? t("обновил(а) ход «{entity}»", { entity }) : t("обновил(а) ход"),
+    "broadcast.send": t("отправил(а) рассылку «{entity}»", { entity }),
   };
   if (map[a]) return map[a];
-  const GEN: Record<string, string> = { VIEW: "открыл(а)", CREATE: "создал(а) запись", UPDATE: "изменил(а)", DELETE: "удалил(а) запись", FAILED: "отказ доступа", ERROR: "ошибка" };
+  const GEN: Record<string, string> = {
+    VIEW: t("открыл(а)"), CREATE: t("создал(а) запись"), UPDATE: t("изменил(а)"),
+    DELETE: t("удалил(а) запись"), FAILED: t("отказ доступа"), ERROR: t("ошибка"),
+  };
   if (GEN[a]) {
-    if (a === "VIEW") return entity ? `открыл(а): «${entity}»` : `просмотрел(а) раздел`;
-    if (entity) return `${a === "CREATE" ? "создал(а)" : a === "DELETE" ? "удалил(а)" : "изменил(а)"}: «${entity}»`;
+    if (a === "VIEW") return entity ? t("открыл(а): «{entity}»", { entity }) : t("просмотрел(а) раздел");
+    if (entity && a === "CREATE") return t("создал(а): «{entity}»", { entity });
+    if (entity && a === "DELETE") return t("удалил(а): «{entity}»", { entity });
+    if (entity) return t("изменил(а): «{entity}»", { entity });
     return GEN[a];
   }
   return `${a}${entity ? ": " + entity : ""}${mod ? " [" + moduleLabel(mod) + "]" : ""}`;
@@ -388,8 +400,16 @@ const kpiCards = computed(() => KPIS.value.map((k) => ({
 // Подсветка аномалий по человеку (много отказов/удалений).
 function userRisk(u: AuditUserRow): { level: "high" | "warn"; reason: string } | null {
   const den = u.errors || 0, del = u.deletions || 0;
-  if (den >= 5 || del >= 5) return { level: "high", reason: `${den} отказов · ${del} удалений` };
-  if (den >= 2 || (u.total >= 5 && den / Math.max(1, u.total) > 0.15)) return { level: "warn", reason: `${den} отказов` };
+  if (den >= 5 || del >= 5) return {
+    level: "high",
+    reason: t("Отказов: {denied} · Удалений: {deleted}", {
+      denied: fmt.fmtNumber(den), deleted: fmt.fmtNumber(del),
+    }),
+  };
+  if (den >= 2 || (u.total >= 5 && den / Math.max(1, u.total) > 0.15)) return {
+    level: "warn",
+    reason: t("Отказов: {count}", { count: fmt.fmtNumber(den) }),
+  };
   return null;
 }
 
@@ -435,17 +455,18 @@ type GroupKey = "none" | "company" | "sector" | "department" | "job_title";
 type SortKey = "activity" | "recent" | "name";
 const groupBy = ref<GroupKey>("none");
 const sortBy = ref<SortKey>("activity");
-const GROUP_OPTS: { v: GroupKey; l: string }[] = [
-  { v: "none", l: "Без группировки" }, { v: "company", l: "По компаниям" },
-  { v: "sector", l: "По секторам" }, { v: "department", l: "По отделам" },
-  { v: "job_title", l: "По должностям" },
-];
-const SORT_OPTS: { v: SortKey; l: string }[] = [
-  { v: "activity", l: "По активности" }, { v: "recent", l: "По времени" }, { v: "name", l: "По имени" },
-];
+const GROUP_OPTS = computed<{ v: GroupKey; l: string }[]>(() => [
+  { v: "none", l: t("Без группировки") }, { v: "company", l: t("По компаниям") },
+  { v: "sector", l: t("По секторам") }, { v: "department", l: t("По отделам") },
+  { v: "job_title", l: t("По должностям") },
+]);
+const SORT_OPTS = computed<{ v: SortKey; l: string }[]>(() => [
+  { v: "activity", l: t("По активности") }, { v: "recent", l: t("По времени") },
+  { v: "name", l: t("По имени") },
+]);
 function _sorted(arr: AuditUserRow[]): AuditUserRow[] {
   const a = [...arr];
-  if (sortBy.value === "name") a.sort((x, y) => x.name.localeCompare(y.name));
+  if (sortBy.value === "name") a.sort((x, y) => x.name.localeCompare(y.name, INTL_LOCALE[locale.value]));
   else if (sortBy.value === "recent") a.sort((x, y) => (y.last_at || "").localeCompare(x.last_at || ""));
   else a.sort((x, y) => y.total - x.total);
   return a;
@@ -457,7 +478,7 @@ const groupedUsers = computed(() => {
   const key = groupBy.value;
   const map = new Map<string, AuditUserRow[]>();
   for (const u of baseUsers.value) {
-    const label = (u as any)[key] || "— Не указано";
+    const label = (u as any)[key] || t("— Не указано");
     if (!map.has(label)) map.set(label, []);
     map.get(label)!.push(u);
   }
@@ -499,30 +520,32 @@ async function openUser(u: AuditUserRow) {
 function closeUser() { selUser.value = null; activity.value = null; }
 
 function fmtDur(sec: number): string {
-  if (sec < 60) return `${sec} сек`;
+  if (sec < 60) return t("{count} сек", { count: fmt.fmtNumber(sec) });
   const m = Math.round(sec / 60);
-  if (m < 60) return `${m} мин`;
+  if (m < 60) return t("{count} мин", { count: fmt.fmtNumber(m) });
   const h = Math.floor(m / 60), mm = m % 60;
-  return mm ? `${h} ч ${mm} мин` : `${h} ч`;
+  return mm
+    ? t("{hours} ч {minutes} мин", { hours: fmt.fmtNumber(h), minutes: fmt.fmtNumber(mm) })
+    : t("{count} ч", { count: fmt.fmtNumber(h) });
 }
 function fmtClock(s: string): string {
-  return new Date(s).toLocaleTimeString("ru", { hour: "2-digit", minute: "2-digit" });
+  return fmt.fmtTime(s);
 }
 function fmtDay(s: string): string {
-  return new Date(s).toLocaleDateString("ru", { day: "2-digit", month: "short" });
+  return fmt.fmtDate(s, { includeYear: false });
 }
 function fmtExact(s: string): string {
-  return new Date(s).toLocaleString("ru", {
+  return new Date(s).toLocaleString(INTL_LOCALE[locale.value], {
     day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", second: "2-digit",
   });
 }
 function userBars(u: AuditUserRow) {
   const max = Math.max(1, u.changes, u.views, u.logins, u.deletions);
   return [
-    { label: "Изменения", v: u.changes, pct: (u.changes / max) * 100, c: "#7C6FF7" },
-    { label: "Просмотры", v: u.views, pct: (u.views / max) * 100, c: "#0891B2" },
-    { label: "Входы", v: u.logins, pct: (u.logins / max) * 100, c: "#1D9E75" },
-    { label: "Удаления", v: u.deletions, pct: (u.deletions / max) * 100, c: "#EF4444" },
+    { label: t("Изменения"), v: u.changes, pct: (u.changes / max) * 100, c: "#7C6FF7" },
+    { label: t("Просмотры"), v: u.views, pct: (u.views / max) * 100, c: "#0891B2" },
+    { label: t("Входы"), v: u.logins, pct: (u.logins / max) * 100, c: "#1D9E75" },
+    { label: t("Удаления"), v: u.deletions, pct: (u.deletions / max) * 100, c: "#EF4444" },
   ];
 }
 // «Где провёл время» — топ-разделы по dwell-времени.
@@ -585,21 +608,17 @@ function closeDrill() { drillOpen.value = false; drillEvents.value = []; }
 function onKpiClick(key: string) {
   if (key === "users" || key === "online") { mode.value = "users"; return; }
   const map: Record<string, { title: string; cat: string }> = {
-    total: { title: "Все действия", cat: "" },
-    changes: { title: "Изменения", cat: "changes" },
-    views: { title: "Просмотры", cat: "views" },
-    errors: { title: "Ошибки и отказы", cat: "errors" },
+    total: { title: t("Все действия"), cat: "" },
+    changes: { title: t("Изменения"), cat: "changes" },
+    views: { title: t("Просмотры"), cat: "views" },
+    errors: { title: t("Ошибки и отказы"), cat: "errors" },
   };
   const m = map[key];
   if (m) openDrill(m.title, m.cat ? { action_category: m.cat } : {});
 }
 // Клик по сегменту/легенде доната.
-function onDonutClick(label: string) {
-  const cat: Record<string, string> = {
-    "Изменения": "changes", "Просмотры": "views", "Входы": "logins",
-    "Удаления": "deletions", "Ошибки": "errors",
-  };
-  openDrill(label, { action_category: cat[label] || "" });
+function onDonutClick(segment: { label: string; category: string }) {
+  openDrill(segment.label, { action_category: segment.category });
 }
 
 // ─── Модули (mode) ──────────────────────────────────────────────
@@ -618,14 +637,14 @@ const companyRows = computed(() => {
 const purgeOpen = ref(false);
 const purgeKeep = ref<number | null>(90);
 const purging = ref(false);
-const PURGE_OPTS: { v: number | null; l: string }[] = [
-  { v: 180, l: "Старше 180 дней" }, { v: 90, l: "Старше 90 дней" },
-  { v: 30, l: "Старше 30 дней" }, { v: null, l: "Удалить весь журнал" },
-];
+const PURGE_OPTS = computed<{ v: number | null; l: string }[]>(() => [
+  { v: 180, l: t("Старше 180 дней") }, { v: 90, l: t("Старше 90 дней") },
+  { v: 30, l: t("Старше 30 дней") }, { v: null, l: t("Удалить весь журнал") },
+]);
 async function doPurge() {
   purging.value = true;
   try { await rbacAuditApi.purge(purgeKeep.value); purgeOpen.value = false; await load(); }
-  catch (e: any) { error.value = e?.response?.data?.detail || "Не удалось очистить"; }
+  catch (e: any) { error.value = e?.response?.data?.detail || t("Не удалось очистить"); }
   finally { purging.value = false; }
 }
 function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_blank"); }
@@ -636,25 +655,25 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
     <!-- Header -->
     <div class="aud-head">
       <div class="aud-head-l">
-        <div class="aud-eyebrow">Безопасность · аудит</div>
-        <h1 class="aud-title">Журнал действий</h1>
-        <div class="aud-sub">Кто, что и когда делал в системе</div>
+        <div class="aud-eyebrow">{{ t('Безопасность · аудит') }}</div>
+        <h1 class="aud-title">{{ t('Журнал действий') }}</h1>
+        <div class="aud-sub">{{ t('Кто, что и когда делал в системе') }}</div>
       </div>
       <div class="aud-head-r">
-        <input v-model="search" class="aud-search" placeholder="Поиск по человеку / разделу…" @input="onSearch" />
+        <input v-model="search" class="aud-search" :placeholder="t('Поиск по человеку / разделу…')" @input="onSearch" />
         <button class="aud-live" :class="{ on: autoRefresh }" @click="autoRefresh = !autoRefresh"
-                :title="autoRefresh ? 'Авто-обновление включено · ' + agoLabel : 'Включить авто-обновление'">
-          <span class="aud-live-dot" /> {{ autoRefresh ? 'Live' : 'Авто off' }}
+                :title="autoRefresh ? t('Автообновление включено · {status}', { status: agoLabel }) : t('Включить автообновление')">
+          <span class="aud-live-dot" /> {{ autoRefresh ? t('Live') : t('Авто: выкл.') }}
           <transition name="aud-pop"><span v-if="newCount" class="aud-live-new">+{{ newCount }}</span></transition>
         </button>
-        <button class="aud-btn aud-btn-refresh" :disabled="loading" @click="load()" title="Обновить журнал">
+        <button class="aud-btn aud-btn-refresh" :disabled="loading" :title="t('Обновить журнал')" @click="load()">
           <svg class="aud-refresh-ico" :class="{ spin: loading }" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 12a9 9 0 1 1-2.64-6.36" /><path d="M21 3v6h-6" />
           </svg>
-          Обновить
+          {{ t('Обновить') }}
         </button>
-        <button class="aud-btn" @click="exportCsv">Экспорт CSV</button>
-        <button v-if="isOwner" class="aud-btn aud-btn-danger" @click="purgeOpen = true">Очистить</button>
+        <button class="aud-btn" @click="exportCsv">{{ t('Экспорт CSV') }}</button>
+        <button v-if="isOwner" class="aud-btn aud-btn-danger" @click="purgeOpen = true">{{ t('Очистить') }}</button>
       </div>
     </div>
 
@@ -664,9 +683,9 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
         <button v-for="p in PERIODS" :key="p.v" class="aud-chip" :class="{ on: period === p.v }" @click="period = p.v">{{ p.l }}</button>
       </div>
       <div class="aud-modes">
-        <button class="aud-mode" :class="{ on: mode === 'users' }" @click="mode = 'users'">По людям</button>
-        <button class="aud-mode" :class="{ on: mode === 'feed' }" @click="mode = 'feed'">Лента</button>
-        <button class="aud-mode" :class="{ on: mode === 'modules' }" @click="mode = 'modules'">По разделам</button>
+        <button class="aud-mode" :class="{ on: mode === 'users' }" @click="mode = 'users'">{{ t('По людям') }}</button>
+        <button class="aud-mode" :class="{ on: mode === 'feed' }" @click="mode = 'feed'">{{ t('Лента') }}</button>
+        <button class="aud-mode" :class="{ on: mode === 'modules' }" @click="mode = 'modules'">{{ t('По разделам') }}</button>
       </div>
     </div>
 
@@ -675,14 +694,14 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
     <!-- Overview header: онлайн-присутствие + свернуть -->
     <div class="aud-ovh">
       <div v-if="onlineUsers.length" class="aud-online">
-        <span class="aud-online-lbl"><span class="aud-online-dot" /> Сейчас онлайн</span>
+        <span class="aud-online-lbl"><span class="aud-online-dot" /> {{ t('Сейчас онлайн') }}</span>
         <div class="aud-online-avas">
           <div v-for="u in onlineUsers" :key="u.actor_id" class="aud-online-ava" :style="{ background: u.accent }" :title="u.name" @click="openUser(u)">{{ u.initials }}</div>
         </div>
       </div>
-      <span v-else class="aud-online-empty">Нет активных за последние минуты</span>
+      <span v-else class="aud-online-empty">{{ t('Нет активных за последние минуты') }}</span>
       <button class="aud-collapse" type="button" @click="overviewCollapsed = !overviewCollapsed">
-        {{ overviewCollapsed ? 'Развернуть обзор' : 'Свернуть обзор' }}
+        {{ overviewCollapsed ? t('Развернуть обзор') : t('Свернуть обзор') }}
         <svg class="aud-collapse-ic" :class="{ open: !overviewCollapsed }" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
       </button>
     </div>
@@ -693,7 +712,7 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
            :class="{ 'aud-kpi-alert': k.key === 'errors' && (kpi.errors || 0) > 0 }"
            :style="{ '--d': i * 60 + 'ms', '--acc': k.accent }" @click="onKpiClick(k.key)">
         <div class="aud-kpi-row">
-          <div class="aud-kpi-val">{{ (kpi[k.key] || 0).toLocaleString('ru') }}</div>
+          <div class="aud-kpi-val">{{ fmt.fmtNumber(kpi[k.key] || 0) }}</div>
           <svg v-if="k.spark" class="aud-kpi-spark" width="60" height="18" viewBox="0 0 60 18" fill="none" aria-hidden="true">
             <path :d="k.spark" :stroke="k.accent" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" opacity="0.85" />
           </svg>
@@ -709,65 +728,66 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
 
     <div v-show="!overviewCollapsed" class="aud-charts">
       <div class="aud-card aud-chart-card">
-        <div class="aud-card-t">Типы действий</div>
+        <div class="aud-card-t">{{ t('Типы действий') }}</div>
         <div v-if="overview && donutTotal" class="aud-donut">
           <div class="aud-donut-ring">
             <AuditChart :config="donutConfig" :height="160" />
-            <div class="aud-donut-center"><b>{{ donutTotal.toLocaleString('ru') }}</b><span>действий</span></div>
+            <div class="aud-donut-center"><b>{{ fmt.fmtNumber(donutTotal) }}</b><span>{{ t('Действий') }}</span></div>
           </div>
           <ul class="aud-legend">
-            <li v-for="s in donutSegments" :key="s.label" class="aud-legend-click" @click="onDonutClick(s.label)">
-              <i :style="{ background: s.color }" /><span>{{ s.label }}</span><b>{{ s.value.toLocaleString('ru') }}</b>
+            <li v-for="s in donutSegments" :key="s.category" class="aud-legend-click" @click="onDonutClick(s)">
+              <i :style="{ background: s.color }" /><span>{{ s.label }}</span><b>{{ fmt.fmtNumber(s.value) }}</b>
             </li>
           </ul>
         </div>
-        <div v-else-if="overview" class="aud-empty-s">Нет данных</div>
+        <div v-else-if="overview" class="aud-empty-s">{{ t('Нет данных') }}</div>
       </div>
       <div class="aud-card aud-chart-card aud-chart-wide">
-        <div class="aud-card-t">Активность во времени</div>
+        <div class="aud-card-t">{{ t('Активность во времени') }}</div>
         <AuditChart v-if="overview" :config="timelineConfig" :height="200" />
       </div>
       <div class="aud-card aud-chart-card">
-        <div class="aud-card-t">По разделам</div>
+        <div class="aud-card-t">{{ t('По разделам') }}</div>
         <AuditChart v-if="overview && (overview.top_modules.length)" :config="modulesConfig" :height="200" />
-        <div v-else-if="overview" class="aud-empty-s">Нет данных</div>
+        <div v-else-if="overview" class="aud-empty-s">{{ t('Нет данных') }}</div>
       </div>
     </div>
 
     <!-- Активность по компаниям -->
     <div v-if="overview" v-show="!overviewCollapsed" class="aud-card aud-comp-card">
-      <div class="aud-card-t">Активность по компаниям<span class="aud-card-hint"> · клик — фильтр людей</span></div>
+      <div class="aud-card-t">{{ t('Активность по компаниям') }}<span class="aud-card-hint"> · {{ t('Клик: фильтр людей') }}</span></div>
       <div v-if="companyRows.length" class="aud-comp-list">
         <div v-for="c in companyRows" :key="c.company" class="aud-comp-row aud-comp-click"
              :class="{ on: companyFilter === c.company }" @click="toggleCompanyFilter(c.company)">
           <div class="aud-comp-name">{{ c.company }}<span v-if="c.sector" class="aud-comp-sec">{{ c.sector }}</span></div>
           <div class="aud-comp-bar"><span :style="{ width: c.pct + '%', background: c.accent }" /></div>
-          <div class="aud-comp-meta">{{ c.people }} чел · {{ c.total.toLocaleString('ru') }}</div>
+          <div class="aud-comp-meta">{{ t('Людей: {people} · Действий: {total}', {
+            people: fmt.fmtNumber(c.people), total: fmt.fmtNumber(c.total),
+          }) }}</div>
         </div>
       </div>
       <div v-else class="aud-comp-empty">
-        Нет данных по компаниям. Активность свяжется с компанией, когда сотрудникам проставят
-        организацию (в профиле при первой настройке или администратором).
+        {{ t('Нет данных по компаниям. Активность свяжется с компанией после назначения сотрудникам организации в профиле.') }}
       </div>
     </div>
 
-    <div v-if="loading && !overview" class="aud-loading">Загрузка журнала…</div>
+    <div v-if="loading && !overview" class="aud-loading">{{ t('Загрузка журнала…') }}</div>
 
     <!-- MODE: по людям -->
     <template v-if="mode === 'users'">
       <div v-if="companyFilter" class="aud-filterbar">
-        <span class="aud-filterbar-lbl">Фильтр</span>
-        <span class="aud-filter-chip">{{ companyFilter }}<button type="button" @click="companyFilter = null">×</button></span>
+        <span class="aud-filterbar-lbl">{{ t('Фильтр') }}</span>
+        <span class="aud-filter-chip">{{ companyFilter }}<button type="button" :aria-label="t('Сбросить фильтр')" @click="companyFilter = null">×</button></span>
       </div>
       <div class="aud-grpbar">
         <div class="aud-grpbar-l">
-          <span class="aud-grpbar-lbl">Группировка</span>
+          <span class="aud-grpbar-lbl">{{ t('Группировка') }}</span>
           <select v-model="groupBy" class="aud-sel">
             <option v-for="o in GROUP_OPTS" :key="o.v" :value="o.v">{{ o.l }}</option>
           </select>
         </div>
         <div class="aud-grpbar-l">
-          <span class="aud-grpbar-lbl">Сортировка</span>
+          <span class="aud-grpbar-lbl">{{ t('Сортировка') }}</span>
           <select v-model="sortBy" class="aud-sel">
             <option v-for="o in SORT_OPTS" :key="o.v" :value="o.v">{{ o.l }}</option>
           </select>
@@ -777,7 +797,9 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
       <div v-for="(sec, si) in userSections" :key="sec.label || 'all'" class="aud-usec">
         <div v-if="sec.label" class="aud-usec-hd">
           <span class="aud-usec-name">{{ sec.label }}</span>
-          <span class="aud-usec-meta">{{ sec.people }} чел · {{ sec.total.toLocaleString('ru') }} действий</span>
+          <span class="aud-usec-meta">{{ t('Людей: {people} · Действий: {total}', {
+            people: fmt.fmtNumber(sec.people), total: fmt.fmtNumber(sec.total),
+          }) }}</span>
         </div>
         <div class="aud-users">
           <div v-for="(u, i) in sec.users" :key="u.actor_id" class="aud-user"
@@ -787,31 +809,33 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
               <div class="aud-ava" :class="{ ring: !!userRisk(u), owner: u.is_owner, photo: !!u.avatar_url }" :style="{ background: u.avatar_url ? 'transparent' : u.accent }">
                 <img v-if="u.avatar_url" :src="u.avatar_url" alt="" />
                 <template v-else>{{ u.initials }}</template>
-                <span v-if="u.is_owner" class="aud-ava-star" title="Владелец платформы">
+                <span v-if="u.is_owner" class="aud-ava-star" :title="t('Владелец платформы')">
                   <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1 L10 5.6 L15 6.2 L11.3 9.6 L12.3 14.5 L8 12 L3.7 14.5 L4.7 9.6 L1 6.2 L6 5.6 Z"/></svg>
                 </span>
               </div>
             </UserCardAnchor>
             <div class="aud-user-main">
-              <div class="aud-user-name">{{ u.name }}<span v-if="u.role" class="aud-user-role">{{ u.role }}</span><span v-if="userRisk(u)" class="aud-risk-flag" :class="userRisk(u)?.level" :title="userRisk(u)?.reason">риск</span></div>
+              <div class="aud-user-name">{{ u.name }}<span v-if="u.role" class="aud-user-role">{{ u.role }}</span><span v-if="userRisk(u)" class="aud-risk-flag" :class="userRisk(u)?.level" :title="userRisk(u)?.reason">{{ t('Риск') }}</span></div>
               <UserAffiliationBadge
                 v-if="u.company || u.sector || u.department || u.job_title"
                 class="aud-user-aff" size="sm"
                 :company="u.company" :sector="u.sector" :department="u.department" :job-title="u.job_title"
               />
-              <div class="aud-user-meta">{{ u.total.toLocaleString('ru') }} действий · {{ fmtRelative(u.last_at) }}</div>
+              <div class="aud-user-meta">{{ t('Действий: {count} · {time}', {
+                count: fmt.fmtNumber(u.total), time: fmtRelative(u.last_at),
+              }) }}</div>
               <div class="aud-user-bars">
-                <span class="aud-ub" :style="{ background: '#7C6FF7', flex: u.changes }" :title="'Изменения: ' + u.changes" />
-                <span class="aud-ub" :style="{ background: '#0891B2', flex: u.views }" :title="'Просмотры: ' + u.views" />
-                <span class="aud-ub" :style="{ background: '#1D9E75', flex: u.logins }" :title="'Входы: ' + u.logins" />
-                <span class="aud-ub" :style="{ background: '#EF4444', flex: u.deletions }" :title="'Удаления: ' + u.deletions" />
+                <span class="aud-ub" :style="{ background: '#7C6FF7', flex: u.changes }" :title="t('Изменения: {count}', { count: fmt.fmtNumber(u.changes) })" />
+                <span class="aud-ub" :style="{ background: '#0891B2', flex: u.views }" :title="t('Просмотры: {count}', { count: fmt.fmtNumber(u.views) })" />
+                <span class="aud-ub" :style="{ background: '#1D9E75', flex: u.logins }" :title="t('Входы: {count}', { count: fmt.fmtNumber(u.logins) })" />
+                <span class="aud-ub" :style="{ background: '#EF4444', flex: u.deletions }" :title="t('Удаления: {count}', { count: fmt.fmtNumber(u.deletions) })" />
               </div>
             </div>
             <div class="aud-user-go">›</div>
           </div>
         </div>
       </div>
-      <div v-if="overview && !sortedUsers.length" class="aud-empty">Нет активности за период</div>
+      <div v-if="overview && !sortedUsers.length" class="aud-empty">{{ t('Нет активности за период') }}</div>
     </template>
 
     <!-- MODE: лента -->
@@ -819,11 +843,11 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
       <div v-for="(e, i) in feed" :key="e.id" class="aud-ev" :style="{ '--d': Math.min(i, 20) * 25 + 'ms' }" @click="openEvent(e)">
         <span class="aud-ev-dot" :style="{ background: severity(e).color }" />
         <div class="aud-ev-main">
-          <div class="aud-ev-line"><b>{{ (e.actor_email || 'Система').split('@')[0] }}</b> {{ describe(e) }}</div>
+          <div class="aud-ev-line"><b>{{ (e.actor_email || t('Система')).split('@')[0] }}</b> {{ describe(e) }}</div>
           <div class="aud-ev-meta">{{ whereText(e) }}<span v-if="whereText(e)"> · </span>{{ fmtRelative(e.created_at) }}<span v-if="e.ip_address"> · {{ e.ip_address }}</span></div>
         </div>
       </div>
-      <div v-if="!feed.length && !loading" class="aud-empty">Нет событий</div>
+      <div v-if="!feed.length && !loading" class="aud-empty">{{ t('Нет событий') }}</div>
     </div>
 
     <!-- MODE: по разделам -->
@@ -831,9 +855,9 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
       <div v-for="m in moduleRows" :key="m.module" class="aud-mrow aud-mrow-click" @click="openDrill(m.label, { module: m.module })">
         <div class="aud-mrow-l">{{ m.label }}</div>
         <div class="aud-mrow-bar"><span :style="{ width: m.pct + '%', background: m.accent }" /></div>
-        <div class="aud-mrow-c">{{ m.count.toLocaleString('ru') }}</div>
+        <div class="aud-mrow-c">{{ fmt.fmtNumber(m.count) }}</div>
       </div>
-      <div v-if="!moduleRows.length" class="aud-empty">Нет данных</div>
+      <div v-if="!moduleRows.length" class="aud-empty">{{ t('Нет данных') }}</div>
     </div>
 
     <!-- USER MODAL — персональная аналитика -->
@@ -854,17 +878,17 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
                 :company="selUser.company" :sector="selUser.sector" :department="selUser.department" :job-title="selUser.job_title"
               />
             </div>
-            <button class="aud-x" @click="closeUser">×</button>
+            <button class="aud-x" :aria-label="t('Закрыть')" @click="closeUser">×</button>
           </div>
 
           <div class="aud-um-body">
-            <div v-if="userLoading" class="aud-empty-s">Загрузка активности…</div>
+            <div v-if="userLoading" class="aud-empty-s">{{ t('Загрузка активности…') }}</div>
             <template v-else-if="activity">
               <!-- Сводка -->
               <div class="aud-um-summary">
-                <div class="aud-um-stat"><b>{{ fmtDur(activity.in_system_seconds) }}</b><span>в системе</span></div>
-                <div class="aud-um-stat"><b>{{ activity.sessions_count }}</b><span>сессий</span></div>
-                <div class="aud-um-stat"><b>{{ activity.total_events.toLocaleString('ru') }}</b><span>действий</span></div>
+                <div class="aud-um-stat"><b>{{ fmtDur(activity.in_system_seconds) }}</b><span>{{ t('В системе') }}</span></div>
+                <div class="aud-um-stat"><b>{{ fmt.fmtNumber(activity.sessions_count) }}</b><span>{{ t('Сессий') }}</span></div>
+                <div class="aud-um-stat"><b>{{ fmt.fmtNumber(activity.total_events) }}</b><span>{{ t('Действий') }}</span></div>
               </div>
 
               <!-- Типы (бары) -->
@@ -878,12 +902,14 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
               <div class="aud-um-cols">
                 <!-- Где провёл время -->
                 <div class="aud-um-col">
-                  <div class="aud-um-h">Где провёл время</div>
+                  <div class="aud-um-h">{{ t('Где провёл время') }}</div>
                   <div v-if="!moduleTime.length" class="aud-empty-s">—</div>
                   <div v-for="m in moduleTime" :key="m.module" class="aud-um-mod">
                     <div class="aud-um-mod-top">
                       <span class="aud-um-mod-l">{{ m.label }}</span>
-                      <span class="aud-um-mod-t">{{ fmtDur(m.seconds) }} · {{ m.count }}</span>
+                      <span class="aud-um-mod-t">{{ t('{time} · действий: {count}', {
+                        time: fmtDur(m.seconds), count: fmt.fmtNumber(m.count),
+                      }) }}</span>
                     </div>
                     <div class="aud-um-mod-bar"><span :style="{ width: m.pctTime + '%' }" /></div>
                   </div>
@@ -891,18 +917,22 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
 
                 <!-- Сессии (по дням) -->
                 <div class="aud-um-col">
-                  <div class="aud-um-h">Сессии за период</div>
+                  <div class="aud-um-h">{{ t('Сессии за период') }}</div>
                   <div v-if="!sessionsByDay.length" class="aud-empty-s">—</div>
                   <div v-for="g in sessionsByDay" :key="g.day" class="aud-um-day">
                     <div class="aud-um-day-hd">
                       <span class="aud-um-day-l">{{ g.day }}</span>
-                      <span class="aud-um-day-t">{{ fmtDur(g.total) }} · {{ g.count }} действий</span>
+                      <span class="aud-um-day-t">{{ t('{time} · действий: {count}', {
+                        time: fmtDur(g.total), count: fmt.fmtNumber(g.count),
+                      }) }}</span>
                     </div>
                     <div v-for="(s, i) in g.sessions" :key="i" class="aud-um-sess">
                       <span class="aud-um-sess-dot" />
                       <div class="aud-um-sess-main">
                         <div class="aud-um-sess-time">{{ fmtClock(s.start) }} — {{ fmtClock(s.end) }}</div>
-                        <div class="aud-um-sess-meta">{{ fmtDur(s.duration_sec) }} · {{ s.events }} действий</div>
+                        <div class="aud-um-sess-meta">{{ t('{time} · действий: {count}', {
+                          time: fmtDur(s.duration_sec), count: fmt.fmtNumber(s.events),
+                        }) }}</div>
                       </div>
                     </div>
                   </div>
@@ -910,7 +940,7 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
               </div>
 
               <!-- Лента (схлопнутая) -->
-              <div class="aud-um-h" style="margin-top:6px">Последние действия</div>
+              <div class="aud-um-h" style="margin-top:6px">{{ t('Последние действия') }}</div>
               <div class="aud-um-feed">
                 <div v-for="(r, i) in activity.recent" :key="i" class="aud-ev aud-ev-flat">
                   <span class="aud-ev-dot" :style="{ background: TYPE_DOT[r.type] || '#94A3B8' }" />
@@ -930,11 +960,11 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
                       <span v-if="r.method" class="aud-ev-meth">{{ r.method }}</span>
                       <span v-if="r.path" class="aud-ev-path">{{ r.path }}</span>
                       <span v-if="r.status != null" class="aud-ev-st" :class="{ bad: r.status >= 400 }">{{ r.status }}</span>
-                      <span v-if="r.dur_ms != null" class="aud-ev-dur">{{ r.dur_ms }} мс</span>
+                      <span v-if="r.dur_ms != null" class="aud-ev-dur">{{ t('{duration} мс', { duration: fmt.fmtNumber(r.dur_ms) }) }}</span>
                     </div>
                   </div>
                 </div>
-                <div v-if="!activity.recent.length" class="aud-empty-s">Нет записей за период</div>
+                <div v-if="!activity.recent.length" class="aud-empty-s">{{ t('Нет записей за период') }}</div>
               </div>
             </template>
           </div>
@@ -947,19 +977,19 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
       <div v-if="selEvent || eventLoading" class="aud-backdrop" @click.self="closeEvent">
         <div class="aud-modal aud-modal-narrow">
           <div class="aud-modal-head">
-            <div class="aud-modal-title">Детали события</div>
-            <button class="aud-x" @click="closeEvent">×</button>
+            <div class="aud-modal-title">{{ t('Детали события') }}</div>
+            <button class="aud-x" :aria-label="t('Закрыть')" @click="closeEvent">×</button>
           </div>
-          <div v-if="eventLoading" class="aud-empty-s">Загрузка…</div>
+          <div v-if="eventLoading" class="aud-empty-s">{{ t('Загрузка…') }}</div>
           <div v-else-if="selEvent" class="aud-modal-body">
-            <div class="aud-kv"><span>Кто</span><b>{{ selEvent.actor_email || 'Система' }}</b></div>
-            <div class="aud-kv"><span>Действие</span><b>{{ describe(selEvent) }}</b></div>
-            <div class="aud-kv"><span>Раздел</span><b>{{ whereText(selEvent) || '—' }}</b></div>
-            <div class="aud-kv"><span>Когда</span><b>{{ fmt.fmtDateTime(selEvent.created_at) }}</b></div>
+            <div class="aud-kv"><span>{{ t('Кто') }}</span><b>{{ selEvent.actor_email || t('Система') }}</b></div>
+            <div class="aud-kv"><span>{{ t('Действие') }}</span><b>{{ describe(selEvent) }}</b></div>
+            <div class="aud-kv"><span>{{ t('Раздел') }}</span><b>{{ whereText(selEvent) || '—' }}</b></div>
+            <div class="aud-kv"><span>{{ t('Когда') }}</span><b>{{ fmt.fmtDateTime(selEvent.created_at) }}</b></div>
             <div class="aud-kv"><span>IP</span><b>{{ selEvent.ip_address || '—' }}</b></div>
-            <div class="aud-kv"><span>Статус</span><b>{{ selEvent.http_method }} {{ selEvent.http_status }}</b></div>
-            <div v-if="selEvent.diff" class="aud-json"><div class="aud-json-t">Изменения</div><pre>{{ JSON.stringify(selEvent.diff, null, 2) }}</pre></div>
-            <div v-if="selEvent.payload" class="aud-json"><div class="aud-json-t">Данные</div><pre>{{ JSON.stringify(selEvent.payload, null, 2) }}</pre></div>
+            <div class="aud-kv"><span>{{ t('Статус') }}</span><b>{{ selEvent.http_method }} {{ selEvent.http_status }}</b></div>
+            <div v-if="selEvent.diff" class="aud-json"><div class="aud-json-t">{{ t('Изменения') }}</div><pre>{{ JSON.stringify(selEvent.diff, null, 2) }}</pre></div>
+            <div v-if="selEvent.payload" class="aud-json"><div class="aud-json-t">{{ t('Данные') }}</div><pre>{{ JSON.stringify(selEvent.payload, null, 2) }}</pre></div>
           </div>
         </div>
       </div>
@@ -971,15 +1001,15 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
         <div class="aud-modal">
           <div class="aud-modal-head">
             <div class="aud-modal-title">{{ drillTitle }}</div>
-            <button class="aud-x" @click="closeDrill">×</button>
+            <button class="aud-x" :aria-label="t('Закрыть')" @click="closeDrill">×</button>
           </div>
           <div class="aud-modal-body">
-            <div v-if="drillLoading" class="aud-empty-s">Загрузка…</div>
-            <div v-else-if="!drillEvents.length" class="aud-empty-s">Нет событий за период</div>
+            <div v-if="drillLoading" class="aud-empty-s">{{ t('Загрузка…') }}</div>
+            <div v-else-if="!drillEvents.length" class="aud-empty-s">{{ t('Нет событий за период') }}</div>
             <div v-for="e in drillEvents" :key="e.id" class="aud-ev aud-ev-flat" @click="openEvent(e)">
               <span class="aud-ev-dot" :style="{ background: severity(e).color }" />
               <div class="aud-ev-main">
-                <div class="aud-ev-line"><b>{{ (e.actor_email || 'Система').split('@')[0] }}</b> {{ describe(e) }}</div>
+                <div class="aud-ev-line"><b>{{ (e.actor_email || t('Система')).split('@')[0] }}</b> {{ describe(e) }}</div>
                 <div class="aud-ev-meta">{{ whereText(e) }}<span v-if="whereText(e)"> · </span>{{ fmtRelative(e.created_at) }}<span v-if="e.ip_address"> · {{ e.ip_address }}</span></div>
               </div>
             </div>
@@ -992,13 +1022,13 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
     <transition name="aud-modal">
       <div v-if="purgeOpen" class="aud-backdrop" @click.self="purgeOpen = false">
         <div class="aud-modal aud-modal-narrow">
-          <div class="aud-modal-head"><div class="aud-modal-title">Очистка журнала</div><button class="aud-x" @click="purgeOpen = false">×</button></div>
+          <div class="aud-modal-head"><div class="aud-modal-title">{{ t('Очистка журнала') }}</div><button class="aud-x" :aria-label="t('Закрыть')" @click="purgeOpen = false">×</button></div>
           <div class="aud-modal-body">
-            <p class="aud-purge-warn">Удаление записей необратимо. HMAC-цепочка целостности будет перестроена.</p>
+            <p class="aud-purge-warn">{{ t('Удаление записей необратимо. HMAC-цепочка целостности будет перестроена.') }}</p>
             <label v-for="o in PURGE_OPTS" :key="String(o.v)" class="aud-radio">
               <input type="radio" :value="o.v" v-model="purgeKeep" /> {{ o.l }}
             </label>
-            <button class="aud-btn aud-btn-danger aud-purge-go" :disabled="purging" @click="doPurge">{{ purging ? 'Удаляю…' : 'Удалить' }}</button>
+            <button class="aud-btn aud-btn-danger aud-purge-go" :disabled="purging" @click="doPurge">{{ purging ? t('Удаляю…') : t('Удалить') }}</button>
           </div>
         </div>
       </div>

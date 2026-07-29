@@ -8,6 +8,9 @@
  */
 import { ref } from "vue";
 import { api } from "@/api/client";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const props = defineProps<{ email?: string | null; userId?: string | null }>();
 
@@ -68,7 +71,7 @@ function onLeave() { clearTimeout(timer); timer = setTimeout(() => { show.value 
     <Transition name="uh-fade">
       <div v-if="show" class="uh-pop" :style="{ top: pos.top + 'px', left: pos.left + 'px' }"
            @mouseenter="show = true" @mouseleave="onLeave">
-        <div v-if="loading && !card" class="uh-load">Загрузка…</div>
+        <div v-if="loading && !card" class="uh-load">{{ t('Загрузка…') }}</div>
         <template v-else-if="card">
           <div class="uh-head">
             <div class="uh-av" :class="{ ext: card.is_external }">
@@ -79,19 +82,19 @@ function onLeave() { clearTimeout(timer); timer = setTimeout(() => { show.value 
               <div class="uh-name">{{ card.full_name || card.email }}</div>
               <div class="uh-role">
                 <span v-if="card.role" class="uh-tag">{{ card.role }}</span>
-                <span v-if="card.is_external" class="uh-tag ext">внешний</span>
-                <span v-if="!card.is_active" class="uh-tag off">неактивен</span>
+                <span v-if="card.is_external" class="uh-tag ext">{{ t('внешний') }}</span>
+                <span v-if="!card.is_active" class="uh-tag off">{{ t('неактивен') }}</span>
               </div>
             </div>
           </div>
           <div class="uh-rows">
-            <div v-if="card.job_title" class="uh-row"><span>Должность</span><b>{{ card.job_title }}</b></div>
-            <div v-if="card.department" class="uh-row"><span>Отдел</span><b>{{ card.department }}</b></div>
+            <div v-if="card.job_title" class="uh-row"><span>{{ t('Должность') }}</span><b>{{ card.job_title }}</b></div>
+            <div v-if="card.department" class="uh-row"><span>{{ t('Отдел') }}</span><b>{{ card.department }}</b></div>
             <div class="uh-row"><span>Email</span><b class="mono">{{ card.email }}</b></div>
-            <div v-if="card.phone" class="uh-row"><span>Телефон</span><b class="mono">{{ card.phone }}</b></div>
+            <div v-if="card.phone" class="uh-row"><span>{{ t('Телефон') }}</span><b class="mono">{{ card.phone }}</b></div>
           </div>
         </template>
-        <div v-else class="uh-load">Нет данных</div>
+        <div v-else class="uh-load">{{ t('Нет данных') }}</div>
       </div>
     </Transition>
   </Teleport>

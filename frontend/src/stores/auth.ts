@@ -54,6 +54,15 @@ export const useAuthStore = defineStore("auth", () => {
     return userPermissions.value.includes(code);
   }
 
+  /** Право выдано ЛИЧНО этому пользователю (сетка «Доступ к модулям»), а не
+   *  унаследовано от роли. Личная выдача перекрывает правила видимости,
+   *  завязанные на область компаний: «дал доступ — значит показать». */
+  function hasDirectPermission(code: string): boolean {
+    if (isOwner.value) return true;
+    const direct = (user.value as any)?.direct_permissions;
+    return Array.isArray(direct) && direct.includes(code);
+  }
+
   function hasRole(...codes: string[]): boolean {
     if (isOwner.value) return true;
     return codes.some((c) => userRoles.value.includes(c));
@@ -77,6 +86,7 @@ export const useAuthStore = defineStore("auth", () => {
     isOwner,
     userRoles,
     userPermissions,
+    hasDirectPermission,
     setTokens,
     setUser,
     clear,

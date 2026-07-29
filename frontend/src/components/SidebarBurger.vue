@@ -5,6 +5,9 @@
 // ВАЖНО: страница, где он используется, должна быть в OWN_TOPBAR_PREFIXES
 // (AppShell), иначе сверху будет ещё и плавающий гамбургер + пустой зазор.
 import { inject } from "vue";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 const toggleSidebar = inject<() => void>("toggleSidebar", () => {});
 const openMobileSidebar = inject<() => void>("openMobileSidebar", () => {});
 function onBurger() {
@@ -15,7 +18,7 @@ function onBurger() {
 
 <template>
   <button class="uza-pageburger" type="button" @click="onBurger()"
-          title="Меню / свернуть сайдбар" aria-label="Меню">
+          :title="t('Меню / свернуть сайдбар')" :aria-label="t('Меню')">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
          stroke-width="2" stroke-linecap="round">
       <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />

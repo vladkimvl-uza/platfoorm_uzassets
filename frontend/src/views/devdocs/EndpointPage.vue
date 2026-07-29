@@ -7,6 +7,9 @@ import { computed, onMounted, ref } from "vue";
 import { useRoute } from "vue-router";
 import { useApiCatalogStore } from "@/stores/apiCatalog";
 import { generateCurl, generatePython, generateJS, generateGo } from "@/utils/codeGenerator";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const route   = useRoute();
 const catalog = useApiCatalogStore();
@@ -50,7 +53,7 @@ const methodColor = computed(() => {
   <article class="ep" v-if="endpoint">
     <header class="ep-head">
       <div class="ep-eyebrow">
-        Модуль <RouterLink :to="`/api-docs/endpoints/${moduleCode}`">{{ moduleCode }}</RouterLink>
+        {{ t('Модуль') }} <RouterLink :to="`/api-docs/endpoints/${moduleCode}`">{{ moduleCode }}</RouterLink>
       </div>
       <h1 class="ep-h1">
         <span class="ep-method" :style="{ background: methodColor.bg, color: methodColor.fg }">
@@ -61,7 +64,7 @@ const methodColor = computed(() => {
       <p v-if="endpoint.summary" class="ep-summary">{{ endpoint.summary }}</p>
       <div class="ep-meta">
         <span v-if="endpoint.required_permission" class="ep-perm">
-          Право: <code>{{ endpoint.required_permission }}</code>
+          {{ t('Право:') }} <code>{{ endpoint.required_permission }}</code>
         </span>
         <span v-if="endpoint.tags?.length" class="ep-tags">
           {{ endpoint.tags.join(" · ") }}
@@ -81,17 +84,16 @@ const methodColor = computed(() => {
     </section>
 
     <section class="ep-info">
-      <h2 class="ep-h2">Дополнительно</h2>
-      <p>Полная схема параметров и ответа доступна в
+      <h2 class="ep-h2">{{ t('Дополнительно') }}</h2>
+      <p>{{ t('Полная схема параметров и ответа доступна в') }}
         <a href="/api/api-catalog/openapi.json" target="_blank">/api-catalog/openapi.json</a>
-        — отдельный JSON, который генерируется FastAPI автоматически. Можно использовать
-        для codegen клиентов через openapi-generator.
+        {{ t('— отдельный JSON, который генерируется FastAPI автоматически. Можно использовать для codegen клиентов через openapi-generator.') }}
       </p>
     </section>
   </article>
 
-  <div v-else-if="catalog.summary === null" class="ep-loading">Загружаю каталог…</div>
-  <div v-else class="ep-empty">Endpoint не найден. <RouterLink to="/api-docs">← На главную</RouterLink></div>
+  <div v-else-if="catalog.summary === null" class="ep-loading">{{ t('Загружаю каталог…') }}</div>
+  <div v-else class="ep-empty">{{ t('Endpoint не найден.') }} <RouterLink to="/api-docs">{{ t('← На главную') }}</RouterLink></div>
 </template>
 
 <style scoped>

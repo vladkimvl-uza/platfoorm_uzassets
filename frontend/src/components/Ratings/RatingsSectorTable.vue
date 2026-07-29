@@ -23,6 +23,9 @@ import {
   buildRatingIndex, getRating,
   displayRating, coSector, sectorColor,
 } from "./ratingsHelpers";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const props = defineProps<{
   kind: "credit" | "esg";
@@ -204,7 +207,7 @@ const legend = computed(() => {
         <span class="rst-title" :style="{ color: accent }">{{ titleText }}</span>
       </div>
       <div class="rst-col-row">
-        <div class="rst-col rst-col-co">Компания</div>
+        <div class="rst-col rst-col-co">{{ t('Компания') }}</div>
         <div v-for="ag in agencies" :key="ag" class="rst-col">
           {{ ag === "S&P" ? "S&amp;P" : ag === "Sustainable Fitch" ? "Sust. Fitch" : ag }}
         </div>
@@ -256,7 +259,7 @@ const legend = computed(() => {
                               :style="{ background: c.bs.bg, color: c.bs.fg }">
                           {{ c.display }}
                         </span>
-                        <span v-if="c.isNew" class="rst-recent" title="Недавно обновлено">▲</span>
+                        <span v-if="c.isNew" class="rst-recent" :title="t('Недавно обновлено')">▲</span>
                       </div>
                       <div class="rst-meta-row">
                         <span v-if="c.rating.rating_date || c.rating.rating_date_text" class="rst-date">
@@ -273,16 +276,16 @@ const legend = computed(() => {
                            target="_blank"
                            rel="noopener"
                            class="rst-link"
-                           title="Открыть отчёт"
+                           :title="t('Открыть отчёт')"
                            @click.stop>
                           ↗
                         </a>
                       </div>
-                      <span v-if="c.isLeader" class="rst-leader" title="Лидер сектора">★</span>
+                      <span v-if="c.isLeader" class="rst-leader" :title="t('Лидер сектора')">★</span>
                     </div>
                   </template>
                   <template v-else>
-                    <div class="rst-empty-circle" title="Добавить рейтинг">+</div>
+                    <div class="rst-empty-circle" :title="t('Добавить рейтинг')">+</div>
                   </template>
                 </template>
               </div>
@@ -300,15 +303,15 @@ const legend = computed(() => {
       </span>
       <span class="rst-leg-item rst-leg-mut">
         <span class="rst-leg-empty-circle" />
-        <span>Нет</span>
+        <span>{{ t('Нет') }}</span>
       </span>
       <span class="rst-leg-item rst-leg-mut">
         <span class="rst-leg-star">★</span>
-        <span>Лидер сектора</span>
+        <span>{{ t('Лидер сектора') }}</span>
       </span>
       <span class="rst-leg-item" style="color:#1D9E75">
         <span style="font-size:9px">▲</span>
-        <span>обновлён в текущем году</span>
+        <span>{{ t('обновлён в текущем году') }}</span>
       </span>
     </div>
   </div>

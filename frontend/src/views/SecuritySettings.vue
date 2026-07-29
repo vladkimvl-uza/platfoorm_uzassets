@@ -4,6 +4,9 @@ import { mfaApi, type MfaStatus, type TelegramPref } from "@/api/mfa";
 import { authApi, type SessionInfo } from "@/api/auth";
 import { AxiosError } from "axios";
 import { useFormatters } from "@/composables/useFormatters";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const fmt = useFormatters();
 
@@ -281,12 +284,12 @@ const linkExpiresIn = computed(() => {
 <template>
   <div class="ss-page">
     <div class="ss-topbar">
-      <div class="ss-eyebrow">UzAssets · настройки</div>
-      <div class="ss-title">Безопасность</div>
-      <div class="ss-sub">Двухфакторная аутентификация и уведомления через Telegram</div>
+      <div class="ss-eyebrow">{{ t('UzAssets · настройки') }}</div>
+      <div class="ss-title">{{ t('Безопасность') }}</div>
+      <div class="ss-sub">{{ t('Двухфакторная аутентификация и уведомления через Telegram') }}</div>
     </div>
 
-    <div v-if="loading" class="ss-loading">Загрузка…</div>
+    <div v-if="loading" class="ss-loading">{{ t('Загрузка…') }}</div>
 
     <transition name="uza-fade">
       <div v-if="notice" class="ss-notice">{{ notice }}</div>
@@ -318,39 +321,39 @@ const linkExpiresIn = computed(() => {
       <!-- Not linked -->
       <div v-if="linkUiState === 'not-linked'" class="ss-card-body">
         <p class="ss-desc">
-          Привяжите Telegram, чтобы получать коды для 2FA и уведомления о задачах и дедлайнах.
+          {{ t('Привяжите Telegram, чтобы получать коды для 2FA и уведомления о задачах и дедлайнах.') }}
         </p>
-        <button class="ss-btn-primary" @click="startLink">Связать Telegram</button>
+        <button class="ss-btn-primary" @click="startLink">{{ t('Связать Telegram') }}</button>
       </div>
 
       <!-- Linking in progress (deep link issued) -->
       <div v-else-if="linkUiState === 'linking'" class="ss-card-body">
-        <p class="ss-desc">Откройте ссылку и нажмите Start в боте.</p>
+        <p class="ss-desc">{{ t('Откройте ссылку и нажмите Start в боте.') }}</p>
         <a :href="linkDeepLink!" target="_blank" rel="noopener" class="ss-deep-link">
           {{ linkDeepLink }}
         </a>
         <div class="ss-link-meta">
-          Срок действия: {{ linkExpiresIn }}.
-          <span v-if="linkPolling">Ожидание подтверждения…</span>
+          {{ t('Срок действия:') }} {{ linkExpiresIn }}.
+          <span v-if="linkPolling">{{ t('Ожидание подтверждения…') }}</span>
         </div>
-        <button class="ss-btn-ghost" @click="cancelLink">Отмена</button>
+        <button class="ss-btn-ghost" @click="cancelLink">{{ t('Отмена') }}</button>
       </div>
 
       <!-- Linked -->
       <div v-else class="ss-card-body">
         <div class="ss-info-row">
-          <span class="ss-label">Аккаунт:</span>
+          <span class="ss-label">{{ t('Аккаунт:') }}</span>
           <span class="ss-value">{{ status.telegram_username ? '@' + status.telegram_username : 'без username' }}</span>
         </div>
         <div class="ss-info-row" v-if="status.telegram_linked_at">
-          <span class="ss-label">Привязан:</span>
+          <span class="ss-label">{{ t('Привязан:') }}</span>
           <span class="ss-value">{{ fmt.fmtDateTime(status.telegram_linked_at) }}</span>
         </div>
         <div class="ss-actions">
           <button class="ss-btn-ghost" :disabled="testSending" @click="sendTest">
             {{ testSending ? "Отправка…" : "Отправить тест" }}
           </button>
-          <button class="ss-btn-danger" @click="unlinkModalOpen = true">Отвязать</button>
+          <button class="ss-btn-danger" @click="unlinkModalOpen = true">{{ t('Отвязать') }}</button>
         </div>
       </div>
     </section>
@@ -364,7 +367,7 @@ const linkExpiresIn = computed(() => {
             <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
           </svg>
         </div>
-        <div class="ss-card-title">Двухфакторная аутентификация</div>
+        <div class="ss-card-title">{{ t('Двухфакторная аутентификация') }}</div>
         <div class="ss-card-pill" :class="{ 'pill-green': status.enabled, 'pill-grey': !status.enabled }">
           {{ status.enabled ? 'включена' : 'отключена' }}
         </div>
@@ -372,38 +375,37 @@ const linkExpiresIn = computed(() => {
 
       <div v-if="!status.enabled" class="ss-card-body">
         <p class="ss-desc">
-          При входе на платформу мы будем отправлять одноразовый код в Telegram. Дополнительно
-          вы получите 10 recovery-кодов на случай потери доступа к телефону.
+          {{ t('При входе на платформу мы будем отправлять одноразовый код в Telegram. Дополнительно вы получите 10 recovery-кодов на случай потери доступа к телефону.') }}
         </p>
         <button
           class="ss-btn-primary"
           :disabled="!status.telegram_linked"
           @click="enable2fa"
         >
-          Включить 2FA
+          {{ t('Включить 2FA') }}
         </button>
         <p v-if="!status.telegram_linked" class="ss-warn">
-          Сначала привяжите Telegram.
+          {{ t('Сначала привяжите Telegram.') }}
         </p>
       </div>
 
       <div v-else class="ss-card-body">
         <div class="ss-info-row">
-          <span class="ss-label">Метод:</span>
+          <span class="ss-label">{{ t('Метод:') }}</span>
           <span class="ss-value">{{ status.method === 'telegram' ? 'Telegram' : status.method }}</span>
         </div>
         <div class="ss-info-row">
-          <span class="ss-label">Recovery-коды:</span>
+          <span class="ss-label">{{ t('Recovery-коды:') }}</span>
           <span class="ss-value">
-            {{ status.recovery_codes_remaining }} из {{ status.recovery_codes_total }} осталось
+            {{ status.recovery_codes_remaining }} {{ t('из') }} {{ status.recovery_codes_total }} {{ t('осталось') }}
           </span>
         </div>
         <div class="ss-actions">
           <button class="ss-btn-ghost" @click="regenModalOpen = true">
-            Сгенерировать заново
+            {{ t('Сгенерировать заново') }}
           </button>
           <button class="ss-btn-danger" @click="disableModalOpen = true">
-            Отключить 2FA
+            {{ t('Отключить 2FA') }}
           </button>
         </div>
       </div>
@@ -418,17 +420,17 @@ const linkExpiresIn = computed(() => {
             <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
           </svg>
         </div>
-        <div class="ss-card-title">Уведомления</div>
+        <div class="ss-card-title">{{ t('Уведомления') }}</div>
       </div>
       <div class="ss-card-body">
         <p class="ss-desc">
-          Дублирование уведомлений из платформы в Telegram. Изменения сохраняются автоматически.
+          {{ t('Дублирование уведомлений из платформы в Telegram. Изменения сохраняются автоматически.') }}
         </p>
 
         <div class="ss-toggle-row">
           <div>
-            <div class="ss-toggle-name">Уведомления включены</div>
-            <div class="ss-toggle-hint">Главный переключатель — отключает всё ниже</div>
+            <div class="ss-toggle-name">{{ t('Уведомления включены') }}</div>
+            <div class="ss-toggle-hint">{{ t('Главный переключатель — отключает всё ниже') }}</div>
           </div>
           <label class="ss-switch">
             <input
@@ -466,8 +468,8 @@ const linkExpiresIn = computed(() => {
 
         <div class="ss-toggle-row">
           <div>
-            <div class="ss-toggle-name">Тихие часы</div>
-            <div class="ss-toggle-hint">Не беспокоить в указанный период (критичные обходят)</div>
+            <div class="ss-toggle-name">{{ t('Тихие часы') }}</div>
+            <div class="ss-toggle-hint">{{ t('Не беспокоить в указанный период (критичные обходят)') }}</div>
           </div>
           <label class="ss-switch">
             <input
@@ -481,7 +483,7 @@ const linkExpiresIn = computed(() => {
         </div>
         <div v-if="prefs.quiet_hours_enabled" class="ss-quiet-times">
           <div>
-            <label class="ss-label">Начало</label>
+            <label class="ss-label">{{ t('Начало') }}</label>
             <input
               type="time"
               :value="(prefs.quiet_hours_start || '22:00:00').slice(0, 5)"
@@ -491,7 +493,7 @@ const linkExpiresIn = computed(() => {
             />
           </div>
           <div>
-            <label class="ss-label">Конец</label>
+            <label class="ss-label">{{ t('Конец') }}</label>
             <input
               type="time"
               :value="(prefs.quiet_hours_end || '07:00:00').slice(0, 5)"
@@ -514,29 +516,29 @@ const linkExpiresIn = computed(() => {
             <path d="M8 21h8M12 17v4" />
           </svg>
         </div>
-        <div class="ss-card-title">Активные сессии</div>
+        <div class="ss-card-title">{{ t('Активные сессии') }}</div>
         <button v-if="hasOtherSessions" class="ss-btn-ghost ss-sess-revoke-all"
                 :disabled="revokingOthers" @click="revokeOthers">
           {{ revokingOthers ? 'Завершаю…' : 'Завершить остальные' }}
         </button>
       </div>
       <div class="ss-card-body">
-        <p class="ss-desc">Устройства и браузеры, где выполнен вход. Если видите незнакомую сессию — завершите её.</p>
-        <div v-if="sessionsLoading" class="ss-sess-empty">Загрузка…</div>
-        <div v-else-if="!sessions.length" class="ss-sess-empty">Нет активных сессий.</div>
+        <p class="ss-desc">{{ t('Устройства и браузеры, где выполнен вход. Если видите незнакомую сессию — завершите её.') }}</p>
+        <div v-if="sessionsLoading" class="ss-sess-empty">{{ t('Загрузка…') }}</div>
+        <div v-else-if="!sessions.length" class="ss-sess-empty">{{ t('Нет активных сессий.') }}</div>
         <ul v-else class="ss-sess-list">
           <li v-for="s in sessions" :key="s.id" class="ss-sess-item" :class="{ 'is-current': s.current }">
             <div class="ss-sess-main">
               <span class="ss-sess-device">{{ deviceLabel(s.user_agent) }}</span>
-              <span v-if="s.current" class="ss-sess-badge">текущая</span>
+              <span v-if="s.current" class="ss-sess-badge">{{ t('текущая') }}</span>
             </div>
             <div class="ss-sess-meta">
               <span>{{ s.ip_address || 'IP неизвестен' }}</span>
               <span class="ss-sess-dot">·</span>
-              <span>вход {{ fmt.fmtDateTime(s.started_at) }}</span>
+              <span>{{ t('вход') }} {{ fmt.fmtDateTime(s.started_at) }}</span>
             </div>
-            <button v-if="!s.current" class="ss-sess-kill" title="Завершить сессию"
-                    @click="revokeOne(s.id)">Завершить</button>
+            <button v-if="!s.current" class="ss-sess-kill" :title="t('Завершить сессию')"
+                    @click="revokeOne(s.id)">{{ t('Завершить') }}</button>
           </li>
         </ul>
       </div>
@@ -546,20 +548,19 @@ const linkExpiresIn = computed(() => {
     <div v-if="showRecoveryCodes" class="ss-modal-backdrop" @click.self="dismissRecoveryCodes">
       <div class="ss-modal">
         <div class="ss-modal-head">
-          <h3>Recovery-коды</h3>
+          <h3>{{ t('Recovery-коды') }}</h3>
           <button class="ss-modal-x" @click="dismissRecoveryCodes">×</button>
         </div>
         <div class="ss-modal-body">
           <p class="ss-warn-strong">
-            Сохраните эти коды в надёжном месте. Это единственный раз, когда они отображаются.
-            Каждый код можно использовать один раз для входа при потере доступа к Telegram.
+            {{ t('Сохраните эти коды в надёжном месте. Это единственный раз, когда они отображаются. Каждый код можно использовать один раз для входа при потере доступа к Telegram.') }}
           </p>
           <div class="ss-codes-grid">
             <div v-for="code in recoveryCodes" :key="code" class="ss-code">{{ code }}</div>
           </div>
           <div class="ss-modal-actions">
-            <button class="ss-btn-ghost" @click="copyRecoveryCodes">Скопировать все</button>
-            <button class="ss-btn-primary" @click="dismissRecoveryCodes">Я сохранил, закрыть</button>
+            <button class="ss-btn-ghost" @click="copyRecoveryCodes">{{ t('Скопировать все') }}</button>
+            <button class="ss-btn-primary" @click="dismissRecoveryCodes">{{ t('Я сохранил, закрыть') }}</button>
           </div>
         </div>
       </div>
@@ -569,11 +570,11 @@ const linkExpiresIn = computed(() => {
     <div v-if="disableModalOpen" class="ss-modal-backdrop" @click.self="disableModalOpen = false">
       <div class="ss-modal ss-modal-narrow">
         <div class="ss-modal-head">
-          <h3>Отключить 2FA</h3>
+          <h3>{{ t('Отключить 2FA') }}</h3>
           <button class="ss-modal-x" @click="disableModalOpen = false">×</button>
         </div>
         <div class="ss-modal-body">
-          <p>Для отключения введите один из ваших recovery-кодов:</p>
+          <p>{{ t('Для отключения введите один из ваших recovery-кодов:') }}</p>
           <input
             v-model="disableCode"
             type="text"
@@ -581,13 +582,13 @@ const linkExpiresIn = computed(() => {
             class="ss-input ss-input-mono"
           />
           <div class="ss-modal-actions">
-            <button class="ss-btn-ghost" @click="disableModalOpen = false">Отмена</button>
+            <button class="ss-btn-ghost" @click="disableModalOpen = false">{{ t('Отмена') }}</button>
             <button
               class="ss-btn-danger"
               :disabled="disableCode.trim().length < 8"
               @click="confirmDisable"
             >
-              Отключить
+              {{ t('Отключить') }}
             </button>
           </div>
         </div>
@@ -598,17 +599,17 @@ const linkExpiresIn = computed(() => {
     <div v-if="unlinkModalOpen" class="ss-modal-backdrop" @click.self="unlinkModalOpen = false">
       <div class="ss-modal ss-modal-narrow">
         <div class="ss-modal-head">
-          <h3>Отвязать Telegram</h3>
+          <h3>{{ t('Отвязать Telegram') }}</h3>
           <button class="ss-modal-x" @click="unlinkModalOpen = false">×</button>
         </div>
         <div class="ss-modal-body">
-          <p>Уведомления и коды 2FA больше не будут приходить в Telegram.</p>
+          <p>{{ t('Уведомления и коды 2FA больше не будут приходить в Telegram.') }}</p>
           <p v-if="status?.enabled && status?.method === 'telegram'" class="ss-warn-strong">
-            При отвязке 2FA будет автоматически отключена.
+            {{ t('При отвязке 2FA будет автоматически отключена.') }}
           </p>
           <div class="ss-modal-actions">
-            <button class="ss-btn-ghost" @click="unlinkModalOpen = false">Отмена</button>
-            <button class="ss-btn-danger" @click="confirmUnlink">Отвязать</button>
+            <button class="ss-btn-ghost" @click="unlinkModalOpen = false">{{ t('Отмена') }}</button>
+            <button class="ss-btn-danger" @click="confirmUnlink">{{ t('Отвязать') }}</button>
           </div>
         </div>
       </div>
@@ -618,17 +619,16 @@ const linkExpiresIn = computed(() => {
     <div v-if="regenModalOpen" class="ss-modal-backdrop" @click.self="regenModalOpen = false">
       <div class="ss-modal ss-modal-narrow">
         <div class="ss-modal-head">
-          <h3>Сгенерировать новые recovery-коды</h3>
+          <h3>{{ t('Сгенерировать новые recovery-коды') }}</h3>
           <button class="ss-modal-x" @click="regenModalOpen = false">×</button>
         </div>
         <div class="ss-modal-body">
           <p>
-            Текущие 10 кодов будут <strong>немедленно</strong> заменены новыми.
-            После закрытия экрана с новыми кодами они больше не отобразятся.
+            {{ t('Текущие 10 кодов будут') }} <strong>{{ t('немедленно') }}</strong> {{ t('заменены новыми. После закрытия экрана с новыми кодами они больше не отобразятся.') }}
           </p>
           <div class="ss-modal-actions">
-            <button class="ss-btn-ghost" @click="regenModalOpen = false">Отмена</button>
-            <button class="ss-btn-primary" @click="confirmRegenerate">Сгенерировать</button>
+            <button class="ss-btn-ghost" @click="regenModalOpen = false">{{ t('Отмена') }}</button>
+            <button class="ss-btn-primary" @click="confirmRegenerate">{{ t('Сгенерировать') }}</button>
           </div>
         </div>
       </div>

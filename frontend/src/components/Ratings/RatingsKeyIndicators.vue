@@ -14,6 +14,9 @@ import {
   buildRatingIndex, getRating,
   coSector, sectorColor,
 } from "./ratingsHelpers";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const props = defineProps<{
   companies: CompanyListItem[];
@@ -76,18 +79,18 @@ const isEmpty = computed(() =>
 
 <template>
   <div class="rki-card">
-    <div class="rki-head">Ключевые индикаторы</div>
+    <div class="rki-head">{{ t('Ключевые индикаторы') }}</div>
     <div class="rki-body">
-      <div v-if="isEmpty" class="rki-empty">Нет данных для анализа</div>
+      <div v-if="isEmpty" class="rki-empty">{{ t('Нет данных для анализа') }}</div>
 
       <!-- Lowest -->
       <div v-if="lowest" class="rki-row" style="--idx: 0;">
         <div class="rki-dot" style="background:#EF9F27" />
         <div class="rki-text">
           <span class="rki-name">{{ lowest.name }}</span> —
-          <b>самый низкий рейтинг ({{ lowest.value }})</b>
+          <b>{{ t('самый низкий рейтинг (') }}{{ lowest.value }})</b>
         </div>
-        <span class="rki-tag tag-risk">Риск</span>
+        <span class="rki-tag tag-risk">{{ t('Риск') }}</span>
       </div>
 
       <!-- Weak sectors -->
@@ -95,9 +98,9 @@ const isEmpty = computed(() =>
         <div class="rki-dot" style="background:#EF9F27" />
         <div class="rki-text">
           <span class="rki-sec" :style="{ color: ws.color }">{{ ws.name }}</span> —
-          <b>покрытие только {{ ws.pct }}%</b>
+          <b>{{ t('покрытие только') }} {{ ws.pct }}%</b>
         </div>
-        <span class="rki-tag tag-warn">Слабо</span>
+        <span class="rki-tag tag-warn">{{ t('Слабо') }}</span>
       </div>
 
       <!-- Highest -->
@@ -105,9 +108,9 @@ const isEmpty = computed(() =>
         <div class="rki-dot" style="background:#1D9E75" />
         <div class="rki-text">
           <span class="rki-name">{{ highest.name }}</span> —
-          <b>лидер портфеля ({{ highest.value }})</b>
+          <b>{{ t('лидер портфеля (') }}{{ highest.value }})</b>
         </div>
-        <span class="rki-tag tag-leader">Лидер</span>
+        <span class="rki-tag tag-leader">{{ t('Лидер') }}</span>
       </div>
     </div>
   </div>

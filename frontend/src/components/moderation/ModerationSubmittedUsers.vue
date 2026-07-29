@@ -2,6 +2,9 @@
 import { onMounted, ref } from "vue";
 import BIcon from "@/components/broadcasts/BIcon.vue";
 import { moderationApi, type SubmittedUser } from "@/api/moderation";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const emit = defineEmits<{ change: [] }>();
 
@@ -75,17 +78,14 @@ const filtered = () => {
     <div class="su-hd">
       <BIcon name="info-circle" :size="14" />
       <span>
-        Все пользователи с активным <code>is_external</code>. Их записи матчатся
-        правилами с <code>trigger_is_external=true</code> и попадают в очередь модерации.
-        <code>bypass_moderation</code> отключает модерацию для конкретного юзера,
-        даже если <code>is_external</code> включён. Добавить/убрать
-        <code>is_external</code> у любого юзера — на странице пользователя
-        (раздел «Безопасность» → «Модерация»).
+        {{ t('Все пользователи с активным') }} <code>is_external</code>{{ t('. Их записи матчатся правилами с') }} <code>trigger_is_external=true</code> {{ t('и попадают в очередь модерации.') }}
+        <code>bypass_moderation</code> {{ t('отключает модерацию для конкретного юзера, даже если') }} <code>is_external</code> {{ t('включён. Добавить/убрать') }}
+        <code>is_external</code> {{ t('у любого юзера — на странице пользователя (раздел «Безопасность» → «Модерация»).') }}
       </span>
     </div>
 
     <div class="su-toolbar">
-      <input v-model="query" placeholder="Поиск по имени / email / орг..." class="su-search"/>
+      <input v-model="query" :placeholder="t('Поиск по имени / email / орг...')" class="su-search"/>
       <button class="su-reload" @click="load" :disabled="loading">
         <BIcon name="refresh" :size="14" />
       </button>
@@ -93,20 +93,20 @@ const filtered = () => {
 
     <div v-if="error" class="su-err">{{ error }}</div>
 
-    <div v-if="loading && !items.length" class="su-empty">Загрузка…</div>
+    <div v-if="loading && !items.length" class="su-empty">{{ t('Загрузка…') }}</div>
     <div v-else-if="!filtered().length" class="su-empty">
       <BIcon name="user-exclamation" :size="14" />
-      <div v-if="query">По запросу "{{ query }}" ничего не найдено</div>
-      <div v-else>Пользователей под модерацию нет</div>
+      <div v-if="query">{{ t('По запросу "') }}{{ query }}{{ t('" ничего не найдено') }}</div>
+      <div v-else>{{ t('Пользователей под модерацию нет') }}</div>
     </div>
 
     <table v-else class="su-table">
       <thead>
         <tr>
-          <th>Пользователь</th>
-          <th>Организация</th>
+          <th>{{ t('Пользователь') }}</th>
+          <th>{{ t('Организация') }}</th>
           <th class="su-c">external</th>
-          <th class="su-c">обход</th>
+          <th class="su-c">{{ t('обход') }}</th>
         </tr>
       </thead>
       <tbody>
@@ -124,7 +124,7 @@ const filtered = () => {
             <input v-if="u.is_external"
                    class="su-org-input"
                    :value="u.external_org_name ?? ''"
-                   placeholder="название организации..."
+                   :placeholder="t('название организации...')"
                    @blur="patchOrg(u, ($event.target as HTMLInputElement).value)"/>
             <span v-else class="su-org-dash">—</span>
           </td>

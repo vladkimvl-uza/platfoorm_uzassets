@@ -15,6 +15,9 @@ import { useUserCard } from "@/composables/useUserCard";
 import UserAffiliationBadge from "@/components/rbac-v3/UserAffiliationBadge.vue";
 import SocialLinks from "@/components/user/SocialLinks.vue";
 import { formatRelativeTime } from "@/api/audit";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const { state, setOverCard, closeNow } = useUserCard();
 
@@ -81,7 +84,7 @@ onBeforeUnmount(() => {
           <div class="ucard-id">
             <div class="ucard-name" :title="merged.full_name">
               {{ merged.full_name || '—' }}
-              <span v-if="merged.is_owner" class="ucard-owner" title="Владелец">★</span>
+              <span v-if="merged.is_owner" class="ucard-owner" :title="t('Владелец')">★</span>
             </div>
             <div v-if="merged.role" class="ucard-role">{{ merged.role }}</div>
             <a v-if="merged.email" class="ucard-email" :href="'mailto:' + merged.email" @click.stop>{{ merged.email }}</a>
@@ -109,10 +112,10 @@ onBeforeUnmount(() => {
         </div>
 
         <div class="ucard-foot">
-          <span v-if="merged.is_active === false" class="ucard-inactive">● Отключён</span>
-          <span v-else-if="lastActiveLabel" class="ucard-active">Активность: {{ lastActiveLabel }}</span>
-          <span v-else-if="state.loading" class="ucard-active ucard-skeleton">загрузка…</span>
-          <span v-else class="ucard-active ucard-muted">нет активности</span>
+          <span v-if="merged.is_active === false" class="ucard-inactive">{{ t('● Отключён') }}</span>
+          <span v-else-if="lastActiveLabel" class="ucard-active">{{ t('Активность:') }} {{ lastActiveLabel }}</span>
+          <span v-else-if="state.loading" class="ucard-active ucard-skeleton">{{ t('загрузка…') }}</span>
+          <span v-else class="ucard-active ucard-muted">{{ t('нет активности') }}</span>
         </div>
       </div>
     </Transition>

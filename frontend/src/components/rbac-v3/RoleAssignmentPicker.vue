@@ -3,6 +3,9 @@ import { computed, ref, watch } from 'vue';
 import type { RbacV3Role } from '@/api/rbacV3';
 import BIcon from '@/components/broadcasts/BIcon.vue';
 import RoleChip from './RoleChip.vue';
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const props = withDefaults(defineProps<{
   roles: RbacV3Role[];
@@ -145,33 +148,33 @@ function clearSelection() {
           v-model="query"
           type="search"
           autocomplete="off"
-          placeholder="Найти роль"
+          :placeholder="t('Найти роль')"
           :disabled="disabled"
         />
         <button
           v-if="query"
           type="button"
           class="rap-icon-btn"
-          aria-label="Очистить поиск"
-          title="Очистить поиск"
+          :aria-label="t('Очистить поиск')"
+          :title="t('Очистить поиск')"
           @click="query = ''"
         >
           <BIcon name="x" :size="13" />
         </button>
       </label>
       <div class="rap-selection">
-        <span>{{ modelValue.length }} выбрано</span>
+        <span>{{ modelValue.length }} {{ t('выбрано') }}</span>
         <button
           v-if="modelValue.length"
           type="button"
           class="rap-clear"
           :disabled="disabled"
           @click="clearSelection"
-        >Очистить</button>
+        >{{ t('Очистить') }}</button>
       </div>
     </div>
 
-    <div class="rap-categories" role="tablist" aria-label="Категории ролей">
+    <div class="rap-categories" role="tablist" :aria-label="t('Категории ролей')">
       <button
         v-for="category in categories"
         :key="category.id"
@@ -205,12 +208,12 @@ function clearSelection() {
             <RoleChip :code="role.code" size="sm" />
           </span>
           <span v-if="role.description_ru" class="rap-description">{{ role.description_ru }}</span>
-          <span v-else class="rap-description muted">Описание роли не задано</span>
+          <span v-else class="rap-description muted">{{ t('Описание роли не задано') }}</span>
         </span>
       </button>
 
-      <div v-if="!roles.length" class="rap-empty">Загрузка ролей...</div>
-      <div v-else-if="!filteredRoles.length" class="rap-empty">Роли не найдены</div>
+      <div v-if="!roles.length" class="rap-empty">{{ t('Загрузка ролей...') }}</div>
+      <div v-else-if="!filteredRoles.length" class="rap-empty">{{ t('Роли не найдены') }}</div>
     </div>
   </div>
 </template>

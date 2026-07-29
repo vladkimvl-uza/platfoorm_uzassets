@@ -40,11 +40,11 @@ function setAll(level: AccessLevel) {
 
 async function submit() {
   if (!code.value.trim() || !nameRu.value.trim()) {
-    error.value = 'Code и название обязательны';
+    error.value = t('Код и название обязательны');
     return;
   }
   if (!/^[a-z][a-z0-9_]*$/.test(code.value.trim())) {
-    error.value = 'Code: только lowercase, цифры, _ (начинается с буквы)';
+    error.value = t('Код: только строчные латинские буквы, цифры и _; начинается с буквы');
     return;
   }
   saving.value = true; error.value = null;
@@ -58,7 +58,7 @@ async function submit() {
     });
     emit('created', r.code);
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || 'Не удалось создать роль';
+    error.value = e?.response?.data?.detail || t('Не удалось создать роль');
   } finally {
     saving.value = false;
   }
@@ -69,27 +69,27 @@ async function submit() {
   <ModalShell :open="true" size="lg" @close="emit('close')">
     <template #header>
       <div class="rv3-modal-hd">
-        {{ prefillFromCode ? 'Дублировать роль ' + prefillFromCode : 'Новая роль' }}
+        {{ prefillFromCode ? t('Дублировать роль {code}', { code: prefillFromCode }) : t('Новая роль') }}
       </div>
     </template>
 
     <div class="rv3-form-grid">
       <div>
-        <div class="rv3-edit-label">Code (slug)</div>
+        <div class="rv3-edit-label">{{ t('Код (slug)') }}</div>
         <input v-model="code" class="rv3-input" placeholder="mining_analyst" autofocus />
-        <div class="rv3-input-hint">только lowercase, цифры, _ (начинается с буквы)</div>
+        <div class="rv3-input-hint">{{ t('Только строчные латинские буквы, цифры и _; начинается с буквы') }}</div>
       </div>
       <div>
-        <div class="rv3-edit-label">Название</div>
-        <input v-model="nameRu" class="rv3-input" placeholder="Аналитик горнодобывающей отрасли" />
+        <div class="rv3-edit-label">{{ t('Название') }}</div>
+        <input v-model="nameRu" class="rv3-input" :placeholder="t('Аналитик горнодобывающей отрасли')" />
       </div>
     </div>
 
-    <div class="rv3-edit-label" style="margin-top:14px">Описание</div>
-    <textarea v-model="description" class="rv3-textarea" placeholder="Назначение роли" />
+    <div class="rv3-edit-label" style="margin-top:14px">{{ t('Описание') }}</div>
+    <textarea v-model="description" class="rv3-textarea" :placeholder="t('Назначение роли')" />
 
     <div class="rv3-edit-label" style="margin-top:14px;display:flex;align-items:center;justify-content:space-between">
-      <span>Доступ к модулям</span>
+      <span>{{ t('Доступ к модулям') }}</span>
       <div style="display:flex;gap:4px;">
         <button class="rv3-quick-btn rv3-quick-admin" type="button" @click="setAll('write')">{{ t("ВСЕМ РЕДАКТИРОВАТЬ") }}</button>
         <button class="rv3-quick-btn" type="button" @click="setAll('read')">{{ t("ВСЕМ НАБЛЮДАТЬ") }}</button>
@@ -106,9 +106,9 @@ async function submit() {
     <div v-if="error" class="rv3-form-err">{{ error }}</div>
 
     <template #footer>
-      <button class="rv3-btn rv3-btn-ghost" @click="emit('close')" :disabled="saving">Отмена</button>
+      <button class="rv3-btn rv3-btn-ghost" :disabled="saving" @click="emit('close')">{{ t('Отмена') }}</button>
       <button class="rv3-save" :disabled="saving" @click="submit">
-        {{ saving ? 'Создание...' : 'Создать роль' }}
+        {{ saving ? t('Создание...') : t('Создать роль') }}
       </button>
     </template>
   </ModalShell>

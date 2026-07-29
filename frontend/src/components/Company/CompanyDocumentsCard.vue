@@ -3,7 +3,7 @@
     <AttachmentsPanel
       kind="company"
       :parent-id="companyId"
-      title="ДОКУМЕНТЫ КОМПАНИИ"
+      :title="t('ДОКУМЕНТЫ КОМПАНИИ')"
       hint="Общая папка — учредительные, отчёты, презентации"
       filter="all"
       empty-text="Документов нет"
@@ -17,6 +17,9 @@
 import { computed } from "vue";
 import { useAuthStore } from "@/stores/auth";
 import AttachmentsPanel from "@/components/Attachments/AttachmentsPanel.vue";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 defineProps<{ companyId: string }>();
 

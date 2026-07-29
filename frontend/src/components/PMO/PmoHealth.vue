@@ -6,6 +6,9 @@
 import { ref, computed, watch, onMounted } from "vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import { pmoApi, type HealthResponse, type StatusReport } from "@/api/pmo";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const props = defineProps<{ companyCode: string; canEdit?: boolean; refreshTick?: number }>();
 const emit = defineEmits<{ (e: "open", p: { id: string; kind: "project" | "task" }): void }>();
@@ -59,7 +62,7 @@ const latest = computed(() => reports.value[0] || null);
 <template>
   <div class="ph">
     <UzaStateBlock v-if="loading" state="loading" text="Расчёт здоровья портфеля…" />
-    <UzaStateBlock v-else-if="error" state="error" variant="block" title="Ошибка" :text="error" retry @retry="load" />
+    <UzaStateBlock v-else-if="error" state="error" variant="block" :title="t('Ошибка')" :text="error" retry @retry="load" />
 
     <template v-else-if="data">
       <!-- Сводка портфеля -->
@@ -67,19 +70,19 @@ const latest = computed(() => reports.value[0] || null);
         <div class="ph-rag" :style="{ '--rag': RAG_C[data.portfolio_rag] }">
           <span class="ph-rag-dot"></span>
           <div>
-            <div class="ph-rag-l">Здоровье портфеля</div>
+            <div class="ph-rag-l">{{ t('Здоровье портфеля') }}</div>
             <div class="ph-rag-v">{{ RAG_RU[data.portfolio_rag] }}</div>
           </div>
         </div>
         <div class="ph-counts">
-          <span class="ph-cnt" style="--c:#E24B4A"><b>{{ data.red }}</b> красных</span>
-          <span class="ph-cnt" style="--c:#D97706"><b>{{ data.amber }}</b> жёлтых</span>
-          <span class="ph-cnt" style="--c:#1D9E75"><b>{{ data.green }}</b> зелёных</span>
-          <span class="ph-cnt" style="--c:#534AB7"><b>{{ data.open_risks }}</b> откр. рисков</span>
-          <span class="ph-cnt" style="--c:#E24B4A"><b>{{ data.high_risks }}</b> высоких</span>
+          <span class="ph-cnt" style="--c:#E24B4A"><b>{{ data.red }}</b> {{ t('красных') }}</span>
+          <span class="ph-cnt" style="--c:#D97706"><b>{{ data.amber }}</b> {{ t('жёлтых') }}</span>
+          <span class="ph-cnt" style="--c:#1D9E75"><b>{{ data.green }}</b> {{ t('зелёных') }}</span>
+          <span class="ph-cnt" style="--c:#534AB7"><b>{{ data.open_risks }}</b> {{ t('откр. рисков') }}</span>
+          <span class="ph-cnt" style="--c:#E24B4A"><b>{{ data.high_risks }}</b> {{ t('высоких') }}</span>
         </div>
         <div class="ph-gen">
-          <label class="ph-ai"><input type="checkbox" v-model="useAi" :disabled="!canEdit" /> AI-резюме</label>
+          <label class="ph-ai"><input type="checkbox" v-model="useAi" :disabled="!canEdit" /> {{ t('AI-резюме') }}</label>
           <button class="ph-gen-btn" :disabled="!canEdit || genBusy" @click="generate">
             {{ genBusy ? "Формирую…" : "Сформировать статус-отчёт" }}
           </button>
@@ -90,7 +93,7 @@ const latest = computed(() => reports.value[0] || null);
       <div v-if="latest" class="ph-report">
         <div class="ph-report-h">
           <span class="ph-rag-dot sm" :style="{ '--rag': RAG_C[latest.rag] }"></span>
-          Статус-отчёт · {{ fmtDt(latest.created_at) }}
+          {{ t('Статус-отчёт ·') }} {{ fmtDt(latest.created_at) }}
           <button class="ph-hist-toggle" @click="showHistory = !showHistory">
             {{ showHistory ? "скрыть историю" : `история (${reports.length})` }}
           </button>
@@ -123,10 +126,10 @@ const latest = computed(() => reports.value[0] || null);
           </div>
           <div class="ph-bar"><span :style="{ width: p.progress_percent + '%', background: RAG_C[p.rag] }"></span></div>
           <div class="ph-metrics">
-            <span :class="{ bad: p.slip_days > 0 }">слип {{ p.slip_days }}д</span>
-            <span :class="{ bad: p.overdue_count > 0 }">просроч. {{ p.overdue_count }}</span>
-            <span :class="{ bad: p.blocked_count > 0 }">блок. {{ p.blocked_count }}</span>
-            <span :class="{ bad: p.high_risks > 0 }">риски {{ p.open_risks }}<template v-if="p.high_risks">/{{ p.high_risks }}выс</template></span>
+            <span :class="{ bad: p.slip_days > 0 }">{{ t('слип') }} {{ p.slip_days }}{{ t('д') }}</span>
+            <span :class="{ bad: p.overdue_count > 0 }">{{ t('просроч.') }} {{ p.overdue_count }}</span>
+            <span :class="{ bad: p.blocked_count > 0 }">{{ t('блок.') }} {{ p.blocked_count }}</span>
+            <span :class="{ bad: p.high_risks > 0 }">{{ t('риски') }} {{ p.open_risks }}<template v-if="p.high_risks">/{{ p.high_risks }}{{ t('выс') }}</template></span>
           </div>
           <div v-if="p.reasons.length" class="ph-reasons">
             <span v-for="(r, i) in p.reasons" :key="i" class="ph-reason">{{ r }}</span>
@@ -134,7 +137,7 @@ const latest = computed(() => reports.value[0] || null);
         </div>
       </div>
 
-      <UzaStateBlock v-if="!data.projects.length" state="empty" variant="block" title="Нет проектов" text="Добавьте проекты с задачами и датами — здесь появится их здоровье." />
+      <UzaStateBlock v-if="!data.projects.length" state="empty" variant="block" :title="t('Нет проектов')" text="Добавьте проекты с задачами и датами — здесь появится их здоровье." />
     </template>
   </div>
 </template>

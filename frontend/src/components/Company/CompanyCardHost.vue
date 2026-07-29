@@ -11,6 +11,9 @@ import { useRouter } from "vue-router";
 import { useCompanyCard } from "@/composables/useCompanyCard";
 import SectorChip from "@/components/UZA/SectorChip.vue";
 import { formatRelativeTime } from "@/api/audit";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const { state, setOverCard, closeNow } = useCompanyCard();
 const router = useRouter();
@@ -94,9 +97,9 @@ onBeforeUnmount(() => {
         </div>
 
         <div class="ccard-stats">
-          <button class="ccard-stat" @click.stop="openEmployees" title="Открыть сотрудников">
+          <button class="ccard-stat" @click.stop="openEmployees" :title="t('Открыть сотрудников')">
             <span class="ccard-stat-v">{{ merged.employees_count ?? '—' }}</span>
-            <span class="ccard-stat-l">сотрудников</span>
+            <span class="ccard-stat-l">{{ t('сотрудников') }}</span>
           </button>
           <a v-if="websiteHost" class="ccard-stat ccard-site" :href="websiteHost.href" target="_blank" rel="noopener noreferrer" @click.stop>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
@@ -106,13 +109,13 @@ onBeforeUnmount(() => {
 
         <div class="ccard-foot">
           <span class="ccard-active">
-            <template v-if="merged.is_active === false">● Отключена</template>
-            <template v-else-if="lastActiveLabel">Активность: {{ lastActiveLabel }}</template>
-            <template v-else-if="state.loading">загрузка…</template>
-            <template v-else>нет активности</template>
+            <template v-if="merged.is_active === false">{{ t('● Отключена') }}</template>
+            <template v-else-if="lastActiveLabel">{{ t('Активность:') }} {{ lastActiveLabel }}</template>
+            <template v-else-if="state.loading">{{ t('загрузка…') }}</template>
+            <template v-else>{{ t('нет активности') }}</template>
           </span>
           <button class="ccard-open" @click.stop="openProfile">
-            Профиль
+            {{ t('Профиль') }}
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 3l5 5-5 5"/></svg>
           </button>
         </div>

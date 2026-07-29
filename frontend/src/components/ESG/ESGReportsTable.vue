@@ -9,6 +9,9 @@ import { computed, ref, watch } from "vue";
 import { isModerationQueued } from "@/api/client";
 import { esgApi, type ESGReportBrief } from "@/api/esg";
 import { useToast } from "@/composables/useToast";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const props = defineProps<{
   companyId: string;
@@ -130,17 +133,17 @@ function shortUrl(url: string): string {
 <template>
   <div class="rt">
     <div class="rt-head">
-      <span class="rt-title">ESG-отчётность по годам</span>
-      <span class="rt-src">Годовые отчёты устойчивого развития · ссылки и стандарты</span>
+      <span class="rt-title">{{ t('ESG-отчётность по годам') }}</span>
+      <span class="rt-src">{{ t('Годовые отчёты устойчивого развития · ссылки и стандарты') }}</span>
     </div>
 
-    <div v-if="loading" class="rt-empty">Загрузка отчётов…</div>
+    <div v-if="loading" class="rt-empty">{{ t('Загрузка отчётов…') }}</div>
     <table v-else class="rt-tbl">
       <thead>
         <tr>
-          <th class="rt-y">Год</th>
-          <th class="rt-st">ESG-отчёт / стандарт</th>
-          <th class="rt-ln">Ссылка на отчёт</th>
+          <th class="rt-y">{{ t('Год') }}</th>
+          <th class="rt-st">{{ t('ESG-отчёт / стандарт') }}</th>
+          <th class="rt-ln">{{ t('Ссылка на отчёт') }}</th>
         </tr>
       </thead>
       <tbody>
@@ -150,7 +153,7 @@ function shortUrl(url: string): string {
           <!-- статус / описание -->
           <td class="rt-st">
             <input v-if="isEditing(y, 'status')" :ref="focusEl" v-model="draft" type="text"
-                   class="rt-inp" placeholder="например: GRI/SASB · IFRS S2 · + assurance"
+                   class="rt-inp" :placeholder="t('например: GRI/SASB · IFRS S2 · + assurance')"
                    @keydown.enter.prevent="commitEdit" @keydown.esc.stop.prevent="cancelEdit" @blur="commitEdit" />
             <button v-else type="button" class="rt-cell" :class="{ ed: canEdit, empty: !byYear[y]?.status }"
                     :disabled="!canEdit" @click="startEdit(y, 'status')">
@@ -183,10 +186,10 @@ function shortUrl(url: string): string {
     </table>
 
     <div v-if="lastBy || lastAt" class="rt-foot">
-      Последнее изменение:
+      {{ t('Последнее изменение:') }}
       <b>{{ lastBy || '—' }}</b>
       <template v-if="lastAt"> · {{ fmtDate(lastAt) }}</template>
-      <template v-if="lastYear"> · за {{ lastYear }} г.</template>
+      <template v-if="lastYear"> {{ t('· за') }} {{ lastYear }} {{ t('г.') }}</template>
     </div>
   </div>
 </template>

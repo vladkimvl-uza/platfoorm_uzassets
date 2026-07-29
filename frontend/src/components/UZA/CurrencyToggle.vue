@@ -15,6 +15,9 @@
  * Pack 7.34
  */
 import { useCurrencyConverter } from "@/composables/useCurrencyConverter";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 interface Props {
   year?: number;
@@ -34,8 +37,8 @@ const conv = useCurrencyConverter();
 
 <template>
   <div class="ctg-wrap">
-    <span v-if="!compact" class="ctg-lbl">Валюта:</span>
-    <div class="ctg-seg" role="group" aria-label="Переключатель валюты">
+    <span v-if="!compact" class="ctg-lbl">{{ t('Валюта:') }}</span>
+    <div class="ctg-seg" role="group" :aria-label="t('Переключатель валюты')">
       <button
         type="button"
         class="ctg-btn"
@@ -43,7 +46,7 @@ const conv = useCurrencyConverter();
         :aria-pressed="conv.currency.value === 'UZS'"
         @click="conv.setCurrency('UZS')"
       >
-        сум
+        {{ t('сум') }}
       </button>
       <button
         type="button"
@@ -69,7 +72,7 @@ const conv = useCurrencyConverter();
       class="ctg-rate"
       :title="'Среднегодовой курс ЦБ РУ за ' + year + ' год'"
     >
-      по курсу {{ conv.getRateLabel(year) }}
+      {{ t('по курсу') }} {{ conv.getRateLabel(year) }}
     </span>
   </div>
 </template>

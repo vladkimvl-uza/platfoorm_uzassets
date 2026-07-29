@@ -11,6 +11,9 @@ import {
   buildRatingIndex, getRating,
   coSector, sectorColor,
 } from "./ratingsHelpers";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const props = defineProps<{
   companies: CompanyListItem[];
@@ -50,44 +53,44 @@ const noEsg = computed(() =>
 <template>
   <div class="rno-card">
     <div class="rno-head">
-      <span>Компании без рейтинга</span>
+      <span>{{ t('Компании без рейтинга') }}</span>
     </div>
     <div class="rno-body">
       <!-- Left: no credit -->
       <div class="rno-col">
         <div class="rno-col-head" style="color:#378ADD">
-          <span>Без кредитного рейтинга</span>
+          <span>{{ t('Без кредитного рейтинга') }}</span>
           <span class="rno-cnt">{{ noCredit.length }}</span>
         </div>
         <div class="rno-list">
           <div v-for="(co, i) in noCredit" :key="co.id"
                class="rno-row"
                :style="{ animationDelay: (i * 25) + 'ms' }"
-               title="Добавить рейтинг Fitch"
+               :title="t('Добавить рейтинг Fitch')"
                @click="emit('add', co.id, 'Fitch')">
             <div class="rno-stripe" :style="{ background: colorOf(co) }" />
             <span class="rno-name">{{ co.name_short || co.name_ru }}</span>
           </div>
-          <div v-if="!noCredit.length" class="rno-empty">— все покрыты</div>
+          <div v-if="!noCredit.length" class="rno-empty">{{ t('— все покрыты') }}</div>
         </div>
       </div>
 
       <!-- Right: no ESG -->
       <div class="rno-col rno-col-r">
         <div class="rno-col-head" style="color:#1D9E75">
-          <span>Без ESG рейтинга</span>
+          <span>{{ t('Без ESG рейтинга') }}</span>
           <span class="rno-cnt">{{ noEsg.length }}</span>
         </div>
         <div class="rno-list">
           <div v-for="(co, i) in noEsg" :key="co.id"
                class="rno-row"
                :style="{ animationDelay: (i * 25) + 'ms' }"
-               title="Добавить ESG рейтинг"
+               :title="t('Добавить ESG рейтинг')"
                @click="emit('add', co.id, 'Sustainable Fitch')">
             <div class="rno-stripe" :style="{ background: colorOf(co) }" />
             <span class="rno-name">{{ co.name_short || co.name_ru }}</span>
           </div>
-          <div v-if="!noEsg.length" class="rno-empty">— все покрыты</div>
+          <div v-if="!noEsg.length" class="rno-empty">{{ t('— все покрыты') }}</div>
         </div>
       </div>
     </div>

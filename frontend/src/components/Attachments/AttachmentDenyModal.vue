@@ -2,7 +2,7 @@
   <ModalShell :open="true" size="md" @close="$emit('close')">
     <template #header>
       <div class="adm-title">
-        Доступ к файлу
+        {{ t('Доступ к файлу') }}
         <span class="adm-filename">«{{ filename }}»</span>
       </div>
     </template>
@@ -10,28 +10,28 @@
     <div class="adm-body-inner">
       <!-- Add deny -->
       <div class="adm-add">
-        <div class="adm-add-label">Скрыть для пользователя:</div>
+        <div class="adm-add-label">{{ t('Скрыть для пользователя:') }}</div>
         <UserAutocomplete
           v-model:email="addEmail"
           v-model:name="addName"
-          placeholder="email или ФИО — выбери из списка"
+          :placeholder="t('email или ФИО — выбери из списка')"
           @pick="onPickUser"
         />
         <input
           v-model="addReason"
           type="text"
           class="adm-reason"
-          placeholder="Причина (необязательно)"
+          :placeholder="t('Причина (необязательно)')"
         />
       </div>
 
       <!-- Denied users list -->
       <div class="adm-list-h">
-        Скрыт от: <span class="adm-cnt">{{ deniedUsers.length }}</span>
+        {{ t('Скрыт от:') }} <span class="adm-cnt">{{ deniedUsers.length }}</span>
       </div>
-      <div v-if="loading" class="adm-empty">Загрузка…</div>
+      <div v-if="loading" class="adm-empty">{{ t('Загрузка…') }}</div>
       <div v-else-if="deniedUsers.length === 0" class="adm-empty">
-        Файл виден всем пользователям с доступом к компании.
+        {{ t('Файл виден всем пользователям с доступом к компании.') }}
       </div>
       <ul v-else class="adm-list">
         <li v-for="u in deniedUsers" :key="u.user_id" class="adm-item">
@@ -45,8 +45,8 @@
               <span v-if="u.reason" class="adm-reason-chip">{{ u.reason }}</span>
             </div>
           </div>
-          <button class="adm-allow" @click="onAllow(u.user_id)" title="Восстановить доступ">
-            Открыть доступ
+          <button class="adm-allow" @click="onAllow(u.user_id)" :title="t('Восстановить доступ')">
+            {{ t('Открыть доступ') }}
           </button>
         </li>
       </ul>
@@ -65,6 +65,9 @@ import {
   type AttachmentKind,
   type DeniedUser,
 } from "@/api/attachments";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const props = defineProps<{
   kind: AttachmentKind;

@@ -5,6 +5,9 @@
  * Шагает по ДОСТУПНЫМ годам (years), стрелки гаснут на краях диапазона.
  */
 import { computed } from "vue";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const props = withDefaults(
   defineProps<{
@@ -71,11 +74,11 @@ function step(d: number) {
   <div class="uza-seg-grp">
     <span v-if="label" class="uza-ys-l" :class="'is-' + tone">{{ label }}</span>
     <div class="uza-ys" :class="'is-' + tone">
-      <button type="button" class="uza-ys-arr" :disabled="!canPrev" @click="step(-1)" aria-label="Предыдущий год">
+      <button type="button" class="uza-ys-arr" :disabled="!canPrev" @click="step(-1)" :aria-label="t('Предыдущий год')">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
       </button>
       <span class="uza-ys-val">{{ display }}</span>
-      <button type="button" class="uza-ys-arr" :disabled="!canNext" @click="step(1)" aria-label="Следующий год">
+      <button type="button" class="uza-ys-arr" :disabled="!canNext" @click="step(1)" :aria-label="t('Следующий год')">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
       </button>
     </div>

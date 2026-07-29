@@ -5,6 +5,7 @@
 
 import { ref, computed } from "vue";
 import { getConfig as apiGetConfig, saveConfig as apiSaveConfig, type AiConfig } from "@/api/aiClient";
+import { t } from "@/locale/i18n";
 
 const _state = ref<AiConfig | null>(null);
 const _loading = ref(false);
@@ -19,53 +20,6 @@ export interface RoleOption {
   group: "basic" | "finance" | "big4";
 }
 
-const ROLES: RoleOption[] = [
-  // Базовые
-  { group: "basic", value: "universal", label: "Универсальный",
-    desc: "Общий ассистент по всем разделам" },
-  { group: "basic", value: "analyst", label: "Аналитик",
-    desc: "Цифры, паттерны, аномалии" },
-  { group: "basic", value: "expert", label: "Эксперт",
-    desc: "Стратегические рекомендации" },
-  { group: "basic", value: "assistant", label: "Помощник",
-    desc: "Резюме, ответы на вопросы" },
-  { group: "basic", value: "financial", label: "Финансист",
-    desc: "МСФО, P&L, маржинальность, ROE" },
-
-  // Финансы
-  { group: "finance", value: "investor", label: "Инвестор",
-    desc: "ROIC, EV/EBITDA, FCF, exit strategy, value drivers" },
-
-  // Big4
-  { group: "big4", value: "audit_big4", label: "Big4 — Аудит",
-    desc: "ISA, IFRS, ICFR, RoMM, материальность, КАМ" },
-  { group: "big4", value: "tax_big4", label: "Big4 — Налоги",
-    desc: "ETR, transfer pricing, СЭЗ, Налоговый кодекс РУз" },
-  { group: "big4", value: "strategy_big4", label: "Big4 — Стратегия",
-    desc: "MECE, Porter 5F, BCG, value chain, M&A targets" },
-  { group: "big4", value: "risk_big4", label: "Big4 — Риски",
-    desc: "COSO ERM, ISO 31000, KRI, heat map" },
-  { group: "big4", value: "esg_big4", label: "Big4 — ESG",
-    desc: "GRI/SASB/TCFD/ISSB, double materiality, Scope 1/2/3" },
-  { group: "big4", value: "ma_big4", label: "Big4 — M&A",
-    desc: "DCF, comparables, LBO, QoE, synergies, PMI" },
-  { group: "big4", value: "forensic_big4", label: "Big4 — Форензик",
-    desc: "Fraud investigation, ACFE, AML/KYC, OSINT" },
-];
-
-const GROUP_LABELS: Record<string, string> = {
-  basic: "Базовые",
-  finance: "Финансы",
-  big4: "Big4 — специализации",
-};
-
-const STYLES = [
-  { value: "structured", label: "Структурированный", desc: "Списки + вывод сначала" },
-  { value: "laconic", label: "Лаконичный", desc: "2-4 предложения, главное" },
-  { value: "detailed", label: "Развёрнутый", desc: "Подробные абзацы" },
-  { value: "adaptive", label: "Адаптивный", desc: "Под вопрос" },
-];
-
 // model picker
 export interface ModelOption {
   value: string;
@@ -73,19 +27,39 @@ export interface ModelOption {
   desc: string;
   badge?: string;
 }
-const MODELS: ModelOption[] = [
-  { value: "ai-balanced", label: "Сбалансированный",
-    desc: "Оптимальный баланс — скорость + цена + качество",
-    badge: "по умолчанию" },
-  { value: "ai-deep",     label: "Глубокий",
-    desc: "Премиум — стратегические запросы, сложные what-if, M&A",
-    badge: "x5 дороже · x2 медленнее" },
-  { value: "ai-fast",     label: "Быстрый",
-    desc: "Ультра-быстрый — короткие ответы, простые поиски",
-    badge: "молниеносно" },
-];
-
 export function useAiConfig() {
+  const roles = computed<RoleOption[]>(() => [
+    { group: "basic", value: "universal", label: t("Универсальный"), desc: t("Общий ассистент по всем разделам") },
+    { group: "basic", value: "analyst", label: t("Аналитик"), desc: t("Цифры, паттерны, аномалии") },
+    { group: "basic", value: "expert", label: t("Эксперт"), desc: t("Стратегические рекомендации") },
+    { group: "basic", value: "assistant", label: t("Помощник"), desc: t("Резюме, ответы на вопросы") },
+    { group: "basic", value: "financial", label: t("Финансист"), desc: t("МСФО, P&L, маржинальность, ROE") },
+    { group: "finance", value: "investor", label: t("Инвестор"), desc: t("ROIC, EV/EBITDA, FCF, exit strategy, value drivers") },
+    { group: "big4", value: "audit_big4", label: t("Big4 — Аудит"), desc: t("ISA, IFRS, ICFR, RoMM, материальность, КАМ") },
+    { group: "big4", value: "tax_big4", label: t("Big4 — Налоги"), desc: t("ETR, transfer pricing, СЭЗ, Налоговый кодекс РУз") },
+    { group: "big4", value: "strategy_big4", label: t("Big4 — Стратегия"), desc: t("MECE, Porter 5F, BCG, value chain, M&A targets") },
+    { group: "big4", value: "risk_big4", label: t("Big4 — Риски"), desc: t("COSO ERM, ISO 31000, KRI, heat map") },
+    { group: "big4", value: "esg_big4", label: t("Big4 — ESG"), desc: t("GRI/SASB/TCFD/ISSB, double materiality, Scope 1/2/3") },
+    { group: "big4", value: "ma_big4", label: t("Big4 — M&A"), desc: t("DCF, comparables, LBO, QoE, synergies, PMI") },
+    { group: "big4", value: "forensic_big4", label: t("Big4 — Форензик"), desc: t("Fraud investigation, ACFE, AML/KYC, OSINT") },
+  ]);
+  const groupLabels = computed<Record<string, string>>(() => ({
+    basic: t("Базовые"),
+    finance: t("Финансы"),
+    big4: t("Big4 — специализации"),
+  }));
+  const styles = computed(() => [
+    { value: "structured", label: t("Структурированный"), desc: t("Списки + вывод сначала") },
+    { value: "laconic", label: t("Лаконичный"), desc: t("2-4 предложения, главное") },
+    { value: "detailed", label: t("Развёрнутый"), desc: t("Подробные абзацы") },
+    { value: "adaptive", label: t("Адаптивный"), desc: t("Под вопрос") },
+  ]);
+  const models = computed<ModelOption[]>(() => [
+    { value: "ai-balanced", label: t("Сбалансированный"), desc: t("Оптимальный баланс — скорость + цена + качество"), badge: t("по умолчанию") },
+    { value: "ai-deep", label: t("Глубокий"), desc: t("Премиум — стратегические запросы, сложные what-if, M&A"), badge: t("x5 дороже · x2 медленнее") },
+    { value: "ai-fast", label: t("Быстрый"), desc: t("Ультра-быстрый — короткие ответы, простые поиски"), badge: t("молниеносно") },
+  ]);
+
   async function load(force = false): Promise<AiConfig | null> {
     if (_loaded && !force && _state.value) return _state.value;
     _loading.value = true;
@@ -121,7 +95,7 @@ export function useAiConfig() {
   // Roles grouped: { basic: [...], finance: [...], big4: [...] }
   const rolesByGroup = computed(() => {
     const out: Record<string, RoleOption[]> = { basic: [], finance: [], big4: [] };
-    for (const r of ROLES) {
+    for (const r of roles.value) {
       out[r.group].push(r);
     }
     return out;
@@ -132,11 +106,11 @@ export function useAiConfig() {
     loading: computed(() => _loading.value),
     saving: computed(() => _saving.value),
     error: computed(() => _error.value),
-    ROLES,
-    STYLES,
-    MODELS,
+    roles,
+    styles,
+    models,
     rolesByGroup,
-    GROUP_LABELS,
+    groupLabels,
     load,
     save,
   };

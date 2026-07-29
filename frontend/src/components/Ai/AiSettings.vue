@@ -17,18 +17,18 @@
         class="ai-set-drawer"
         role="dialog"
         aria-modal="true"
-        aria-label="Настройки ассистента"
+        :aria-label="t('Настройки ассистента')"
         tabindex="-1"
         @keydown.escape="close"
       >
         <header class="ai-set-head">
           <div>
-            <h2>Настройки ассистента</h2>
+            <h2>{{ t('Настройки ассистента') }}</h2>
             <!-- P1 аудита: подпись «Сохраняется автоматически» лгала —
                  сохранение ручное, и правки терялись при закрытии. -->
-            <p>{{ dirty ? "Есть несохранённые изменения" : "Нажмите «Сохранить», чтобы применить" }}</p>
+            <p>{{ dirty ? t("Есть несохранённые изменения") : t("Нажмите «Сохранить», чтобы применить") }}</p>
           </div>
-          <button class="ai-set-x" type="button" @click="close" aria-label="Закрыть">
+          <button class="ai-set-x" type="button" @click="close" :aria-label="t('Закрыть')">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
                  stroke="currentColor" stroke-width="2"
                  stroke-linecap="round" stroke-linejoin="round">
@@ -39,22 +39,18 @@
 
         <div v-if="cfg.loading.value && !cfg.state.value" class="ai-set-loading">
           <span class="ai-set-spinner"></span>
-          <span>Загрузка настроек</span>
+          <span>{{ t('Загрузка настроек') }}</span>
         </div>
 
         <form v-else class="ai-set-body" @submit.prevent="onSave">
           <!-- Anti-wipe: загрузка не удалась → показываем это явно и блокируем
                сохранение, чтобы дефолты формы не затёрли реальные настройки. -->
-          <div v-if="loadFailed" class="ai-set-warn">
-            Не удалось загрузить ваши настройки. Показаны значения по умолчанию —
-            сохранение отключено, чтобы не перезаписать текущие. Закройте панель и
-            откройте её заново.
-          </div>
+          <div v-if="loadFailed" class="ai-set-warn"> {{ t('Не удалось загрузить ваши настройки. Показаны значения по умолчанию — сохранение отключено, чтобы не перезаписать текущие. Закройте панель и откройте её заново.') }} </div>
           <!-- Role (Pack 7.7: grouped) -->
           <section class="ai-set-section">
-            <h3>Роль</h3>
+            <h3>{{ t('Роль') }}</h3>
             <div v-for="(roles, groupKey) in cfg.rolesByGroup.value" :key="groupKey" class="ai-set-group">
-              <div class="ai-set-group-label">{{ cfg.GROUP_LABELS[groupKey] }}</div>
+              <div class="ai-set-group-label">{{ cfg.groupLabels.value[groupKey] }}</div>
               <div class="ai-set-grid">
                 <label
                   v-for="r in roles"
@@ -83,10 +79,10 @@
 
           <!-- Model picker (Pack 7.9d) -->
           <section class="ai-set-section">
-            <h3>Модель</h3>
+            <h3>{{ t('Модель') }}</h3>
             <div class="ai-set-grid">
               <label
-                v-for="m in cfg.MODELS"
+                v-for="m in cfg.models.value"
                 :key="m.value"
                 class="ai-set-opt"
                 :class="{ active: form.model === m.value }"
@@ -114,10 +110,10 @@
 
           <!-- Style -->
           <section class="ai-set-section">
-            <h3>Стиль ответа</h3>
+            <h3>{{ t('Стиль ответа') }}</h3>
             <div class="ai-set-grid">
               <label
-                v-for="s in cfg.STYLES"
+                v-for="s in cfg.styles.value"
                 :key="s.value"
                 class="ai-set-opt"
                 :class="{ active: form.style === s.value }"
@@ -143,7 +139,7 @@
           <!-- Temperature -->
           <section class="ai-set-section">
             <div class="ai-set-row">
-              <label>Креативность</label>
+              <label>{{ t('Креативность') }}</label>
               <span class="ai-set-val">{{ form.temperature.toFixed(2) }}</span>
             </div>
             <input
@@ -154,47 +150,41 @@
               step="0.05"
               class="ai-set-range"
             />
-            <div class="ai-set-hint">
-              0 — точно по данным · 1 — больше свободы
-            </div>
+            <div class="ai-set-hint"> {{ t('0 — точно по данным · 1 — больше свободы') }} </div>
           </section>
 
           <!-- Max tokens -->
           <section class="ai-set-section">
-            <label class="ai-set-label">Лимит ответа</label>
+            <label class="ai-set-label">{{ t('Лимит ответа') }}</label>
             <select v-model.number="form.max_tokens" class="ai-set-select">
-              <option :value="4000">4 000 токенов · короткие</option>
-              <option :value="8000">8 000 токенов</option>
-              <option :value="16000">16 000 токенов · рекомендуется</option>
-              <option :value="32000">32 000 токенов · подробные</option>
-              <option :value="64000">64 000 токенов · максимум</option>
+              <option :value="4000">{{ t('4 000 токенов · короткие') }}</option>
+              <option :value="8000">{{ t('8 000 токенов') }}</option>
+              <option :value="16000">{{ t('16 000 токенов · рекомендуется') }}</option>
+              <option :value="32000">{{ t('32 000 токенов · подробные') }}</option>
+              <option :value="64000">{{ t('64 000 токенов · максимум') }}</option>
             </select>
           </section>
 
           <!-- Custom instructions -->
           <section class="ai-set-section">
-            <label class="ai-set-label">
-              Дополнительные инструкции
-              <span class="ai-set-hint-inline">{{ (form.custom_instructions || "").length }} / 4000</span>
+            <label class="ai-set-label"> {{ t('Дополнительные инструкции') }} <span class="ai-set-hint-inline">{{ (form.custom_instructions || "").length }} / 4000</span>
             </label>
             <textarea
               v-model="form.custom_instructions"
               rows="4"
-              placeholder="Например: всегда сравнивай с прошлым годом; используй термины МСФО без перевода"
+              :placeholder="t('Например: всегда сравнивай с прошлым годом; используй термины МСФО без перевода')"
               maxlength="4000"
               class="ai-set-textarea"
             ></textarea>
           </section>
 
-          <p v-if="cfg.error.value" class="ai-set-err">{{ cfg.error.value }}</p>
+          <p v-if="cfg.error.value" class="ai-set-err">{{ t(cfg.error.value) }}</p>
 
           <footer class="ai-set-foot">
-            <button type="button" class="ai-set-btn ai-set-btn-secondary" @click="close">
-              Закрыть
-            </button>
+            <button type="button" class="ai-set-btn ai-set-btn-secondary" @click="close"> {{ t('Закрыть') }} </button>
             <button type="submit" class="ai-set-btn ai-set-btn-primary" :disabled="cfg.saving.value || loadFailed">
-              <span v-if="cfg.saving.value">Сохранение…</span>
-              <span v-else>Сохранить</span>
+              <span v-if="cfg.saving.value">{{ t('Сохранение…') }}</span>
+              <span v-else>{{ t('Сохранить') }}</span>
             </button>
           </footer>
         </form>
@@ -207,9 +197,11 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { useAiConfig } from "@/composables/useAiConfig";
-import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
+import { useI18n } from "@/composables/useI18n";
+import { useToast } from "@/composables/useToast";
 
+const { t } = useI18n();
 const toast = useToast();
 const { confirmDialog } = useConfirm();
 
@@ -270,7 +262,7 @@ watch(
 async function close() {
   if (dirty.value) {
     const ok = await confirmDialog({
-      message: "Есть несохранённые изменения настроек ИИ. Закрыть без сохранения?",
+      message: t("Есть несохранённые изменения настроек ИИ. Закрыть без сохранения?"),
       danger: true,
     });
     if (!ok) return;
@@ -280,7 +272,7 @@ async function close() {
 
 async function onSave() {
   if (loadFailed.value) {
-    toast.error("Настройки не были загружены — сохранение отключено, чтобы не затереть текущие. Закройте и откройте панель заново.");
+    toast.error(t("Настройки не были загружены — сохранение отключено, чтобы не затереть текущие. Закройте и откройте панель заново."));
     return;
   }
   const saved = await cfg.save({
@@ -293,11 +285,11 @@ async function onSave() {
   });
   if (saved) {
     snapshot.value = JSON.stringify(form.value);
-    toast.success("Настройки ассистента сохранены");
+    toast.success(t("Настройки ассистента сохранены"));
     emit("saved");
     emit("update:modelValue", false);   // закрываем без повторного dirty-guard
   } else {
-    toast.error(cfg.error.value || "Не удалось сохранить настройки ассистента");
+    toast.error(cfg.error.value ? t(cfg.error.value) : t("Не удалось сохранить настройки ассистента"));
   }
 }
 </script>

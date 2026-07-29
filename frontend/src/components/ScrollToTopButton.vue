@@ -24,6 +24,9 @@
  *   • Position: fixed — над всем контентом
  */
 import { ref, onMounted, onBeforeUnmount } from "vue";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const SHOW_THRESHOLD = 150; // px  // Pack 7.38: lowered from 400 to show on shorter pages
 
@@ -135,8 +138,8 @@ onBeforeUnmount(() => {
       v-if="isVisible"
       class="stt-btn"
       type="button"
-      aria-label="Прокрутить наверх"
-      title="Наверх"
+      :aria-label="t('Прокрутить наверх')"
+      :title="t('Наверх')"
       @click="scrollToTop"
     >
       <svg

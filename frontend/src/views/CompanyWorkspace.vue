@@ -73,7 +73,6 @@ import { kpiCompletionRatio, kpiWeightedRatio } from "@/utils/kpiRatio";
 import CompanyNotesTab from "@/components/CompanyNotesTab.vue";
 import CompanyCalendar from "@/components/Company/CompanyCalendar.vue";
 import CompanyOverviewExtras from "@/components/CompanyOverviewExtras.vue";
-import CompanyDocumentsCard from "@/components/Company/CompanyDocumentsCard.vue";
 import CompanyBoardList from "@/components/CompanyBoardList.vue";
 import CompanyTabBar from "@/components/Company/CompanyTabBar.vue";
 import { COMPANY_TABS } from "@/components/Company/companyNavConfig";
@@ -103,6 +102,7 @@ import { usePermissions } from "@/composables/usePermissions";
 import PmoTab from "@/components/PMO/PmoTab.vue";
 import ReportingWizard from "@/components/reporting/ReportingWizard.vue";
 import ProjectsStatusReport from "@/components/reporting/ProjectsStatusReport.vue";
+import CompanyDocuments from "@/components/Documents/CompanyDocuments.vue";
 import ExecOverview from "@/views/ExecOverview.vue";
 import { useSavedFilter } from "@/composables/useSavedFilter";
 
@@ -274,7 +274,7 @@ function repSubBtn(active: boolean): string {
     ? "background:#fff;color:var(--p-deep,#534ab7);box-shadow:0 1px 3px rgba(15,23,60,.1);"
     : "background:transparent;color:var(--t2,#475569);");
 }
-const VALID_TABS = ["overview", "people", "work", "kanban", "list", "pmo", "notes", "reporting",
+const VALID_TABS = ["overview", "people", "work", "documents", "kanban", "list", "pmo", "notes", "reporting",
                     "ifrs", "nsbu", "hlf", "bp", "unitcost", "credit",
                     "kpi", "procurement",
                     "governance", "consultants", "esg"] as const;
@@ -3236,11 +3236,8 @@ function onEditorClose() {
             :overdue="overdue || 0"
           />
 
-          <CompanyDocumentsCard
-            v-if="company?.id"
-            :company-id="company.id"
-            style="margin-top: 16px"
-          />
+          <!-- Виджет «Документы компании» убран: библиотека переехала в
+               отдельную вкладку «Документы» (файлы из карточек — там же). -->
 
         </div>
 
@@ -3361,6 +3358,11 @@ function onEditorClose() {
             @openEditor="openTaskEditor"
             @changed="onBoardListChanged"
           />
+        </div>
+
+        <!-- ═══ ДОКУМЕНТЫ — библиотека компании (файлы из карточек лежат тут же) ═══ -->
+        <div v-else-if="activeTab === 'documents'" :key="'documents'" class="cw-doc-scroll">
+          <CompanyDocuments :company-code="(route.params.code as string) || code" :can-edit="companiesPerm.canEdit.value" />
         </div>
 
         <!-- ═══ PMO TAB — расписание/Гантт (gated pmo.view) ═══ -->

@@ -14,6 +14,9 @@ import SectorChip from "@/components/UZA/SectorChip.vue";
 import UserCardAnchor from "@/components/user/UserCardAnchor.vue";
 import { formatRelativeTime } from "@/api/audit";
 import ModalShell from "@/components/ModalShell.vue";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const { state, close } = useCompanyModal();
 const router = useRouter();
@@ -62,7 +65,7 @@ function goPeople() {
     <div class="cvm-stats">
       <button class="cvm-stat" @click="goPeople">
         <span class="cvm-stat-v">{{ c.employees_count ?? '—' }}</span>
-        <span class="cvm-stat-l">сотрудников</span>
+        <span class="cvm-stat-l">{{ t('сотрудников') }}</span>
       </button>
       <a v-if="website" class="cvm-stat cvm-stat-site" :href="website.href" target="_blank" rel="noopener noreferrer">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
@@ -70,13 +73,13 @@ function goPeople() {
       </a>
       <div class="cvm-stat cvm-stat-act">
         <span class="cvm-stat-v cvm-stat-act-v">{{ lastActive || '—' }}</span>
-        <span class="cvm-stat-l">активность</span>
+        <span class="cvm-stat-l">{{ t('активность') }}</span>
       </div>
     </div>
 
     <!-- Сотрудники -->
     <div v-if="shownEmployees.length" class="cvm-sec">
-      <div class="cvm-sec-t">Сотрудники</div>
+      <div class="cvm-sec-t">{{ t('Сотрудники') }}</div>
       <div class="cvm-emps">
         <UserCardAnchor
           v-for="e in shownEmployees" :key="e.id" tag="span" :user-id="e.id" :preview="e" class="cvm-emp"
@@ -91,9 +94,9 @@ function goPeople() {
     </div>
 
     <template #footer>
-      <button class="cvm-btn cvm-btn-ghost" @click="goPeople">Сотрудники</button>
+      <button class="cvm-btn cvm-btn-ghost" @click="goPeople">{{ t('Сотрудники') }}</button>
       <button class="cvm-btn cvm-btn-primary" @click="goWorkspace">
-        Открыть карточку
+        {{ t('Открыть карточку') }}
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 3l5 5-5 5"/></svg>
       </button>
     </template>

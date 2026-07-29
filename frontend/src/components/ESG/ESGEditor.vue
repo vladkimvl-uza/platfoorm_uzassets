@@ -19,6 +19,9 @@ import {
 } from "@/api/esg";
 import { isModerationQueued } from "@/api/client";
 import { useConfirm } from "@/composables/useConfirm";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const { confirmDialog } = useConfirm();
 
@@ -188,21 +191,21 @@ const PILLARS = computed(() => PILLAR_META);
           <div class="ee-eyebrow">ESG · FY {{ year }}</div>
           <h2 class="ee-title">{{ companyName }}</h2>
         </div>
-        <button class="ee-close" @click="emit('close')" title="Закрыть">×</button>
+        <button class="ee-close" @click="emit('close')" :title="t('Закрыть')">×</button>
       </header>
 
       <div class="ee-tabs">
         <button :class="{ on: section === 'metrics' }" @click="section = 'metrics'">
-          Метрики <span class="ee-tab-count">{{ localMetrics.length }}</span>
+          {{ t('Метрики') }} <span class="ee-tab-count">{{ localMetrics.length }}</span>
         </button>
         <button :class="{ on: section === 'issues' }" @click="section = 'issues'">
-          Риски <span class="ee-tab-count">{{ localIssues.length }}</span>
+          {{ t('Риски') }} <span class="ee-tab-count">{{ localIssues.length }}</span>
         </button>
       </div>
 
       <div class="ee-body">
         <p v-if="err" class="ee-err">{{ err }}</p>
-        <p v-if="queued" class="ee-queued">⏳ Отправлено на модерацию</p>
+        <p v-if="queued" class="ee-queued">{{ t('⏳ Отправлено на модерацию') }}</p>
 
         <!-- ─── МЕТРИКИ ─── -->
         <template v-if="section === 'metrics'">
@@ -210,42 +213,42 @@ const PILLARS = computed(() => PILLAR_META);
             <div class="ee-sub-label">{{ editingMetric ? "Редактирование метрики" : "Новая метрика" }}</div>
             <div class="ee-grid">
               <label class="ee-field">
-                <span class="ee-lbl">Столп</span>
+                <span class="ee-lbl">{{ t('Столп') }}</span>
                 <select class="ee-in" v-model="mForm.pillar" :disabled="saving || !!editingMetric">
                   <option v-for="p in PILLARS" :key="p.key" :value="p.key">{{ p.label }}</option>
                 </select>
               </label>
               <label class="ee-field">
-                <span class="ee-lbl">Код *</span>
+                <span class="ee-lbl">{{ t('Код *') }}</span>
                 <input class="ee-in" v-model="mForm.metric_code" :disabled="saving || !!editingMetric" placeholder="co2_emissions" />
               </label>
               <label class="ee-field ee-wide">
-                <span class="ee-lbl">Название *</span>
-                <input class="ee-in" v-model="mForm.metric_name" :disabled="saving" placeholder="Выбросы CO₂" />
+                <span class="ee-lbl">{{ t('Название *') }}</span>
+                <input class="ee-in" v-model="mForm.metric_name" :disabled="saving" :placeholder="t('Выбросы CO₂')" />
               </label>
               <label class="ee-field">
-                <span class="ee-lbl">Значение</span>
+                <span class="ee-lbl">{{ t('Значение') }}</span>
                 <input type="number" class="ee-in" v-model="mForm.value" :disabled="saving" />
               </label>
               <label class="ee-field">
-                <span class="ee-lbl">Ед. изм.</span>
-                <input class="ee-in" v-model="mForm.unit" :disabled="saving" placeholder="т / %" />
+                <span class="ee-lbl">{{ t('Ед. изм.') }}</span>
+                <input class="ee-in" v-model="mForm.unit" :disabled="saving" :placeholder="t('т / %')" />
               </label>
               <label class="ee-field">
-                <span class="ee-lbl">Цель</span>
+                <span class="ee-lbl">{{ t('Цель') }}</span>
                 <input type="number" class="ee-in" v-model="mForm.target" :disabled="saving" />
               </label>
               <label class="ee-field">
-                <span class="ee-lbl">Бенчмарк</span>
+                <span class="ee-lbl">{{ t('Бенчмарк') }}</span>
                 <input type="number" class="ee-in" v-model="mForm.benchmark" :disabled="saving" />
               </label>
             </div>
             <label class="ee-field">
-              <span class="ee-lbl">Заметки</span>
+              <span class="ee-lbl">{{ t('Заметки') }}</span>
               <textarea class="ee-in ee-textarea" v-model="mForm.notes" rows="2" :disabled="saving"></textarea>
             </label>
             <div class="ee-actions">
-              <button class="ee-btn ee-ghost" @click="showMetricForm = false" :disabled="saving">Отмена</button>
+              <button class="ee-btn ee-ghost" @click="showMetricForm = false" :disabled="saving">{{ t('Отмена') }}</button>
               <button class="ee-btn ee-primary" @click="saveMetric" :disabled="saving">
                 <span v-if="saving" class="ee-spin"></span>{{ saving ? "" : "Сохранить" }}
               </button>
@@ -253,8 +256,8 @@ const PILLARS = computed(() => PILLAR_META);
           </div>
 
           <template v-else>
-            <button class="ee-add-btn" @click="openAddMetric">＋ Добавить метрику</button>
-            <div v-if="localMetrics.length === 0" class="ee-empty">Метрики не заведены</div>
+            <button class="ee-add-btn" @click="openAddMetric">{{ t('＋ Добавить метрику') }}</button>
+            <div v-if="localMetrics.length === 0" class="ee-empty">{{ t('Метрики не заведены') }}</div>
             <div v-for="p in PILLARS" :key="p.key" v-show="metricsByPillar[p.key].length" class="ee-pillar-group">
               <div class="ee-pillar-head" :style="{ color: p.color }">
                 <span class="ee-pillar-dot" :style="{ background: p.color }"></span>{{ p.label }}
@@ -264,7 +267,7 @@ const PILLARS = computed(() => PILLAR_META);
                   <div class="ee-metric-name">{{ m.metric_name }}</div>
                   <div class="ee-metric-sub">
                     <b>{{ m.value ?? "—" }}</b><span v-if="m.unit"> {{ m.unit }}</span>
-                    <span v-if="m.target != null" class="ee-metric-target">цель {{ m.target }}</span>
+                    <span v-if="m.target != null" class="ee-metric-target">{{ t('цель') }} {{ m.target }}</span>
                     <span v-if="m.target_attainment_pct != null" class="ee-metric-pct"
                           :style="{ color: m.target_attainment_pct >= 100 ? '#1D9E75' : m.target_attainment_pct >= 70 ? '#D97706' : '#E24B4A' }">
                       {{ Math.round(m.target_attainment_pct) }}%
@@ -272,8 +275,8 @@ const PILLARS = computed(() => PILLAR_META);
                   </div>
                 </div>
                 <div class="ee-row-acts">
-                  <button class="ee-icon-btn" @click="openEditMetric(m)" title="Редактировать">✎</button>
-                  <button class="ee-icon-btn ee-del" @click="removeMetric(m)" title="Удалить">🗑</button>
+                  <button class="ee-icon-btn" @click="openEditMetric(m)" :title="t('Редактировать')">✎</button>
+                  <button class="ee-icon-btn ee-del" @click="removeMetric(m)" :title="t('Удалить')">🗑</button>
                 </div>
               </div>
             </div>
@@ -286,34 +289,34 @@ const PILLARS = computed(() => PILLAR_META);
             <div class="ee-sub-label">{{ editingIssue ? "Редактирование риска" : "Новый риск" }}</div>
             <div class="ee-grid">
               <label class="ee-field">
-                <span class="ee-lbl">Столп</span>
+                <span class="ee-lbl">{{ t('Столп') }}</span>
                 <select class="ee-in" v-model="iForm.pillar" :disabled="saving">
                   <option v-for="p in PILLARS" :key="p.key" :value="p.key">{{ p.label }}</option>
                 </select>
               </label>
               <label class="ee-field">
-                <span class="ee-lbl">Серьёзность</span>
+                <span class="ee-lbl">{{ t('Серьёзность') }}</span>
                 <select class="ee-in" v-model="iForm.severity" :disabled="saving">
                   <option v-for="s in SEVERITY_META" :key="s.key" :value="s.key">{{ s.label }}</option>
                 </select>
               </label>
               <label v-if="editingIssue" class="ee-field">
-                <span class="ee-lbl">Статус</span>
+                <span class="ee-lbl">{{ t('Статус') }}</span>
                 <select class="ee-in" v-model="iForm.status" :disabled="saving">
                   <option v-for="s in ISSUE_STATUS_META" :key="s.key" :value="s.key">{{ s.label }}</option>
                 </select>
               </label>
               <label class="ee-field ee-wide">
-                <span class="ee-lbl">Заголовок *</span>
-                <input class="ee-in" v-model="iForm.title" :disabled="saving" placeholder="Превышение выбросов на участке №3" />
+                <span class="ee-lbl">{{ t('Заголовок *') }}</span>
+                <input class="ee-in" v-model="iForm.title" :disabled="saving" :placeholder="t('Превышение выбросов на участке №3')" />
               </label>
             </div>
             <label class="ee-field">
-              <span class="ee-lbl">Описание</span>
+              <span class="ee-lbl">{{ t('Описание') }}</span>
               <textarea class="ee-in ee-textarea" v-model="iForm.description" rows="3" :disabled="saving"></textarea>
             </label>
             <div class="ee-actions">
-              <button class="ee-btn ee-ghost" @click="showIssueForm = false" :disabled="saving">Отмена</button>
+              <button class="ee-btn ee-ghost" @click="showIssueForm = false" :disabled="saving">{{ t('Отмена') }}</button>
               <button class="ee-btn ee-primary" @click="saveIssue" :disabled="saving">
                 <span v-if="saving" class="ee-spin"></span>{{ saving ? "" : "Сохранить" }}
               </button>
@@ -321,8 +324,8 @@ const PILLARS = computed(() => PILLAR_META);
           </div>
 
           <template v-else>
-            <button class="ee-add-btn" @click="openAddIssue">＋ Добавить риск</button>
-            <div v-if="localIssues.length === 0" class="ee-empty">Риски не заведены</div>
+            <button class="ee-add-btn" @click="openAddIssue">{{ t('＋ Добавить риск') }}</button>
+            <div v-if="localIssues.length === 0" class="ee-empty">{{ t('Риски не заведены') }}</div>
             <div class="ee-metric-row" v-for="it in localIssues" :key="it.id">
               <div class="ee-metric-main">
                 <div class="ee-metric-name">
@@ -335,8 +338,8 @@ const PILLARS = computed(() => PILLAR_META);
                 </div>
               </div>
               <div class="ee-row-acts">
-                <button class="ee-icon-btn" @click="openEditIssue(it)" title="Редактировать">✎</button>
-                <button class="ee-icon-btn ee-del" @click="removeIssue(it)" title="Удалить">🗑</button>
+                <button class="ee-icon-btn" @click="openEditIssue(it)" :title="t('Редактировать')">✎</button>
+                <button class="ee-icon-btn ee-del" @click="removeIssue(it)" :title="t('Удалить')">🗑</button>
               </div>
             </div>
           </template>

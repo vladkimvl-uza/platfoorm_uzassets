@@ -4,6 +4,9 @@ import { useRouter } from "vue-router";
 import { boardsApi } from "@/api/tasks";
 import type { BoardBrief } from "@/api/tasks";
 import { useCompanyScope } from "@/composables/useCompanyScope";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const router = useRouter();
 
@@ -64,9 +67,9 @@ const STATUS_META: Record<string, { label: string; color: string }> = {
 <template>
   <div class="uza-page">
     <div style="margin-bottom: 18px;">
-      <div class="uza-section-label">Проекты</div>
+      <div class="uza-section-label">{{ t('Проекты') }}</div>
       <h1 style="font-size: 18px; font-weight: 500; color: var(--t1);
-                 letter-spacing: -.02em; margin-top: 2px;">Канбан-доски</h1>
+                 letter-spacing: -.02em; margin-top: 2px;">{{ t('Канбан-доски') }}</h1>
       <div style="font-size: 11px; color: var(--t3); margin-top: 3px;">
         {{ total }} {{ total === 1 ? "доска" : "досок" }}
       </div>
@@ -77,35 +80,35 @@ const STATUS_META: Record<string, { label: string; color: string }> = {
                                      animation: uzaCardIn .55s cubic-bezier(0.34, 1.2, 0.64, 1) 80ms both;">
       <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
         <div style="flex: 1; min-width: 220px;">
-          <input v-model="search" type="text" placeholder="Поиск по названию доски…" class="uza-input" />
+          <input v-model="search" type="text" :placeholder="t('Поиск по названию доски…')" class="uza-input" />
         </div>
         <select v-if="scope.showSectorPicker.value" v-model="sectorFilter"
                 class="uza-input" style="width: auto; min-width: 200px;">
-          <option value="">Все секторы</option>
-          <option value="mining">Горнодобывающая</option>
-          <option value="oil_gas">Нефть и газ</option>
-          <option value="energy">Энергетика</option>
-          <option value="transport">Транспорт</option>
-          <option value="chemistry">Химия</option>
-          <option value="metallurgy">Металлургия</option>
-          <option value="telecom">Телекоммуникации</option>
-          <option value="other">Прочее</option>
+          <option value="">{{ t('Все секторы') }}</option>
+          <option value="mining">{{ t('Горнодобывающая') }}</option>
+          <option value="oil_gas">{{ t('Нефть и газ') }}</option>
+          <option value="energy">{{ t('Энергетика') }}</option>
+          <option value="transport">{{ t('Транспорт') }}</option>
+          <option value="chemistry">{{ t('Химия') }}</option>
+          <option value="metallurgy">{{ t('Металлургия') }}</option>
+          <option value="telecom">{{ t('Телекоммуникации') }}</option>
+          <option value="other">{{ t('Прочее') }}</option>
         </select>
         <label style="display: flex; align-items: center; gap: 6px; font-size: 12px;
                       color: var(--t2); cursor: pointer; user-select: none;">
           <input v-model="archivedFilter" type="checkbox" />
-          Архивные
+          {{ t('Архивные') }}
         </label>
       </div>
     </div>
 
-    <div v-if="loading" class="uza-card p-12 text-center text-slate-400 text-sm">Загрузка…</div>
+    <div v-if="loading" class="uza-card p-12 text-center text-slate-400 text-sm">{{ t('Загрузка…') }}</div>
     <div v-else-if="error" class="uza-card p-6 text-uza-red text-sm">{{ error }}</div>
 
     <div v-else-if="items.length === 0" class="uza-card p-12 text-center">
-      <div class="text-slate-400 text-sm mb-2">Досок ещё нет.</div>
+      <div class="text-slate-400 text-sm mb-2">{{ t('Досок ещё нет.') }}</div>
       <div class="text-xs text-slate-400">
-        Доски появятся после настройки в модуле задач.
+        {{ t('Доски появятся после настройки в модуле задач.') }}
       </div>
     </div>
 
@@ -165,7 +168,7 @@ const STATUS_META: Record<string, { label: string; color: string }> = {
         </div>
 
         <div v-else class="text-[10px] text-slate-400 uppercase tracking-uza-label2">
-          Нет задач
+          {{ t('Нет задач') }}
         </div>
 
         <!-- Footer: sector tag -->

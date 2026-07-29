@@ -14,6 +14,9 @@ import { useFormatters } from "@/composables/useFormatters";
 import { api } from "@/api/client";
 import { notificationsApi, type NotificationAuditDetail } from "@/api/notifications";
 import ModalShell from "@/components/ModalShell.vue";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const nd = useNotificationDetail();
 const fmt = useFormatters();
@@ -149,7 +152,7 @@ function openSource() {
       <div class="ndm-meta">
         <div class="ndm-meta-row">
           <svg class="ndm-meta-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-          <span class="ndm-meta-l">Кто</span>
+          <span class="ndm-meta-l">{{ t('Кто') }}</span>
           <span class="ndm-meta-v ndm-who">
             <ActorAvatar :user-id="n.source_user_id || ''" :size="20" />
             <span class="ndm-who-txt">
@@ -160,20 +163,20 @@ function openSource() {
         </div>
         <div class="ndm-meta-row">
           <svg class="ndm-meta-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-          <span class="ndm-meta-l">Где</span>
+          <span class="ndm-meta-l">{{ t('Где') }}</span>
           <span class="ndm-meta-v">{{ moduleLabel }}</span>
         </div>
         <div class="ndm-meta-row">
           <svg class="ndm-meta-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-          <span class="ndm-meta-l">Когда</span>
+          <span class="ndm-meta-l">{{ t('Когда') }}</span>
           <span class="ndm-meta-v">{{ whenAbs }}</span>
         </div>
       </div>
 
       <!-- Field-level детали из журнала аудита: что именно и где изменено -->
-      <div v-if="auditLoading" class="ndm-audit ndm-audit-load">Загрузка деталей изменения…</div>
+      <div v-if="auditLoading" class="ndm-audit ndm-audit-load">{{ t('Загрузка деталей изменения…') }}</div>
       <div v-else-if="auditDetail && auditDetail.found" class="ndm-audit">
-        <div class="ndm-body-lbl">Что изменилось</div>
+        <div class="ndm-body-lbl">{{ t('Что изменилось') }}</div>
         <!-- Где: раздел + таблица + запись -->
         <div class="ndm-audit-where">
           <span v-if="auditDetail.section" class="ndm-tag ndm-tag-sec">{{ auditDetail.section }}</span>
@@ -198,7 +201,7 @@ function openSource() {
 
       <!-- Полный текст уведомления -->
       <div v-if="showBody" class="ndm-bodywrap">
-        <div class="ndm-body-lbl">Подробнее</div>
+        <div class="ndm-body-lbl">{{ t('Подробнее') }}</div>
         <div class="ndm-body">{{ bodyText }}</div>
       </div>
     </div>
@@ -208,7 +211,7 @@ function openSource() {
         {{ sourceLink.includes('/projects/') ? 'Открыть проект' : 'Открыть задачу' }}
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
       </button>
-      <button class="ndm-ok" @click="nd.close()">Закрыть</button>
+      <button class="ndm-ok" @click="nd.close()">{{ t('Закрыть') }}</button>
     </template>
   </ModalShell>
 </template>

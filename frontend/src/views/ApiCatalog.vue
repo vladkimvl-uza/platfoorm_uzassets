@@ -10,6 +10,9 @@ import ExternalApisManager from "@/components/api/ExternalApisManager.vue";
 import PartnersManager from "@/components/api/PartnersManager.vue";
 import AuditLogView from "@/components/api/AuditLogView.vue";
 import CustomApiBuilder from "@/components/api/CustomApiBuilder.vue";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 type Tab = "catalog" | "builder" | "keys" | "webhooks" | "external" | "partners" | "audit";
 const tab = ref<Tab>("catalog");
@@ -48,8 +51,8 @@ function downloadPostman() { downloadFile("/api-catalog/postman.json", "postman.
       <div class="ac-tb-l">
         <span class="ac-tb-icn"><BIcon name="api" :size="14" /></span>
         <div>
-          <div class="ac-eye">Доступы и интеграции</div>
-          <div class="ac-ttl">API &amp; Интеграции</div>
+          <div class="ac-eye">{{ t('Доступы и интеграции') }}</div>
+          <div class="ac-ttl">{{ t('API &amp; Интеграции') }}</div>
         </div>
       </div>
       <div class="ac-tb-r">
@@ -64,26 +67,26 @@ function downloadPostman() { downloadFile("/api-catalog/postman.json", "postman.
 
     <div class="ac-subnav">
       <button class="ac-stab" :class="{ active: tab === 'catalog' }" @click="tab = 'catalog'">
-        <BIcon name="book-2" :size="14" /> Каталог
+        <BIcon name="book-2" :size="14" /> {{ t('Каталог') }}
       </button>
       <button class="ac-stab" :class="{ active: tab === 'builder' }" @click="tab = 'builder'">
-        <BIcon name="terminal-2" :size="14" /> Конструктор
+        <BIcon name="terminal-2" :size="14" /> {{ t('Конструктор') }}
       </button>
       <button class="ac-stab" :class="{ active: tab === 'keys' }" @click="tab = 'keys'">
-        <BIcon name="key" :size="14" /> Service accounts &amp; ключи
+        <BIcon name="key" :size="14" /> {{ t('Service accounts &amp; ключи') }}
         <span v-if="counts" class="ac-stab-c">{{ counts.active }}/{{ counts.total }}</span>
       </button>
       <button class="ac-stab" :class="{ active: tab === 'webhooks' }" @click="tab = 'webhooks'">
         <BIcon name="webhook" :size="14" /> Webhooks
       </button>
       <button class="ac-stab" :class="{ active: tab === 'external' }" @click="tab = 'external'">
-        <BIcon name="plug" :size="14" /> Внешние API
+        <BIcon name="plug" :size="14" /> {{ t('Внешние API') }}
       </button>
       <button class="ac-stab" :class="{ active: tab === 'partners' }" @click="tab = 'partners'">
-        <BIcon name="building-arch" :size="14" /> Партнёры
+        <BIcon name="building-arch" :size="14" /> {{ t('Партнёры') }}
       </button>
       <button class="ac-stab" :class="{ active: tab === 'audit' }" @click="tab = 'audit'">
-        <BIcon name="history" :size="14" /> Журнал
+        <BIcon name="history" :size="14" /> {{ t('Журнал') }}
       </button>
     </div>
 

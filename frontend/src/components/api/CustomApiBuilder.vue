@@ -8,6 +8,9 @@ import { ref, computed, onMounted } from "vue";
 import { customApi, type ApiSource, type CustomEndpoint, type PreviewResult } from "@/api/customApi";
 import BIcon from "@/components/broadcasts/BIcon.vue";
 import { useConfirm } from "@/composables/useConfirm";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const sources = ref<ApiSource[]>([]);
 const endpoints = ref<CustomEndpoint[]>([]);
@@ -119,11 +122,11 @@ function srcLabel(key: string) { return sources.value.find(s => s.key === key)?.
   <div class="cab">
     <div class="cab-head">
       <div>
-        <div class="cab-eyebrow">Интеграции · собственные API</div>
-        <div class="cab-title">Конструктор API</div>
-        <div class="cab-sub">Соберите read-only endpoint из любого источника — данные тянутся вживую, новые записи отражаются автоматически.</div>
+        <div class="cab-eyebrow">{{ t('Интеграции · собственные API') }}</div>
+        <div class="cab-title">{{ t('Конструктор API') }}</div>
+        <div class="cab-sub">{{ t('Соберите read-only endpoint из любого источника — данные тянутся вживую, новые записи отражаются автоматически.') }}</div>
       </div>
-      <button v-if="!building" class="cab-btn cab-btn-p" @click="startNew"><BIcon name="plus" :size="14" /> Новый endpoint</button>
+      <button v-if="!building" class="cab-btn cab-btn-p" @click="startNew"><BIcon name="plus" :size="14" /> {{ t('Новый endpoint') }}</button>
     </div>
 
     <div v-if="error" class="cab-err">{{ error }} <button @click="error = null">×</button></div>
@@ -132,20 +135,20 @@ function srcLabel(key: string) { return sources.value.find(s => s.key === key)?.
     <div v-if="building" class="cab-builder">
       <div class="cab-form">
         <div class="cab-grid2">
-          <label class="cab-fld"><span>Название *</span><input v-model="form.title" @input="onTitleInput" placeholder="KPI всех компаний" /></label>
-          <label class="cab-fld"><span>Slug (в URL)</span><input v-model="form.slug" :disabled="!!editId" placeholder="kpi-all" /></label>
+          <label class="cab-fld"><span>{{ t('Название *') }}</span><input v-model="form.title" @input="onTitleInput" :placeholder="t('KPI всех компаний')" /></label>
+          <label class="cab-fld"><span>{{ t('Slug (в URL)') }}</span><input v-model="form.slug" :disabled="!!editId" placeholder="kpi-all" /></label>
         </div>
-        <label class="cab-fld"><span>Описание</span><input v-model="form.description" placeholder="для внешней интеграции…" /></label>
+        <label class="cab-fld"><span>{{ t('Описание') }}</span><input v-model="form.description" :placeholder="t('для внешней интеграции…')" /></label>
 
         <div class="cab-fld">
-          <span>Источник данных *</span>
+          <span>{{ t('Источник данных *') }}</span>
           <div class="cab-chips">
             <button v-for="s in sources" :key="s.key" type="button" class="cab-chip" :class="{ on: form.source === s.key }" :disabled="!!editId" @click="pickSource(s.key)">{{ s.label }}</button>
           </div>
         </div>
 
         <div v-if="activeSource" class="cab-fld">
-          <span>Колонки ({{ form.columns.length }}/{{ activeSource.columns.length }})</span>
+          <span>{{ t('Колонки (') }}{{ form.columns.length }}/{{ activeSource.columns.length }})</span>
           <div class="cab-cols">
             <label v-for="c in activeSource.columns" :key="c" class="cab-col" :class="{ on: form.columns.includes(c) }">
               <input type="checkbox" :checked="form.columns.includes(c)" @change="toggleColumn(c)" /> {{ c }}
@@ -154,15 +157,15 @@ function srcLabel(key: string) { return sources.value.find(s => s.key === key)?.
         </div>
 
         <div v-if="activeSource" class="cab-grid3">
-          <label v-if="activeSource.filters.includes('year')" class="cab-fld"><span>Год (фикс.)</span><input v-model="form.year" type="number" placeholder="все" /></label>
-          <label v-if="activeSource.filters.includes('standard')" class="cab-fld"><span>Стандарт</span>
-            <select v-model="form.standard"><option value="">любой</option><option value="IFRS">IFRS</option><option value="NSBU">NSBU</option></select>
+          <label v-if="activeSource.filters.includes('year')" class="cab-fld"><span>{{ t('Год (фикс.)') }}</span><input v-model="form.year" type="number" :placeholder="t('все')" /></label>
+          <label v-if="activeSource.filters.includes('standard')" class="cab-fld"><span>{{ t('Стандарт') }}</span>
+            <select v-model="form.standard"><option value="">{{ t('любой') }}</option><option value="IFRS">IFRS</option><option value="NSBU">NSBU</option></select>
           </label>
-          <label class="cab-fld"><span>Лимит строк</span><input v-model="form.limit" type="number" /></label>
+          <label class="cab-fld"><span>{{ t('Лимит строк') }}</span><input v-model="form.limit" type="number" /></label>
         </div>
 
         <div class="cab-actions">
-          <button class="cab-btn cab-btn-g" @click="cancel">Отмена</button>
+          <button class="cab-btn cab-btn-g" @click="cancel">{{ t('Отмена') }}</button>
           <div style="flex:1"></div>
           <button class="cab-btn cab-btn-g" :disabled="previewing || !form.source" @click="runPreview"><BIcon name="player-play" :size="13" /> {{ previewing ? "…" : "Превью" }}</button>
           <button class="cab-btn cab-btn-p" :disabled="saving" @click="save">{{ saving ? "…" : (editId ? "Сохранить" : "Создать endpoint") }}</button>
@@ -171,9 +174,9 @@ function srcLabel(key: string) { return sources.value.find(s => s.key === key)?.
 
       <!-- preview -->
       <div class="cab-preview">
-        <div class="cab-pv-h">Превью данных <span v-if="preview" class="cab-pv-c">{{ preview.count }} строк</span></div>
-        <div v-if="!preview" class="cab-pv-empty"><BIcon name="terminal-2" :size="22" /><span>Нажмите «Превью» — здесь появятся живые данные</span></div>
-        <div v-else-if="!preview.sample.length" class="cab-pv-empty">Нет данных по фильтрам</div>
+        <div class="cab-pv-h">{{ t('Превью данных') }} <span v-if="preview" class="cab-pv-c">{{ preview.count }} {{ t('строк') }}</span></div>
+        <div v-if="!preview" class="cab-pv-empty"><BIcon name="terminal-2" :size="22" /><span>{{ t('Нажмите «Превью» — здесь появятся живые данные') }}</span></div>
+        <div v-else-if="!preview.sample.length" class="cab-pv-empty">{{ t('Нет данных по фильтрам') }}</div>
         <div v-else class="cab-pv-tbl-wrap">
           <table class="cab-pv-tbl">
             <thead><tr><th v-for="c in (form.columns.length ? form.columns : preview.columns)" :key="c">{{ c }}</th></tr></thead>
@@ -189,10 +192,10 @@ function srcLabel(key: string) { return sources.value.find(s => s.key === key)?.
 
     <!-- ───────── SAVED ENDPOINTS ───────── -->
     <div v-else>
-      <div v-if="loading" class="cab-state">Загрузка…</div>
+      <div v-if="loading" class="cab-state">{{ t('Загрузка…') }}</div>
       <div v-else-if="!endpoints.length" class="cab-state">
-        <BIcon name="api" :size="26" /><div>Пользовательских API ещё нет</div>
-        <div class="cab-state-sub">Соберите первый — он станет доступен внешним системам по API-ключу.</div>
+        <BIcon name="api" :size="26" /><div>{{ t('Пользовательских API ещё нет') }}</div>
+        <div class="cab-state-sub">{{ t('Соберите первый — он станет доступен внешним системам по API-ключу.') }}</div>
       </div>
       <div v-else class="cab-list">
         <div v-for="ep in endpoints" :key="ep.id" class="cab-card" :class="{ off: !ep.is_active }">
@@ -200,12 +203,12 @@ function srcLabel(key: string) { return sources.value.find(s => s.key === key)?.
             <div class="cab-card-titlewrap">
               <span class="cab-card-title">{{ ep.title }}</span>
               <span class="cab-card-src">{{ srcLabel(ep.source) }}</span>
-              <span v-if="!ep.is_active" class="cab-card-off">отключён</span>
+              <span v-if="!ep.is_active" class="cab-card-off">{{ t('отключён') }}</span>
             </div>
             <div class="cab-card-acts">
               <button class="cab-ibtn" :title="ep.is_active ? 'Отключить' : 'Включить'" @click="toggleActive(ep)"><BIcon name="power" :size="14" /></button>
-              <button class="cab-ibtn" title="Редактировать" @click="startEdit(ep)"><BIcon name="edit" :size="14" /></button>
-              <button class="cab-ibtn cab-ibtn-d" title="Удалить" @click="remove(ep)"><BIcon name="trash" :size="14" /></button>
+              <button class="cab-ibtn" :title="t('Редактировать')" @click="startEdit(ep)"><BIcon name="edit" :size="14" /></button>
+              <button class="cab-ibtn cab-ibtn-d" :title="t('Удалить')" @click="remove(ep)"><BIcon name="trash" :size="14" /></button>
             </div>
           </div>
           <p v-if="ep.description" class="cab-card-desc">{{ ep.description }}</p>
@@ -216,7 +219,7 @@ function srcLabel(key: string) { return sources.value.find(s => s.key === key)?.
           </div>
           <div class="cab-card-meta">
             <span>scope: <code>{{ ep.required_permission }}</code></span>
-            <span v-if="ep.config.columns?.length">· {{ ep.config.columns.length }} колонок</span>
+            <span v-if="ep.config.columns?.length">· {{ ep.config.columns.length }} {{ t('колонок') }}</span>
             <span v-if="ep.config.year">· FY{{ ep.config.year }}</span>
           </div>
         </div>

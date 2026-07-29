@@ -253,13 +253,13 @@ const isEmpty = computed(() => detail.value != null && _mc(detail.value) === 0 &
                         <input v-model="editVal" class="ec-metric-input" type="number" step="any"
                                :disabled="savingId === m.id"
                                @keydown.enter.prevent="saveEdit(m)" @keydown.esc.prevent="cancelEdit" />
-                        <button class="ec-metric-iok" type="button" :disabled="savingId === m.id" @click="saveEdit(m)" title="Сохранить">✓</button>
-                        <button class="ec-metric-ix" type="button" @click="cancelEdit" title="Отмена">×</button>
+                        <button class="ec-metric-iok" type="button" :disabled="savingId === m.id" @click="saveEdit(m)" :title="t('Сохранить')">✓</button>
+                        <button class="ec-metric-ix" type="button" @click="cancelEdit" :title="t('Отмена')">×</button>
                       </span>
                       <span v-else class="ec-metric-val" :class="{ 'ec-metric-val-edit': canEditEsg }"
                             :title="canEditEsg ? 'Кликните, чтобы изменить значение' : ''"
                             @click.stop="canEditEsg && startEdit(m)">{{ fmtMetricValue(m.value, m.unit) }}</span>
-                      <span v-if="m.target != null" class="ec-metric-target">/ цель {{ fmtMetricValue(m.target, m.unit) }}</span>
+                      <span v-if="m.target != null" class="ec-metric-target">{{ t('/ цель') }} {{ fmtMetricValue(m.target, m.unit) }}</span>
                     </div>
                     <div v-if="m.target_attainment_pct != null" class="ec-metric-att" :style="{ color: attColor(m.target_attainment_pct) }">
                       {{ m.target_attainment_pct.toFixed(0) }}%
@@ -278,7 +278,7 @@ const isEmpty = computed(() => detail.value != null && _mc(detail.value) === 0 &
         <!-- Issues -->
         <div v-if="detail.issues.length" class="ec-sec">
           <div class="ec-sec-h">
-            Существенные вопросы и риски · <span class="ec-sec-h-small">{{ openIssues }} открытых из {{ detail.issues.length }}</span>
+            {{ t('Существенные вопросы и риски ·') }} <span class="ec-sec-h-small">{{ openIssues }} {{ t('открытых из') }} {{ detail.issues.length }}</span>
           </div>
           <div class="ec-issue-list">
             <div v-for="i in detail.issues" :key="i.id" class="ec-issue" :style="{ '--stripe-color': severityMeta(i.severity).color }">

@@ -7,6 +7,9 @@
 import { ref, onMounted } from "vue";
 import { companiesApi, type SectorBrief, type CompanyDetail } from "@/api/companies";
 import ModalShell from "@/components/ModalShell.vue";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const emit = defineEmits<{ (e: "close"): void; (e: "created", company: CompanyDetail): void }>();
 
@@ -52,23 +55,23 @@ async function submit() {
 <template>
   <ModalShell :open="true" size="md" @close="emit('close')">
     <template #header>
-      <span class="acm-title">Новая компания</span>
+      <span class="acm-title">{{ t('Новая компания') }}</span>
     </template>
 
     <div class="acm-body">
       <label class="acm-field">
-        <span class="acm-lbl">Код <i>*</i></span>
-        <input v-model="code" @blur="normCode" type="text" class="acm-input" placeholder="напр. ngmk" autocomplete="off" spellcheck="false" />
-        <span class="acm-hint">латиница/цифры, нижний регистр — уникальный идентификатор</span>
+        <span class="acm-lbl">{{ t('Код') }} <i>*</i></span>
+        <input v-model="code" @blur="normCode" type="text" class="acm-input" :placeholder="t('напр. ngmk')" autocomplete="off" spellcheck="false" />
+        <span class="acm-hint">{{ t('латиница/цифры, нижний регистр — уникальный идентификатор') }}</span>
       </label>
       <label class="acm-field">
-        <span class="acm-lbl">Название (RU) <i>*</i></span>
-        <input v-model="nameRu" type="text" class="acm-input" placeholder="АО «…»" />
+        <span class="acm-lbl">{{ t('Название (RU)') }} <i>*</i></span>
+        <input v-model="nameRu" type="text" class="acm-input" :placeholder="t('АО «…»')" />
       </label>
       <label class="acm-field">
-        <span class="acm-lbl">Сектор</span>
+        <span class="acm-lbl">{{ t('Сектор') }}</span>
         <select v-model="sectorCode" class="acm-input">
-          <option value="">— не выбран —</option>
+          <option value="">{{ t('— не выбран —') }}</option>
           <option v-for="s in sectors" :key="s.code" :value="s.code">{{ s.name_ru }}</option>
         </select>
       </label>
@@ -77,7 +80,7 @@ async function submit() {
     </div>
 
     <template #footer>
-      <button class="acm-btn acm-btn-ghost" @click="emit('close')" :disabled="saving">Отмена</button>
+      <button class="acm-btn acm-btn-ghost" @click="emit('close')" :disabled="saving">{{ t('Отмена') }}</button>
       <button class="acm-btn acm-btn-primary" @click="submit" :disabled="saving">
         {{ saving ? "Создание…" : "Создать" }}
       </button>

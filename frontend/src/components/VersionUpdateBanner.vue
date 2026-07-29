@@ -8,6 +8,9 @@
  */
 import { ref, watch, onBeforeUnmount } from "vue";
 import { updateAvailable } from "@/composables/useVersionCheck";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const dismissed = ref(false);
 const show = ref(false);
@@ -42,11 +45,11 @@ onBeforeUnmount(() => { if (renagTimer) window.clearTimeout(renagTimer); });
         </svg>
       </span>
       <div class="vub-body">
-        <div class="vub-ttl">Доступно обновление платформы</div>
-        <div class="vub-sub">Перезагрузите, чтобы получить последние улучшения</div>
+        <div class="vub-ttl">{{ t('Доступно обновление платформы') }}</div>
+        <div class="vub-sub">{{ t('Перезагрузите, чтобы получить последние улучшения') }}</div>
       </div>
-      <button class="vub-btn" type="button" @click="reload">Обновить</button>
-      <button class="vub-x" type="button" aria-label="Позже" title="Позже" @click="later">
+      <button class="vub-btn" type="button" @click="reload">{{ t('Обновить') }}</button>
+      <button class="vub-x" type="button" :aria-label="t('Позже')" :title="t('Позже')" @click="later">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
