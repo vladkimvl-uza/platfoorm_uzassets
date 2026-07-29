@@ -62,8 +62,17 @@ const moduleLabel = computed(() => {
   return MODULE_LABELS[m] || m || "—";
 });
 const actorName = computed(() => {
-  if (!n.value?.source_user_id) return "Система";
-  return actorCard.value?.full_name || "Пользователь";
+  const p: any = n.value?.payload || {};
+  if (!n.value?.source_user_id) return p.actor_name || "Система";
+  return actorCard.value?.full_name || p.actor_name || "Пользователь";
+});
+// Компания и должность автора — рядом с именем: «кто именно изменил».
+// Источник — карточка пользователя, фолбэк — payload уведомления.
+const actorSub = computed(() => {
+  const p: any = n.value?.payload || {};
+  const co = actorCard.value?.company || p.actor_company || "";
+  const job = actorCard.value?.job_title || p.actor_job_title || "";
+  return [co, job].filter(Boolean).join(" · ");
 });
 const whenAbs = computed(() => (n.value ? fmt.fmtDateTime(n.value.created_at) : ""));
 
@@ -80,6 +89,9 @@ const bodyText = computed(() => {
 const showBody = computed(() => {
   const b = bodyText.value;
   if (!b) return false;
+  // Старые уведомления (до 07.2026) клали в тело голый e-mail автора — это не
+  // «подробности», а дубль строки «Кто». Не показываем.
+  if (/^\S+@\S+\.\S+$/.test(b)) return false;
   const dt = d.value?.detail;
   if (dt && dt.kind === "text" && (dt as any).text === b) return false;
   return true;
@@ -140,7 +152,10 @@ function openSource() {
           <span class="ndm-meta-l">Кто</span>
           <span class="ndm-meta-v ndm-who">
             <ActorAvatar :user-id="n.source_user_id || ''" :size="20" />
-            <span>{{ actorName }}</span>
+            <span class="ndm-who-txt">
+              <span class="ndm-who-name">{{ actorName }}</span>
+              <span v-if="actorSub" class="ndm-who-sub">{{ actorSub }}</span>
+            </span>
           </span>
         </div>
         <div class="ndm-meta-row">
@@ -236,7 +251,10 @@ function openSource() {
 .ndm-meta-ic { width: 14px; height: 14px; color: var(--t4, #B4B2A9); flex-shrink: 0; }
 .ndm-meta-l { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--t3, #888780); width: 52px; flex-shrink: 0; }
 .ndm-meta-v { font-size: 12.5px; color: var(--t1, #1E2A4A); font-weight: 500; margin-left: auto; text-align: right; }
-.ndm-who { display: inline-flex; align-items: center; gap: 7px; }
+.ndm-who { display: inline-flex; align-items: center; gap: 8px; }
+.ndm-who-txt { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 1px; line-height: 1.3; }
+.ndm-who-name { font-weight: 700; color: var(--t1, #1E2A4A); }
+.ndm-who-sub { font-size: 10.5px; font-weight: 500; color: var(--t3, #888780); }
 
 .ndm-bodywrap { margin-top: 14px; }
 .ndm-body-lbl { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--t3, #888780); margin-bottom: 5px; }

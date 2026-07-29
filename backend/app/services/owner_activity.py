@@ -244,6 +244,39 @@ async def _company_name(db: AsyncSession, company_id: Optional[UUID]) -> Optiona
         return None
 
 
+async def actor_identity(
+    db: AsyncSession,
+    actor_id: Optional[UUID],
+    actor_email: Optional[str] = None,
+) -> tuple[str, Optional[str], Optional[str]]:
+    """Кто изменил: (имя, компания, должность).
+
+    Читатель уведомления должен видеть человека, а не e-mail: имя + где он
+    работает + кем. Компания берётся из organization_id (внутренние сотрудники)
+    либо из external_org_name (внешние — консультанты/подрядчики)."""
+    fallback = (actor_email or "Пользователь")
+    if actor_id is None:
+        return (fallback, None, None)
+    try:
+        row = (await db.execute(
+            text(
+                "SELECT u.full_name, u.email, u.job_title, u.external_org_name, "
+                "       COALESCE(c.name_short, c.name_ru, c.code) AS co "
+                "FROM users u LEFT JOIN companies c ON c.id = u.organization_id "
+                "WHERE u.id = :i"
+            ),
+            {"i": str(actor_id)},
+        )).first()
+    except Exception:
+        return (fallback, None, None)
+    if row is None:
+        return (fallback, None, None)
+    name = (row[0] or row[1] or fallback).strip()
+    job = (row[2] or "").strip() or None
+    company = (row[4] or row[3] or "").strip() or None
+    return (name, company, job)
+
+
 _OWNERS_SQL = "SELECT id FROM users WHERE is_owner = true AND is_active = true"
 
 # Active users who can access a given company: owners, companies.view_all holders,
@@ -421,7 +454,13 @@ async def notify_owners_of_change(
     fields = _humanize_fields(changed_fields)
     link = _resolve_link(http_path or "")
     title = f"{label}: {verb}"
-    body = actor_email or "пользователь"
+    # Кто изменил — человек, а не e-mail (имя · компания · должность).
+    actor_name, actor_company, actor_job = await actor_identity(db, actor_uuid, actor_email)
+    # Тело — то, что НЕ дублирует карточку: конкретная деталь от роута, иначе
+    # перечень затронутых полей, иначе «что за запись». Голый e-mail («body =
+    # actor_email») читателю ничего не объяснял — «ПОДРОБНЕЕ: ivan@…».
+    _body = summary or (f"Изменено: {', '.join(fields[:6])}" if fields else None)
+    body = _body[:400] if _body else None   # нечего добавить — «Подробнее» не рисуем
     since = datetime.now(UTC) - timedelta(minutes=_THROTTLE_MINUTES)
 
     for rid in recipient_ids:
@@ -454,6 +493,12 @@ async def notify_owners_of_change(
                          # Компания — ВСЕГДА отдельным полем (контекст «у кого»),
                          # а не только как fallback названия записи.
                          "company": co_name,
+                         # Автор изменения — имя/компания/должность прямо в
+                         # payload: карточка не зависит от доступности /users/card
+                         # и переживает удаление пользователя.
+                         "actor_name": actor_name,
+                         "actor_company": actor_company,
+                         "actor_job_title": actor_job,
                          # detail_text: человеческая деталь от роута
                          # («Выручка 2025: 1 200 млрд», «Статус: Новая → Завершено»).
                          "detail_text": summary},

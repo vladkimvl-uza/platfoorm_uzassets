@@ -14,6 +14,7 @@ import {
 } from "@/api/notifications";
 import { describeNotification, NOTIF_ICON_PATHS } from "@/composables/useNotificationMeta";
 import { useNotificationDetail } from "@/composables/useNotificationDetail";
+import ActorLine from "@/components/user/ActorLine.vue";
 
 const router = useRouter();
 const store = useNotificationsStore();
@@ -182,6 +183,10 @@ const iconPath = (k: string) => NOTIF_ICON_PATHS[k] || NOTIF_ICON_PATHS.bell;
             <span class="ni-time">{{ formatRelativeTime(n.created_at) }}</span>
             <span v-if="n.is_archived" class="ni-archived-tag">в архиве</span>
           </div>
+          <!-- КТО: имя (акцент) + компания и должность рядом -->
+          <div v-if="n.source_user_id" class="ni-actor" @click.stop>
+            <ActorLine :user-id="n.source_user_id" show-badges />
+          </div>
           <div class="ni-title-row">
             <span class="ni-title-text">{{ desc(n).entity || n.title }}</span>
           </div>
@@ -345,6 +350,7 @@ const iconPath = (k: string) => NOTIF_ICON_PATHS[k] || NOTIF_ICON_PATHS.bell;
   padding: 1px 6px; border-radius: 3px;
 }
 
+.ni-actor { margin: 2px 0 1px; }
 .ni-title-row { display: flex; align-items: center; gap: 6px; }
 .ni-title-text { font-size: 13px; font-weight: 500; color: var(--t1, #1E2A4A); }
 .ni-body {

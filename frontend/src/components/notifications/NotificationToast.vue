@@ -36,6 +36,8 @@ interface Toast {
   paused: boolean;
   remainingMs?: number;
   actorName: string;
+  actorCompany: string;
+  actorJob: string;
   actorIds: string[];
   count: number;
   dx: number;
@@ -47,16 +49,27 @@ const toastTimers = new Map<string, number>();
 const MAX_TOASTS = 5;
 const stackHovered = ref(false);
 
-// ─── Имя автора — через /users/card (как ActorAvatar), общий кеш ───
+// ─── Автор: имя · компания · должность — через /users/card (как ActorAvatar),
+// общий кеш; payload уведомления — фолбэк, если карточка недоступна. ───
+function applyCard(t: Toast, card: any): void {
+  const p: any = t.notification.payload || {};
+  t.actorName = card?.full_name || p.actor_name || "Пользователь";
+  t.actorCompany = card?.company || p.actor_company || "";
+  t.actorJob = card?.job_title || p.actor_job_title || "";
+}
 async function resolveActor(t: Toast, id?: string | null): Promise<void> {
-  if (!id) { if (!t.actorName) t.actorName = "Система"; return; }
+  const p: any = t.notification.payload || {};
+  if (!id) {
+    if (!t.actorName) t.actorName = p.actor_name || "Система";
+    return;
+  }
   const cache = (window as any).__uhCache || ((window as any).__uhCache = new Map());
-  if (cache.has(id)) { t.actorName = cache.get(id)?.full_name || "Пользователь"; return; }
+  if (cache.has(id)) { applyCard(t, cache.get(id)); return; }
   try {
     const { data } = await api.get("/users/card", { params: { id } });
     cache.set(id, data);
-    t.actorName = data?.full_name || "Пользователь";
-  } catch { if (!t.actorName) t.actorName = "Пользователь"; }
+    applyCard(t, data);
+  } catch { applyCard(t, null); }
 }
 
 function ttlFor(priority: string): number {
@@ -110,6 +123,8 @@ function pushToast(n: Notification) {
     ttlMs: ttlFor(n.priority),
     paused: stackHovered.value,
     actorName: "",
+    actorCompany: "",
+    actorJob: "",
     actorIds: n.source_user_id ? [n.source_user_id] : [],
     count: 1,
     dx: 0, dragging: false,
@@ -217,6 +232,11 @@ function actorLine(t: Toast): string {
   }
   return t.actorName;
 }
+/** Компания и должность автора — контекст рядом с именем («кто именно изменил»). */
+function actorSub(t: Toast): string {
+  if (t.count > 1) return "";
+  return [t.actorCompany, t.actorJob].filter(Boolean).join(" · ");
+}
 
 function priorityBg(p: string) { return PRIORITY_LABELS[p as "critical" | "high" | "normal" | "low"]?.bg || ""; }
 function priorityColor(p: string) { return PRIORITY_LABELS[p as "critical" | "high" | "normal" | "low"]?.color || "#5F5E5A"; }
@@ -278,7 +298,10 @@ onUnmounted(() => {
                 <span v-if="(t.notification.payload as any)?.is_external" class="nt-ext">EXTERNAL</span>
                 <span class="nt-time">{{ formatRelativeTime(t.notification.created_at) }}</span>
               </div>
-              <div v-if="actorLine(t)" class="nt-actor">{{ actorLine(t) }}</div>
+              <div v-if="actorLine(t)" class="nt-actor">
+                <span class="nt-actor-name">{{ actorLine(t) }}</span>
+                <span v-if="actorSub(t)" class="nt-actor-sub">{{ actorSub(t) }}</span>
+              </div>
               <div class="nt-title">{{ desc(t.notification).entity || t.notification.title }}</div>
               <div v-if="desc(t.notification).detail" class="nt-detail">
                 <template v-if="(desc(t.notification).detail as any).kind === 'status' || (desc(t.notification).detail as any).kind === 'deadline'">
@@ -411,7 +434,12 @@ onUnmounted(() => {
 .nt-prio { font-size: 8.5px; padding: 1px 5px; border-radius: 3px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
 .nt-ext { background: #D4537E; color: #fff; padding: 1px 5px; border-radius: 3px; font-size: 8.5px; font-weight: 600; letter-spacing: .04em; }
 .nt-time { font-size: 9.5px; color: var(--t3, var(--t-muted)); margin-left: auto; }
-.nt-actor { font-size: 11px; font-weight: 600; color: var(--t1, #1E2A4A); margin-top: 1px; line-height: 1.2; }
+.nt-actor { display: flex; align-items: baseline; gap: 6px; margin-top: 1px; line-height: 1.25; min-width: 0; }
+.nt-actor-name { font-size: 11.5px; font-weight: 700; color: var(--t1, #1E2A4A); white-space: nowrap; }
+.nt-actor-sub {
+  font-size: 10px; font-weight: 500; color: var(--t3, #888780);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+}
 .nt-title {
   font-size: 12px; color: var(--t1, #1E2A4A); font-weight: 500; line-height: 1.35; margin-top: 1px;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;

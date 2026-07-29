@@ -338,13 +338,26 @@ async def get_notification_audit_detail(
     if not sid:
         return NotificationAuditDetail(found=False)
 
-    # Запись аудита той же сущности в окне вокруг времени уведомления
+    # Запись аудита того же изменения в окне вокруг времени уведомления
     # (аудит пишется за микросекунды ДО notify). Предпочитаем того же автора.
+    #
+    # ВАЖНО: у уведомлений ленты активности (owner.activity) source_entity_id —
+    # это HTTP-ПУТЬ запроса, а не id сущности (см. owner_activity.notify_owners_
+    # of_change). Раньше сопоставление шло только по AuditLog.entity_id → для
+    # всей ленты активности блок «Что изменилось» не находился никогда.
     hi = (n.created_at or datetime.now(UTC)) + timedelta(seconds=30)
-    base = select(AuditLog).where(
-        AuditLog.entity_id == str(sid),
-        AuditLog.created_at <= hi,
-    )
+    if str(sid).startswith("/"):
+        lo = (n.created_at or datetime.now(UTC)) - timedelta(minutes=5)
+        base = select(AuditLog).where(
+            AuditLog.http_path == str(sid),
+            AuditLog.created_at <= hi,
+            AuditLog.created_at >= lo,
+        )
+    else:
+        base = select(AuditLog).where(
+            AuditLog.entity_id == str(sid),
+            AuditLog.created_at <= hi,
+        )
     row = None
     if n.source_user_id is not None:
         row = (await db.execute(

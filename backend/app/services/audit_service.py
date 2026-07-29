@@ -241,17 +241,26 @@ async def write_event(
         if http_method is None and action and action != "VIEW" and actor_id is not None:
             from app.models.user import User
             from app.services.notifications_service import notify
-            # Имя автора — чтобы было видно КТО изменил
-            arow = (await db.execute(
-                select(User.full_name, User.email).where(User.id == actor_id),
-            )).first()
-            actor_name = (arow[0] or arow[1]) if arow else (actor_email or "Кто-то")
+            from app.services.owner_activity import actor_identity
+            # Автор — имя · компания · должность (не e-mail): читатель должен
+            # видеть человека, а фронт — рисовать «кто» без доп. запроса.
+            actor_name, actor_company, actor_job = await actor_identity(
+                db, actor_id, actor_email,
+            )
             owner_rows = (await db.execute(
                 select(User.id).where(User.is_owner.is_(True), User.is_active.is_(True)),
             )).all()
             link = (meta or {}).get("link") if isinstance(meta, dict) else None
             title = (entity_label or module or "Изменение")[:140]
-            body = (f"{actor_name} {notes}" if notes else f"{actor_name} · {action}")[:400]
+            body = (notes[:400] if notes else None)
+            act_payload = {
+                "action": "activity",
+                "entity_title": entity_label,
+                "actor_name": actor_name,
+                "actor_company": actor_company,
+                "actor_job_title": actor_job,
+                "detail_text": notes,
+            }
             for (oid,) in owner_rows:
                 if str(oid) == str(actor_id):
                     continue
@@ -259,7 +268,7 @@ async def write_event(
                     db, recipient_id=oid, type="owner.activity",
                     title=title, body=body, priority="normal", link_url=link,
                     source_module=module, source_entity_id=entity_id,
-                    source_user_id=actor_id, commit=False,
+                    source_user_id=actor_id, payload=act_payload, commit=False,
                 )
     except Exception:
         import logging as _logging

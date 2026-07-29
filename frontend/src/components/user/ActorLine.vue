@@ -46,14 +46,20 @@ watch(() => props.userId, (v) => load(v), { immediate: true });
       :sector="card.sector"
       size="sm"
     />
+    <!-- Должность — рядом с компанией: «кто именно» читается без открытия карточки -->
+    <span v-if="showBadges && card?.job_title" class="actor-line__job">{{ card.job_title }}</span>
   </span>
 </template>
 
 <style scoped>
 .actor-line { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; }
 .actor-line__name {
-  font-size: 11.5px; font-weight: 600; color: var(--t1, #1E2A4A);
+  font-size: 11.5px; font-weight: 700; color: var(--t1, #1E2A4A);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px;
 }
 .actor-line__name:hover { color: var(--p-deep, #534AB7); }
+.actor-line__job {
+  font-size: 10px; font-weight: 500; color: var(--t3, #888780);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px;
+}
 </style>
