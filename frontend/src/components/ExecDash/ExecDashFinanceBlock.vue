@@ -17,6 +17,7 @@ import {
   fmtPctSigned,
 } from "@/components/Financials/financialsHelpers";
 import { useSectorMeta } from "@/utils/sectorMeta";
+import { useCompanyScope } from "@/composables/useCompanyScope";
 import { useFormatters } from "@/composables/useFormatters";
 import FinanceDrillModal, { type FinKpiKind } from "@/components/UZA/FinanceDrillModal.vue";
 import Odometer from "@/components/Odometer.vue";
@@ -25,6 +26,8 @@ import { useI18n } from "@/composables/useI18n";
 
 const { t } = useI18n();
 const fmt = useFormatters();
+// Область доступа: пользователю со своими компаниями фильтр секторов не нужен.
+const scope = useCompanyScope();
 
 // Pack 7.23: inject fin animation kit (finKpiCardIn / finKpi2DrawIn /
 // finKpi2Breathe / finShimmer) so the KPI top-stripes get the same
@@ -672,6 +675,11 @@ function onPdropKeydown(e: KeyboardEvent): void {
 }
 
 onMounted(() => {
+  // Селектор секторов скрыт (пользователь ограничен своими компаниями) — сбрасываем
+  // фильтр, который мог остаться в localStorage от прошлого визита другого пользователя.
+  if (!scope.showSectorPicker.value && exec.selectedSectors.value.length) {
+    exec.clearSectors();
+  }
   try {
     const raw = localStorage.getItem("uz_exec_dash_finance_v1");
     const wasReset = localStorage.getItem("uz_exec_dash_finance_v1_reset");
@@ -863,8 +871,8 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <!-- Sector filter -->
-      <div class="ed-fin-secflt">
+      <!-- Sector filter (скрыт, если пользователь ограничен своими компаниями) -->
+      <div v-if="scope.showSectorPicker.value" class="ed-fin-secflt">
         <span class="ed-fin-secflt-lbl">{{ t("Сектор") }}:</span>
         <button class="ed-fin-secflt-pill" :class="{ on: finSectorFilter === 'all' }" @click="setSector('all')">{{ t("Все") }}</button>
         <button v-for="s in availableSectors" :key="s" class="ed-fin-secflt-pill" :class="{ on: finSectorFilter === s }" @click="setSector(s)">

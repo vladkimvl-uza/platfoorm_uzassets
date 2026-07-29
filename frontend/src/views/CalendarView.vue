@@ -6,10 +6,16 @@ import { companiesApi } from "@/api/companies";
 import { useEntityEditor } from "@/composables/useEntityEditor";
 import { useToast } from "@/composables/useToast";
 import ModalShell from "@/components/ModalShell.vue";
+import { useCompanyScope } from "@/composables/useCompanyScope";
 
 const { openTask, openProject } = useEntityEditor();
 const toast = useToast();
-const selectedCompany = ref<string | null>(null);
+// Область доступа: при единственной доступной компании селектор скрыт,
+// компания подставляется сама (решение владельца 29.07.2026).
+const scope = useCompanyScope();
+const selectedCompany = ref<string | null>(
+  scope.showCompanyPicker.value ? null : scope.defaultCompanyId.value,
+);
 const companies = ref<{ id: string; name: string }[]>([]);
 
 const icalUrl = ref<string>("");
@@ -24,6 +30,10 @@ onMounted(async () => {
   try {
     const resp = await companiesApi.list({ limit: 200 } as any);
     companies.value = (resp.items || []).map((c: any) => ({ id: c.id, name: c.name_short || c.name_ru || c.code }));
+    // Селектор скрыт — компанию обязан проставить экран, иначе фильтр останется пустым.
+    if (!scope.showCompanyPicker.value && !selectedCompany.value) {
+      selectedCompany.value = scope.defaultCompanyId.value || companies.value[0]?.id || null;
+    }
   } catch (e: any) {
     toast.error(e?.message || "Не удалось загрузить список компаний");
   }
@@ -74,7 +84,7 @@ async function copyIcal() {
         <div class="gc-sub">Сроки проектов и задач по всему портфелю — синхронно с платформой</div>
       </div>
       <div class="gc-head-r">
-        <div class="gc-filter">
+        <div v-if="scope.showCompanyPicker.value" class="gc-filter">
           <svg class="gc-filter-ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18M6 12h12M10 17h4"/></svg>
           <select v-model="selectedCompany" class="gc-select" :title="selectedName" aria-label="Фильтр по компании">
             <option :value="null">Все компании</option>

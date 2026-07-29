@@ -3,8 +3,13 @@ import { ref, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
 import { boardsApi } from "@/api/tasks";
 import type { BoardBrief } from "@/api/tasks";
+import { useCompanyScope } from "@/composables/useCompanyScope";
 
 const router = useRouter();
+
+// Область доступа: пользователю, ограниченному своими компаниями одного
+// сектора, фильтр по секторам не нужен — выбирать не из чего.
+const scope = useCompanyScope();
 
 const items     = ref<BoardBrief[]>([]);
 const total     = ref(0);
@@ -74,7 +79,8 @@ const STATUS_META: Record<string, { label: string; color: string }> = {
         <div style="flex: 1; min-width: 220px;">
           <input v-model="search" type="text" placeholder="Поиск по названию доски…" class="uza-input" />
         </div>
-        <select v-model="sectorFilter" class="uza-input" style="width: auto; min-width: 200px;">
+        <select v-if="scope.showSectorPicker.value" v-model="sectorFilter"
+                class="uza-input" style="width: auto; min-width: 200px;">
           <option value="">Все секторы</option>
           <option value="mining">Горнодобывающая</option>
           <option value="oil_gas">Нефть и газ</option>

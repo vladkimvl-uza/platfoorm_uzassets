@@ -21,6 +21,7 @@ import { computed, nextTick, onMounted, onBeforeUnmount, ref, watch } from "vue"
 import SidebarBurger from "@/components/SidebarBurger.vue";
 import { api } from "@/api/client";
 import { useCountUpScan } from "@/composables/useCountUp";
+import { useCompanyScope } from "@/composables/useCompanyScope";
 import { downloadForensicTemplate } from "@/utils/forensicTemplate";
 import ForensicUploadModal from "@/components/Procurement/ForensicUploadModal.vue";
 import ForensicEditModal from "@/components/Procurement/ForensicEditModal.vue";
@@ -38,6 +39,9 @@ import { execCol as pctCol, execZone as pctZone } from "@/utils/execBand";
 const fmt = useFormatters();
 const toast = useToast();
 const { confirmDialog } = useConfirm();
+// Область доступа: селектор секторов не нужен пользователю, ограниченному
+// своими компаниями (решение владельца 29.07.2026).
+const scope = useCompanyScope();
 
 // ─── Types ───────────────────────────────────────────────────────
 interface YearRow {
@@ -845,7 +849,7 @@ onBeforeUnmount(() => {
             <div class="pr-cc-h">
               <div class="pr-cc-t">Исполнение плана закупок, {{ periodLabel }}</div>
               <div class="pr-cc-rt">
-                <div class="pr-seg">
+                <div v-if="scope.showSectorPicker.value" class="pr-seg">
                   <button :class="{ on: !sectorFilter }" @click="sectorFilter = ''">Все</button>
                   <button
                     v-for="sid in (['mining','oilgas','energy','transport','other'] as const)"

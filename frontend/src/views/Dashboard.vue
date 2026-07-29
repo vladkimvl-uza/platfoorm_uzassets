@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, nextTick, onBeforeUnmount } from "vue";
 import { useSavedFilter } from "@/composables/useSavedFilter";
+import { useCompanyScope } from "@/composables/useCompanyScope";
 import { useAiPageContext } from "@/composables/useAiPageContext";
 import { useNumberTween } from "@/composables/useNumberTween";
 import UzaSkeleton from "@/components/UZA/UzaSkeleton.vue";
@@ -10,6 +11,7 @@ import { Chart } from "@/utils/chartjsRegister";
 import { useI18n } from "@/composables/useI18n";
 
 const { t } = useI18n();
+const scope = useCompanyScope();
 
 defineEmits<{ (e: 'toggle-sidebar'): void }>();
 
@@ -309,6 +311,18 @@ const sectorFilter = useSavedFilter<string>("dashboard.sectorFilter", "");
 const directionFilter = useSavedFilter<string>("dashboard.directionFilter", "");
 const companyFilter = useSavedFilter<string>("dashboard.companyFilter", "");
 
+// Фильтры хранятся в localStorage устройства: на общем компьютере они могут
+// остаться от ДРУГОГО пользователя (чужая компания/сектор). Скрытый селектор
+// такой выбор не покажет и не даст сбросить — приводим значения к области
+// доступа до первой загрузки (watch на фильтры объявлен ниже).
+// Пустой фильтр = «всё, что доступно»: эндпоинт /dashboard/shareholder уже
+// сужен до компаний пользователя, поэтому единственной компании достаточно
+// сброса — данные придут по ней.
+if (!scope.showCompanyPicker.value || !scope.allows(companyFilter.value)) {
+  companyFilter.value = "";
+}
+if (!scope.showSectorPicker.value) sectorFilter.value = "";
+
 // Pack 7.9e: AI Bubble context
 useAiPageContext({
   key: "dashboard",
@@ -450,11 +464,11 @@ const tweenedDeferredTasks = useNumberTween(
   <div class="sh-page">
     <!-- Phase 1: page-specific filters (rendered into AppTopbar via Teleport) -->
     <Teleport to="#page-filters-target" v-if="data">
-      <select v-model="companyFilter" class="apt-page-select">
+      <select v-if="scope.showCompanyPicker.value" v-model="companyFilter" class="apt-page-select">
         <option value="">{{ t("Все компании") }}</option>
         <option v-for="c in allCompaniesList" :key="c.code" :value="c.code">{{ companies.getCompanyName(c.code) || c.name }}</option>
       </select>
-      <select v-model="sectorFilter" class="apt-page-select">
+      <select v-if="scope.showSectorPicker.value" v-model="sectorFilter" class="apt-page-select">
         <option value="">{{ t("Все секторы") }}</option>
         <option v-for="s in sectorOptions" :key="s.code" :value="s.code">{{ t(s.label) }}</option>
       </select>

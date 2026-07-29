@@ -17,10 +17,14 @@ import ColumnManagerModal from "@/components/library/ColumnManagerModal.vue";
 import CustomFieldBuilder from "@/components/library/CustomFieldBuilder.vue";
 import SectorChip from "@/components/UZA/SectorChip.vue";
 import { useToast } from "@/composables/useToast";
+import { useCompanyScope } from "@/composables/useCompanyScope";
 
 const store  = useCompanyLibraryStore();
 const router = useRouter();
 const toast  = useToast();
+// Область доступа: ограниченному пользователю фильтр секторов не нужен —
+// он и так видит только свои компании (решение владельца 29.07.2026).
+const scope = useCompanyScope();
 
 function onCellError(e: any) {
   toast.error(e?.response?.data?.detail || "Не удалось сохранить поле");
@@ -31,14 +35,21 @@ const columnsModalOpen = ref(false);
 const fieldBuilderOpen = ref(false);
 
 onMounted(async () => {
+  // Селектор секторов скрыт → снимаем фильтр, который мог остаться в сторе
+  // с прошлого визита (стор живёт всё время сессии SPA).
+  if (!scope.showSectorPicker.value && store.sectorFilter) {
+    store.setSectorFilter(null);
+  }
   // Fetch sectors for the filter dropdown
-  try {
-    const list = await companiesApi.listSectors();
-    sectors.value = list.map((s: any) => ({
-      code: s.code,
-      name_ru: s.name_ru || s.name || s.code,
-    }));
-  } catch { /* non-fatal */ }
+  if (scope.showSectorPicker.value) {
+    try {
+      const list = await companiesApi.listSectors();
+      sectors.value = list.map((s: any) => ({
+        code: s.code,
+        name_ru: s.name_ru || s.name || s.code,
+      }));
+    } catch { /* non-fatal */ }
+  }
   await Promise.all([store.load(), store.loadAllFields(), store.loadTabs()]);
   store.connectWebSocket();
 });
@@ -100,6 +111,7 @@ const lastUpdatedHint = computed(() => {
         @input="onSearchInput(($event.target as HTMLInputElement).value)"
       />
       <select
+        v-if="scope.showSectorPicker.value"
         class="cl-select"
         :value="store.sectorFilter || ''"
         @change="onSectorChange(($event.target as HTMLSelectElement).value || null)"

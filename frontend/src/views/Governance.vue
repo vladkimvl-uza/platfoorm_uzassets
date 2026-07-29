@@ -31,10 +31,13 @@ import GovCompanyDetailModal from "@/components/Governance/GovCompanyDetailModal
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import { useCountUpScan } from "@/composables/useCountUp";
 import { useCompaniesStore } from "@/stores/companies";
+import { useCompanyScope } from "@/composables/useCompanyScope";
 import { usePermissions } from "@/composables/usePermissions";
 import { useToast } from "@/composables/useToast";
 
 const companiesStore = useCompaniesStore();
+// Область доступа: пользователю со своими компаниями фильтр по секторам не нужен.
+const scope = useCompanyScope();
 const companiesPerm = usePermissions("companies");
 const toast = useToast();
 
@@ -606,7 +609,15 @@ const kpiDrillRows = computed<DrillRow[]>(() => {
 //   Lifecycle
 // ───────────────────────────────────────────────────────────────
 
-onMounted(() => { load(); loadCommittees(); void companiesStore.ensureLoaded(); });
+onMounted(() => {
+  // Фильтр по сектору хранится между визитами: если селектор скрыт, снять
+  // сохранённое значение — иначе пользователь остался бы с чужим фильтром
+  // без возможности его сбросить.
+  if (!scope.showSectorPicker.value && sectorCode.value) sectorCode.value = null;
+  load();
+  loadCommittees();
+  void companiesStore.ensureLoaded();
+});
 </script>
 
 <template>
@@ -625,7 +636,9 @@ onMounted(() => { load(); loadCommittees(); void companiesStore.ensureLoaded(); 
               <option value="">Все годы</option>
               <option v-for="y in (overview?.available_years || [])" :key="y" :value="y">{{ y }}</option>
             </select>
-            <select :value="sectorCode || ''" @change="onSectorChange" class="gv-in">
+            <!-- Селектор секторов: скрыт, когда пользователь ограничен своими
+                 компаниями (выбирать не из чего) — решение владельца. -->
+            <select v-if="scope.showSectorPicker.value" :value="sectorCode || ''" @change="onSectorChange" class="gv-in">
               <option value="">Все сектора</option>
               <option v-for="s in (overview?.sectors || [])" :key="s.code" :value="s.code">
                 {{ companiesStore.getSectorName(s.code) }} ({{ s.count }})

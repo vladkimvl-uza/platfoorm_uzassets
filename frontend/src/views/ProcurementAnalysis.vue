@@ -16,10 +16,14 @@
 import { computed, onMounted, ref } from "vue";
 import SidebarBurger from "@/components/SidebarBurger.vue";
 import { useSavedFilter } from "@/composables/useSavedFilter";
+import { useCompanyScope } from "@/composables/useCompanyScope";
 import { usePermissions } from "@/composables/usePermissions";
 import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
 const _perm = usePermissions("procurement_analysis");
+// Область доступа: пользователю, ограниченному своими компаниями, не нужны
+// селектор секторов и портфельная вкладка «Сравнение» (решение владельца 29.07.2026).
+const scope = useCompanyScope();
 const toast = useToast();
 const { confirmDialog } = useConfirm();
 import {
@@ -65,13 +69,18 @@ const tab = useSavedFilter<Tab>("procurement.tab2", "overview");
 const fmtMode = useSavedFilter<Fmt>("procurement.fmtMode", "pct");
 const selectedCoId = useSavedFilter<string | null>("procurement.selectedCoId", null);
 
-const TABS: Array<{ id: Tab; label: string }> = [
+const ALL_TABS: Array<{ id: Tab; label: string }> = [
   { id: "overview", label: "Обзор" },
   { id: "suppliers", label: "Поставщики" },
   { id: "methods", label: "Способы · Площадки" },
   { id: "products", label: "Товары · Услуги · Работы" },
   { id: "compare", label: "Сравнение" },
 ];
+// «Сравнение» — портфельный срез (компания × категория по всем компаниям):
+// ограниченному пользователю вкладка не показывается.
+const TABS = computed(() => (
+  scope.showPortfolioViews.value ? ALL_TABS : ALL_TABS.filter((t) => t.id !== "compare")
+));
 
 // drill modals
 const drillCompany = ref<CompanyRatingRow | null>(null);
@@ -314,7 +323,13 @@ async function editAction(action: "import-contracts" | "template" | "edit" | "ex
 }
 function closeAllDropdowns() { sectorOpen.value = false; yearOpen.value = false; editMenuOpen.value = false; }
 
-onMounted(load);
+onMounted(() => {
+  // Фильтры живут в localStorage и общие для устройства: скрытый контрол не
+  // должен оставлять «залипшее» значение от прошлого визита другого пользователя.
+  if (!scope.showSectorPicker.value && sectorCode.value) sectorCode.value = null;
+  if (!scope.showPortfolioViews.value && tab.value === "compare") tab.value = "overview";
+  load();
+});
 </script>
 
 <template>
@@ -340,7 +355,7 @@ onMounted(load);
 
       <div class="pa-tb-r" @click="closeAllDropdowns()">
         <!-- Sector -->
-        <div class="pa-badge-wrap" @click.stop>
+        <div v-if="scope.showSectorPicker.value" class="pa-badge-wrap" @click.stop>
           <button class="pa-badge" @click="sectorOpen = !sectorOpen" title="Фильтр по сектору">
             <span class="pa-sec-icon" :style="{ background: sectorColor + '33', borderColor: sectorColor }"></span>
             <span :style="{ color: sectorColor }">{{ sectorLabel }}</span>
@@ -495,7 +510,7 @@ onMounted(load);
           </div>
 
           <!-- ═══ СРАВНЕНИЕ ═══ -->
-          <div :key="tab" v-else-if="tab === 'compare'" class="pa-tabpane">
+          <div :key="tab" v-else-if="tab === 'compare' && scope.showPortfolioViews.value" class="pa-tabpane">
             <div class="pa-card">
               <div class="pa-card-h"><div class="pa-card-t-wrap"><span class="pa-card-t">Сравнение цен по компаниям и категориям</span><span class="pa-card-s">отклонение от средней цены рынка</span></div></div>
               <CategoryCompareTable :rating="aggregate.rating" :categories="aggregate.categories" @drill-company="onDrillCompany" />

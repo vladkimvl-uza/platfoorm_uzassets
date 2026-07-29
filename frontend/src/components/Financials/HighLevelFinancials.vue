@@ -23,10 +23,14 @@ import DOMPurify from "dompurify";
 import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
 import { useI18n } from "@/composables/useI18n";
+import { useCompanyScope } from "@/composables/useCompanyScope";
 
 const toast = useToast();
 const { confirmDialog } = useConfirm();
 const { t } = useI18n();
+// Область доступа: пользователю с одной компанией селектор не нужен,
+// портфельный охват ИИ-анализа ограниченным пользователям не показываем.
+const scope = useCompanyScope();
 
 const props = defineProps<{
   companies: CompanyListItem[];
@@ -60,7 +64,9 @@ interface HlfData {
 }
 
 // ─── Local state ───
-const selectedCode = ref<string>(props.initialCode || (props.companies[0]?.code || ""));
+const selectedCode = ref<string>(
+  props.initialCode || props.companies[0]?.code || scope.defaultCompanyCode.value || "",
+);
 const loading      = ref(false);
 const error        = ref<string>("");
 const data         = ref<HlfData | null>(null);
@@ -593,7 +599,24 @@ async function load() {
     loading.value = false;
   }
 }
-onMounted(load);
+onMounted(() => {
+  // Портфельный охват ИИ-анализа недоступен ограниченному пользователю: режим
+  // живёт в состоянии компонента, поэтому явно ставим «одна компания».
+  if (!scope.showPortfolioViews.value) {
+    anScope.value = "company";
+    if (!anPickedCode.value) anPickedCode.value = selectedCode.value;
+  }
+  load();
+});
+// Список компаний приходит из родителя асинхронно: если своя компания подъехала
+// позже, а селектор скрыт — выбираем её сами (watch(selectedCode) загрузит данные).
+watch(
+  () => props.companies,
+  (list) => {
+    if (selectedCode.value || !list?.length) return;
+    selectedCode.value = list[0].code;
+  },
+);
 watch(selectedCode, async () => {
   if (dirty.value && !(await confirmDialog(t("Есть несохранённые изменения. Сменить компанию?")))) return;
   await load();
@@ -1249,6 +1272,11 @@ const kpiCards = computed(() => kpis.value.map(k => ({
         <div class="hlf-eyebrow">{{ t("ВЫСОКОУРОВНЕВЫЕ ПОКАЗАТЕЛИ") }}</div>
         <div class="hlf-title">{{ t("Финансовая отчётность по компаниям") }}</div>
         <div class="hlf-sub">
+          <!-- Селектор компаний скрыт (одна своя компания) — но подпись, чья это
+               отчётность, остаётся: иначе экран теряет привязку к компании. -->
+          <template v-if="!scope.showCompanyPicker.value && selectedCompany">
+            {{ selectedCompany.name_short || selectedCompany.name_ru }} ·
+          </template>
           {{ t("Иерархия из консолидированного шаблона") }}
           <template v-if="data?.updated_at"> · {{ t("ред. {d}", { d: formatDate(data.updated_at) }) }}</template>
           <template v-else-if="data?.imported_at"> · {{ t("импорт {d}", { d: formatDate(data.imported_at) }) }}</template>
@@ -1256,7 +1284,7 @@ const kpiCards = computed(() => kpis.value.map(k => ({
         </div>
       </div>
       <div class="hlf-hdr-right">
-        <div ref="coTrigger" class="hlf-co">
+        <div v-if="scope.showCompanyPicker.value" ref="coTrigger" class="hlf-co">
           <button type="button" class="hlf-co-trigger" :class="{ open: coOpen }"
                   @click="coToggle" @keydown="coKeydown">
             <CompanyAvatar v-if="selectedCompany"
@@ -1521,10 +1549,11 @@ const kpiCards = computed(() => kpis.value.map(k => ({
           <button class="hlf-an-x" @click="anOpen = false" :aria-label="t('Закрыть')">×</button>
         </header>
 
-        <!-- Охват: весь портфель / одна компания (выбор прямо здесь) -->
-        <div class="hlf-an-scen">
+        <!-- Охват: весь портфель / одна компания (выбор прямо здесь).
+             Портфельный охват — только для тех, кто видит весь портфель. -->
+        <div v-if="scope.showPortfolioViews.value || scope.showCompanyPicker.value" class="hlf-an-scen">
           <span class="hlf-an-scen-lbl">{{ t("Охват") }}</span>
-          <div class="hlf-an-scen-seg">
+          <div v-if="scope.showPortfolioViews.value" class="hlf-an-scen-seg">
             <button class="hlf-an-scen-opt" :class="{ on: anScope === 'portfolio' }"
                     :disabled="anLoading" @click="setAnScope('portfolio')">{{ t("Весь портфель") }}</button>
             <button class="hlf-an-scen-opt" :class="{ on: anScope === 'company' }"
@@ -1532,7 +1561,7 @@ const kpiCards = computed(() => kpis.value.map(k => ({
               {{ t("Одна компания") }}
             </button>
           </div>
-          <select v-if="anScope === 'company'" v-model="anPickedCode" @change="onAnPickCompany"
+          <select v-if="anScope === 'company' && scope.showCompanyPicker.value" v-model="anPickedCode" @change="onAnPickCompany"
                   :disabled="anLoading" class="hlf-an-co-select" :aria-label="t('Компания для анализа')">
             <option v-for="c in displayCompanies" :key="c.code" :value="c.code">
               {{ c.name_short || c.name_ru || c.code }}

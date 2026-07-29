@@ -12,6 +12,7 @@ import { api } from "@/api/client";
 import { useToast } from "@/composables/useToast";
 import ModalShell from "@/components/ModalShell.vue";
 import EptLogo from "@/components/EptLogo.vue";
+import { useCompanyScope } from "@/composables/useCompanyScope";
 
 interface Co { id: string; code: string; name: string; }
 interface Dir { id: string; code: string; name: string; }
@@ -19,6 +20,11 @@ interface BTask { title: string; status: string; priority: string; due_date: str
 interface BProject { title: string; status: string; priority: string; due_date: string; direction_id: string; comment: string; tasks: BTask[]; }
 
 const toast = useToast();
+// Область доступа: при единственной доступной компании шаг «Компании» не
+// показываем — выбирать не из чего, компания проставляется сама.
+const scope = useCompanyScope();
+/** Номер шага в мастере: без шага «Компании» нумерация сдвигается на один. */
+function stepNo(n: number): number { return scope.showCompanyPicker.value ? n : n - 1; }
 const companies = ref<Co[]>([]);
 const directions = ref<Dir[]>([]);
 const selected = ref<Set<string>>(new Set());
@@ -74,6 +80,9 @@ async function load() {
   const [c, d] = await Promise.all([api.get("/builder/companies"), api.get("/builder/directions")]);
   companies.value = c.data.items || [];
   directions.value = d.data.items || [];
+  // Шаг «Компании» скрыт — выбор обязан проставиться сам, иначе кнопка
+  // «Создать всё» останется заблокированной (submit требует selected.size).
+  if (!scope.showCompanyPicker.value) selectAll();
 }
 onMounted(load);
 
@@ -246,8 +255,8 @@ async function submit() {
     </Transition>
 
     <div class="pb-page">
-      <!-- 1. КОМПАНИИ -->
-      <div class="pb-card">
+      <!-- 1. КОМПАНИИ (скрыт при единственной доступной компании) -->
+      <div v-if="scope.showCompanyPicker.value" class="pb-card">
         <div class="pb-card-h">
           <span class="pb-step">1</span><span class="pb-card-t">Компании</span>
           <span class="pb-card-cap">{{ selected.size }} выбрано</span>
@@ -260,7 +269,7 @@ async function submit() {
 
       <!-- 2. ОБЩИЕ НАСТРОЙКИ -->
       <div class="pb-card">
-        <div class="pb-card-h"><span class="pb-step">2</span><span class="pb-card-t">Общие настройки</span><span class="pb-card-cap">применяются ко всему</span></div>
+        <div class="pb-card-h"><span class="pb-step">{{ stepNo(2) }}</span><span class="pb-card-t">Общие настройки</span><span class="pb-card-cap">применяются ко всему</span></div>
         <div class="pb-common">
           <div class="pb-fld"><label>Год портфеля</label><input type="number" v-model.number="common.portfolio_year" class="pb-in" /></div>
           <div class="pb-fld"><label>Направление (по умолч.)</label>
@@ -272,7 +281,7 @@ async function submit() {
 
       <!-- 3. ПРОЕКТЫ -->
       <div class="pb-card">
-        <div class="pb-card-h"><span class="pb-step">3</span><span class="pb-card-t">Проекты</span><span class="pb-card-cap">{{ projects.length }}</span>
+        <div class="pb-card-h"><span class="pb-step">{{ stepNo(3) }}</span><span class="pb-card-t">Проекты</span><span class="pb-card-cap">{{ projects.length }}</span>
           <div class="pb-card-r"><button class="pb-add" @click="addProject">＋ Проект</button></div>
         </div>
         <div v-if="!projects.length" class="pb-empty">Проектов нет. Добавьте проект или сразу отдельные задачи ниже.</div>
@@ -312,7 +321,7 @@ async function submit() {
 
       <!-- 4. ОТДЕЛЬНЫЕ ЗАДАЧИ -->
       <div class="pb-card">
-        <div class="pb-card-h"><span class="pb-step">4</span><span class="pb-card-t">Отдельные задачи</span><span class="pb-card-cap">{{ standalone.length }}</span>
+        <div class="pb-card-h"><span class="pb-step">{{ stepNo(4) }}</span><span class="pb-card-t">Отдельные задачи</span><span class="pb-card-cap">{{ standalone.length }}</span>
           <div class="pb-card-r"><button class="pb-add" @click="addStandalone">＋ Задача</button><button class="pb-paste" @click="openPaste('standalone', 0)">⤓ Вставить списком</button></div>
         </div>
         <div v-for="(t, ti) in standalone" :key="ti" class="pb-task-wrap">

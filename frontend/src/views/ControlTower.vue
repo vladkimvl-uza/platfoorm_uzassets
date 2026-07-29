@@ -13,6 +13,7 @@ import { api } from "@/api/client";
 import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
 import { useI18n } from "@/composables/useI18n";
+import { useCompanyScope } from "@/composables/useCompanyScope";
 import EptLogo from "@/components/EptLogo.vue";
 import UzaSkeleton from "@/components/UZA/UzaSkeleton.vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
@@ -31,6 +32,8 @@ interface TrailItem { ts: string; actor: string; action: string; field: string |
 const toast = useToast();
 const { confirmDialog } = useConfirm();
 const { t } = useI18n();
+// Область доступа: при единственной компании селектор компаний в «Динамике» не нужен.
+const scope = useCompanyScope();
 const digest = ref<Digest | null>(null);
 const loading = ref(true);
 const error = ref<string | null>(null);
@@ -188,7 +191,9 @@ interface CumPeriod {
   done_in_period: number; overdue: number; delta: number | null; is_future: boolean;
 }
 const granularity = ref<"quarter" | "month">("quarter");
-const dynCompany = ref<string>("");   // "" = весь портфель, иначе company_id
+// "" = весь портфель, иначе company_id. Если селектор компаний скрыт (пользователь
+// ограничен одной компанией) — сразу подставляем её, чтобы подпись и данные были её.
+const dynCompany = ref<string>(scope.showCompanyPicker.value ? "" : (scope.defaultCompanyId.value || ""));
 const cumulative = ref<{ total: number; periods: CumPeriod[] } | null>(null);
 const tlLoading = ref(false);
 async function loadCumulative(silent = false) {
@@ -405,7 +410,7 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
           <div class="ph-card-h">
             <div><span class="ph-eyebrow2">{{ t("ДИНАМИКА ИСПОЛНЕНИЯ") }}</span><span class="ph-card-cap">{{ t("накопительный % выполнено от портфеля · стрелка — прирост за период · клик — детали") }}</span></div>
             <div class="ph-dyn-ctl">
-              <select v-model="dynCompany" class="ph-dyn-co">
+              <select v-if="scope.showCompanyPicker.value" v-model="dynCompany" class="ph-dyn-co">
                 <option value="">{{ t("Весь портфель") }}</option>
                 <option v-for="c in cur.companies" :key="c.company_id" :value="c.company_id">{{ c.name }}</option>
               </select>

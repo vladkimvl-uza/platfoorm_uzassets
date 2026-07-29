@@ -258,10 +258,13 @@
             <option v-for="y in availableYears" :key="y" :value="y">{{ y }}</option>
           </select>
         </label>
-        <label class="ep-field">
+        <!-- Селектор компаний скрыт, когда доступна ровно одна компания:
+             она подставляется автоматически (решение владельца 29.07.2026). -->
+        <label class="ep-field" v-if="scope.showCompanyPicker.value">
           <span class="ep-field-l">Компания (опц.)</span>
           <select v-model="decCompany" class="ep-input">
-            <option :value="null">Все 22 SOE (агрегат)</option>
+            <!-- Портфельный агрегат — только для тех, кто видит весь портфель. -->
+            <option v-if="scope.showPortfolioViews.value" :value="null">Все 22 SOE (агрегат)</option>
             <option v-for="co in companies" :key="co.id" :value="co.id">{{ co.name_ru }}</option>
           </select>
           <span v-if="companiesTruncated" class="ep-trunc">
@@ -428,8 +431,12 @@ import ModalShell from "@/components/ModalShell.vue"
 import * as api from "@/api/elasticity"
 import { getAuthHeaders } from "@/api/_base"
 import { useConfirm } from "@/composables/useConfirm"
+import { useCompanyScope } from "@/composables/useCompanyScope"
 
 const { confirmDialog } = useConfirm()
+// Область доступа: ограниченному пользователю портфельный агрегат в декомпозиции
+// не показываем, компанию подставляем сами (решение владельца 29.07.2026).
+const scope = useCompanyScope()
 
 // ─── State ───
 const sub = ref<"elasticity" | "projects" | "decomposition">("elasticity")
@@ -723,7 +730,14 @@ const TT = {
   scope: "Иерархия применения коэффициента: специфичный сценарий + компания > сценарий > компания > глобально. Программа берёт самый специфичный из имеющихся.",
 }
 
-onMounted(loadAll)
+onMounted(() => {
+  // Портфельный агрегат («Все 22 SOE») ограниченному пользователю скрыт —
+  // подставляем его компанию, чтобы декомпозиция считалась по конкретному объекту.
+  if (!scope.showPortfolioViews.value && !decCompany.value) {
+    decCompany.value = scope.defaultCompanyId.value
+  }
+  loadAll()
+})
 </script>
 
 <style scoped>

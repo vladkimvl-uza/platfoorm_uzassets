@@ -25,16 +25,41 @@ const sorted = computed(() => [...(props.years || [])].sort((a, b) => a - b));
 // последовательность шагов: при allowAll первым идёт «Все годы» (null)
 const seq = computed<(number | null)[]>(() => (props.allowAll ? [null, ...sorted.value] : [...sorted.value]));
 const idx = computed(() => seq.value.findIndex((v) => v === props.modelValue));
-const canPrev = computed(() => idx.value > 0);
-const canNext = computed(() => idx.value >= 0 && idx.value < seq.value.length - 1);
+// Год ВНЕ списка доступных (idx = -1) — рабочая ситуация: значение приходит из
+// localStorage и переживает изменение состава данных (год закрыли, компанию
+// переключили). Раньше обе стрелки в этом случае гасли, а step(), умеющий
+// вернуть выбор в допустимый диапазон, не мог сработать — кнопки заблокированы.
+// Степпер запирался навсегда и «переключатель годов не работал» ровно у тех
+// пользователей, у кого сохранён выпавший год. Поэтому вне диапазона стрелки
+// активны, а первый же клик возвращает к ближайшему доступному году.
+const outOfRange = computed(() => idx.value < 0 && seq.value.length > 0);
+const canPrev = computed(() => outOfRange.value || idx.value > 0);
+const canNext = computed(() => outOfRange.value || (idx.value >= 0 && idx.value < seq.value.length - 1));
 const display = computed(() =>
   props.modelValue == null ? props.allLabel : `${props.prefix || ""}${props.modelValue}`);
+
+/** Ближайший доступный год к текущему значению (для выхода из «вне диапазона»). */
+function nearest(): number | null | undefined {
+  const cur = props.modelValue;
+  if (cur == null) return seq.value[seq.value.length - 1];
+  let best: number | null | undefined;
+  let bestDist = Infinity;
+  for (const v of seq.value) {
+    if (v == null) continue;
+    const d = Math.abs(v - cur);
+    if (d < bestDist) { bestDist = d; best = v; }
+  }
+  return best !== undefined ? best : seq.value[seq.value.length - 1];
+}
 
 function step(d: number) {
   const i = idx.value;
   if (i < 0) {
-    const last = seq.value[seq.value.length - 1];
-    if (last !== undefined) emit("update:modelValue", last);
+    // Вне диапазона — возвращаемся к ближайшему доступному году, а не к
+    // последнему: при сохранённом 2024 и списке [2025, 2026] пользователь
+    // ожидает 2025, а не прыжок в конец.
+    const near = nearest();
+    if (near !== undefined) emit("update:modelValue", near);
     return;
   }
   const ni = i + d;

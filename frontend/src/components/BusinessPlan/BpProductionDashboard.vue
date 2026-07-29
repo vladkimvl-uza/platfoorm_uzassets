@@ -13,6 +13,7 @@ import UzaYearStepper from "@/components/UZA/UzaYearStepper.vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import ForensicUploadModal from "@/components/Procurement/ForensicUploadModal.vue";
 import { useCountUpScan } from "@/composables/useCountUp";
+import { useCompanyScope } from "@/composables/useCompanyScope";
 import { useProductionData } from "@/composables/useProductionData";
 import type { ProdCompany } from "@/api/production";
 import { execCol as pctCol, execZone as pctZone } from "@/utils/execBand";
@@ -28,6 +29,9 @@ const emit = defineEmits<{
 function ctx(c: ProdCompany) { return { company: c, year: st.year.value, period: st.period.value }; }
 
 const st = useProductionData();
+// Область доступа: пользователю с одной компанией фильтры «сектор»/«компания»
+// не нужны — выбирать не из чего (решение владельца 29.07.2026).
+const scope = useCompanyScope();
 
 // ─── Excel-импорт «Свода» (лист на компанию) ──────────────────
 const uploadOpen = ref(false);
@@ -229,16 +233,20 @@ watch([() => st.data.value, filtered], async () => { await nextTick(); rescan();
 
     <div v-else-if="st.data.value" ref="scanRoot" class="pd-body">
       <!-- ═══ Filter chips ═══ -->
-      <div class="pd-filters">
-        <span class="pd-fl-l">{{ t("Сектор") }}:</span>
-        <button class="pd-chip" :class="{ on: !sectorFilter }" @click="setSector(null)">{{ t("Все") }} <b>{{ companies.length }}</b></button>
-        <button v-for="s in sectorChips" :key="s.key" class="pd-chip" :class="{ on: sectorFilter === s.key }"
-                :style="sectorFilter === s.key ? { background: s.color + '18', borderColor: s.color, color: s.color } : {}"
-                @click="setSector(s.key)">
-          <span class="pd-chip-dot" :style="{ background: s.color }" />{{ t(s.label) }} <b>{{ s.count }}</b>
-        </button>
+      <!-- Селекторы секторов и компаний скрыты, если пользователь ограничен
+           одной компанией: выбирать не из чего, данные и так только её. -->
+      <div v-if="scope.showSectorPicker.value || scope.showCompanyPicker.value || hasFilter" class="pd-filters">
+        <template v-if="scope.showSectorPicker.value">
+          <span class="pd-fl-l">{{ t("Сектор") }}:</span>
+          <button class="pd-chip" :class="{ on: !sectorFilter }" @click="setSector(null)">{{ t("Все") }} <b>{{ companies.length }}</b></button>
+          <button v-for="s in sectorChips" :key="s.key" class="pd-chip" :class="{ on: sectorFilter === s.key }"
+                  :style="sectorFilter === s.key ? { background: s.color + '18', borderColor: s.color, color: s.color } : {}"
+                  @click="setSector(s.key)">
+            <span class="pd-chip-dot" :style="{ background: s.color }" />{{ t(s.label) }} <b>{{ s.count }}</b>
+          </button>
+        </template>
         <span class="pd-fl-sp" />
-        <select class="pd-co-select" :value="companyFilter || ''" @change="companyFilter = ($event.target as HTMLSelectElement).value || null">
+        <select v-if="scope.showCompanyPicker.value" class="pd-co-select" :value="companyFilter || ''" @change="companyFilter = ($event.target as HTMLSelectElement).value || null">
           <option value="">{{ t("Все компании") }}</option>
           <option v-for="o in companyOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
         </select>

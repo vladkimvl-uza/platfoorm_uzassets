@@ -7,6 +7,7 @@
  */
 import { computed, inject, onMounted, ref, watch } from "vue";
 import { useI18n } from "@/composables/useI18n";
+import { useCompanyScope } from "@/composables/useCompanyScope";
 import { usePermissions } from "@/composables/usePermissions";
 import { useSavedFilter } from "@/composables/useSavedFilter";
 import { ensureFinancialsCss } from "@/components/Financials/financialsHelpers";
@@ -20,6 +21,7 @@ import UnitCostCompanyModal from "@/components/UnitCost/UnitCostCompanyModal.vue
 import UnitCostPricesModal from "@/components/UnitCost/UnitCostPricesModal.vue";
 
 const { t } = useI18n();
+const scope = useCompanyScope();
 const finPerm = usePermissions("financials");
 const toggleSidebar = inject<() => void>("toggleSidebar", () => {});
 const openMobileSidebar = inject<() => void>("openMobileSidebar", () => {});
@@ -323,7 +325,7 @@ function donutHover(e: DonutEntry, total: number): [string, string] {
               <div class="uc-card-t">{{ t("Себестоимость по компаниям") }}</div>
               <div class="uc-card-s">{{ t("клик по компании — продукты и статьи · доля энергии в цвете") }}</div>
             </div>
-            <div v-if="sectors.length > 1" class="uc-secfilter">
+            <div v-if="scope.showSectorPicker.value && sectors.length > 1" class="uc-secfilter">
               <button type="button" class="uc-sec" :class="{ on: sectorFilter === '' }" @click="sectorFilter = ''">
                 {{ t("Все") }}<span class="uc-sec-n">{{ companies.length }}</span>
               </button>

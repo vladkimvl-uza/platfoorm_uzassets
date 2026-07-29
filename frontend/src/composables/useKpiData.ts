@@ -103,10 +103,12 @@ const availableYears = computed<number[]>(() => {
   for (const co of companies.value) {
     for (const y of co.years || []) yset.add(y);
   }
-  if (yset.size === 0) {
-    const cy = new Date().getFullYear();
-    [cy - 1, cy, cy + 1].forEach((y) => yset.add(y));
-  }
+  // Текущий год и соседние добавляем ВСЕГДА (а не только при пустом наборе) —
+  // как в Бизнес-плане. Иначе у компании с данными за один год степпер имел
+  // единственную позицию и выглядел неработающим, а завести данные за новый
+  // год было нельзя: до него не доехать.
+  const cy = new Date().getFullYear();
+  [cy - 1, cy, cy + 1].forEach((y) => yset.add(y));
   return Array.from(yset).sort((a, b) => b - a).slice(0, 4);
 });
 

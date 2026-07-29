@@ -1,0 +1,23 @@
+[
+ "src/components/BusinessPlan/BpAiAnalysis.vue",
+ "src/components/BusinessPlan/BpProductionDashboard.vue",
+ "src/components/ExecDash/ExecDashFinanceBlock.vue",
+ "src/components/Financials/HighLevelFinancials.vue",
+ "src/components/KPI/KpiAiAnalysis.vue",
+ "src/components/SystemConfig/ElasticityProjectsTab.vue",
+ "src/components/UserProfileModal.vue",
+ "src/components/library/CustomFieldBuilder.vue",
+ "src/components/rbac-v3/InviteUserModal.vue",
+ "src/views/Boards.vue",
+ "src/views/CalendarView.vue",
+ "src/views/CompaniesAdmin.vue",
+ "src/views/Dashboard.vue",
+ "src/views/IfrsEditor.vue",
+ "src/views/NsbuEditor.vue",
+ "src/views/ProjectBuilder.vue",
+ "src/views/UnitCostDashboard.vue",
+ "src/views/library/CompanyLibraryIndex.vue",
+ "src/views/rbac-v3/AuditFeedPage.vue",
+ "src/views/rbac-v3/GroupsPage.vue",
+ "src/views/rbac-v3/UserDetailDrawer.vue"
+]

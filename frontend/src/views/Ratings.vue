@@ -25,6 +25,7 @@
 import { ref, computed, onMounted } from "vue";
 import SidebarBurger from "@/components/SidebarBurger.vue";
 import { useSavedFilter } from "@/composables/useSavedFilter";
+import { useCompanyScope } from "@/composables/useCompanyScope";
 import { ratingsApi, type AgencyRatingBrief } from "@/api/ratings";
 import { companiesApi, type CompanyListItem, type SectorBrief } from "@/api/companies";
 import {
@@ -47,6 +48,10 @@ const errorMsg     = ref<string | null>(null);
 
 const sectorFilter = useSavedFilter<string>("ratings.sectorFilter", "");
 const sectorMenuOpen = ref<boolean>(false);
+
+// Область доступа: пользователю, ограниченному своими компаниями, выбор
+// сектора не нужен — фильтровать не из чего (решение владельца).
+const scope = useCompanyScope();
 
 function closeMenus() { sectorMenuOpen.value = false; }
 function setSector(code: string) {
@@ -76,6 +81,9 @@ async function load() {
 
 onMounted(() => {
   ensureRatingsCss();
+  // Фильтр сектора сохраняется между визитами: при скрытом селекторе снимаем
+  // его, иначе пользователь останется с чужим фильтром и пустой таблицей.
+  if (!scope.showSectorPicker.value && sectorFilter.value) sectorFilter.value = "";
   load();
 });
 
@@ -162,8 +170,9 @@ function onShowAllChanges() {
         </div>
       </div>
       <div class="rt-tb-r">
-        <!-- Sector badge-dropdown (1:1 legacy glassSelectHTML golden style) -->
-        <div class="rt-badge-wrap" @click.stop>
+        <!-- Sector badge-dropdown (1:1 legacy glassSelectHTML golden style).
+             Скрыт, когда пользователь ограничен своими компаниями. -->
+        <div v-if="scope.showSectorPicker.value" class="rt-badge-wrap" @click.stop>
           <button class="rt-badge" @click="sectorMenuOpen = !sectorMenuOpen" title="Фильтр по сектору">
             <span
               class="rt-sec-icon"

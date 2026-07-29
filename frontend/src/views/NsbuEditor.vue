@@ -32,8 +32,12 @@ import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
 import { usePermissions } from "@/composables/usePermissions";
 import { useI18n } from "@/composables/useI18n";
+import { useCompanyScope } from "@/composables/useCompanyScope";
 const { t } = useI18n();
 const _perm = usePermissions("financials");
+// Область доступа: при единственной своей компании список слева не нужен —
+// компания выбирается автоматически в loadCompanies().
+const scope = useCompanyScope();
 
 const emit = defineEmits<{ close: [] }>();
 
@@ -1108,7 +1112,8 @@ function formatHistoryDate(iso: string | null): string {
         <!-- Body -->
         <div class="ne-body">
 
-          <!-- LEFT: company list (collapsible) -->
+          <!-- LEFT: company list (collapsible) — скрыт, если компания одна -->
+          <template v-if="scope.showCompanyPicker.value">
           <div class="ne-co-pane" :class="{ collapsed: coPaneCollapsed }">
             <div class="ne-co-search">
               <input v-model="searchQuery" :placeholder="t('Поиск компании…')" />
@@ -1147,6 +1152,7 @@ function formatHistoryDate(iso: string | null): string {
               <path d="M10 4 L6 8 L10 12"/>
             </svg>
           </button>
+          </template>
 
           <!-- CENTER: editor -->
           <div class="ne-edit-pane">

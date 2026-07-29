@@ -15,9 +15,12 @@ import { execOverviewApi, type ExecOverviewResponse, type ExecOverviewProject, t
 import { overviewMatrixApi, type MatrixConfig, type ManualProject } from "@/api/overviewMatrix";
 import MatrixEditor from "@/components/reporting/MatrixEditor.vue";
 import { usePermissions } from "@/composables/usePermissions";
+import { useCompanyScope } from "@/composables/useCompanyScope";
 import { useI18n } from "@/composables/useI18n";
 
 const { t } = useI18n();
+// Область доступа: при единственной компании чипы выбора компании не нужны.
+const scope = useCompanyScope();
 
 // Встраивание как подвкладка «Отчёт» в воркспейсе компании: фиксируем фильтр на
 // одной компании и прячем портфельную «обвязку» (логотип/название, статистику, чипы).
@@ -119,8 +122,11 @@ async function load() {
     data.value = await execOverviewApi.get(year.value);
     // первый раз раскрываем все секторы
     if (data.value) collapsed.value = new Set();
-    // в embed-режиме закрепляем фильтр на компании воркспейса
-    companyFilter.value = props.embedCompanyId || null;
+    // в embed-режиме закрепляем фильтр на компании воркспейса; если чипы выбора
+    // скрыты (пользователь ограничен одной компанией) — подставляем её сами
+    companyFilter.value = props.embedCompanyId
+      || (scope.showCompanyPicker.value ? null : scope.defaultCompanyId.value)
+      || null;
     loadMatrixConfigs();
   } catch (e: any) {
     error.value = e?.response?.data?.detail || e?.message || t("Не удалось загрузить обзор");
@@ -545,7 +551,7 @@ watch(data, (d) => {
       <!-- Авто-статистика проектов и дерево убраны: страница = заполнить → превью → печать ручного отчёта -->
 
       <!-- чипы компаний: выбор компании для заполнения / превью / печати -->
-      <div v-if="allCompanies.length && !embedCompanyId" class="eo-chips">
+      <div v-if="allCompanies.length && !embedCompanyId && scope.showCompanyPicker.value" class="eo-chips">
         <button class="eo-chip" :class="{ on: companyFilter === null }" @click="companyFilter = null">{{ t("Все компании") }}</button>
         <button v-for="co in allCompanies" :key="co.id" class="eo-chip" :class="{ on: companyFilter === co.id }" @click="companyFilter = co.id">{{ co.name }}</button>
       </div>

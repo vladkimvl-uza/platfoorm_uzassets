@@ -32,8 +32,12 @@ import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
 import { useI18n } from "@/composables/useI18n";
 import { usePermissions } from "@/composables/usePermissions";
+import { useCompanyScope } from "@/composables/useCompanyScope";
 const _perm = usePermissions("financials");
 const { t } = useI18n();
+// Область доступа: при единственной своей компании список слева не нужен —
+// компания выбирается автоматически в loadCompanies().
+const scope = useCompanyScope();
 
 const emit = defineEmits<{ close: [] }>();
 
@@ -1292,7 +1296,8 @@ watch(reconYear, () => { if (reconOpen.value) loadRecon(); });
         <!-- Body -->
         <div class="ne-body">
 
-          <!-- LEFT: company list (collapsible) -->
+          <!-- LEFT: company list (collapsible) — скрыт, если компания одна -->
+          <template v-if="scope.showCompanyPicker.value">
           <div class="ne-co-pane" :class="{ collapsed: coPaneCollapsed }">
             <div class="ne-co-search">
               <input v-model="searchQuery" :placeholder="t('Поиск компании…')" />
@@ -1331,6 +1336,7 @@ watch(reconYear, () => { if (reconOpen.value) loadRecon(); });
               <path d="M10 4 L6 8 L10 12"/>
             </svg>
           </button>
+          </template>
 
           <!-- CENTER: editor -->
           <div class="ne-edit-pane">

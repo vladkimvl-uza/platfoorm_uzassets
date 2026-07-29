@@ -20,13 +20,16 @@
         </header>
 
         <div class="bpai-ctrls">
-          <div class="bpai-seg-row">
+          <!-- Охват: портфельный анализ и селектор компаний — только тем, кому
+               они по области доступа положены (решение владельца 29.07.2026).
+               Ограниченный одной компанией сразу анализирует свою. -->
+          <div v-if="coScope.showPortfolioViews.value || coScope.showCompanyPicker.value" class="bpai-seg-row">
             <span class="bpai-seg-lbl">{{ t("Охват") }}</span>
-            <div class="bpai-seg">
+            <div v-if="coScope.showPortfolioViews.value" class="bpai-seg">
               <button :class="{ on: scope === 'portfolio' }" :disabled="loading" @click="setScope('portfolio')">{{ t("Весь портфель") }}</button>
               <button :class="{ on: scope === 'company' }" :disabled="loading" @click="setScope('company')">{{ t("Одна компания") }}</button>
             </div>
-            <select v-if="scope === 'company'" v-model="pickedId" :disabled="loading" @change="onPickCompany" class="bpai-co-select">
+            <select v-if="scope === 'company' && coScope.showCompanyPicker.value" v-model="pickedId" :disabled="loading" @change="onPickCompany" class="bpai-co-select">
               <option v-for="c in companies" :key="c.company_id" :value="c.company_id">{{ c.company_name_ru }}</option>
             </select>
           </div>
@@ -143,6 +146,7 @@ import type { BpCompanyForecast, AvailableCompany } from "@/api/bpKpi";
 import { productionApi } from "@/api/production";
 import { renderMarkdown } from "@/utils/renderMarkdown";
 import { useToast } from "@/composables/useToast";
+import { useCompanyScope } from "@/composables/useCompanyScope";
 import { useI18n } from "@/composables/useI18n";
 
 type Mode = "performance" | "linkage" | "forecast";
@@ -157,6 +161,8 @@ const props = defineProps<{ companies: AvailableCompany[]; year: number; period:
 
 const toast = useToast();
 const { t } = useI18n();
+// Область доступа пользователя (не путать с локальным `scope` — охватом анализа).
+const coScope = useCompanyScope();
 const open = ref(false);
 const loading = ref(false);
 const error = ref("");
@@ -165,7 +171,8 @@ const rawMd = ref("");
 const chartRows = ref<ChartRow[]>([]);
 const doneAt = ref("");
 const step = ref("");
-const scope = ref<"portfolio" | "company">("portfolio");
+// Портфельный охват — только для тех, кто видит весь портфель.
+const scope = ref<"portfolio" | "company">(coScope.showPortfolioViews.value ? "portfolio" : "company");
 const mode = ref<Mode>("performance");
 const saved = ref<Record<string, SavedRec>>({});
 
@@ -257,6 +264,11 @@ function setFcTblMode(m: "years" | "quarters"): void {
 
 async function openModal(): Promise<void> {
   open.value = true;
+  // Страховка: портфельный охват недоступен ограниченному пользователю.
+  if (!coScope.showPortfolioViews.value) {
+    scope.value = "company";
+    if (!pickedId.value) pickedId.value = props.companies[0]?.company_id ?? null;
+  }
   if (props.selectedId && props.companies.some(c => c.company_id === props.selectedId)) pickedId.value = props.selectedId;
   await fetchSaved();
   applyMode(mode.value);
