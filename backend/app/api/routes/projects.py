@@ -239,6 +239,12 @@ async def update_project(
             notif_type="watch.status",
             title="Статус отслеживаемого проекта изменён",
             body=f"{user.full_name or user.email}: новый статус «{payload.status}»",
+            title_template="Статус отслеживаемого проекта изменён",
+            body_template="{actor}: новый статус «{status}»",
+            template_vars={
+                "actor": user.full_name or user.email,
+                "status": payload.status,
+            },
             payload={
                 "entity_type": "project", "entity_id": str(project_id),
                 "entity_title": info.get("project_title"),
@@ -267,6 +273,9 @@ async def toggle_project_result(
         notif_type="watch.result",
         title="Результат отслеживаемого проекта обновлён",
         body=f"{user.full_name or user.email} отметил(а) результат",
+        title_template="Результат отслеживаемого проекта обновлён",
+        body_template="{actor} отметил(а) результат",
+        template_vars={"actor": user.full_name or user.email},
         payload={"entity_type": "project", "entity_id": str(project_id), "action": "result"},
     )
     return res

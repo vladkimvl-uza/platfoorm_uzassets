@@ -18,6 +18,7 @@ import config
 import db
 import handlers
 from callbacks import router as callbacks_router
+from i18n import msg
 import outbox_worker
 
 
@@ -26,6 +27,18 @@ logging.basicConfig(
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
 )
 log = logging.getLogger("uza-bot.main")
+
+
+def _commands(locale: str) -> list[BotCommand]:
+    return [
+        BotCommand(command="start", description=msg("cmd_start", locale)),
+        BotCommand(command="menu", description=msg("cmd_menu", locale)),
+        BotCommand(command="status", description=msg("cmd_status", locale)),
+        BotCommand(command="queue", description=msg("cmd_queue", locale)),
+        BotCommand(command="sessions", description=msg("cmd_sessions", locale)),
+        BotCommand(command="unlink", description=msg("cmd_unlink", locale)),
+        BotCommand(command="help", description=msg("cmd_help", locale)),
+    ]
 
 
 async def main() -> None:
@@ -47,17 +60,15 @@ async def main() -> None:
     # Phase A: register persistent menu commands shown via "/" in Telegram chat
     try:
         await bot.set_my_commands(
-            commands=[
-                BotCommand(command="start",    description="Привязать аккаунт"),
-                BotCommand(command="menu",     description="Главное меню"),
-                BotCommand(command="status",   description="Мои уведомления"),
-                BotCommand(command="queue",    description="Очередь модерации"),
-                BotCommand(command="sessions", description="Активные сессии"),
-                BotCommand(command="unlink",   description="Отвязать Telegram"),
-                BotCommand(command="help",     description="Справка"),
-            ],
+            commands=_commands("ru"),
             scope=BotCommandScopeDefault(),
         )
+        for language_code, locale in (("ru", "ru"), ("uz", "uz-latn"), ("en", "en")):
+            await bot.set_my_commands(
+                commands=_commands(locale),
+                scope=BotCommandScopeDefault(),
+                language_code=language_code,
+            )
         await bot.set_chat_menu_button(menu_button=MenuButtonCommands())
         log.info("Bot menu commands registered")
     except Exception:

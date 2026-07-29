@@ -29,13 +29,13 @@ function pct(n: number): number { return props.total ? Math.round((n / props.tot
   <div class="fn">
     <div class="fn-h">
       <span class="fn-t">{{ title }}</span>
-      <span v-if="hint" class="fn-hint">{{ hint }}</span>
+      <span v-if="hint" class="fn-hint">{{ t(hint) }}</span>
     </div>
     <div class="fn-body">
       <div v-for="(s, i) in stages" :key="i" class="fn-row" role="button" tabindex="0"
            :title="t('Показать компании на стадии: {label}', { label: s.label })"
            @click="emit('stage-click', i)" @keydown.enter="emit('stage-click', i)">
-        <div class="fn-lbl"><span class="fn-no" :style="{ background: colors[i] || colors[colors.length - 1] }">{{ i + 1 }}</span>{{ s.label }}</div>
+        <div class="fn-lbl"><span class="fn-no" :style="{ background: colors[i] || colors[colors.length - 1] }">{{ i + 1 }}</span>{{ t(s.label) }}</div>
         <div class="fn-track">
           <div class="fn-bar" :style="{ width: Math.max(pct(s.count), 4) + '%', backgroundColor: colors[i] || colors[colors.length - 1], '--d': (i * 90) + 'ms' }">
             <span class="fn-cnt">{{ s.count }}</span>

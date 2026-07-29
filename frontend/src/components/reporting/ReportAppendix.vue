@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 const { t } = useI18n();
 /**
  * ReportAppendix — опциональные премиум-секции в конце «Отчёта по проектам»:
@@ -66,8 +68,8 @@ function mxCellStyle(colKey: string, n: number): Record<string, string> {
   return { background: `rgba(${rgb},${a.toFixed(3)})`, color: a > 0.42 ? "#FFFFFF" : "#23264A", fontWeight: "600" };
 }
 const BP_GROUP_LABEL: Record<string, string> = {
-  opRevenue: "Операционная выручка", opExpenses: "Расходы периода",
-  opResult: "Операционный результат", finActivity: "Финансовая деятельность", final: "Итоговый результат",
+  opRevenue: i18nKey("Операционная выручка"), opExpenses: i18nKey("Расходы периода"),
+  opResult: i18nKey("Операционный результат"), finActivity: i18nKey("Финансовая деятельность"), final: i18nKey("Итоговый результат"),
 };
 </script>
 
@@ -84,13 +86,13 @@ const BP_GROUP_LABEL: Record<string, string> = {
           <thead>
             <tr>
               <th class="c-left">{{ t('Направление') }}</th>
-              <th v-for="c in matrixCols" :key="c.key">{{ c.label }}</th>
+              <th v-for="c in matrixCols" :key="c.key">{{ t(c.label) }}</th>
               <th class="c-tot">{{ t('Всего') }}</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="d in matrix.dirRows" :key="d.code">
-              <td class="c-left"><span class="apx-dot" :style="{ background: d.color }" />{{ d.label }}</td>
+              <td class="c-left"><span class="apx-dot" :style="{ background: d.color }" />{{ t(d.label) }}</td>
               <td v-for="c in matrixCols" :key="c.key" class="c-num" :style="mxCellStyle(c.key, d.counts[c.key] || 0)">{{ d.counts[c.key] || "·" }}</td>
               <td class="c-tot">{{ d.total }}</td>
             </tr>
@@ -121,7 +123,7 @@ const BP_GROUP_LABEL: Record<string, string> = {
           </thead>
           <tbody>
             <tr v-for="r in fin.rows" :key="r.key">
-              <td class="c-left">{{ r.label }}</td>
+              <td class="c-left">{{ t(r.label) }}</td>
               <td class="c-prev">
                 <template v-if="readonly">{{ money(r.prev) }}</template>
                 <input v-else class="apx-in" :value="r.prev ?? ''" @change="onEdit('fin', r.prevKey, $event)" />
@@ -141,7 +143,7 @@ const BP_GROUP_LABEL: Record<string, string> = {
     <section v-if="show.kpi" class="apx-sec">
       <div class="apx-head">
         <span class="apx-title">{{ t('Исполнение KPI') }}</span>
-        <span class="apx-sub">{{ kpi.year }} · {{ kpi.periodLabel }}</span>
+        <span class="apx-sub">{{ kpi.year }} · {{ t(kpi.periodLabel) }}</span>
         <span v-if="kpi.overall != null" class="apx-badge" :style="pctStyle(kpi.overall)">{{ t('Итого') }} {{ pct(kpi.overall) }}</span>
       </div>
       <div v-if="kpi.loading" class="apx-state">{{ t('Загрузка…') }}</div>
@@ -178,7 +180,7 @@ const BP_GROUP_LABEL: Record<string, string> = {
     <section v-if="show.bp" class="apx-sec">
       <div class="apx-head">
         <span class="apx-title">{{ t('Исполнение бизнес-плана') }}</span>
-        <span class="apx-sub">{{ bp.year }} · {{ bp.periodLabel }} {{ t('· млрд сум') }}</span>
+        <span class="apx-sub">{{ bp.year }} · {{ t(bp.periodLabel) }} {{ t('· млрд сум') }}</span>
         <span v-if="bp.overall != null" class="apx-badge" :style="pctStyle(bp.overall)">{{ t('Выручка') }} {{ pct(bp.overall) }}</span>
       </div>
       <div v-if="bp.loading" class="apx-state">{{ t('Загрузка…') }}</div>
@@ -190,7 +192,7 @@ const BP_GROUP_LABEL: Record<string, string> = {
           </thead>
           <tbody>
             <tr v-for="r in bp.rows" :key="r.key" :class="{ 'apx-auto': r.auto }">
-              <td class="c-left">{{ r.label }}</td>
+              <td class="c-left">{{ t(r.label) }}</td>
               <td class="c-pf">
                 <template v-if="readonly">{{ money(r.plan) }}</template>
                 <input v-else class="apx-in" :value="r.plan ?? ''" @change="onEdit('bp', r.planKey, $event)" />
@@ -216,9 +218,9 @@ const BP_GROUP_LABEL: Record<string, string> = {
         <span class="apx-title">{{ t('Рейтинги') }}</span>
         <span class="apx-sub">{{ t('кредитные и ESG') }}</span>
       </div>
-      <template v-for="grp in [{ t: 'Кредитные рейтинги', rows: rat.credit }, { t: 'ESG-рейтинги', rows: rat.esg }]" :key="grp.t">
+      <template v-for="grp in [{ t: i18nKey('Кредитные рейтинги'), rows: rat.credit }, { t: i18nKey('ESG-рейтинги'), rows: rat.esg }]" :key="grp.t">
         <div v-if="grp.rows.length" class="apx-scroll apx-rat-block">
-          <div class="apx-subcap">{{ grp.t }}</div>
+          <div class="apx-subcap">{{ t(grp.t) }}</div>
           <table class="apx-tbl rat">
             <thead>
               <tr><th class="c-left">{{ t('Агентство') }}</th><th class="c-rt">{{ t('Рейтинг') }}</th><th class="c-rt">{{ t('Прогноз') }}</th><th class="c-rt">{{ t('Дата') }}</th></tr>

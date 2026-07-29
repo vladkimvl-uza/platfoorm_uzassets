@@ -77,13 +77,6 @@ function onClickCompany(c: { company_id: string; board_id?: string | null; name:
   });
 }
 
-const coWord = computed(() => {
-  const n = props.sector.companies_total;
-  if (n === 1) return "компания";
-  if (n >= 2 && n <= 4) return "компании";
-  return "компаний";
-});
-
 // 2026-05-26: countup animation для всех цифр sector card (sync with Dashboard).
 const tAvgPct      = useNumberTween(() => Number(props.sector.avg_pct) || 0, { duration: 900 });
 const tCoActive    = useNumberTween(() => Number(props.sector.companies_active) || 0, { duration: 900 });
@@ -92,8 +85,9 @@ const tCoTotal     = useNumberTween(() => Number(props.sector.companies_total) |
 // «N из M компаний» — ключ выбирается по русской плюрализации coWord.
 const coLine = computed(() => {
   const vars = { n: Math.round(tCoActive.value), total: Math.round(tCoTotal.value) };
-  if (coWord.value === "компания") return t("{n} из {total} компания", vars);
-  if (coWord.value === "компании") return t("{n} из {total} компании", vars);
+  const total = props.sector.companies_total;
+  if (total === 1) return t("{n} из {total} компания", vars);
+  if (total >= 2 && total <= 4) return t("{n} из {total} компании", vars);
   return t("{n} из {total} компаний", vars);
 });
 </script>
@@ -110,7 +104,7 @@ const coLine = computed(() => {
     <!-- Header -->
     <div class="va-sec-h">
       <div>
-        <div class="va-sec-t">{{ sector.label }}</div>
+        <div class="va-sec-t">{{ t(sector.label) }}</div>
         <div class="va-sec-l">
           {{ coLine }}
         </div>

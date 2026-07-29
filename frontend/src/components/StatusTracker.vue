@@ -23,7 +23,11 @@ import {
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
 import { useI18n } from "@/composables/useI18n";
+import { useFormatters } from "@/composables/useFormatters";
+import { i18nKey } from "@/locale/keys";
+
 const { t } = useI18n();
+const fmt = useFormatters();
 
 
 const { confirmDialog } = useConfirm();
@@ -41,8 +45,16 @@ const emit = defineEmits<{
   (e: "update:draftHealth", v: StatusHealth | null): void;
 }>();
 
-const MONTHS_RU = ["Янв", "Фев", "Мар", "Апр", "Май", "Июн", "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"];
-const MONTHS_FULL = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
+const MONTHS_SHORT = [
+  i18nKey("Янв"), i18nKey("Фев"), i18nKey("Мар"), i18nKey("Апр"),
+  i18nKey("Май"), i18nKey("Июн"), i18nKey("Июл"), i18nKey("Авг"),
+  i18nKey("Сен"), i18nKey("Окт"), i18nKey("Ноя"), i18nKey("Дек"),
+];
+const MONTHS_FULL = [
+  i18nKey("Январь"), i18nKey("Февраль"), i18nKey("Март"), i18nKey("Апрель"),
+  i18nKey("Май"), i18nKey("Июнь"), i18nKey("Июль"), i18nKey("Август"),
+  i18nKey("Сентябрь"), i18nKey("Октябрь"), i18nKey("Ноябрь"), i18nKey("Декабрь"),
+];
 
 const entries = ref<StatusUpdate[]>([]);
 const loading = ref(false);
@@ -98,7 +110,7 @@ const monthCells = computed<MonthCell[]>(() => {
     const latest = entries.value.find((e) => monthKey(new Date(e.created_at)) === key);
     cells.push({
       key, y: d.getFullYear(), m: d.getMonth(),
-      short: MONTHS_RU[d.getMonth()], full: MONTHS_FULL[d.getMonth()],
+      short: t(MONTHS_SHORT[d.getMonth()]), full: t(MONTHS_FULL[d.getMonth()]),
       health: latest?.health ?? null, has: !!latest,
       isCurrent: key === monthKey(now),
     });
@@ -161,7 +173,7 @@ async function save() {
   } catch {
     // P1 аудита (тихие сбои): не молчать — раньше сбой был неотличим от успеха.
     // Композер и localStorage-бэкап целы, юзер может повторить.
-    toast.error("Не удалось сохранить статус — попробуйте ещё раз (черновик сохранён)");
+    toast.error(t('Не удалось сохранить статус — попробуйте ещё раз (черновик сохранён)'));
   } finally { saving.value = false; }
 }
 
@@ -169,29 +181,22 @@ function canModify(_e: StatusUpdate): boolean {
   return props.canEdit;   // backend дополнительно гейтит автора/owner
 }
 async function removeEntry(e: StatusUpdate) {
-  if (!(await confirmDialog({ message: "Удалить эту запись статуса?", danger: true }))) return;
+  if (!(await confirmDialog({ message: t("Удалить эту запись статуса?"), danger: true }))) return;
   try {
     await statusUpdatesApi.remove(e.id);
     entries.value = entries.value.filter((x) => x.id !== e.id);
-  } catch { toast.error("Не удалось удалить запись статуса"); }
+  } catch { toast.error(t('Не удалось удалить запись статуса')); }
 }
 
 function fmtDateFull(iso: string): string {
-  const d = new Date(iso);
-  return `${d.getDate()} ${MONTHS_FULL[d.getMonth()].toLowerCase()} ${d.getFullYear()}`;
+  return fmt.fmtDate(iso, { long: true });
 }
 function relTime(iso: string): string {
-  const diff = (Date.now() - new Date(iso).getTime()) / 1000;
-  if (diff < 3600) return "только что";
-  if (diff < 86400) return Math.floor(diff / 3600) + " ч назад";
-  const days = Math.floor(diff / 86400);
-  if (days === 1) return "вчера";
-  if (days < 30) return days + " дн назад";
-  return Math.floor(days / 30) + " мес назад";
+  return fmt.fmtRelativeTime(iso);
 }
 // «Нет оценки» больше не серый — фирменный фиолетовый, чтобы трекер жил цветом.
 function healthColor(h: StatusHealth | null): string { return h ? HEALTH_META[h].color : "#7F77DD"; }
-function healthLabel(h: StatusHealth | null): string { return h ? HEALTH_META[h].label : "Нет оценки"; }
+function healthLabel(h: StatusHealth | null): string { return h ? HEALTH_META[h].label : t('Нет оценки'); }
 </script>
 
 <template>
@@ -199,7 +204,7 @@ function healthLabel(h: StatusHealth | null): string { return h ? HEALTH_META[h]
     <div class="st-head">
       <span class="st-label">{{ t('Текущий статус проекта') }}</span>
       <span v-if="isStale && entityId" class="st-stale">
-        <span class="st-stale-dot"></span>{{ staleDays === null ? "Нет статуса" : "Обновить" }}
+        <span class="st-stale-dot"></span>{{ staleDays === null ? t('Нет статуса') : t('Обновить') }}
       </span>
     </div>
 
@@ -225,11 +230,11 @@ function healthLabel(h: StatusHealth | null): string { return h ? HEALTH_META[h]
         <div class="st-panel-title">
           {{ selectedCell?.full }} {{ selectedCell?.y }}
           <span v-if="selectedLatest" class="st-hpill" :style="{ '--hc': healthColor(selectedLatest.health) }">
-            <span class="st-hpill-dot"></span>{{ healthLabel(selectedLatest.health) }}
+            <span class="st-hpill-dot"></span>{{ t(healthLabel(selectedLatest.health)) }}
           </span>
         </div>
         <button v-if="canEdit && !composing" class="st-fill-btn" @click="openComposer">
-          {{ selectedLatest ? "Обновить" : "Заполнить" }}
+          {{ selectedLatest ? t('Обновить') : t('Заполнить') }}
         </button>
       </div>
 
@@ -256,7 +261,7 @@ function healthLabel(h: StatusHealth | null): string { return h ? HEALTH_META[h]
               :style="{ '--hc': HEALTH_META[h].color }"
               @click="pickHealth(h)"
             >
-              <span class="st-hbtn-dot"></span>{{ HEALTH_META[h].label }}
+              <span class="st-hbtn-dot"></span>{{ t(HEALTH_META[h].label) }}
             </button>
           </div>
           <textarea
@@ -269,7 +274,7 @@ function healthLabel(h: StatusHealth | null): string { return h ? HEALTH_META[h]
           <div v-if="entityId" class="st-composer-actions">
             <button class="st-btn-ghost" @click="cancelComposer">{{ t('Отмена') }}</button>
             <button class="st-btn-save" :disabled="saving || !draftText.trim()" @click="save">
-              {{ saving ? "Сохранение…" : "Сохранить статус" }}
+              {{ saving ? t('Сохранение…') : t('Сохранить статус') }}
             </button>
           </div>
           <div v-else class="st-create-hint">{{ t('Будет сохранено как первый статус после создания.') }}</div>
@@ -293,7 +298,7 @@ function healthLabel(h: StatusHealth | null): string { return h ? HEALTH_META[h]
             <div class="st-tl-top">
               <span class="st-tl-date">{{ fmtDateFull(e.created_at) }}</span>
               <span class="st-hpill st-hpill-sm" :style="{ '--hc': healthColor(e.health) }">
-                <span class="st-hpill-dot"></span>{{ healthLabel(e.health) }}
+                <span class="st-hpill-dot"></span>{{ t(healthLabel(e.health)) }}
               </span>
               <button v-if="canModify(e)" class="st-tl-del" :title="t('Удалить')" @click="removeEntry(e)">×</button>
             </div>

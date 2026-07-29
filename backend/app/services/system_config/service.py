@@ -6,6 +6,7 @@ from typing import Optional
 from fastapi import HTTPException
 from fastapi import status as http_status
 
+from app.core.i18n import current_locale, tr
 from app.models.year_registry import YearRegistry
 from app.schemas.system_config import (
     YearlyRate,
@@ -70,7 +71,10 @@ class SystemConfigService:
             if existing is not None:
                 raise HTTPException(
                     http_status.HTTP_409_CONFLICT,
-                    f"Год {payload.year} уже существует в реестре",
+                    tr(
+                        "Год {year} уже существует в реестре",
+                        current_locale(), year=payload.year,
+                    ),
                 )
             row = YearRegistry(
                 year=payload.year,
@@ -101,7 +105,7 @@ class SystemConfigService:
             if row is None:
                 raise HTTPException(
                     http_status.HTTP_404_NOT_FOUND,
-                    f"Год {year} не найден в реестре",
+                    tr("Год {year} не найден в реестре", current_locale(), year=year),
                 )
 
             # Allow toggling `is_closed` itself even when row is closed
@@ -118,8 +122,10 @@ class SystemConfigService:
             if row.is_closed and not allow_closed and not only_is_closed_change:
                 raise HTTPException(
                     http_status.HTTP_409_CONFLICT,
-                    f"Год {year} закрыт для редактирования. "
-                    f"Передайте ?allow_closed=true для подтверждения разблокировки.",
+                    tr(
+                        "Год {year} закрыт для редактирования. Передайте ?allow_closed=true для подтверждения разблокировки.",
+                        current_locale(), year=year,
+                    ),
                 )
 
             diff = _diff(row, payload)
@@ -161,7 +167,7 @@ class SystemConfigService:
             if row is None:
                 raise HTTPException(
                     http_status.HTTP_404_NOT_FOUND,
-                    f"Год {year} не найден в реестре",
+                    tr("Год {year} не найден в реестре", current_locale(), year=year),
                 )
 
             if not force:

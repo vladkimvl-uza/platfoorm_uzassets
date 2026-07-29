@@ -8,6 +8,10 @@
  */
 import { ref, shallowRef, computed, watch } from "vue"
 import * as api from "@/api/creditScenario"
+import { i18nKey } from "@/locale/keys";
+import { t } from "@/locale/i18n";
+
+
 
 // ─── Module-level reactive singletons ────────────────────────────────────────
 
@@ -33,12 +37,12 @@ const isLoading = ref(false)
 const error = ref<string | null>(null)
 
 const SCOPE_LABELS: Record<api.LenderScope, string> = {
-  all_uz: "Все внутренние РУ",
-  state: "Только государство",
-  local: "Только местные банки",
-  foreign: "Только иностранные",
-  bond: "Только облигации",
-  all: "Все кредиты",
+  all_uz: i18nKey("Все внутренние РУ"),
+  state: i18nKey("Только государство"),
+  local: i18nKey("Только местные банки"),
+  foreign: i18nKey("Только иностранные"),
+  bond: i18nKey("Только облигации"),
+  all: i18nKey("Все кредиты"),
 }
 
 export function useCreditScenario() {
@@ -93,7 +97,7 @@ export function useCreditScenario() {
       scenarios.value = scenarios.value.map((s) => (s.id === updated.id ? updated : s))
       return updated
     } catch (e: any) {
-      error.value = `Сохранение не удалось: ${e?.message || e}`
+      error.value = t('Сохранение не удалось: {value0}', { value0: e?.message || e })
       throw e
     }
   }
@@ -112,7 +116,7 @@ export function useCreditScenario() {
       console.error("[useCreditScenario] loadSummary:", e)
       // P1 аудита (тихие сбои): не молчать на load — иначе пустой дашборд
       // неотличим от «данных нет». Зеркалит поведение save-путей файла.
-      error.value = `Не удалось загрузить сводку: ${e?.message || e}`
+      error.value = t('Не удалось загрузить сводку: {value0}', { value0: e?.message || e })
     }
   }
 
@@ -121,7 +125,7 @@ export function useCreditScenario() {
       ratios.value = await api.fetchDebtRatios(scope.value, topN)
     } catch (e: any) {
       console.error("[useCreditScenario] loadRatios:", e)
-      error.value = `Не удалось загрузить коэффициенты долга: ${e?.message || e}`
+      error.value = t('Не удалось загрузить коэффициенты долга: {value0}', { value0: e?.message || e })
     }
   }
 
@@ -131,7 +135,7 @@ export function useCreditScenario() {
       forecast.value = await api.fetchRepaymentForecast(scope.value, yearsBack, yearsForward, activeScenarioId.value)
     } catch (e: any) {
       console.error("[useCreditScenario] loadForecast:", e)
-      error.value = `Не удалось загрузить прогноз погашения: ${e?.message || e}`
+      error.value = t('Не удалось загрузить прогноз погашения: {value0}', { value0: e?.message || e })
     }
   }
 
@@ -141,7 +145,7 @@ export function useCreditScenario() {
       topLoans.value = await api.fetchTopLoans(scope.value, topN, activeScenarioId.value)
     } catch (e: any) {
       console.error("[useCreditScenario] loadTopLoans:", e)
-      error.value = `Не удалось загрузить крупнейшие займы: ${e?.message || e}`
+      error.value = t('Не удалось загрузить крупнейшие займы: {value0}', { value0: e?.message || e })
     }
   }
 
@@ -163,7 +167,7 @@ export function useCreditScenario() {
       await loadTopLoans()
       return r
     } catch (e: any) {
-      error.value = `Не удалось сохранить override: ${e?.message || e}`
+      error.value = t('Не удалось сохранить override: {value0}', { value0: e?.message || e })
       throw e
     }
   }
@@ -175,7 +179,7 @@ export function useCreditScenario() {
       await loadLoanOverrides()
       await loadTopLoans()
     } catch (e: any) {
-      error.value = `Не удалось удалить override: ${e?.message || e}`
+      error.value = t('Не удалось удалить override: {value0}', { value0: e?.message || e })
     }
   }
 
@@ -194,7 +198,7 @@ export function useCreditScenario() {
       await loadCustomIndicators()
       return r
     } catch (e: any) {
-      error.value = `Создание индикатора не удалось: ${e?.message || e}`
+      error.value = t('Создание индикатора не удалось: {value0}', { value0: e?.message || e })
       throw e
     }
   }
@@ -205,7 +209,7 @@ export function useCreditScenario() {
       await loadCustomIndicators()
       return r
     } catch (e: any) {
-      error.value = `Обновление индикатора не удалось: ${e?.message || e}`
+      error.value = t('Обновление индикатора не удалось: {value0}', { value0: e?.message || e })
       throw e
     }
   }
@@ -215,7 +219,7 @@ export function useCreditScenario() {
       await api.deleteCustomIndicator(id)
       await loadCustomIndicators()
     } catch (e: any) {
-      error.value = `Удаление индикатора не удалось: ${e?.message || e}`
+      error.value = t('Удаление индикатора не удалось: {value0}', { value0: e?.message || e })
     }
   }
 
@@ -295,14 +299,14 @@ function _num(v: any): number | null {
 export function fmtUsdMlrd(v: any): string {
   const n = _num(v); if (n == null) return "—"
   const abs = Math.abs(n)
-  if (abs >= 1e9) return `$${(n / 1e9).toFixed(2)}\u00a0млрд`
-  if (abs >= 1e6) return `$${(n / 1e6).toFixed(1)}\u00a0млн`
-  if (abs >= 1e3) return `$${(n / 1e3).toFixed(1)}\u00a0тыс`
+  if (abs >= 1e9) return t('${value0} млрд', { value0: (n / 1e9).toFixed(2) })
+  if (abs >= 1e6) return t('${value0} млн', { value0: (n / 1e6).toFixed(1) })
+  if (abs >= 1e3) return t('${value0} тыс', { value0: (n / 1e3).toFixed(1) })
   return `$${n.toFixed(0)}`
 }
 export function fmtUsdMln(v: any): string {
   const n = _num(v); if (n == null) return "—"
-  return `$${(n / 1e6).toFixed(0)}\u00a0млн`
+  return t('${value0} млн', { value0: (n / 1e6).toFixed(0) })
 }
 export function fmtPct(v: any, digits = 1): string {
   const n = _num(v); if (n == null) return "—"

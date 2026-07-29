@@ -4,6 +4,11 @@ import { api } from "@/api/client";
 import ModalShell from "./ModalShell.vue";
 import DirectionBadge from "./DirectionBadge.vue";
 import { useConfirm } from "@/composables/useConfirm";
+import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
+const { t: tr } = useI18n();
+
 
 const { confirmDialog } = useConfirm();
 
@@ -48,13 +53,13 @@ const consultantsList = ref<{ id: string; name: string }[]>([]);
 
 const isEdit = computed(() => !!props.taskId);
 const submitLabel = computed(() => {
-  if (isEdit.value) return "Сохранить";
-  return entityType.value === "project" ? "Создать проект" : "Создать задачу";
+  if (isEdit.value) return tr("Сохранить");
+  return entityType.value === "project" ? tr("Создать проект") : tr("Создать задачу");
 });
-const titleText = computed(() => isEdit.value
-  ? `Редактирование ${entityType.value === "project" ? "проекта" : "задачи"}`
-  : `Новая ${entityType.value === "project" ? "запись (проект)" : "запись (задача)"}`
-);
+const titleText = computed(() => {
+  if (isEdit.value) return entityType.value === "project" ? tr("Редактирование проекта") : tr("Редактирование задачи");
+  return entityType.value === "project" ? tr("Новая запись (проект)") : tr("Новая запись (задача)");
+});
 
 const titleError = ref(false);
 const saving = ref(false);
@@ -65,14 +70,14 @@ const directionObj = computed(() => directions.value.find(d => d.code === direct
 
 // ─── Status definitions (matches legacy COLS) ───────────────
 const STATUSES = [
-  { id: "init",      label: "Инициирование",  fg: "#64748B" },
-  { id: "new",       label: "Не начато",      fg: "#94A3B8" },
-  { id: "active",    label: "В процессе",     fg: "#3B82F6" },
-  { id: "review",    label: "На согласовании", fg: "#F59E0B" },
-  { id: "done",      label: "Завершено",      fg: "#10B981" },
-  { id: "quarterly", label: "Ежеквартально",  fg: "#7E22CE" },
-  { id: "monthly",   label: "Ежемесячно",     fg: "#4338CA" },
-  { id: "ongoing",   label: "Постоянно",      fg: "#0E7490" },
+  { id: "init",      label: i18nKey("Инициирование"),  fg: "#64748B" },
+  { id: "new",       label: i18nKey("Не начато"),      fg: "#94A3B8" },
+  { id: "active",    label: i18nKey("В процессе"),     fg: "#3B82F6" },
+  { id: "review",    label: i18nKey("На согласовании"), fg: "#F59E0B" },
+  { id: "done",      label: i18nKey("Завершено"),      fg: "#10B981" },
+  { id: "quarterly", label: i18nKey("Ежеквартально"),  fg: "#7E22CE" },
+  { id: "monthly",   label: i18nKey("Ежемесячно"),     fg: "#4338CA" },
+  { id: "ongoing",   label: i18nKey("Постоянно"),      fg: "#0E7490" },
 ];
 
 // ─── Load lookups ──────────────────────────────────────────────
@@ -111,7 +116,7 @@ async function loadTask() {
     linkedYearEnabled.value = !!t.linked_year;
     entityType.value = t.is_project ? "project" : "task";
   } catch (e: any) {
-    errorMsg.value = e?.response?.data?.detail || "Не удалось загрузить задачу";
+    errorMsg.value = e?.response?.data?.detail || tr('Не удалось загрузить задачу');
   }
 }
 
@@ -157,7 +162,7 @@ async function handleSave() {
     return;
   }
   if (!boardId.value) {
-    errorMsg.value = "Выберите компанию";
+    errorMsg.value = tr('Выберите компанию');
     return;
   }
   saving.value = true;
@@ -192,7 +197,7 @@ async function handleSave() {
     emit("saved", savedId);
     emit("close");
   } catch (e: any) {
-    errorMsg.value = e?.response?.data?.detail || e?.message || "Ошибка сохранения";
+    errorMsg.value = e?.response?.data?.detail || e?.message || tr('Ошибка сохранения');
   } finally {
     saving.value = false;
   }
@@ -200,14 +205,14 @@ async function handleSave() {
 
 async function handleDelete() {
   if (!props.taskId) return;
-  if (!(await confirmDialog({ message: "Удалить задачу безвозвратно?", danger: true }))) return;
+  if (!(await confirmDialog({ message: tr("Удалить задачу безвозвратно?"), danger: true }))) return;
   saving.value = true;
   try {
     await api.delete(`/tasks/${props.taskId}`);
     emit("deleted", props.taskId);
     emit("close");
   } catch (e: any) {
-    errorMsg.value = e?.response?.data?.detail || "Не удалось удалить";
+    errorMsg.value = e?.response?.data?.detail || tr('Не удалось удалить');
   } finally {
     saving.value = false;
   }
@@ -227,15 +232,15 @@ function autoGrow(el: Event) {
       <!-- Segment toggle (Задача / Проект) — only for create mode -->
       <div v-if="!isEdit" class="seg-toggle">
         <button :class="['seg-btn', { active: entityType === 'task' }]"
-                @click="entityType = 'task'">Задача</button>
+                @click="entityType = 'task'">{{ tr('Задача') }}</button>
         <button :class="['seg-btn', { active: entityType === 'project' }]"
-                @click="entityType = 'project'">Проект</button>
+                @click="entityType = 'project'">{{ tr('Проект') }}</button>
       </div>
 
       <!-- Title (auto-grow textarea) -->
       <div class="tm-field">
-        <label class="tm-lbl">Название *</label>
-        <textarea v-model="title" rows="1" placeholder="Введите название…"
+        <label class="tm-lbl">{{ tr('Название *') }}</label>
+        <textarea v-model="title" rows="1" :placeholder="tr('Введите название…')"
                   class="tm-input tm-input-title"
                   :class="{ 'tm-error': titleError }"
                   @input="(e) => { autoGrow(e); titleError = false; }"></textarea>
@@ -243,9 +248,9 @@ function autoGrow(el: Event) {
 
       <!-- Company -->
       <div class="tm-field">
-        <label class="tm-lbl">Компания</label>
+        <label class="tm-lbl">{{ tr('Компания') }}</label>
         <select v-model="boardId" class="tm-select">
-          <option value="">— выберите —</option>
+          <option value="">{{ tr('— выберите —') }}</option>
           <option v-for="b in boards" :key="b.id" :value="b.id">{{ b.name }}</option>
         </select>
       </div>
@@ -253,15 +258,15 @@ function autoGrow(el: Event) {
       <!-- Number + Direction (2 cols) -->
       <div class="tm-row" style="grid-template-columns: 80px 1fr;">
         <div>
-          <label class="tm-lbl">Номер</label>
+          <label class="tm-lbl">{{ tr('Номер') }}</label>
           <input v-model="num" :placeholder="entityType === 'project' ? '3' : '3.1'"
                  class="tm-input" style="text-align: center;" />
         </div>
         <div>
-          <label class="tm-lbl">Направление</label>
+          <label class="tm-lbl">{{ tr('Направление') }}</label>
           <select v-model="directionCode" class="tm-select">
-            <option value="">— не выбрано —</option>
-            <option v-for="d in directions" :key="d.code" :value="d.code">{{ d.label }}</option>
+            <option value="">{{ tr('— не выбрано —') }}</option>
+            <option v-for="d in directions" :key="d.code" :value="d.code">{{ tr(d.label) }}</option>
           </select>
           <DirectionBadge v-if="directionObj" :direction="directionObj"
                           variant="bar" size="sm" style="margin-top: 4px;" />
@@ -271,18 +276,18 @@ function autoGrow(el: Event) {
       <!-- Dates + Status (3 cols) -->
       <div class="tm-row" style="grid-template-columns: 1fr 1fr 1fr;">
         <div>
-          <label class="tm-lbl">Дата начала</label>
+          <label class="tm-lbl">{{ tr('Дата начала') }}</label>
           <input type="date" v-model="startDate" class="tm-input" />
         </div>
         <div>
-          <label class="tm-lbl">Дедлайн</label>
+          <label class="tm-lbl">{{ tr('Дедлайн') }}</label>
           <input type="date" v-model="deadline" class="tm-input" />
         </div>
         <div>
-          <label class="tm-lbl">Статус</label>
+          <label class="tm-lbl">{{ tr('Статус') }}</label>
           <select v-model="status" class="tm-select">
             <option v-for="s in STATUSES" :key="s.id" :value="s.id"
-                    :style="{ color: s.fg }">{{ s.label }}</option>
+                    :style="{ color: s.fg }">{{ tr(s.label) }}</option>
           </select>
         </div>
       </div>
@@ -290,21 +295,21 @@ function autoGrow(el: Event) {
       <!-- Priority + Assignee + Consultant (3 cols) -->
       <div class="tm-row" style="grid-template-columns: 1fr 1fr 1fr;">
         <div>
-          <label class="tm-lbl">Приоритет</label>
+          <label class="tm-lbl">{{ tr('Приоритет') }}</label>
           <select v-model="priority" class="tm-select">
-            <option value="low">Низкий</option>
-            <option value="medium">Средний</option>
-            <option value="high">Высокий</option>
+            <option value="low">{{ tr('Низкий') }}</option>
+            <option value="medium">{{ tr('Средний') }}</option>
+            <option value="high">{{ tr('Высокий') }}</option>
           </select>
         </div>
         <div>
-          <label class="tm-lbl">Ответственный (email)</label>
+          <label class="tm-lbl">{{ tr('Ответственный (email)') }}</label>
           <input v-model="assigneeEmail" placeholder="user@uz-assets.uz" class="tm-input" />
         </div>
         <div>
-          <label class="tm-lbl">Консультант</label>
+          <label class="tm-lbl">{{ tr('Консультант') }}</label>
           <select v-model="consultantId" class="tm-select">
-            <option value="">— нет —</option>
+            <option value="">{{ tr('— нет —') }}</option>
             <option v-for="f in consultantsList" :key="f.id" :value="f.id">{{ f.name }}</option>
           </select>
         </div>
@@ -312,8 +317,8 @@ function autoGrow(el: Event) {
 
       <!-- Description -->
       <div class="tm-field">
-        <label class="tm-lbl">Описание</label>
-        <textarea v-model="description" rows="3" placeholder="Необязательно…"
+        <label class="tm-lbl">{{ tr('Описание') }}</label>
+        <textarea v-model="description" rows="3" :placeholder="tr('Необязательно…')"
                   class="tm-input" style="resize: vertical; min-height: 60px; max-height: 200px;"></textarea>
       </div>
 
@@ -326,15 +331,15 @@ function autoGrow(el: Event) {
               <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
               <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
             </svg>
-            Перенесена в другой год
+            {{ tr('Перенесена в другой год') }}
           </label>
           <label class="tm-link-toggle">
             <input type="checkbox" v-model="linkedYearEnabled" />
-            <span>{{ linkedYearEnabled ? "связано" : "указать" }}</span>
+            <span>{{ linkedYearEnabled ? tr('связано') : tr('указать') }}</span>
           </label>
         </div>
         <div v-if="linkedYearEnabled" class="tm-link-fields">
-          <label class="tm-link-sub">Перенести на:</label>
+          <label class="tm-link-sub">{{ tr('Перенести на:') }}</label>
           <select v-model.number="linkedYear" class="tm-select" style="font-size: 11px;">
             <option v-for="y in [2024, 2025, 2026, 2027, 2028]" :key="y" :value="y">{{ y }}</option>
           </select>
@@ -346,11 +351,11 @@ function autoGrow(el: Event) {
     </div>
 
     <template #footer>
-      <button v-if="isEdit" class="btn-d" @click="handleDelete" :disabled="saving">Удалить</button>
+      <button v-if="isEdit" class="btn-d" @click="handleDelete" :disabled="saving">{{ tr('Удалить') }}</button>
       <div style="flex: 1;"></div>
-      <button class="btn-s" @click="emit('close')" :disabled="saving">Отмена</button>
+      <button class="btn-s" @click="emit('close')" :disabled="saving">{{ tr('Отмена') }}</button>
       <button class="btn-p" @click="handleSave" :disabled="saving">
-        {{ saving ? "Сохранение…" : submitLabel }}
+        {{ saving ? tr('Сохранение…') : tr(submitLabel) }}
       </button>
     </template>
   </ModalShell>

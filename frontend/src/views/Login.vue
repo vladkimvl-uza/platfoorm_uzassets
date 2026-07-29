@@ -37,7 +37,7 @@ function onLoginInput() {
   const cleaned = login.value.replace(/\s+/g, "");
   if (cleaned !== login.value) login.value = cleaned;
 }
-const hasCyrillic = (s: string) => /[а-яёўқғҳ]/i.test(s);
+const hasCyrillic = (s: string) => /[а-яёўқғҳ]/i.test(s); // i18n-exempt -- locale-script detector
 // Кириллица в логине/пароле почти всегда = неверная раскладка клавиатуры.
 const layoutWarn = computed(() => hasCyrillic(login.value) || hasCyrillic(password.value));
 
@@ -66,7 +66,7 @@ async function handleLogin() {
 
     // No MFA — full TokenPair returned, proceed normally
     if (!resp.access_token || !resp.refresh_token) {
-      throw new Error("Сервер вернул некорректный ответ");
+      throw new Error(t('Сервер вернул некорректный ответ'));
     }
     auth.setTokens({
       access_token: resp.access_token,

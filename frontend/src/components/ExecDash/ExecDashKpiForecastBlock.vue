@@ -12,6 +12,8 @@ import { useI18n } from "@/composables/useI18n";
 import { useExecutiveDashboard } from "@/composables/useExecutiveDashboard";
 import { useNumberTween } from "@/composables/useNumberTween";
 import type { ExecKpiForecastCompany } from "@/api/executiveDashboard";
+import { i18nKey } from "@/locale/keys";
+
 
 const { t } = useI18n();
 const exec = useExecutiveDashboard();
@@ -48,7 +50,7 @@ function deltaArrow(v: number | null | undefined): string {
 }
 // Русские лейблы — ключи словаря; t() применяется в точке отображения.
 const CONF_LABEL: Record<string, string> = {
-  high: "высокая", medium: "средняя", low: "низкая", none: "нет данных",
+  high: i18nKey("высокая"), medium: i18nKey("средняя"), low: i18nKey("низкая"), none: i18nKey("нет данных"),
 };
 function confLabel(c: string): string { return t(CONF_LABEL[c] || c); }
 
@@ -150,7 +152,7 @@ function onRowKey(e: KeyboardEvent) {
                :title="t('Открыть KPI: {name}', { name: c.name })" @click="openKpi" @keydown="onRowKey">
             <span class="efk-dot" :style="{ background: c.sector_color || '#E24B4A' }" />
             <span class="efk-name" :title="c.name">{{ c.name }}</span>
-            <span class="efk-conf" :title="t('надёжность прогноза')">{{ confLabel(c.confidence) }}</span>
+            <span class="efk-conf" :title="t('надёжность прогноза')">{{ t(confLabel(c.confidence)) }}</span>
             <span class="efk-score" :style="{ color: barColor(c.forecast), background: barColor(c.forecast) + '18' }">
               {{ fmtPct(c.forecast) }}
             </span>

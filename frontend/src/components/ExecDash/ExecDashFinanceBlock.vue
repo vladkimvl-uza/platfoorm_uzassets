@@ -703,11 +703,11 @@ onBeforeUnmount(() => {
     <!-- Header -->
     <header class="ed-fin-hdr">
       <div class="ed-fin-hdr-l">
-        <div class="ed-fin-eyebrow">{{ t("Финансы") }} · {{ standardLabel }}</div>
+        <div class="ed-fin-eyebrow">{{ t("Финансы") }} · {{ t(standardLabel) }}</div>
         <div class="ed-fin-sub">
           <span>FY {{ fin.year.value }}</span>
           <span class="ed-fin-sep">·</span>
-          <span>{{ standardLabel }}</span>
+          <span>{{ t(standardLabel) }}</span>
           <span class="ed-fin-sep">·</span>
           <span class="ed-fin-cov-pill">
             <span class="ed-fin-cov-dot"></span>
@@ -718,7 +718,7 @@ onBeforeUnmount(() => {
             {{ t("{n} без данных", { n: cosMissing }) }}
           </span>
           <span class="ed-fin-sep">·</span>
-          <span>{{ unitLabel }} {{ currencyLabel }}</span>
+          <span>{{ t(unitLabel) }} {{ t(currencyLabel) }}</span>
           <span class="ed-fin-sep">·</span>
           <span class="ed-fin-amber">{{ t("финансы FY{y} (задачи FY{ty})", { y: fin.year.value, ty: tasksYear }) }}</span>
           <template v-if="isFallbackYear">
@@ -740,7 +740,7 @@ onBeforeUnmount(() => {
 
         <div class="ed-fin-pdrop" ref="pdropRoot">
           <button class="ed-fin-pdrop-btn" type="button" aria-haspopup="menu" :aria-expanded="pdropOpen" @click.stop="togglePdrop">
-            {{ unitLabel }} {{ currencyLabel }}
+            {{ t(unitLabel) }} {{ t(currencyLabel) }}
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
           <div v-show="pdropOpen" class="ed-fin-pdrop-menu" role="menu">
@@ -775,7 +775,7 @@ onBeforeUnmount(() => {
         >
           <div class="ed-fin-kpi-bar"></div>
           <div class="ed-fin-kpi-lbl">{{ t("Совокупная выручка") }}</div>
-          <div class="ed-fin-kpi-val">{{ fmtNum(tRevenue) }}<span>{{ unitLabel }} {{ currencyLabel }}</span></div>
+          <div class="ed-fin-kpi-val">{{ fmtNum(tRevenue) }}<span>{{ t(unitLabel) }} {{ t(currencyLabel) }}</span></div>
           <div class="ed-fin-kpi-d" :class="extKpis.revenueYoYPct >= 0 ? 'p' : 'n'">{{ fmtPctSigned(tRevenueYoY, 0) }} {{ t("к пред. году") }}</div>
         </div>
         <div
@@ -790,7 +790,7 @@ onBeforeUnmount(() => {
         >
           <div class="ed-fin-kpi-bar"></div>
           <div class="ed-fin-kpi-lbl">{{ t("Чистая прибыль") }}</div>
-          <div class="ed-fin-kpi-val">{{ fmtNum(tNetProfit) }}<span>{{ unitLabel }} {{ currencyLabel }}</span></div>
+          <div class="ed-fin-kpi-val">{{ fmtNum(tNetProfit) }}<span>{{ t(unitLabel) }} {{ t(currencyLabel) }}</span></div>
           <div class="ed-fin-kpi-d">{{ t("Маржа") }} <strong>{{ fmtPct(tNetMargin, 0) }}</strong></div>
         </div>
         <div
@@ -805,7 +805,7 @@ onBeforeUnmount(() => {
         >
           <div class="ed-fin-kpi-bar"></div>
           <div class="ed-fin-kpi-lbl">EBITDA</div>
-          <div class="ed-fin-kpi-val">{{ fmtNum(tEbitda) }}<span>{{ unitLabel }} {{ currencyLabel }}</span></div>
+          <div class="ed-fin-kpi-val">{{ fmtNum(tEbitda) }}<span>{{ t(unitLabel) }} {{ t(currencyLabel) }}</span></div>
           <div class="ed-fin-kpi-d">{{ t("Маржа") }} <strong>{{ fmtPct(tEbitdaMargin, 0) }}</strong></div>
         </div>
         <div
@@ -820,7 +820,7 @@ onBeforeUnmount(() => {
         >
           <div class="ed-fin-kpi-bar"></div>
           <div class="ed-fin-kpi-lbl">{{ t("Совокупные активы") }}</div>
-          <div class="ed-fin-kpi-val">{{ fmtNum(tAssets) }}<span>{{ unitLabel }} {{ currencyLabel }}</span></div>
+          <div class="ed-fin-kpi-val">{{ fmtNum(tAssets) }}<span>{{ t(unitLabel) }} {{ t(currencyLabel) }}</span></div>
           <div class="ed-fin-kpi-d">{{ t("{n} компаний с данными", { n: Math.round(tCosWithData) }) }}</div>
         </div>
         <div
@@ -835,7 +835,7 @@ onBeforeUnmount(() => {
         >
           <div class="ed-fin-kpi-bar"></div>
           <div class="ed-fin-kpi-lbl">{{ t("Чистый долг") }}</div>
-          <div class="ed-fin-kpi-val">{{ fmtNum(tDebt) }}<span>{{ unitLabel }} {{ currencyLabel }}</span></div>
+          <div class="ed-fin-kpi-val">{{ fmtNum(tDebt) }}<span>{{ t(unitLabel) }} {{ t(currencyLabel) }}</span></div>
           <div class="ed-fin-kpi-d">
             <span v-if="extKpis.debtToEquity != null">D/E <strong>{{ tDebtToEquity.toFixed(1) }}x</strong></span>
             <span v-else>D/E —</span>
@@ -853,20 +853,20 @@ onBeforeUnmount(() => {
         >
           <div class="ed-fin-kpi-bar"></div>
           <div class="ed-fin-kpi-lbl">Free Cash Flow</div>
-          <div class="ed-fin-kpi-val" :class="extKpis.freeCashFlow >= 0 ? 'p' : 'n'">{{ fmtNum(tFcf) }}<span>{{ unitLabel }} {{ currencyLabel }}</span></div>
+          <div class="ed-fin-kpi-val" :class="extKpis.freeCashFlow >= 0 ? 'p' : 'n'">{{ fmtNum(tFcf) }}<span>{{ t(unitLabel) }} {{ t(currencyLabel) }}</span></div>
           <div class="ed-fin-kpi-d">CFO + CFI<span v-if="extKpis.roe != null"> · ROE <strong>{{ fmtPct(tRoe, 0) }}</strong></span></div>
         </div>
         <!-- Дебиторская / Кредиторская — только НСБУ (под МСФО это tradeReceivables, остатков нет) -->
         <div v-if="fin.standard.value === 'NSBU'" class="ed-fin-kpi-card" data-accent="violet" style="--d: 480ms;">
           <div class="ed-fin-kpi-bar"></div>
           <div class="ed-fin-kpi-lbl">{{ t("Дебиторская задолженность") }}</div>
-          <div class="ed-fin-kpi-val">{{ fmtNum(tAccountsReceivable) }}<span>{{ unitLabel }} {{ currencyLabel }}</span></div>
+          <div class="ed-fin-kpi-val">{{ fmtNum(tAccountsReceivable) }}<span>{{ t(unitLabel) }} {{ t(currencyLabel) }}</span></div>
           <div class="ed-fin-kpi-d">{{ t("Средства к получению") }}</div>
         </div>
         <div v-if="fin.standard.value === 'NSBU'" class="ed-fin-kpi-card" data-accent="amber" style="--d: 560ms;">
           <div class="ed-fin-kpi-bar"></div>
           <div class="ed-fin-kpi-lbl">{{ t("Кредиторская задолженность") }}</div>
-          <div class="ed-fin-kpi-val">{{ fmtNum(tAccountsPayable) }}<span>{{ unitLabel }} {{ currencyLabel }}</span></div>
+          <div class="ed-fin-kpi-val">{{ fmtNum(tAccountsPayable) }}<span>{{ t(unitLabel) }} {{ t(currencyLabel) }}</span></div>
           <div class="ed-fin-kpi-d">{{ t("Обязательства к оплате") }}</div>
         </div>
       </div>
@@ -877,7 +877,7 @@ onBeforeUnmount(() => {
         <button class="ed-fin-secflt-pill" :class="{ on: finSectorFilter === 'all' }" @click="setSector('all')">{{ t("Все") }}</button>
         <button v-for="s in availableSectors" :key="s" class="ed-fin-secflt-pill" :class="{ on: finSectorFilter === s }" @click="setSector(s)">
           <span class="ed-fin-secflt-dot" :style="{ background: sectorMeta[s].color }"></span>
-          {{ sectorMeta[s].label }}
+          {{ t(sectorMeta[s].label) }}
         </button>
       </div>
 
@@ -991,10 +991,10 @@ onBeforeUnmount(() => {
       <div class="ed-brief">
         <div v-for="m in briefMetrics" :key="m.label" class="ed-brief-card" :data-accent="m.accent">
           <div class="ed-brief-bar"></div>
-          <div class="ed-brief-lbl">{{ m.label }}</div>
+          <div class="ed-brief-lbl">{{ t(m.label) }}</div>
           <div class="ed-brief-val">
             <span class="ed-brief-num"><Odometer :value="fmtNum(m.current * unitScale)" /></span>
-            <span class="ed-brief-u">{{ unitLabel }} {{ currencyLabel }}</span>
+            <span class="ed-brief-u">{{ t(unitLabel) }} {{ t(currencyLabel) }}</span>
           </div>
           <div class="ed-brief-deltas">
             <span class="ed-brief-yoy" :class="deltaClass(m.yoy, m.positiveDelta)">
@@ -1058,8 +1058,8 @@ onBeforeUnmount(() => {
       :sector-meta="sectorMeta"
       :year="fin.year.value"
       :unit-factor="unitScale"
-      :unit-label="unitLabel"
-      :currency-label="currencyLabel"
+      :unit-label="t(unitLabel)"
+      :currency-label="t(currencyLabel)"
       :total-companies="totalCos"
       @close="closeDrill"
     />

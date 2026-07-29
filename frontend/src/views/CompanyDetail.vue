@@ -25,6 +25,12 @@ const loading   = ref(true);
 const error     = ref<string | null>(null);
 
 const activeTab = ref<"overview" | "financials" | "governance" | "ratings">("overview");
+const tabs = computed(() => [
+  { id: "overview" as const, label: t("Обзор") },
+  { id: "financials" as const, label: t("Финансы"), count: financials.value.length },
+  { id: "governance" as const, label: t("Управление"), count: governance.value.length },
+  { id: "ratings" as const, label: t("Рейтинги"), count: (ratings.value?.credit.length || 0) + (ratings.value?.esg.length || 0) },
+]);
 
 async function loadAll() {
   loading.value = true;
@@ -41,9 +47,7 @@ async function loadAll() {
     if (gov.status === "fulfilled") governance.value = gov.value;
     if (rat.status === "fulfilled") ratings.value = rat.value;
   } catch (e: any) {
-    error.value = e?.response?.status === 404
-      ? `Компания «${code.value}» не найдена`
-      : (e?.response?.data?.detail || e?.message || "Не удалось загрузить компанию");
+    error.value = e?.response?.status === 404 ? t('Компания «{value0}» не найдена', { value0: code.value }) : (e?.response?.data?.detail || e?.message || t('Не удалось загрузить компанию'));
   } finally {
     loading.value = false;
   }
@@ -162,12 +166,7 @@ function backToList() {
       <!-- Tabs -->
       <div class="flex border-b border-slate-200 mb-4 -mx-2 px-2">
         <button
-          v-for="tab in [
-            { id: 'overview',    label: 'Обзор' },
-            { id: 'financials',  label: 'Финансы',     count: financials.length },
-            { id: 'governance',  label: 'Управление',  count: governance.length },
-            { id: 'ratings',     label: 'Рейтинги',    count: (ratings?.credit.length || 0) + (ratings?.esg.length || 0) },
-          ]"
+          v-for="tab in tabs"
           :key="tab.id"
           @click="activeTab = tab.id as any"
           class="px-4 py-2 text-sm transition-colors"

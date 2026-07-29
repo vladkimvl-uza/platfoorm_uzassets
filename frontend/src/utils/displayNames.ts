@@ -105,6 +105,7 @@ export function resolveCompanyDisplayName(name: string | null | undefined): stri
  *   canonSectorCode(null)                → "other"
  */
 export function canonSectorCode(raw: string | null | undefined): string {
+  // i18n-exempt-start: multilingual aliases classify sector data; they are never rendered.
   const s = (raw || "").toLowerCase().replace(/[\s_\-]+/g, "");
   if (!s) return "other";
   // Energy: must check BEFORE oil/gas in case code contains both
@@ -116,6 +117,7 @@ export function canonSectorCode(raw: string | null | undefined): string {
   if (s.includes("transport") || s.includes("telecom") || s.includes("comm")
       || s.includes("трансп") || s.includes("связ") || s.includes("телеком")) return "transport";
   return "other";
+  // i18n-exempt-end
 }
 
 /**

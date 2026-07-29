@@ -19,6 +19,11 @@
  */
 import { computed, ref, nextTick } from "vue";
 import { useInlineEdit } from "@/composables/useInlineEdit";
+import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
+const { t } = useI18n();
+
 
 type FieldType = "text" | "number" | "year" | "url" | "textarea" | "email";
 
@@ -40,7 +45,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   editable: false,
   type: "text",
-  placeholder: "Не задано",
+  placeholder: i18nKey("Не задано"),
   align: "left",
   inputMinWidth: "140px",
   maxlength: 255,
@@ -76,17 +81,17 @@ const {
       const n = Number(v);
       const cy = new Date().getFullYear();
       if (!Number.isFinite(n) || n < 1800 || n > cy + 5) {
-        return `Год должен быть в диапазоне 1800–${cy + 5}`;
+      return t("Год должен быть в диапазоне 1800–{max}", { max: cy + 5 });
       }
     }
     if (props.type === "number" && v !== null && v !== "") {
       const n = Number(v);
-      if (!Number.isFinite(n) || n < 0) return "Должно быть неотрицательное число";
+    if (!Number.isFinite(n) || n < 0) return t("Должно быть неотрицательное число");
     }
     if (props.type === "url" && v && typeof v === "string") {
       const s = v.trim();
       if (s && !/^https?:\/\//i.test(s) && !/^[\w-]+(\.[\w-]+)+/.test(s)) {
-        return "Введите корректный URL (https://… или domain.tld)";
+    return t("Введите корректный URL (https://… или domain.tld)");
       }
     }
     return null;
@@ -165,12 +170,12 @@ const inputType = computed(() => {
       'ef--empty': isEmpty,
       'ef--right': align === 'right',
     }"
-    :title="isError ? (errorMsg || '') : (editable && !editing ? (hint || 'Нажмите для редактирования') : '')"
+    :title="isError ? (errorMsg || '') : (editable && !editing ? (hint || t('Нажмите для редактирования')) : '')"
   >
     <span v-if="!editing" class="ef-val" @click="startEdit">
       <slot name="display" :value="modelValue" :empty="isEmpty" :text="displayText">
         <template v-if="isEmpty">
-          <span class="ef-placeholder">{{ placeholder }}</span>
+          <span class="ef-placeholder">{{ t(placeholder) }}</span>
         </template>
         <template v-else>{{ displayText }}</template>
       </slot>

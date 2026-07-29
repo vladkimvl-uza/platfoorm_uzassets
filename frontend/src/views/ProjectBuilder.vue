@@ -76,7 +76,7 @@ function clearCo() { selected.value = new Set(); }
 
 const totalTasks = computed(() => projects.value.reduce((s, p) => s + p.tasks.length, 0) + standalone.value.length);
 const totalProjects = computed(() => projects.value.length);
-const perCompany = computed(() => `${totalProjects.value} проектов · ${totalTasks.value} задач`);
+const perCompany = computed(() => t("{projects} проектов · {tasks} задач", { projects: totalProjects.value, tasks: totalTasks.value }));
 const canSubmit = computed(() => (totalProjects.value > 0 || totalTasks.value > 0) &&
   projects.value.every((p) => p.title.trim()) && standalone.value.every((t) => t.title.trim()) &&
   projects.value.every((p) => p.tasks.every((t) => t.title.trim())));
@@ -114,7 +114,7 @@ function addPreviewRow() {
 
 // создание для поддержанных целей (пока — KPI)
 const kpiYear = ref(new Date().getFullYear());
-const kpiManager = ref("Импорт KPI");
+const kpiManager = ref(t("Импорт KPI"));
 const creatingKpi = ref(false);
 
 async function createKpi() {
@@ -123,7 +123,7 @@ async function createKpi() {
   try {
     const { data } = await api.post("/builder/bulk-kpi", {
       year: kpiYear.value,
-      manager_title: kpiManager.value || "Импорт KPI",
+    manager_title: kpiManager.value || t("Импорт KPI"),
       rows: previewRows.value.rows,
     });
     let msg = t('Создано KPI: {value0} показателей в {value1} комп.', { value0: data.indicators_created, value1: data.companies });

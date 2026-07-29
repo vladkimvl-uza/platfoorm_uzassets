@@ -383,7 +383,7 @@ function shortName(n: string): string {
   // Убираем правовую форму (АО/АК/…) и кавычки, берём содержательное имя —
   // иначе «АО «Узбекнефтегаз»» давало просто «АО» (топ-3 = «АО · АО · АО»).
   let s = (n || "").trim()
-    .replace(/^(АО|АК|АЖ|ОАО|ООО|АТ|МЧЖ|ДК|UE|GUP|ГУП)\s+/i, "")
+    .replace(/^(АО|АК|АЖ|ОАО|ООО|АТ|МЧЖ|ДК|UE|GUP|ГУП)\s+/i, "") // i18n-exempt -- legal-form parser aliases
     .replace(/[«»"„""]/g, "")
     .trim();
   if (!s) s = (n || "").trim();
@@ -754,7 +754,7 @@ watch(
                   <svg width="7" height="7" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M1.5 5l2.5 2.5L8.5 2.5"/></svg>
                   {{ t("НСБУ") }}
                 </span>
-                <div class="bpd-kpi-lbl">{{ k.label }}</div>
+                <div class="bpd-kpi-lbl">{{ t(k.label) }}</div>
                 <div class="bpd-kpi-val"><Odometer :value="fmt(k.fact)" /></div>
                 <div class="bpd-kpi-foot">
                   <span v-if="k.pctOfPlan != null" :style="{ color: k.pctOfPlan >= 1 ? '#0F6E56' : k.pctOfPlan >= 0.9 ? '#A36500' : '#A32D2D' }">

@@ -99,7 +99,7 @@ const tags = computed(() => {
           <div class="bmh-av" :style="{ background: member.roleColor }">{{ member.initials }}</div>
           <div class="bmh-id">
             <div class="bmh-name">{{ member.fullName }}</div>
-            <span class="bmh-role" :style="{ background: member.roleColor + '22', color: member.roleColor }">{{ member.roleLabel }}</span>
+            <span class="bmh-role" :style="{ background: member.roleColor + '22', color: member.roleColor }">{{ t(member.roleLabel) }}</span>
           </div>
         </div>
 

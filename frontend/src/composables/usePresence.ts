@@ -11,6 +11,8 @@
  */
 import { onMounted, onUnmounted } from 'vue';
 import { api } from '@/api/client';
+import { t as tr } from "@/locale/i18n";
+
 
 export type PresenceStatus = 'online' | 'away' | 'offline';
 
@@ -31,9 +33,7 @@ export function presenceStatus(lastSeen?: string | null): PresenceStatus {
 
 /** Человекочитаемая подпись статуса (ru). */
 export function presenceLabel(status: PresenceStatus): string {
-  return status === 'online' ? 'В сети'
-    : status === 'away' ? 'Отошёл'
-    : 'Не в сети';
+  return status === 'online' ? tr('В сети') : status === 'away' ? tr('Отошёл') : tr('Не в сети');
 }
 
 const HEARTBEAT_MS = 45 * 1000;  // частота пинга

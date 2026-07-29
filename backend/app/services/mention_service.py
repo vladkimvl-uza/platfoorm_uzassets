@@ -136,14 +136,26 @@ async def notify_mentioned_users(
             kind_ru = {"task": "задаче", "project": "проекте", "comment": "комментарии"}.get(
                 entity_type, "записи",
             )
+            actor_label = actor_name or "Кто-то"
             company_part = f" · {company_name}" if company_name else ""
-            title = f"{actor_name or 'Кто-то'} упомянул вас в {kind_ru}: «{entity_title}»{company_part}"
+            title = f"{actor_label} упомянул вас в {kind_ru}: «{entity_title}»{company_part}"
+            translated_vars = {"kind"}
+            if not actor_name:
+                translated_vars.add("actor")
             n = await notify(
                 db,
                 recipient_id=uid,
                 type="mention",
                 title=title,
                 body=text[:600],
+                title_template="{actor} упомянул вас в {kind}: «{entity}»{company}",
+                template_vars={
+                    "actor": actor_label,
+                    "kind": kind_ru,
+                    "entity": entity_title,
+                    "company": company_part,
+                },
+                translate_vars=translated_vars,
                 source_module=entity_type,
                 source_entity_id=str(entity_id),
                 source_user_id=actor_id,

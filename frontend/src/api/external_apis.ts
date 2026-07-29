@@ -1,4 +1,5 @@
 import { api } from "./client";
+import { i18nKey } from "@/locale/keys";
 
 export type ExtStatus = "active" | "sandbox" | "deprecated" | "disabled";
 export type AuthKind  = "oauth2" | "api_key" | "basic" | "mtls" | "jwt" | "none";
@@ -129,10 +130,10 @@ export function statusPill(s: ExtStatus): { color: string; bg: string; label: st
 }
 
 export const AUTH_LABELS: Record<AuthKind, string> = {
-  oauth2:  "OAuth 2.0",
-  api_key: "API key",
-  basic:   "Basic auth",
-  mtls:    "mTLS",
-  jwt:     "JWT bearer",
-  none:    "Без авторизации",
+  oauth2:  i18nKey("OAuth 2.0"),
+  api_key: i18nKey("API key"),
+  basic:   i18nKey("Basic auth"),
+  mtls:    i18nKey("mTLS"),
+  jwt:     i18nKey("JWT bearer"),
+  none:    i18nKey("Без авторизации"),
 };

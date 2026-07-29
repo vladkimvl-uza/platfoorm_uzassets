@@ -284,7 +284,7 @@ const sortedCompanies = computed(() =>
           class="sub-stat"
           :style="{ '--accent': s.accent, '--d': (si * 60) + 'ms' }"
         >
-          <div class="sub-stat-lbl">{{ s.label }}</div>
+          <div class="sub-stat-lbl">{{ t(s.label) }}</div>
           <div class="sub-stat-val">
             <Odometer v-if="s.animate" :value="s.value" /><span v-else class="sub-stat-txt">{{ s.value }}</span><span v-if="s.unit" class="sub-stat-unit">{{ s.unit }}</span>
           </div>

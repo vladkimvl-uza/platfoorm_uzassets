@@ -32,6 +32,11 @@ import type { CatalogEndpointWithSubstitution } from "@/api/apiCatalog";
 import { useFormatters } from "@/composables/useFormatters";
 import { api } from "@/api/client";
 import { STATUS_LABELS, STATUS_COLORS } from "@/utils/progress";
+import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
+const { t: tr } = useI18n();
+
 
 const fmt = useFormatters();
 
@@ -60,9 +65,9 @@ async function loadDetail() {
     }
   } catch (e: any) {
     if (e?.response?.status === 404) {
-      error.value = "Компания не найдена";
+      error.value = tr('Компания не найдена');
     } else {
-      error.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить карточку";
+      error.value = e?.response?.data?.detail || e?.message || tr('Не удалось загрузить карточку');
     }
   } finally {
     loading.value = false;
@@ -281,7 +286,7 @@ const allTabs = computed(() => {
   // «Данные компании» — агрегирует проекты/задачи/файлы/изменения (live)
   if (!tabs.some(t => t.code === "work")) {
     tabs.push({
-      id: "__work__", code: "work", name_ru: "Данные компании",
+      id: "__work__", code: "work", name_ru: i18nKey("Данные компании"),
       name_uz: null, name_en: null,
       field_codes: [], layout: "one_col" as const, is_system: true,
       sort_order: 9998, scope_type: "all" as const, scope_value: null,
@@ -291,7 +296,7 @@ const allTabs = computed(() => {
   }
   if (!tabs.some(t => t.code === "api")) {
     tabs.push({
-      id: "__api__", code: "api", name_ru: "API · Интеграция",
+      id: "__api__", code: "api", name_ru: i18nKey("API · Интеграция"),
       name_uz: null, name_en: null,
       field_codes: [], layout: "one_col" as const, is_system: true,
       sort_order: 9999, scope_type: "all" as const, scope_value: null,
@@ -306,10 +311,10 @@ const allTabs = computed(() => {
 <template>
   <div class="cld-page">
     <!-- ═══ LOADING / ERROR ═══ -->
-    <div v-if="loading" class="cld-loading">Загружаю карточку компании…</div>
+    <div v-if="loading" class="cld-loading">{{ tr('Загружаю карточку компании…') }}</div>
     <div v-else-if="error" class="cld-error">
       <div>{{ error }}</div>
-      <RouterLink to="/library/companies" class="cld-back-link">← К списку компаний</RouterLink>
+      <RouterLink to="/library/companies" class="cld-back-link">{{ tr('← К списку компаний') }}</RouterLink>
     </div>
 
     <template v-else-if="detail">
@@ -320,18 +325,18 @@ const allTabs = computed(() => {
             {{ companyAvatar }}
           </div>
           <div class="cld-head-text">
-            <RouterLink to="/library/companies" class="cld-breadcrumb">← Библиотека</RouterLink>
+            <RouterLink to="/library/companies" class="cld-breadcrumb">{{ tr('← Библиотека') }}</RouterLink>
             <h1 class="cld-title">{{ detail.company_name }}</h1>
             <div class="cld-subline">
-              <span v-if="valueForCode('inn')">ИНН {{ valueForCode("inn") }}</span>
+              <span v-if="valueForCode('inn')">{{ tr('ИНН') }} {{ valueForCode("inn") }}</span>
               <span v-if="detail.sector_name">· {{ detail.sector_name }}</span>
               <span v-if="valueForCode('region')">· {{ valueForCode("region") }}</span>
-              <span v-if="valueForCode('employees')">· {{ valueForCode("employees") }} сотр.</span>
+              <span v-if="valueForCode('employees')">· {{ valueForCode("employees") }} {{ tr('сотр.') }}</span>
             </div>
           </div>
         </div>
         <div class="cld-head-r">
-          <span class="cld-live" :title="store.wsConnected ? 'Real-time sync включена' : 'Offline'">
+          <span class="cld-live" :title="store.wsConnected ? tr('Real-time sync включена') : 'Offline'">
             <span class="cld-live-dot" :class="{ 'cld-live-dot-on': store.wsConnected }"></span>
             {{ store.wsConnected ? "Live" : "Offline" }}
           </span>
@@ -339,11 +344,11 @@ const allTabs = computed(() => {
             class="cld-btn cld-btn-secondary"
             :class="{ 'cld-btn-active': apiPanelOpen }"
             @click="toggleApiPanel"
-            title="Панель API endpoints"
+            :title="tr('Панель API endpoints')"
             v-if="!isApiTab"
           >{{ apiPanelOpen ? "API ✓" : "API" }}</button>
           <button class="cld-btn cld-btn-secondary" @click="openWorkspace" :disabled="!detail.company_code">
-            Открыть Workspace →
+            {{ tr('Открыть Workspace →') }}
           </button>
         </div>
       </header>
@@ -360,7 +365,7 @@ const allTabs = computed(() => {
           {{ t.name_ru }}
           <span v-if="t.field_codes.length" class="cld-tab-count">{{ t.field_codes.length }}</span>
         </button>
-        <button class="cld-tab cld-tab-add" @click="tabBuilderOpen = true">+ Раздел</button>
+        <button class="cld-tab cld-tab-add" @click="tabBuilderOpen = true">{{ tr('+ Раздел') }}</button>
       </nav>
 
       <!-- ═══ TAB CONTENT ═══ -->
@@ -377,7 +382,7 @@ const allTabs = computed(() => {
           <!-- ===== LEFT ===== -->
           <section class="cld-col cld-col-l">
             <article class="cld-card">
-              <header class="cld-card-h">Идентификация</header>
+              <header class="cld-card-h">{{ tr('Идентификация') }}</header>
               <div class="cld-kv-list">
                 <template v-for="code in identityCodes" :key="code">
                   <div v-if="defForCode(code) && fieldByCode.has(code)" class="cld-kv-row">
@@ -393,7 +398,7 @@ const allTabs = computed(() => {
 
             <article v-if="sectorScopedCodes.length" class="cld-card cld-card-sector">
               <header class="cld-card-h">
-                Отраслевые поля
+                {{ tr('Отраслевые поля') }}
                 <span v-if="detail.sector_name" class="cld-card-h-sub">· {{ detail.sector_name }}</span>
               </header>
               <div class="cld-kv-list">
@@ -415,7 +420,7 @@ const allTabs = computed(() => {
           <section class="cld-col cld-col-r">
             <article class="cld-card">
               <header class="cld-card-h">
-                Финансы <span class="cld-card-h-sub">· последние факты</span>
+                {{ tr('Финансы') }} <span class="cld-card-h-sub">{{ tr('· последние факты') }}</span>
               </header>
               <div class="cld-fin-grid">
                 <template v-for="code in financeCodes" :key="code">
@@ -431,13 +436,13 @@ const allTabs = computed(() => {
               </div>
               <div class="cld-fin-sync">
                 <SyncIndicator source-module="finmodel" :size="6" />
-                <span>Sync с FinModel</span>
-                <button class="cld-fin-sync-link" @click="activeTabCode = 'financials'">Все показатели →</button>
+                <span>{{ tr('Sync с FinModel') }}</span>
+                <button class="cld-fin-sync-link" @click="activeTabCode = 'financials'">{{ tr('Все показатели →') }}</button>
               </div>
             </article>
 
             <article v-if="defForCode('kpi_completion')" class="cld-card">
-              <header class="cld-card-h">KPI <span class="cld-card-h-sub">· общее выполнение</span></header>
+              <header class="cld-card-h">KPI <span class="cld-card-h-sub">{{ tr('· общее выполнение') }}</span></header>
               <div class="cld-kpi-block">
                 <div class="cld-kpi-num">
                   {{ valueForCode("kpi_completion") != null ? fmt.fmtPercent(Number(valueForCode("kpi_completion")), { decimals: 0 }) : "—" }}
@@ -452,13 +457,13 @@ const allTabs = computed(() => {
                 </div>
                 <div class="cld-kpi-foot">
                   <SyncIndicator source-module="kpi" :size="6" />
-                  <span>Источник: KPI editor</span>
+                  <span>{{ tr('Источник: KPI editor') }}</span>
                 </div>
               </div>
             </article>
 
             <article class="cld-card">
-              <header class="cld-card-h">Рейтинги <span class="cld-card-h-sub">· последние оценки</span></header>
+              <header class="cld-card-h">{{ tr('Рейтинги') }} <span class="cld-card-h-sub">{{ tr('· последние оценки') }}</span></header>
               <div class="cld-rat-grid">
                 <template v-for="code in ratingCodes" :key="code">
                   <div v-if="defForCode(code)" class="cld-rat-cell">
@@ -479,7 +484,7 @@ const allTabs = computed(() => {
           <section class="cld-col cld-col-l cld-col-wide">
             <article class="cld-card">
               <header class="cld-card-h">
-                Финансовые показатели
+                {{ tr('Финансовые показатели') }}
                 <span class="cld-card-h-sub">· {{ detail.company_name }}</span>
               </header>
               <div class="cld-fin-grid-lg">
@@ -498,17 +503,17 @@ const allTabs = computed(() => {
               </div>
               <div class="cld-fin-sync">
                 <SyncIndicator source-module="finmodel" :size="6" />
-                <span>Sync с FinModel · обновление в real-time</span>
+                <span>{{ tr('Sync с FinModel · обновление в real-time') }}</span>
                 <RouterLink
                   v-if="detail.company_code"
                   :to="`/companies/${detail.company_code}/workspace`"
                   class="cld-fin-sync-link"
-                >Открыть в FinModel ↗</RouterLink>
+                >{{ tr('Открыть в FinModel ↗') }}</RouterLink>
               </div>
             </article>
 
             <article class="cld-card">
-              <header class="cld-card-h">Все финансовые поля</header>
+              <header class="cld-card-h">{{ tr('Все финансовые поля') }}</header>
               <div class="cld-kv-list">
                 <template v-for="code in financeCodes" :key="code">
                   <div v-if="defForCode(code) && fieldByCode.has(code)" class="cld-kv-row">
@@ -524,7 +529,7 @@ const allTabs = computed(() => {
                   </div>
                 </template>
                 <div v-if="defForCode('debt_to_ebitda')" class="cld-kv-row">
-                  <span class="cld-kv-k">Долг / EBITDA</span>
+                  <span class="cld-kv-k">{{ tr('Долг / EBITDA') }}</span>
                   <span class="cld-kv-v">
                     {{ valueForCode("debt_to_ebitda") != null
                        ? fmt.fmtNumber(Number(valueForCode("debt_to_ebitda")), { decimals: 2 }) + "x"
@@ -541,7 +546,7 @@ const allTabs = computed(() => {
           <section class="cld-col cld-col-l cld-col-wide">
             <article class="cld-card">
               <header class="cld-card-h">
-                KPI <span class="cld-card-h-sub">· общее выполнение по компании</span>
+                KPI <span class="cld-card-h-sub">{{ tr('· общее выполнение по компании') }}</span>
               </header>
               <div class="cld-kpi-block cld-kpi-block-lg">
                 <div class="cld-kpi-num cld-kpi-num-lg">
@@ -557,24 +562,23 @@ const allTabs = computed(() => {
                 </div>
                 <div class="cld-kpi-foot">
                   <SyncIndicator source-module="kpi" :size="6" />
-                  <span>Источник: KPI editor · автоматически</span>
+                  <span>{{ tr('Источник: KPI editor · автоматически') }}</span>
                   <RouterLink
                     v-if="detail.company_code"
                     :to="`/companies/${detail.company_code}/workspace`"
                     class="cld-fin-sync-link"
-                  >Открыть KPI editor ↗</RouterLink>
+                  >{{ tr('Открыть KPI editor ↗') }}</RouterLink>
                 </div>
               </div>
             </article>
 
             <article class="cld-card">
-              <header class="cld-card-h">Подробности</header>
+              <header class="cld-card-h">{{ tr('Подробности') }}</header>
               <p class="cld-tab-hint">
-                Детальная разбивка по руководителям, индикаторам, весам и квартальной декомпозиции — в
+                {{ tr('Детальная разбивка по руководителям, индикаторам, весам и квартальной декомпозиции — в') }}
                 <RouterLink v-if="detail.company_code"
                             :to="`/companies/${detail.company_code}/workspace`"
-                            class="cld-tab-link">Workspace · KPI</RouterLink>.
-                Здесь — только агрегированный показатель выполнения, синхронизированный из KPI-модуля.
+                            class="cld-tab-link">Workspace · KPI</RouterLink>{{ tr('. Здесь — только агрегированный показатель выполнения, синхронизированный из KPI-модуля.') }}
               </p>
             </article>
           </section>
@@ -585,8 +589,8 @@ const allTabs = computed(() => {
           <section class="cld-col cld-col-l cld-col-wide">
             <article class="cld-card">
               <header class="cld-card-h">
-                Рейтинги агентств
-                <span class="cld-card-h-sub">· последние оценки + дата</span>
+                {{ tr('Рейтинги агентств') }}
+                <span class="cld-card-h-sub">{{ tr('· последние оценки + дата') }}</span>
               </header>
               <div class="cld-rat-grid cld-rat-grid-lg">
                 <template v-for="code in ratingCodes" :key="code">
@@ -599,12 +603,12 @@ const allTabs = computed(() => {
               </div>
               <div class="cld-fin-sync">
                 <SyncIndicator source-module="ratings" :size="6" />
-                <span>Sync с модулем Рейтинги · upsert через двойной клик</span>
+                <span>{{ tr('Sync с модулем Рейтинги · upsert через двойной клик') }}</span>
               </div>
             </article>
 
             <article class="cld-card">
-              <header class="cld-card-h">Все рейтинговые поля</header>
+              <header class="cld-card-h">{{ tr('Все рейтинговые поля') }}</header>
               <div class="cld-kv-list">
                 <template v-for="code in ratingCodes" :key="code">
                   <div v-if="defForCode(code) && fieldByCode.has(code)" class="cld-kv-row">
@@ -630,35 +634,35 @@ const allTabs = computed(() => {
             <div class="cld-work-stats">
               <div class="cld-work-stat">
                 <div class="cld-work-stat-n">{{ work.projectsTotal }}</div>
-                <div class="cld-work-stat-l">Проектов<span v-if="projDone">· {{ projDone }} заверш.</span></div>
+                <div class="cld-work-stat-l">{{ tr('Проектов') }}<span v-if="projDone">· {{ projDone }} {{ tr('заверш.') }}</span></div>
               </div>
               <div class="cld-work-stat">
                 <div class="cld-work-stat-n">{{ work.tasksTotal }}</div>
-                <div class="cld-work-stat-l">Задач<span v-if="taskDone">· {{ taskDone }} заверш.</span></div>
+                <div class="cld-work-stat-l">{{ tr('Задач') }}<span v-if="taskDone">· {{ taskDone }} {{ tr('заверш.') }}</span></div>
               </div>
               <div class="cld-work-stat">
                 <div class="cld-work-stat-n">{{ work.files.length }}</div>
-                <div class="cld-work-stat-l">Файлов</div>
+                <div class="cld-work-stat-l">{{ tr('Файлов') }}</div>
               </div>
             </div>
 
             <!-- Фильтр по году -->
             <div v-if="workYears.length > 1" class="cld-work-yrbar">
-              <span class="cld-work-yrbar-l">Год портфеля</span>
+              <span class="cld-work-yrbar-l">{{ tr('Год портфеля') }}</span>
               <div class="cld-work-yrpills">
-                <button class="cld-yr-pill" :class="{ on: workYear === null }" @click="workYear = null">Все</button>
+                <button class="cld-yr-pill" :class="{ on: workYear === null }" @click="workYear = null">{{ tr('Все') }}</button>
                 <button v-for="y in workYears" :key="y" class="cld-yr-pill"
                         :class="{ on: workYear === y }" @click="workYear = y">FY{{ y }}</button>
               </div>
             </div>
 
-            <div v-if="workLoading" class="cld-tab-hint">Загрузка данных компании…</div>
+            <div v-if="workLoading" class="cld-tab-hint">{{ tr('Загрузка данных компании…') }}</div>
 
             <!-- Проекты -->
             <article class="cld-card">
               <header class="cld-card-h">
-                Проекты <span class="cld-card-h-sub">· {{ workYear === null ? work.projectsTotal : filteredProjects.length }}</span>
-                <RouterLink v-if="detail.company_code" :to="`/companies/${detail.company_code}/workspace`" class="cld-work-link">Открыть →</RouterLink>
+                {{ tr('Проекты') }} <span class="cld-card-h-sub">· {{ workYear === null ? work.projectsTotal : filteredProjects.length }}</span>
+                <RouterLink v-if="detail.company_code" :to="`/companies/${detail.company_code}/workspace`" class="cld-work-link">{{ tr('Открыть →') }}</RouterLink>
               </header>
               <div v-if="filteredProjects.length" class="cld-work-list">
                 <div v-for="p in shownProjects" :key="p.id" class="cld-work-row">
@@ -666,57 +670,57 @@ const allTabs = computed(() => {
                   <span v-if="p.num" class="cld-work-num">{{ p.num }}</span>
                   <span class="cld-work-title">{{ p.title }}</span>
                   <span v-if="p.portfolio_year" class="cld-work-yr">FY{{ p.portfolio_year }}</span>
-                  <span class="cld-work-st" :style="{ color: statusColor(p.status), background: statusColor(p.status) + '1A' }">{{ statusLabel(p.status) }}</span>
+                  <span class="cld-work-st" :style="{ color: statusColor(p.status), background: statusColor(p.status) + '1A' }">{{ tr(statusLabel(p.status)) }}</span>
                 </div>
                 <button v-if="filteredProjects.length > WORK_LIMIT" class="cld-work-more"
                         @click="projExpanded = !projExpanded">
-                  {{ projExpanded ? 'Свернуть' : `Показать ещё ${filteredProjects.length - WORK_LIMIT}` }}
+                  {{ projExpanded ? tr('Свернуть') : tr('Показать ещё {value0}', { value0: filteredProjects.length - WORK_LIMIT }) }}
                 </button>
               </div>
-              <p v-else-if="!workLoading" class="cld-tab-hint">{{ workYear === null ? 'Проектов нет.' : `Проектов за FY${workYear} нет.` }}</p>
+              <p v-else-if="!workLoading" class="cld-tab-hint">{{ workYear === null ? tr('Проектов нет.') : tr('Проектов за FY{value0} нет.', { value0: workYear }) }}</p>
             </article>
 
             <!-- Задачи -->
             <article class="cld-card">
-              <header class="cld-card-h">Задачи <span class="cld-card-h-sub">· {{ workYear === null ? work.tasksTotal : filteredTasks.length }}</span></header>
+              <header class="cld-card-h">{{ tr('Задачи') }} <span class="cld-card-h-sub">· {{ workYear === null ? work.tasksTotal : filteredTasks.length }}</span></header>
               <div v-if="filteredTasks.length" class="cld-work-list">
                 <div v-for="t in shownTasks" :key="t.id" class="cld-work-row">
                   <span class="cld-work-dot" :style="{ background: statusColor(t.status) }"></span>
                   <span class="cld-work-title">{{ t.title }}</span>
                   <span v-if="t.portfolio_year" class="cld-work-yr">FY{{ t.portfolio_year }}</span>
-                  <span class="cld-work-st" :style="{ color: statusColor(t.status), background: statusColor(t.status) + '1A' }">{{ statusLabel(t.status) }}</span>
+                  <span class="cld-work-st" :style="{ color: statusColor(t.status), background: statusColor(t.status) + '1A' }">{{ tr(statusLabel(t.status)) }}</span>
                 </div>
                 <button v-if="filteredTasks.length > WORK_LIMIT" class="cld-work-more"
                         @click="taskExpanded = !taskExpanded">
-                  {{ taskExpanded ? 'Свернуть' : `Показать ещё ${filteredTasks.length - WORK_LIMIT}` }}
+                  {{ taskExpanded ? tr('Свернуть') : tr('Показать ещё {value0}', { value0: filteredTasks.length - WORK_LIMIT }) }}
                 </button>
               </div>
-              <p v-else-if="!workLoading" class="cld-tab-hint">{{ workYear === null ? 'Задач нет.' : `Задач за FY${workYear} нет.` }}</p>
+              <p v-else-if="!workLoading" class="cld-tab-hint">{{ workYear === null ? tr('Задач нет.') : tr('Задач за FY{value0} нет.', { value0: workYear }) }}</p>
             </article>
 
             <!-- Файлы -->
             <article class="cld-card">
-              <header class="cld-card-h">Файлы <span class="cld-card-h-sub">· {{ work.files.length }}</span></header>
+              <header class="cld-card-h">{{ tr('Файлы') }} <span class="cld-card-h-sub">· {{ work.files.length }}</span></header>
               <div v-if="work.files.length" class="cld-work-files">
                 <div v-for="f in work.files.slice(0, 16)" :key="f.id" class="cld-work-file">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
-                  <span class="cld-work-fname">{{ f.filename || f.file_name || f.name || 'файл' }}</span>
+                  <span class="cld-work-fname">{{ f.filename || f.file_name || f.name || tr('файл') }}</span>
                   <span v-if="f.created_at" class="cld-work-fdate">{{ fmtMonthsAgo(f.created_at) }}</span>
                 </div>
               </div>
-              <p v-else-if="!workLoading" class="cld-tab-hint">Файлов нет.</p>
+              <p v-else-if="!workLoading" class="cld-tab-hint">{{ tr('Файлов нет.') }}</p>
             </article>
           </section>
 
           <!-- Что нового -->
           <section class="cld-col cld-col-r">
             <article class="cld-card">
-              <header class="cld-card-h">Что нового <span class="cld-card-h-sub">· изменения за 60 дн</span></header>
+              <header class="cld-card-h">{{ tr('Что нового') }} <span class="cld-card-h-sub">{{ tr('· изменения за 60 дн') }}</span></header>
               <div v-if="work.events.length" class="cld-work-feed">
                 <div v-for="(ev, i) in work.events.slice(0, 20)" :key="i" class="cld-work-ev">
                   <span class="cld-work-ev-dot"></span>
                   <div class="cld-work-ev-body">
-                    <div class="cld-work-ev-txt">{{ ev.title || ev.entity_label || ev.action || ev.summary || 'изменение' }}</div>
+                    <div class="cld-work-ev-txt">{{ ev.title || ev.entity_label || ev.action || ev.summary || tr('изменение') }}</div>
                     <div class="cld-work-ev-meta">
                       <span v-if="ev.actor_name || ev.actor_email">{{ ev.actor_name || ev.actor_email }}</span>
                       <span v-if="ev.created_at"> · {{ fmtMonthsAgo(ev.created_at) }}</span>
@@ -724,8 +728,8 @@ const allTabs = computed(() => {
                   </div>
                 </div>
               </div>
-              <p v-else-if="!workLoading" class="cld-tab-hint">Пока нет изменений.</p>
-              <p class="cld-tab-hint" style="margin-top:8px">Новые проекты, задачи, комментарии и файлы появляются здесь автоматически.</p>
+              <p v-else-if="!workLoading" class="cld-tab-hint">{{ tr('Пока нет изменений.') }}</p>
+              <p class="cld-tab-hint" style="margin-top:8px">{{ tr('Новые проекты, задачи, комментарии и файлы появляются здесь автоматически.') }}</p>
             </article>
           </section>
         </template>
@@ -749,7 +753,7 @@ const allTabs = computed(() => {
                   </div>
                 </template>
               </div>
-              <p v-else class="cld-tab-hint">В этот раздел не добавлены поля. Откройте «+ Раздел» чтобы создать новый, или включите поля в Column Manager.</p>
+              <p v-else class="cld-tab-hint">{{ tr('В этот раздел не добавлены поля. Откройте «+ Раздел» чтобы создать новый, или включите поля в Column Manager.') }}</p>
             </article>
           </section>
         </template>
@@ -769,20 +773,20 @@ const allTabs = computed(() => {
       <footer class="cld-footer">
         <div class="cld-legend">
           <span class="cld-legend-item">
-            <SyncIndicator source-module="finmodel" :size="7" /> Sync с FinModel
+            <SyncIndicator source-module="finmodel" :size="7" /> {{ tr('Sync с FinModel') }}
           </span>
           <span class="cld-legend-item">
             <SyncIndicator source-module="kpi" :size="7" /> KPI
           </span>
           <span class="cld-legend-item">
-            <SyncIndicator source-module="ratings" :size="7" /> Рейтинги
+            <SyncIndicator source-module="ratings" :size="7" /> {{ tr('Рейтинги') }}
           </span>
           <span class="cld-legend-item">
-            <SyncIndicator :source-module="null" :size="7" /> Custom (только в библиотеке)
+            <SyncIndicator :source-module="null" :size="7" /> {{ tr('Custom (только в библиотеке)') }}
           </span>
         </div>
         <div class="cld-legend-hint">
-          Любое поле редактируется здесь — обновление транслируется во все модули в real-time
+          {{ tr('Любое поле редактируется здесь — обновление транслируется во все модули в real-time') }}
         </div>
       </footer>
     </template>

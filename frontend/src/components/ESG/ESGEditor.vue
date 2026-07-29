@@ -84,8 +84,8 @@ function _num(v: unknown): number | null {
 }
 
 async function saveMetric(): Promise<void> {
-  if (!mForm.metric_code.trim()) { err.value = "Укажите код метрики"; return; }
-  if (!mForm.metric_name.trim()) { err.value = "Укажите название метрики"; return; }
+  if (!mForm.metric_code.trim()) { err.value = t('Укажите код метрики'); return; }
+  if (!mForm.metric_name.trim()) { err.value = t('Укажите название метрики'); return; }
   saving.value = true; err.value = null; queued.value = false;
   try {
     const res = await esgApi.upsertMetric({
@@ -104,17 +104,17 @@ async function saveMetric(): Promise<void> {
       showMetricForm.value = false; emit("saved");
     }
   } catch (e: any) {
-    err.value = e?.response?.data?.detail || e?.message || "Не удалось сохранить метрику";
+    err.value = e?.response?.data?.detail || e?.message || t('Не удалось сохранить метрику');
   } finally { saving.value = false; }
 }
 async function removeMetric(m: ESGMetricBrief): Promise<void> {
-  if (!(await confirmDialog({ message: `Удалить метрику «${m.metric_name}»?`, danger: true }))) return;
+  if (!(await confirmDialog({ message: t('Удалить метрику «{value0}»?', { value0: m.metric_name }), danger: true }))) return;
   saving.value = true; err.value = null;
   try {
     await esgApi.deleteMetric(m.id);
     localMetrics.value = localMetrics.value.filter(x => x.id !== m.id);
     emit("saved");
-  } catch (e: any) { err.value = e?.response?.data?.detail || "Не удалось удалить"; }
+  } catch (e: any) { err.value = e?.response?.data?.detail || t('Не удалось удалить'); }
   finally { saving.value = false; }
 }
 
@@ -141,7 +141,7 @@ function openEditIssue(it: ESGIssueBrief): void {
   err.value = null; showIssueForm.value = true;
 }
 async function saveIssue(): Promise<void> {
-  if (!iForm.title.trim()) { err.value = "Укажите заголовок"; return; }
+  if (!iForm.title.trim()) { err.value = t('Укажите заголовок'); return; }
   saving.value = true; err.value = null; queued.value = false;
   try {
     let res: ESGIssueBrief | { detail?: string };
@@ -166,17 +166,17 @@ async function saveIssue(): Promise<void> {
       showIssueForm.value = false; emit("saved");
     }
   } catch (e: any) {
-    err.value = e?.response?.data?.detail || e?.message || "Не удалось сохранить риск";
+    err.value = e?.response?.data?.detail || e?.message || t('Не удалось сохранить риск');
   } finally { saving.value = false; }
 }
 async function removeIssue(it: ESGIssueBrief): Promise<void> {
-  if (!(await confirmDialog({ message: `Удалить риск «${it.title}»?`, danger: true }))) return;
+  if (!(await confirmDialog({ message: t('Удалить риск «{value0}»?', { value0: it.title }), danger: true }))) return;
   saving.value = true; err.value = null;
   try {
     await esgApi.deleteIssue(it.id);
     localIssues.value = localIssues.value.filter(x => x.id !== it.id);
     emit("saved");
-  } catch (e: any) { err.value = e?.response?.data?.detail || "Не удалось удалить"; }
+  } catch (e: any) { err.value = e?.response?.data?.detail || t('Не удалось удалить'); }
   finally { saving.value = false; }
 }
 
@@ -210,12 +210,12 @@ const PILLARS = computed(() => PILLAR_META);
         <!-- ─── МЕТРИКИ ─── -->
         <template v-if="section === 'metrics'">
           <div v-if="showMetricForm" class="ee-form">
-            <div class="ee-sub-label">{{ editingMetric ? "Редактирование метрики" : "Новая метрика" }}</div>
+            <div class="ee-sub-label">{{ editingMetric ? t('Редактирование метрики') : t('Новая метрика') }}</div>
             <div class="ee-grid">
               <label class="ee-field">
                 <span class="ee-lbl">{{ t('Столп') }}</span>
                 <select class="ee-in" v-model="mForm.pillar" :disabled="saving || !!editingMetric">
-                  <option v-for="p in PILLARS" :key="p.key" :value="p.key">{{ p.label }}</option>
+                  <option v-for="p in PILLARS" :key="p.key" :value="p.key">{{ t(p.label) }}</option>
                 </select>
               </label>
               <label class="ee-field">
@@ -250,7 +250,7 @@ const PILLARS = computed(() => PILLAR_META);
             <div class="ee-actions">
               <button class="ee-btn ee-ghost" @click="showMetricForm = false" :disabled="saving">{{ t('Отмена') }}</button>
               <button class="ee-btn ee-primary" @click="saveMetric" :disabled="saving">
-                <span v-if="saving" class="ee-spin"></span>{{ saving ? "" : "Сохранить" }}
+                <span v-if="saving" class="ee-spin"></span>{{ saving ? "" : t('Сохранить') }}
               </button>
             </div>
           </div>
@@ -260,7 +260,7 @@ const PILLARS = computed(() => PILLAR_META);
             <div v-if="localMetrics.length === 0" class="ee-empty">{{ t('Метрики не заведены') }}</div>
             <div v-for="p in PILLARS" :key="p.key" v-show="metricsByPillar[p.key].length" class="ee-pillar-group">
               <div class="ee-pillar-head" :style="{ color: p.color }">
-                <span class="ee-pillar-dot" :style="{ background: p.color }"></span>{{ p.label }}
+                <span class="ee-pillar-dot" :style="{ background: p.color }"></span>{{ t(p.label) }}
               </div>
               <div class="ee-metric-row" v-for="m in metricsByPillar[p.key]" :key="m.id">
                 <div class="ee-metric-main">
@@ -286,24 +286,24 @@ const PILLARS = computed(() => PILLAR_META);
         <!-- ─── РИСКИ ─── -->
         <template v-else>
           <div v-if="showIssueForm" class="ee-form">
-            <div class="ee-sub-label">{{ editingIssue ? "Редактирование риска" : "Новый риск" }}</div>
+            <div class="ee-sub-label">{{ editingIssue ? t('Редактирование риска') : t('Новый риск') }}</div>
             <div class="ee-grid">
               <label class="ee-field">
                 <span class="ee-lbl">{{ t('Столп') }}</span>
                 <select class="ee-in" v-model="iForm.pillar" :disabled="saving">
-                  <option v-for="p in PILLARS" :key="p.key" :value="p.key">{{ p.label }}</option>
+                  <option v-for="p in PILLARS" :key="p.key" :value="p.key">{{ t(p.label) }}</option>
                 </select>
               </label>
               <label class="ee-field">
                 <span class="ee-lbl">{{ t('Серьёзность') }}</span>
                 <select class="ee-in" v-model="iForm.severity" :disabled="saving">
-                  <option v-for="s in SEVERITY_META" :key="s.key" :value="s.key">{{ s.label }}</option>
+                  <option v-for="s in SEVERITY_META" :key="s.key" :value="s.key">{{ t(s.label) }}</option>
                 </select>
               </label>
               <label v-if="editingIssue" class="ee-field">
                 <span class="ee-lbl">{{ t('Статус') }}</span>
                 <select class="ee-in" v-model="iForm.status" :disabled="saving">
-                  <option v-for="s in ISSUE_STATUS_META" :key="s.key" :value="s.key">{{ s.label }}</option>
+                  <option v-for="s in ISSUE_STATUS_META" :key="s.key" :value="s.key">{{ t(s.label) }}</option>
                 </select>
               </label>
               <label class="ee-field ee-wide">
@@ -318,7 +318,7 @@ const PILLARS = computed(() => PILLAR_META);
             <div class="ee-actions">
               <button class="ee-btn ee-ghost" @click="showIssueForm = false" :disabled="saving">{{ t('Отмена') }}</button>
               <button class="ee-btn ee-primary" @click="saveIssue" :disabled="saving">
-                <span v-if="saving" class="ee-spin"></span>{{ saving ? "" : "Сохранить" }}
+                <span v-if="saving" class="ee-spin"></span>{{ saving ? "" : t('Сохранить') }}
               </button>
             </div>
           </div>
@@ -333,8 +333,8 @@ const PILLARS = computed(() => PILLAR_META);
                   {{ it.title }}
                 </div>
                 <div class="ee-metric-sub">
-                  <span class="ee-pill" :style="{ background: sevMeta(it.severity).color + '22', color: sevMeta(it.severity).color }">{{ sevMeta(it.severity).label }}</span>
-                  <span class="ee-pill" :style="{ background: statusMeta(it.status).color + '22', color: statusMeta(it.status).color }">{{ statusMeta(it.status).label }}</span>
+                  <span class="ee-pill" :style="{ background: sevMeta(it.severity).color + '22', color: sevMeta(it.severity).color }">{{ t(sevMeta(it.severity).label) }}</span>
+                  <span class="ee-pill" :style="{ background: statusMeta(it.status).color + '22', color: statusMeta(it.status).color }">{{ t(statusMeta(it.status).label) }}</span>
                 </div>
               </div>
               <div class="ee-row-acts">

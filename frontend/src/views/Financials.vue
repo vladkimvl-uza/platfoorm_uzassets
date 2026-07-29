@@ -72,8 +72,10 @@ const aiAccess = useAiActivation();
 aiAccess.load();
 const forecastOpen = ref(false);
 const copilotContext = computed(() =>
-  `FY ${year.value} · ${standard.value} · ${currency.value} · ${unit.value} · ${viewTab.value} · метрика ${activeMetric.value}` +
-  (sectorCode.value ? ` · сектор ${sectorCode.value}` : ""),
+  t("FY {year} · {standard} · {currency} · {unit} · {view} · метрика {metric}", {
+    year: year.value, standard: standard.value, currency: currency.value,
+    unit: unit.value, view: viewTab.value, metric: activeMetric.value,
+  }) + (sectorCode.value ? t(" · сектор {sector}", { sector: sectorCode.value }) : ""),
 );
 
 // Pack 7.9e: AI Bubble context
@@ -83,13 +85,13 @@ useAiPageContext({
   describeState: () => `${standard.value} · ${year.value} · ${currency.value} · ${unit.value} · ${viewTab.value}`,
   quickActions: [
     { label: t("Сводка по портфелю"),
-      prompt: "Дай сводку финансовых результатов портфеля за выбранный год: revenue, EBITDA, net profit топ-5 компаний. Используй get_financials." },
+      prompt: t("Дай сводку финансовых результатов портфеля за выбранный год: revenue, EBITDA, net profit, топ-5 компаний. Используй get_financials.") },
     { label: t("EBITDA-margin тренд"),
-      prompt: "Проанализируй EBITDA-margin по портфелю: лидеры и отстающие, сравнение с отраслевыми бенчмарками (mining 25-45%, energy 15-25%, transport 10-20%, telecom 30-45%)." },
+      prompt: t("Проанализируй EBITDA-margin по портфелю: лидеры и отстающие, сравнение с отраслевыми бенчмарками (mining 25-45%, energy 15-25%, transport 10-20%, telecom 30-45%).") },
     { label: t("Сравни 2025 vs 2026"),
-      prompt: "Сравни ключевые финметрики 2025 vs 2026 по портфелю (revenue, EBITDA, net profit). Что выросло, что упало? Учитывай макро (gold +15%, oil -5%)." },
+      prompt: t("Сравни ключевые финметрики 2025 vs 2026 по портфелю (revenue, EBITDA, net profit). Что выросло, что упало? Учитывай макро (gold +15%, oil -5%).") },
     { label: t("Ковенант-чек"),
-      prompt: "Проверь кредитные ковенанты: Debt/EBITDA, ICR, current ratio по каждой компании. Где близко к breach? Используй get_financials + get_credit_portfolio." },
+      prompt: t("Проверь кредитные ковенанты: Debt/EBITDA, ICR, current ratio по каждой компании. Где близко к breach? Используй get_financials + get_credit_portfolio.") },
   ],
 });
 
@@ -497,7 +499,7 @@ function onModalClose() {
                 :buckets="aggregation.buckets"
                 :years="yearScope"
                 :unit="unit"
-                :metric-label="activeMetricLabel"
+                :metric-label="t(activeMetricLabel)"
                 :metric-key="activeMetric"
                 :current-year="year"
                 :grand-total-all-years="grandTotalAllYears"

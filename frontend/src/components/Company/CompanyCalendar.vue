@@ -47,10 +47,10 @@ const props = defineProps<{ companyId?: string | null }>();
 const emit = defineEmits<{ (e: "open-entity", payload: { entity_type: "project" | "task"; entity_id: string; company_id: string | null }): void }>();
 const isGlobal = computed(() => !props.companyId);
 
-const MONTHS = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
+const MONTHS = [i18nKey("Январь"), i18nKey("Февраль"), i18nKey("Март"), i18nKey("Апрель"), i18nKey("Май"), i18nKey("Июнь"), i18nKey("Июль"), i18nKey("Август"), i18nKey("Сентябрь"), i18nKey("Октябрь"), i18nKey("Ноябрь"), i18nKey("Декабрь")];
 // Краткие месяцы (ключи common-словаря) — для заголовка недели.
-const MONTHS_SHORT = ["Янв", "Фев", "Мар", "Апр", "Май", "Июн", "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"];
-const WD = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
+const MONTHS_SHORT = [i18nKey("Янв"), i18nKey("Фев"), i18nKey("Мар"), i18nKey("Апр"), i18nKey("Май"), i18nKey("Июн"), i18nKey("Июл"), i18nKey("Авг"), i18nKey("Сен"), i18nKey("Окт"), i18nKey("Ноя"), i18nKey("Дек")];
+const WD = [i18nKey("Пн"), i18nKey("Вт"), i18nKey("Ср"), i18nKey("Чт"), i18nKey("Пт"), i18nKey("Сб"), i18nKey("Вс")];
 
 const today = new Date();
 const cur = ref(new Date(today.getFullYear(), today.getMonth(), today.getDate())); // якорь
@@ -232,7 +232,7 @@ function pickDay(key: string) { selectedKey.value = selectedKey.value === key ? 
 function openEvent(e: CalendarEvent) { emit("open-entity", { entity_type: e.entity_type, entity_id: e.entity_id, company_id: e.company_id }); }
 
 // ─── Day-drawer: сводка дня + быстрое создание ───
-const WEEKDAYS_FULL = ["воскресенье", "понедельник", "вторник", "среда", "четверг", "пятница", "суббота"];
+const WEEKDAYS_FULL = [i18nKey("воскресенье"), i18nKey("понедельник"), i18nKey("вторник"), i18nKey("среда"), i18nKey("четверг"), i18nKey("пятница"), i18nKey("суббота")];
 const daySummary = computed(() => {
   const evs = selectedEvents.value;
   const s = { overdue: 0, soon: 0, future: 0, done: 0 };
@@ -363,7 +363,7 @@ function overdueDays(e: CalendarEvent): number {
     <!-- ═══ МЕСЯЦ ═══ -->
     <template v-if="view === 'month'">
       <div class="cal-wd">
-        <div v-for="w in WD" :key="w" class="cal-wd-cell" :class="{ 'cal-wd-we': w === 'Сб' || w === 'Вс' }">{{ w }}</div>
+        <div v-for="(w, wi) in WD" :key="w" class="cal-wd-cell" :class="{ 'cal-wd-we': wi >= 5 }">{{ t(w) }}</div>
       </div>
       <Transition :name="dir >= 0 ? 'cal-grid-next' : 'cal-grid-prev'" mode="out-in">
         <div class="cal-grid" :key="monKey(cur)">
@@ -440,7 +440,7 @@ function overdueDays(e: CalendarEvent): number {
       <div v-if="view !== 'agenda' && selectedKey" class="cal-sidepanel">
         <div class="cal-sp-head">
           <div class="cal-sp-head-l">
-            <div class="cal-sp-date">{{ selectedDate?.getDate() }} {{ MONTHS[selectedDate!.getMonth()].toLowerCase() }}</div>
+            <div class="cal-sp-date">{{ selectedDate?.getDate() }} {{ t(MONTHS[selectedDate!.getMonth()]).toLowerCase() }}</div>
             <div class="cal-sp-wd">{{ selectedWeekday }}<template v-if="selectedKey === ymd(today)"> {{ t('· сегодня') }}</template></div>
           </div>
           <button class="cal-sp-x" @click="selectedKey = null" :aria-label="t('Закрыть')">

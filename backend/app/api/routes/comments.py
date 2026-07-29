@@ -232,6 +232,9 @@ async def _watch_on_comment(db, *, kind: str, parent_id, body: str, actor) -> No
         notif_type="watch.comment",
         title=f"Новый комментарий в отслеживаемом {label}",
         body=f"{actor.full_name or actor.email}: {excerpt}",
+        title_template="Новый комментарий в отслеживаемом {kind}",
+        template_vars={"kind": label},
+        translate_vars={"kind"},
         payload={"entity_type": kind, "entity_id": str(parent_id)},
     )
 

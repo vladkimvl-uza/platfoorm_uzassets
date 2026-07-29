@@ -11,6 +11,8 @@
  * are a flat shared folder ("общая папка") — no category UI for now.
  */
 import { api } from "./client";
+import { t } from "@/locale/i18n";
+
 
 export type AttachmentKind = "task" | "project" | "company";
 
@@ -99,10 +101,10 @@ export const attachmentsApi = {
 
 export function formatBytes(n: number | null | undefined): string {
   if (n == null || isNaN(n) || n <= 0) return "—";
-  if (n < 1024) return `${n} Б`;
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} КБ`;
-  if (n < 1024 * 1024 * 1024) return `${(n / (1024 * 1024)).toFixed(1)} МБ`;
-  return `${(n / (1024 * 1024 * 1024)).toFixed(2)} ГБ`;
+  if (n < 1024) return t('{value0} Б', { value0: n });
+  if (n < 1024 * 1024) return t('{value0} КБ', { value0: (n / 1024).toFixed(1) });
+  if (n < 1024 * 1024 * 1024) return t('{value0} МБ', { value0: (n / (1024 * 1024)).toFixed(1) });
+  return t('{value0} ГБ', { value0: (n / (1024 * 1024 * 1024)).toFixed(2) });
 }
 
 /** Pick an icon-class hint from mime type (used by UI to colour-code icons). */

@@ -5,6 +5,8 @@
  */
 import { ref, onMounted } from "vue";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 
 // aqiLabel хранится в localStorage-кеше по-русски; t() применяется в точке
 // отображения, чтобы смена языка не «замораживалась» кешем.
@@ -40,15 +42,16 @@ const CACHE_TTL = 30 * 60 * 1000; // 30 min
 // European AQI scale → label + color
 function aqiInfo(v: number | null): { label: string; color: string } {
   if (v == null || Number.isNaN(v)) return { label: "—", color: "#94A3B8" };
-  if (v <= 20)  return { label: "Хорошо",       color: "#1D9E75" };
-  if (v <= 40)  return { label: "Удовл.",       color: "#84CC16" };
-  if (v <= 60)  return { label: "Умеренно",     color: "#EAB308" };
-  if (v <= 80)  return { label: "Плохо",        color: "#EF9F27" };
-  if (v <= 100) return { label: "Очень плохо",  color: "#E24B4A" };
-  return { label: "Опасно", color: "#991B1B" };
+  if (v <= 20)  return { label: i18nKey("Хорошо"),       color: "#1D9E75" };
+  if (v <= 40)  return { label: i18nKey("Удовл."),       color: "#84CC16" };
+  if (v <= 60)  return { label: i18nKey("Умеренно"),     color: "#EAB308" };
+  if (v <= 80)  return { label: i18nKey("Плохо"),        color: "#EF9F27" };
+  if (v <= 100) return { label: i18nKey("Очень плохо"),  color: "#E24B4A" };
+  return { label: i18nKey("Опасно"), color: "#991B1B" };
 }
 
 // wttr.in weather code/desc → ИМЯ иконки (без эмодзи — рендерим SVG через wxSvg).
+// i18n-exempt-start: multilingual provider descriptions are classification aliases, not UI copy.
 function weatherIcon(code: string, desc: string): string {
   const c = parseInt(code, 10);
   // Daytime detection — basic, just by hour
@@ -73,6 +76,7 @@ function weatherIcon(code: string, desc: string): string {
   if (c > 800) return "cloud";
   return day ? "sun" : "moon";
 }
+// i18n-exempt-end
 
 // Имя погодной иконки → inline SVG (currentColor, размер 1em от font-size .ww-icon).
 const _WX: Record<string, string> = {
@@ -189,7 +193,7 @@ onMounted(loadWeather);
         <div class="ww-icon" v-html="wxSvg(data.icon)"></div>
         <div class="ww-main">
           <div class="ww-temp">{{ Math.round(data.temp) }}°<span>C</span></div>
-          <div class="ww-desc">{{ data.desc }}</div>
+          <div class="ww-desc">{{ t(data.desc) }}</div>
         </div>
         <div class="ww-meta">
           <div class="ww-meta-row" :title="t('Ощущается как {n}°', { n: Math.round(data.feelsLike) })">

@@ -7,7 +7,10 @@ import { computed } from "vue";
 import SyncIndicator from "./SyncIndicator.vue";
 import type { LibraryActivityEntry } from "@/api/companyLibrary";
 import { useI18n } from "@/composables/useI18n";
+import { useFormatters } from "@/composables/useFormatters";
+import { i18nKey } from "@/locale/keys";
 const { t } = useI18n();
+const fmt = useFormatters();
 
 
 const props = defineProps<{ entries: LibraryActivityEntry[] }>();
@@ -15,26 +18,16 @@ const props = defineProps<{ entries: LibraryActivityEntry[] }>();
 const visible = computed(() => (props.entries || []).slice(0, 10));
 
 function fmtTimeAgo(iso: string): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return iso;
-  const m = Math.floor((Date.now() - d.getTime()) / 60_000);
-  if (m < 1) return "только что";
-  if (m < 60) return `${m} мин назад`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h} ч назад`;
-  const days = Math.floor(h / 24);
-  if (days < 31) return `${days} дн назад`;
-  return d.toLocaleDateString("ru-RU");
+  return iso ? fmt.fmtRelativeTime(iso) : "";
 }
 
 function actionLabel(action: string): string {
   return ({
-    "CREATE": "создал",
-    "UPDATE": "изменил",
-    "DELETE": "удалил",
-    "VIEW":   "просмотрел",
-    "MUTATE": "изменил",
+    "CREATE": i18nKey("создал"),
+    "UPDATE": i18nKey("изменил"),
+    "DELETE": i18nKey("удалил"),
+    "VIEW":   i18nKey("просмотрел"),
+    "MUTATE": i18nKey("изменил"),
   } as Record<string, string>)[(action || "").toUpperCase()] || action;
 }
 </script>
@@ -51,7 +44,7 @@ function actionLabel(action: string): string {
         <div class="af-row-text">
           <div class="af-row-line1">
             <b v-if="e.actor_email" class="af-row-actor">{{ e.actor_email }}</b>
-            <span class="af-row-action">{{ actionLabel(e.action) }}</span>
+            <span class="af-row-action">{{ t(actionLabel(e.action)) }}</span>
             <span v-if="e.field_code" class="af-row-field">«{{ e.field_code }}»</span>
           </div>
           <div class="af-row-time">{{ fmtTimeAgo(e.ts) }}</div>

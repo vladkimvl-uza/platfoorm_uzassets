@@ -8,13 +8,14 @@
  * Raw Excel snapshots (`governance_raw`) are separate and never conflated.
  */
 import { api, type ModerationQueuedTag } from "./client";
+import { i18nKey } from "@/locale/keys";
 
 export type RoleType = "chairman" | "independent" | "state_rep";
 
 export const ROLE_TYPE_META: { key: RoleType; label: string; color: string }[] = [
-  { key: "chairman",      label: "Председатель",       color: "#7F77DD" },
-  { key: "independent",   label: "Независимый",        color: "#1D9E75" },
-  { key: "state_rep",     label: "Представитель гос.", color: "#A855F7" },
+  { key: "chairman",      label: i18nKey("Председатель"),       color: "#7F77DD" },
+  { key: "independent",   label: i18nKey("Независимый"),        color: "#1D9E75" },
+  { key: "state_rep",     label: i18nKey("Представитель гос."), color: "#A855F7" },
 ];
 
 // ---------------------------------------------------------------------

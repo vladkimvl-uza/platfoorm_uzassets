@@ -28,6 +28,8 @@ from typing import Optional
 
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
+from app.core.i18n import normalize_locale, tr
+
 from . import cache as _cache
 from .templates import (
     ALLOWED_MODULES,
@@ -41,7 +43,7 @@ from .templates import (
 log = logging.getLogger(__name__)
 
 # Bump to invalidate cache after any visual change
-BANNER_VERSION = "3"
+BANNER_VERSION = "4"
 
 BANNER_W = 1280
 BANNER_H = 400
@@ -405,7 +407,8 @@ def _severity_label_ru(severity: str) -> str:
 
 
 def render(module: str, severity: str, *,
-           headline_metric: Optional[str] = None) -> bytes:
+           headline_metric: Optional[str] = None,
+           locale: str = "ru") -> bytes:
     """Render the premium banner.
 
     Optional `headline_metric` (e.g. `"$12.4M"`, `"7 дней"`, `"85%"`) is
@@ -414,8 +417,9 @@ def render(module: str, severity: str, *,
     """
     module = resolve_module(module)
     severity = resolve_severity(severity)
+    locale = normalize_locale(locale)
 
-    cache_key_extra = f"m={headline_metric or ''}"
+    cache_key_extra = f"m={headline_metric or ''}|lang={locale}"
     cached = _cache.get(module, severity, BANNER_VERSION + "|" + cache_key_extra)
     if cached is not None:
         return cached
@@ -454,12 +458,12 @@ def render(module: str, severity: str, *,
     _draw_icon(draw, icon_x, icon_y, icon_size, module, pal["fg"])
 
     # 5. Right-side cluster — severity pill + module label + optional metric
-    label_text = spec.get("label_ru", module.title())
+    label_text = tr(spec.get("label_ru", module.title()), locale)
     label_font = _load_font(56, bold=True)
     label_w, label_h = _text_size(draw, label_text, label_font)
     right_anchor_x = BANNER_W - 60
 
-    sev_text = _severity_label_ru(severity).upper()
+    sev_text = tr(_severity_label_ru(severity), locale).upper()
     sev_font = _load_font(16, bold=True)
     sev_w, sev_h = _text_size(draw, sev_text, sev_font)
     pill_pad_x, pill_pad_y = 14, 7
@@ -527,15 +531,20 @@ def render(module: str, severity: str, *,
 
 
 def get_banner_bytes(module: str, severity: str, *,
-                     headline_metric: Optional[str] = None) -> bytes:
-    return render(module, severity, headline_metric=headline_metric)
+                     headline_metric: Optional[str] = None,
+                     locale: str = "ru") -> bytes:
+    return render(
+        module, severity, headline_metric=headline_metric, locale=locale,
+    )
 
 
 def get_banner_url(base_url: str, module: str, severity: str, *,
-                   headline_metric: Optional[str] = None) -> str:
+                   headline_metric: Optional[str] = None,
+                   locale: str = "ru") -> str:
     module = resolve_module(module)
     severity = resolve_severity(severity)
-    q = f"v={BANNER_VERSION}"
+    locale = normalize_locale(locale)
+    q = f"v={BANNER_VERSION}&lang={locale}"
     if headline_metric:
         # URL-encode the metric for safe transport
         from urllib.parse import quote

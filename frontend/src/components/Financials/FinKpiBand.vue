@@ -18,6 +18,7 @@ import { fmtSubsidySum } from "@/api/subsidies";
 import { useFormatters } from "@/composables/useFormatters";
 import Odometer from "@/components/Odometer.vue";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
 
 const fmt = useFormatters();
 const { t } = useI18n();
@@ -48,7 +49,8 @@ const subsidiesFmt = computed(() => fmtSubsidySum(props.subsidiesTotal ?? null))
 
 onMounted(ensureFinancialsCss);
 
-const unitSuffix = computed(() => `${t(props.unit === "bln" ? "млрд" : "млн")} ${props.currency}`);
+const unitKey = computed(() => props.unit === "bln" ? i18nKey("млрд") : i18nKey("млн"));
+const unitSuffix = computed(() => `${t(unitKey.value)} ${props.currency}`);
 
 const opProfitTxt = computed(() =>
   props.kpis ? t("Опер. прибыль {v}", { v: fmtBigNumber(props.kpis.totalOpProfit, props.unit) }) : "—",

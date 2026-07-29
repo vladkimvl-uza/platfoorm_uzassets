@@ -16,7 +16,7 @@ export const uz: Record<string, string> = {
   "ИИ аналитик": "AI tahlilchi",
   "ИИ-аналитик · Исполнение по секторам": "AI-tahlilchi · Tarmoqlar boʻyicha ijro",
   "Opus · проекты, задачи, комментарии и ход — причины, связи, советы": "Opus · loyihalar, vazifalar, izohlar va jarayon — sabablar, bogʻliqliklar, tavsiyalar",
-  "Сводка": "Xulosa",
+  
   "Риски": "Risklar",
   "Причины задержек": "Kechikish sabablari",
   "Сгенерировать заново": "Qayta generatsiya qilish",
@@ -64,7 +64,7 @@ export const uz: Record<string, string> = {
   "данные за FY {year}": "FY {year} maʼlumotlari",
   "Нет данных для сравнения": "Taqqoslash uchun maʼlumot yoʻq",
   "Для года {year} не заполнен план в бизнес-плане, а факта прошлого года ({prev}) недостаточно для расчёта YoY.": "{year} yil uchun biznes-rejada reja toʻldirilmagan, oʻtgan yil ({prev}) fakti esa YoY hisoblash uchun yetarli emas.",
-  "п.п.": "f.b.",
+  
   "Недостаточно данных для построения performance-шкалы": "Performance shkalasini qurish uchun maʼlumot yetarli emas",
   "Performance spine — выполнение плана по компаниям": "Performance spine — kompaniyalar boʻyicha reja bajarilishi",
   "опережают": "oldinda",
@@ -109,7 +109,7 @@ export const uz: Record<string, string> = {
   "{n} компаний · ранжирование по % задач": "{n} kompaniya · vazifalar % boʻyicha saralangan",
   "к плану {g} пп ({dir})": "rejaga nisbatan {g} f.b. ({dir})",
   "опережение": "oldinda",
-  "отставание": "ortda",
+  
   "{name} · факт {fact}% · план {plan}%": "{name} · fakt {fact}% · reja {plan}%",
   "{i} из {n}": "{n} tadan {i}",
   "Рейтинг компаний по исполнению": "Ijro boʻyicha kompaniyalar reytingi",
@@ -227,13 +227,13 @@ export const en: Record<string, string> = {
   "Сгенерировано {ts}": "Generated {ts}",
   "Нажми «Сводка» — ИИ соберёт причины, взаимосвязи и советы по исполнению.": "Press \"Summary\" — the AI will compile causes, links and advice on execution.",
   "Сводка опирается на реальные данные карточек. Проверяйте критичные выводы.": "The summary is based on real card data. Verify critical conclusions.",
-  "ИИ вернул пустой ответ.": "AI returned an empty response.",
+  
   "ИИ-аналитик исполнения доступен только владельцу (или ассистент выключен).": "The execution AI analyst is available to the owner only (or the assistant is off).",
   "ИИ-ассистент не сконфигурирован.": "AI assistant is not configured.",
   "Не удалось получить сводку.": "Failed to get the summary.",
 
   // ── BP-tracker ──
-  "трлн": "trn",
+  
   "млрд": "bn",
   "млн": "mn",
   "выручки": "revenue",
@@ -312,7 +312,7 @@ export const en: Record<string, string> = {
   "{n} компаний · ранжирование по % задач": "{n} companies · ranked by task %",
   "к плану {g} пп ({dir})": "vs plan {g} pp ({dir})",
   "опережение": "ahead",
-  "отставание": "behind",
+  
   "{name} · факт {fact}% · план {plan}%": "{name} · actual {fact}% · plan {plan}%",
   "{i} из {n}": "{i} of {n}",
   "Рейтинг компаний по исполнению": "Company execution ranking",

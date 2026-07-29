@@ -63,10 +63,10 @@ const colorEditing = ref<DocFolder | null>(null);
 let searchTimer: number | undefined;
 
 const breadcrumb = computed(() => {
-  if (inTrash.value) return "Корзина";
+  if (inTrash.value) return tr("Корзина");
   if (activeKind.value) return KIND_META[activeKind.value]?.label || activeKind.value;
-  if (!activeFolder.value) return "Все файлы";
-  return folders.value.find((f) => f.id === activeFolder.value)?.name || "Папка";
+  if (!activeFolder.value) return tr("Все файлы");
+  return folders.value.find((f) => f.id === activeFolder.value)?.name || tr("Папка");
 });
 
 async function loadTree() {
@@ -127,7 +127,7 @@ function openTrash() {
 // ─── загрузка ───────────────────────────────────────────────────
 async function uploadFiles(files: FileList | File[]) {
   if (!props.canEdit) {
-    toast.error("Недостаточно прав для загрузки документов");
+    toast.error(tr('Недостаточно прав для загрузки документов'));
     return;
   }
   const list = Array.from(files);
@@ -139,9 +139,9 @@ async function uploadFiles(files: FileList | File[]) {
         folderId: activeFolder.value,
         onProgress: (p) => { entry.pct = p; },
       });
-      toast.success(`Загружено: ${f.name}`);
+      toast.success(tr('Загружено: {value0}', { value0: f.name }));
     } catch (e: any) {
-      toast.error(e?.response?.data?.detail || `Не удалось загрузить ${f.name}`);
+      toast.error(e?.response?.data?.detail || tr('Не удалось загрузить {value0}', { value0: f.name }));
     } finally {
       uploads.value = uploads.value.filter((u) => u !== entry);
     }
@@ -167,7 +167,7 @@ async function openItem(it: DocItem) {
     if (previewable) preview.value = { url: r.url, name: it.name, mime: r.mime_type };
     else window.open(r.url, "_blank", "noopener");
   } catch {
-    toast.error("Не удалось открыть файл");
+    toast.error(tr('Не удалось открыть файл'));
   }
 }
 async function download(it: DocItem) {
@@ -177,7 +177,7 @@ async function download(it: DocItem) {
     a.href = r.url; a.download = it.name; a.rel = "noopener";
     document.body.appendChild(a); a.click(); a.remove();
   } catch {
-    toast.error("Не удалось скачать файл");
+    toast.error(tr('Не удалось скачать файл'));
   }
 }
 function startRename(it: DocItem) { renaming.value = it; renameValue.value = it.name; }
@@ -187,47 +187,45 @@ async function saveRename() {
   if (!name || name === it.name) { renaming.value = null; return; }
   try {
     await documentsApi.patch(props.companyCode, it.id, { name });
-    toast.success("Переименовано");
+    toast.success(tr('Переименовано'));
     renaming.value = null;
     await loadItems();
   } catch (e: any) {
-    toast.error(e?.response?.data?.detail || "Не удалось переименовать");
+    toast.error(e?.response?.data?.detail || tr('Не удалось переименовать'));
   }
 }
 async function moveTo(it: DocItem, folderId: string | null) {
   try {
     await documentsApi.patch(props.companyCode, it.id, { folder_id: folderId } as any);
-    toast.success("Перемещено");
+    toast.success(tr('Перемещено'));
     await loadAll();
   } catch (e: any) {
-    toast.error(e?.response?.data?.detail || "Не удалось переместить");
+    toast.error(e?.response?.data?.detail || tr('Не удалось переместить'));
   }
 }
 async function removeItem(it: DocItem) {
   const hard = inTrash.value;
   const ok = await confirmDialog({
-    title: hard ? i18nKey("Удалить безвозвратно?") : i18nKey("Переместить в корзину?"),
-    message: hard
-      ? `«${it.name}» будет удалён вместе с файлом. Действие необратимо.`
-      : `«${it.name}» уйдёт в корзину — его можно будет восстановить.`,
+    title: hard ? tr("Удалить безвозвратно?") : tr("Переместить в корзину?"),
+    message: hard ? tr('«{value0}» будет удалён вместе с файлом. Действие необратимо.', { value0: it.name }) : tr('«{value0}» уйдёт в корзину — его можно будет восстановить.', { value0: it.name }),
     danger: true,
   });
   if (!ok) return;
   try {
     await documentsApi.remove(props.companyCode, it.id, hard);
-    toast.success(hard ? "Удалено безвозвратно" : "Перемещено в корзину");
+    toast.success(hard ? tr('Удалено безвозвратно') : tr('Перемещено в корзину'));
     await loadAll();
   } catch (e: any) {
-    toast.error(e?.response?.data?.detail || "Не удалось удалить");
+    toast.error(e?.response?.data?.detail || tr('Не удалось удалить'));
   }
 }
 async function restoreItem(it: DocItem) {
   try {
     await documentsApi.restore(props.companyCode, it.id);
-    toast.success("Восстановлено");
+    toast.success(tr('Восстановлено'));
     await loadAll();
   } catch (e: any) {
-    toast.error(e?.response?.data?.detail || "Не удалось восстановить");
+    toast.error(e?.response?.data?.detail || tr('Не удалось восстановить'));
   }
 }
 async function createFolder() {
@@ -238,13 +236,13 @@ async function createFolder() {
       props.companyCode, name, null,
       newFolderColor.value === FOLDER_COLOR_DEFAULT ? null : newFolderColor.value,
     );
-    toast.success(`Папка «${f.name}» создана`);
+    toast.success(tr('Папка «{value0}» создана', { value0: f.name }));
     newFolderOpen.value = false; newFolderName.value = "";
     newFolderColor.value = FOLDER_COLOR_DEFAULT;
     await loadTree();
     pickFolder(f.id);
   } catch (e: any) {
-    toast.error(e?.response?.data?.detail || "Не удалось создать папку");
+    toast.error(e?.response?.data?.detail || tr('Не удалось создать папку'));
   }
 }
 
@@ -253,9 +251,9 @@ async function setFolderColor(f: DocFolder, hex: string | null) {
     await documentsApi.patchFolder(props.companyCode, f.id, { color: hex });
     f.color = hex;
     colorEditing.value = null;
-    toast.success("Цвет папки обновлён");
+    toast.success(tr('Цвет папки обновлён'));
   } catch (e: any) {
-    toast.error(e?.response?.data?.detail || "Не удалось изменить цвет");
+    toast.error(e?.response?.data?.detail || tr('Не удалось изменить цвет'));
   }
 }
 
@@ -366,7 +364,7 @@ function linkHint(it: DocItem): string {
               class="doc-sw"
               :class="{ on: f.color === c.hex }"
               :style="{ background: c.hex }"
-              :title="c.name"
+              :title="tr(c.name)"
               @click.stop="setFolderColor(f, c.hex)"
             ></button>
           </div>
@@ -530,7 +528,7 @@ function linkHint(it: DocItem): string {
             class="doc-sw"
             :class="{ on: newFolderColor === c.hex }"
             :style="{ background: c.hex }"
-            :title="c.name"
+            :title="tr(c.name)"
             @click="newFolderColor = c.hex"
           ></button>
         </div>

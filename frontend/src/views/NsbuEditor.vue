@@ -1032,7 +1032,7 @@ function toggleCoPane() {
 }
 
 async function openHistory() {
-  if (!selectedCode.value) { toast.error("Выбери компанию"); return; }
+  if (!selectedCode.value) { toast.error(t('Выбери компанию')); return; }
   historyOpen.value = true;
   historyLoading.value = true;
   try {
@@ -1307,7 +1307,7 @@ function formatHistoryDate(iso: string | null): string {
                           </template>
                           <template v-else>
                             <span v-if="field.nsbuCode" class="ne-nsbu-code">{{ field.nsbuCode }}</span>
-                            <span v-if="isAutoField(field)" class="ne-auto-badge" :title="getFieldFormula(field)">{{ t("авто") }}</span>
+                            <span v-if="isAutoField(field)" class="ne-auto-badge" :title="t(getFieldFormula(field))">{{ t("авто") }}</span>
                             <span v-if="field.isCustom" class="ne-custom-badge">custom</span>
                             <span
                               v-if="field.isCustom && getFieldCanonical(field)"
@@ -1317,7 +1317,7 @@ function formatHistoryDate(iso: string | null): string {
                             >→ {{ getFieldCanonical(field) }}</span>
                             <span class="ne-row-name" @dblclick="startRename(field)" :title="t('Двойной клик — переименовать')">{{ t(getFieldLabel(field)) }}</span>
                             <span v-if="field.positiveOnly" class="ne-pos-hint">(+)</span>
-                            <span v-if="getFieldFormula(field)" class="ne-formula-hint" @click="startEditFormula(field)" :title="t('Кликни — редактировать формулу')">= {{ getFieldFormula(field) }}</span>
+                            <span v-if="getFieldFormula(field)" class="ne-formula-hint" @click="startEditFormula(field)" :title="t('Кликни — редактировать формулу')">= {{ t(getFieldFormula(field)) }}</span>
                             <button
                               v-if="field.isCustom && !getFieldCanonical(field)"
                               class="ne-map-btn"

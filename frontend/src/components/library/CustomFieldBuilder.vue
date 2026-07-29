@@ -83,14 +83,14 @@ const availableSectors = computed(() => {
 async function submit() {
   if (saving.value) return;
   error.value = null;
-  if (!name_ru.value.trim()) { error.value = "Введите название"; return; }
+  if (!name_ru.value.trim()) { error.value = t('Введите название'); return; }
   if (!code.value) autoCode();
   if (!validCode.value) {
-    error.value = "Код должен быть на латинице (a-z, 0-9, _), начинаться с буквы";
+    error.value = t('Код должен быть на латинице (a-z, 0-9, _), начинаться с буквы');
     return;
   }
   if (field_type.value === "enum" && !enum_values.value.trim()) {
-    error.value = "Для enum укажите значения через запятую";
+    error.value = t('Для enum укажите значения через запятую');
     return;
   }
   saving.value = true;
@@ -119,11 +119,11 @@ async function submit() {
     emit("close");
   } catch (e: any) {
     if (e?.response?.status === 409) {
-      error.value = `Код "${code.value}" уже занят`;
+      error.value = t('Код "{value0}" уже занят', { value0: code.value });
     } else if (e?.response?.status === 403) {
-      error.value = "Нет права library.fields.manage";
+      error.value = t('Нет права library.fields.manage');
     } else {
-      error.value = e?.response?.data?.detail || e?.message || "Не удалось создать поле";
+      error.value = e?.response?.data?.detail || e?.message || t('Не удалось создать поле');
     }
   } finally {
     saving.value = false;
@@ -245,7 +245,7 @@ async function submit() {
       <span v-if="error" class="cl-modal-err">{{ error }}</span>
       <button class="cl-btn cl-btn-secondary" @click="emit('close')">{{ t('Отмена') }}</button>
       <button class="cl-btn cl-btn-primary" :disabled="saving || !name_ru" @click="submit">
-        {{ saving ? "Создаём…" : "Создать колонку" }}
+        {{ saving ? t('Создаём…') : t('Создать колонку') }}
       </button>
     </template>
   </ModalShell>

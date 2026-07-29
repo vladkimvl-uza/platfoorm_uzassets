@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
 /**
  * UzaSegment — единый сегментированный фильтр-чип для всех дашбордов/карточек/виджетов.
  *
@@ -31,7 +33,7 @@ const emit = defineEmits<{ "update:modelValue": [SegValue] }>();
 
 <template>
   <div class="uza-seg-grp">
-    <span v-if="label" class="uza-seg-grp-l" :class="'is-' + tone">{{ label }}</span>
+    <span v-if="label" class="uza-seg-grp-l" :class="'is-' + tone">{{ t(label) }}</span>
     <div class="uza-seg" :class="[tone === 'dark' ? 'on-dark' : '', size === 'sm' ? 'is-sm' : '']" role="tablist">
       <button
         v-for="(o, i) in options"
@@ -41,11 +43,11 @@ const emit = defineEmits<{ "update:modelValue": [SegValue] }>();
         class="uza-seg-btn"
         :class="{ on: modelValue === o.value }"
         :style="{ '--i': i }"
-        :title="o.title || o.label"
+        :title="o.title || t(o.label)"
         :aria-selected="modelValue === o.value"
         @click="emit('update:modelValue', o.value)"
       >
-        <span v-if="o.dot" class="uza-seg-dot" :style="{ background: o.dot }"></span>{{ o.label }}
+        <span v-if="o.dot" class="uza-seg-dot" :style="{ background: o.dot }"></span>{{ t(o.label) }}
       </button>
     </div>
   </div>

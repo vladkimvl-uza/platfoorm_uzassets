@@ -18,6 +18,9 @@ import { formatRelativeTime, PRIORITY_LABELS, type Notification } from "@/api/no
 import { describeNotification, NOTIF_ICON_PATHS } from "@/composables/useNotificationMeta";
 import { useNotificationDetail } from "@/composables/useNotificationDetail";
 import { api } from "@/api/client";
+import { useI18n } from "@/composables/useI18n";
+const { t: tr } = useI18n();
+
 
 const router = useRouter();
 const store = useNotificationsStore();
@@ -53,14 +56,14 @@ const stackHovered = ref(false);
 // общий кеш; payload уведомления — фолбэк, если карточка недоступна. ───
 function applyCard(t: Toast, card: any): void {
   const p: any = t.notification.payload || {};
-  t.actorName = card?.full_name || p.actor_name || "Пользователь";
+      t.actorName = card?.full_name || p.actor_name || tr("Пользователь");
   t.actorCompany = card?.company || p.actor_company || "";
   t.actorJob = card?.job_title || p.actor_job_title || "";
 }
 async function resolveActor(t: Toast, id?: string | null): Promise<void> {
   const p: any = t.notification.payload || {};
   if (!id) {
-    if (!t.actorName) t.actorName = p.actor_name || "Система";
+  if (!t.actorName) t.actorName = p.actor_name || tr("Система");
     return;
   }
   const cache = (window as any).__uhCache || ((window as any).__uhCache = new Map());
@@ -228,7 +231,9 @@ function markReadDismiss(t: Toast, e: Event) {
 function actorLine(t: Toast): string {
   if (t.count > 1) {
     const extra = Math.max(t.actorIds.length - 1, t.count - 1);
-    return extra > 0 ? `${t.actorName || "Кто-то"} и ещё ${extra}` : (t.actorName || "");
+  return extra > 0
+    ? tr("{actor} и ещё {count}", { actor: t.actorName || tr("Кто-то"), count: extra })
+    : (t.actorName || "");
   }
   return t.actorName;
 }
@@ -256,7 +261,7 @@ onUnmounted(() => {
 <template>
   <Teleport to="body">
     <div class="nt-stack" :class="{ expanded: stackHovered || toasts.length <= 1 }"
-         role="region" aria-label="Уведомления"
+         role="region" :aria-label="tr('Уведомления')"
          @mouseenter="pauseAll" @mouseleave="resumeAll">
       <TransitionGroup name="ntcard" tag="div" class="nt-list">
         <div v-for="(t, i) in toasts" :key="t.id" class="nt-slot"
@@ -314,12 +319,12 @@ onUnmounted(() => {
 
               <!-- Действия на наведении -->
               <div class="nt-actions">
-                <button class="nt-action nt-action-open" @click.stop="openNotification(t)">Открыть</button>
-                <button class="nt-action" @click.stop="markReadDismiss(t, $event)">Прочитано</button>
+                <button class="nt-action nt-action-open" @click.stop="openNotification(t)">{{ tr('Открыть') }}</button>
+                <button class="nt-action" @click.stop="markReadDismiss(t, $event)">{{ tr('Прочитано') }}</button>
               </div>
             </div>
 
-            <button class="nt-close" @click.stop="dismiss(t.id)" aria-label="Закрыть">
+            <button class="nt-close" @click.stop="dismiss(t.id)" :aria-label="tr('Закрыть')">
               <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13"/></svg>
             </button>
           </div>

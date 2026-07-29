@@ -28,6 +28,12 @@ import { useRouter } from "vue-router";
 import type { ExecBPBlock, ExecBPCompanyRow } from "@/api/executiveDashboard";
 import { useCurrencyConverter } from "@/composables/useCurrencyConverter";
 import CurrencyToggle from "@/components/UZA/CurrencyToggle.vue";
+import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
+const { t: tr } = useI18n();
+const t = tr;
+
 
 export type BpKind = "overall" | "leaders" | "tracking" | "behind";
 
@@ -57,28 +63,28 @@ interface KindMeta {
 
 const KIND_META: Record<BpKind, KindMeta> = {
   overall: {
-    label: "Выполнение плана",
+    label: i18nKey("Выполнение плана"),
     color: "#1D9E75",
     rowFilter: () => true,
     showLeadersLaggards: true,
     heroFocus: "overall",
   },
   leaders: {
-    label: "Опережают план",
+    label: i18nKey("Опережают план"),
     color: "#1D9E75",
     rowFilter: (r) => r.cls === "ok",
     showLeadersLaggards: false,
     heroFocus: "leaders",
   },
   tracking: {
-    label: "На трекинге",
+    label: i18nKey("На трекинге"),
     color: "#EF9F27",
     rowFilter: (r) => r.cls === "warn",
     showLeadersLaggards: false,
     heroFocus: "tracking",
   },
   behind: {
-    label: "Отстают от плана",
+    label: i18nKey("Отстают от плана"),
     color: "#E24B4A",
     rowFilter: (r) => r.cls === "bad",
     showLeadersLaggards: false,
@@ -121,10 +127,10 @@ const hero = computed<Hero>(() => {
       const overallPct = (b.overall_pct ?? 0) * 100;
       return {
         bigVal: fmtPctDisplay(overallPct),
-        bigUnit: "% выполнения",
+        bigUnit: t("% выполнения"),
         bigColor: pctColor(overallPct),
         badge: {
-          text: `план ${fmtNum(b.sum_plan_ll)} · факт ${fmtNum(b.sum_fact_ll)}`,
+          text: t("план {plan} · факт {fact}", { plan: fmtNum(b.sum_plan_ll), fact: fmtNum(b.sum_fact_ll) }),
           tone: overallPct >= 100 ? "good"
               : overallPct >= 80 ? "neutral" : "bad",
         },
@@ -133,26 +139,26 @@ const hero = computed<Hero>(() => {
     case "leaders":
       return {
         bigVal: b.on_target.toString(),
-        bigUnit: "компаний опережают",
+        bigUnit: t("компаний опережают"),
         bigColor: "#0F6E56",
         badge: {
-          text: `≥ ${b.metric === "revenue" ? "100" : "95"}% от плана`,
+          text: t("≥ {percent}% от плана", { percent: b.metric === "revenue" ? "100" : "95" }),
           tone: "good",
         },
       };
     case "tracking":
       return {
         bigVal: b.attention.toString(),
-        bigUnit: "компаний на трекинге",
+        bigUnit: t("компаний на трекинге"),
         bigColor: "#854F0B",
-        badge: { text: "80–99% от плана", tone: "neutral" },
+        badge: { text: t("80–99% от плана"), tone: "neutral" },
       };
     case "behind":
       return {
         bigVal: b.behind.toString(),
-        bigUnit: "компаний отстают",
+        bigUnit: t("компаний отстают"),
         bigColor: "#A32D2D",
-        badge: { text: "< 80% от плана", tone: "bad" },
+        badge: { text: t("< 80% от плана"), tone: "bad" },
       };
   }
   return { bigVal: "—", bigUnit: "", bigColor: "#1E2A4A", badge: null };
@@ -170,11 +176,11 @@ interface MiniKpi { label: string; value: string; accent: string; emphasis?: boo
 // Падежи: «1 процент», «2 процента», «5 процентов» (было всегда «процентов»).
 function pctWord(n: number): string {
   const m = Math.abs(n) % 100;
-  if (m >= 11 && m <= 14) return "процентов";
+  if (m >= 11 && m <= 14) return t("процентов");
   const r = Math.abs(n) % 10;
-  if (r === 1) return "процент";
-  if (r >= 2 && r <= 4) return "процента";
-  return "процентов";
+  if (r === 1) return t("процент");
+  if (r >= 2 && r <= 4) return t("процента");
+  return t("процентов");
 }
 const miniKpis = computed<MiniKpi[]>(() => {
   const b = props.block;
@@ -182,10 +188,10 @@ const miniKpis = computed<MiniKpi[]>(() => {
   const avgN = b.overall_pct != null ? Math.round(b.overall_pct * 100) : null;
   const avg = avgN != null ? `${avgN} ${pctWord(avgN)}` : "—";
   return [
-    { label: "Опережают план", value: b.on_target.toString(), accent: "#1D9E75", emphasis: props.kind === "leaders" },
-    { label: "На трекинге", value: b.attention.toString(), accent: "#EF9F27", emphasis: props.kind === "tracking" },
-    { label: "Отстают от плана", value: b.behind.toString(), accent: "#E24B4A", emphasis: props.kind === "behind" },
-    { label: "Среднее выполнение", value: avg, accent: "#378ADD", emphasis: props.kind === "overall" },
+    { label: i18nKey("Опережают план"), value: b.on_target.toString(), accent: "#1D9E75", emphasis: props.kind === "leaders" },
+    { label: i18nKey("На трекинге"), value: b.attention.toString(), accent: "#EF9F27", emphasis: props.kind === "tracking" },
+    { label: i18nKey("Отстают от плана"), value: b.behind.toString(), accent: "#E24B4A", emphasis: props.kind === "behind" },
+    { label: i18nKey("Среднее выполнение"), value: avg, accent: "#378ADD", emphasis: props.kind === "overall" },
   ];
 });
 
@@ -302,7 +308,7 @@ onUnmounted(() => {
           <div class="bpd-shim" aria-hidden="true" />
           <div class="bpd-glow" aria-hidden="true" />
 
-          <button class="bpd-x" @click="close" aria-label="Закрыть">
+          <button class="bpd-x" @click="close" :aria-label="tr('Закрыть')">
             <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
               <path d="M3.5 3.5l7 7M10.5 3.5l-7 7"/>
             </svg>
@@ -311,7 +317,7 @@ onUnmounted(() => {
           <!-- Header -->
           <div class="bpd-sect bpd-row" style="--si:0; display:flex; justify-content:space-between; align-items:flex-end; gap:18px; flex-wrap:wrap; padding-top:20px; padding-right:46px;">
             <div>
-              <div class="bpd-h-l">{{ meta.label }} · {{ block.metric_label || 'выручка' }}</div>
+              <div class="bpd-h-l">{{ tr(meta.label) }} · {{ block.metric_label || tr('выручка') }}</div>
               <div class="bpd-h-v">
                 <span class="num" :style="{ color: hero.bigColor }">{{ headerDisplayStr }}</span>
                 <span class="unit">{{ hero.bigUnit }}</span>
@@ -328,9 +334,9 @@ onUnmounted(() => {
             </div>
             <div class="bpd-h-tag-list">
               <CurrencyToggle :year="block.year" :compact="true" :show-rate="true" />
-              <div style="margin-top:6px;">{{ block.with_pct_count || block.total_count }} компаний с план/факт</div>
-              <div>{{ block.standard || "НСБУ" }} · {{ block.year }} финансовый год</div>
-              <div class="bpd-h-tag-y" v-if="block.prev_year">сравнение с {{ block.prev_year }} годом</div>
+              <div style="margin-top:6px;">{{ block.with_pct_count || block.total_count }} {{ tr('компаний с план/факт') }}</div>
+              <div>{{ block.standard || tr('НСБУ') }} · {{ block.year }} {{ tr('финансовый год') }}</div>
+              <div class="bpd-h-tag-y" v-if="block.prev_year">{{ tr('сравнение с') }} {{ block.prev_year }} {{ tr('годом') }}</div>
             </div>
           </div>
 
@@ -344,7 +350,7 @@ onUnmounted(() => {
                 :class="{ 'bpd-mini--em': m.emphasis }"
                 :style="{ '--kc': m.accent, '--ki': i }"
               >
-                <div class="bpd-mk-l">{{ m.label }}</div>
+                <div class="bpd-mk-l">{{ tr(m.label) }}</div>
                 <div class="bpd-mk-v">{{ m.value }}</div>
               </div>
             </div>
@@ -352,7 +358,7 @@ onUnmounted(() => {
 
           <!-- Distribution segmented bar -->
           <div class="bpd-sect bpd-row" style="--si:2;">
-            <div class="bpd-l-sec">Распределение компаний</div>
+            <div class="bpd-l-sec">{{ tr('Распределение компаний') }}</div>
             <div class="bpd-distrib">
               <div
                 class="bpd-distrib-seg"
@@ -389,9 +395,9 @@ onUnmounted(() => {
               </div>
             </div>
             <div class="bpd-leg">
-              <span><i class="bpd-dot" style="background:#5DC093"/>Опережают</span>
-              <span><i class="bpd-dot" style="background:#EFB373"/>На трекинге</span>
-              <span><i class="bpd-dot" style="background:#E2807F"/>Отстают</span>
+              <span><i class="bpd-dot" style="background:#5DC093"/>{{ tr('Опережают') }}</span>
+              <span><i class="bpd-dot" style="background:#EFB373"/>{{ tr('На трекинге') }}</span>
+              <span><i class="bpd-dot" style="background:#E2807F"/>{{ tr('Отстают') }}</span>
             </div>
           </div>
 
@@ -399,7 +405,7 @@ onUnmounted(() => {
           <template v-if="kind === 'overall' && meta.showLeadersLaggards">
             <div class="bpd-sect bpd-row" style="--si:3; display:grid; grid-template-columns:1fr 1fr; gap:18px; border-top:1px solid rgba(0,0,0,.05); padding-top:14px;">
               <div>
-                <div class="bpd-l-sec" style="color:#0F6E56;">↑ Топ-3 опережают</div>
+                <div class="bpd-l-sec" style="color:#0F6E56;">{{ tr('↑ Топ-3 опережают') }}</div>
                 <div class="bpd-ll-list">
                   <div
                     v-for="c in leaders"
@@ -412,7 +418,7 @@ onUnmounted(() => {
                 </div>
               </div>
               <div>
-                <div class="bpd-l-sec" style="color:#A32D2D;">↓ Топ-3 отстают</div>
+                <div class="bpd-l-sec" style="color:#A32D2D;">{{ tr('↓ Топ-3 отстают') }}</div>
                 <div class="bpd-ll-list">
                   <div
                     v-for="c in laggards"
@@ -431,8 +437,8 @@ onUnmounted(() => {
             <!-- Single-kind list: top-3 + collapse -->
             <div class="bpd-sect bpd-row" style="--si:3;">
               <div class="bpd-l-sec">
-                <span>{{ meta.heroFocus === 'leaders' ? 'Лучшие из опережающих' : meta.heroFocus === 'tracking' ? 'Близко к плану' : 'Наибольший разрыв' }}</span>
-                <span v-if="kindList.length > 3" class="bpd-l-side">остальные {{ kindList.length - 3 }} ниже</span>
+                <span>{{ meta.heroFocus === 'leaders' ? tr('Лучшие из опережающих') : meta.heroFocus === 'tracking' ? tr('Близко к плану') : tr('Наибольший разрыв') }}</span>
+                <span v-if="kindList.length > 3" class="bpd-l-side">{{ tr('остальные') }} {{ kindList.length - 3 }} {{ tr('ниже') }}</span>
               </div>
               <div v-if="kindListTop3.length" class="bpd-toplist">
                 <div
@@ -446,15 +452,15 @@ onUnmounted(() => {
                     {{ c.name }}
                   </span>
                   <span class="bpd-top-vals">
-                    <span class="amt">факт {{ fmtNum(c.fact_value) }}</span>
-                    <span class="plan">из {{ fmtNum(c.plan_value) }}</span>
+                    <span class="amt">{{ tr('факт') }} {{ fmtNum(c.fact_value) }}</span>
+                    <span class="plan">{{ tr('из') }} {{ fmtNum(c.plan_value) }}</span>
                   </span>
                   <span class="bpd-top-pct" :style="{ color: rowPctColor(c) }">
                     {{ c.display_label || fmtPctDisplay(c.pct) + '%' }}
                   </span>
                 </div>
               </div>
-              <div v-else class="bpd-empty">Нет компаний в этой категории</div>
+              <div v-else class="bpd-empty">{{ tr('Нет компаний в этой категории') }}</div>
             </div>
           </template>
 
@@ -471,8 +477,8 @@ onUnmounted(() => {
                 <path d="M3.5 5l3.5 3.5L10.5 5"/>
               </svg>
               {{ expandedAll
-                ? `Свернуть · показано ${kind === 'overall' ? sortedRows.length : kindList.length}`
-                : `Показать все ${kind === 'overall' ? sortedRows.length : kindList.length} компаний` }}
+                ? tr('Свернуть · показано {value0}', { value0: kind === 'overall' ? sortedRows.length : kindList.length })
+                : tr('Показать все {value0} компаний', { value0: kind === 'overall' ? sortedRows.length : kindList.length }) }}
             </button>
 
             <div v-if="expandedAll" class="bpd-fulllist">
@@ -495,9 +501,9 @@ onUnmounted(() => {
 
           <!-- Footer -->
           <div class="bpd-ftr bpd-row" style="--si:5;">
-            <button class="bpd-btn bpd-btn-g" @click="close">Закрыть</button>
+            <button class="bpd-btn bpd-btn-g" @click="close">{{ tr('Закрыть') }}</button>
             <button class="bpd-btn bpd-btn-p" @click="gotoBusinessPlan">
-              Открыть Бизнес-план
+              {{ tr('Открыть Бизнес-план') }}
               <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" width="12" height="12">
                 <path d="M3 7h8M7.5 3.5L11 7l-3.5 3.5"/>
               </svg>

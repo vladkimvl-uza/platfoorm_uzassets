@@ -10,6 +10,9 @@
  * Esc закрыть+вернуть фокус, Tab закрыть, type-ahead (печать буквы → прыжок).
  */
 import { computed, getCurrentInstance, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 type SelValue = string | number;
 interface SelOption { value: SelValue; label: string }
@@ -125,7 +128,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="uza-seg-grp">
-    <span v-if="label" :id="`uza-sel-lbl-${uid}`" class="uza-sel-l" :class="'is-' + tone">{{ label }}</span>
+    <span v-if="label" :id="`uza-sel-lbl-${uid}`" class="uza-sel-l" :class="'is-' + tone">{{ t(label) }}</span>
     <div ref="el" class="uza-sel" :class="'is-' + tone">
       <button
         ref="btn"
@@ -135,7 +138,7 @@ onBeforeUnmount(() => {
         :aria-expanded="open"
         :aria-controls="listId"
         :aria-labelledby="label ? `uza-sel-lbl-${uid}` : undefined"
-        :aria-label="label ? undefined : 'Выбор значения'"
+        :aria-label="label ? undefined : t('Выбор значения')"
         @click.stop="open ? closeMenu(false) : openMenu()"
         @keydown="onBtnKeydown"
       >
@@ -163,7 +166,7 @@ onBeforeUnmount(() => {
             :class="{ on: o.value === modelValue, hl: i === activeIndex }"
             @click="pick(o.value)"
             @mousemove="activeIndex = i"
-          >{{ prefix }}{{ o.label }}</li>
+          >{{ prefix }}{{ t(o.label) }}</li>
         </ul>
       </Transition>
     </div>

@@ -206,7 +206,7 @@ function barDataText(c: { company_id: string; name: string; pct: number; plan_pc
             'is-dimmed':  hoveredIdx !== null && hoveredIdx !== i,
           }"
         >
-          <span class="vc-lbl-text" :title="companyFullName(c)">{{ companyLabel(c) }}</span>
+          <span class="vc-lbl-text" :title="companyFullName(c)">{{ t(companyLabel(c)) }}</span>
         </div>
       </div>
 

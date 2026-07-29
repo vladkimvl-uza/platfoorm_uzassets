@@ -49,16 +49,16 @@ onMounted(async () => {
 });
 
 async function selectRule(r: Rule) {
-  if (dirty.value && !(await confirmDialog("Несохранённые изменения будут потеряны. Продолжить?"))) return;
+  if (dirty.value && !(await confirmDialog(t("Несохранённые изменения будут потеряны. Продолжить?")))) return;
   selected.value = r;
   draft.value = JSON.parse(JSON.stringify(r));
   dirty.value = false;
 }
 
 async function createNew() {
-  if (dirty.value && !(await confirmDialog("Несохранённые изменения будут потеряны. Продолжить?"))) return;
+  if (dirty.value && !(await confirmDialog(t("Несохранённые изменения будут потеряны. Продолжить?")))) return;
   const payload: RulePayload = {
-    name: "Новое правило",
+    name: t("Новое правило"),
     description: null, icon: null, is_active: false, sort_order: 100,
     trigger_user_ids: null, trigger_group_codes: null, trigger_role_codes: null,
     trigger_is_external: true,
@@ -116,7 +116,7 @@ async function save() {
 
 async function removeRule() {
   if (!selected.value) return;
-  if (!(await confirmDialog({ message: `Удалить правило "${selected.value.name}"?`, danger: true }))) return;
+  if (!(await confirmDialog({ message: t('Удалить правило "{value0}"?', { value0: selected.value.name }), danger: true }))) return;
   try {
     await moderationApi.deleteRule(selected.value.id);
     selected.value = null; draft.value = {}; dirty.value = false;
@@ -203,7 +203,7 @@ function removeCondition(idx: number) {
             v.{{ selected.version }} {{ t('· обновлено') }} {{ new Date(selected.updated_at).toLocaleDateString("ru-RU") }} {{ t('· применено') }} {{ selected.total_matches }} {{ t('раз') }}
           </div>
           <label class="mre-active-toggle">
-            <span style="font-size: 11px;">{{ draft.is_active ? "Активно" : "Неактивно" }}</span>
+            <span style="font-size: 11px;">{{ draft.is_active ? t('Активно') : t('Неактивно') }}</span>
             <input type="checkbox" :checked="draft.is_active" @change="draft.is_active = ($event.target as HTMLInputElement).checked; markDirty()"/>
           </label>
         </div>
@@ -232,7 +232,7 @@ function removeCondition(idx: number) {
                         :class="{ active: (draft.trigger_modules || []).includes(m.code) }"
                         @click="moduleToggle(m.code)">
                   <BIcon :name="m.icon" :size="12" />
-                  {{ m.label }}
+                  {{ t(m.label) }}
                 </button>
               </span>
             </div>
@@ -244,7 +244,7 @@ function removeCondition(idx: number) {
                         class="mre-mod-chip"
                         :class="{ active: (draft.trigger_actions || []).includes(a.code as any) }"
                         @click="actionToggle(a.code)">
-                  {{ a.label }}
+                  {{ t(a.label) }}
                 </button>
               </span>
             </div>
@@ -376,7 +376,7 @@ function removeCondition(idx: number) {
           <div style="flex: 1"></div>
           <span v-if="dirty" class="mre-dirty">{{ t('несохранённые изменения') }}</span>
           <button class="mre-btn mre-btn-primary" :disabled="!dirty || saving" @click="save">
-            {{ saving ? "Сохраняем..." : `Сохранить v.${selected.version + 1}` }}
+            {{ saving ? t('Сохраняем...') : t('Сохранить v.{value0}', { value0: selected.version + 1 }) }}
           </button>
         </div>
       </div>

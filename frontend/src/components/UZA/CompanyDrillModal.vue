@@ -31,6 +31,12 @@ import { useCanEdit } from "@/utils/permissions";
 import { companiesApi, type CompanyDetail, type FinancialReportBrief, type CompanyUpdatePayload } from "@/api/companies";
 import EditableField from "@/components/UZA/EditableField.vue";
 import EntityDrillShell from "@/components/UZA/EntityDrillShell.vue";
+import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
+const { t: tr } = useI18n();
+const t = tr;
+
 
 interface Props {
   companyId: string;           // uuid
@@ -153,12 +159,12 @@ const profitDisplay = computed<{ value: string; year: number | null }>(() => {
 const revenueSub = computed<string>(() => {
   if (loadingFin.value) return "";
   if (revenueDisplay.value.value === "—") return "—";
-  return "млрд сум" + (revenueDisplay.value.standard ? " · " + revenueDisplay.value.standard : "");
+  return tr("млрд сум") + (revenueDisplay.value.standard ? " · " + revenueDisplay.value.standard : "");
 });
 const profitSub = computed<string>(() => {
   if (loadingFin.value) return "";
   if (profitDisplay.value.value === "—") return "";
-  return "млрд сум" + (profitDisplay.value.year ? " · " + profitDisplay.value.year + " г." : "");
+  return tr("млрд сум") + (profitDisplay.value.year ? tr(" · {year} г.", { year: profitDisplay.value.year }) : "");
 });
 
 const govScore = computed<number | null>(() => {
@@ -191,7 +197,7 @@ async function load() {
   await companies.ensureLoaded();
   const c = code.value;
   if (!c) {
-    fetchError.value = "Компания не найдена в реестре";
+    fetchError.value = tr('Компания не найдена в реестре');
     loadingDetail.value = false;
     loadingFin.value = false;
     return;
@@ -201,7 +207,7 @@ async function load() {
     companiesApi.getFinancials(c),
   ]);
   if (d.status === "fulfilled") detail.value = d.value;
-  else fetchError.value = (d.reason as Error)?.message || "Не удалось загрузить детали";
+  else fetchError.value = (d.reason as Error)?.message || tr('Не удалось загрузить детали');
   loadingDetail.value = false;
   if (f.status === "fulfilled") financials.value = f.value;
   loadingFin.value = false;
@@ -209,23 +215,23 @@ async function load() {
 
 // ─── Edit dispatcher ───
 async function updateField<K extends keyof CompanyUpdatePayload>(field: K, value: CompanyUpdatePayload[K] | null) {
-  if (!code.value) throw new Error("Нет кода компании");
+  if (!code.value) throw new Error(tr('Нет кода компании'));
   const payload = { [field]: value } as CompanyUpdatePayload;
   const updated = await companiesApi.update(code.value, payload);
   detail.value = updated;
-  toast.success(`Поле «${RU_FIELD_LABELS[String(field)] || String(field)}» сохранено`);
+  toast.success(tr('Поле «{value0}» сохранено', { value0: RU_FIELD_LABELS[String(field)] || String(field) }));
 }
 
 const RU_FIELD_LABELS: Record<string, string> = {
-  name_short: "Сокращённое имя",
-  ceo_name: "Гендиректор",
-  inn: "ИНН",
-  founded_year: "Год основания",
-  legal_form: "Юр. форма",
-  website: "Сайт",
-  address: "Адрес",
-  employees_count: "Сотрудников",
-  description: "Описание",
+  name_short: i18nKey("Сокращённое имя"),
+  ceo_name: i18nKey("Гендиректор"),
+  inn: i18nKey("ИНН"),
+  founded_year: i18nKey("Год основания"),
+  legal_form: i18nKey("Юр. форма"),
+  website: i18nKey("Сайт"),
+  address: i18nKey("Адрес"),
+  employees_count: i18nKey("Сотрудников"),
+  description: i18nKey("Описание"),
 };
 
 // Per-field save closures
@@ -284,8 +290,8 @@ onMounted(() => {
                 :editable="canEdit"
                 :save-fn="saveName"
                 type="text"
-                placeholder="Без названия"
-                hint="Сокращённое имя компании"
+                :placeholder="tr('Без названия')"
+                :hint="t('Сокращённое имя компании')"
                 font-size="22px"
                 input-min-width="240px"
                 :maxlength="128"
@@ -298,7 +304,7 @@ onMounted(() => {
                 :style="{ background: 'color-mix(in srgb, ' + sectorChipColor + ' 10%, transparent)', color: 'color-mix(in srgb, ' + sectorChipColor + ' 70%, #1E2A4A)' }"
               >
                 <span class="cdm-pill-dot" :style="{ background: sectorChipColor }" />
-                {{ sectorChipLabel }}
+                {{ tr(sectorChipLabel) }}
               </span>
               <span class="cdm-sub-item">
                 <EditableField
@@ -307,7 +313,7 @@ onMounted(() => {
                   :save-fn="saveLegal"
                   type="text"
                   placeholder="—"
-                  hint="Юридическая форма (АО, ООО, …)"
+                  :hint="t('Юридическая форма (АО, ООО, …)')"
                   font-size="10.5px"
                   input-min-width="80px"
                   :maxlength="32"
@@ -315,27 +321,27 @@ onMounted(() => {
               </span>
               <span class="cdm-dot" aria-hidden="true" />
               <span class="cdm-sub-item">
-                Основано в
+                {{ tr('Основано в') }}
                 <EditableField
                   :model-value="detail?.founded_year ?? null"
                   :editable="canEdit"
                   :save-fn="saveYear"
                   type="year"
                   placeholder="—"
-                  hint="Год основания"
+                  :hint="t('Год основания')"
                   font-size="10.5px"
                   input-min-width="80px"
                 />
               </span>
               <span class="cdm-dot" aria-hidden="true" />
               <span class="cdm-sub-item">
-                ИНН&nbsp;<EditableField
+                {{ tr('ИНН&nbsp;') }}<EditableField
                   :model-value="detail?.inn ?? null"
                   :editable="canEdit"
                   :save-fn="saveInn"
                   type="text"
                   placeholder="—"
-                  hint="ИНН"
+                  :hint="t('ИНН')"
                   font-size="10.5px"
                   input-min-width="120px"
                   :maxlength="32"
@@ -363,18 +369,18 @@ onMounted(() => {
                 <div class="cdm-ring-pct">
                   <span class="num">{{ ringPctDisplay }}</span><span class="u">%</span>
                 </div>
-                <div class="cdm-ring-l">прогресс</div>
+                <div class="cdm-ring-l">{{ tr('прогресс') }}</div>
               </div>
             </div>
 
             <div class="cdm-hero-rt">
-              <div class="cdm-l-sec">Задачи Ожиданий Акционера · {{ latestFin?.year ? latestFin.year : '2025' }}</div>
+              <div class="cdm-l-sec">{{ tr('Задачи Ожиданий Акционера ·') }} {{ latestFin?.year ? latestFin.year : '2025' }}</div>
               <div class="cdm-task-sum">
-                <span class="cdm-num-em">{{ taskDone }}</span> завершено
+                <span class="cdm-num-em">{{ taskDone }}</span> {{ tr('завершено') }}
                 <span class="cdm-sep">·</span>
-                <span class="cdm-num-em">{{ taskInProgress }}</span> в работе
+                <span class="cdm-num-em">{{ taskInProgress }}</span> {{ tr('в работе') }}
                 <span class="cdm-sep">·</span>
-                <span class="cdm-num-em">{{ taskNotStarted }}</span> не начато
+                <span class="cdm-num-em">{{ taskNotStarted }}</span> {{ tr('не начато') }}
               </div>
 
               <div class="cdm-bar">
@@ -384,9 +390,9 @@ onMounted(() => {
               </div>
 
               <div class="cdm-leg">
-                <span><i class="cdm-leg-dot" style="background:#1D9E75" />Завершено {{ Math.round(pctDone) }}%</span>
-                <span><i class="cdm-leg-dot" style="background:#EF9F27" />В работе {{ Math.round(pctInProgress) }}%</span>
-                <span><i class="cdm-leg-dot" style="background:#D3D1C7" />Не начато {{ Math.round(pctNotStarted) }}%</span>
+                <span><i class="cdm-leg-dot" style="background:#1D9E75" />{{ tr('Завершено') }} {{ Math.round(pctDone) }}%</span>
+                <span><i class="cdm-leg-dot" style="background:#EF9F27" />{{ tr('В работе') }} {{ Math.round(pctInProgress) }}%</span>
+                <span><i class="cdm-leg-dot" style="background:#D3D1C7" />{{ tr('Не начато') }} {{ Math.round(pctNotStarted) }}%</span>
               </div>
             </div>
           </div>
@@ -394,7 +400,7 @@ onMounted(() => {
           <!-- KPI strip -->
           <div class="cdm-kpis cdm-row kpi-rail" style="--si:2">
             <div class="cdm-kpi" style="--kc:#1D9E75; --ki:0;">
-              <div class="cdm-kpi-l">Выручка{{ revenueDisplay.year ? ' ' + revenueDisplay.year : '' }}</div>
+              <div class="cdm-kpi-l">{{ tr('Выручка') }}{{ revenueDisplay.year ? ' ' + revenueDisplay.year : '' }}</div>
               <div class="cdm-kpi-v">
                 <template v-if="loadingFin"><span class="cdm-skel" style="width:60px"/></template>
                 <template v-else>{{ revenueDisplay.value }}</template>
@@ -402,7 +408,7 @@ onMounted(() => {
               <div class="cdm-kpi-d">{{ revenueSub }}</div>
             </div>
             <div class="cdm-kpi" style="--kc:#378ADD; --ki:1;">
-              <div class="cdm-kpi-l">Чистая прибыль</div>
+              <div class="cdm-kpi-l">{{ tr('Чистая прибыль') }}</div>
               <div class="cdm-kpi-v">
                 <template v-if="loadingFin"><span class="cdm-skel" style="width:55px"/></template>
                 <template v-else>{{ profitDisplay.value }}</template>
@@ -415,10 +421,10 @@ onMounted(() => {
                 <template v-if="govScore != null">{{ govScore }}<span class="cdm-kpi-vu"> / 1200</span></template>
                 <template v-else>—</template>
               </div>
-              <div class="cdm-kpi-d">скоринг</div>
+              <div class="cdm-kpi-d">{{ tr('скоринг') }}</div>
             </div>
             <div class="cdm-kpi" style="--kc:#EF9F27; --ki:3;">
-              <div class="cdm-kpi-l">Сотрудников</div>
+              <div class="cdm-kpi-l">{{ tr('Сотрудников') }}</div>
               <div class="cdm-kpi-v">
                 <EditableField
                   :model-value="detail?.employees_count ?? null"
@@ -426,49 +432,49 @@ onMounted(() => {
                   :save-fn="saveEmployees"
                   type="number"
                   placeholder="—"
-                  hint="Численность сотрудников"
+                  :hint="t('Численность сотрудников')"
                   font-size="18px"
                   input-min-width="80px"
                   :display-format="(v) => v == null ? '—' : fmtInt(Number(v))"
                 />
               </div>
-              <div class="cdm-kpi-d">шт. ед.</div>
+              <div class="cdm-kpi-d">{{ tr('шт. ед.') }}</div>
             </div>
           </div>
 
           <!-- Facts -->
           <div class="cdm-facts cdm-row" style="--si:3">
-            <div class="cdm-l-sec">Краткая справка</div>
+            <div class="cdm-l-sec">{{ tr('Краткая справка') }}</div>
             <div class="cdm-fact">
-              <span class="lbl">Гендиректор</span>
+              <span class="lbl">{{ tr('Гендиректор') }}</span>
               <span class="val">
                 <EditableField
                   :model-value="detail?.ceo_name ?? null"
                   :editable="canEdit && !loadingDetail"
                   :save-fn="saveCeo"
                   type="text"
-                  placeholder="Не задан"
-                  hint="Имя гендиректора"
+                  :placeholder="tr('Не задан')"
+                  :hint="t('Имя гендиректора')"
                   input-min-width="200px"
                   :maxlength="128"
                 />
               </span>
             </div>
             <div class="cdm-fact">
-              <span class="lbl">Сайт</span>
+              <span class="lbl">{{ tr('Сайт') }}</span>
               <span class="val">
                 <EditableField
                   :model-value="detail?.website ?? null"
                   :editable="canEdit && !loadingDetail"
                   :save-fn="saveWebsite"
                   type="url"
-                  placeholder="Не задан"
-                  hint="URL сайта компании (без http://)"
+                  :placeholder="tr('Не задан')"
+                  :hint="t('URL сайта компании (без http://)')"
                   input-min-width="220px"
                   :maxlength="200"
                 >
                   <template #display="{ value, empty }">
-                    <template v-if="empty"><span class="ef-placeholder" style="color:#6B6A66; font-style:italic; font-weight:400;">Не задан</span></template>
+                    <template v-if="empty"><span class="ef-placeholder" style="color:#6B6A66; font-style:italic; font-weight:400;">{{ tr('Не задан') }}</span></template>
                     <a
                       v-else
                       :href="normaliseWebsite(String(value))"
@@ -484,15 +490,15 @@ onMounted(() => {
               </span>
             </div>
             <div class="cdm-fact">
-              <span class="lbl">Адрес</span>
+              <span class="lbl">{{ tr('Адрес') }}</span>
               <span class="val">
                 <EditableField
                   :model-value="detail?.address ?? null"
                   :editable="canEdit && !loadingDetail"
                   :save-fn="saveAddress"
                   type="text"
-                  placeholder="Не задан"
-                  hint="Юридический/физический адрес"
+                  :placeholder="tr('Не задан')"
+                  :hint="t('Юридический/физический адрес')"
                   input-min-width="280px"
                   :maxlength="255"
                 />
@@ -504,12 +510,12 @@ onMounted(() => {
           <div class="cdm-ftr cdm-row" style="--si:4">
             <div class="cdm-ftr-hint" v-if="canEdit && !loadingDetail">
               <svg viewBox="0 0 12 12" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 1.5l2 2L4 10H2v-2z"/></svg>
-              Поля редактируются прямо в карточке
+              {{ tr('Поля редактируются прямо в карточке') }}
             </div>
             <div class="cdm-ftr-actions">
-              <button class="cdm-btn cdm-btn-g" @click="close">Закрыть</button>
+              <button class="cdm-btn cdm-btn-g" @click="close">{{ tr('Закрыть') }}</button>
               <button class="cdm-btn cdm-btn-p" @click="gotoCompany">
-                Перейти к компании
+                {{ tr('Перейти к компании') }}
                 <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" width="12" height="12">
                   <path d="M3 7h8M7.5 3.5L11 7l-3.5 3.5"/>
                 </svg>

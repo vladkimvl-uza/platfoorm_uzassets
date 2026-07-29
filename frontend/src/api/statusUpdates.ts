@@ -1,4 +1,5 @@
 import { api } from "./client";
+import { i18nKey } from "@/locale/keys";
 
 export type StatusHealth = "on_track" | "at_risk" | "delayed" | "blocked";
 
@@ -38,9 +39,9 @@ export const statusUpdatesApi = {
 
 // ─── Health meta (цвета/подписи по дизайн-системе) ───
 export const HEALTH_META: Record<StatusHealth, { label: string; color: string }> = {
-  on_track: { label: "В графике", color: "#1D9E75" },
-  at_risk:  { label: "Под риском", color: "#EF9F27" },
-  delayed:  { label: "Задержка", color: "#E24B4A" },
-  blocked:  { label: "Блокер", color: "#7A1F1F" },
+  on_track: { label: i18nKey("В графике"), color: "#1D9E75" },
+  at_risk:  { label: i18nKey("Под риском"), color: "#EF9F27" },
+  delayed:  { label: i18nKey("Задержка"), color: "#E24B4A" },
+  blocked:  { label: i18nKey("Блокер"), color: "#7A1F1F" },
 };
 export const HEALTH_ORDER: StatusHealth[] = ["on_track", "at_risk", "delayed", "blocked"];

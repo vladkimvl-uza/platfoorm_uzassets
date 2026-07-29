@@ -22,6 +22,8 @@ import { usePermissions } from "@/composables/usePermissions";
 import { useI18n } from "@/composables/useI18n";
 import { useAuthStore } from "@/stores/auth";
 import type { CompanyListItem, SectorBrief } from "@/api/companies";
+import { i18nKey } from "@/locale/keys";
+
 
 const props = withDefaults(defineProps<{
   companyCode: string;
@@ -102,34 +104,34 @@ interface SectionDef { id: SectionId; label: string; rows: RowSpec[]; }
 const NSBU_SECTIONS: SectionDef[] = [
   {
     id: "pnl",
-    label: "ОФР · форма 2",
+    label: i18nKey("ОФР · форма 2"),
     rows: [
-      { id: "revenue",     label: "Выручка",                          code: "010", groupHeader: "ДОХОДЫ И РАСХОДЫ" },
-      { id: "cogs",        label: "Себестоимость",                    code: "020" },
-      { id: "grossProfit", label: "Валовая прибыль",                  code: "030", isSubtotal: true },
-      { id: "opProfit",    label: "Операционная прибыль",             code: "060", groupHeader: "ОПЕРАЦИОННЫЙ РЕЗУЛЬТАТ" },
-      { id: "depreciation",label: "Амортизация",                       code: "070" },
-      { id: "finIncome",   label: "Доходы от фин. деятельности",      code: "110" },
-      { id: "finCost",     label: "Расходы от фин. деятельности",     code: "170" },
-      { id: "pbt",         label: "Прибыль до налога",                code: "190", isSubtotal: true, groupHeader: "ИТОГИ ПЕРИОДА" },
-      { id: "tax",         label: "Налог на прибыль",                 code: "220" },
-      { id: "profit",      label: "ЧИСТАЯ ПРИБЫЛЬ",                   code: "270", isSubtotal: true, isHighlight: true },
+      { id: "revenue",     label: i18nKey("Выручка"),                          code: "010", groupHeader: i18nKey("ДОХОДЫ И РАСХОДЫ") },
+      { id: "cogs",        label: i18nKey("Себестоимость"),                    code: "020" },
+      { id: "grossProfit", label: i18nKey("Валовая прибыль"),                  code: "030", isSubtotal: true },
+      { id: "opProfit",    label: i18nKey("Операционная прибыль"),             code: "060", groupHeader: i18nKey("ОПЕРАЦИОННЫЙ РЕЗУЛЬТАТ") },
+      { id: "depreciation",label: i18nKey("Амортизация"),                       code: "070" },
+      { id: "finIncome",   label: i18nKey("Доходы от фин. деятельности"),      code: "110" },
+      { id: "finCost",     label: i18nKey("Расходы от фин. деятельности"),     code: "170" },
+      { id: "pbt",         label: i18nKey("Прибыль до налога"),                code: "190", isSubtotal: true, groupHeader: i18nKey("ИТОГИ ПЕРИОДА") },
+      { id: "tax",         label: i18nKey("Налог на прибыль"),                 code: "220" },
+      { id: "profit",      label: i18nKey("ЧИСТАЯ ПРИБЫЛЬ"),                   code: "270", isSubtotal: true, isHighlight: true },
       { id: "ebitda",      label: "EBITDA",                            isSubtotal: true },
     ],
   },
   {
     id: "sofp",
-    label: "Баланс · форма 1",
+    label: i18nKey("Баланс · форма 1"),
     rows: [
-      { id: "ppe",              label: "Основные средства",        code: "010", groupHeader: "АКТИВЫ" },
-      { id: "totalNCA",         label: "Внеоборотные активы",      code: "190", isSubtotal: true },
-      { id: "cash",             label: "Денежные средства",        code: "320" },
-      { id: "totalCA",          label: "Оборотные активы",         code: "390", isSubtotal: true },
-      { id: "totalAssets",      label: "ИТОГО Активы",             code: "400", isSubtotal: true, isHighlight: true },
-      { id: "equity",           label: "Собственный капитал",      code: "480", isSubtotal: true, groupHeader: "ПАССИВЫ" },
-      { id: "ltBorrowings",     label: "Долгосрочные обязательства",code:"590", isSubtotal: true },
-      { id: "stBorrowings",     label: "Краткосрочные обязательства",code:"780", isSubtotal: true },
-      { id: "debt",             label: "Финансовый долг",          isSubtotal: true },
+      { id: "ppe",              label: i18nKey("Основные средства"),        code: "010", groupHeader: i18nKey("АКТИВЫ") },
+      { id: "totalNCA",         label: i18nKey("Внеоборотные активы"),      code: "190", isSubtotal: true },
+      { id: "cash",             label: i18nKey("Денежные средства"),        code: "320" },
+      { id: "totalCA",          label: i18nKey("Оборотные активы"),         code: "390", isSubtotal: true },
+      { id: "totalAssets",      label: i18nKey("ИТОГО Активы"),             code: "400", isSubtotal: true, isHighlight: true },
+      { id: "equity",           label: i18nKey("Собственный капитал"),      code: "480", isSubtotal: true, groupHeader: i18nKey("ПАССИВЫ") },
+      { id: "ltBorrowings",     label: i18nKey("Долгосрочные обязательства"),code:"590", isSubtotal: true },
+      { id: "stBorrowings",     label: i18nKey("Краткосрочные обязательства"),code:"780", isSubtotal: true },
+      { id: "debt",             label: i18nKey("Финансовый долг"),          isSubtotal: true },
     ],
   },
 ];
@@ -137,61 +139,61 @@ const NSBU_SECTIONS: SectionDef[] = [
 const IFRS_SECTIONS: SectionDef[] = [
   {
     id: "pnl",
-    label: "ОФР",
+    label: i18nKey("ОФР"),
     rows: [
-      { id: "revenue",      label: "Revenue · Выручка",                  groupHeader: "CONTINUING OPERATIONS" },
-      { id: "cogs",         label: "Cost of sales · Себестоимость" },
-      { id: "grossProfit",  label: "Gross profit · Валовая прибыль", isSubtotal: true },
-      { id: "opProfit",     label: "Operating profit · Опер. прибыль", groupHeader: "OPERATING RESULT" },
-      { id: "depreciation", label: "D&A · Амортизация" },
-      { id: "finCost",      label: "Finance costs · Фин. расходы" },
+      { id: "revenue",      label: i18nKey("Revenue · Выручка"),                  groupHeader: "CONTINUING OPERATIONS" },
+      { id: "cogs",         label: i18nKey("Cost of sales · Себестоимость") },
+      { id: "grossProfit",  label: i18nKey("Gross profit · Валовая прибыль"), isSubtotal: true },
+      { id: "opProfit",     label: i18nKey("Operating profit · Опер. прибыль"), groupHeader: "OPERATING RESULT" },
+      { id: "depreciation", label: i18nKey("D&A · Амортизация") },
+      { id: "finCost",      label: i18nKey("Finance costs · Фин. расходы") },
       { id: "interestExp",  label: "  Interest expense" },
-      { id: "forex",        label: "Forex · Курсовая разница" },
-      { id: "pbt",          label: "Profit before tax · Прибыль до налога", isSubtotal: true, groupHeader: "PERIOD RESULTS" },
-      { id: "tax",          label: "Income tax · Налог" },
-      { id: "profit",       label: "NET PROFIT · ЧИСТАЯ ПРИБЫЛЬ", isSubtotal: true, isHighlight: true },
+      { id: "forex",        label: i18nKey("Forex · Курсовая разница") },
+      { id: "pbt",          label: i18nKey("Profit before tax · Прибыль до налога"), isSubtotal: true, groupHeader: "PERIOD RESULTS" },
+      { id: "tax",          label: i18nKey("Income tax · Налог") },
+      { id: "profit",       label: i18nKey("NET PROFIT · ЧИСТАЯ ПРИБЫЛЬ"), isSubtotal: true, isHighlight: true },
       { id: "ebitda",       label: "EBITDA", isSubtotal: true },
     ],
   },
   {
     id: "oci",
-    label: "ОПД",
+    label: i18nKey("ОПД"),
     rows: [
-      { id: "oci_currency_translation", label: "Currency translation · Курсовые разницы", groupHeader: "OTHER COMPREHENSIVE INCOME" },
-      { id: "oci_revaluation_ppe",      label: "PPE revaluation · Переоценка ОС" },
-      { id: "oci_actuarial",            label: "Actuarial · Актуарные" },
-      { id: "oci_hedge_reserve",        label: "Hedge reserve · Хеджирование" },
-      { id: "oci_fvtoci",               label: "FVTOCI · Финактивы по справ. ст-ти" },
-      { id: "total_comprehensive_income", label: "Total comprehensive income · Совокупный доход", isSubtotal: true, isHighlight: true },
+      { id: "oci_currency_translation", label: i18nKey("Currency translation · Курсовые разницы"), groupHeader: "OTHER COMPREHENSIVE INCOME" },
+      { id: "oci_revaluation_ppe",      label: i18nKey("PPE revaluation · Переоценка ОС") },
+      { id: "oci_actuarial",            label: i18nKey("Actuarial · Актуарные") },
+      { id: "oci_hedge_reserve",        label: i18nKey("Hedge reserve · Хеджирование") },
+      { id: "oci_fvtoci",               label: i18nKey("FVTOCI · Финактивы по справ. ст-ти") },
+      { id: "total_comprehensive_income", label: i18nKey("Total comprehensive income · Совокупный доход"), isSubtotal: true, isHighlight: true },
     ],
   },
   {
     id: "sofp",
-    label: "Баланс",
+    label: i18nKey("Баланс"),
     rows: [
-      { id: "ppe",              label: "PPE · Основные средства",     groupHeader: "ASSETS" },
+      { id: "ppe",              label: i18nKey("PPE · Основные средства"),     groupHeader: "ASSETS" },
       { id: "totalNCA",         label: "Total non-current assets",     isSubtotal: true },
-      { id: "cash",             label: "Cash · Денежные средства" },
+      { id: "cash",             label: i18nKey("Cash · Денежные средства") },
       { id: "totalCA",          label: "Total current assets",         isSubtotal: true },
-      { id: "totalAssets",      label: "TOTAL ASSETS · Итого активы",  isSubtotal: true, isHighlight: true },
-      { id: "equity",           label: "Equity · Собственный капитал", isSubtotal: true, groupHeader: "EQUITY & LIABILITIES" },
+      { id: "totalAssets",      label: i18nKey("TOTAL ASSETS · Итого активы"),  isSubtotal: true, isHighlight: true },
+      { id: "equity",           label: i18nKey("Equity · Собственный капитал"), isSubtotal: true, groupHeader: "EQUITY & LIABILITIES" },
       { id: "ltBorrowings",     label: "LT borrowings",                 isSubtotal: true },
       { id: "stBorrowings",     label: "ST borrowings",                 isSubtotal: true },
       { id: "totalLiabilities", label: "TOTAL LIABILITIES",             isSubtotal: true },
-      { id: "debt",             label: "Total debt · Финансовый долг", isSubtotal: true },
+      { id: "debt",             label: i18nKey("Total debt · Финансовый долг"), isSubtotal: true },
     ],
   },
   {
     id: "cf",
-    label: "ДДС",
+    label: i18nKey("ДДС"),
     rows: [
-      { id: "cfo",            label: "CFO · Поток от операц. деятельности", isSubtotal: true, groupHeader: "OPERATING ACTIVITIES" },
+      { id: "cfo",            label: i18nKey("CFO · Поток от операц. деятельности"), isSubtotal: true, groupHeader: "OPERATING ACTIVITIES" },
       { id: "cfo_depreciation", label: "  Depreciation (adj)" },
       { id: "cfo_working_capital", label: "  Change in working capital" },
       { id: "cfo_tax_paid",   label: "  Income tax paid" },
-      { id: "cfi",            label: "CFI · Поток от инвест. деятельности", isSubtotal: true, groupHeader: "INVESTING ACTIVITIES" },
-      { id: "cfi_capex",      label: "  CapEx · Капитальные затраты" },
-      { id: "cff",            label: "CFF · Поток от фин. деятельности", isSubtotal: true, groupHeader: "FINANCING ACTIVITIES" },
+      { id: "cfi",            label: i18nKey("CFI · Поток от инвест. деятельности"), isSubtotal: true, groupHeader: "INVESTING ACTIVITIES" },
+      { id: "cfi_capex",      label: i18nKey("  CapEx · Капитальные затраты") },
+      { id: "cff",            label: i18nKey("CFF · Поток от фин. деятельности"), isSubtotal: true, groupHeader: "FINANCING ACTIVITIES" },
       { id: "cff_borrowings", label: "  Proceeds from borrowings" },
       { id: "cff_repayments", label: "  Repayments of borrowings" },
       { id: "dividendsPaid",  label: "  Dividends paid" },
@@ -209,22 +211,22 @@ const sections = computed<SectionDef[]>(() => localStandard.value === "IFRS" ? I
 interface KpiDef { id: string; label: string; src?: "fin" | "ind"; unit?: "people"; }
 // 3 индикатора компании показываем в обоих стандартах (метрики компании, не отчёта).
 const KPI_INDICATORS: KpiDef[] = [
-  { id: "sponsorship", label: "Спонсорство", src: "ind" },
-  { id: "taxes",       label: "Налоги",      src: "ind" },
-  { id: "headcount",   label: "Сотрудники",  src: "ind", unit: "people" },
+  { id: "sponsorship", label: i18nKey("Спонсорство"), src: "ind" },
+  { id: "taxes",       label: i18nKey("Налоги"),      src: "ind" },
+  { id: "headcount",   label: i18nKey("Сотрудники"),  src: "ind", unit: "people" },
 ];
 const KPI_NSBU: KpiDef[] = [
-  { id: "revenue", label: "Выручка" },
+  { id: "revenue", label: i18nKey("Выручка") },
   { id: "ebitda",  label: "EBITDA" },
-  { id: "unitCostRatio", label: "Удельная себестоимость" },
-  { id: "profit",  label: "Чистая прибыль" },
-  { id: "totalAssets", label: "Итого активы" },
+  { id: "unitCostRatio", label: i18nKey("Удельная себестоимость") },
+  { id: "profit",  label: i18nKey("Чистая прибыль") },
+  { id: "totalAssets", label: i18nKey("Итого активы") },
   ...KPI_INDICATORS,
 ];
 const KPI_IFRS: KpiDef[] = [
   { id: "revenue", label: "Revenue" },
   { id: "ebitda",  label: "EBITDA" },
-  { id: "unitCostRatio", label: "Удельная себестоимость" },
+  { id: "unitCostRatio", label: i18nKey("Удельная себестоимость") },
   { id: "profit",  label: "Net profit" },
   { id: "totalAssets", label: "Total assets" },
   { id: "debt",    label: "Total debt" },
@@ -349,6 +351,7 @@ function extractHlfCash(hlf: unknown): Record<string, Record<string, number>> {
   const h = hlf as { years?: number[]; sections?: { years?: number[]; rows?: HlfRowLike[] }[] } | null;
   if (!h || !Array.isArray(h.sections)) return out;
   const topYears = Array.isArray(h.years) ? h.years : [];
+  // i18n-exempt-start: multilingual aliases classify imported financial rows; they are never rendered.
   const M: Record<string, string[]> = {
     cfo: ["operating cash flow", "net cash from operating", "cash from operating", "cash generated from operating", "cash flows from operating", "поток от операц", "операционн"],
     cfi: ["investing cash flow", "net cash used in investing", "cash from investing", "cash flows from investing", "поток от инвест", "инвестиционн"],
@@ -356,6 +359,7 @@ function extractHlfCash(hlf: unknown): Record<string, Record<string, number>> {
     cfi_capex: ["purchase of ppe", "purchases of property", "capital expenditures", "capex", "капитальные затраты", "капитал қўйилмалар", "additions to property"],
     dividendsPaid: ["dividends paid", "тўланган дивиденд", "дивиденды выпл", "дивиденды упл", "дивиденд"],
   };
+  // i18n-exempt-end
   const put = (field: string, year: number, v: unknown) => {
     const n = Number(v);
     if (v == null || !isFinite(n)) return;
@@ -431,10 +435,10 @@ function getRowValues(field: string): { values: (number | null)[]; yoy: { text: 
 
 // ── Прогнозные колонки (детерминированные модели, переиспользуют движок) ──
 const FC_OPTS: { id: ForecastModel | "off"; label: string }[] = [
-  { id: "off", label: "Прогноз: выкл" },
-  { id: "runrate", label: "Прогноз: Run-rate" },
-  { id: "cagr", label: "Прогноз: CAGR" },
-  { id: "linear", label: "Прогноз: линейный" },
+  { id: "off", label: i18nKey("Прогноз: выкл") },
+  { id: "runrate", label: i18nKey("Прогноз: Run-rate") },
+  { id: "cagr", label: i18nKey("Прогноз: CAGR") },
+  { id: "linear", label: i18nKey("Прогноз: линейный") },
 ];
 const fcModel = ref<ForecastModel | "off">("off");
 const forecastYears = computed<number[]>(() =>
@@ -702,7 +706,7 @@ function close() {
       <!-- Header -->
       <div class="cdrl-hdr">
         <div class="cdrl-hdr-left">
-          <div class="cdrl-eyebrow">{{ company?.code }} · {{ sectorLabel }}</div>
+          <div class="cdrl-eyebrow">{{ company?.code }} · {{ t(sectorLabel) }}</div>
           <div class="cdrl-title">{{ company?.name_short || company?.name_ru || company?.code }}</div>
           <div class="cdrl-badges">
             <span class="cdrl-badge" :class="localStandard === 'IFRS' ? 'badge-ifrs' : 'badge-nsbu'">
@@ -842,7 +846,7 @@ function close() {
         <div v-for="(n, idx) in sectionNotes" :key="idx" class="cdrl-note-row">
           <span class="cdrl-note-dot">●</span>
           <div class="cdrl-note-content">
-            <span class="cdrl-note-label">{{ n.label }}:</span>
+            <span class="cdrl-note-label">{{ t(n.label) }}:</span>
             <span class="cdrl-note-text">{{ n.text }}</span>
           </div>
         </div>

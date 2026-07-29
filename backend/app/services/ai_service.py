@@ -16,6 +16,8 @@ from typing import Any, AsyncGenerator, Optional
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.i18n import ai_language_instruction
+
 logger = logging.getLogger(__name__)
 
 # Endpoint и имя версии-заголовка внешнего LLM-провайдера — ТОЛЬКО из окружения
@@ -117,6 +119,7 @@ async def complete_once(
     api_key = get_api_key()
     if not api_key:
         raise RuntimeError("LLM API key not configured")
+    system = f"{system}\n\n{ai_language_instruction()}"
     payload = {
         "model": _resolve_model(model),
         "max_tokens": max_tokens,
@@ -236,6 +239,7 @@ async def stream_chat_with_tools(
     if not api_key:
         raise RuntimeError("LLM API key not configured")
 
+    system = f"{system}\n\n{ai_language_instruction()}"
     headers = {
         "x-api-key": api_key,
         _VERSION_HEADER: _API_VERSION,

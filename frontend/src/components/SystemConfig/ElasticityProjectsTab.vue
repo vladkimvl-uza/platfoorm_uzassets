@@ -14,19 +14,18 @@
     <!-- ═══════════ HEADER ═══════════ -->
     <div class="ep-hdr">
       <div>
-        <div class="ep-eyebrow">admin · сценарии и прогнозы</div>
+        <div class="ep-eyebrow">{{ t('admin · сценарии и прогнозы') }}</div>
         <h2 class="ep-title">
-          Эластичность и эффекты проектов
-          <span class="ep-tip" :title="TT.intro">?</span>
+          {{ t('Эластичность и эффекты проектов') }}
+          <span class="ep-tip" :title="t(TT.intro)">?</span>
         </h2>
         <p class="ep-sub">
-          Связывает макроэкономику со сценариями: <strong>эластичность</strong> = чувствительность
-          к макрофакторам · <strong>эффекты проектов</strong> = эффект конкретных проектов в цифрах ·
-          <strong>декомпозиция</strong> = из чего складывается прогноз.
+          {{ t('Связывает макроэкономику со сценариями:') }} <strong>{{ t('эластичность') }}</strong> {{ t('= чувствительность к макрофакторам ·') }} <strong>{{ t('эффекты проектов') }}</strong> {{ t('= эффект конкретных проектов в цифрах ·') }}
+          <strong>{{ t('декомпозиция') }}</strong> {{ t('= из чего складывается прогноз.') }}
         </p>
       </div>
       <div class="ep-hdr-r">
-        <button class="ep-btn" @click="loadAll" :disabled="loading">⟳ Обновить</button>
+        <button class="ep-btn" @click="loadAll" :disabled="loading">{{ t('⟳ Обновить') }}</button>
       </div>
     </div>
 
@@ -35,54 +34,54 @@
     <!-- ═══════════ Sub-tabs ═══════════ -->
     <div class="ep-subtabs">
       <button class="ep-stab" :class="{on: sub==='elasticity'}" @click="sub='elasticity'">
-        Матрица эластичности
+        {{ t('Матрица эластичности') }}
       </button>
       <button class="ep-stab" :class="{on: sub==='projects'}" @click="sub='projects'">
-        Эффекты проектов
+        {{ t('Эффекты проектов') }}
         <small v-if="effects.length">{{ effects.length }}</small>
       </button>
       <button class="ep-stab" :class="{on: sub==='decomposition'}" @click="sub='decomposition'">
-        Декомпозиция прогноза
+        {{ t('Декомпозиция прогноза') }}
       </button>
     </div>
 
     <!-- ═══════════ Sub-section 1: ELASTICITY MATRIX ═══════════ -->
     <template v-if="sub==='elasticity'">
       <div class="ep-help">
-        <strong>Что это:</strong> {{ TT.elasticity }}
+        <strong>{{ t('Что это:') }}</strong> {{ t(TT.elasticity) }}
         <br>
-        <strong>Как читать β:</strong>
+        <strong>{{ t('Как читать β:') }}</strong>
         <span class="ep-help-row">
-          <span class="ep-help-bullet" style="color:#1D9E75;">●</span> β &gt; 0 — растёт вместе с фактором
-          <span class="ep-help-bullet" style="color:#E24B4A;">●</span> β &lt; 0 — падает при росте фактора
-          <span class="ep-help-bullet" style="color: var(--t3, #888780);">●</span> β = 0 — нечувствительно
+          <span class="ep-help-bullet" style="color:#1D9E75;">●</span> {{ t('β &gt; 0 — растёт вместе с фактором') }}
+          <span class="ep-help-bullet" style="color:#E24B4A;">●</span> {{ t('β &lt; 0 — падает при росте фактора') }}
+          <span class="ep-help-bullet" style="color: var(--t3, #888780);">●</span> {{ t('β = 0 — нечувствительно') }}
         </span>
         <br>
-        <strong>Сила:</strong> |β|&lt;0.3 — слабая · 0.3–0.7 — средняя · &gt;0.7 — сильная.
+        <strong>{{ t('Сила:') }}</strong> {{ t('|β|&lt;0.3 — слабая · 0.3–0.7 — средняя · &gt;0.7 — сильная.') }}
       </div>
 
       <!-- Filter -->
       <div class="ep-filter">
         <label class="ep-field">
-          <span class="ep-field-l">Сценарий</span>
+          <span class="ep-field-l">{{ t('Сценарий') }}</span>
           <select v-model="filterScenario" class="ep-input">
-            <option :value="null">Все (глобальные дефолты)</option>
+            <option :value="null">{{ t('Все (глобальные дефолты)') }}</option>
             <option v-for="s in scenarios" :key="s.id" :value="s.id">
               {{ s.name_ru || s.code }}
             </option>
           </select>
         </label>
         <label class="ep-field">
-          <span class="ep-field-l">Целевая метрика</span>
+          <span class="ep-field-l">{{ t('Целевая метрика') }}</span>
           <select v-model="filterMetric" class="ep-input">
-            <option :value="null">Все метрики</option>
+            <option :value="null">{{ t('Все метрики') }}</option>
             <option v-for="m in constants?.target_metrics || []" :key="m.code" :value="m.code">
               {{ m.label_ru }}
             </option>
           </select>
         </label>
         <div class="ep-filter-add">
-          <button class="ep-btn ep-btn-p" @click="openAddCoef">+ Добавить коэффициент</button>
+          <button class="ep-btn ep-btn-p" @click="openAddCoef">{{ t('+ Добавить коэффициент') }}</button>
         </div>
       </div>
 
@@ -91,22 +90,22 @@
         <table class="ep-tbl" v-if="filteredCoefs.length">
           <thead>
             <tr>
-              <th>Скоуп<span class="ep-tip" :title="TT.scope">?</span></th>
-              <th>Макрофактор</th>
-              <th>Влияет на</th>
+              <th>{{ t('Скоуп') }}<span class="ep-tip" :title="t(TT.scope)">?</span></th>
+              <th>{{ t('Макрофактор') }}</th>
+              <th>{{ t('Влияет на') }}</th>
               <th class="r">β</th>
-              <th>Источник</th>
-              <th>Комментарий</th>
+              <th>{{ t('Источник') }}</th>
+              <th>{{ t('Комментарий') }}</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="c in filteredCoefs" :key="c.id">
               <td>
-                <span class="ep-scope" :class="`ep-scope-${scopeKind(c)}`">{{ scopeLabel(c) }}</span>
+                <span class="ep-scope" :class="`ep-scope-${scopeKind(c)}`">{{ t(scopeLabel(c)) }}</span>
               </td>
-              <td>{{ macroLabel(c.macro_factor) }}</td>
-              <td>{{ metricLabel(c.target_metric) }}</td>
+              <td>{{ t(macroLabel(c.macro_factor)) }}</td>
+              <td>{{ t(metricLabel(c.target_metric)) }}</td>
               <td class="r">
                 <input
                   type="number" step="0.01"
@@ -117,17 +116,17 @@
                 />
               </td>
               <td>
-                <span class="ep-tag" :class="`ep-tag-${c.source}`">{{ sourceLabel(c.source) }}</span>
+                <span class="ep-tag" :class="`ep-tag-${c.source}`">{{ t(sourceLabel(c.source)) }}</span>
               </td>
               <td><small>{{ c.notes || '—' }}</small></td>
-              <td><button class="ep-x" @click="onDeleteCoef(c.id)" title="Удалить">×</button></td>
+              <td><button class="ep-x" @click="onDeleteCoef(c.id)" :title="t('Удалить')">×</button></td>
             </tr>
           </tbody>
         </table>
-        <div v-else-if="loading" class="ep-empty">Загрузка…</div>
+        <div v-else-if="loading" class="ep-empty">{{ t('Загрузка…') }}</div>
         <div v-else class="ep-empty">
-          Нет коэффициентов в этом срезе. Запустите миграции и сидинг через
-          <code>POST /api/elasticity/_apply-migrations</code> чтобы создать глобальные дефолты.
+          {{ t('Нет коэффициентов в этом срезе. Запустите миграции и сидинг через') }}
+          <code>POST /api/elasticity/_apply-migrations</code> {{ t('чтобы создать глобальные дефолты.') }}
         </div>
       </div>
     </template>
@@ -135,24 +134,22 @@
     <!-- ═══════════ Sub-section 2: PROJECT EFFECTS ═══════════ -->
     <template v-if="sub==='projects'">
       <div class="ep-help">
-        <strong>Что это:</strong> {{ TT.projects }}
+        <strong>{{ t('Что это:') }}</strong> {{ t(TT.projects) }}
         <br>
-        <strong>Логика:</strong> у каждого проекта может быть много эффектов — один на каждую пару
-        (год × метрика). Например: «Modernize plant X»: +50 млрд сум к revenue в 2026, +120 в 2027.
+        <strong>{{ t('Логика:') }}</strong> {{ t('у каждого проекта может быть много эффектов — один на каждую пару (год × метрика). Например: «Modernize plant X»: +50 млрд сум к revenue в 2026, +120 в 2027.') }}
         <br>
-        <strong>Заполнение:</strong> данные вносят команды проектов. Пока поля пустые — прогноз считает
-        что эффект = 0. Появятся данные → автоматически отразятся в декомпозиции.
+        <strong>{{ t('Заполнение:') }}</strong> {{ t('данные вносят команды проектов. Пока поля пустые — прогноз считает что эффект = 0. Появятся данные → автоматически отразятся в декомпозиции.') }}
       </div>
 
       <div class="ep-filter">
         <label class="ep-field">
-          <span class="ep-field-l">Год</span>
+          <span class="ep-field-l">{{ t('Год') }}</span>
           <select v-model="effectYear" class="ep-input">
             <option v-for="y in availableYears" :key="y" :value="y">{{ y }}</option>
           </select>
         </label>
         <label class="ep-field">
-          <span class="ep-field-l">Метрика</span>
+          <span class="ep-field-l">{{ t('Метрика') }}</span>
           <select v-model="effectMetric" class="ep-input">
             <option v-for="m in constants?.target_metrics || []" :key="m.code" :value="m.code">
               {{ m.label_ru }}
@@ -160,7 +157,7 @@
           </select>
         </label>
         <div class="ep-filter-add">
-          <button class="ep-btn ep-btn-p" @click="openAddEffect">+ Добавить эффект</button>
+          <button class="ep-btn ep-btn-p" @click="openAddEffect">{{ t('+ Добавить эффект') }}</button>
         </div>
       </div>
 
@@ -168,14 +165,14 @@
         <table class="ep-tbl" v-if="effects.length">
           <thead>
             <tr>
-              <th>Проект</th>
-              <th>Год</th>
-              <th>Метрика</th>
-              <th class="r">Δ млн сум</th>
+              <th>{{ t('Проект') }}</th>
+              <th>{{ t('Год') }}</th>
+              <th>{{ t('Метрика') }}</th>
+              <th class="r">{{ t('Δ млн сум') }}</th>
               <th class="r">Δ %</th>
-              <th class="r">Вероятн.</th>
-              <th>Уверен.</th>
-              <th>Комментарий</th>
+              <th class="r">{{ t('Вероятн.') }}</th>
+              <th>{{ t('Уверен.') }}</th>
+              <th>{{ t('Комментарий') }}</th>
               <th></th>
             </tr>
           </thead>
@@ -183,7 +180,7 @@
             <tr v-for="e in effects" :key="e.id">
               <td><code>{{ e.project_id.slice(0, 8) }}</code></td>
               <td>{{ e.effective_year }}</td>
-              <td>{{ metricLabel(e.target_metric) }}</td>
+              <td>{{ t(metricLabel(e.target_metric)) }}</td>
               <td class="r">
                 <input
                   type="number" step="100"
@@ -211,17 +208,16 @@
                 />%
               </td>
               <td>
-                <span class="ep-tag" :class="`ep-tag-conf-${e.confidence}`">{{ confidenceLabel(e.confidence) }}</span>
+                <span class="ep-tag" :class="`ep-tag-conf-${e.confidence}`">{{ t(confidenceLabel(e.confidence)) }}</span>
               </td>
               <td><small>{{ e.notes || '—' }}</small></td>
-              <td><button class="ep-x" @click="onDeleteEffect(e.id)" title="Удалить">×</button></td>
+              <td><button class="ep-x" @click="onDeleteEffect(e.id)" :title="t('Удалить')">×</button></td>
             </tr>
           </tbody>
         </table>
-        <div v-else-if="loading" class="ep-empty">Загрузка…</div>
+        <div v-else-if="loading" class="ep-empty">{{ t('Загрузка…') }}</div>
         <div v-else class="ep-empty">
-          В этом срезе ({{ effectYear }} · {{ metricLabel(effectMetric) }}) ещё никто не указал
-          эффекты проектов. Заполняется через UI этого раздела или REST API.
+          {{ t('В этом срезе (') }}{{ effectYear }} · {{ t(metricLabel(effectMetric)) }}{{ t(') ещё никто не указал эффекты проектов. Заполняется через UI этого раздела или REST API.') }}
         </div>
       </div>
     </template>
@@ -229,15 +225,15 @@
     <!-- ═══════════ Sub-section 3: DECOMPOSITION ═══════════ -->
     <template v-if="sub==='decomposition'">
       <div class="ep-help">
-        <strong>Что это:</strong> {{ TT.decomposition }}
+        <strong>{{ t('Что это:') }}</strong> {{ t(TT.decomposition) }}
         <br>
-        <strong>Формула:</strong>
-        <code>Прогноз = База × Π(1 + Δfactor × β) + Σ эффекты проектов</code>
+        <strong>{{ t('Формула:') }}</strong>
+        <code>{{ t('Прогноз = База × Π(1 + Δfactor × β) + Σ эффекты проектов') }}</code>
       </div>
 
       <div class="ep-filter">
         <label class="ep-field">
-          <span class="ep-field-l">Сценарий *</span>
+          <span class="ep-field-l">{{ t('Сценарий *') }}</span>
           <select v-model="decScenario" class="ep-input">
             <option v-for="s in scenarios" :key="s.id" :value="s.id">
               {{ s.name_ru || s.code }}
@@ -245,7 +241,7 @@
           </select>
         </label>
         <label class="ep-field">
-          <span class="ep-field-l">Метрика *</span>
+          <span class="ep-field-l">{{ t('Метрика *') }}</span>
           <select v-model="decMetric" class="ep-input">
             <option v-for="m in constants?.target_metrics || []" :key="m.code" :value="m.code">
               {{ m.label_ru }}
@@ -253,7 +249,7 @@
           </select>
         </label>
         <label class="ep-field">
-          <span class="ep-field-l">Год *</span>
+          <span class="ep-field-l">{{ t('Год *') }}</span>
           <select v-model="decYear" class="ep-input">
             <option v-for="y in availableYears" :key="y" :value="y">{{ y }}</option>
           </select>
@@ -261,26 +257,26 @@
         <!-- Селектор компаний скрыт, когда доступна ровно одна компания:
              она подставляется автоматически (решение владельца 29.07.2026). -->
         <label class="ep-field" v-if="scope.showCompanyPicker.value">
-          <span class="ep-field-l">Компания (опц.)</span>
+          <span class="ep-field-l">{{ t('Компания (опц.)') }}</span>
           <select v-model="decCompany" class="ep-input">
             <!-- Портфельный агрегат — только для тех, кто видит весь портфель. -->
-            <option v-if="scope.showPortfolioViews.value" :value="null">Все 22 SOE (агрегат)</option>
+            <option v-if="scope.showPortfolioViews.value" :value="null">{{ t('Все 22 SOE (агрегат)') }}</option>
             <option v-for="co in companies" :key="co.id" :value="co.id">{{ co.name_ru }}</option>
           </select>
           <span v-if="companiesTruncated" class="ep-trunc">
-            Показаны первые {{ companies.length }} — список усечён.
+            {{ t('Показаны первые') }} {{ companies.length }} {{ t('— список усечён.') }}
           </span>
         </label>
         <div class="ep-filter-add">
           <button class="ep-btn ep-btn-p" @click="runDecomposition" :disabled="!decScenario || !decMetric || !decYear || loadingDec">
-            {{ loadingDec ? 'Считаем…' : '▶ Рассчитать' }}
+            {{ loadingDec ? t('Считаем…') : t('▶ Рассчитать') }}
           </button>
         </div>
       </div>
 
       <div v-if="decomposition" class="ep-card ep-dec">
         <div class="ep-dec-h">
-          <h3>{{ decomposition.company_name || 'Все 22 SOE' }}: {{ metricLabel(decomposition.target_metric) }} → {{ decomposition.year }}</h3>
+          <h3>{{ decomposition.company_name || t('Все 22 SOE') }}: {{ t(metricLabel(decomposition.target_metric)) }} → {{ decomposition.year }}</h3>
           <p class="ep-dec-expl">{{ decomposition.explanation }}</p>
         </div>
 
@@ -301,24 +297,23 @@
         <!-- Summary table -->
         <table class="ep-tbl ep-tbl-tight" style="margin-top: 12px">
           <tbody>
-            <tr><td>База ({{ decomposition.year - 1 }})</td><td class="r">{{ formatMln(decomposition.base_value_uzs_mln) }}</td></tr>
-            <tr><td>+ Эффект макроэкономики</td><td class="r" :style="{color: macroColor(decomposition.macro_effect_uzs_mln)}">{{ formatMlnSigned(decomposition.macro_effect_uzs_mln) }}</td></tr>
-            <tr><td>+ Эффект проектов</td><td class="r" :style="{color: macroColor(decomposition.projects_effect_uzs_mln)}">{{ formatMlnSigned(decomposition.projects_effect_uzs_mln) }}</td></tr>
-            <tr class="ep-tot"><td><strong>= Прогноз {{ decomposition.year }}</strong></td><td class="r"><strong>{{ formatMln(decomposition.forecast_value_uzs_mln) }}</strong></td></tr>
+            <tr><td>{{ t('База (') }}{{ decomposition.year - 1 }})</td><td class="r">{{ formatMln(decomposition.base_value_uzs_mln) }}</td></tr>
+            <tr><td>{{ t('+ Эффект макроэкономики') }}</td><td class="r" :style="{color: macroColor(decomposition.macro_effect_uzs_mln)}">{{ formatMlnSigned(decomposition.macro_effect_uzs_mln) }}</td></tr>
+            <tr><td>{{ t('+ Эффект проектов') }}</td><td class="r" :style="{color: macroColor(decomposition.projects_effect_uzs_mln)}">{{ formatMlnSigned(decomposition.projects_effect_uzs_mln) }}</td></tr>
+            <tr class="ep-tot"><td><strong>{{ t('= Прогноз') }} {{ decomposition.year }}</strong></td><td class="r"><strong>{{ formatMln(decomposition.forecast_value_uzs_mln) }}</strong></td></tr>
           </tbody>
         </table>
       </div>
       <div v-else class="ep-empty">
-        Выбери сценарий, метрику и год и нажми «Рассчитать». Если база = 0 — значит для
-        этой компании нет финансовых данных за предыдущий год.
+        {{ t('Выбери сценарий, метрику и год и нажми «Рассчитать». Если база = 0 — значит для этой компании нет финансовых данных за предыдущий год.') }}
       </div>
     </template>
 
     <!-- ═══════════ MODAL: Add Coefficient ═══════════ -->
-    <ModalShell :open="modalCoef" size="md" title="Новый коэффициент" @close="modalCoef=false">
+    <ModalShell :open="modalCoef" size="md" :title="t('Новый коэффициент')" @close="modalCoef=false">
           <div class="ep-modal-grid">
             <label class="ep-field">
-              <span class="ep-field-l">Макрофактор *</span>
+              <span class="ep-field-l">{{ t('Макрофактор *') }}</span>
               <select v-model="newCoef.macro_factor" class="ep-input">
                 <option v-for="f in constants?.macro_factors || []" :key="f.code" :value="f.code">
                   {{ f.label_ru }}
@@ -326,7 +321,7 @@
               </select>
             </label>
             <label class="ep-field">
-              <span class="ep-field-l">Влияет на *</span>
+              <span class="ep-field-l">{{ t('Влияет на *') }}</span>
               <select v-model="newCoef.target_metric" class="ep-input">
                 <option v-for="m in constants?.target_metrics || []" :key="m.code" :value="m.code">
                   {{ m.label_ru }}
@@ -338,53 +333,53 @@
               <input type="number" step="0.01" v-model.number="newCoef.beta" class="ep-input" placeholder="0.50" />
             </label>
             <label class="ep-field">
-              <span class="ep-field-l">Сценарий (опц.)</span>
+              <span class="ep-field-l">{{ t('Сценарий (опц.)') }}</span>
               <select v-model="newCoef.scenario_id" class="ep-input">
-                <option :value="null">— глобально —</option>
+                <option :value="null">{{ t('— глобально —') }}</option>
                 <option v-for="s in scenarios" :key="s.id" :value="s.id">{{ s.name_ru || s.code }}</option>
               </select>
             </label>
             <label class="ep-field">
-              <span class="ep-field-l">Компания (опц.)</span>
+              <span class="ep-field-l">{{ t('Компания (опц.)') }}</span>
               <select v-model="newCoef.company_id" class="ep-input">
-                <option :value="null">— все компании —</option>
+                <option :value="null">{{ t('— все компании —') }}</option>
                 <option v-for="co in companies" :key="co.id" :value="co.id">{{ co.name_ru }}</option>
               </select>
               <span v-if="companiesTruncated" class="ep-trunc">
-                Показаны первые {{ companies.length }} — список усечён.
+                {{ t('Показаны первые') }} {{ companies.length }} {{ t('— список усечён.') }}
               </span>
             </label>
             <label class="ep-field ep-field-wide">
-              <span class="ep-field-l">Комментарий</span>
+              <span class="ep-field-l">{{ t('Комментарий') }}</span>
               <input type="text" v-model="newCoef.notes" class="ep-input" />
             </label>
           </div>
       <template #footer>
-        <button class="ep-btn" @click="modalCoef=false">Отмена</button>
-        <button class="ep-btn ep-btn-p" @click="saveNewCoef" :disabled="!newCoef.macro_factor || !newCoef.target_metric">Сохранить</button>
+        <button class="ep-btn" @click="modalCoef=false">{{ t('Отмена') }}</button>
+        <button class="ep-btn ep-btn-p" @click="saveNewCoef" :disabled="!newCoef.macro_factor || !newCoef.target_metric">{{ t('Сохранить') }}</button>
       </template>
     </ModalShell>
 
     <!-- ═══════════ MODAL: Add Project Effect ═══════════ -->
-    <ModalShell :open="modalEffect" size="md" title="Новый эффект проекта" @close="modalEffect=false">
+    <ModalShell :open="modalEffect" size="md" :title="t('Новый эффект проекта')" @close="modalEffect=false">
           <div class="ep-modal-grid">
             <label class="ep-field ep-field-wide">
-              <span class="ep-field-l">Проект *</span>
+              <span class="ep-field-l">{{ t('Проект *') }}</span>
               <select v-model="newEffect.project_id" class="ep-input">
                 <option v-for="p in projects" :key="p.id" :value="p.id">
                   {{ p.title }} <small v-if="p.num">({{ p.num }})</small>
                 </option>
               </select>
               <span v-if="projectsTruncated" class="ep-trunc">
-                Показаны первые {{ projects.length }} проектов — список усечён, часть проектов недоступна в выборе.
+                {{ t('Показаны первые') }} {{ projects.length }} {{ t('проектов — список усечён, часть проектов недоступна в выборе.') }}
               </span>
             </label>
             <label class="ep-field">
-              <span class="ep-field-l">Год эффекта *</span>
+              <span class="ep-field-l">{{ t('Год эффекта *') }}</span>
               <input type="number" v-model.number="newEffect.effective_year" class="ep-input" />
             </label>
             <label class="ep-field">
-              <span class="ep-field-l">Метрика *</span>
+              <span class="ep-field-l">{{ t('Метрика *') }}</span>
               <select v-model="newEffect.target_metric" class="ep-input">
                 <option v-for="m in constants?.target_metrics || []" :key="m.code" :value="m.code">
                   {{ m.label_ru }}
@@ -392,33 +387,33 @@
               </select>
             </label>
             <label class="ep-field">
-              <span class="ep-field-l">Δ млн сум</span>
-              <input type="number" step="100" v-model.number="newEffect.delta_value_uzs_mln" class="ep-input" placeholder="абсолютное значение" />
+              <span class="ep-field-l">{{ t('Δ млн сум') }}</span>
+              <input type="number" step="100" v-model.number="newEffect.delta_value_uzs_mln" class="ep-input" :placeholder="t('абсолютное значение')" />
             </label>
             <label class="ep-field">
               <span class="ep-field-l">Δ %</span>
-              <input type="number" step="0.1" v-model.number="newEffect.delta_pct" class="ep-input" placeholder="ИЛИ в процентах" />
+              <input type="number" step="0.1" v-model.number="newEffect.delta_pct" class="ep-input" :placeholder="t('ИЛИ в процентах')" />
             </label>
             <label class="ep-field">
-              <span class="ep-field-l">Вероятность %</span>
+              <span class="ep-field-l">{{ t('Вероятность %') }}</span>
               <input type="number" min="0" max="100" v-model.number="newEffect.probability_pct" class="ep-input" />
             </label>
             <label class="ep-field">
-              <span class="ep-field-l">Уверенность</span>
+              <span class="ep-field-l">{{ t('Уверенность') }}</span>
               <select v-model="newEffect.confidence" class="ep-input">
-                <option value="low">low — низкая</option>
-                <option value="medium">medium — средняя</option>
-                <option value="high">high — высокая</option>
+                <option value="low">{{ t('low — низкая') }}</option>
+                <option value="medium">{{ t('medium — средняя') }}</option>
+                <option value="high">{{ t('high — высокая') }}</option>
               </select>
             </label>
             <label class="ep-field ep-field-wide">
-              <span class="ep-field-l">Комментарий</span>
+              <span class="ep-field-l">{{ t('Комментарий') }}</span>
               <input type="text" v-model="newEffect.notes" class="ep-input" />
             </label>
           </div>
       <template #footer>
-        <button class="ep-btn" @click="modalEffect=false">Отмена</button>
-        <button class="ep-btn ep-btn-p" @click="saveNewEffect" :disabled="!newEffect.project_id || !newEffect.target_metric">Сохранить</button>
+        <button class="ep-btn" @click="modalEffect=false">{{ t('Отмена') }}</button>
+        <button class="ep-btn ep-btn-p" @click="saveNewEffect" :disabled="!newEffect.project_id || !newEffect.target_metric">{{ t('Сохранить') }}</button>
       </template>
     </ModalShell>
 
@@ -432,6 +427,11 @@ import * as api from "@/api/elasticity"
 import { getAuthHeaders } from "@/api/_base"
 import { useConfirm } from "@/composables/useConfirm"
 import { useCompanyScope } from "@/composables/useCompanyScope"
+import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
+const { t } = useI18n();
+
 
 const { confirmDialog } = useConfirm()
 // Область доступа: ограниченному пользователю портфельный агрегат в декомпозиции
@@ -589,7 +589,7 @@ async function updateBeta(c: api.ElasticityCoef, ev: Event) {
 }
 
 async function onDeleteCoef(id: string) {
-  if (!(await confirmDialog({ message: "Удалить коэффициент?", danger: true }))) return
+  if (!(await confirmDialog({ message: t("Удалить коэффициент?"), danger: true }))) return
   await api.deleteCoefficient(id)
   await loadCoefs()
 }
@@ -628,14 +628,14 @@ async function updateEffect(e: api.ProjectEffect, field: string, ev: Event) {
 }
 
 async function onDeleteEffect(id: string) {
-  if (!(await confirmDialog({ message: "Удалить эффект?", danger: true }))) return
+  if (!(await confirmDialog({ message: t("Удалить эффект?"), danger: true }))) return
   await api.deleteProjectEffect(id)
   await loadEffects()
 }
 
 async function saveNewEffect() {
   if (newEffect.delta_value_uzs_mln == null && newEffect.delta_pct == null) {
-    error.value = "Укажите либо Δ млн сум, либо Δ %"
+    error.value = t('Укажите либо Δ млн сум, либо Δ %')
     return
   }
   try {
@@ -681,15 +681,15 @@ function scopeKind(c: api.ElasticityCoef): string {
   return "global"
 }
 function scopeLabel(c: api.ElasticityCoef): string {
-  if (c.scenario_id && c.company_id) return "сценарий + компания"
-  if (c.scenario_id) return "сценарий"
-  if (c.company_id) return "компания"
-  return "глобально"
+  if (c.scenario_id && c.company_id) return t('сценарий + компания')
+  if (c.scenario_id) return t('сценарий')
+  if (c.company_id) return t('компания')
+  return t('глобально')
 }
 function sourceLabel(s: string): string {
-  if (s === "seed_sector_default") return "дефолт"
-  if (s === "manual") return "вручную"
-  if (s === "imported") return "импорт"
+  if (s === "seed_sector_default") return t('дефолт')
+  if (s === "manual") return t('вручную')
+  if (s === "imported") return t('импорт')
   return s
 }
 function confidenceLabel(c: string): string {
@@ -711,9 +711,9 @@ function formatMln(v: number | string): string {
   const n = Number(v)
   if (isNaN(n)) return "—"
   const abs = Math.abs(n)
-  if (abs >= 1e6) return `${(n / 1e6).toFixed(2)} трлн сум`
-  if (abs >= 1e3) return `${(n / 1e3).toFixed(1)} млрд сум`
-  return `${n.toFixed(0)} млн сум`
+  if (abs >= 1e6) return t('{value0} трлн сум', { value0: (n / 1e6).toFixed(2) })
+  if (abs >= 1e3) return t('{value0} млрд сум', { value0: (n / 1e3).toFixed(1) })
+  return t('{value0} млн сум', { value0: n.toFixed(0) })
 }
 function formatMlnSigned(v: number | string): string {
   const n = Number(v)
@@ -723,11 +723,11 @@ function formatMlnSigned(v: number | string): string {
 }
 
 const TT = {
-  intro: "Раздел связывает макроэкономику со сценариями. Состоит из 3 частей: эластичность (как метрики реагируют на макрофакторы), эффекты проектов (что даёт каждый проект в цифрах), декомпозиция (из чего складывается прогноз).",
-  elasticity: "Эластичность β — на сколько % изменится метрика (например revenue) при изменении макрофактора (например USD-курс) на 1%. Если β=0.85 — это значит USD вырос на 10% → revenue вырастет на 8.5%.",
-  projects: "Финансовые эффекты конкретных проектов трансформации. Команда проекта указывает: проект «X» в 2027 году даст +120 млрд сум к выручке с вероятностью 75%. Программа потом суммирует все такие эффекты в декомпозиции.",
-  decomposition: "Раскладывает прогноз на 3 части: База (факт прошлого года) + Эффект макроэкономики (через эластичности) + Эффект проектов (из их финансовых данных). Помогает понять что именно даёт рост.",
-  scope: "Иерархия применения коэффициента: специфичный сценарий + компания > сценарий > компания > глобально. Программа берёт самый специфичный из имеющихся.",
+  intro: i18nKey("Раздел связывает макроэкономику со сценариями. Состоит из 3 частей: эластичность (как метрики реагируют на макрофакторы), эффекты проектов (что даёт каждый проект в цифрах), декомпозиция (из чего складывается прогноз)."),
+  elasticity: i18nKey("Эластичность β — на сколько % изменится метрика (например revenue) при изменении макрофактора (например USD-курс) на 1%. Если β=0.85 — это значит USD вырос на 10% → revenue вырастет на 8.5%."),
+  projects: i18nKey("Финансовые эффекты конкретных проектов трансформации. Команда проекта указывает: проект «X» в 2027 году даст +120 млрд сум к выручке с вероятностью 75%. Программа потом суммирует все такие эффекты в декомпозиции."),
+  decomposition: i18nKey("Раскладывает прогноз на 3 части: База (факт прошлого года) + Эффект макроэкономики (через эластичности) + Эффект проектов (из их финансовых данных). Помогает понять, что именно даёт рост."),
+  scope: i18nKey("Иерархия применения коэффициента: специфичный сценарий + компания > сценарий > компания > глобально. Программа берёт самый специфичный из имеющихся."),
 }
 
 onMounted(() => {

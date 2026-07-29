@@ -100,7 +100,7 @@ async function commitEdit() {
     };
     const res = await esgApi.upsertReport(payload);
     if (isModerationQueued(res)) {
-      toast.info("Отправлено на согласование");
+      toast.info(t('Отправлено на согласование'));
     } else {
       // обновляем локально и подпись «последнее изменение»
       const i = items.value.findIndex((x) => x.year === e.year);
@@ -109,11 +109,11 @@ async function commitEdit() {
       lastBy.value = res.changed_by_name;
       lastAt.value = res.updated_at;
       lastYear.value = res.year;
-      toast.success("Сохранено");
+      toast.success(t('Сохранено'));
     }
   } catch (err: unknown) {
     const x = err as { response?: { data?: { detail?: string } }; message?: string };
-    toast.error("Не сохранено: " + (x?.response?.data?.detail || x?.message || "ошибка"));
+    toast.error(t('Не сохранено: {value0}', { value0: (x?.response?.data?.detail || x?.message || t("ошибка")) }));
   } finally {
     saving.value = false;
   }
@@ -158,7 +158,7 @@ function shortUrl(url: string): string {
             <button v-else type="button" class="rt-cell" :class="{ ed: canEdit, empty: !byYear[y]?.status }"
                     :disabled="!canEdit" @click="startEdit(y, 'status')">
               <span v-if="byYear[y]?.status">{{ byYear[y]?.status }}</span>
-              <span v-else class="rt-ph">{{ canEdit ? '— добавить описание' : '—' }}</span>
+              <span v-else class="rt-ph">{{ canEdit ? t('— добавить описание') : '—' }}</span>
             </button>
           </td>
 
@@ -174,9 +174,9 @@ function shortUrl(url: string): string {
                 {{ shortUrl(byYear[y]?.report_url || '') }}
               </a>
               <button v-if="canEdit" type="button" class="rt-lnk-edit"
-                      :title="byYear[y]?.report_url ? 'Изменить ссылку' : 'Добавить ссылку'"
+                      :title="byYear[y]?.report_url ? t('Изменить ссылку') : t('Добавить ссылку')"
                       @click="startEdit(y, 'url')">
-                {{ byYear[y]?.report_url ? 'изменить' : '+ ссылка' }}
+                {{ byYear[y]?.report_url ? t('изменить') : t('+ ссылка') }}
               </button>
               <span v-else-if="!byYear[y]?.report_url" class="rt-ph">—</span>
             </div>

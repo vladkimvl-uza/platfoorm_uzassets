@@ -15,7 +15,8 @@
     "sdk:build": "npm run sdk:types",
     "test": "vitest run",
     "test:watch": "vitest",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "i18n:audit": "node scripts/i18n-audit.mjs"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.2.9",

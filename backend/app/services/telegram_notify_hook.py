@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import Optional
 
 from app.config import settings
+from app.core.i18n import locale_of_user, normalize_locale, tr
 from app.models.notification import Notification
 from app.models.user import User
 from app.services import tg_banner
@@ -69,7 +70,11 @@ def _severity_from_priority(priority: str, n_type: str = "") -> str:
     return "info"
 
 
-def _build_payload(notif: Notification, source_user: Optional[User]) -> dict:
+def _build_payload(
+    notif: Notification,
+    source_user: Optional[User],
+    recipient_user: Optional[User] = None,
+) -> dict:
     """Phase A+B: shape consumed by bot/formatter._fmt_notification.
     Adds parse_mode=HTML, module/severity hints, and a banner photo URL.
     Pack 149: enriched mention payload includes company / entity title / comment text.
@@ -96,6 +101,7 @@ def _build_payload(notif: Notification, source_user: Optional[User]) -> dict:
     n_type = notif.type or ""
     module = _module_from_type(n_type)
     severity = _severity_from_priority(notif.priority or "normal", n_type)
+    locale = locale_of_user(recipient_user)
 
     # Banner URL — Telegram fetches this from the public platform URL
     platform_base = (getattr(settings, "PLATFORM_URL", None) or "https://localhost").rstrip("/")
@@ -113,6 +119,7 @@ def _build_payload(notif: Notification, source_user: Optional[User]) -> dict:
         headline_metric = None
     banner_url = tg_banner.get_banner_url(
         platform_base, module, severity, headline_metric=headline_metric,
+        locale=locale,
     )
 
     # Actor name: prefer payload[actor_name] (set by mention_service), then
@@ -124,7 +131,11 @@ def _build_payload(notif: Notification, source_user: Optional[User]) -> dict:
 
     return {
         "parse_mode": "HTML",
-        "marker":     PRIORITY_MARKERS.get(notif.priority or "normal", "[Уведомление]"),
+        "locale":     locale,
+        "marker":     tr(
+            PRIORITY_MARKERS.get(notif.priority or "normal", "[Уведомление]"),
+            locale,
+        ),
         "title":      notif.title or "",
         "body":       notif.body or "",
         "subject":    subject,
@@ -157,10 +168,13 @@ def _twa_link(path: str) -> str:
     return f"{base}/twa{path}"
 
 
-def _build_inline_buttons(notif: Notification) -> Optional[list]:
+def _build_inline_buttons(
+    notif: Notification, locale: str = "ru",
+) -> Optional[list]:
     """Inline keyboard layout. Phase A added module-specific approve/reject
     quick actions; Phase C adds a third row pointing at the Telegram Mini App
     so the user can review the same item with full visual context."""
+    locale = normalize_locale(locale)
     link = _platform_link(notif)
     n_type = (notif.type or "").lower()
     src_id = notif.source_entity_id
@@ -170,17 +184,17 @@ def _build_inline_buttons(notif: Notification) -> Optional[list]:
         if not src_id:
             return None
         if module == "procurement":
-            return {"text": "📱 Открыть в Mini App", "url": _twa_link(f"/procurement/{src_id}")}
-        return {"text": "📱 Открыть в Mini App", "url": _twa_link(f"/approve/{src_id}")}
+            return {"text": f"📱 {tr('Открыть в Mini App', locale)}", "url": _twa_link(f"/procurement/{src_id}")}
+        return {"text": f"📱 {tr('Открыть в Mini App', locale)}", "url": _twa_link(f"/approve/{src_id}")}
 
     # 1) Generic moderation queue (KPI/BP/governance/etc bundled together)
     if n_type == "moderation.pending" and src_id:
         rows: list[list[dict]] = [
             [
-                {"text": "✓ Принять",   "callback_data": f"mod:approve:{src_id}"},
-                {"text": "✗ Отклонить", "callback_data": f"mod:reject:{src_id}"},
+                {"text": f"✓ {tr('Принять', locale)}",   "callback_data": f"mod:approve:{src_id}"},
+                {"text": f"✗ {tr('Отклонить', locale)}", "callback_data": f"mod:reject:{src_id}"},
             ],
-            [{"text": "Открыть в платформе →", "url": link}],
+            [{"text": tr("Открыть в платформе →", locale), "url": link}],
         ]
         twa_btn = _twa_button_for("generic")
         if twa_btn:
@@ -192,10 +206,10 @@ def _build_inline_buttons(notif: Notification) -> Optional[list]:
         if n_type.startswith("kpi.") and "approval" in n_type:
             rows = [
                 [
-                    {"text": "✓ Утвердить",    "callback_data": f"kpi_approve:{src_id}"},
-                    {"text": "✗ На доработку", "callback_data": f"kpi_reject:{src_id}"},
+                    {"text": f"✓ {tr('Утвердить', locale)}",    "callback_data": f"kpi_approve:{src_id}"},
+                    {"text": f"✗ {tr('На доработку', locale)}", "callback_data": f"kpi_reject:{src_id}"},
                 ],
-                [{"text": "Открыть в платформе →", "url": link}],
+                [{"text": tr("Открыть в платформе →", locale), "url": link}],
             ]
             twa_btn = _twa_button_for("kpi")
             if twa_btn:
@@ -204,10 +218,10 @@ def _build_inline_buttons(notif: Notification) -> Optional[list]:
         if n_type.startswith("procurement.") and ("approval" in n_type or "review" in n_type):
             rows = [
                 [
-                    {"text": "✓ Одобрить",  "callback_data": f"procurement_approve:{src_id}"},
-                    {"text": "✗ Отклонить", "callback_data": f"procurement_reject:{src_id}"},
+                    {"text": f"✓ {tr('Одобрить', locale)}",  "callback_data": f"procurement_approve:{src_id}"},
+                    {"text": f"✗ {tr('Отклонить', locale)}", "callback_data": f"procurement_reject:{src_id}"},
                 ],
-                [{"text": "Открыть в платформе →", "url": link}],
+                [{"text": tr("Открыть в платформе →", locale), "url": link}],
             ]
             twa_btn = _twa_button_for("procurement")
             if twa_btn:
@@ -221,12 +235,12 @@ def _build_inline_buttons(notif: Notification) -> Optional[list]:
         np = notif.payload if isinstance(notif.payload, dict) else {}
         ent_type = np.get("entity_type", "task")
         rows = [
-            [{"text": "💬 Ответить в чате", "callback_data": f"mention_reply:{ent_type}:{src_id}"}],
-            [{"text": "Открыть в платформе →", "url": link}],
+            [{"text": f"💬 {tr('Ответить в чате', locale)}", "callback_data": f"mention_reply:{ent_type}:{src_id}"}],
+            [{"text": tr("Открыть в платформе →", locale), "url": link}],
         ]
         return rows
 
     # 3) Fallback — just a deep-link
     return [
-        [{"text": "Открыть в платформе →", "url": link}],
+        [{"text": tr("Открыть в платформе →", locale), "url": link}],
     ]

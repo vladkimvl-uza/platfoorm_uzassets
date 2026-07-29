@@ -9,6 +9,10 @@ import { useAuthStore } from "@/stores/auth";
 import { useUserDirectory } from "@/composables/useUserDirectory";
 import { useFormatters } from "@/composables/useFormatters";
 import { useConfirm } from "@/composables/useConfirm";
+import { useI18n } from "@/composables/useI18n";
+
+const { t } = useI18n();
+
 
 const fmt = useFormatters();
 const { confirmDialog } = useConfirm();
@@ -56,7 +60,7 @@ async function load() {
     ]);
     await dir.ensureLoaded();
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить";
+    error.value = e?.response?.data?.detail || e?.message || t('Не удалось загрузить');
   } finally { loading.value = false; }
 }
 
@@ -86,7 +90,7 @@ async function submitResolve() {
       await moderationApi.approve(sub.value.id, resolveNote.value || undefined);
     } else if (resolveMode.value === "reject") {
       if (!resolveNote.value.trim()) {
-        error.value = "Укажите причину отклонения";
+        error.value = t('Укажите причину отклонения');
         acting.value = false;
         return;
       }
@@ -96,12 +100,12 @@ async function submitResolve() {
       try {
         parsed = JSON.parse(editedJson.value);
       } catch (e: any) {
-        editedJsonError.value = "Невалидный JSON: " + (e?.message || "");
+        editedJsonError.value = t('Невалидный JSON: {value0}', { value0: (e?.message || "") });
         acting.value = false;
         return;
       }
       if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-        editedJsonError.value = "Ожидается JSON-объект (не массив, не примитив)";
+        editedJsonError.value = t('Ожидается JSON-объект (не массив, не примитив)');
         acting.value = false;
         return;
       }
@@ -114,13 +118,13 @@ async function submitResolve() {
     resolveMode.value = null;
     emit("resolved");
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || e?.message || "Действие не выполнено";
+    error.value = e?.response?.data?.detail || e?.message || t('Действие не выполнено');
   } finally { acting.value = false; }
 }
 
 async function setReview() {
   if (!sub.value) return;
-  const note = resolveNote.value || "Требуется доп. рассмотрение";
+  const note = resolveNote.value || t("Требуется дополнительное рассмотрение");
   acting.value = true;
   try {
     await moderationApi.setReview(sub.value.id, note);
@@ -130,7 +134,7 @@ async function setReview() {
 }
 async function withdraw() {
   if (!sub.value) return;
-  if (!(await confirmDialog({ message: "Отозвать ваше предложение?", danger: true }))) return;
+  if (!(await confirmDialog({ message: t("Отозвать ваше предложение?"), danger: true }))) return;
   acting.value = true;
   try {
     await moderationApi.withdraw(sub.value.id);
@@ -150,7 +154,7 @@ async function retryApply() {
     }
     // On failed/skipped the panel will show the new error inline.
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || e?.message || "Retry не удался";
+    error.value = e?.response?.data?.detail || e?.message || t('Retry не удался');
   } finally { acting.value = false; }
 }
 
@@ -162,10 +166,10 @@ function applyPillClass(s: string | null): string {
   return "mrm-apply-pill mrm-ap-info";
 }
 function applyPillLabel(s: string | null): string {
-  if (s === "applied") return "Применено";
-  if (s === "failed")  return "Ошибка применения";
-  if (s === "skipped") return "Пропущено (нет handler'а)";
-  if (s === "pending") return "Не применено";
+  if (s === "applied") return t('Применено');
+  if (s === "failed")  return t('Ошибка применения');
+  if (s === "skipped") return t('Пропущено (нет handler\'а)');
+  if (s === "pending") return t('Не применено');
   return "—";
 }
 
@@ -208,7 +212,7 @@ function fmtVal(v: unknown): string {
   <div class="mrm-backdrop" @click="onBackdropClick">
     <div class="mrm-card">
 
-      <div v-if="loading" class="mrm-loading">Загрузка…</div>
+      <div v-if="loading" class="mrm-loading">{{ t('Загрузка…') }}</div>
 
       <template v-else-if="sub">
         <div class="mrm-topbar">
@@ -218,9 +222,9 @@ function fmtVal(v: unknown): string {
             </span>
             <div>
               <div class="mrm-eyebrow">
-                Модерация · <span class="mrm-id">#{{ sub.id.slice(0, 8) }}</span> ·
+                {{ t('Модерация ·') }} <span class="mrm-id">#{{ sub.id.slice(0, 8) }}</span> ·
                 <span class="mrm-status-pill" :style="{ background: STATUS_LABELS[sub.status].bg, color: STATUS_LABELS[sub.status].color }">
-                  {{ STATUS_LABELS[sub.status].label }}
+                  {{ t(STATUS_LABELS[sub.status].label) }}
                 </span>
               </div>
               <div class="mrm-title">{{ sub.target_entity_label || sub.target_module }}</div>
@@ -243,15 +247,15 @@ function fmtVal(v: unknown): string {
             </div>
           </div>
           <div class="mrm-meta-r">
-            Предложено: <b>{{ formatRelativeTime(sub.created_at) }}</b>
-            <span v-if="sub.expires_at"> · истекает {{ formatRelativeTime(sub.expires_at) }}</span>
+            {{ t('Предложено:') }} <b>{{ formatRelativeTime(sub.created_at) }}</b>
+            <span v-if="sub.expires_at"> {{ t('· истекает') }} {{ formatRelativeTime(sub.expires_at) }}</span>
           </div>
         </div>
 
         <div class="mrm-body">
 
           <div class="mrm-section">
-            <div class="mrm-section-hd">Контекст</div>
+            <div class="mrm-section-hd">{{ t('Контекст') }}</div>
             <div class="mrm-breadcrumbs">
               <span class="mrm-bc-item"><BIcon name="package" :size="14" /> {{ sub.target_module }}</span>
               <BIcon v-if="sub.target_entity_label" name="chevron-right" :size="13" class="mrm-bc-arr" />
@@ -262,17 +266,17 @@ function fmtVal(v: unknown): string {
           </div>
 
           <div v-if="diffEntries.length > 0" class="mrm-section">
-            <div class="mrm-section-hd">Изменения</div>
+            <div class="mrm-section-hd">{{ t('Изменения') }}</div>
             <div class="mrm-diff-grid">
               <div v-for="d in diffEntries" :key="d.key" class="mrm-diff-row" :class="{ changed: d.changed }">
                 <div class="mrm-diff-key">{{ d.key }}</div>
                 <div class="mrm-diff-before">
-                  <div class="mrm-diff-label">Было</div>
+                  <div class="mrm-diff-label">{{ t('Было') }}</div>
                   <div class="mrm-diff-val">{{ fmtVal(d.before) }}</div>
                 </div>
                 <BIcon name="arrow-right" :size="15" class="mrm-diff-arr" />
                 <div class="mrm-diff-after">
-                  <div class="mrm-diff-label">Предложено</div>
+                  <div class="mrm-diff-label">{{ t('Предложено') }}</div>
                   <div class="mrm-diff-val">{{ fmtVal(d.after) }}</div>
                 </div>
               </div>
@@ -280,29 +284,29 @@ function fmtVal(v: unknown): string {
           </div>
 
           <div v-if="sub.reason" class="mrm-section">
-            <div class="mrm-section-hd">Обоснование</div>
+            <div class="mrm-section-hd">{{ t('Обоснование') }}</div>
             <div class="mrm-reason">{{ sub.reason }}</div>
           </div>
 
           <div v-if="sub.attachments && sub.attachments.length" class="mrm-section">
-            <div class="mrm-section-hd">Вложения</div>
+            <div class="mrm-section-hd">{{ t('Вложения') }}</div>
             <div class="mrm-attachments">
               <span v-for="(a, i) in sub.attachments" :key="i" class="mrm-attach">
                 <BIcon name="paperclip" :size="14" />
-                {{ (a as Record<string, unknown>).name || "файл" }}
+                {{ (a as Record<string, unknown>).name || t('файл') }}
               </span>
             </div>
           </div>
 
           <div class="mrm-section">
-            <div class="mrm-section-hd">Обсуждение · {{ comments.length }}</div>
-            <div v-if="!comments.length" class="mrm-empty-comments">Нет комментариев</div>
+            <div class="mrm-section-hd">{{ t('Обсуждение ·') }} {{ comments.length }}</div>
+            <div v-if="!comments.length" class="mrm-empty-comments">{{ t('Нет комментариев') }}</div>
             <div v-else class="mrm-comments">
               <div v-for="c in comments" :key="c.id" class="mrm-comment" :class="{ internal: c.is_internal }">
                 <span class="mrm-c-avatar">{{ c.user_id ? dir.initials(c.user_id) : "—" }}</span>
                 <div class="mrm-c-body">
                   <div class="mrm-c-meta">
-                    <b>{{ c.user_id ? dir.shortName(c.user_id) : "(удалён)" }}</b>
+                    <b>{{ c.user_id ? dir.shortName(c.user_id) : t('(удалён)') }}</b>
                     <span v-if="c.is_internal" class="mrm-c-internal">internal</span>
                     <span class="mrm-c-time">{{ formatRelativeTime(c.created_at) }}</span>
                   </div>
@@ -311,25 +315,25 @@ function fmtVal(v: unknown): string {
               </div>
             </div>
             <div class="mrm-c-compose">
-              <input v-model="newComment" placeholder="Написать комментарий..." @keyup.enter="postComment" />
+              <input v-model="newComment" :placeholder="t('Написать комментарий...')" @keyup.enter="postComment" />
               <label v-if="canResolve" class="mrm-c-internal-check"><input type="checkbox" v-model="internalToggle"> internal</label>
               <button class="mrm-c-send" @click="postComment" :disabled="!newComment.trim()">
-                <BIcon name="send" :size="14" /> Отправить
+                <BIcon name="send" :size="14" /> {{ t('Отправить') }}
               </button>
             </div>
           </div>
 
           <div v-if="sub.resolution_note" class="mrm-section">
-            <div class="mrm-section-hd">Резолюция</div>
+            <div class="mrm-section-hd">{{ t('Резолюция') }}</div>
             <div class="mrm-resolution">{{ sub.resolution_note }}</div>
           </div>
 
           <!-- B1 follow-up: apply-dispatcher status for approved submissions. -->
           <div v-if="sub.status === 'approved'" class="mrm-section">
-            <div class="mrm-section-hd">Применение изменения</div>
+            <div class="mrm-section-hd">{{ t('Применение изменения') }}</div>
             <div class="mrm-apply-row">
               <span :class="applyPillClass(sub.apply_status)">
-                {{ applyPillLabel(sub.apply_status) }}
+                {{ t(applyPillLabel(sub.apply_status)) }}
               </span>
               <span v-if="sub.apply_status === 'applied' && sub.apply_result"
                     class="mrm-apply-result">
@@ -356,16 +360,16 @@ function fmtVal(v: unknown): string {
         <!-- C1: inline resolution panel — replaces window.prompt + adds edit-approve UI -->
         <div v-if="resolveMode" class="mrm-resolve-panel" :class="`mrm-rp-${resolveMode}`">
           <div class="mrm-rp-hd">
-            <span v-if="resolveMode === 'approve'">Принять предложение</span>
-            <span v-else-if="resolveMode === 'reject'">Отклонить предложение</span>
-            <span v-else>Изменить и принять</span>
+            <span v-if="resolveMode === 'approve'">{{ t('Принять предложение') }}</span>
+            <span v-else-if="resolveMode === 'reject'">{{ t('Отклонить предложение') }}</span>
+            <span v-else>{{ t('Изменить и принять') }}</span>
           </div>
 
           <textarea
             v-if="resolveMode === 'edit-approve'"
             v-model="editedJson"
             class="mrm-rp-json"
-            placeholder='Отредактируйте JSON proposed_value'
+            :placeholder="t('Отредактируйте JSON proposed_value')"
             rows="8"
             spellcheck="false"
           ></textarea>
@@ -374,21 +378,21 @@ function fmtVal(v: unknown): string {
           <textarea
             v-model="resolveNote"
             class="mrm-rp-note"
-            :placeholder="resolveMode === 'reject' ? 'Причина отклонения (обязательно)' : 'Комментарий к решению (необязательно)'"
+            :placeholder="resolveMode === 'reject' ? t('Причина отклонения (обязательно)') : t('Комментарий к решению (необязательно)')"
             rows="2"
           ></textarea>
 
           <div class="mrm-rp-actions">
-            <button class="mrm-btn mrm-btn-ghost" @click="cancelResolvePanel" :disabled="acting">Отмена</button>
+            <button class="mrm-btn mrm-btn-ghost" @click="cancelResolvePanel" :disabled="acting">{{ t('Отмена') }}</button>
             <button
               class="mrm-btn"
               :class="resolveMode === 'reject' ? 'mrm-btn-reject' : 'mrm-btn-approve'"
               :disabled="acting"
               @click="submitResolve"
             >
-              <span v-if="resolveMode === 'approve'">Подтвердить «Принять»</span>
-              <span v-else-if="resolveMode === 'reject'">Подтвердить «Отклонить»</span>
-              <span v-else>Сохранить и принять</span>
+              <span v-if="resolveMode === 'approve'">{{ t('Подтвердить «Принять»') }}</span>
+              <span v-else-if="resolveMode === 'reject'">{{ t('Подтвердить «Отклонить»') }}</span>
+              <span v-else>{{ t('Сохранить и принять') }}</span>
             </button>
           </div>
         </div>
@@ -396,24 +400,24 @@ function fmtVal(v: unknown): string {
         <div class="mrm-footer">
           <div class="mrm-foot-l">
             <BIcon name="history" :size="14" />
-            Все действия логируются в audit log
+            {{ t('Все действия логируются в audit log') }}
           </div>
           <div class="mrm-foot-r" v-if="!resolveMode">
             <button v-if="canWithdraw" class="mrm-btn mrm-btn-ghost" :disabled="acting" @click="withdraw">
-              Отозвать
+              {{ t('Отозвать') }}
             </button>
             <template v-if="canResolve && ['pending','under_review'].includes(sub.status)">
               <button class="mrm-btn mrm-btn-ghost" :disabled="acting" @click="setReview">
-                <BIcon name="eye" :size="14" /> На рассмотрение
+                <BIcon name="eye" :size="14" /> {{ t('На рассмотрение') }}
               </button>
               <button class="mrm-btn mrm-btn-ghost" :disabled="acting" @click="openResolvePanel('edit-approve')">
-                <BIcon name="edit" :size="14" /> Изменить и принять
+                <BIcon name="edit" :size="14" /> {{ t('Изменить и принять') }}
               </button>
               <button class="mrm-btn mrm-btn-reject" :disabled="acting" @click="openResolvePanel('reject')">
-                <BIcon name="x" :size="14" /> Отклонить
+                <BIcon name="x" :size="14" /> {{ t('Отклонить') }}
               </button>
               <button class="mrm-btn mrm-btn-approve" :disabled="acting" @click="openResolvePanel('approve')">
-                <BIcon name="check" :size="14" /> Принять
+                <BIcon name="check" :size="14" /> {{ t('Принять') }}
               </button>
             </template>
           </div>

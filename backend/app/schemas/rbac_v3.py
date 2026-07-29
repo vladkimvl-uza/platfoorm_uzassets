@@ -143,6 +143,8 @@ class UserCreateGroupMembership(BaseModel):
 
 class UserDetail(UserBrief):
     effective_permissions: list[str] = Field(default_factory=list)
+    direct_permissions: list[str] = Field(default_factory=list)
+    denied_permissions: list[str] = Field(default_factory=list)
     # per-(user, group) role assignments.
     group_memberships: list[UserGroupMembership] = Field(default_factory=list)
     # followup: moderation flags surfaced in the user-detail drawer.

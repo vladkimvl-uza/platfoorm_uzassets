@@ -2,6 +2,7 @@
 import { onMounted, onBeforeUnmount, ref, watch, nextTick, computed, useSlots } from "vue";
 import { useConfirm } from "@/composables/useConfirm";
 import { useI18n } from "@/composables/useI18n";
+
 const { t } = useI18n();
 
 
@@ -38,7 +39,7 @@ const hasHeader = computed(() => !!(props.title || slots.header));
 async function requestClose() {
   if (props.dirty) {
     const ok = await confirmDialog({
-      message: props.confirmText || "Есть несохранённые изменения. Закрыть без сохранения?",
+      message: props.confirmText || t("Есть несохранённые изменения. Закрыть без сохранения?"),
       danger: true,
     });
     if (!ok) return;

@@ -1,16 +1,17 @@
 import { api } from "./client";
+import { i18nKey } from "@/locale/keys";
 
 export type PartnerKind   = "gov_ministry" | "portfolio_company" | "saas_vendor" | "bank" | "integrator" | "other";
 export type PartnerStatus = "active" | "suspended" | "terminated";
 export type PartnerTier   = "platinum" | "gold" | "silver" | "standard";
 
 export const PARTNER_KIND_LABELS: Record<PartnerKind, string> = {
-  gov_ministry:      "Министерство",
-  portfolio_company: "Портфельная компания",
-  saas_vendor:       "SaaS-провайдер",
-  bank:              "Банк",
-  integrator:        "Системный интегратор",
-  other:             "Другое",
+  gov_ministry:      i18nKey("Министерство"),
+  portfolio_company: i18nKey("Портфельная компания"),
+  saas_vendor:       i18nKey("SaaS-провайдер"),
+  bank:              i18nKey("Банк"),
+  integrator:        i18nKey("Системный интегратор"),
+  other:             i18nKey("Другое"),
 };
 
 export interface PartnerContact {

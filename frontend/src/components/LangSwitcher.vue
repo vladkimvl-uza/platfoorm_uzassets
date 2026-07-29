@@ -21,6 +21,9 @@ import {
   type AppLocale,
 } from "@/locale/locales";
 import { useLocaleStore } from "@/stores/locale";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 withDefaults(defineProps<{ variant?: "dark" | "light" }>(), { variant: "dark" });
 
@@ -51,7 +54,7 @@ onBeforeUnmount(() => document.removeEventListener("click", onDocClick));
       class="lsw-btn"
       type="button"
       :title="LOCALE_NAME[store.current]"
-      :aria-label="`Til / Язык / Language: ${LOCALE_NAME[store.current]}`"
+      :aria-label="t('Til / Язык / Language: {value0}', { value0: LOCALE_NAME[store.current] })"
       @click.stop="open = !open"
     >
       <img class="lsw-flag" :src="localeFlag[store.current]" alt="" aria-hidden="true" />

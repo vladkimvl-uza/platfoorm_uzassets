@@ -28,7 +28,7 @@ async function load() {
     const data = await esgApi.getSwot();
     items.value = (data.company_items || []).filter(i => i.company_id === props.companyId);
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || "Не удалось загрузить SWOT";
+    error.value = e?.response?.data?.detail || t('Не удалось загрузить SWOT');
     items.value = [];
   } finally {
     loading.value = false;
@@ -58,7 +58,7 @@ function cancel() { editing.value = null; draft.value = ""; }
 async function save() {
   if (!editing.value) return;
   const body = draft.value.trim();
-  if (!body) { toast.error("Введите текст"); return; }
+  if (!body) { toast.error(t('Введите текст')); return; }
   saving.value = true;
   try {
     const nextIdx = items.value.filter(i => i.kind === editing.value!.kind).length;
@@ -70,13 +70,13 @@ async function save() {
       body,
       order_idx: editing.value.id ? undefined as any : nextIdx,
     } as any);
-    if (isModerationQueued(res)) toast.info("Изменение отправлено на модерацию");
-    else toast.success("Сохранено");
+    if (isModerationQueued(res)) toast.info(t('Изменение отправлено на модерацию'));
+    else toast.success(t('Сохранено'));
     editing.value = null; draft.value = "";
     await load();
     emit("changed");
   } catch (e: any) {
-    toast.error(e?.response?.data?.detail || "Не удалось сохранить");
+    toast.error(e?.response?.data?.detail || t('Не удалось сохранить'));
   } finally {
     saving.value = false;
   }
@@ -85,7 +85,7 @@ async function save() {
 
 <template>
   <div class="sw">
-    <UzaStateBlock v-if="loading" state="loading" text="Загрузка SWOT…" />
+    <UzaStateBlock v-if="loading" state="loading" :text="t('Загрузка SWOT…')" />
     <UzaStateBlock v-else-if="error" state="error" variant="block" :text="error" retry @retry="load" />
 
     <template v-else>

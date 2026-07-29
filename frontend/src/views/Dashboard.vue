@@ -329,19 +329,20 @@ useAiPageContext({
   label: t("Главный дашборд"),
   describeState: () => {
     const parts: string[] = [];
-    if (sectorFilter.value) parts.push(`сектор: ${sectorFilter.value}`);
-    if (companyFilter.value) parts.push(`компания: ${companyFilter.value}`);
-    parts.push(`показано: ${statusEntity.value === "tasks" ? "задачи" : "проекты"}`);
-    parts.push(`формат: ${statusFormat.value}`);
+    if (sectorFilter.value) parts.push(t("сектор: {sector}", { sector: sectorFilter.value }));
+    if (companyFilter.value) parts.push(t("компания: {company}", { company: companyFilter.value }));
+    const entity = statusEntity.value === "tasks" ? t("задачи") : t("проекты");
+    parts.push(t("показано: {entity}", { entity }));
+    parts.push(t("формат: {format}", { format: statusFormat.value }));
     return parts.join("; ");
   },
   quickActions: [
     { label: t("Сводка дашборда"),
-      prompt: "Дай сводку главного дашборда: статусы проектов/задач по компаниям и секторам. Что выделяется. Используй get_kpi_summary." },
+      prompt: t("Дай сводку главного дашборда: статусы проектов/задач по компаниям и секторам. Что выделяется. Используй get_kpi_summary.") },
     { label: t("Топ-5 отстающих"),
-      prompt: "Найди топ-5 отстающих компаний по выполнению задач за текущий год. Используй get_kpi_summary.top_overdue_companies + конкретные рекомендации." },
+      prompt: t("Найди топ-5 отстающих компаний по выполнению задач за текущий год. Используй get_kpi_summary.top_overdue_companies + конкретные рекомендации.") },
     { label: t("Что просрочено?"),
-      prompt: "Покажи все критичные просрочки задач на сегодня. Используй list_overdue_tasks." },
+      prompt: t("Покажи все критичные просрочки задач на сегодня. Используй list_overdue_tasks.") },
   ],
 });
 

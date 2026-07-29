@@ -11,7 +11,7 @@
 
 export const uz: Record<string, string> = {
   // ── Статус-бар и KPI-карточки компании ──
-  "Общий прогресс": "Umumiy bajarilish",
+  
   "На цели (≥95%)": "Maqsadda (≥95%)",
   "Критичных (<70%)": "Kritik (<70%)",
   "Год к году": "Yilma-yil",
@@ -19,7 +19,7 @@ export const uz: Record<string, string> = {
   "взвешенно · {n} метрик": "vaznlangan · {n} metrika",
   "нет фактов": "faktlar yoʻq",
   "показателей": "koʻrsatkich",
-  "всё в норме": "hammasi meʼyorida",
+  
   "требуют решения": "qaror talab qiladi",
   "нет данных за {y}": "{y} uchun maʼlumot yoʻq",
   "по выручке к {y}": "tushum boʻyicha {y} ga nisbatan",
@@ -59,7 +59,7 @@ export const uz: Record<string, string> = {
     "Izoh kiritilmagan. Kuzatuv kengashi uchun izoh qoʻshish uchun «{btn}» tugmasini bosing.",
   "Например: Операционный план Q1 выполнен на 104%. Отставание по IPO-процессу из-за задержки аудита — перенос на Q2...":
     "Masalan: Q1 operatsion reja 104% bajarildi. Audit kechikishi sababli IPO jarayonida ortda qolish — Q2 ga koʻchirildi...",
-  "Сохранение...": "Saqlanmoqda...",
+  
   "Сохранение…": "Saqlanmoqda…",
 
   // ── YTD-фолбэк ──
@@ -134,7 +134,7 @@ export const uz: Record<string, string> = {
   "Строка P&L · декомпозиция по компаниям": "P&L qatori · kompaniyalar kesimida",
   "Бизнес-план компании · полный профиль": "Kompaniya biznes-rejasi · toʻliq profil",
   "Сектор · профиль и компании": "Tarmoq · profil va kompaniyalar",
-  "{n} компаний": "{n} kompaniya",
+  
   "{n} компаний сектора": "tarmoqda {n} kompaniya",
   "млрд UZS": "mlrd UZS",
   "{n} прочих": "boshqa {n} ta",
@@ -272,7 +272,7 @@ export const uz: Record<string, string> = {
   "ожид": "kutil",
   "нат": "nat",
   "Продукция": "Mahsulot",
-  "Ед.": "Birlik",
+  
   "План (нат.)": "Reja (nat.)",
   "Ожид. (нат.)": "Kutil. (nat.)",
   "Факт (нат.)": "Fakt (nat.)",
@@ -308,26 +308,26 @@ export const uz: Record<string, string> = {
   "Добавить продукт": "Mahsulot qoʻshish",
 
   // ── BP_FIELDS (строки ОФР из api/bpKpi.ts — отображаются в этих компонентах) ──
-  "Чистая выручка от реализации": "Sotuvdan sof tushum",
+  
   "Себестоимость реализованной продукции": "Sotilgan mahsulot tannarxi",
   "— расходы на реализацию": "— sotish xarajatlari",
   "— административные расходы": "— maʼmuriy xarajatlar",
   "— прочие операционные расходы": "— boshqa operatsion xarajatlar",
   "Прочие доходы от основной деятельности": "Asosiy faoliyatdan boshqa daromadlar",
-  "— доходы в виде дивидендов": "— dividendlar koʻrinishidagi daromadlar",
-  "— доходы в виде процентов": "— foizlar koʻrinishidagi daromadlar",
-  "— доходы от курсовых разниц": "— kurs farqidan daromadlar",
+  
+  
+  
   "— прочие фин. доходы": "— boshqa moliyaviy daromadlar",
-  "— расходы в виде процентов": "— foizlar koʻrinishidagi xarajatlar",
-  "— убытки от курсовых разниц": "— kurs farqidan zararlar",
+  
+  
   "— прочие фин. расходы": "— boshqa moliyaviy xarajatlar",
   "Прибыль от общехоз. деятельности": "Umumxoʻjalik faoliyatidan foyda",
-  "Прибыль до налогообложения": "Soliq solinmasdan avvalgi foyda",
-  "Чистая прибыль (убыток) периода": "Davrning sof foydasi (zarari)",
+  
+  
 
   // ── Зоны исполнения (utils/execBand.ts — показываются здесь) ──
   "в норме": "meʼyorida",
-  "отставание": "ortda qolish",
+  
   "критично": "kritik",
   "переисполнение — проверить единицы/двойной ввод": "ortiqcha bajarilish — birliklar/ikki marta kiritishni tekshiring",
 };
@@ -342,7 +342,7 @@ export const en: Record<string, string> = {
   "взвешенно · {n} метрик": "weighted · {n} metrics",
   "нет фактов": "no actuals",
   "показателей": "indicators",
-  "всё в норме": "all on track",
+  
   "требуют решения": "need action",
   "нет данных за {y}": "no data for {y}",
   "по выручке к {y}": "revenue vs {y}",
@@ -375,13 +375,12 @@ export const en: Record<string, string> = {
   // ── Комментарий руководителя ──
   "Комментарий сохранён": "Comment saved",
   "Не удалось сохранить": "Failed to save",
-  "Комментарий руководителя": "Management commentary",
+  
   "обновлено": "updated",
-  "Комментарий не задан. Нажмите «{btn}» чтобы добавить пояснение для НС.":
-    "No comment yet. Click \"{btn}\" to add an explanation for the Supervisory Board.",
+  
   "Например: Операционный план Q1 выполнен на 104%. Отставание по IPO-процессу из-за задержки аудита — перенос на Q2...":
     "Example: Q1 operating plan delivered at 104%. IPO process delayed by the audit — moved to Q2...",
-  "Сохранение...": "Saving...",
+  
   "Сохранение…": "Saving…",
 
   // ── YTD-фолбэк ──
@@ -389,7 +388,7 @@ export const en: Record<string, string> = {
     "{q} is not filled in — figures are shown year-to-date; the per-quarter breakdown will appear once the previous quarter is filled in the editor.",
   "Строки с меткой «нараст.» показаны нарастающим итогом: в {q} не заполнен факт — «за квартал» не вычислить. Внесите факт {q} в редакторе, и строки переключатся на «за квартал».":
     "Rows tagged \"YTD\" are shown year-to-date: the {q} actual is missing, so per-quarter values cannot be computed. Enter the {q} actual in the editor and the rows will switch to per-quarter view.",
-  "нараст.": "YTD",
+  
   "Показано нарастающим итогом с начала года: в предыдущем квартале нет факта — «за квартал» не вычислить":
     "Shown year-to-date: the previous quarter has no actual, so the per-quarter value cannot be computed",
   "Показано нарастающим итогом: в предыдущем квартале нет факта — «за квартал» не вычислить":
@@ -434,7 +433,7 @@ export const en: Record<string, string> = {
     "the total includes companies without previous-quarter data, so the bar sum ≠ the YTD total",
 
   // ── Внимание / достижения ──
-  "Требуют решения": "Need action",
+  
   "Критических отклонений нет": "No critical deviations",
   "Достижения периода": "Period achievements",
   "Нет показателей ≥100% плана": "No indicators at ≥100% of plan",
@@ -519,7 +518,7 @@ export const en: Record<string, string> = {
   "Валовая": "Gross",
   "Опер. расходы": "Op. expenses",
   "Опер. прибыль": "Op. profit",
-  "трлн": "tn",
+  
   "млрд": "bn",
   "Открыть детализацию": "Open details",
 
@@ -605,7 +604,7 @@ export const en: Record<string, string> = {
 
   // ── Редактор производства ──
   "Строку-итог удалить нельзя": "The total row cannot be deleted",
-  "Есть несохранённые изменения. Закрыть без сохранения?": "You have unsaved changes. Close without saving?",
+  
   "Нет строк для сохранения": "No rows to save",
   "Отправлено на модерацию": "Sent for moderation",
   "Производственные данные сохранены": "Production data saved",
@@ -632,13 +631,13 @@ export const en: Record<string, string> = {
   "— расходы на реализацию": "— selling expenses",
   "— административные расходы": "— administrative expenses",
   "— прочие операционные расходы": "— other operating expenses",
-  "Прочие доходы от основной деятельности": "Other income from core operations",
+  
   "— доходы в виде дивидендов": "— dividend income",
   "— доходы в виде процентов": "— interest income",
-  "— доходы от курсовых разниц": "— FX gains",
+  
   "— прочие фин. доходы": "— other finance income",
   "— расходы в виде процентов": "— interest expense",
-  "— убытки от курсовых разниц": "— FX losses",
+  
   "— прочие фин. расходы": "— other finance costs",
   "Прибыль от общехоз. деятельности": "Profit from ordinary activities",
   "Прибыль до налогообложения": "Profit before tax",
@@ -646,7 +645,7 @@ export const en: Record<string, string> = {
 
   // ── Зоны исполнения (utils/execBand.ts) ──
   "в норме": "on track",
-  "отставание": "behind",
+  
   "критично": "critical",
   "переисполнение — проверить единицы/двойной ввод": "overrun — check units/double entry",
 };

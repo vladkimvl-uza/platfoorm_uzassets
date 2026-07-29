@@ -158,7 +158,7 @@ onBeforeUnmount(() => {
           >
             <span class="edt-check">{{ isSectorSelected(s.id) ? '✓' : '' }}</span>
             <span class="edt-opt-dot" :style="{ background: s.color }" />
-            <span>{{ s.label }}</span>
+            <span>{{ t(s.label) }}</span>
           </div>
         </div>
       </div>

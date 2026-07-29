@@ -276,7 +276,7 @@ const fmtDt = (s: string | null) => s ? new Date(s).toLocaleDateString("ru-RU", 
               <td><span class="pl-kind" :style="{ color: LK[it.kind]?.c, background: LK[it.kind]?.c + '1a' }">{{ LK[it.kind]?.l }}</span></td>
               <td>
                 <div class="pl-title">{{ it.title }}</div>
-                <div v-if="it.description" class="pl-sub">{{ t(it.description) }}</div>
+                <div v-if="it.description" class="pl-sub">{{ it.description }}</div>
                 <div v-if="it.recommendation" class="pl-rec">→ {{ it.recommendation }}</div>
               </td>
               <td><span v-if="projTitle(it.project_id)" class="pl-proj">{{ projTitle(it.project_id) }}</span><span v-else class="pl-dash">—</span></td>
@@ -305,7 +305,7 @@ const fmtDt = (s: string | null) => s ? new Date(s).toLocaleDateString("ru-RU", 
               <td><span class="pl-ck">{{ CK[it.kind]?.l }}</span></td>
               <td>
                 <div class="pl-title">{{ it.title }}</div>
-                <div v-if="it.description" class="pl-sub">{{ t(it.description) }}</div>
+                <div v-if="it.description" class="pl-sub">{{ it.description }}</div>
                 <div v-if="it.impact" class="pl-rec">{{ t('Влияние:') }} {{ it.impact }}</div>
               </td>
               <td><span v-if="projTitle(it.project_id)" class="pl-proj">{{ projTitle(it.project_id) }}</span><span v-else class="pl-dash">—</span></td>

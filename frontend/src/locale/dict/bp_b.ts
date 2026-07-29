@@ -7,10 +7,10 @@
 export const uz: Record<string, string> = {
   // ── BpAiAnalysis: кнопка/шапка ──
   "ИИ-анализ бизнес-плана": "Biznes-rejaning AI tahlili",
-  "Анализирую…": "Tahlil qilinmoqda…",
-  "Анализ ИИ": "AI tahlili",
+  
+  
   "ИИ-АНАЛИЗ БИЗНЕС-ПЛАНА": "BIZNES-REJA AI TAHLILI",
-  "КОМПАНИЯ": "KOMPANIYA",
+  
   "ПОРТФЕЛЬ": "PORTFEL",
   "Скопировать ответ": "Javobni nusxalash",
   "Выгрузить таблицы в Excel": "Jadvallarni Excelga yuklab olish",
@@ -35,8 +35,8 @@ export const uz: Record<string, string> = {
   "Модельный прогноз БП (движок)": "Biznes-rejaning model prognozi (hisoblash mexanizmi)",
   "По годам": "Yillar boʻyicha",
   "По кварталам": "Choraklar boʻyicha",
-  "{y} г.": "{y}-y.",
-  "Метрика": "Metrika",
+  
+  
   "Тек. факт": "Joriy fakt",
   "Ожид. {y}": "Kutil. {y}",
   "Метод": "Metod",
@@ -45,7 +45,7 @@ export const uz: Record<string, string> = {
   "ИИ ниже накладывает факторы (цены на сырьё, курс, санкции, макро) и корректирует.": "Quyida AI omillarni (xomashyo narxlari, valyuta kursi, sanksiyalar, makro) hisobga olib tuzatadi.",
   "Исполнение по метрикам, факт/план %": "Metrikalar boʻyicha ijro, fakt/reja %",
   "Исполнение по компаниям (выручка), факт/план %": "Kompaniyalar boʻyicha ijro (tushum), fakt/reja %",
-  "Выберите охват и режим, затем запустите анализ.": "Qamrov va rejimni tanlab, tahlilni boshlang.",
+  
   "ИИ разберёт исполнение плана (план / ожидаемое / факт по ОФР и производству), свяжет производство с финансами и — в режиме «Прогноз» — предскажет будущие цели БП с учётом цен на сырьё, курса и санкций.": "AI reja ijrosini tahlil qiladi (moliyaviy natijalar hisoboti va ishlab chiqarish boʻyicha reja / kutilayotgan / fakt), ishlab chiqarishni moliya bilan bogʻlaydi va «Prognoz» rejimida xomashyo narxlari, kurs va sanksiyalarni hisobga olgan holda biznes-rejaning kelgusi maqsadlarini bashorat qiladi.",
 
   // ── BpAiAnalysis: методы движка ──
@@ -66,7 +66,7 @@ export const uz: Record<string, string> = {
   "Ошибка анализа": "Tahlil xatosi",
   "Анализ скопирован": "Tahlil nusxalandi",
   "Не удалось скопировать": "Nusxalab boʻlmadi",
-  "Анализ не сохранён на сервере — исчезнет при обновлении. Повторите.": "Tahlil serverda saqlanmadi — sahifa yangilanganda yoʻqoladi. Qayta urinib koʻring.",
+  
   "Модель прогноза": "Prognoz modeli",
   "Таблица {n}": "Jadval {n}",
   "Полный текст": "Toʻliq matn",
@@ -117,11 +117,11 @@ export const uz: Record<string, string> = {
   "высокая": "yuqori",
   "средняя": "oʻrtacha",
   "низкая": "past",
-  "Заполнит {n} пустых ячеек плана": "{n} ta boʻsh reja katagi toʻldiriladi",
+  
   "Пустых ячеек плана нет — всё уже введено": "Boʻsh reja kataklari yoʻq — hammasi kiritilgan",
   "Заполнить пустые планы": "Boʻsh rejalarni toʻldirish",
   "Не удалось построить черновик плана: {reason}": "Reja qoralamasini tuzib boʻlmadi: {reason}",
-  "Черновик применён: заполнено {n} ячеек плана — проверьте и сохраните": "Qoralama qoʻllandi: {n} reja katagi toʻldirildi — tekshirib saqlang",
+  
   "Пустых ячеек плана нет — черновик ничего не менял": "Boʻsh reja kataklari yoʻq — qoralama hech narsani oʻzgartirmadi",
 
   // ── BpEditor: футер/статусы/сохранение ──
@@ -134,11 +134,11 @@ export const uz: Record<string, string> = {
   "пустой «Факт» берётся из источника, можно переопределить вручную": "boʻsh «Fakt» manbadan olinadi, qoʻlda oʻzgartirish mumkin",
   "Данных источника (НСБУ / закрытые кварталы) за {year} пока нет — ручной ввод": "{year} uchun manba maʼlumotlari (BHMS / yopilgan choraklar) hozircha yoʻq — qoʻlda kiritish",
   "Квартальный период — значения НАРАСТАЮЩИМ ИТОГОМ с начала года (Q1 = 1 кв, Q2 = полугодие, Q3 = 9 мес, Q4 = год)": "Chorak davri — qiymatlar yil boshidan oʻsib boruvchi jami (Q1 = 1-chorak, Q2 = yarim yillik, Q3 = 9 oy, Q4 = yil)",
-  "Сохранение...": "Saqlanmoqda…",
+  
   "Сохранить все периоды": "Barcha davrlarni saqlash",
   "Только просмотр · нет прав на редактирование": "Faqat koʻrish · tahrirlash huquqi yoʻq",
   "Есть несохранённые изменения. Переключить компанию и потерять их?": "Saqlanmagan oʻzgarishlar bor. Kompaniya almashtirilib, ular yoʻqotilsinmi?",
-  "неизвестная ошибка": "nomaʼlum xato",
+  
   "Не удалось загрузить сохранённые данные. Не сохраняйте, чтобы не затереть существующие значения — нажмите «Повторить».": "Saqlangan maʼlumotlarni yuklab boʻlmadi. Mavjud qiymatlarni yoʻqotmaslik uchun saqlamang — «Qayta urinish» tugmasini bosing.",
   "Нет данных для сохранения": "Saqlash uchun maʼlumot yoʻq",
   "Кто-то сохранил изменения, пока вы редактировали. Перезагрузите редактор.": "Siz tahrirlayotganda kimdir oʻzgarishlarni saqladi. Muharrirni qayta yuklang.",
@@ -149,7 +149,7 @@ export const uz: Record<string, string> = {
   "Бизнес-план не сохранён: {reason}": "Biznes-reja saqlanmadi: {reason}",
 
   // ── Статьи ОФР (BP_FIELDS, BHMS-терминология) ──
-  "Чистая выручка от реализации": "Mahsulot sotishdan sof tushum",
+  
   "Себестоимость реализованной продукции": "Sotilgan mahsulot tannarxi",
   "Расходы периода": "Davr xarajatlari",
   "— расходы на реализацию": "— sotish xarajatlari",
@@ -157,18 +157,18 @@ export const uz: Record<string, string> = {
   "— прочие операционные расходы": "— boshqa operatsion xarajatlar",
   "Прочие доходы от основной деятельности": "Asosiy faoliyatdan boshqa daromadlar",
   "Финансовые доходы": "Moliyaviy daromadlar",
-  "— доходы в виде дивидендов": "— dividendlar shaklidagi daromadlar",
-  "— доходы в виде процентов": "— foizlar shaklidagi daromadlar",
-  "— доходы от курсовых разниц": "— valyuta kursi farqidan daromadlar",
+  
+  
+  
   "— прочие фин. доходы": "— boshqa moliyaviy daromadlar",
   "Финансовые расходы": "Moliyaviy xarajatlar",
-  "— расходы в виде процентов": "— foizlar shaklidagi xarajatlar",
-  "— убытки от курсовых разниц": "— valyuta kursi farqidan zararlar",
+  
+  
   "— прочие фин. расходы": "— boshqa moliyaviy xarajatlar",
   "Прибыль от общехоз. деятельности": "Umumxoʻjalik faoliyatidan foyda",
-  "Прибыль до налогообложения": "Soliq toʻlangunga qadar foyda",
+  
   "Налог на прибыль": "Foyda soligʻi",
-  "Чистая прибыль (убыток) периода": "Davrning sof foydasi (zarari)",
+  
 
   // ── BusinessPlan.vue: топбар/пикер/пустые состояния ──
   "Удалить год": "Yilni oʻchirish",
@@ -178,9 +178,9 @@ export const uz: Record<string, string> = {
   "Выберите компанию для просмотра деталей.": "Tafsilotlarni koʻrish uchun kompaniyani tanlang.",
   "Финансовые": "Moliyaviy",
   "Производственные": "Ishlab chiqarish",
-  "Сводка": "Jamlanma",
+  
   "По компании": "Kompaniya boʻyicha",
-  "Сводка по портфелю": "Portfel boʻyicha jamlanma",
+  
   "Выберите компанию": "Kompaniyani tanlang",
   "годовой итог": "yillik jami",
   "за квартал {q}": "{q} choragi uchun",
@@ -191,7 +191,7 @@ export const uz: Record<string, string> = {
   "Не удалось удалить": "Oʻchirib boʻlmadi",
   "План vs Факт по портфелю": "Portfel boʻyicha Reja vs Fakt",
   "Где провал?": "Qayerda ortda qolinmoqda?",
-  "Сравни 2025 vs 2026": "2025 vs 2026 solishtirish",
+  
   "Сводка расходов": "Xarajatlar jamlanmasi",
 };
 
@@ -201,7 +201,7 @@ export const en: Record<string, string> = {
   "Анализирую…": "Analyzing…",
   "Анализ ИИ": "AI analysis",
   "ИИ-АНАЛИЗ БИЗНЕС-ПЛАНА": "BUSINESS PLAN AI ANALYSIS",
-  "КОМПАНИЯ": "COMPANY",
+  
   "ПОРТФЕЛЬ": "PORTFOLIO",
   "Скопировать ответ": "Copy answer",
   "Выгрузить таблицы в Excel": "Export tables to Excel",
@@ -224,11 +224,11 @@ export const en: Record<string, string> = {
   "Прогноз выручки «{name}» (история → прогноз), млрд сум": "Revenue forecast “{name}” (history → forecast), bn UZS",
   "прогноз": "forecast",
   "Модельный прогноз БП (движок)": "Model BP forecast (engine)",
-  "По годам": "By years",
-  "По кварталам": "By quarters",
+  
+  
   "{y} г.": "{y}",
   "Метрика": "Metric",
-  "Тек. факт": "Current actual",
+  
   "Ожид. {y}": "Exp. {y}",
   "Метод": "Method",
   "Числа — детерминированный движок (воспроизводимо, деньги млрд сум); коридор [low…high] — неопределённость.": "Figures come from a deterministic engine (reproducible, money in bn UZS); the [low…high] band reflects uncertainty.",
@@ -253,11 +253,11 @@ export const en: Record<string, string> = {
   "Считаю модельный прогноз БП (годы + кварталы)…": "Computing model BP forecast (years + quarters)…",
   "ИИ анализирует бизнес-план…": "AI is analyzing the business plan…",
   "Нет данных бизнес-плана за этот год. Заведите показатели в редакторе.": "No business plan data for this year. Enter indicators in the editor.",
-  "ИИ вернул пустой ответ.": "The AI returned an empty response.",
+  
   "Ошибка анализа": "Analysis error",
   "Анализ скопирован": "Analysis copied",
   "Не удалось скопировать": "Failed to copy",
-  "Анализ не сохранён на сервере — исчезнет при обновлении. Повторите.": "Analysis was not saved on the server — it will be lost on refresh. Try again.",
+  
   "Модель прогноза": "Forecast model",
   "Таблица {n}": "Table {n}",
   "Полный текст": "Full text",
@@ -270,7 +270,7 @@ export const en: Record<string, string> = {
   "Только расходные статьи (cogs, opExpenses, finCost, tax + sub-items)": "Expense items only (cogs, opExpenses, finCost, tax + sub-items)",
   "Черновик плана из истории фактов (CAGR/OLS + историческая сезонность). Заполняет только пустые ячейки плана; ничего не сохраняет сам.": "Plan draft from actuals history (CAGR/OLS + historical seasonality). Fills only empty plan cells; saves nothing by itself.",
   "Расчёт…": "Calculating…",
-  "Рассчитать план": "Generate plan",
+  
   "Сумма (план)": "Total (plan)",
   "Сумма (факт)": "Total (actual)",
   "Δ план→факт": "Δ plan→actual",
@@ -292,7 +292,7 @@ export const en: Record<string, string> = {
   "✎ вручную": "✎ manual",
   "Применить значение источника ({src}): {value}": "Apply source value ({src}): {value}",
   "↻ обновить": "↻ update",
-  "нараст. итог (Q4)": "YTD (Q4)",
+  
 
   // ── BpEditor: черновик плана ──
   "Черновик плана": "Plan draft",
@@ -302,14 +302,14 @@ export const en: Record<string, string> = {
   "Год (план)": "Year (plan)",
   "Коридор": "Range",
   "Годовой план уже введён — черновик его не тронет": "Annual plan already entered — the draft will not touch it",
-  "занято": "in use",
+  
   "сезонности нет — только год": "no seasonality — year only",
   "OLS-тренд": "OLS trend",
   "высокая": "high",
   "средняя": "medium",
   "низкая": "low",
   "Заполнит {n} пустых ячеек плана": "Will fill {n} empty plan cells",
-  "Пустых ячеек плана нет — всё уже введено": "No empty plan cells — everything is already entered",
+  
   "Заполнить пустые планы": "Fill empty plans",
   "Не удалось построить черновик плана: {reason}": "Failed to build plan draft: {reason}",
   "Черновик применён: заполнено {n} ячеек плана — проверьте и сохраните": "Draft applied: {n} plan cells filled — review and save",
@@ -325,7 +325,7 @@ export const en: Record<string, string> = {
   "пустой «Факт» берётся из источника, можно переопределить вручную": "an empty “Actual” is taken from the source; you can override it manually",
   "Данных источника (НСБУ / закрытые кварталы) за {year} пока нет — ручной ввод": "No source data (NAS / closed quarters) for {year} yet — manual entry",
   "Квартальный период — значения НАРАСТАЮЩИМ ИТОГОМ с начала года (Q1 = 1 кв, Q2 = полугодие, Q3 = 9 мес, Q4 = год)": "Quarterly period — values are cumulative YEAR-TO-DATE (Q1 = Q1, Q2 = half-year, Q3 = 9 months, Q4 = full year)",
-  "Сохранение...": "Saving…",
+  
   "Сохранить все периоды": "Save all periods",
   "Только просмотр · нет прав на редактирование": "View only · no edit permission",
   "Есть несохранённые изменения. Переключить компанию и потерять их?": "There are unsaved changes. Switch company and lose them?",
@@ -346,15 +346,15 @@ export const en: Record<string, string> = {
   "— расходы на реализацию": "— selling expenses",
   "— административные расходы": "— administrative expenses",
   "— прочие операционные расходы": "— other operating expenses",
-  "Прочие доходы от основной деятельности": "Other operating income",
+  
   "Финансовые доходы": "Finance income",
   "— доходы в виде дивидендов": "— dividend income",
   "— доходы в виде процентов": "— interest income",
-  "— доходы от курсовых разниц": "— foreign exchange gains",
+  
   "— прочие фин. доходы": "— other finance income",
   "Финансовые расходы": "Finance costs",
   "— расходы в виде процентов": "— interest expense",
-  "— убытки от курсовых разниц": "— foreign exchange losses",
+  
   "— прочие фин. расходы": "— other finance costs",
   "Прибыль от общехоз. деятельности": "Profit from ordinary activities",
   "Прибыль до налогообложения": "Profit before tax",
@@ -363,8 +363,8 @@ export const en: Record<string, string> = {
 
   // ── BusinessPlan.vue: топбар/пикер/пустые состояния ──
   "Удалить год": "Delete year",
-  "— выберите компанию —": "— select a company —",
-  "Добавить новую компанию": "Add a new company",
+  
+  
   "Нет данных бизнес-плана. Перейдите в режим «По компании» и заведите данные.": "No business plan data. Switch to “By company” mode and enter data.",
   "Выберите компанию для просмотра деталей.": "Select a company to view details.",
   "Финансовые": "Financial",
@@ -407,6 +407,6 @@ export const cyr: Record<string, string> = {
   "Весь портфель": "Бутун портфель",
   "Все компании портфеля": "Портфельдаги барча компаниялар",
   "портфель": "портфель",
-  "Сводка по портфелю": "Портфель бўйича жамланма",
+  
   "План vs Факт по портфелю": "Портфель бўйича Режа vs Факт",
 };

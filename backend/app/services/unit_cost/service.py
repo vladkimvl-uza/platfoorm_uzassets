@@ -28,6 +28,7 @@ from fastapi import HTTPException
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.i18n import current_locale, tr
 from app.repositories.snapshot_store import SnapshotStore
 
 _KEY = "raw_snapshot.unitCostData"
@@ -457,12 +458,24 @@ class UnitCostService:
             p = _num(src.get("price"))
             if p is not None:
                 if p < 0:
-                    raise HTTPException(400, f"{FUEL_LABELS[f]}: цена — число ≥ 0")
+                    raise HTTPException(
+                        400,
+                        tr(
+                            "{label}: цена должна быть числом не меньше 0",
+                            current_locale(), label=FUEL_LABELS[f],
+                        ),
+                    )
                 entry["price"] = p
             usd = _num(src.get("usd"))
             if usd is not None:
                 if usd < 0:
-                    raise HTTPException(400, f"{FUEL_LABELS[f]}: цена USD — число ≥ 0")
+                    raise HTTPException(
+                        400,
+                        tr(
+                            "{label}: цена USD должна быть числом не меньше 0",
+                            current_locale(), label=FUEL_LABELS[f],
+                        ),
+                    )
                 entry["usd"] = usd
             elif "usd" in src:  # явный сброс привязки к USD
                 entry.pop("usd", None)

@@ -40,6 +40,12 @@ import { watchesApi } from "@/api/watches";
 import AttachmentsPanel from "./Attachments/AttachmentsPanel.vue";
 import { usePermissions } from "@/composables/usePermissions";
 import { pmoApi, type DependencyRead } from "@/api/pmo";
+import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
+const { t: tr } = useI18n();
+const t = tr;
+
 
 const pmoPerm = usePermissions("pmo");
 
@@ -165,7 +171,7 @@ const formHasEffect = ref(false);
 const formEffectPlan = ref<number | null>(null);
 const formEffectFact = ref<number | null>(null);
 const formEffectCurrency = ref("UZS");
-const formEffectUnit = ref("млрд");
+const formEffectUnit = ref(i18nKey("млрд"));
 const formEffectNote = ref("");
 
 // PMO P1 — расписание (базовый план / часы / веха / бюджет / прогресс) + зависимости
@@ -209,14 +215,14 @@ const selectedProjectId = ref<string | null>(null);
 // Направления — единый каталог (как в матрице/мастере отчёта). Дефолт — на случай,
 // если каталог ещё не загрузился / API недоступен.
 const FALLBACK_DIRECTIONS = [
-  "Операционная эффективность",
-  "Цифровизация",
+  i18nKey("Операционная эффективность"),
+  i18nKey("Цифровизация"),
   "ESG",
-  "Система закупок",
-  "Корпоративное управление",
-  "Финансы / риски / аудит",
-  "Стратегическое управление",
-  "Организационное развитие",
+  i18nKey("Система закупок"),
+  i18nKey("Корпоративное управление"),
+  i18nKey("Финансы / риски / аудит"),
+  i18nKey("Стратегическое управление"),
+  i18nKey("Организационное развитие"),
 ];
 const directionCatalog = ref<DirectionBrief[]>([]);
 const directions = computed<string[]>(() =>
@@ -245,9 +251,9 @@ const directionOptions = computed(() => {
   return opts;
 });
 const groundTypes = ref([
-  { value: "shareholder", label: "Ожидания Акционера" },
-  { value: "pp",          label: "Поручение Президента" },
-  { value: "pkm",         label: "Постановление КМ" },
+  { value: "shareholder", label: i18nKey("Ожидания Акционера") },
+  { value: "pp",          label: i18nKey("Поручение Президента") },
+  { value: "pkm",         label: i18nKey("Постановление КМ") },
 ]);
 
 // =====================================================================
@@ -330,8 +336,8 @@ const computedProgress = computed(() => {
 
 const accessBannerText = computed(() => {
   switch (accessLevel.value) {
-    case "kurator": return "Куратор · редактирование";
-    case "executor": return "Редактирование · в рамках доступа";
+    case "kurator": return tr("Куратор · редактирование");
+    case "executor": return tr("Редактирование · в рамках доступа");
     default:        return "Read-only";
   }
 });
@@ -378,11 +384,11 @@ const dueHint = computed<{ text: string; tone: "ok" | "warn" | "danger" | "muted
   today.setHours(0, 0, 0, 0);
   d.setHours(0, 0, 0, 0);
   const diff = Math.round((d.getTime() - today.getTime()) / 86400000);
-  if (diff < 0)  return { text: `просрочено ${-diff} дн`, tone: "danger" };
-  if (diff === 0) return { text: "сегодня", tone: "danger" };
-  if (diff <= 7)  return { text: `через ${diff} дн`, tone: "warn" };
-  if (diff <= 30) return { text: `через ${diff} дн`, tone: "ok" };
-  return { text: `через ${diff} дн`, tone: "muted" };
+  if (diff < 0)  return { text: tr("просрочено {days} дн", { days: -diff }), tone: "danger" };
+  if (diff === 0) return { text: tr("сегодня"), tone: "danger" };
+  if (diff <= 7)  return { text: tr("через {days} дн", { days: diff }), tone: "warn" };
+  if (diff <= 30) return { text: tr("через {days} дн", { days: diff }), tone: "ok" };
+  return { text: tr("через {days} дн", { days: diff }), tone: "muted" };
 });
 
 const commentsCount = computed(() => comments.value.length);
@@ -487,7 +493,7 @@ function populateForm() {
     formEffectPlan.value = eff.plan ?? eff.value ?? null;
     formEffectFact.value = eff.fact ?? null;
     formEffectCurrency.value = eff.currency || "UZS";
-    formEffectUnit.value = eff.unit || "млрд";
+  formEffectUnit.value = eff.unit || "млрд"; // i18n-exempt -- canonical value saved to the API
     formEffectNote.value = eff.note || "";
   }
 
@@ -773,7 +779,7 @@ async function addDep() {
     depToAdd.value = "";
     await loadDeps();
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || "Не удалось добавить зависимость";
+    error.value = e?.response?.data?.detail || tr('Не удалось добавить зависимость');
   } finally { depBusy.value = false; }
 }
 
@@ -783,13 +789,13 @@ async function removeDep(depId: string) {
     await pmoApi.deleteDependency(depId);
     await loadDeps();
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || "Не удалось удалить зависимость";
+    error.value = e?.response?.data?.detail || tr('Не удалось удалить зависимость');
   } finally { depBusy.value = false; }
 }
 
 async function handleSave() {
   if (!formTitle.value.trim()) {
-    error.value = "Название обязательно";
+    error.value = tr('Название обязательно');
     return;
   }
   saving.value = true;
@@ -831,7 +837,7 @@ async function handleSave() {
     if (savedId !== null) emit("saved", savedId);
     emit("close");
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || e?.message || "Ошибка сохранения";
+    error.value = e?.response?.data?.detail || e?.message || tr('Ошибка сохранения');
   } finally {
     saving.value = false;
   }
@@ -839,7 +845,7 @@ async function handleSave() {
 
 async function handleArchive() {
   if (!props.entity) return;
-  if (!(await confirmDialog({ message: `Архивировать ${props.kind === "project" ? "проект" : "задачу"} "${formTitle.value}"?`, danger: true }))) return;
+  if (!(await confirmDialog({ message: tr('Архивировать {value0} "{value1}"?', { value0: props.kind === "project" ? i18nKey("проект") : i18nKey("задачу"), value1: formTitle.value }), danger: true }))) return;
   saving.value = true;
   try {
     if (props.kind === "project") {
@@ -850,7 +856,7 @@ async function handleArchive() {
     emit("saved", props.entity.id);
     emit("close");
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || e?.message || "Ошибка архивирования";
+    error.value = e?.response?.data?.detail || e?.message || tr('Ошибка архивирования');
   } finally {
     saving.value = false;
   }
@@ -890,7 +896,7 @@ async function handleAddComment() {
     await reloadComments();
   } catch (e: any) {
     console.error("[editor] add comment failed:", e);
-    error.value = e?.response?.data?.detail || "Не удалось добавить комментарий";
+    error.value = e?.response?.data?.detail || tr('Не удалось добавить комментарий');
   } finally {
     commentsBusy.value = false;
   }
@@ -915,20 +921,20 @@ async function saveEditComment(commentId: string) {
     if (idx >= 0) comments.value[idx] = data;
     cancelEditComment();
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || "Не удалось сохранить правку";
+    error.value = e?.response?.data?.detail || tr('Не удалось сохранить правку');
   } finally {
     commentsBusy.value = false;
   }
 }
 
 async function deleteComment(commentId: string) {
-  if (!(await confirmDialog({ message: "Удалить комментарий?", danger: true }))) return;
+  if (!(await confirmDialog({ message: tr("Удалить комментарий?"), danger: true }))) return;
   commentsBusy.value = true;
   try {
     await api.delete(commentItemEndpoint(commentId));
     comments.value = comments.value.filter(c => c.id !== commentId);
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || "Не удалось удалить комментарий";
+    error.value = e?.response?.data?.detail || tr('Не удалось удалить комментарий');
   } finally {
     commentsBusy.value = false;
   }
@@ -983,7 +989,7 @@ function startEditTitle() {
 function commitTitle() {
   titleEditing.value = false;
   if (!formTitle.value.trim()) {
-    formTitle.value = props.entity?.title || "Без названия";
+  formTitle.value = props.entity?.title || tr("Без названия");
   }
 }
 
@@ -1026,7 +1032,7 @@ const initialSig = ref("");
 function resetDirtyBaseline() { nextTick(() => { initialSig.value = _formSig(); }); }
 const isDirty = computed(() => initialSig.value !== "" && _formSig() !== initialSig.value);
 async function requestClose() {
-  if (isDirty.value && !(await confirmDialog({ message: "Есть несохранённые изменения. Закрыть без сохранения?", danger: true }))) return;
+  if (isDirty.value && !(await confirmDialog({ message: tr("Есть несохранённые изменения. Закрыть без сохранения?"), danger: true }))) return;
   emit("close");
 }
 
@@ -1069,14 +1075,14 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
       <header class="ed-header">
         <div class="ed-header-left">
           <span class="kind-pill" :class="`kind-${kind}`">
-            {{ kind === "project" ? "ПРОЕКТ" : "ЗАДАЧА" }}
+            {{ kind === "project" ? tr('ПРОЕКТ') : tr('ЗАДАЧА') }}
           </span>
 
           <input
             v-if="canEdit"
             class="num-input"
             v-model="formNum"
-            placeholder="ПР-2026-014"
+            :placeholder="tr('ПР-2026-014')"
           />
           <span v-else-if="formNum" class="num-static">{{ formNum }}</span>
 
@@ -1084,7 +1090,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
               <path d="M5 12h14M12 5l7 7-7 7"/>
             </svg>
-            из FY{{ linkedFromYear }}
+            {{ tr('из FY') }}{{ linkedFromYear }}
           </span>
           <span v-if="linkedToYear" class="transfer-badge to">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -1101,15 +1107,15 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
             class="ed-watch-btn"
             :class="{ on: watching }"
             @click="toggleWatch"
-            :title="watching ? 'Вы отслеживаете — нажмите чтобы отписаться' : 'Отслеживать: получать уведомления об изменениях'"
+            :title="watching ? tr('Вы отслеживаете — нажмите чтобы отписаться') : tr('Отслеживать: получать уведомления об изменениях')"
           >
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
               <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/>
             </svg>
-            {{ watching ? 'Отслеживаю' : 'Отслеживать' }}
+            {{ watching ? tr('Отслеживаю') : tr('Отслеживать') }}
             <span v-if="watcherCount > 0" class="ed-watch-n">{{ watcherCount }}</span>
           </button>
-          <button class="ed-close" @click="requestClose" aria-label="Закрыть">
+          <button class="ed-close" @click="requestClose" :aria-label="tr('Закрыть')">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M18 6L6 18M6 6l12 12"/>
             </svg>
@@ -1123,7 +1129,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
       <section class="ed-hero">
         <div class="hero-eyebrow">
           <span class="hero-type-pill" :class="kind === 'project' ? 'is-project' : 'is-task'">
-            {{ kind === 'project' ? 'Проект' : 'Задача' }}
+            {{ kind === 'project' ? tr('Проект') : tr('Задача') }}
           </span>
         </div>
         <div class="hero-title-row" @click="!titleEditing && startEditTitle()">
@@ -1134,11 +1140,11 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
             class="title-input"
             @blur="commitTitle"
             @keydown.enter.prevent="commitTitle"
-            placeholder="Название..."
+            :placeholder="tr('Название...')"
           />
           <h1 v-else class="title-display">
-            {{ formTitle || "Без названия" }}
-            <button v-if="canEdit" class="pencil-btn" @click.stop="startEditTitle" aria-label="Редактировать">
+            {{ formTitle || tr('Без названия') }}
+            <button v-if="canEdit" class="pencil-btn" @click.stop="startEditTitle" :aria-label="tr('Редактировать')">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/>
               </svg>
@@ -1157,19 +1163,19 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
                 :class="{ 'is-done': stepIdx >= 0 && i < stepIdx, 'is-current': i === stepIdx, 'line-filled': stepIdx >= 0 && i <= stepIdx }"
                 :disabled="!canEdit"
                 @click="formStatus = s"
-                :title="statusLabel(s)"
+                :title="tr(statusLabel(s))"
               >
                 <span class="tpe-step-node">
                   <svg v-if="stepIdx >= 0 && i < stepIdx" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                   <span v-else>{{ i + 1 }}</span>
                 </span>
-                <span class="tpe-step-label">{{ statusLabel(s) }}</span>
+                <span class="tpe-step-label">{{ tr(statusLabel(s)) }}</span>
               </button>
             </div>
 
             <!-- Recurring sub-group (tasks only) — visually separated -->
             <div v-if="recurringStatusOptions.length" class="status-row status-row--recurring">
-              <span class="status-group-label">Регулярные:</span>
+              <span class="status-group-label">{{ tr('Регулярные:') }}</span>
               <button
                 v-for="s in recurringStatusOptions" :key="s"
                 class="status-badge status-badge--recurring"
@@ -1179,7 +1185,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
                 @click="formStatus = s"
               >
                 <span class="dot" :style="`background: ${statusColor(s)}`"></span>
-                {{ statusLabel(s) }}
+                {{ tr(statusLabel(s)) }}
               </button>
             </div>
           </div>
@@ -1191,7 +1197,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
               <span class="tpe-pp-pct"><b>{{ computedProgress }}</b><i>%</i></span>
             </div>
             <div v-if="formDueDate" class="tpe-pp-right">
-              <span class="tpe-pp-due-label">Дедлайн</span>
+              <span class="tpe-pp-due-label">{{ tr('Дедлайн') }}</span>
               <span class="tpe-pp-due-date">{{ formatDateShort(formDueDate) }}</span>
               <span v-if="dueHint" class="tpe-pp-chip" :class="`tone-${dueHint.tone}`">{{ dueHint.text }}</span>
             </div>
@@ -1221,14 +1227,14 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
           </svg>
         </div>
         <div class="ppc-body">
-          <span class="ppc-label">Относится к проекту</span>
+          <span class="ppc-label">{{ tr('Относится к проекту') }}</span>
           <div class="ppc-title-row">
             <span v-if="parentProject.num" class="ppc-num">{{ parentProject.num }}</span>
             <span class="ppc-title">{{ parentProject.title }}</span>
             <span v-if="parentProject.portfolio_year" class="ppc-year">FY{{ parentProject.portfolio_year }}</span>
           </div>
         </div>
-        <button class="ppc-open" @click="openParentProject" title="Открыть проект">
+        <button class="ppc-open" @click="openParentProject" :title="tr('Открыть проект')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M7 17L17 7M7 7h10v10"/>
           </svg>
@@ -1243,13 +1249,13 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
           class="ed-tab"
           :class="{ active: activeTab === 'details' }"
           @click="activeTab = 'details'"
-        >Детали</button>
+        >{{ tr('Детали') }}</button>
         <button
           v-if="!isCreate"
           class="ed-tab"
           :class="{ active: activeTab === 'comments' }"
           @click="openComments()"
-        >Комментарии<span class="tab-count" v-if="commentsCount">{{ commentsCount }}</span></button>
+        >{{ tr('Комментарии') }}<span class="tab-count" v-if="commentsCount">{{ commentsCount }}</span></button>
       </nav>
 
       <!-- ═══════════════════════════════════════════════════════ -->
@@ -1275,15 +1281,15 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 
           <!-- Period (start + due on one row) -->
           <section class="block">
-            <div class="block-label">Период</div>
+            <div class="block-label">{{ tr('Период') }}</div>
             <div class="period-row">
               <div class="period-field">
-                <label>Старт</label>
+                <label>{{ tr('Старт') }}</label>
                 <input type="date" v-model="formStartDate" :disabled="!canEdit"/>
               </div>
               <span class="period-sep">—</span>
               <div class="period-field">
-                <label>Дедлайн</label>
+                <label>{{ tr('Дедлайн') }}</label>
                 <input type="date" v-model="formDueDate" :disabled="!canEdit"/>
               </div>
             </div>
@@ -1291,61 +1297,61 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 
           <!-- PMO · расписание (только при праве pmo.view) -->
           <section v-if="pmoPerm.canView.value" class="block">
-            <div class="block-label">PMO · расписание</div>
+            <div class="block-label">{{ tr('PMO · расписание') }}</div>
             <div class="period-row">
               <div class="period-field">
-                <label>База: старт</label>
+                <label>{{ tr('База: старт') }}</label>
                 <input type="date" v-model="formBaselineStart" :disabled="!pmoPerm.canEdit.value"/>
               </div>
               <span class="period-sep">—</span>
               <div class="period-field">
-                <label>База: дедлайн</label>
+                <label>{{ tr('База: дедлайн') }}</label>
                 <input type="date" v-model="formBaselineDue" :disabled="!pmoPerm.canEdit.value"/>
               </div>
             </div>
             <div class="pmo-fields">
               <div class="field">
-                <label>Оценка, ч</label>
+                <label>{{ tr('Оценка, ч') }}</label>
                 <input type="number" min="0" v-model.number="formEstimatedHours" :disabled="!pmoPerm.canEdit.value" placeholder="—"/>
               </div>
               <div v-if="kind === 'task'" class="field">
-                <label>Прогресс</label>
-                <div class="pmo-progress-ro">{{ statusPct }}% · из статуса «{{ pmoStatusLabel }}»</div>
+                <label>{{ tr('Прогресс') }}</label>
+                <div class="pmo-progress-ro">{{ statusPct }}{{ tr('% · из статуса «') }}{{ tr(pmoStatusLabel) }}»</div>
               </div>
               <div v-if="kind === 'project'" class="field">
-                <label>Бюджет</label>
+                <label>{{ tr('Бюджет') }}</label>
                 <input type="number" min="0" v-model.number="formBudgetAmount" :disabled="!pmoPerm.canEdit.value" placeholder="—"/>
               </div>
             </div>
             <label v-if="kind === 'task'" class="pmo-ms">
               <input type="checkbox" v-model="formIsMilestone" :disabled="!pmoPerm.canEdit.value"/>
-              Веха (нулевая длительность — ромб на Гантте)
+              {{ tr('Веха (нулевая длительность — ромб на Гантте)') }}
             </label>
           </section>
 
           <!-- PMO · зависимости (задача, не создание) -->
           <section v-if="pmoPerm.canView.value && kind === 'task' && !isCreate" class="block">
-            <div class="block-label">PMO · зависит от</div>
+            <div class="block-label">{{ tr('PMO · зависит от') }}</div>
             <div v-if="depList.length" class="pmo-deps">
               <span v-for="d in depList" :key="d.depId" class="pmo-dep-chip">
                 {{ d.title }}
-                <button v-if="pmoPerm.canEdit.value" type="button" class="pmo-dep-x" :disabled="depBusy" @click="removeDep(d.depId)" aria-label="Убрать зависимость">×</button>
+                <button v-if="pmoPerm.canEdit.value" type="button" class="pmo-dep-x" :disabled="depBusy" @click="removeDep(d.depId)" :aria-label="tr('Убрать зависимость')">×</button>
               </span>
             </div>
-            <div v-else class="pmo-dep-empty">Нет предшественников</div>
+            <div v-else class="pmo-dep-empty">{{ tr('Нет предшественников') }}</div>
             <div v-if="pmoPerm.canEdit.value" class="pmo-dep-add">
               <select v-model="depToAdd" :disabled="depBusy">
-                <option value="">+ предшественник…</option>
+                <option value="">{{ tr('+ предшественник…') }}</option>
                 <option v-for="t in depCandidates" :key="t.id" :value="t.id">{{ t.title }}</option>
               </select>
-              <button type="button" class="pmo-dep-btn" :disabled="!depToAdd || depBusy" @click="addDep">Добавить</button>
+              <button type="button" class="pmo-dep-btn" :disabled="!depToAdd || depBusy" @click="addDep">{{ tr('Добавить') }}</button>
             </div>
           </section>
 
           <!-- Economic effect -->
           <section class="block">
             <div class="block-label flex">
-              <span>Экономический эффект</span>
+              <span>{{ tr('Экономический эффект') }}</span>
               <label class="switch">
                 <input type="checkbox" v-model="formHasEffect" :disabled="!canEdit"/>
                 <span class="slider"></span>
@@ -1354,23 +1360,25 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 
             <div v-if="formHasEffect" class="effect-grid">
               <div class="field">
-                <label>План</label>
+                <label>{{ tr('План') }}</label>
                 <input type="number" v-model.number="formEffectPlan" :disabled="!canEdit" placeholder="0"/>
               </div>
               <div class="field">
-                <label>Факт</label>
+                <label>{{ tr('Факт') }}</label>
                 <input type="number" v-model.number="formEffectFact" :disabled="!canEdit" placeholder="0"/>
               </div>
               <div class="field">
-                <label>Ед.</label>
+                <label>{{ tr('Ед.') }}</label>
                 <select v-model="formEffectUnit" :disabled="!canEdit">
-                  <option value="млрд">млрд</option>
-                  <option value="млн">млн</option>
-                  <option value="тыс">тыс</option>
+            <!-- i18n-exempt-start -- option values are canonical API unit codes. -->
+            <option value="млрд">{{ tr('млрд') }}</option>
+            <option value="млн">{{ tr('млн') }}</option>
+            <option value="тыс">{{ tr('тыс') }}</option>
+            <!-- i18n-exempt-end -->
                 </select>
               </div>
               <div class="field">
-                <label>Валюта</label>
+                <label>{{ tr('Валюта') }}</label>
                 <select v-model="formEffectCurrency" :disabled="!canEdit">
                   <option value="UZS">UZS</option>
                   <option value="USD">USD</option>
@@ -1378,8 +1386,8 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
                 </select>
               </div>
               <div class="field full">
-                <label>Заметка</label>
-                <input v-model="formEffectNote" placeholder="Комментарий к эффекту" :disabled="!canEdit"/>
+                <label>{{ tr('Заметка') }}</label>
+                <input v-model="formEffectNote" :placeholder="tr('Комментарий к эффекту')" :disabled="!canEdit"/>
               </div>
             </div>
           </section>
@@ -1387,13 +1395,13 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
           <!-- Attachments — Результаты + Документы -->
           <section v-if="!isCreate && props.entity?.id" class="block">
             <AttachmentsPanel
-              title="РЕЗУЛЬТАТЫ"
-              hint="Подтверждающие файлы (отчёты, акты, презентации)"
+              :title="tr('РЕЗУЛЬТАТЫ')"
+              :hint="t('Подтверждающие файлы (отчёты, акты, презентации)')"
               :kind="entityAttachKind"
               :parent-id="String(props.entity.id)"
               :is-result-doc="true"
               filter="result"
-              empty-text="Файлы-результаты не загружены"
+              :empty-text="t('Файлы-результаты не загружены')"
               :current-user-id="currentUserId"
               :is-admin="isAdmin"
             />
@@ -1401,13 +1409,13 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 
           <section v-if="!isCreate && props.entity?.id" class="block">
             <AttachmentsPanel
-              title="ДОКУМЕНТЫ"
-              hint="Прочие файлы по этой работе"
+              :title="tr('ДОКУМЕНТЫ')"
+              :hint="t('Прочие файлы по этой работе')"
               :kind="entityAttachKind"
               :parent-id="String(props.entity.id)"
               :is-result-doc="false"
               filter="regular"
-              empty-text="Документов нет"
+              :empty-text="t('Документов нет')"
               :current-user-id="currentUserId"
               :is-admin="isAdmin"
             />
@@ -1416,7 +1424,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
           <!-- Collapsible: Основание + Тип (project only) -->
           <details v-if="kind === 'project'" class="block block-foldable" :open="isCreate">
             <summary class="block-summary">
-              <span class="block-label inline">Основание и тип проекта</span>
+              <span class="block-label inline">{{ tr('Основание и тип проекта') }}</span>
               <svg class="caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="6 9 12 15 18 9"/>
               </svg>
@@ -1424,36 +1432,36 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
             <div class="block-content">
               <div class="field-grid-2">
                 <div class="field">
-                  <label>Основание</label>
+                  <label>{{ tr('Основание') }}</label>
                   <select v-model="formGroundType" :disabled="!canEdit">
-                    <option value="">— не указано —</option>
-                    <option v-for="g in groundTypes" :key="g.value" :value="g.value">{{ g.label }}</option>
-                    <option v-if="canManageRefs" value="custom">+ Добавить</option>
+                    <option value="">{{ tr('— не указано —') }}</option>
+                    <option v-for="g in groundTypes" :key="g.value" :value="g.value">{{ tr(g.label) }}</option>
+                    <option v-if="canManageRefs" value="custom">{{ tr('+ Добавить') }}</option>
                   </select>
                 </div>
                 <div class="field">
-                  <label>№ основания</label>
-                  <input v-model="formGroundNumber" placeholder="ПКМ-123 от 01.01.2026" :disabled="!canEdit"/>
+                  <label>{{ tr('№ основания') }}</label>
+                  <input v-model="formGroundNumber" :placeholder="tr('ПКМ-123 от 01.01.2026')" :disabled="!canEdit"/>
                 </div>
               </div>
               <div class="field">
-                <label>Тип проекта <span v-if="!isCreate" class="locked-hint">залочен</span></label>
+                <label>{{ tr('Тип проекта') }} <span v-if="!isCreate" class="locked-hint">{{ tr('залочен') }}</span></label>
                 <div class="pill-toggle">
                   <button class="pill" :class="{ active: formProjectType === 'onetime' }"
-                          :disabled="!isCreate || !canEdit" @click="formProjectType = 'onetime'">Одноразовый</button>
+                          :disabled="!isCreate || !canEdit" @click="formProjectType = 'onetime'">{{ tr('Одноразовый') }}</button>
                   <button class="pill" :class="{ active: formProjectType === 'recurring' }"
-                          :disabled="!isCreate || !canEdit" @click="formProjectType = 'recurring'">Регулярный</button>
+                          :disabled="!isCreate || !canEdit" @click="formProjectType = 'recurring'">{{ tr('Регулярный') }}</button>
                 </div>
               </div>
               <div v-if="formProjectType === 'recurring'" class="field">
-                <label>Периодичность</label>
+                <label>{{ tr('Периодичность') }}</label>
                 <div class="pill-toggle">
                   <button class="pill sm" :class="{ active: formRecurringPeriod === 'ongoing' }"
-                          :disabled="!canEdit" @click="formRecurringPeriod = 'ongoing'; formStatus = 'ongoing'">Постоянный</button>
+                          :disabled="!canEdit" @click="formRecurringPeriod = 'ongoing'; formStatus = 'ongoing'">{{ tr('Постоянный') }}</button>
                   <button class="pill sm" :class="{ active: formRecurringPeriod === 'quarterly' }"
-                          :disabled="!canEdit" @click="formRecurringPeriod = 'quarterly'; formStatus = 'quarterly'">Ежеквартальный</button>
+                          :disabled="!canEdit" @click="formRecurringPeriod = 'quarterly'; formStatus = 'quarterly'">{{ tr('Ежеквартальный') }}</button>
                   <button class="pill sm" :class="{ active: formRecurringPeriod === 'monthly' }"
-                          :disabled="!canEdit" @click="formRecurringPeriod = 'monthly'; formStatus = 'monthly'">Ежемесячный</button>
+                          :disabled="!canEdit" @click="formRecurringPeriod = 'monthly'; formStatus = 'monthly'">{{ tr('Ежемесячный') }}</button>
                 </div>
               </div>
             </div>
@@ -1463,8 +1471,8 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
           <details v-if="kind === 'project' && !isCreate" class="block block-foldable" :open="!!formLinkedProjectId">
             <summary class="block-summary">
               <span class="block-label inline">
-                Перенос на FY+1
-                <span v-if="formLinkedProjectId" class="badge-mini">перенесён</span>
+                {{ tr('Перенос на FY+1') }}
+                <span v-if="formLinkedProjectId" class="badge-mini">{{ tr('перенесён') }}</span>
               </span>
               <svg class="caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="6 9 12 15 18 9"/>
@@ -1472,14 +1480,14 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
             </summary>
             <div class="block-content">
               <div class="field">
-                <label>Связанный проект (год+1)</label>
+                <label>{{ tr('Связанный проект (год+1)') }}</label>
                 <select v-model="formLinkedProjectId" :disabled="!canEdit">
-                  <option :value="null">— не перенесён —</option>
+                  <option :value="null">{{ tr('— не перенесён —') }}</option>
                   <option v-for="p in futureProjects" :key="p.id" :value="p.id">
                     FY{{ p.portfolio_year }} · {{ p.title }}
                   </option>
                 </select>
-                <p class="hint">Перенос разрешён только на FY+1 и далее. Текущий проект остаётся в FY{{ formPortfolioYear }}.</p>
+                <p class="hint">{{ tr('Перенос разрешён только на FY+1 и далее. Текущий проект остаётся в FY') }}{{ formPortfolioYear }}.</p>
               </div>
             </div>
           </details>
@@ -1488,8 +1496,8 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
           <details v-if="kind === 'task' && !isCreate" class="block block-foldable" :open="!!formLinkedTaskId">
             <summary class="block-summary">
               <span class="block-label inline">
-                Перенос на FY+1
-                <span v-if="formLinkedTaskId" class="badge-mini">перенесена</span>
+                {{ tr('Перенос на FY+1') }}
+                <span v-if="formLinkedTaskId" class="badge-mini">{{ tr('перенесена') }}</span>
               </span>
               <svg class="caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="6 9 12 15 18 9"/>
@@ -1497,18 +1505,17 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
             </summary>
             <div class="block-content">
               <div class="field">
-                <label>Связанная задача (год+1)</label>
+                <label>{{ tr('Связанная задача (год+1)') }}</label>
                 <select v-model="formLinkedTaskId" :disabled="!canEdit">
-                  <option :value="null">— не перенесена —</option>
+                  <option :value="null">{{ tr('— не перенесена —') }}</option>
                   <option v-for="t in futureTasks" :key="t.id" :value="t.id">
                     FY{{ t.portfolio_year }} · {{ t.num ? `[${t.num}] ` : '' }}{{ t.title }}
                   </option>
                 </select>
                 <p class="hint">
-                  Перенос связывает текущую задачу с задачей в FY{{ formPortfolioYear + 1 }} и далее.
-                  Текущая задача остаётся в FY{{ formPortfolioYear }} — целевая задача получает badge «перенесена из FY{{ formPortfolioYear }}».
+                  {{ tr('Перенос связывает текущую задачу с задачей в FY') }}{{ formPortfolioYear + 1 }} {{ tr('и далее. Текущая задача остаётся в FY') }}{{ formPortfolioYear }} {{ tr('— целевая задача получает badge «перенесена из FY') }}{{ formPortfolioYear }}».
                   <span v-if="!futureTasks.length" class="hint-empty">
-                    В FY{{ formPortfolioYear + 1 }} пока нет задач для этой компании — сначала создайте задачу в следующем году.
+                    {{ tr('В FY') }}{{ formPortfolioYear + 1 }} {{ tr('пока нет задач для этой компании — сначала создайте задачу в следующем году.') }}
                   </span>
                 </p>
               </div>
@@ -1521,7 +1528,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
         <aside class="ed-rail">
 
           <section class="rail-block">
-            <div class="rail-label">Ответственный</div>
+            <div class="rail-label">{{ tr('Ответственный') }}</div>
             <UserAutocomplete
               :email="formAssigneeEmail"
               :name="formAssigneeName"
@@ -1533,22 +1540,22 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 
           <section v-if="kind === 'task'" class="rail-block">
             <div class="rail-label rail-label-flex">
-              <span>Проект</span>
+              <span>{{ tr('Проект') }}</span>
               <span class="rail-year-chip">FY{{ formPortfolioYear }}</span>
             </div>
             <select v-model="selectedProjectId" :disabled="!canEdit" class="rail-select">
-              <option :value="null">— без проекта —</option>
+              <option :value="null">{{ tr('— без проекта —') }}</option>
               <option v-for="p in companyProjects" :key="p.id" :value="p.id">
                 {{ p.num ? `[${p.num}] ` : '' }}{{ p.title }}
               </option>
             </select>
             <p v-if="!companyProjects.length" class="rail-proj-empty">
-              В FY{{ formPortfolioYear }} проектов нет — задача будет без проекта.
+              {{ tr('В FY') }}{{ formPortfolioYear }} {{ tr('проектов нет — задача будет без проекта.') }}
             </p>
           </section>
 
           <section class="rail-block">
-            <div class="rail-label">Консультанты</div>
+            <div class="rail-label">{{ tr('Консультанты') }}</div>
             <div class="consultant-picker" :class="{ open: consultantDropdownOpen }">
               <button class="consultant-trigger" :disabled="!canEdit"
                       @click="consultantDropdownOpen = !consultantDropdownOpen">
@@ -1560,7 +1567,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
                     <span class="consultant-chip-name">{{ sel.c?.name_ru || sel.token }}</span>
                   </span>
                 </div>
-                <span v-else class="consultant-placeholder">— выберите —</span>
+                <span v-else class="consultant-placeholder">{{ tr('— выберите —') }}</span>
                 <svg class="caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <polyline points="6 9 12 15 18 9"/>
                 </svg>
@@ -1568,7 +1575,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
               <div v-if="consultantDropdownOpen" class="consultant-menu">
                 <div v-if="formConsultantCodes.length" class="consultant-opt consultant-opt-clear"
                      @click="formConsultantCodes = []">
-                  <span class="consultant-placeholder">— очистить все —</span>
+                  <span class="consultant-placeholder">{{ tr('— очистить все —') }}</span>
                 </div>
                 <div v-for="c in consultants" :key="c.id"
                      class="consultant-opt"
@@ -1588,9 +1595,9 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
           </section>
 
           <section class="rail-block">
-            <div class="rail-label">Направление</div>
+            <div class="rail-label">{{ tr('Направление') }}</div>
             <select v-model="formDirection" :disabled="!canEdit" class="rail-select">
-              <option value="">— не выбрано —</option>
+              <option value="">{{ tr('— не выбрано —') }}</option>
               <option v-for="d in directionOptions" :key="d" :value="d">{{ d }}</option>
             </select>
           </section>
@@ -1598,14 +1605,14 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
           <section class="rail-block rail-grid-2">
             <div>
               <div class="rail-label" style="display:flex;align-items:center;gap:6px">
-                Приоритет
+                {{ tr('Приоритет') }}
                 <span style="width:7px;height:7px;border-radius:50%;display:inline-block"
                       :style="{ background: formPriority === 'high' ? '#E24B4A' : formPriority === 'medium' ? '#EF9F27' : '#94A3B8' }"></span>
               </div>
               <select v-model="formPriority" :disabled="!canEdit" class="rail-select">
-                <option value="high">Высокий</option>
-                <option value="medium">Средний</option>
-                <option value="low">Низкий</option>
+                <option value="high">{{ tr('Высокий') }}</option>
+                <option value="medium">{{ tr('Средний') }}</option>
+                <option value="low">{{ tr('Низкий') }}</option>
               </select>
             </div>
             <div>
@@ -1620,7 +1627,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
                 <rect x="3" y="3" width="18" height="5" rx="1"/>
                 <path d="M5 8v11a2 2 0 002 2h10a2 2 0 002-2V8M10 12h4"/>
               </svg>
-              Архивировать
+              {{ tr('Архивировать') }}
             </button>
           </section>
 
@@ -1635,13 +1642,13 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
           <MentionableTextarea
             v-model="newCommentText"
             rows="3"
-            placeholder="Написать комментарий... (введите @ для упоминания)"
+            :placeholder="tr('Написать комментарий... (введите @ для упоминания)')"
             :disabled="commentsBusy"
           />
           <button class="btn btn-primary"
                   :disabled="commentsBusy || !newCommentText.trim()"
                   @click="handleAddComment">
-            Отправить
+            {{ tr('Отправить') }}
           </button>
         </div>
 
@@ -1657,26 +1664,26 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
                 </UserHover>
                 <span class="dot-sep">·</span>
                 <span class="date">{{ formatDate(c.created_at) }}</span>
-                <span v-if="c.is_edited" class="edited">(изменён)</span>
+                <span v-if="c.is_edited" class="edited">{{ tr('(изменён)') }}</span>
               </div>
               <div v-if="canEditComment(c)" class="comment-actions">
-                <button class="link-btn" @click="startEditComment(c)" v-if="editingCommentId !== c.id">Изменить</button>
-                <button class="link-btn danger" @click="deleteComment(c.id)" v-if="editingCommentId !== c.id">Удалить</button>
+                <button class="link-btn" @click="startEditComment(c)" v-if="editingCommentId !== c.id">{{ tr('Изменить') }}</button>
+                <button class="link-btn danger" @click="deleteComment(c.id)" v-if="editingCommentId !== c.id">{{ tr('Удалить') }}</button>
               </div>
             </div>
 
             <div v-if="editingCommentId === c.id" class="comment-edit">
               <textarea v-model="editingCommentText" rows="2"></textarea>
               <div class="comment-edit-buttons">
-                <button class="btn sm" @click="cancelEditComment">Отмена</button>
-                <button class="btn btn-primary sm" @click="saveEditComment(c.id)">Сохранить</button>
+                <button class="btn sm" @click="cancelEditComment">{{ tr('Отмена') }}</button>
+                <button class="btn btn-primary sm" @click="saveEditComment(c.id)">{{ tr('Сохранить') }}</button>
               </div>
             </div>
 
             <p v-else class="comment-body">{{ c.body }}</p>
           </div>
 
-          <div v-if="!comments.length" class="empty">Пока нет комментариев</div>
+          <div v-if="!comments.length" class="empty">{{ tr('Пока нет комментариев') }}</div>
         </div>
       </div>
       </Transition>
@@ -1688,9 +1695,9 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
       <footer class="ed-footer">
         <p v-if="error" class="error-msg">{{ error }}</p>
         <div class="footer-spacer"></div>
-        <button class="btn" @click="requestClose" :disabled="saving">Отмена</button>
+        <button class="btn" @click="requestClose" :disabled="saving">{{ tr('Отмена') }}</button>
         <button class="btn btn-primary" @click="handleSave" :disabled="saving || !canEdit">
-          {{ saving ? "Сохранение..." : (isCreate ? "Создать" : "Сохранить") }}
+          {{ saving ? tr('Сохранение...') : (isCreate ? tr('Создать') : tr('Сохранить')) }}
         </button>
       </footer>
     </div>

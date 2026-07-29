@@ -1,5 +1,10 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import { i18nKey } from "@/locale/keys";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
+
 
 const props = defineProps<{
   priority: string | null | undefined;
@@ -10,9 +15,9 @@ const props = defineProps<{
 
 // Точные цвета из легасиа (line 51409 + .notes-card-priority)
 const PRIO_DEFS: Record<string, { label: string; bg: string; fg: string }> = {
-  high:   { label: "ВЫСОКИЙ",  bg: "rgba(226,75,74,.10)",   fg: "#A32D2D" },
-  medium: { label: "СРЕДНИЙ",  bg: "rgba(239,159,39,.10)",  fg: "#A56708" },
-  low:    { label: "НИЗКИЙ",   bg: "rgba(127,119,221,.08)", fg: "#534AB7" },
+  high:   { label: i18nKey("ВЫСОКИЙ"),  bg: "rgba(226,75,74,.10)",   fg: "#A32D2D" },
+  medium: { label: i18nKey("СРЕДНИЙ"),  bg: "rgba(239,159,39,.10)",  fg: "#A56708" },
+  low:    { label: i18nKey("НИЗКИЙ"),   bg: "rgba(127,119,221,.08)", fg: "#534AB7" },
 };
 
 const visible = computed(() => {
@@ -30,7 +35,7 @@ const meta = computed(() => PRIO_DEFS[props.priority || ""] ?? {
   <span v-if="visible" class="prio-badge"
         :class="`size-${size || 'md'}`"
         :style="{ background: meta.bg, color: meta.fg }">
-    {{ meta.label }}
+    {{ t(meta.label) }}
   </span>
 </template>
 

@@ -95,7 +95,7 @@ function coLabel(c: ProdCompany) { return c.n; }
           <div class="edp-col-l">{{ t("Лидеры") }}</div>
           <div v-for="c in leaders" :key="c.k" class="edp-lrow">
             <span class="edp-dot" :style="{ background: c.sector_color }" />
-            <span class="edp-lname">{{ coLabel(c) }}</span>
+            <span class="edp-lname">{{ t(coLabel(c)) }}</span>
             <span class="edp-lpct" :style="{ color: pctCol(c.execPct ?? null) }">{{ c.execPct }}%</span>
           </div>
         </div>
@@ -103,7 +103,7 @@ function coLabel(c: ProdCompany) { return c.n; }
           <div class="edp-col-l">{{ t("Отстающие") }}</div>
           <div v-for="c in laggards" :key="c.k" class="edp-lrow">
             <span class="edp-dot" :style="{ background: c.sector_color }" />
-            <span class="edp-lname">{{ coLabel(c) }}</span>
+            <span class="edp-lname">{{ t(coLabel(c)) }}</span>
             <span class="edp-lpct" :style="{ color: pctCol(c.execPct ?? null) }">{{ c.execPct }}%</span>
           </div>
         </div>

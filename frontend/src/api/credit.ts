@@ -5,6 +5,9 @@
  *   • bulkImport()  POST /credit-portfolio/loans/bulk
  */
 import { api as apiClient } from "./client";
+import { fmtNumber } from "@/locale";
+import { getCurrentLocale, t } from "@/locale/i18n";
+import { i18nKey } from "@/locale/keys";
 
 export type Decimal = string | number;
 export function toNum(v: Decimal | null | undefined): number {
@@ -17,10 +20,10 @@ export function toNum(v: Decimal | null | undefined): number {
 export type LenderType = "bond" | "foreign" | "local" | "state";
 
 export const CP_LENDER_LABELS: Record<LenderType, { label: string; color: string }> = {
-  bond:    { label: "Бонд",          color: "#C99B5C" },
-  foreign: { label: "Иностранный",   color: "#5DBFA1" },
-  local:   { label: "Местный",       color: "#5478B0" },
-  state:   { label: "Государственный",color: "#C97070" },
+  bond:    { label: i18nKey("Бонд"),          color: "#C99B5C" },
+  foreign: { label: i18nKey("Иностранный"),   color: "#5DBFA1" },
+  local:   { label: i18nKey("Местный"),       color: "#5478B0" },
+  state:   { label: i18nKey("Государственный"),color: "#C97070" },
 };
 
 export const CP_CURRENCIES = ["USD", "EUR", "CNY", "JPY", "RUB", "SDR", "UZS", "KZT", "GBP"] as const;
@@ -347,10 +350,10 @@ export function fmtMoneyLoan(amount: Decimal | null | undefined, currency: strin
   const n = toNum(amount);
   const a = Math.abs(n);
   let body: string;
-  if (a >= 1e9) body = (n / 1e9).toFixed(2) + " млрд";
-  else if (a >= 1e6) body = (n / 1e6).toFixed(1) + " млн";
-  else if (a >= 1e3) body = (n / 1e3).toFixed(0) + " тыс";
-  else body = n.toFixed(0);
+  if (a >= 1e9) body = `${fmtNumber(n / 1e9, getCurrentLocale(), { decimals: 2 })} ${t("млрд")}`;
+  else if (a >= 1e6) body = `${fmtNumber(n / 1e6, getCurrentLocale(), { decimals: 1 })} ${t("млн")}`;
+  else if (a >= 1e3) body = `${fmtNumber(n / 1e3, getCurrentLocale(), { decimals: 0 })} ${t("тыс")}`;
+  else body = fmtNumber(n, getCurrentLocale(), { decimals: 0 });
   return body + " " + currency;
 }
 export function fmtPct(v: Decimal | null | undefined, alreadyPct = false): string {

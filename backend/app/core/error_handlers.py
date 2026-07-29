@@ -24,6 +24,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from app.core.exceptions import AppError
+from app.core.i18n import locale_from_request, tr
 
 logger = logging.getLogger(__name__)
 
@@ -52,14 +53,16 @@ def _payload(error_code: str, detail: str, request: Request,
 
 
 async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
+    detail = tr(exc.detail, locale_from_request(request))
     return JSONResponse(
         status_code=exc.status_code,
-        content=_payload(exc.error_code, exc.detail, request, exc.extra),
+        content=_payload(exc.error_code, detail, request, exc.extra),
     )
 
 
 async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
     detail = exc.detail if isinstance(exc.detail, str) else str(exc.detail)
+    detail = tr(detail, locale_from_request(request))
     body = _payload("HTTPError", detail, request)
 
     # Alert on server-side HTTPException (rare but legitimate — e.g. 503 from /health/ready).
@@ -104,7 +107,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
         status_code=500,
         content=_payload(
             "InternalError",
-            "Произошла внутренняя ошибка. Попробуйте позднее.",
+            tr("Произошла внутренняя ошибка. Попробуйте позднее.", locale_from_request(request)),
             request,
         ),
     )

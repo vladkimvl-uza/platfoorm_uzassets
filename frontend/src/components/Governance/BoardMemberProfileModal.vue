@@ -10,6 +10,11 @@
  */
 import { computed } from "vue";
 import ModalShell from "@/components/ModalShell.vue";
+import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
+const { t: tr } = useI18n();
+
 
 export interface BoardMemberProfile {
   id: string;
@@ -72,15 +77,16 @@ const remaining = computed(() => {
 function humanYears(yrs: number | null): string {
   if (yrs == null) return "—";
   const abs = Math.abs(yrs);
-  if (abs < 1 / 12) return "меньше месяца";
+  if (abs < 1 / 12) return tr('меньше месяца');
   if (abs < 1) {
     const m = Math.max(1, Math.round(abs * 12));
-    return `${m} мес.`;
+    return tr('{value0} мес.', { value0: m });
   }
   const whole = Math.floor(abs);
   const months = Math.round((abs - whole) * 12);
-  const yStr = `${whole} ${plural(whole, "год", "года", "лет")}`;
-  return months > 0 ? `${yStr} ${months} мес.` : yStr;
+  const unit = plural(whole, i18nKey("год"), i18nKey("года"), i18nKey("лет"));
+  const yStr = tr("{count} {unit}", { count: whole, unit: tr(unit) });
+  return months > 0 ? tr('{value0} {value1} мес.', { value0: yStr, value1: months }) : yStr;
 }
 
 function plural(n: number, one: string, few: string, many: string): string {
@@ -93,17 +99,17 @@ function plural(n: number, one: string, few: string, many: string): string {
 const remainingLabel = computed(() => {
   const r = remaining.value;
   if (r == null) return null;
-  if (r < 0) return { text: `Срок истёк ${humanYears(r)} назад`, expired: true };
-  return { text: `Осталось ${humanYears(r)}`, expired: false };
+  if (r < 0) return { text: tr("Срок истёк {period} назад", { period: humanYears(r) }), expired: true };
+  return { text: tr("Осталось {period}", { period: humanYears(r) }), expired: false };
 });
 
 const facts = computed(() => {
   const m = props.member;
   if (!m) return [];
   return [
-    { label: "Независимость", on: m.isIndependent, onText: "Независимый директор", offText: "Аффилированный" },
-    { label: "Пол", on: m.isWoman, onText: "Женщина", offText: "Мужчина", neutral: true },
-    { label: "Гражданство", on: m.isForeign, onText: "Иностранный", offText: "Резидент РУз", neutral: true },
+    { label: i18nKey("Независимость"), on: m.isIndependent, onText: i18nKey("Независимый директор"), offText: i18nKey("Аффилированный") },
+    { label: i18nKey("Пол"), on: m.isWoman, onText: i18nKey("Женщина"), offText: i18nKey("Мужчина"), neutral: true },
+    { label: i18nKey("Гражданство"), on: m.isForeign, onText: i18nKey("Иностранный"), offText: i18nKey("Резидент РУз"), neutral: true },
   ];
 });
 
@@ -121,9 +127,9 @@ const hasContact = computed(() => !!(props.member?.email || props.member?.phone)
           <div class="bmp-name">{{ member.fullName }}</div>
           <div class="bmp-role">
             <span class="bmp-role-pill" :style="{ background: member.roleColor + '22', color: member.roleColor }">
-              {{ member.roleLabel }}
+              {{ tr(member.roleLabel) }}
             </span>
-            <span v-if="member.isIndependent" class="bmp-tag">Независимый</span>
+            <span v-if="member.isIndependent" class="bmp-tag">{{ tr('Независимый') }}</span>
           </div>
         </div>
       </div>
@@ -134,7 +140,7 @@ const hasContact = computed(() => !!(props.member?.email || props.member?.phone)
       <div v-if="member.position" class="bmp-pos" style="--d:0">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
         <div>
-          <div class="bmp-pos-l">Должность</div>
+          <div class="bmp-pos-l">{{ tr('Должность') }}</div>
           <div class="bmp-pos-v">{{ member.position }}</div>
         </div>
       </div>
@@ -151,7 +157,7 @@ const hasContact = computed(() => !!(props.member?.email || props.member?.phone)
         <a v-if="member.phone" class="bmp-contact-row" :href="`tel:${member.phone}`">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.1-8.6A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.4-1.2a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></svg>
           <div>
-            <div class="bmp-contact-l">Телефон</div>
+            <div class="bmp-contact-l">{{ tr('Телефон') }}</div>
             <div class="bmp-contact-v">{{ member.phone }}</div>
           </div>
         </a>
@@ -166,28 +172,28 @@ const hasContact = computed(() => !!(props.member?.email || props.member?.phone)
           :class="{ 'bmp-fact--on': f.on && !f.neutral }"
           :style="{ '--d': (i + 1) }"
         >
-          <div class="bmp-fact-l">{{ f.label }}</div>
-          <div class="bmp-fact-v">{{ f.on ? f.onText : f.offText }}</div>
+          <div class="bmp-fact-l">{{ tr(f.label) }}</div>
+          <div class="bmp-fact-v">{{ tr(f.on ? f.onText : f.offText) }}</div>
         </div>
       </div>
 
       <!-- Срок полномочий -->
       <div class="bmp-term" style="--d:4">
         <div class="bmp-term-hd">
-          <span class="bmp-term-title">Срок полномочий</span>
-          <span v-if="tenure != null" class="bmp-term-tenure">в совете {{ humanYears(tenure) }}</span>
+          <span class="bmp-term-title">{{ tr('Срок полномочий') }}</span>
+          <span v-if="tenure != null" class="bmp-term-tenure">{{ tr('в совете') }} {{ humanYears(tenure) }}</span>
         </div>
 
         <div class="bmp-term-dates">
           <div class="bmp-term-date">
-            <div class="bmp-term-date-l">Назначен</div>
+            <div class="bmp-term-date-l">{{ tr('Назначен') }}</div>
             <div class="bmp-term-date-v">{{ member.appointed }}</div>
           </div>
           <div class="bmp-term-arrow">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
           </div>
           <div class="bmp-term-date bmp-term-date--r">
-            <div class="bmp-term-date-l">Окончание</div>
+            <div class="bmp-term-date-l">{{ tr('Окончание') }}</div>
             <div class="bmp-term-date-v">{{ member.termEnd }}</div>
           </div>
         </div>
@@ -204,7 +210,7 @@ const hasContact = computed(() => !!(props.member?.email || props.member?.phone)
             {{ remainingLabel.text }}
           </div>
         </div>
-        <div v-else class="bmp-term-nodata">Даты срока не заданы</div>
+        <div v-else class="bmp-term-nodata">{{ tr('Даты срока не заданы') }}</div>
       </div>
     </div>
   </ModalShell>

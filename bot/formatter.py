@@ -7,6 +7,7 @@ from html import escape as _esc
 from typing import Optional
 
 import config
+from i18n import msg, normalize_locale
 
 
 # ── Dispatch ─────────────────────────────────────────────────────────────
@@ -20,12 +21,12 @@ def format_outbox(msg_type: str, payload: dict, email: str) -> str:
         "test":              _fmt_test,
     }
     h = handlers.get(msg_type, _fmt_unknown)
-    return h(payload, email)
+    return h(payload, email, normalize_locale(payload.get("locale")))
 
 
 # ── Specific renderers ───────────────────────────────────────────────────
 
-def _fmt_mfa_code(p: dict, email: str) -> str:
+def _fmt_mfa_code(p: dict, email: str, locale: str = "ru") -> str:
     code = str(p.get("code", "?"))
     pretty = code[:3] + " " + code[3:] if len(code) == 6 else code
     ttl = p.get("ttl_minutes", 5)
@@ -38,25 +39,24 @@ def _fmt_mfa_code(p: dict, email: str) -> str:
         # Восстановление пароля — отдельный шаблон, без IP/гео блока
         # (запрос не привязан к свежей сессии браузера).
         parts = [
-            "<b>UzAssets · Восстановление пароля</b>",
+            f"<b>UzAssets · {msg('password_recovery', locale)}</b>",
             "",
             f"<blockquote><code>{_esc(pretty)}</code></blockquote>",
-            f"Код действителен <b>{int(ttl)} минут</b>",
+            msg("code_valid_minutes", locale, minutes=int(ttl)),
             "",
-            f"Аккаунт: <code>{_esc(email)}</code>",
+            f"{msg('account', locale)}: <code>{_esc(email)}</code>",
             "",
-            "<i>Если вы не запрашивали восстановление пароля — проигнорируйте это сообщение "
-            "и сообщите администратору.</i>",
+            f"<i>{msg('password_reset_warning', locale)}</i>",
         ]
         return "\n".join(parts)
 
     parts = [
-        "<b>UzAssets · Код доступа</b>",
+        f"<b>UzAssets · {msg('access_code', locale)}</b>",
         "",
         f"<blockquote><code>{_esc(pretty)}</code></blockquote>",
-        f"Действителен <b>{int(ttl)} минут</b>",
+        msg("valid_minutes", locale, minutes=int(ttl)),
         "",
-        f"Аккаунт: <code>{_esc(email)}</code>",
+        f"{msg('account', locale)}: <code>{_esc(email)}</code>",
     ]
     ip_line = f"IP: <code>{_esc(str(ip))}</code>"
     if geo:
@@ -66,35 +66,32 @@ def _fmt_mfa_code(p: dict, email: str) -> str:
         parts.append(_esc(str(when)))
     parts.extend([
         "",
-        "<i>Если это были не вы — нажмите «Это не я».</i>",
+        f"<i>{msg('login_warning', locale)}</i>",
     ])
     return "\n".join(parts)
 
 
-def _fmt_link_confirmation(p: dict, email: str) -> str:
+def _fmt_link_confirmation(p: dict, email: str, locale: str = "ru") -> str:
+    url = f"{config.PLATFORM_URL}/settings/security"
     return (
-        "<b>UzAssets · Привязка успешна</b>\n"
+        f"<b>UzAssets · {msg('link_success', locale)}</b>\n"
         "\n"
-        f"Аккаунт <code>{_esc(email)}</code> связан с этим чатом.\n"
-        "\n"
-        "Теперь при входе вам будет приходить <b>код доступа</b>. "
-        "Дублирование уведомлений (задачи, дедлайны, модерация) — в настройках:\n"
-        f"<a href=\"{_esc(config.PLATFORM_URL)}/settings/security\">{_esc(config.PLATFORM_URL)}/settings/security</a>"
+        + msg("link_confirmation_body", locale, email=_esc(email), url=_esc(url))
     )
 
 
-def _fmt_notification(p: dict, email: str) -> str:
+def _fmt_notification(p: dict, email: str, locale: str = "ru") -> str:
     """Generic notification with rich HTML. Module-aware header + blockquote subject."""
     n_type    = p.get("n_type") or ""
     priority  = (p.get("n_priority") or "normal").lower()
-    title     = str(p.get("title") or "Уведомление")
+    title     = str(p.get("title") or msg("notification", locale))
     body      = str(p.get("body") or "")
     deep_link = p.get("deep_link")
     actor     = p.get("actor")
     when      = p.get("when")
     subject   = p.get("subject")  # e.g. KPI 2026 · АО "Навоийский ГМК"
 
-    header = _build_module_header(n_type, priority)
+    header = _build_module_header(n_type, priority, locale)
     parts: list[str] = [f"<b>{_esc(header)}</b>", ""]
 
     if subject:
@@ -106,10 +103,10 @@ def _fmt_notification(p: dict, email: str) -> str:
         parts.append(_esc(body))
 
     meta: list[str] = []
-    if actor: meta.append(f"Автор: <b>{_esc(str(actor))}</b>")
-    if when:  meta.append(f"Когда: {_esc(str(when))}")
+    if actor: meta.append(f"{msg('author', locale)}: <b>{_esc(str(actor))}</b>")
+    if when:  meta.append(f"{msg('when', locale)}: {_esc(str(when))}")
     version = p.get("version")
-    if version: meta.append(f"Версия: <code>{_esc(str(version))}</code>")
+    if version: meta.append(f"{msg('version', locale)}: <code>{_esc(str(version))}</code>")
 
     if meta:
         parts.append("")
@@ -117,76 +114,76 @@ def _fmt_notification(p: dict, email: str) -> str:
 
     if priority == "critical":
         parts.append("")
-        parts.append("<i>Автоматический мониторинг.</i>")
+        parts.append(f"<i>{msg('automatic_monitoring', locale)}</i>")
 
     # Deep-link rendered as inline button (see _build_inline_buttons in backend),
     # but keep a textual fallback for clients without buttons.
     if deep_link and not _has_button_for(deep_link, p):
         parts.append("")
-        parts.append(f"<a href=\"{_esc(str(deep_link))}\">Открыть в платформе →</a>")
+        parts.append(f"<a href=\"{_esc(str(deep_link))}\">{msg('open_platform', locale)}</a>")
 
     return "\n".join(parts)
 
 
-def _fmt_test(p: dict, email: str) -> str:
-    title = str(p.get("title") or "Тестовое уведомление UzAssets")
-    body  = str(p.get("body")  or "Доставка через Telegram работает корректно.")
+def _fmt_test(p: dict, email: str, locale: str = "ru") -> str:
+    title = str(p.get("title") or msg("test_notification", locale))
+    body  = str(p.get("body")  or msg("telegram_ok", locale))
     return (
-        "<b>UzAssets · Тест</b>\n"
+        f"<b>UzAssets · {msg('test', locale)}</b>\n"
         "\n"
         f"<blockquote>{_esc(title)}</blockquote>\n"
         "\n"
         f"{_esc(body)}\n"
         "\n"
-        f"Аккаунт: <code>{_esc(email)}</code>"
+        f"{msg('account', locale)}: <code>{_esc(email)}</code>"
     )
 
 
-def _fmt_unknown(p: dict, email: str) -> str:
+def _fmt_unknown(p: dict, email: str, locale: str = "ru") -> str:
     return (
         "<b>UzAssets</b>\n"
         "\n"
         f"<pre>{_esc(str(p))}</pre>\n"
         "\n"
-        f"Аккаунт: <code>{_esc(email)}</code>"
+        f"{msg('account', locale)}: <code>{_esc(email)}</code>"
     )
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────
 
-def _build_module_header(n_type: str, priority: str) -> str:
+def _build_module_header(n_type: str, priority: str, locale: str = "ru") -> str:
     """Translate notification-type+priority into a one-line header."""
     sev_map = {
-        "critical": "CRITICAL",
-        "high":     "Важно",
+        "critical": msg("critical", locale),
+        "high":     msg("important", locale),
     }
     sev = sev_map.get(priority, "")
     n_type = (n_type or "").lower()
 
     if n_type.startswith("moderation"):
-        module = "Модерация"
+        module = msg("module_moderation", locale)
     elif n_type.startswith("kpi"):
         module = "KPI"
     elif n_type.startswith("bp"):
-        module = "Бизнес-план"
+        module = msg("module_bp", locale)
     elif n_type.startswith("procurement"):
-        module = "Закупки"
+        module = msg("module_procurement", locale)
     elif n_type.startswith("credit") or n_type.startswith("loan"):
-        module = "Кредит"
+        module = msg("module_credit", locale)
     elif n_type.startswith("deadline"):
-        module = "Дедлайн"
+        module = msg("module_deadline", locale)
     elif n_type in ("mention", "comment.replied"):
-        module = "Упоминание"
+        module = msg("module_mention", locale)
     elif n_type == "assignment":
-        module = "Назначение"
+        module = msg("module_assignment", locale)
     elif n_type.startswith("rbac"):
-        module = "Доступ"
+        module = msg("module_access", locale)
     elif n_type.startswith("audit"):
-        module = "Аудит"
+        module = msg("module_audit", locale)
     elif n_type.startswith("system") or n_type.startswith("data") or n_type.startswith("report"):
-        module = "Система"
+        module = msg("module_system", locale)
     else:
-        module = "Уведомление"
+        module = msg("notification", locale)
 
     parts = ["UzAssets", module]
     if sev:
@@ -213,87 +210,39 @@ def _has_button_for(link: str, payload: dict) -> bool:
 
 # ── Command response helpers ─────────────────────────────────────────────
 
-def fmt_help() -> str:
-    return (
-        "<b>UzAssets · Справка</b>\n"
-        "\n"
-        "<b>Команды:</b>\n"
-        "/start <i>&lt;токен&gt;</i> — привязать аккаунт\n"
-        "/menu — главное меню\n"
-        "/status — мои последние уведомления\n"
-        "/queue — модерация (для модераторов)\n"
-        "/sessions — мои активные сессии\n"
-        "/unlink — отвязать Telegram\n"
-        "/help — эта справка\n"
-        "\n"
-        f"Платформа: <a href=\"{_esc(config.PLATFORM_URL)}\">{_esc(config.PLATFORM_URL)}</a>\n"
-        "Поддержка: <code>v.kim@uz-assets.uz</code>"
-    )
+def fmt_help(locale: str = "ru") -> str:
+    return msg("help", locale, url=_esc(config.PLATFORM_URL))
 
 
-def fmt_welcome_no_token() -> str:
-    return (
-        "<b>UzAssets · Bot</b>\n"
-        "\n"
-        "Здравствуйте. Чтобы связать аккаунт с этим чатом:\n"
-        "\n"
-        "1. Откройте платформу UzAssets\n"
-        "2. <b>Настройки → Безопасность → Связать Telegram</b>\n"
-        "3. Нажмите кнопку с QR-кодом или скопируйте ссылку\n"
-        "\n"
-        "Затем эта ссылка приведёт вас обратно сюда с токеном привязки.\n"
-        "\n"
-        f"<a href=\"{_esc(config.PLATFORM_URL)}/settings/security\">{_esc(config.PLATFORM_URL)}/settings/security</a>\n"
-        "\n"
-        "Список команд: /help"
-    )
+def fmt_welcome_no_token(locale: str = "ru") -> str:
+    url = f"{config.PLATFORM_URL}/settings/security"
+    return msg("welcome", locale, url=_esc(url))
 
 
-def fmt_link_success(email: str, full_name: str = "") -> str:
+def fmt_link_success(email: str, full_name: str = "", locale: str = "ru") -> str:
     salutation = _esc(full_name) if full_name else _esc(email)
-    return (
-        "<b>UzAssets · Bot готов к работе</b>\n"
-        "\n"
-        f"Привязка успешна, <b>{salutation}</b>.\n"
-        "\n"
-        "<b>Что я могу:</b>\n"
-        "— Отправлять <b>коды доступа</b> при входе на платформу\n"
-        "— Уведомлять о <b>задачах</b> и <b>дедлайнах</b>\n"
-        "— Сообщать о <b>модерации</b> закупок и BP\n"
-        "— Алерты по <b>кредитному портфелю</b>\n"
-        "\n"
-        "Настройка уведомлений:\n"
-        f"<a href=\"{_esc(config.PLATFORM_URL)}/settings/notifications\">"
-        f"{_esc(config.PLATFORM_URL)}/settings/notifications</a>"
-    )
+    url = f"{config.PLATFORM_URL}/settings/notifications"
+    return msg("link_ready", locale, name=salutation, url=_esc(url))
 
 
-def fmt_menu() -> str:
-    return (
-        "<b>UzAssets · Меню</b>\n"
-        "\n"
-        "Выберите раздел внизу экрана или используйте команды:\n"
-        "/status — уведомления\n"
-        "/queue — модерация\n"
-        "/sessions — активные сессии\n"
-        "/help — справка"
-    )
+def fmt_menu(locale: str = "ru") -> str:
+    return msg("menu", locale)
 
 
-def fmt_status(user_email: str, notifications: list[dict]) -> str:
+def fmt_status(user_email: str, notifications: list[dict], locale: str = "ru") -> str:
     if not notifications:
         return (
             f"<b>UzAssets · {_esc(user_email)}</b>\n"
             "\n"
-            "Непрочитанных уведомлений нет."
+            + msg("no_unread", locale)
         )
     lines = [
         f"<b>UzAssets · {_esc(user_email)}</b>",
-        f"Непрочитанных: <b>{len(notifications)}</b>",
+        msg("unread_count", locale, count=len(notifications)),
         "",
     ]
     for n in notifications[:5]:
-        title = n.get("title") or n.get("type") or "(без заголовка)"
+        title = n.get("title") or n.get("type") or msg("untitled", locale)
         when = n.get("created_at")
         when_str = when.strftime("%d.%m %H:%M") if hasattr(when, "strftime") else str(when)
         lines.append(f"· <b>{_esc(str(title))}</b>")
@@ -301,16 +250,12 @@ def fmt_status(user_email: str, notifications: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def fmt_queue(items: list[dict]) -> str:
+def fmt_queue(items: list[dict], locale: str = "ru") -> str:
     if not items:
-        return (
-            "<b>UzAssets · Очередь модерации</b>\n"
-            "\n"
-            "Запросов на модерацию нет."
-        )
+        return msg("queue_empty", locale)
     lines = [
-        "<b>UzAssets · Очередь модерации</b>",
-        f"Ожидают рассмотрения: <b>{len(items)}</b>",
+        msg("queue_header", locale),
+        msg("queue_count", locale, count=len(items)),
         "",
     ]
     for it in items[:10]:
@@ -318,19 +263,26 @@ def fmt_queue(items: list[dict]) -> str:
         submitter = it.get("submitter_email") or "?"
         when = it.get("created_at")
         when_str = when.strftime("%d.%m %H:%M") if hasattr(when, "strftime") else str(when)
-        lines.append(f"· <b>{_esc(str(module))}</b> от <code>{_esc(str(submitter))}</code>")
+        lines.append(msg(
+            "queue_from", locale,
+            module=_esc(str(module)), submitter=_esc(str(submitter)),
+        ))
         lines.append(f"  <i>{_esc(when_str)}</i>")
     lines.append("")
     lines.append(
-        f"<a href=\"{_esc(config.PLATFORM_URL)}/admin/moderation\">Открыть очередь →</a>"
+        f"<a href=\"{_esc(config.PLATFORM_URL)}/admin/moderation\">{msg('open_queue', locale)}</a>"
     )
     return "\n".join(lines)
 
 
-def fmt_sessions(sessions: list[dict]) -> str:
+def fmt_sessions(sessions: list[dict], locale: str = "ru") -> str:
     if not sessions:
-        return "<b>UzAssets · Сессии</b>\n\nАктивных сессий нет."
-    lines = ["<b>UzAssets · Активные сессии</b>", f"Всего: <b>{len(sessions)}</b>", ""]
+        return msg("sessions_empty", locale)
+    lines = [
+        msg("sessions_header", locale),
+        msg("total", locale, count=len(sessions)),
+        "",
+    ]
     for s in sessions:
         last = s.get("last_seen_at") or s.get("created_at")
         last_str = last.strftime("%d.%m %H:%M") if hasattr(last, "strftime") else str(last)
@@ -342,71 +294,59 @@ def fmt_sessions(sessions: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def fmt_unlinked() -> str:
-    return (
-        "<b>UzAssets · Отвязка завершена</b>\n"
-        "\n"
-        "Telegram отвязан. Уведомления и 2FA-коды через этот чат "
-        "<b>больше приходить не будут</b>.\n"
-        "\n"
-        f"Привязать снова: <a href=\"{_esc(config.PLATFORM_URL)}/settings/security\">"
-        f"{_esc(config.PLATFORM_URL)}/settings/security</a>"
-    )
+def fmt_unlinked(locale: str = "ru") -> str:
+    url = f"{config.PLATFORM_URL}/settings/security"
+    return msg("unlinked", locale, url=_esc(url))
 
 
-def fmt_not_linked() -> str:
-    return (
-        "<b>UzAssets · Аккаунт не привязан</b>\n"
-        "\n"
-        "Этот чат не связан с аккаунтом UzAssets. Откройте платформу и привяжите Telegram:\n"
-        f"<a href=\"{_esc(config.PLATFORM_URL)}/settings/security\">"
-        f"{_esc(config.PLATFORM_URL)}/settings/security</a>"
-    )
+def fmt_not_linked(locale: str = "ru") -> str:
+    url = f"{config.PLATFORM_URL}/settings/security"
+    return msg("not_linked", locale, url=_esc(url))
 
 
-def fmt_link_token_invalid() -> str:
-    return (
-        "<b>UzAssets · Ошибка</b>\n"
-        "\n"
-        "Токен привязки <b>недействителен или истёк</b> (срок — 5 минут).\n"
-        "\n"
-        f"Откройте <a href=\"{_esc(config.PLATFORM_URL)}/settings/security\">"
-        f"{_esc(config.PLATFORM_URL)}/settings/security</a> и нажмите «Связать Telegram» ещё раз."
-    )
+def fmt_link_token_invalid(locale: str = "ru") -> str:
+    url = f"{config.PLATFORM_URL}/settings/security"
+    return msg("invalid_token", locale, url=_esc(url))
 
 
 # ── Inline-keyboard builders ─────────────────────────────────────────────
 
-def build_buttons_for_mfa(mfa_token: Optional[str] = None) -> list:
+def build_buttons_for_mfa(
+    mfa_token: Optional[str] = None, locale: str = "ru",
+) -> list:
     """Inline buttons for MFA messages. mfa_token is the short-lived ID we use
     to identify the attempt for «Это не я» reporting."""
     suffix = (mfa_token or "")[:64]
     return [
         [
-            {"text": "Это не я ⚠", "callback_data": f"mfa_not_me:{suffix}"},
+            {"text": msg("not_me", locale), "callback_data": f"mfa_not_me:{suffix}"},
         ],
     ]
 
 
-def build_buttons_for_kpi_review(submission_id: str, deep_link: Optional[str] = None) -> list:
+def build_buttons_for_kpi_review(
+    submission_id: str, deep_link: Optional[str] = None, locale: str = "ru",
+) -> list:
     rows = [
         [
-            {"text": "✓ Утвердить",    "callback_data": f"kpi_approve:{submission_id}"},
-            {"text": "✗ На доработку", "callback_data": f"kpi_reject:{submission_id}"},
+            {"text": f"✓ {msg('approve', locale)}",    "callback_data": f"kpi_approve:{submission_id}"},
+            {"text": f"✗ {msg('request_changes', locale)}", "callback_data": f"kpi_reject:{submission_id}"},
         ],
     ]
     if deep_link:
-        rows.append([{"text": "Открыть в платформе →", "url": deep_link}])
+        rows.append([{"text": msg("open_platform", locale), "url": deep_link}])
     return rows
 
 
-def build_buttons_for_procurement_review(submission_id: str, deep_link: Optional[str] = None) -> list:
+def build_buttons_for_procurement_review(
+    submission_id: str, deep_link: Optional[str] = None, locale: str = "ru",
+) -> list:
     rows = [
         [
-            {"text": "✓ Одобрить",  "callback_data": f"procurement_approve:{submission_id}"},
-            {"text": "✗ Отклонить", "callback_data": f"procurement_reject:{submission_id}"},
+            {"text": f"✓ {msg('accept', locale)}",  "callback_data": f"procurement_approve:{submission_id}"},
+            {"text": f"✗ {msg('reject', locale)}", "callback_data": f"procurement_reject:{submission_id}"},
         ],
     ]
     if deep_link:
-        rows.append([{"text": "Открыть в платформе →", "url": deep_link}])
+        rows.append([{"text": msg("open_platform", locale), "url": deep_link}])
     return rows

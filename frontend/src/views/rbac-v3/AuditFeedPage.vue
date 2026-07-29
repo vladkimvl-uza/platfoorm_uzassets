@@ -18,6 +18,7 @@ import UserAffiliationBadge from "@/components/rbac-v3/UserAffiliationBadge.vue"
 import UserCardAnchor from "@/components/user/UserCardAnchor.vue";
 import { useFormatters } from "@/composables/useFormatters";
 import { useI18n } from "@/composables/useI18n";
+import { translateActivityDetail } from "@/composables/useNotificationMeta";
 import { INTL_LOCALE } from "@/locale";
 import { useAuthStore } from "@/stores/auth";
 import type { ChartConfiguration } from "@/utils/chartjsRegister";
@@ -718,7 +719,7 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
           </svg>
         </div>
         <div class="aud-kpi-foot">
-          <div class="aud-kpi-lbl">{{ k.label }}</div>
+          <div class="aud-kpi-lbl">{{ t(k.label) }}</div>
           <span v-if="k.delta" class="aud-kpi-delta" :class="'d-' + k.delta.dir">
             {{ k.delta.dir === 'up' ? '↑' : k.delta.dir === 'down' ? '↓' : '·' }}{{ k.delta.pct }}%
           </span>
@@ -736,7 +737,7 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
           </div>
           <ul class="aud-legend">
             <li v-for="s in donutSegments" :key="s.category" class="aud-legend-click" @click="onDonutClick(s)">
-              <i :style="{ background: s.color }" /><span>{{ s.label }}</span><b>{{ fmt.fmtNumber(s.value) }}</b>
+              <i :style="{ background: s.color }" /><span>{{ t(s.label) }}</span><b>{{ fmt.fmtNumber(s.value) }}</b>
             </li>
           </ul>
         </div>
@@ -796,7 +797,7 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
 
       <div v-for="(sec, si) in userSections" :key="sec.label || 'all'" class="aud-usec">
         <div v-if="sec.label" class="aud-usec-hd">
-          <span class="aud-usec-name">{{ sec.label }}</span>
+          <span class="aud-usec-name">{{ t(sec.label) }}</span>
           <span class="aud-usec-meta">{{ t('Людей: {people} · Действий: {total}', {
             people: fmt.fmtNumber(sec.people), total: fmt.fmtNumber(sec.total),
           }) }}</span>
@@ -853,7 +854,7 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
     <!-- MODE: по разделам -->
     <div v-else class="aud-card aud-modules">
       <div v-for="m in moduleRows" :key="m.module" class="aud-mrow aud-mrow-click" @click="openDrill(m.label, { module: m.module })">
-        <div class="aud-mrow-l">{{ m.label }}</div>
+        <div class="aud-mrow-l">{{ t(m.label) }}</div>
         <div class="aud-mrow-bar"><span :style="{ width: m.pct + '%', background: m.accent }" /></div>
         <div class="aud-mrow-c">{{ fmt.fmtNumber(m.count) }}</div>
       </div>
@@ -894,7 +895,7 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
               <!-- Типы (бары) -->
               <div class="aud-um-bars">
                 <div v-for="b in userBars(selUser)" :key="b.label" class="aud-mb">
-                  <div class="aud-mb-top"><span>{{ b.label }}</span><b>{{ b.v }}</b></div>
+                  <div class="aud-mb-top"><span>{{ t(b.label) }}</span><b>{{ b.v }}</b></div>
                   <div class="aud-mb-track"><span :style="{ width: b.pct + '%', background: b.c }" /></div>
                 </div>
               </div>
@@ -906,7 +907,7 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
                   <div v-if="!moduleTime.length" class="aud-empty-s">—</div>
                   <div v-for="m in moduleTime" :key="m.module" class="aud-um-mod">
                     <div class="aud-um-mod-top">
-                      <span class="aud-um-mod-l">{{ m.label }}</span>
+                      <span class="aud-um-mod-l">{{ t(m.label) }}</span>
                       <span class="aud-um-mod-t">{{ t('{time} · действий: {count}', {
                         time: fmtDur(m.seconds), count: fmt.fmtNumber(m.count),
                       }) }}</span>
@@ -945,10 +946,10 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
                 <div v-for="(r, i) in activity.recent" :key="i" class="aud-ev aud-ev-flat">
                   <span class="aud-ev-dot" :style="{ background: TYPE_DOT[r.type] || '#94A3B8' }" />
                   <div class="aud-ev-main">
-                    <div class="aud-ev-line">{{ r.desc }}<span v-if="r.entity" class="aud-ev-target"> · {{ r.entity }}</span><span v-if="r.count > 1" class="aud-ev-x">×{{ r.count }}</span></div>
+                    <div class="aud-ev-line">{{ t(r.desc) }}<span v-if="r.entity" class="aud-ev-target"> · {{ r.entity }}</span><span v-if="r.count > 1" class="aud-ev-x">×{{ r.count }}</span></div>
                     <!-- «что именно» — таблица + поля для изменений (до мелочей) -->
                     <div v-if="r.detail" class="aud-ev-detail">{{ r.detail }}</div>
-                    <div v-else-if="r.notes" class="aud-ev-detail">{{ r.notes }}</div>
+                    <div v-else-if="r.notes" class="aud-ev-detail">{{ translateActivityDetail(r.notes) }}</div>
                     <div class="aud-ev-meta">
                       <span v-if="r.where" class="aud-ev-where">{{ r.where }}</span>
                       <span v-if="r.where"> · </span>

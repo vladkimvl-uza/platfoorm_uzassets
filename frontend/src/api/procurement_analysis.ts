@@ -3,6 +3,8 @@
  * Mirrors legacy paCompute() output 1:1.
  */
 import { api } from "./client";
+import { fmtNumber } from "@/locale";
+import { getCurrentLocale, t } from "@/locale/i18n";
 
 export interface ClosureRow {
   id: string;
@@ -301,11 +303,12 @@ export function paFmtMoneyShort(v: number | null | undefined): string {
   if (n === 0) return "0";
   const sign = n < 0 ? "-" : "";
   const abs = Math.abs(n);
-  if (abs >= 1e12) return sign + (abs / 1e12).toFixed(2) + " трлн";
-  if (abs >= 1e9) return sign + (abs / 1e9).toFixed(2) + " млрд";
-  if (abs >= 1e6) return sign + (abs / 1e6).toFixed(1) + " млн";
-  if (abs >= 1e3) return sign + (abs / 1e3).toFixed(0) + " тыс.";
-  return sign + abs.toFixed(0);
+  const locale = getCurrentLocale();
+  if (abs >= 1e12) return `${sign}${fmtNumber(abs / 1e12, locale, { decimals: 2 })} ${t("трлн")}`;
+  if (abs >= 1e9) return `${sign}${fmtNumber(abs / 1e9, locale, { decimals: 2 })} ${t("млрд")}`;
+  if (abs >= 1e6) return `${sign}${fmtNumber(abs / 1e6, locale, { decimals: 1 })} ${t("млн")}`;
+  if (abs >= 1e3) return `${sign}${fmtNumber(abs / 1e3, locale, { decimals: 0 })} ${t("тыс.")}`;
+  return sign + fmtNumber(abs, locale);
 }
 
 /** Coerce-compare for category_id. Backend stores as TEXT, CategoryMeta.id is int.

@@ -23,6 +23,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit_chain import append_audit_entry
+from app.core.i18n import current_locale, tr
 from app.core.password import hash_password, validate_password_policy
 from app.core.security import has_effective_permission, is_super_admin
 from app.models.rbac_v3 import GroupPermissionGrant
@@ -394,8 +395,10 @@ class RbacV3Service:
             if c == "admin" or c.startswith("admin.") or c not in actor_codes:
                 raise HTTPException(
                     http_status.HTTP_403_FORBIDDEN,
-                    f"Группа несёт право сверх ваших ({c}) — добавление участников "
-                    "в неё доступно только owner или администратору с этим правом.",
+                    tr(
+                        "Группа несёт право сверх ваших ({permission}) — добавление участников в неё доступно только owner или администратору с этим правом.",
+                        current_locale(), permission=c,
+                    ),
                 )
             sc = getattr(gr, "scope_companies", None)
             if sc and allowed_str is not None:
@@ -403,8 +406,10 @@ class RbacV3Service:
                 if excess:
                     raise HTTPException(
                         http_status.HTTP_403_FORBIDDEN,
-                        "Группа даёт доступ к компаниям вне вашего scope: "
-                        + ", ".join(sorted(excess)),
+                        tr(
+                            "Группа даёт доступ к компаниям вне вашего scope: {companies}",
+                            current_locale(), companies=", ".join(sorted(excess)),
+                        ),
                     )
 
     async def _ensure_assigned_scope_within_ceiling(
@@ -441,7 +446,10 @@ class RbacV3Service:
             if excess:
                 raise HTTPException(
                     http_status.HTTP_403_FORBIDDEN,
-                    "Нельзя выдать секторы вне ваших: " + ", ".join(sorted(excess)),
+                    tr(
+                        "Нельзя выдать секторы вне ваших: {sectors}",
+                        current_locale(), sectors=", ".join(sorted(excess)),
+                    ),
                 )
 
     # ─── Overview ─────────────────────────────────────────────────
@@ -622,7 +630,10 @@ class RbacV3Service:
                 if excess:
                     raise HTTPException(
                         http_status.HTTP_403_FORBIDDEN,
-                        "Нельзя вложить в роль права сверх ваших: " + ", ".join(sorted(excess)),
+                        tr(
+                            "Нельзя вложить в роль права сверх ваших: {permissions}",
+                            current_locale(), permissions=", ".join(sorted(excess)),
+                        ),
                     )
         role = Role(
             code=payload.code, name_ru=payload.name_ru, name_en=payload.name_en,
@@ -713,7 +724,10 @@ class RbacV3Service:
             if excess:
                 raise HTTPException(
                     http_status.HTTP_403_FORBIDDEN,
-                    "Нельзя вложить в роль права сверх ваших: " + ", ".join(sorted(excess)),
+                    tr(
+                        "Нельзя вложить в роль права сверх ваших: {permissions}",
+                        current_locale(), permissions=", ".join(sorted(excess)),
+                    ),
                 )
         await repo.clear_role_permissions(role.id)
         for p in found:
@@ -852,6 +866,7 @@ class RbacV3Service:
 
         base = await self._hydrate_user(db, u)
         perms = await repo.effective_permission_codes(u.id)
+        user_grants = await repo.user_grant_rows(u.id)
         mem_rows = await repo.list_user_memberships(u.id)
         memberships = [
             UserGroupMembership(
@@ -863,6 +878,8 @@ class RbacV3Service:
         return UserDetail(
             **base.model_dump(),
             effective_permissions=perms,
+            direct_permissions=sorted(c for c, grant_type in user_grants if grant_type == "grant"),
+            denied_permissions=sorted(c for c, grant_type in user_grants if grant_type == "deny"),
             group_memberships=memberships,
             is_external=bool(getattr(u, "is_external", False)),
             bypass_moderation=bool(getattr(u, "bypass_moderation", False)),
@@ -936,7 +953,10 @@ class RbacV3Service:
             if excess:
                 raise HTTPException(
                     http_status.HTTP_403_FORBIDDEN,
-                    "Нельзя выдать права сверх собственных: " + ", ".join(excess),
+                    tr(
+                        "Нельзя выдать права сверх собственных: {permissions}",
+                        current_locale(), permissions=", ".join(excess),
+                    ),
                 )
         rows = [(c, "grant") for c in grants] + [(c, "deny") for c in denies]
         await repo.set_user_grants(user_id, rows, user.id)
@@ -990,7 +1010,10 @@ class RbacV3Service:
                 if excess:
                     raise HTTPException(
                         http_status.HTTP_403_FORBIDDEN,
-                        "Назначаемые роли несут права сверх ваших: " + ", ".join(excess),
+                        tr(
+                            "Назначаемые роли несут права сверх ваших: {permissions}",
+                            current_locale(), permissions=", ".join(excess),
+                        ),
                     )
         # P0 ceiling: не выдать создаваемому пользователю company/sector-scope сверх своего
         await self._ensure_assigned_scope_within_ceiling(
@@ -1045,11 +1068,13 @@ class RbacV3Service:
         # чтобы UI показал предупреждение и temp-пароль для ручной передачи.
         invite_sent = False
         try:
+            from app.core.i18n import locale_of_user
             from app.services.email.service import send_invite_email
             invite_sent = await send_invite_email(
                 to=new_user.email, full_name=new_user.full_name,
                 temp_password=payload.password,
                 must_change=payload.must_change_password,
+                locale=locale_of_user(new_user),
             )
         except Exception:  # noqa: BLE001
             invite_sent = False
@@ -1144,7 +1169,10 @@ class RbacV3Service:
                     if excess:
                         raise HTTPException(
                             http_status.HTTP_403_FORBIDDEN,
-                            "Роль несёт права сверх ваших: " + ", ".join(excess),
+                            tr(
+                                "Роль несёт права сверх ваших: {permissions}",
+                                current_locale(), permissions=", ".join(excess),
+                            ),
                         )
                 # H5: prevent admin from removing own admin role
                 if (
@@ -1247,7 +1275,10 @@ class RbacV3Service:
             if excess:
                 raise HTTPException(
                     http_status.HTTP_403_FORBIDDEN,
-                    "Роль несёт права сверх ваших: " + ", ".join(excess),
+                    tr(
+                        "Роль несёт права сверх ваших: {permissions}",
+                        current_locale(), permissions=", ".join(excess),
+                    ),
                 )
         # Scope/гранты самой группы (company_id + GroupPermissionGrant) — не покрыто role-ceiling
         await self._ensure_group_membership_within_ceiling(db, repo, user, g)
@@ -1454,8 +1485,10 @@ class RbacV3Service:
             await db.rollback()
             raise HTTPException(
                 http_status.HTTP_409_CONFLICT,
-                f"Не удалось удалить пользователя: {e.__class__.__name__}. "
-                "Возможно, есть связанные данные без CASCADE.",
+                tr(
+                    "Не удалось удалить пользователя: {error_type}. Возможно, есть связанные данные без CASCADE.",
+                    current_locale(), error_type=e.__class__.__name__,
+                ),
             )
         await append_audit_entry(
             db, actor_id=str(user.id), actor_email=user.email,
@@ -1719,7 +1752,10 @@ class RbacV3Service:
                 if excess:
                     raise HTTPException(
                         http_status.HTTP_403_FORBIDDEN,
-                        f"Роль '{rc}' несёт права сверх ваших: " + ", ".join(excess),
+                        tr(
+                            "Роль '{role}' несёт права сверх ваших: {permissions}",
+                            current_locale(), role=rc, permissions=", ".join(excess),
+                        ),
                     )
             # Scope/гранты самой группы (company_id + GroupPermissionGrant) — не покрыто
             # role-ceiling: закрывает горизонтальную (выход из своей компании через
@@ -1786,14 +1822,20 @@ class RbacV3Service:
                     if c == "admin" or c.startswith("admin.") or c not in actor_codes:
                         raise HTTPException(
                             http_status.HTTP_403_FORBIDDEN,
-                            f"Нельзя выдать группе право сверх собственных: {c}",
+                            tr(
+                                "Нельзя выдать группе право сверх собственных: {permission}",
+                                current_locale(), permission=c,
+                            ),
                         )
                 if it.scope_companies and allowed_str is not None:
                     excess = {str(x) for x in it.scope_companies} - allowed_str
                     if excess:
                         raise HTTPException(
                             http_status.HTTP_403_FORBIDDEN,
-                            "scope_companies вне вашего доступа: " + ", ".join(sorted(excess)),
+                            tr(
+                                "scope_companies вне вашего доступа: {companies}",
+                                current_locale(), companies=", ".join(sorted(excess)),
+                            ),
                         )
         await repo.clear_group_grants(group_id)
         for it in items:

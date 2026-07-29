@@ -45,7 +45,7 @@
             <div class="pa-rate-overpay-v" :style="{ color: sumColor(c) }">
               {{ sumPrefix(c) }}{{ paFmtMoneyShort(Math.abs(netSum(c))) }}
             </div>
-            <div class="pa-rate-overpay-l">{{ sumLabel(c) }}</div>
+            <div class="pa-rate-overpay-l">{{ t(sumLabel(c)) }}</div>
           </div>
 
           <!-- Red pct — line 22213-22215 -->

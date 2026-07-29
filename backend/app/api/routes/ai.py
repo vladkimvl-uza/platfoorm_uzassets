@@ -29,6 +29,7 @@ from app.core.access import (
     has_unrestricted_view,
 )
 from app.config import settings
+from app.core.i18n import current_locale, tr
 from app.core.security import has_effective_permission, require_permission
 from app.dependencies.ai import AiAdminServiceDep
 from app.models.ai import AIConfig
@@ -118,8 +119,11 @@ def ai_rate_limit(name: str, spec: object, default: int):
         if len(window) >= per_minute:
             raise HTTPException(
                 status.HTTP_429_TOO_MANY_REQUESTS,
-                detail=("Слишком много запросов к ИИ. Подождите минуту "
-                        f"(лимит {per_minute}/мин)."),
+                detail=tr(
+                    "Слишком много запросов к ИИ. Подождите минуту (лимит {limit}/мин).",
+                    current_locale(),
+                    limit=per_minute,
+                ),
             )
         window.append(now)
         if len(_AI_RL) > 5000:      # не даём словарю расти бесконечно
@@ -1174,7 +1178,10 @@ async def exec_sector_brief(
         )
     except Exception as e:  # noqa: BLE001
         logger.exception("exec-brief context build failed")
-        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, f"Сбор данных не удался: {e}")
+        raise HTTPException(
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            tr("Сбор данных не удался: {error}", current_locale(), error=str(e)),
+        )
 
     focus_hint = {
         "risks": "ОСОБЫЙ ФОКУС: риски и проблемные проекты.",

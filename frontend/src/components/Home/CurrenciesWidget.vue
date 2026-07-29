@@ -10,6 +10,7 @@
  */
 import { ref, onMounted } from "vue";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
 
 const { t } = useI18n();
 
@@ -36,12 +37,12 @@ const CACHE_KEY = "uza-cbu-rates-v3"; // v3: cc (ISO для флага) вмес
 const CACHE_TTL = 30 * 60 * 1000; // 30 min
 
 const TARGET: { ccy: Rate["ccy"]; nameRu: string; cc: string }[] = [
-  { ccy: "USD", nameRu: "Доллар США",      cc: "us" },
-  { ccy: "EUR", nameRu: "Евро",            cc: "eu" },
-  { ccy: "CNY", nameRu: "Китайский юань",  cc: "cn" },
-  { ccy: "JPY", nameRu: "Японская иена",   cc: "jp" },
-  { ccy: "GBP", nameRu: "Фунт стерлингов", cc: "gb" },
-  { ccy: "RUB", nameRu: "Российский рубль", cc: "ru" },
+  { ccy: "USD", nameRu: i18nKey("Доллар США"),      cc: "us" },
+  { ccy: "EUR", nameRu: i18nKey("Евро"),            cc: "eu" },
+  { ccy: "CNY", nameRu: i18nKey("Китайский юань"),  cc: "cn" },
+  { ccy: "JPY", nameRu: i18nKey("Японская иена"),   cc: "jp" },
+  { ccy: "GBP", nameRu: i18nKey("Фунт стерлингов"), cc: "gb" },
+  { ccy: "RUB", nameRu: i18nKey("Российский рубль"), cc: "ru" },
 ];
 
 function fmtRate(r: number): string {

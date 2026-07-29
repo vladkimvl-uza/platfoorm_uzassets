@@ -27,6 +27,9 @@
  */
 import { computed } from 'vue';
 import { useAuthStore } from '@/stores/auth';
+import { i18nKey } from "@/locale/keys";
+import { t } from "@/locale/i18n";
+
 
 export type AccessLevel = 'none' | 'read' | 'write';
 
@@ -86,7 +89,7 @@ export function usePermissions(moduleCode: string) {
       return {
         level: 'none', canView: false, canEdit: false, canApprove: false,
         canExport: false, canDelete: false, canManage: false,
-        explain: 'не авторизован',
+        explain: t('не авторизован'),
       };
     }
     // Owner bypass — full access everywhere
@@ -94,7 +97,7 @@ export function usePermissions(moduleCode: string) {
       return {
         level: 'write', canView: true, canEdit: true, canApprove: true,
         canExport: true, canDelete: true, canManage: true,
-        explain: 'владелец платформы',
+        explain: t('владелец платформы'),
       };
     }
     // Extract permission codes from user.permissions (direct grants)
@@ -131,7 +134,7 @@ export function usePermissions(moduleCode: string) {
       return {
         level: 'none', canView: false, canEdit: false, canApprove: false,
         canExport: false, canDelete: false, canManage: false,
-        explain: 'модуль скрыт администратором',
+        explain: t('модуль скрыт администратором'),
       };
     }
     // Role-based bypass: mirrors backend is_super_admin.
@@ -157,7 +160,7 @@ export function usePermissions(moduleCode: string) {
     const level = _computeLevel({ canView, canEdit });
     return {
       level, canView, canEdit, canApprove, canExport, canDelete, canManage,
-      explain: level === 'none' ? 'нет в роли' : `via permissions`,
+      explain: level === 'none' ? t('нет в роли') : t('через права'),
     };
   });
 
@@ -201,13 +204,13 @@ export interface ModuleDef {
 }
 
 export const MODULE_REGISTRY = [
-  { code: 'dashboard',    label: 'Дашборд',                     hasExport: true,  hasEdit: true,  hasImport: false },
+  { code: 'dashboard',    label: i18nKey('Дашборд'),                     hasExport: true,  hasEdit: true,  hasImport: false },
   // Компании — доступ к карточке/рабочему пространству компании
   // (companies.view). Модуля в сетке не было вовсе, поэтому самый частый
   // сценарий — «пусть видит только свою компанию и больше ничего» — нельзя
   // было ни выдать, ни забрать. companies.create/delete сеткой не управляются:
   // это администрирование портфеля, оно идёт ролью.
-  { code: 'companies',    label: 'Компании (карточка и рабочее пространство)', hasExport: false, hasEdit: true, hasImport: false },
+  { code: 'companies',    label: i18nKey('Компании (карточка и рабочее пространство)'), hasExport: false, hasEdit: true, hasImport: false },
   // Экран министра: только чтение — на /executive-dashboard нет ни одного
   // пишущего действия, поэтому уровень «Редактировать» ему недоступен.
   { code: 'exec_dashboard', label: 'Executive Dashboard', hasExport: false, hasEdit: false, hasImport: false },
@@ -215,30 +218,30 @@ export const MODULE_REGISTRY = [
   // («Заполнить отчёт») живёт в отдельном модуле «Задачи» (/overview-matrix
   // под tasks.edit), поэтому .edit у обзора нет — иначе сетка выдавала бы
   // право, которого не спрашивает ни один эндпоинт.
-  { code: 'exec_overview', label: 'Сводный обзор портфеля',      hasExport: false, hasEdit: false, hasImport: false },
-  { code: 'bp',           label: 'Бизнес-план',                 hasExport: false, hasEdit: true,  hasImport: true  },
+  { code: 'exec_overview', label: i18nKey('Сводный обзор портфеля'),      hasExport: false, hasEdit: false, hasImport: false },
+  { code: 'bp',           label: i18nKey('Бизнес-план'),                 hasExport: false, hasEdit: true,  hasImport: true  },
   { code: 'kpi',          label: 'KPI',                         hasExport: false, hasEdit: true,  hasImport: true  },
-  { code: 'financials',   label: 'Финансы (МСФО/НСБУ)',         hasExport: true,  hasEdit: true,  hasImport: true  },
+  { code: 'financials',   label: i18nKey('Финансы (МСФО/НСБУ)'),         hasExport: true,  hasEdit: true,  hasImport: true  },
   // SOE Health Check: чтение светофорной оценки + правка глобальных порогов
   // методики (PUT /financials/soe-health/params) — отсюда hasEdit.
   { code: 'soe_health',   label: 'SOE Health Check Tool',       hasExport: false, hasEdit: true,  hasImport: false },
   // Удельная себестоимость: чтение обзора + правка цен энергоносителей и
   // данных компании (PUT /unit-cost/prices, /unit-cost/companies/{code}).
   // Импорта нет: нормы заводятся через редактор, отдельного .import-кода нет.
-  { code: 'unit_cost',    label: 'Удельная себестоимость',      hasExport: false, hasEdit: true,  hasImport: false },
-  { code: 'credit',       label: 'Кредитный портфель',          hasExport: false, hasEdit: true,  hasImport: true  },
-  { code: 'invest',       label: 'Инвест-проекты',              hasExport: true,  hasEdit: true,  hasImport: false },
-  { code: 'procurement',  label: 'Закупки',                     hasExport: false, hasEdit: true,  hasImport: false },
+  { code: 'unit_cost',    label: i18nKey('Удельная себестоимость'),      hasExport: false, hasEdit: true,  hasImport: false },
+  { code: 'credit',       label: i18nKey('Кредитный портфель'),          hasExport: false, hasEdit: true,  hasImport: true  },
+  { code: 'invest',       label: i18nKey('Инвест-проекты'),              hasExport: true,  hasEdit: true,  hasImport: false },
+  { code: 'procurement',  label: i18nKey('Закупки'),                     hasExport: false, hasEdit: true,  hasImport: false },
   { code: 'esg',          label: 'ESG',                         hasExport: false, hasEdit: true,  hasImport: true  },
-  { code: 'governance',   label: 'Корпуправление',              hasExport: false, hasEdit: true,  hasImport: false },
-  { code: 'ratings',      label: 'Рейтинги',                    hasExport: false, hasEdit: true,  hasImport: true  },
-  { code: 'procurement_analysis', label: 'Анализ закупок',      hasExport: true,  hasEdit: true,  hasImport: false },
-  { code: 'consultants',  label: 'Консультанты',                hasExport: true,  hasEdit: true,  hasImport: false },
-  { code: 'tasks',        label: 'Задачи',                      hasExport: false, hasEdit: true,  hasImport: false },
-  { code: 'pmo',          label: 'PMO (расписание/Гантт)',      hasExport: true,  hasEdit: true,  hasImport: false },
-  { code: 'reports',      label: 'Отчёты',                      hasExport: true,  hasEdit: false, hasImport: false },
-  { code: 'monitoring',   label: 'Мониторинг (Execution Summary)', hasExport: true, hasEdit: true, hasImport: false },
-  { code: 'ai',           label: 'AI-чат',                      hasExport: false, hasEdit: false, hasImport: false },
+  { code: 'governance',   label: i18nKey('Корпуправление'),              hasExport: false, hasEdit: true,  hasImport: false },
+  { code: 'ratings',      label: i18nKey('Рейтинги'),                    hasExport: false, hasEdit: true,  hasImport: true  },
+  { code: 'procurement_analysis', label: i18nKey('Анализ закупок'),      hasExport: true,  hasEdit: true,  hasImport: false },
+  { code: 'consultants',  label: i18nKey('Консультанты'),                hasExport: true,  hasEdit: true,  hasImport: false },
+  { code: 'tasks',        label: i18nKey('Задачи'),                      hasExport: false, hasEdit: true,  hasImport: false },
+  { code: 'pmo',          label: i18nKey('PMO (расписание/Гантт)'),      hasExport: true,  hasEdit: true,  hasImport: false },
+  { code: 'reports',      label: i18nKey('Отчёты'),                      hasExport: true,  hasEdit: false, hasImport: false },
+  { code: 'monitoring',   label: i18nKey('Мониторинг (Execution Summary)'), hasExport: true, hasEdit: true, hasImport: false },
+  { code: 'ai',           label: i18nKey('AI-чат'),                      hasExport: false, hasEdit: false, hasImport: false },
 ] as const satisfies readonly ModuleDef[];
 
 export type ModuleCode = typeof MODULE_REGISTRY[number]['code'];

@@ -31,7 +31,7 @@ const groupedModules = computed(() => {
   if (!summary.value) return {};
   const out: Record<string, typeof summary.value.modules> = {};
   for (const m of summary.value.modules) {
-    const g = m.group || "Прочее";
+    const g = m.group || t("Прочее");
     (out[g] ??= []).push(m);
   }
   return out;
@@ -91,7 +91,7 @@ async function copyCurl(e: CatalogEndpoint) {
     <UzaStateBlock
       v-if="loading && !summary"
       state="loading"
-      text="Сканируем endpoints…"
+      :text="t('Сканируем endpoints…')"
     />
 
     <div v-else-if="summary" class="cb-body">
@@ -137,7 +137,7 @@ async function copyCurl(e: CatalogEndpoint) {
           v-if="filteredEndpoints.length === 0"
           state="empty"
           variant="block"
-          text="Ничего не найдено"
+          :text="t('Ничего не найдено')"
         >
           <template #icon><BIcon name="search-off" :size="14" /></template>
         </UzaStateBlock>
@@ -151,20 +151,20 @@ async function copyCurl(e: CatalogEndpoint) {
               </span>
               <span class="cb-path">{{ e.path }}</span>
               <span class="cb-sum">{{ e.summary || "—" }}</span>
-              <span v-if="e.required_permission" class="cb-perm" :title="`Требуется permission ${e.required_permission}`">
+              <span v-if="e.required_permission" class="cb-perm" :title="t('Требуется permission {value0}', { value0: e.required_permission })">
                 {{ e.required_permission }}
               </span>
               <span v-if="e.deprecated" class="cb-dep">deprecated</span>
               <i class="ti" :class="expandedKey === epKey(e) ? 'ti-chevron-up' : 'ti-chevron-down'" aria-hidden="true"></i>
             </div>
             <div v-if="expandedKey === epKey(e)" class="cb-ep-body">
-              <div v-if="e.description" class="cb-desc">{{ e.description }}</div>
+              <div v-if="e.description" class="cb-desc">{{ t(e.description) }}</div>
               <div v-else class="cb-desc cb-desc-empty">{{ t('Описание отсутствует — добавьте docstring к endpoint функции.') }}</div>
 
               <div class="cb-sec">
                 <div class="cb-sec-hd">Tags</div>
                 <div>
-                  <span v-for="t in (e.tags.length ? e.tags : ['(нет)'])" :key="t" class="cb-tag">{{ t }}</span>
+                  <span v-for="tag in (e.tags.length ? e.tags : [t('(нет)')])" :key="tag" class="cb-tag">{{ tag }}</span>
                 </div>
               </div>
 

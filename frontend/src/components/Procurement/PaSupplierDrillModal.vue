@@ -51,7 +51,7 @@ function normalize(name: string): string {
   let s = name.toLowerCase();
   s = s.replace(/[«»"'""()[\]]/g, " ");
   s = s.replace(
-    /\b(ооо|ао|оао|зао|пао|ип|чп|тоо|llc|ltd|mchj|mch|aj|aksiyadorlik|jamiyat|мчж|оаж|aksdor|ятт|yatt|mchk|sp|sho|fuqarolar|ip)\b/g,
+    /\b(ооо|ао|оао|зао|пао|ип|чп|тоо|llc|ltd|mchj|mch|aj|aksiyadorlik|jamiyat|мчж|оаж|aksdor|ятт|yatt|mchk|sp|sho|fuqarolar|ip)\b/g, // i18n-exempt -- legal-form parser aliases
     " ",
   );
   s = s.replace(/[\s\-,.]+/g, " ").trim();

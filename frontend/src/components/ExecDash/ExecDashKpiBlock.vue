@@ -197,7 +197,7 @@ function openKpi(): void {
             :title="t('За выбранный FY данных по KPI нет — показан последний год с данными')"
           >{{ t("данные за FY {y}", { y: yearBadge }) }}</span></div>
         <div class="ed-kpi-head-s">
-          FY {{ resolvedYear }} · {{ periodLabel }}<template v-if="summary"> · {{ summary.co_count }} {{ t("компаний") }}</template>
+          FY {{ resolvedYear }} · {{ t(periodLabel) }}<template v-if="summary"> · {{ summary.co_count }} {{ t("компаний") }}</template>
         </div>
       </div>
       <div class="ed-kpi-tabs" role="tablist" :aria-label="t('Квартал')">
@@ -257,7 +257,7 @@ function openKpi(): void {
           <div class="ed-kpi-big">
             <span class="ed-kpi-big-v" :style="{ color: overallColor }"><Odometer :value="overallText" /></span>
           </div>
-          <span class="ed-kpi-status" :class="execStatus.cls">{{ execStatus.label }}</span>
+          <span class="ed-kpi-status" :class="execStatus.cls">{{ t(execStatus.label) }}</span>
         </div>
         <div class="ed-kpi-meta">
           {{ summary!.total_count }} {{ t("индикаторов с весом") }} ·
@@ -286,7 +286,7 @@ function openKpi(): void {
       <div class="ed-kpi-dist-leg">
         <span v-for="s in distSegments" :key="s.key" class="ed-kpi-dist-leg-i">
           <span class="sw" :style="{ background: s.color }" />
-          {{ s.label }} · {{ s.count }}
+          {{ t(s.label) }} · {{ s.count }}
         </span>
       </div>
     </template>

@@ -8,6 +8,8 @@ import type {
   PortfolioSummaryResponse, PortfolioCompanyMetrics,
 } from "@/api/financials";
 import type { CompanyListItem, SectorBrief } from "@/api/companies";
+import { i18nKey } from "@/locale/keys";
+
 
 // ─── Formatting ────────────────────────────────────────────────────────────
 
@@ -58,8 +60,8 @@ export function fmtPctSigned(value: number | null | undefined, fractionDigits = 
 // ─── Standard / view tabs ──────────────────────────────────────────────────
 
 export const STANDARDS = [
-  { value: "NSBU", label: "НСБУ" },
-  { value: "IFRS", label: "МСФО" },
+  { value: "NSBU", label: i18nKey("НСБУ") },
+  { value: "IFRS", label: i18nKey("МСФО") },
 ] as const;
 
 export const CURRENCIES = [
@@ -69,8 +71,8 @@ export const CURRENCIES = [
 ] as const;
 
 export const UNITS = [
-  { value: "bln", label: "млрд" },
-  { value: "mln", label: "млн" },
+  { value: "bln", label: i18nKey("млрд") },
+  { value: "mln", label: i18nKey("млн") },
 ] as const;
 
 export const VIEW_TABS_IFRS = [
@@ -80,8 +82,8 @@ export const VIEW_TABS_IFRS = [
 ] as const;
 
 export const VIEW_TABS_NSBU = [
-  { value: "PL", label: "Финансовые результаты" },
-  { value: "BS", label: "Баланс" },
+  { value: "PL", label: i18nKey("Финансовые результаты") },
+  { value: "BS", label: i18nKey("Баланс") },
 ] as const;
 
 // ─── Metric tabs (depends on standard + viewTab) ───────────────────────────
@@ -95,11 +97,11 @@ export function metricsFor(standard: "IFRS" | "NSBU", viewTab: string): MetricDe
   if (standard === "IFRS") {
     if (viewTab === "SOFP") {
       return [
-        { id: "totalAssets",      label: "Активы" },
-        { id: "equity",           label: "Капитал" },
-        { id: "totalLiabilities", label: "Обязательства" },
-        { id: "debt",             label: "Долг" },
-        { id: "cash",             label: "Денежные ср-ва" },
+        { id: "totalAssets",      label: i18nKey("Активы") },
+        { id: "equity",           label: i18nKey("Капитал") },
+        { id: "totalLiabilities", label: i18nKey("Обязательства") },
+        { id: "debt",             label: i18nKey("Долг") },
+        { id: "cash",             label: i18nKey("Денежные ср-ва") },
       ];
     }
     if (viewTab === "CF") {
@@ -107,38 +109,38 @@ export function metricsFor(standard: "IFRS" | "NSBU", viewTab: string): MetricDe
         { id: "cfo",            label: "CFO" },
         { id: "cfi",            label: "CFI" },
         { id: "cff",            label: "CFF" },
-        { id: "dividendsPaid",  label: "Дивиденды" },
+        { id: "dividendsPaid",  label: i18nKey("Дивиденды") },
       ];
     }
     return [
-      { id: "revenue",      label: "Выручка" },
-      { id: "cogs",         label: "Себестоимость" },
-      { id: "grossProfit",  label: "Вал. прибыль" },
-      { id: "opProfit",     label: "Опер. прибыль" },
-      { id: "profit",       label: "Чистая прибыль" },
+      { id: "revenue",      label: i18nKey("Выручка") },
+      { id: "cogs",         label: i18nKey("Себестоимость") },
+      { id: "grossProfit",  label: i18nKey("Вал. прибыль") },
+      { id: "opProfit",     label: i18nKey("Опер. прибыль") },
+      { id: "profit",       label: i18nKey("Чистая прибыль") },
       { id: "ebitda",       label: "EBITDA" },
-      { id: "ifrsHistory",  label: "История отчётности" },
+      { id: "ifrsHistory",  label: i18nKey("История отчётности") },
     ];
   }
   // NSBU
   if (viewTab === "BS") {
     return [
-      { id: "totalAssets",      label: "Итого активы" },
-      { id: "totalLiabilities", label: "Обязательства" },
-      { id: "equity",           label: "Собственный капитал" },
-      { id: "cash",             label: "Денежные средства" },
-      { id: "debt",             label: "Долг" },
-      { id: "accountsReceivable", label: "Дебиторская задолженность" },
-      { id: "accountsPayable",    label: "Кредиторская задолженность" },
+      { id: "totalAssets",      label: i18nKey("Итого активы") },
+      { id: "totalLiabilities", label: i18nKey("Обязательства") },
+      { id: "equity",           label: i18nKey("Собственный капитал") },
+      { id: "cash",             label: i18nKey("Денежные средства") },
+      { id: "debt",             label: i18nKey("Долг") },
+      { id: "accountsReceivable", label: i18nKey("Дебиторская задолженность") },
+      { id: "accountsPayable",    label: i18nKey("Кредиторская задолженность") },
     ];
   }
   return [
-    { id: "revenue",     label: "Выручка" },
-    { id: "grossProfit", label: "Валовая прибыль" },
+    { id: "revenue",     label: i18nKey("Выручка") },
+    { id: "grossProfit", label: i18nKey("Валовая прибыль") },
     { id: "ebitda",      label: "EBITDA" },
-    { id: "profit",      label: "Чистая прибыль" },
-    { id: "accountsReceivable", label: "Дебиторская задолженность" },
-    { id: "accountsPayable",    label: "Кредиторская задолженность" },
+    { id: "profit",      label: i18nKey("Чистая прибыль") },
+    { id: "accountsReceivable", label: i18nKey("Дебиторская задолженность") },
+    { id: "accountsPayable",    label: i18nKey("Кредиторская задолженность") },
   ];
 }
 
@@ -218,7 +220,7 @@ export function aggregateBySector(
       const sec = sectorByCode[code];
       buckets[code] = {
         sectorCode: code,
-        label: sec?.name_ru || (code === "other" ? "Другое" : code),
+        label: sec?.name_ru || (code === "other" ? i18nKey("Другое") : code),
         color: sectorColor(sec),
         total: 0,
         count: 0,

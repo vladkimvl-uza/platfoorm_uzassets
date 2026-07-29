@@ -142,7 +142,7 @@ async function toggleApprove(c: Charter) {
 }
 
 async function remove(c: Charter) {
-  if (!confirm(`Удалить устав «${c.project_title || "Программа"}»? Действие необратимо.`)) return;
+  if (!confirm(t("Удалить устав «{title}»? Действие необратимо.", { title: c.project_title || t("Программа") }))) return;
   try {
     await pmoApi.deleteCharter(c.id);
     if (selectedId.value === c.id) selectedId.value = null;

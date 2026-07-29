@@ -22,6 +22,7 @@ from sqlalchemy import and_, event, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session as _SyncSession
 
+from app.core.i18n import normalize_locale, tr
 from app.models.notification import NOTIFICATION_TYPES, Notification, NotificationPreference
 from app.models.user import Group, Role, User
 
@@ -263,7 +264,7 @@ async def _forward_notification_email(
     from sqlalchemy import select as _sel
     from app.models.user import User as _User
     row = (await db.execute(
-        _sel(_User.email, _User.full_name).where(_User.id == recipient_id)
+        _sel(_User.email, _User.full_name, _User.ui_locale).where(_User.id == recipient_id)
     )).first()
     if not row or not row.email:
         return
@@ -277,14 +278,15 @@ async def _forward_notification_email(
     if url and url.startswith("/"):
         url = str(effective().get("PUBLIC_URL") or "").rstrip("/") + url
     accent = "#E24B4A" if priority in ("high", "critical") else "#534AB7"
+    locale = normalize_locale(row.ui_locale)
     subj, html = _tpl.notification_email(
-        eyebrow=source_module or "Уведомление", title=title,
-        lines=[body] if body else ["Откройте платформу для деталей."],
-        action_label=("Открыть в платформе" if url else None),
-        action_url=(url if url else None), accent=accent,
+        eyebrow=tr(source_module or "Уведомление", locale), title=title,
+        lines=[body] if body else [tr("Откройте платформу для деталей.", locale)],
+        action_label=(tr("Открыть в платформе", locale) if url else None),
+        action_url=(url if url else None), accent=accent, locale=locale,
     )
     from app.services.email.service import send_email
-    t = asyncio.create_task(send_email(row.email, subj, html))
+    t = asyncio.create_task(send_email(row.email, subj, html, locale=locale))
     _EMAIL_BG_TASKS.add(t)
     t.add_done_callback(_EMAIL_BG_TASKS.discard)
 
@@ -311,6 +313,37 @@ def _safe_link_url(url: Optional[str]) -> Optional[str]:
     return None
 
 
+async def _recipient_locale(db: AsyncSession, recipient_id: UUID) -> str:
+    """Язык офлайн-уведомления из профиля получателя."""
+    raw = (await db.execute(
+        select(User.ui_locale).where(User.id == recipient_id),
+    )).scalar_one_or_none()
+    return normalize_locale(raw)
+
+
+def _render_system_template(
+    template: str,
+    locale: str,
+    values: Optional[dict[str, Any]],
+    translate_vars: Optional[set[str]],
+) -> str:
+    """Перевести системный шаблон, не меняя пользовательские значения.
+
+    Только имена из ``translate_vars`` считаются системными справочными
+    лейблами. Списки переводятся поэлементно и соединяются запятой.
+    """
+    rendered: dict[str, Any] = dict(values or {})
+    for name in translate_vars or set():
+        if name not in rendered:
+            continue
+        value = rendered[name]
+        if isinstance(value, (list, tuple)):
+            rendered[name] = ", ".join(tr(str(item), locale) for item in value)
+        elif value is not None:
+            rendered[name] = tr(str(value), locale)
+    return tr(template, locale, **rendered)
+
+
 async def notify(
     db: AsyncSession,
     *,
@@ -318,6 +351,10 @@ async def notify(
     type: str,
     title: str,
     body: Optional[str] = None,
+    title_template: Optional[str] = None,
+    body_template: Optional[str] = None,
+    template_vars: Optional[dict[str, Any]] = None,
+    translate_vars: Optional[set[str]] = None,
     priority: Optional[str] = None,
     payload: Optional[dict] = None,
     link_url: Optional[str] = None,
@@ -339,6 +376,20 @@ async def notify(
     """
     if not await _user_wants_in_app(db, recipient_id, type):
         return None
+
+    # Системные производители передают шаблоны явно. Обычные title/body
+    # (админские рассылки, комментарии, AI direct.message и данные из БД)
+    # остаются байт-в-байт такими, какими их ввели.
+    if title_template or body_template:
+        locale = await _recipient_locale(db, recipient_id)
+        if title_template:
+            title = _render_system_template(
+                title_template, locale, template_vars, translate_vars,
+            )[:255]
+        if body_template:
+            body = _render_system_template(
+                body_template, locale, template_vars, translate_vars,
+            )
 
     # Санитизируем ДО создания строки — покрывает in-app + e-mail forward (ниже) +
     # TG forward (читает n.link_url). broadcast() идёт через notify() → тоже покрыт.

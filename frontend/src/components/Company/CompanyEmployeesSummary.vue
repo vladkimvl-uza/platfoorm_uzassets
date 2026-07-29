@@ -72,7 +72,7 @@ const onlineCount = computed(() =>
       </div>
 
       <div class="ces-meta">
-        <span><b>{{ departments }}</b> {{ departments === 1 ? 'отдел' : 'отделов' }}</span>
+        <span><b>{{ departments }}</b> {{ departments === 1 ? t('отдел') : t('отделов') }}</span>
         <span v-if="onlineCount" class="ces-online"><span class="ces-dot"></span>{{ onlineCount }} {{ t('в сети') }}</span>
       </div>
     </template>

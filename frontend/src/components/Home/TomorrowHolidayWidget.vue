@@ -4,7 +4,7 @@
  * есть праздник в УЗ. Берёт ближайший подходящий из @/api/holidays.
  */
 import { computed } from "vue";
-import { getHoliday, HOLIDAY_KIND_COLORS, HOLIDAY_KIND_LABELS, type UzHoliday } from "@/api/holidays";
+import { getHoliday, holidayTitle, HOLIDAY_KIND_COLORS, HOLIDAY_KIND_LABELS, type UzHoliday } from "@/api/holidays";
 import { useI18n } from "@/composables/useI18n";
 
 const { t } = useI18n();
@@ -56,7 +56,7 @@ const fullDate = computed(() => {
     </div>
     <div class="th-body">
       <div class="th-tag" :title="fullDate">{{ whenText }}</div>
-      <div class="th-title">{{ t(upcoming.holiday.title_ru) }}</div>
+      <div class="th-title">{{ holidayTitle(upcoming.holiday) }}</div>
       <div class="th-meta">
         <span class="th-kind">{{ t(HOLIDAY_KIND_LABELS[upcoming.holiday.kind]) }}</span>
         <span v-if="upcoming.holiday.is_dayoff" class="th-dayoff">{{ t("нерабочий день") }}</span>

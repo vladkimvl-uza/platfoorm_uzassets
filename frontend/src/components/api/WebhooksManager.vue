@@ -75,10 +75,10 @@ function toggleEvent(code: string) {
 }
 
 async function submitCreate() {
-  if (!newSub.value.service_account_id) { error.value = "Выберите service account"; return; }
-  if (!newSub.value.name.trim()) { error.value = "Укажите имя подписки"; return; }
+  if (!newSub.value.service_account_id) { error.value = t('Выберите service account'); return; }
+  if (!newSub.value.name.trim()) { error.value = t('Укажите имя подписки'); return; }
   if (!newSub.value.target_url.startsWith("https://") && !newSub.value.target_url.startsWith("http://")) {
-    error.value = "Target URL должен начинаться с https:// или http://"; return;
+    error.value = t('Target URL должен начинаться с https:// или http://'); return;
   }
   try {
     const created = await webhooksApi.createSubscription({
@@ -147,10 +147,10 @@ function fmtDate(iso: string | null): string {
 function fmtRel(iso: string | null): string {
   if (!iso) return "—";
   const d = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-  if (d < 60) return `${d} с назад`;
-  if (d < 3600) return `${Math.floor(d / 60)} мин назад`;
-  if (d < 86400) return `${Math.floor(d / 3600)} ч назад`;
-  return `${Math.floor(d / 86400)} дн назад`;
+  if (d < 60) return t('{value0} с назад', { value0: d });
+  if (d < 3600) return t('{value0} мин назад', { value0: Math.floor(d / 60) });
+  if (d < 86400) return t('{value0} ч назад', { value0: Math.floor(d / 3600) });
+  return t('{value0} дн назад', { value0: Math.floor(d / 86400) });
 }
 
 const successRatePct = computed(() => {
@@ -194,7 +194,7 @@ const successRatePct = computed(() => {
       <!-- Left: subscriptions list -->
       <div class="wh-side">
         <div class="wh-side-hd">{{ t('Подписки') }} {{ subs.length ? `· ${subs.length}` : "" }}</div>
-        <UzaStateBlock v-if="!subs.length" state="empty" variant="block" :title="t('Нет подписок')" desc="Создайте первую">
+      <UzaStateBlock v-if="!subs.length" state="empty" variant="block" :title="t('Нет подписок')" :desc="t('Создайте первую')">
           <template #icon><BIcon name="webhook" :size="14" /></template>
         </UzaStateBlock>
         <div v-else class="wh-sub-list">
@@ -227,8 +227,8 @@ const successRatePct = computed(() => {
               <span class="wh-pill" :style="{ color: selectedSub.is_active ? '#0F6E56' : '#A32D2D', background: selectedSub.is_active ? 'rgba(29,158,117,.12)' : 'rgba(226,75,74,.1)' }">
                 {{ selectedSub.is_active ? "active" : "disabled" }}
               </span>
-              <span>secret: <code>{{ selectedSub.secret_hint }}</code></span>
-              <span>{{ selectedSub.events.join(", ") || "(нет events)" }}</span>
+              <span>secret: <code>{{ t(selectedSub.secret_hint) }}</code></span>
+              <span>{{ selectedSub.events.join(", ") || t('(нет events)') }}</span>
               <span v-if="selectedSub.disabled_reason" style="color: #A32D2D;">{{ t('причина:') }} {{ selectedSub.disabled_reason }}</span>
             </div>
           </div>
@@ -238,7 +238,7 @@ const successRatePct = computed(() => {
             </button>
             <button class="wh-btn" @click="toggleActive(selectedSub)">
               <BIcon :name="selectedSub.is_active ? 'player-pause' : 'player-play'" :size="14" />
-              {{ selectedSub.is_active ? "Остановить" : "Включить" }}
+              {{ selectedSub.is_active ? t('Остановить') : t('Включить') }}
             </button>
             <button class="wh-btn wh-btn-danger" @click="deleteTarget = selectedSub">
               <BIcon name="trash" :size="14" />
@@ -247,7 +247,7 @@ const successRatePct = computed(() => {
         </div>
 
         <div class="wh-log-hd">
-          <div class="wh-log-t">{{ t('Журнал доставки') }} {{ selectedSub ? `· ${selectedSub.name}` : "· все" }}</div>
+          <div class="wh-log-t">{{ t('Журнал доставки') }} {{ selectedSub ? `· ${selectedSub.name}` : t('· все') }}</div>
           <select v-model="filterStatus" @change="loadDeliveries" class="wh-filter">
             <option value="">{{ t('Все статусы') }}</option>
             <option value="pending">pending</option>
@@ -260,7 +260,7 @@ const successRatePct = computed(() => {
           </button>
         </div>
 
-        <UzaStateBlock v-if="!deliveries.length" state="empty" variant="block" text="Журнал пуст">
+        <UzaStateBlock v-if="!deliveries.length" state="empty" variant="block" :text="t('Журнал пуст')">
           <template #icon><BIcon name="history" :size="14" /></template>
         </UzaStateBlock>
 
@@ -285,7 +285,7 @@ const successRatePct = computed(() => {
               <td><code class="wh-evc">{{ d.event_code }}</code><span v-if="d.is_replay" class="wh-replay-tag">replay</span></td>
               <td>
                 <span class="wh-pill" :style="{ color: statusPill(d.status).color, background: statusPill(d.status).bg }">
-                  {{ statusPill(d.status).label }}
+                  {{ t(statusPill(d.status).label) }}
                 </span>
               </td>
               <td>
@@ -362,7 +362,7 @@ const successRatePct = computed(() => {
                   <input type="checkbox" :checked="newSub.events.has(e.code)" @change="toggleEvent(e.code)"/>
                   <div>
                     <code>{{ e.code }}</code>
-                    <div class="wh-evt-lbl">{{ e.label }}</div>
+                    <div class="wh-evt-lbl">{{ t(e.label) }}</div>
                   </div>
                 </label>
               </div>
@@ -429,7 +429,7 @@ const successRatePct = computed(() => {
             <div><span>Event</span><code>{{ showDeliveryDetail.event_code }}</code></div>
             <div><span>Status</span>
               <span class="wh-pill" :style="{ color: statusPill(showDeliveryDetail.status).color, background: statusPill(showDeliveryDetail.status).bg }">
-                {{ statusPill(showDeliveryDetail.status).label }}
+                {{ t(statusPill(showDeliveryDetail.status).label) }}
               </span>
             </div>
             <div><span>HTTP</span><code>{{ showDeliveryDetail.http_status ?? "—" }}</code></div>

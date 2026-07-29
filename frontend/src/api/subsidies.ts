@@ -3,6 +3,9 @@
  * Метрика «Субсидии» в финансах + модалка-реестр с фильтрами.
  */
 import { api } from "./client";
+import { fmtNumber } from "@/locale";
+import { getCurrentLocale, t } from "@/locale/i18n";
+import { i18nKey } from "@/locale/keys";
 
 export interface SubsidyRow {
   id: string;
@@ -100,19 +103,19 @@ export function fmtSubsidySum(v: number | null | undefined): { value: string; un
   if (v == null || isNaN(Number(v))) return { value: "—", unit: "" };
   const n = Number(v);
   const abs = Math.abs(n);
-  if (abs >= 1e12) return { value: (n / 1e12).toFixed(1), unit: "трлн сум" };
-  if (abs >= 1e9)  return { value: (n / 1e9).toFixed(1),  unit: "млрд сум" };
-  if (abs >= 1e6)  return { value: (n / 1e6).toFixed(1),  unit: "млн сум" };
-  if (abs >= 1e3)  return { value: Math.round(n / 1e3).toString(), unit: "тыс. сум" };
-  return { value: Math.round(n).toString(), unit: "сум" };
+  if (abs >= 1e12) return { value: fmtNumber(n / 1e12, getCurrentLocale(), { decimals: 1 }), unit: t("трлн сум") };
+  if (abs >= 1e9)  return { value: fmtNumber(n / 1e9, getCurrentLocale(), { decimals: 1 }),  unit: t("млрд сум") };
+  if (abs >= 1e6)  return { value: fmtNumber(n / 1e6, getCurrentLocale(), { decimals: 1 }),  unit: t("млн сум") };
+  if (abs >= 1e3)  return { value: fmtNumber(Math.round(n / 1e3), getCurrentLocale()), unit: t("тыс. сум") };
+  return { value: fmtNumber(Math.round(n), getCurrentLocale()), unit: t("сум") };
 }
 
 export const SUBSIDY_STATUSES: { key: string; label: string }[] = [
-  { key: "planned",   label: "Запланирована" },
-  { key: "allocated", label: "Выделена" },
-  { key: "received",  label: "Получена" },
-  { key: "used",      label: "Освоена" },
-  { key: "cancelled", label: "Отменена" },
+  { key: "planned",   label: i18nKey("Запланирована") },
+  { key: "allocated", label: i18nKey("Выделена") },
+  { key: "received",  label: i18nKey("Получена") },
+  { key: "used",      label: i18nKey("Освоена") },
+  { key: "cancelled", label: i18nKey("Отменена") },
 ];
 
 export function subsidyStatusLabel(key: string | null | undefined): string {

@@ -19,12 +19,12 @@ export const uz: Record<string, string> = {
     "{p} FY {y} uchun salmoqli indikatorlar toʻldirilmagan.",
   "Открыть модуль KPI": "KPI modulini ochish",
   "Критично": "Kritik",
-  "Риск": "Risk",
+  
   "Зона внимания": "Eʼtibor zonasi",
   "На цели": "Maqsadda",
   "Превышено": "Oshirilgan",
-  "В риске": "Risk ostida",
-  "Провал": "Bajarilmagan",
+  
+  
   "индикаторов с весом": "salmoqli indikator",
   "превышено": "oshirilgan",
   "на цели": "maqsadda",
@@ -32,7 +32,7 @@ export const uz: Record<string, string> = {
   "критично": "kritik",
   "провалено": "bajarilmagan",
   "Драйверы:": "Drayverlar:",
-  "Зоны риска:": "Risk zonalari:",
+  
 
   // ── ExecDashKpiForecastBlock ──
   "Прогноз KPI": "KPI prognozi",
@@ -153,7 +153,7 @@ export const uz: Record<string, string> = {
   "Сбросить все фильтры": "Barcha filtrlarni qayta tiklash",
   "Фильтр по секторам": "Tarmoqlar boʻyicha filtr",
   "Все секторы": "Barcha tarmoqlar",
-  "Поиск компании…": "Kompaniya qidirish…",
+  
   "Выберите 1 — фокус, 2+ — сравнение (бенчмарк)": "1 ta tanlang — fokus, 2+ — taqqoslash (benchmark)",
   "Выбор компаний": "Kompaniyalarni tanlash",
   "Выбрано: {n}": "Tanlangan: {n}",
@@ -163,16 +163,16 @@ export const uz: Record<string, string> = {
   "Повторить": "Qayta urinish",
   "Нет данных за FY {y}": "FY {y} uchun maʼlumot yoʻq",
   "Доступные годы:": "Mavjud yillar:",
-  "Сводка по портфелю": "Portfel boʻyicha xulosa",
+  
   "Топ-3 риска по портфелю": "Portfel boʻyicha top-3 risk",
   "IPO-готовность компаний": "Kompaniyalarning IPO ga tayyorligi",
-  "Сравни 2025 vs 2026": "2025 vs 2026 ni taqqosla",
+  
   "Что важного сегодня?": "Bugun nima muhim?",
 };
 
 export const en: Record<string, string> = {
   // ── ExecDashKpiBlock ──
-  "Общее выполнение KPI": "Overall KPI performance",
+  
   "За выбранный FY данных по KPI нет — показан последний год с данными":
     "No KPI data for the selected FY — showing the latest year with data",
   "данные за FY {y}": "FY {y} data",
@@ -186,7 +186,7 @@ export const en: Record<string, string> = {
   "Открыть модуль KPI": "Open KPI module",
   "Критично": "Critical",
   "Риск": "Risk",
-  "Зона внимания": "Watch zone",
+  
   "На цели": "On target",
   "Превышено": "Exceeded",
   "В риске": "At risk",
@@ -198,7 +198,7 @@ export const en: Record<string, string> = {
   "критично": "critical",
   "провалено": "failed",
   "Драйверы:": "Drivers:",
-  "Зоны риска:": "Risk zones:",
+  
 
   // ── ExecDashKpiForecastBlock ──
   "Прогноз KPI": "KPI forecast",
@@ -347,7 +347,7 @@ export const cyr: Record<string, string> = {
   "Программа трансформации государственных предприятий": "Давлат корхоналарини трансформация қилиш дастури",
   "тек. {v} по портфелю": "жорий {v} портфель бўйича",
   "в финансовой отчётности портфеля (IFRS / NSBU PL).": "портфель молиявий ҳисоботида (IFRS / NSBU PL).",
-  "Сводка по портфелю": "Портфель бўйича хулоса",
+  
   "Топ-3 риска по портфелю": "Портфель бўйича топ-3 риск",
   "Исполнение задач Ожиданий Акционера": "Акциядор кутилмалари вазифаларининг ижроси",
   // «портфель» в суффиксальных формах (транслит дал бы «портфелнинг/портфелдаги»)
@@ -363,5 +363,5 @@ export const cyr: Record<string, string> = {
     "FY {y} учун MHXS / Forensic жорий этилиши ҳақида маълумот йўқ",
   "Все компании завершили МСФО и Forensic": "Барча компаниялар MHXS ва Forensic аудитини якунлаган",
   // «vs» остаётся латиницей (транслит дал бы «вс»)
-  "Сравни 2025 vs 2026": "2025 vs 2026 ни таққосла",
+  
 };

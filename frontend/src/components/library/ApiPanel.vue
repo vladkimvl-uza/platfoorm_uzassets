@@ -10,6 +10,8 @@ import { useApiCatalogStore } from "@/stores/apiCatalog";
 import type { CatalogEndpointWithSubstitution } from "@/api/apiCatalog";
 import EndpointCard from "./EndpointCard.vue";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 const { t } = useI18n();
 
 
@@ -35,7 +37,7 @@ async function refresh() {
     const resp = await store.loadByCompany(props.companyId, props.currentTab);
     endpoints.value = resp ? resp.endpoints : [];
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить endpoints";
+    error.value = e?.response?.data?.detail || e?.message || t('Не удалось загрузить endpoints');
     endpoints.value = [];
   } finally {
     loading.value = false;
@@ -46,20 +48,20 @@ watch(() => [props.companyId, props.currentTab], refresh, { immediate: true });
 
 const tabLabel = computed<string>(() => {
   return ({
-    overview:   "Обзор",
-    financials: "Финансы",
+    overview:   i18nKey("Обзор"),
+    financials: i18nKey("Финансы"),
     kpi:        "KPI · BP",
-    ratings:    "Рейтинги",
-    loans:      "Кредит",
-    procurement:"Закупки",
-    documents:  "Документы",
-    identity:   "Идентификация",
-    governance: "Корп. упр.",
+    ratings:    i18nKey("Рейтинги"),
+    loans:      i18nKey("Кредит"),
+    procurement:i18nKey("Закупки"),
+    documents:  i18nKey("Документы"),
+    identity:   i18nKey("Идентификация"),
+    governance: i18nKey("Корп. упр."),
     esg:        "ESG",
-    consultants:"Консультанты",
-    notes:      "Заметки",
-    projects:   "Проекты",
-    tasks:      "Задачи",
+    consultants:i18nKey("Консультанты"),
+    notes:      i18nKey("Заметки"),
+    projects:   i18nKey("Проекты"),
+    tasks:      i18nKey("Задачи"),
   } as Record<string, string>)[props.currentTab] || props.currentTab;
 });
 
@@ -77,7 +79,7 @@ const shortId = computed(() => props.companyId.slice(0, 8) + "…");
           <line x1="4" y1="4.5" x2="5" y2="4.5" />
           <line x1="4" y1="11.5" x2="5" y2="11.5" />
         </svg>
-        API · {{ tabLabel }}
+        API · {{ t(tabLabel) }}
       </span>
       <button class="ap-refresh" @click="refresh" :title="t('Обновить')" :disabled="loading">↻</button>
     </header>

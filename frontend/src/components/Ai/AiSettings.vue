@@ -60,8 +60,8 @@
                 >
                   <input v-model="form.role" type="radio" :value="r.value" />
                   <div class="ai-set-opt-body">
-                    <div class="ai-set-opt-title">{{ r.label }}</div>
-                    <div class="ai-set-opt-desc">{{ r.desc }}</div>
+                    <div class="ai-set-opt-title">{{ t(r.label) }}</div>
+                    <div class="ai-set-opt-desc">{{ t(r.desc) }}</div>
                   </div>
                   <svg
                     v-if="form.role === r.value"
@@ -90,10 +90,10 @@
                 <input v-model="form.model" type="radio" :value="m.value" />
                 <div class="ai-set-opt-body">
                   <div class="ai-set-opt-title">
-                    {{ m.label }}
+                    {{ t(m.label) }}
                     <span v-if="m.badge" class="ai-set-opt-badge">{{ m.badge }}</span>
                   </div>
-                  <div class="ai-set-opt-desc">{{ m.desc }}</div>
+                  <div class="ai-set-opt-desc">{{ t(m.desc) }}</div>
                 </div>
                 <svg
                   v-if="form.model === m.value"
@@ -120,8 +120,8 @@
               >
                 <input v-model="form.style" type="radio" :value="s.value" />
                 <div class="ai-set-opt-body">
-                  <div class="ai-set-opt-title">{{ s.label }}</div>
-                  <div class="ai-set-opt-desc">{{ s.desc }}</div>
+                  <div class="ai-set-opt-title">{{ t(s.label) }}</div>
+                  <div class="ai-set-opt-desc">{{ t(s.desc) }}</div>
                 </div>
                 <svg
                   v-if="form.style === s.value"

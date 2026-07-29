@@ -51,9 +51,9 @@
             <!-- Режим «Прогноз»: траектория выполнения + модельная таблица движка -->
             <template v-if="mode === 'forecast'">
               <div v-if="fcTrend.length" class="kpai-chart">
-                <div class="kpai-chart-title">{{ t("Прогноз сводного выполнения «{name}», % (история → прогноз)", { name: fcScopeName === 'Портфель' ? t('Портфель') : fcScopeName }) }}</div>
+                <div class="kpai-chart-title">{{ t("Прогноз сводного выполнения «{name}», % (история → прогноз)", { name: fcScopeName === PORTFOLIO_SCOPE ? t(PORTFOLIO_SCOPE) : fcScopeName }) }}</div>
                 <div v-for="(tr, i) in fcTrend" :key="i" class="kpai-bar-row">
-                  <span class="kpai-bar-lbl">{{ tr.label }}<span v-if="tr.projected" class="kpai-fc-tag">{{ t("прогноз") }}</span></span>
+                  <span class="kpai-bar-lbl">{{ t(tr.label) }}<span v-if="tr.projected" class="kpai-fc-tag">{{ t("прогноз") }}</span></span>
                   <div class="kpai-bar-track">
                     <div class="kpai-bar-fill" :class="{ proj: tr.projected }"
                          :style="{ width: Math.min(tr.value / fcTrendMax * 100, 100) + '%', background: barColor(tr.value) }"></div>
@@ -63,7 +63,7 @@
               </div>
               <div v-if="fcView.length" class="kpai-fc">
                 <div class="kpai-fc-head">
-                  <div class="kpai-chart-title">{{ t("Модельный прогноз (движок)") }}{{ fcScopeName ? ' · ' + (fcScopeName === 'Портфель' ? t('Портфель') : fcScopeName) : '' }}</div>
+                  <div class="kpai-chart-title">{{ t("Модельный прогноз (движок)") }}{{ fcScopeName ? ' · ' + (fcScopeName === PORTFOLIO_SCOPE ? t(PORTFOLIO_SCOPE) : fcScopeName) : '' }}</div>
                   <div v-if="hasFcQuarters" class="kpai-fc-toggle">
                     <div class="kpai-seg kpai-seg-sm">
                       <button :class="{ on: fcTblMode === 'years' }" @click="setFcTblMode('years')">{{ t("По годам") }}</button>
@@ -77,13 +77,13 @@
                 <div class="kpai-fc-scroll">
                   <table class="kpai-fc-tbl">
                     <thead><tr>
-                      <th>{{ fcScopeName === 'Портфель' ? t('Компания') : t('Показатель') }}</th>
+                      <th>{{ fcScopeName === PORTFOLIO_SCOPE ? t('Компания') : t('Показатель') }}</th>
                       <th>{{ t("Тек. факт") }}</th>
                       <template v-if="fcTblMode === 'quarters'">
                         <th v-for="q in FC_Q" :key="q">{{ q }} · {{ fcQYear }}</th>
                       </template>
                       <template v-else>
-                        <th v-if="fcScopeName !== 'Портфель'">{{ t("Ожид. {y}", { y: fcBaseYear }) }}</th>
+                        <th v-if="fcScopeName !== PORTFOLIO_SCOPE">{{ t("Ожид. {y}", { y: fcBaseYear }) }}</th>
                         <th v-for="y in fcYears" :key="y">{{ y }}</th>
                       </template>
                       <th>{{ t("Метод") }}</th>
@@ -101,7 +101,7 @@
                           </td>
                         </template>
                         <template v-else>
-                          <td v-if="fcScopeName !== 'Портфель'">{{ fcCell(r.expected, r.unit) }}</td>
+                          <td v-if="fcScopeName !== PORTFOLIO_SCOPE">{{ fcCell(r.expected, r.unit) }}</td>
                           <td v-for="y in fcYears" :key="y">
                             <template v-if="r.byYear[y]">
                               <span class="kpai-fc-v">{{ fcCell(r.byYear[y].value, r.unit) }}</span>
@@ -126,7 +126,7 @@
             <div v-else-if="chartRows.length" class="kpai-chart">
               <div class="kpai-chart-title">{{ scope === 'company' ? t("Выполнение по показателям, %") : t("Выполнение по компаниям, %") }}</div>
               <div v-for="(r, i) in chartRows" :key="i" class="kpai-bar-row">
-                <span class="kpai-bar-lbl" :title="r.label">{{ r.label }}</span>
+                <span class="kpai-bar-lbl" :title="t(r.label)">{{ t(r.label) }}</span>
                 <div class="kpai-bar-track">
                   <div class="kpai-bar-fill" :style="{ width: Math.min(r.value, 150) / 1.5 + '%', background: barColor(r.value) }"></div>
                 </div>
@@ -156,6 +156,8 @@ import { extractHlfHeadline, HLF_LABELS } from "@/utils/hlfHeadline";
 import { useCompanyScope } from "@/composables/useCompanyScope";
 import { useI18n } from "@/composables/useI18n";
 import { useToast } from "@/composables/useToast";
+import { i18nKey } from "@/locale/keys";
+
 
 type Mode = "performance" | "correlation" | "forecast";
 type Co = { company_id: string; company_name_ru: string; company_code: string | null };
@@ -182,6 +184,7 @@ type SavedRec = { raw: string; doneAt: string; year: number; chart?: ChartRow[];
 const props = defineProps<{ companies: Co[]; year: number; period: string; selectedId: string | null }>();
 
 const { t } = useI18n();
+const PORTFOLIO_SCOPE = i18nKey("Портфель");
 const toast = useToast();
 // Область доступа пользователя (не путать с локальным `scope` — охватом анализа).
 const coScope = useCompanyScope();
@@ -229,10 +232,10 @@ function fcUnit(unit: string | null): string {
   return unit && unit !== "%" ? unit : "";
 }
 const FC_METHOD: Record<string, string> = {
-  pace: "темп", seasonal: "сезон", run_rate: "run-rate", plan: "план",
-  actual: "факт", ols: "тренд", cagr: "CAGR", none: "нет данных",
+  pace: i18nKey("темп"), seasonal: i18nKey("сезон"), run_rate: "run-rate", plan: i18nKey("план"),
+  actual: i18nKey("факт"), ols: i18nKey("тренд"), cagr: "CAGR", none: i18nKey("нет данных"),
 };
-function fcMethodLabel(m: string): string { return FC_METHOD[m] || m; }
+function fcMethodLabel(m: string): string { return FC_METHOD[m] ? t(FC_METHOD[m]) : m; }
 
 function buildForecastView(fc: CompanyForecast): void {
   const yset = new Set<string>();
@@ -271,7 +274,7 @@ function buildPortfolioForecastView(all: CompanyForecast[], baseYear: number): v
   }
   fcView.value = rows.sort((a, b) => (b.fact ?? -1) - (a.fact ?? -1));
   fcYears.value = Array.from(yset).sort();
-  fcTrend.value = []; fcBaseYear.value = baseYear; fcScopeName.value = "Портфель";
+  fcTrend.value = []; fcBaseYear.value = baseYear; fcScopeName.value = PORTFOLIO_SCOPE;
 }
 function resetForecastView(): void { fcView.value = []; fcYears.value = []; fcTrend.value = []; fcTblMode.value = "years"; }
 const fcTrendMax = computed(() => Math.max(120, ...fcTrend.value.map(t => t.high ?? t.value)));
@@ -281,7 +284,7 @@ const fcTblMode = ref<"years" | "quarters">("years");
 const fcQYear = ref<string>("");
 // Кварталы доступны только когда движок дал сезонную разбивку (режим компании).
 const hasFcQuarters = computed(() =>
-  fcScopeName.value !== "Портфель" &&
+  fcScopeName.value !== PORTFOLIO_SCOPE &&
   fcView.value.some(r => fcYears.value.some(y => r.byYear[y]?.quarters)));
 function setFcTblMode(m: "years" | "quarters"): void {
   fcTblMode.value = m;
@@ -296,11 +299,11 @@ const mode = ref<Mode>("performance");
 const saved = ref<Record<string, SavedRec>>({});
 
 const MODES: { id: Mode; label: string; hint: string }[] = [
-  { id: "performance", label: "Исполнение", hint: "Разбор выполнения KPI: веса, риски, направление" },
-  { id: "correlation", label: "KPI ↔ Финансы", hint: "Взаимосвязи операционных KPI и финансовых показателей" },
-  { id: "forecast", label: "Прогноз", hint: "Прогноз будущих KPI + предложение новых показателей" },
+  { id: "performance", label: i18nKey("Исполнение"), hint: i18nKey("Разбор выполнения KPI: веса, риски, направление") },
+  { id: "correlation", label: i18nKey("KPI ↔ Финансы"), hint: i18nKey("Взаимосвязи операционных KPI и финансовых показателей") },
+  { id: "forecast", label: i18nKey("Прогноз"), hint: i18nKey("Прогноз будущих KPI + предложение новых показателей") },
 ];
-const MODE_LABEL: Record<Mode, string> = { performance: "Исполнение", correlation: "KPI↔Финансы", forecast: "Прогноз" };
+const MODE_LABEL: Record<Mode, string> = { performance: i18nKey("Исполнение"), correlation: i18nKey("KPI↔Финансы"), forecast: i18nKey("Прогноз") };
 
 const pickedId = ref<string | null>(props.selectedId || (props.companies[0]?.company_id ?? null));
 const selectedCompany = computed(() => props.companies.find(c => c.company_id === pickedId.value) || null);
@@ -350,7 +353,7 @@ function exportExcel(): void {
   const wb = XLSX.utils.book_new();
   // Лист «Модель прогноза» — детерминированные проекции движка (первым листом).
   if (mode.value === "forecast" && fcView.value.length) {
-    const isPort = fcScopeName.value === "Портфель";
+    const isPort = fcScopeName.value === PORTFOLIO_SCOPE;
     const head = [isPort ? t("Компания") : t("Показатель"), ...(isPort ? [] : [t("Руководитель")]),
       t("Тек. факт"), ...(isPort ? [] : [t("Ожид. {y}", { y: fcBaseYear.value })]), ...fcYears.value, t("Метод"), t("Надёжность")];
     const aoa: (string | number)[][] = [head];
@@ -391,7 +394,7 @@ function exportExcel(): void {
   const textWs = XLSX.utils.aoa_to_sheet(lines.map(l => [l]));
   textWs["!cols"] = [{ wch: 120 }];
   XLSX.utils.book_append_sheet(wb, textWs, t("Полный текст"));
-  const scopeName = scope.value === "company" ? (selectedCompany.value?.company_name_ru || "company") : "портфель";
+  const scopeName = scope.value === "company" ? (selectedCompany.value?.company_name_ru || "company") : i18nKey("портфель");
   XLSX.writeFile(wb, `KPI_${MODE_LABEL[mode.value]}_${scopeName}_${props.year}.xlsx`);
 }
 function setMode(m: Mode): void { if (!loading.value) applyMode(m); }

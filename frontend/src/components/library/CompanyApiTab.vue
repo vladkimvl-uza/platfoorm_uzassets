@@ -33,7 +33,7 @@ async function load() {
     const resp = await store.loadByCompany(props.companyId);
     endpoints.value = resp ? resp.endpoints : [];
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить каталог";
+    error.value = e?.response?.data?.detail || e?.message || t('Не удалось загрузить каталог');
     endpoints.value = [];
   } finally {
     loading.value = false;
@@ -68,12 +68,12 @@ const filtered = computed(() => {
 });
 
 const grouped = computed<{ name: string; items: CatalogEndpointWithSubstitution[] }[]>(() => {
-  if (groupBy.value === "none") return [{ name: "Все", items: filtered.value }];
+  if (groupBy.value === "none") return [{ name: t("Все"), items: filtered.value }];
   const out: Record<string, CatalogEndpointWithSubstitution[]> = {};
   for (const e of filtered.value) {
     const key = groupBy.value === "method"
       ? e.method
-      : (e.module || e.tags?.[0] || "Прочее");
+      : (e.module || e.tags?.[0] || t("Прочее"));
     (out[key] ||= []).push(e);
   }
   return Object.entries(out)
@@ -102,7 +102,7 @@ const methodOptions: ("all" | HttpMethod)[] = ["all", "GET", "PATCH", "POST", "P
           :class="{ active: methodFilter === m }"
           @click="methodFilter = m"
         >
-          {{ m === "all" ? "Все" : m }}
+          {{ m === "all" ? t('Все') : m }}
           <span class="cat-method-cnt">{{ countsByMethod[m] || 0 }}</span>
         </button>
       </div>

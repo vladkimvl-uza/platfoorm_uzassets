@@ -61,7 +61,7 @@ async function select(p: IntegrationPartner) {
 onMounted(loadList);
 
 async function submitCreate() {
-  if (!newPartner.value.slug || !newPartner.value.name) { error.value = "Slug и name обязательны"; return; }
+  if (!newPartner.value.slug || !newPartner.value.name) { error.value = t('Slug и name обязательны'); return; }
   try {
     const created = await partnersApi.create({
       slug: newPartner.value.slug.trim(),
@@ -127,7 +127,7 @@ async function confirmDelete() {
 
 async function detach(r: LinkedResource) {
   if (!selected.value) return;
-  if (!(await confirmDialog({ message: `Отвязать "${r.label}" от партнёра ${selected.value.name}?`, danger: true }))) return;
+  if (!(await confirmDialog({ message: t('Отвязать "{value0}" от партнёра {value1}?', { value0: r.label, value1: selected.value.name }), danger: true }))) return;
   try {
     await partnersApi.detach(selected.value.id, r.resource_type, r.resource_id);
     await select(selected.value);
@@ -169,7 +169,7 @@ const totalResources = computed(() => {
           </select>
         </div>
 
-        <UzaStateBlock v-if="!partners.length" state="empty" variant="block" :title="t('Партнёров нет')" desc="Создайте первого">
+      <UzaStateBlock v-if="!partners.length" state="empty" variant="block" :title="t('Партнёров нет')" :desc="t('Создайте первого')">
           <template #icon><BIcon name="building-arch" :size="14" /></template>
         </UzaStateBlock>
 
@@ -180,10 +180,10 @@ const totalResources = computed(() => {
             <div class="pt-row-tier" :style="{ background: partnerTierColor(p.tier) }"></div>
             <div class="pt-row-info">
               <div class="pt-row-t">{{ p.name }}</div>
-              <div class="pt-row-slug"><code>{{ p.slug }}</code><span v-if="p.kind" class="pt-kind">{{ PARTNER_KIND_LABELS[p.kind] }}</span></div>
+              <div class="pt-row-slug"><code>{{ p.slug }}</code><span v-if="p.kind" class="pt-kind">{{ t(PARTNER_KIND_LABELS[p.kind]) }}</span></div>
               <div class="pt-row-meta">
                 <span class="pt-pill" :style="{ color: partnerStatusPill(p.status).color, background: partnerStatusPill(p.status).bg }">
-                  {{ partnerStatusPill(p.status).label }}
+                  {{ t(partnerStatusPill(p.status).label) }}
                 </span>
                 <span class="pt-c-sa" :title="`${p.service_accounts_count} service accounts`">
                   <BIcon name="robot" :size="14" /> {{ p.service_accounts_count }}
@@ -208,9 +208,9 @@ const totalResources = computed(() => {
             <div style="flex: 1;">
               <div class="pt-hero-eye">
                 <code class="pt-slug">{{ selected.slug }}</code>
-                <span v-if="selected.kind" class="pt-kind">{{ PARTNER_KIND_LABELS[selected.kind] }}</span>
+                <span v-if="selected.kind" class="pt-kind">{{ t(PARTNER_KIND_LABELS[selected.kind]) }}</span>
                 <span class="pt-pill" :style="{ color: partnerStatusPill(selected.status).color, background: partnerStatusPill(selected.status).bg }">
-                  {{ partnerStatusPill(selected.status).label }}
+                  {{ t(partnerStatusPill(selected.status).label) }}
                 </span>
                 <span v-if="selected.tier" class="pt-tier-pill" :style="{ color: partnerTierColor(selected.tier), background: partnerTierColor(selected.tier) + '15' }">
                   {{ selected.tier }}
@@ -265,10 +265,10 @@ const totalResources = computed(() => {
             <div v-if="resources" class="pt-res-cols">
               <div class="pt-res-col">
                 <div class="pt-res-col-hd"><BIcon name="robot" :size="14" /> Service accounts · {{ resources.service_accounts.length }}</div>
-                <UzaStateBlock v-if="!resources.service_accounts.length" state="empty" variant="inline" text="не привязаны" />
+                <UzaStateBlock v-if="!resources.service_accounts.length" state="empty" variant="inline" :text="t('не привязаны')" />
                 <div v-for="r in resources.service_accounts" :key="r.resource_id" class="pt-res-item">
                   <div>
-                    <div class="pt-res-l">{{ r.label }}</div>
+                    <div class="pt-res-l">{{ t(r.label) }}</div>
                     <div v-if="r.extra" class="pt-res-sub">{{ r.extra.email }}</div>
                   </div>
                   <button class="pt-icon-btn" @click="detach(r)" :title="t('Отвязать')"><BIcon name="x" :size="14" /></button>
@@ -277,10 +277,10 @@ const totalResources = computed(() => {
 
               <div class="pt-res-col">
                 <div class="pt-res-col-hd"><BIcon name="plug" :size="14" /> External APIs · {{ resources.external_apis.length }}</div>
-                <UzaStateBlock v-if="!resources.external_apis.length" state="empty" variant="inline" text="не привязаны" />
+                <UzaStateBlock v-if="!resources.external_apis.length" state="empty" variant="inline" :text="t('не привязаны')" />
                 <div v-for="r in resources.external_apis" :key="r.resource_id" class="pt-res-item">
                   <div>
-                    <div class="pt-res-l">{{ r.label }}</div>
+                    <div class="pt-res-l">{{ t(r.label) }}</div>
                     <div v-if="r.extra" class="pt-res-sub"><code>{{ r.extra.slug }}</code> · {{ r.extra.status }}</div>
                   </div>
                   <button class="pt-icon-btn" @click="detach(r)" :title="t('Отвязать')"><BIcon name="x" :size="14" /></button>
@@ -289,10 +289,10 @@ const totalResources = computed(() => {
 
               <div class="pt-res-col">
                 <div class="pt-res-col-hd"><BIcon name="webhook" :size="14" /> Webhooks · {{ resources.webhooks.length }}</div>
-                <UzaStateBlock v-if="!resources.webhooks.length" state="empty" variant="inline" text="не привязаны" />
+                <UzaStateBlock v-if="!resources.webhooks.length" state="empty" variant="inline" :text="t('не привязаны')" />
                 <div v-for="r in resources.webhooks" :key="r.resource_id" class="pt-res-item">
                   <div>
-                    <div class="pt-res-l">{{ r.label }}</div>
+                    <div class="pt-res-l">{{ t(r.label) }}</div>
                     <div v-if="r.extra" class="pt-res-sub"><code>{{ r.extra.target_url }}</code></div>
                   </div>
                   <button class="pt-icon-btn" @click="detach(r)" :title="t('Отвязать')"><BIcon name="x" :size="14" /></button>
@@ -302,7 +302,7 @@ const totalResources = computed(() => {
           </div>
         </template>
 
-        <UzaStateBlock v-else state="empty" variant="block" text="Выберите партнёра слева или создайте нового">
+        <UzaStateBlock v-else state="empty" variant="block" :text="t('Выберите партнёра слева или создайте нового')">
           <template #icon><BIcon name="arrow-left" :size="14" /></template>
         </UzaStateBlock>
       </div>
@@ -320,7 +320,7 @@ const totalResources = computed(() => {
               <label>{{ t('Тип') }}</label>
               <select v-model="newPartner.kind">
                 <option value="">—</option>
-                <option v-for="(label, code) in PARTNER_KIND_LABELS" :key="code" :value="code">{{ label }}</option>
+                <option v-for="(label, code) in PARTNER_KIND_LABELS" :key="code" :value="code">{{ t(label) }}</option>
               </select>
             </div>
           </div>
@@ -387,7 +387,7 @@ const totalResources = computed(() => {
 
     <!-- ───── Modal: edit (compact) ───── -->
     <ModalShell :open="!!(showEdit && selected)" size="md"
-                :title="selected ? 'Изменить · ' + selected.name : ''" @close="showEdit = false">
+                :title="selected ? t('Изменить · {value0}', { value0: selected.name }) : ''" @close="showEdit = false">
         <div class="pt-modal-body" v-if="selected">
           <div class="pt-field">
             <label>{{ t('Имя') }}</label>
@@ -420,7 +420,7 @@ const totalResources = computed(() => {
               <label>{{ t('Тип') }}</label>
               <select v-model="editingDraft.kind">
                 <option :value="null">—</option>
-                <option v-for="(label, code) in PARTNER_KIND_LABELS" :key="code" :value="code">{{ label }}</option>
+                <option v-for="(label, code) in PARTNER_KIND_LABELS" :key="code" :value="code">{{ t(label) }}</option>
               </select>
             </div>
           </div>

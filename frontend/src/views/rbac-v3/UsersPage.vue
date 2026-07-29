@@ -562,7 +562,7 @@ async function bulkDeactivate() {
             <span class="metric-icon"><BIcon :name="metric.icon" :size="16" /></span>
             <span class="metric-copy">
               <strong>{{ formatCount(metric.value) }}</strong>
-              <small>{{ metric.label }}</small>
+              <small>{{ t(metric.label) }}</small>
             </span>
           </button>
         </div>
@@ -579,7 +579,7 @@ async function bulkDeactivate() {
             :class="['filter-tab', { on: filter === option.id, attention: option.id === 'pwd_change' }]"
             @click="onFilterChange(option.id)"
           >
-            {{ option.label }}
+            {{ t(option.label) }}
             <span>{{ formatCount(option.count) }}</span>
           </button>
         </div>
@@ -809,9 +809,9 @@ async function bulkDeactivate() {
                   </div>
                 </div>
 
-                <div class="user-scope" :title="rowScopeLabel(item.user, item.membership)">
+                <div class="user-scope" :title="t(rowScopeLabel(item.user, item.membership))">
                   <span class="scope-icon"><BIcon name="building-bank" :size="13" /></span>
-                  <span>{{ rowScopeLabel(item.user, item.membership) }}</span>
+                  <span>{{ t(rowScopeLabel(item.user, item.membership)) }}</span>
                 </div>
 
                 <div class="user-roles" :title="rowRoleTitle(item.user, item.membership)">
@@ -837,7 +837,7 @@ async function bulkDeactivate() {
 
                 <div :class="['security-cell', `security-${pwdSeverity(item.user)}`]">
                   <BIcon :name="pwdSeverity(item.user) === 'ok' ? 'shield-check' : 'lock'" :size="13" />
-                  <span>{{ pwdStatusLabel(item.user) }}</span>
+                  <span>{{ t(pwdStatusLabel(item.user)) }}</span>
                 </div>
 
                 <div :class="['account-status', { off: !item.user.is_active }]">
@@ -859,7 +859,7 @@ async function bulkDeactivate() {
       </section>
 
       <footer class="registry-footer">
-        <span>{{ registryCaption }}</span>
+        <span>{{ t(registryCaption) }}</span>
         <span v-if="refreshing" class="sync-status"><BIcon name="refresh" :size="11" /> {{ t('Обновление') }}</span>
         <span v-else class="sync-status ready"><i></i> {{ t('Данные актуальны') }}</span>
       </footer>

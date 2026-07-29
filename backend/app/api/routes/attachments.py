@@ -142,6 +142,12 @@ async def upload_task_attachment(
         db, entity_type="task", entity_id=str(task_id), actor_id=user.id,
         notif_type="watch.comment", title="Файл в отслеживаемой задаче",
         body=f"{user.full_name or user.email} загрузил(а) файл: {out.get('filename', '')}"[:255],
+        title_template="Файл в отслеживаемой задаче",
+        body_template="{actor} загрузил(а) файл: {filename}",
+        template_vars={
+            "actor": user.full_name or user.email,
+            "filename": out.get("filename", ""),
+        },
         payload={"entity_type": "task", "entity_id": str(task_id)},
     )
     return AttachmentOut(**out)
@@ -228,6 +234,12 @@ async def upload_project_attachment(
         db, entity_type="project", entity_id=str(project_id), actor_id=user.id,
         notif_type="watch.comment", title="Файл в отслеживаемом проекте",
         body=f"{user.full_name or user.email} загрузил(а) файл: {out.get('filename', '')}"[:255],
+        title_template="Файл в отслеживаемом проекте",
+        body_template="{actor} загрузил(а) файл: {filename}",
+        template_vars={
+            "actor": user.full_name or user.email,
+            "filename": out.get("filename", ""),
+        },
         payload={"entity_type": "project", "entity_id": str(project_id)},
     )
     return AttachmentOut(**out)

@@ -44,6 +44,8 @@ export interface RbacV3UserGroupMembership {
 export interface RbacV3UserDetail extends RbacV3UserBrief {
   invite_email_sent?: boolean | null;   // только при создании: ушло ли письмо-приглашение
   effective_permissions: string[];
+  direct_permissions?: string[];
+  denied_permissions?: string[];
   // per-(user, group) memberships with their role inside the group.
   group_memberships: RbacV3UserGroupMembership[];
   // followup: moderation flags surfaced for the user-detail drawer.
@@ -263,13 +265,22 @@ export function deriveAccessMap(user: RbacV3UserDetail | null): {
   }
 
   const perms = user.effective_permissions || [];
+  const directCodes = new Set([
+    ...(user.direct_permissions || []),
+    ...(user.denied_permissions || []),
+  ]);
   for (const m of MODULE_REGISTRY) {
     const level = moduleLevelFromPermissions(perms, m.code);
     levels[m.code] = level;
     if (level === 'none') { sources[m.code] = t('нет доступа'); continue; }
-    // Источник — best-effort: effective_permissions приходят плоским списком
-    // без происхождения, поэтому при наличии роли называем первую.
-    sources[m.code] = user.role_codes.length > 0
+    const canonical = canonicalModuleCode(m.code);
+    const hasPersonalOverride = [...directCodes].some(code =>
+      code.startsWith(`${canonical}.`) ||
+      (canonical === 'ai' && (code === 'ai.chat' || code === 'ai.view'))
+    );
+    sources[m.code] = hasPersonalOverride
+      ? t('персональный доступ')
+      : user.role_codes.length > 0
       ? t('по роли: {role}', { role: user.role_codes[0] })
       : t('персональный доступ');
   }

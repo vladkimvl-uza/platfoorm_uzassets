@@ -20,6 +20,7 @@ from uuid import UUID
 from sqlalchemy import and_, func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.i18n import current_locale, tr
 from app.models.audit import AuditLog
 
 # ─── Constants ───────────────────────────────────────────────
@@ -1033,6 +1034,7 @@ async def detect_security_flags(db: AsyncSession) -> list[dict[str, Any]]:
     """Cheap aggregates over recent activity, no separate table needed."""
     flags: list[dict[str, Any]] = []
     now = datetime.now(UTC)
+    locale = current_locale()
 
     # 1) repeated failed logins (>=3 by same email in last 10 min)
     since10 = now - timedelta(minutes=10)
@@ -1051,7 +1053,7 @@ async def detect_security_flags(db: AsyncSession) -> list[dict[str, Any]]:
             "id": __import__("uuid").uuid4(),
             "severity": "critical",
             "kind": "repeated_fails",
-            "title": f"{c} неудачных входа подряд",
+            "title": tr("{count} неудачных входа подряд", locale, count=c),
             "detail": f"{email or 'unknown'} · IP {ip or '—'}",
             "created_at": now,
             "related_user_email": email,
@@ -1076,8 +1078,13 @@ async def detect_security_flags(db: AsyncSession) -> list[dict[str, Any]]:
             "id": __import__("uuid").uuid4(),
             "severity": "warning",
             "kind": "mass_delete",
-            "title": "Массовое удаление",
-            "detail": f"{email} · {c} операций за 5 мин",
+            "title": tr("Массовое удаление", locale),
+            "detail": tr(
+                "{email} · {count} операций за 5 мин",
+                locale,
+                email=email,
+                count=c,
+            ),
             "created_at": now,
             "related_user_email": email,
             "related_ip": None,

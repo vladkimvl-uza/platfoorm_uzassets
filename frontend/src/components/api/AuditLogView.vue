@@ -54,10 +54,10 @@ function fmtTime(iso: string): string {
 }
 function fmtRel(iso: string): string {
   const d = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-  if (d < 60) return `${d}с`;
-  if (d < 3600) return `${Math.floor(d / 60)}мин`;
-  if (d < 86400) return `${Math.floor(d / 3600)}ч`;
-  return `${Math.floor(d / 86400)}д`;
+  if (d < 60) return t('{value0}с', { value0: d });
+  if (d < 3600) return t('{value0}мин', { value0: Math.floor(d / 60) });
+  if (d < 86400) return t('{value0}ч', { value0: Math.floor(d / 3600) });
+  return t('{value0}д', { value0: Math.floor(d / 86400) });
 }
 </script>
 
@@ -109,7 +109,7 @@ function fmtRel(iso: string): string {
       </div>
     </div>
 
-    <UzaStateBlock v-if="!events.length" state="empty" variant="block" text="Журнал пуст для выбранных фильтров">
+    <UzaStateBlock v-if="!events.length" state="empty" variant="block" :text="t('Журнал пуст для выбранных фильтров')">
       <template #icon><BIcon name="history" :size="14" /></template>
     </UzaStateBlock>
 

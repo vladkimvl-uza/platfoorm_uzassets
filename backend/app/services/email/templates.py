@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from html import escape
 
+from app.core.i18n import normalize_locale, tr
+
 # ── Палитра (синхронизирована с дизайн-системой) ──
 _NAVY_1 = "#0C1230"
 _NAVY_2 = "#111A3E"
@@ -26,12 +28,24 @@ _MONO = "'SF Mono',ui-monospace,'Cascadia Mono',Consolas,Menlo,monospace"
 _TEAL = "#1D9E75"
 
 
-def _shell(*, eyebrow: str, title: str, inner_html: str, accent: str = _PURPLE) -> str:
+def _shell(*, eyebrow: str, title: str, inner_html: str, accent: str = _PURPLE,
+           locale: str = "ru") -> str:
     """Премиальная обёртка письма: глубокий navy-хедер с маркой и градиент-
     акцентом (purple→teal, как фирменный знак EPT), просторная карточка, футер."""
+    locale = normalize_locale(locale)
+    html_lang = {
+        "ru": "ru", "uz-latn": "uz-Latn", "uz-cyr": "uz-Cyrl", "en": "en",
+    }[locale]
+    platform_tagline = tr(
+        "Единая платформа управления портфелем государственных активов", locale,
+    )
+    automatic_note = tr(
+        "Автоматическое письмо — отвечать не нужно. Если действие выполнили не вы — обратитесь к администратору платформы.",
+        locale,
+    )
     return f"""\
 <!DOCTYPE html>
-<html lang="ru"><head><meta charset="UTF-8">
+<html lang="{html_lang}"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="x-apple-disable-message-reformatting">
 <meta name="color-scheme" content="light"></head>
@@ -63,8 +77,8 @@ def _shell(*, eyebrow: str, title: str, inner_html: str, accent: str = _PURPLE) 
     </td></tr>
     <!-- Footer -->
     <tr><td style="padding:22px 36px 28px;border-top:1px solid {_BORDER};background:#FCFCFE;font-family:{_FONT};">
-      <p style="margin:0 0 4px;font-size:11.5px;font-weight:600;color:{_T2};letter-spacing:.01em;">UzAssets · Единая платформа управления портфелем государственных активов</p>
-      <p style="margin:0;font-size:10.5px;line-height:1.6;color:{_T3};">Автоматическое письмо — отвечать не нужно. Если действие выполнили не вы — обратитесь к администратору платформы.</p>
+      <p style="margin:0 0 4px;font-size:11.5px;font-weight:600;color:{_T2};letter-spacing:.01em;">UzAssets · {escape(platform_tagline)}</p>
+      <p style="margin:0;font-size:10.5px;line-height:1.6;color:{_T3};">{escape(automatic_note)}</p>
     </td></tr>
   </table>
   <p style="max-width:560px;margin:18px auto 0;font-family:{_FONT};font-size:10.5px;color:#9AA0B8;text-align:center;letter-spacing:.02em;">
@@ -103,54 +117,82 @@ def _kv(label: str, value: str) -> str:
 
 # ── Готовые письма ───────────────────────────────────────────────────
 
-def mfa_code_email(*, code: str, email: str, ip: str | None = None, when: str | None = None) -> tuple[str, str]:
+def mfa_code_email(*, code: str, email: str, ip: str | None = None,
+                   when: str | None = None, locale: str = "ru") -> tuple[str, str]:
+    locale = normalize_locale(locale)
     meta = "".join(filter(None, [
-        _kv("Аккаунт", email),
-        _kv("IP-адрес", ip) if ip else "",
-        _kv("Время", when) if when else "",
+        _kv(tr("Аккаунт", locale), email),
+        _kv(tr("IP-адрес", locale), ip) if ip else "",
+        _kv(tr("Время", locale), when) if when else "",
     ]))
     inner = (
-        _p("Ваш одноразовый код для входа на платформу UzAssets:")
+        _p(tr("Ваш одноразовый код для входа на платформу UzAssets:", locale))
         + _code_box(code)
-        + _p("Код действителен <b>5 минут</b>. Никому не сообщайте его — сотрудники UzAssets никогда не запрашивают код.")
+        + _p(tr("Код действителен <b>5 минут</b>. Никому не сообщайте его — сотрудники UzAssets никогда не запрашивают код.", locale))
         + f'<table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:6px;">{meta}</table>'
     )
-    html = _shell(eyebrow="Код доступа", title="Код подтверждения входа", inner_html=inner, accent=_NAVY_2)
-    return ("UzAssets · код доступа", html)
+    html = _shell(
+        eyebrow=tr("Код доступа", locale),
+        title=tr("Код подтверждения входа", locale),
+        inner_html=inner, accent=_NAVY_2, locale=locale,
+    )
+    return (tr("UzAssets · код доступа", locale), html)
 
 
 def invite_email(*, full_name: str, email: str, temp_password: str,
-                 login_url: str, must_change: bool = True) -> tuple[str, str]:
+                 login_url: str, must_change: bool = True,
+                 locale: str = "ru") -> tuple[str, str]:
+    locale = normalize_locale(locale)
     inner = (
-        _p(f"Здравствуйте, <b>{escape(full_name)}</b>! Для вас создан доступ к платформе UzAssets.")
+        _p(tr(
+            "Здравствуйте, <b>{full_name}</b>! Для вас создан доступ к платформе UzAssets.",
+            locale, full_name=escape(full_name),
+        ))
         + f'<table role="presentation" cellpadding="0" cellspacing="0" style="margin:4px 0 14px;">'
-        + _kv("Логин (email)", email)
+        + _kv(tr("Логин (email)", locale), email)
         + "</table>"
-        + _p("Временный пароль:")
+        + _p(tr("Временный пароль:", locale))
         + _code_box(temp_password)
-        + (_p("При первом входе система попросит <b>сменить пароль</b>.") if must_change else "")
-        + _button("Войти на платформу", login_url)
-        + _p(f'<span style="color:{_T3};font-size:12px;">Если кнопка не работает, откройте ссылку: {escape(login_url)}</span>')
+        + (_p(tr("При первом входе система попросит <b>сменить пароль</b>.", locale)) if must_change else "")
+        + _button(tr("Войти на платформу", locale), login_url)
+        + _p(f'<span style="color:{_T3};font-size:12px;">{tr("Если кнопка не работает, откройте ссылку: {url}", locale, url=escape(login_url))}</span>')
     )
-    html = _shell(eyebrow="Приглашение", title="Доступ к платформе UzAssets", inner_html=inner)
-    return ("UzAssets · доступ к платформе", html)
+    html = _shell(
+        eyebrow=tr("Приглашение", locale),
+        title=tr("Доступ к платформе UzAssets", locale),
+        inner_html=inner, locale=locale,
+    )
+    return (tr("UzAssets · доступ к платформе", locale), html)
 
 
 def password_reset_email(*, full_name: str, reset_url: str,
-                         valid_minutes: int = 30) -> tuple[str, str]:
+                         valid_minutes: int = 30,
+                         locale: str = "ru") -> tuple[str, str]:
+    locale = normalize_locale(locale)
     inner = (
-        _p(f"Здравствуйте, <b>{escape(full_name)}</b>. Мы получили запрос на сброс пароля для вашего аккаунта UzAssets.")
-        + _button("Сбросить пароль", reset_url)
-        + _p(f"Ссылка действительна <b>{valid_minutes} минут</b>. Если вы не запрашивали сброс — просто проигнорируйте письмо, пароль останется прежним.")
-        + _p(f'<span style="color:{_T3};font-size:12px;">Если кнопка не работает, откройте ссылку: {escape(reset_url)}</span>')
+        _p(tr(
+            "Здравствуйте, <b>{full_name}</b>. Мы получили запрос на сброс пароля для вашего аккаунта UzAssets.",
+            locale, full_name=escape(full_name),
+        ))
+        + _button(tr("Сбросить пароль", locale), reset_url)
+        + _p(tr(
+            "Ссылка действительна <b>{minutes} минут</b>. Если вы не запрашивали сброс — просто проигнорируйте письмо, пароль останется прежним.",
+            locale, minutes=valid_minutes,
+        ))
+        + _p(f'<span style="color:{_T3};font-size:12px;">{tr("Если кнопка не работает, откройте ссылку: {url}", locale, url=escape(reset_url))}</span>')
     )
-    html = _shell(eyebrow="Сброс пароля", title="Восстановление доступа", inner_html=inner, accent=_NAVY_2)
-    return ("UzAssets · сброс пароля", html)
+    html = _shell(
+        eyebrow=tr("Сброс пароля", locale),
+        title=tr("Восстановление доступа", locale),
+        inner_html=inner, accent=_NAVY_2, locale=locale,
+    )
+    return (tr("UzAssets · сброс пароля", locale), html)
 
 
 def notification_email(*, eyebrow: str, title: str, lines: list[str],
                        action_label: str | None = None, action_url: str | None = None,
-                       accent: str = _PURPLE, meta: list[tuple[str, str]] | None = None) -> tuple[str, str]:
+                       accent: str = _PURPLE, meta: list[tuple[str, str]] | None = None,
+                       locale: str = "ru") -> tuple[str, str]:
     """Письмо-уведомление (задачи, упоминания, дедлайны, модерация, рассылки)."""
     inner = "".join(_p(l) for l in lines)
     if meta:
@@ -158,15 +200,21 @@ def notification_email(*, eyebrow: str, title: str, lines: list[str],
                  + "".join(_kv(k, v) for k, v in meta) + "</table>"
     if action_label and action_url:
         inner += _button(action_label, action_url)
-    html = _shell(eyebrow=eyebrow, title=title, inner_html=inner, accent=accent)
+    html = _shell(
+        eyebrow=eyebrow, title=title, inner_html=inner, accent=accent,
+        locale=locale,
+    )
     return (f"UzAssets · {title}", html)
 
 
 def generic_email(*, eyebrow: str, title: str, body_lines: list[str],
                   button_label: str | None = None, button_url: str | None = None,
-                  accent: str = _PURPLE) -> tuple[str, str]:
+                  accent: str = _PURPLE, locale: str = "ru") -> tuple[str, str]:
     inner = "".join(_p(line) for line in body_lines)
     if button_label and button_url:
         inner += _button(button_label, button_url)
-    html = _shell(eyebrow=eyebrow, title=title, inner_html=inner, accent=accent)
+    html = _shell(
+        eyebrow=eyebrow, title=title, inner_html=inner, accent=accent,
+        locale=locale,
+    )
     return (f"UzAssets · {title}", html)

@@ -16,6 +16,8 @@ import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import ProductionEditModal from "@/components/BusinessPlan/ProductionEditModal.vue";
 import { execCol as pctCol, execZone as pctZone } from "@/utils/execBand";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 
 const { t } = useI18n();
 
@@ -26,7 +28,7 @@ const props = defineProps<{
   canEdit?: boolean;
 }>();
 
-const PERIOD_LABEL: Record<string, string> = { h1: "1 полугодие", h2: "2 полугодие", annual: "год" };
+const PERIOD_LABEL: Record<string, string> = { h1: i18nKey("1 полугодие"), h2: i18nKey("2 полугодие"), annual: i18nKey("год") };
 
 const loading = ref(false);
 const error = ref<string | null>(null);
@@ -111,7 +113,7 @@ function onSaved() { editorOpen.value = false; load(); }
       <div class="cwp-head-r">
         <div v-if="periodOpts.length > 1" class="uza-seg is-sm">
           <button v-for="(p, i) in periodOpts" :key="p.value" type="button" class="uza-seg-btn"
-                  :class="{ on: period === p.value }" :style="{ '--i': i }" @click="period = p.value">{{ p.label }}</button>
+                  :class="{ on: period === p.value }" :style="{ '--i': i }" @click="period = p.value">{{ t(p.label) }}</button>
         </div>
         <span v-if="hasData && company && company.execPct != null" class="cwp-badge"
               :style="{ color: pctCol(company.execPct), background: pctCol(company.execPct) + '18' }"
@@ -159,7 +161,7 @@ function onSaved() { editorOpen.value = false; load(); }
         <div class="cwp-k cwp-k-exec" :style="{ '--exec': pctCol(company!.execPct) }">
           <div class="cwp-k-l">{{ t("Исполнение") }}</div>
           <div class="cwp-k-v" :style="{ color: pctCol(company!.execPct) }">{{ company!.execPct != null ? company!.execPct + '%' : '—' }}</div>
-          <div class="cwp-k-u">{{ t(company!.execKind === 'fact' ? 'факт / план' : 'ожид / план') + (company!.execBasis === 'natura' ? ' · ' + t('нат') : '') }}</div></div>
+          <div class="cwp-k-u">{{ t(company!.execKind === 'fact' ? t('факт / план') : t('ожид / план')) + (company!.execBasis === 'natura' ? ' · ' + t('нат') : '') }}</div></div>
       </div>
 
       <!-- Product tree -->

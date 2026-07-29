@@ -6,6 +6,7 @@ from uuid import UUID
 from fastapi import HTTPException
 from fastapi import status as http_status
 
+from app.core.i18n import current_locale, tr
 from app.models.scenarios import MacroScenario, MacroScenarioOverride
 from app.schemas.scenarios import (
     Scenario,
@@ -54,7 +55,10 @@ class ScenariosService:
             if existing is not None:
                 raise HTTPException(
                     http_status.HTTP_409_CONFLICT,
-                    f"Сценарий с кодом '{payload.code}' уже существует",
+                    tr(
+                        "Сценарий с кодом '{code}' уже существует",
+                        current_locale(), code=payload.code,
+                    ),
                 )
             new_row = MacroScenario(
                 code=payload.code, name_ru=payload.name_ru,
@@ -160,7 +164,10 @@ class ScenariosService:
             if ov is None:
                 raise HTTPException(
                     http_status.HTTP_404_NOT_FOUND,
-                    f"Override на год {year} для этого сценария не существует",
+                    tr(
+                        "Override на год {year} для этого сценария не существует",
+                        current_locale(), year=year,
+                    ),
                 )
             await self.uow.scenarios.delete(ov)
             await self.uow.scenarios.flush()

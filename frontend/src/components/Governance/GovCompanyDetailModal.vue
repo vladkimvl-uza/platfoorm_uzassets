@@ -49,7 +49,7 @@
           <!-- Diversity bars -->
           <div class="gd-sec">
             <div class="gd-sec-h">{{ t('Состав совета директоров') }}</div>
-            <UzaStateBlock v-if="!detail.data" state="empty" variant="inline" :text="`Данные за ${detail.year} ещё не заведены`" />
+            <UzaStateBlock v-if="!detail.data" state="empty" variant="inline" :text="t('Данные за {value0} ещё не заведены', { value0: detail.year })" />
             <div v-else class="gd-diversity">
               <div class="gd-div-row">
                 <div class="gd-div-l">
@@ -167,7 +167,7 @@
           <!-- Board members table -->
           <div class="gd-sec">
             <div class="gd-sec-h">{{ t('Члены совета директоров ·') }} {{ detail.board_members.length }}</div>
-            <UzaStateBlock v-if="!detail.board_members.length" state="empty" variant="inline" text="Список членов совета не заполнен" />
+            <UzaStateBlock v-if="!detail.board_members.length" state="empty" variant="inline" :text="t('Список членов совета не заполнен')" />
             <table v-else class="gd-tbl">
               <thead>
                 <tr>
@@ -189,7 +189,7 @@
                       class="gd-role"
                       :style="{ background: roleTypeMeta(m.role_type).color + '18', color: roleTypeMeta(m.role_type).color }"
                     >
-                      {{ roleTypeMeta(m.role_type).label }}
+                      {{ t(roleTypeMeta(m.role_type).label) }}
                     </span>
                     <span v-else class="gd-na">—</span>
                   </td>
@@ -283,7 +283,7 @@ async function load() {
     currentYear.value = detail.value.year;
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    error.value = err?.response?.data?.detail || err?.message || "Не удалось загрузить";
+    error.value = err?.response?.data?.detail || err?.message || t('Не удалось загрузить');
   } finally {
     loading.value = false;
   }

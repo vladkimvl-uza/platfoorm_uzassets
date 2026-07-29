@@ -26,6 +26,7 @@ import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { api } from "@/api/client";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
 import EntityDrillShell from "@/components/UZA/EntityDrillShell.vue";
 
 const { t } = useI18n();
@@ -199,11 +200,11 @@ function formatDate(d: string | null): string {
 }
 function pluralDays(n: number): string {
   const m = n % 100;
-  if (m >= 11 && m <= 14) return "дней";
+  if (m >= 11 && m <= 14) return i18nKey("дней");
   const r = n % 10;
-  if (r === 1) return "день";
-  if (r >= 2 && r <= 4) return "дня";
-  return "дней";
+  if (r === 1) return i18nKey("день");
+  if (r >= 2 && r <= 4) return i18nKey("дня");
+  return i18nKey("дней");
 }
 function overdueLabel(p: DrillItem): string {
   if (p.days_overdue && p.days_overdue > 0) {
@@ -323,9 +324,9 @@ function overdueLabel(p: DrillItem): string {
                   </span>
                   <span class="ddm-itm-name">{{ p.title }}</span>
                   <span class="ddm-itm-meta" :style="p.is_overdue ? { color: '#A32D2D' } : undefined">
-                    {{ p.is_overdue ? overdueLabel(p) : formatDate(p.due_date) }}
+                    {{ p.is_overdue ? t(overdueLabel(p)) : formatDate(p.due_date) }}
                   </span>
-                  <span class="ddm-itm-status" :style="{ color: statusTextColor(p) }">{{ statusIcon(p).label }}</span>
+                  <span class="ddm-itm-status" :style="{ color: statusTextColor(p) }">{{ t(statusIcon(p).label) }}</span>
                 </div>
               </div>
 
@@ -382,7 +383,7 @@ function overdueLabel(p: DrillItem): string {
                   <span class="ddm-itm-meta" :style="item.is_overdue ? { color: '#A32D2D' } : undefined">
                     {{ item.assignee_name || (item.is_overdue ? overdueLabel(item) : formatDate(item.due_date)) }}
                   </span>
-                  <span class="ddm-itm-status" :style="{ color: statusTextColor(item) }">{{ statusIcon(item).label }}</span>
+                  <span class="ddm-itm-status" :style="{ color: statusTextColor(item) }">{{ t(statusIcon(item).label) }}</span>
                 </div>
               </div>
 

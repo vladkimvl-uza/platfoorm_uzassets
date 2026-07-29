@@ -40,6 +40,7 @@ const SKIP_DIRS = ["/locale/", "\\locale\\", "__tests__", "/test/", "\\test\\", 
 /** Комментарий/лог/сравнение с данными — не считаем долгом. */
 function isExempt(line) {
   const s = line.trim();
+  if (s.includes("i18n-exempt")) return true;
   if (s.startsWith("//") || s.startsWith("*") || s.startsWith("/*") || s.startsWith("<!--")) return true;
   if (/console\.(log|warn|error|info|debug)/.test(s)) return true;
   // строка целиком внутри t("...") / t('...') / t(`...`)
@@ -49,9 +50,16 @@ function isExempt(line) {
 /** Убираем из строки содержимое всех вызовов t("…") — остаток и есть долг. */
 function stripTranslated(line) {
   return line
-    .replace(/\bt\(\s*"(?:[^"\\]|\\.)*"/g, 't("')
-    .replace(/\bt\(\s*'(?:[^'\\]|\\.)*'/g, "t('")
-    .replace(/\bt\(\s*`(?:[^`\\]|\\.)*`/g, "t(`");
+    .replace(/\b(?:t|tr|translateUi|i18nKey)\(\s*"(?:[^"\\]|\\.)*"/g, 't("')
+    .replace(/\b(?:t|tr|translateUi|i18nKey)\(\s*'(?:[^'\\]|\\.)*'/g, "t('")
+    .replace(/\b(?:t|tr|translateUi|i18nKey)\(\s*`(?:[^`\\]|\\.)*`/g, "t(`")
+    // Поисковые синонимы не отображаются и намеренно содержат разные языки.
+    .replace(/\b(?:kw|keywords)\s*:\s*"(?:[^"\\]|\\.)*"/g, "")
+    .replace(/\b(?:kw|keywords)\s*:\s*'(?:[^'\\]|\\.)*'/g, "")
+    // Регулярные выражения классифицируют/сравнивают данные и не видны в UI.
+    .replace(/\bre\s*:\s*\/(?:\\.|[^/\n])+\/[dgimsuvy]*/g, "")
+    .replace(/\/\*.*?\*\//g, "")
+    .replace(/\/\/.*$/, "");
 }
 
 const perFile = new Map();
@@ -62,6 +70,7 @@ function walk(dir) {
     const p = path.join(dir, e.name);
     if (e.isDirectory()) { walk(p); continue; }
     if (!/\.(vue|ts)$/.test(e.name)) continue;
+    if (/\.(?:test|spec)\.ts$/.test(e.name)) continue;
     if (bucketFiles && !bucketFiles.has(path.resolve(p))) continue;
     const rel = p.replace(/\\/g, "/");
     if (fileFilter && !rel.includes(fileFilter.replace(/\\/g, "/"))) continue;
@@ -69,15 +78,21 @@ function walk(dir) {
     const src = fs.readFileSync(p, "utf8");
     let inBlockComment = false;
     let inHtmlComment = false;
+    let inI18nExempt = false;
     const hits = [];
     src.split("\n").forEach((line, i) => {
       const t = line.trim();
+      if (line.includes("i18n-exempt-start")) { inI18nExempt = true; return; }
+      if (line.includes("i18n-exempt-end")) { inI18nExempt = false; return; }
+      if (inI18nExempt) return;
       if (inBlockComment) { if (t.includes("*/")) inBlockComment = false; return; }
       if (inHtmlComment) { if (t.includes("-->")) inHtmlComment = false; return; }
       if (t.startsWith("/*") && !t.includes("*/")) { inBlockComment = true; return; }
       if (t.startsWith("<!--") && !t.includes("-->")) { inHtmlComment = true; return; }
       if (!CYR.test(line)) return;
       if (isExempt(line)) return;
+      const inlineComment = line.indexOf("//");
+      if (inlineComment >= 0 && !CYR.test(line.slice(0, inlineComment))) return;
       const rest = stripTranslated(line);
       if (!CYR.test(rest)) return;
       hits.push([i + 1, t.slice(0, 140)]);

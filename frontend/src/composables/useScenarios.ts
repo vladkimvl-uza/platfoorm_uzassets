@@ -35,6 +35,8 @@ import {
   type ScenarioOverrideUpsert,
   type ScenarioUpdate,
 } from "@/api/scenarios";
+import { t } from "@/locale/i18n";
+
 
 const _scenarios = ref<Scenario[]>([]);
 const _activeId = ref<string | null>(null);
@@ -58,8 +60,7 @@ async function load(force = false): Promise<void> {
   } catch (err: any) {
     _error.value =
       err?.response?.data?.detail ||
-      err?.message ||
-      "Не удалось загрузить сценарии";
+      err?.message || t('Не удалось загрузить сценарии');
     throw err;
   } finally {
     _loading.value = false;

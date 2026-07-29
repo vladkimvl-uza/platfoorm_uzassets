@@ -1,5 +1,7 @@
 import { reactive } from "vue";
 import { authApi } from "@/api/auth";
+import { t } from "@/locale/i18n";
+
 
 /**
  * useStepUp — контроллер модалки повторной аутентификации (step-up, 841 п.5.2.4).
@@ -37,7 +39,7 @@ function requestStepUp(): Promise<boolean> {
 
 async function submit(password: string): Promise<void> {
   if (!password) {
-    state.error = "Введите пароль";
+    state.error = t('Введите пароль');
     return;
   }
   state.busy = true;
@@ -47,7 +49,7 @@ async function submit(password: string): Promise<void> {
     _finish(true);
   } catch (e: any) {
     state.busy = false;
-    state.error = e?.response?.data?.detail || "Неверный пароль";
+    state.error = e?.response?.data?.detail || t('Неверный пароль');
   }
 }
 

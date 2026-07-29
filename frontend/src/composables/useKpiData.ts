@@ -19,6 +19,8 @@ import type {
   KpiManager,
   KpiSummary,
 } from "@/api/bpKpi";
+import { t } from "@/locale/i18n";
+
 
 export type KpiViewMode = "summary" | "company";
 export type KpiPeriod = "annual" | "q1" | "q2" | "q3" | "q4";
@@ -121,9 +123,9 @@ async function loadCompanies(): Promise<void> {
   } catch (e: any) {
     companies.value = [];
     // P1-6: не глотаем молча — явный фидбэк (правило feedback_everywhere_rule).
-    error.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить список компаний KPI";
+    error.value = e?.response?.data?.detail || e?.message || t('Не удалось загрузить список компаний KPI');
     console.error("[useKpiData.loadCompanies]", e);
-    try { useToast().error("Не удалось загрузить список компаний KPI"); } catch (_) { /* noop */ }
+    try { useToast().error(t("Не удалось загрузить список компаний KPI")); } catch (_) { /* noop */ }
   } finally {
     loading.companies = false;
   }
@@ -140,7 +142,7 @@ async function loadSummary(): Promise<void> {
   } catch (e: any) {
     if (my !== _reqSeq) return;
     summary.value = null;
-    error.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить KPI сводку";
+    error.value = e?.response?.data?.detail || e?.message || t('Не удалось загрузить KPI сводку');
     console.error("[useKpiData.loadSummary]", e);
   } finally {
     if (my === _reqSeq) loading.summary = false;
@@ -166,7 +168,7 @@ async function loadCompanyData(): Promise<void> {
   } catch (e: any) {
     if (my !== _reqSeq) return;
     managers.value = [];
-    error.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить KPI компании";
+    error.value = e?.response?.data?.detail || e?.message || t('Не удалось загрузить KPI компании');
     console.error("[useKpiData.loadCompanyData]", e);
   } finally {
     if (my === _reqSeq) loading.company = false;

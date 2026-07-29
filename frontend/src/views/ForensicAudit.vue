@@ -36,6 +36,8 @@ import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 // таблице; редактор ForensicEditModal импортирует тот же helper — конец расхождения).
 import { execCol as pctCol, execZone as pctZone } from "@/utils/execBand";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 const { t } = useI18n();
 
 
@@ -102,18 +104,20 @@ const errorMsg = ref<string | null>(null);
 const sectorFilter = ref<string>("");                  // '' | mining | oilgas | energy | transport | other
 const yearFilter = ref<number>(new Date().getFullYear());  // по умолчанию текущий год
 const periodFilter = ref<Period>("9m");
+// i18n-exempt-start -- canonical filter values sent to and compared with the API.
 const planFilter = ref<"" | "Утверждён" | "Не утверждён">("");
 const forFilter = ref<"" | "Завершён" | "В процессе" | "Тендер" | "Не начат">("");
+// i18n-exempt-end
 const audFilter = ref<"" | "KPMG" | "PwC" | "Deloitte" | "E&Y">("");
 const editMenuOpen = ref(false);
 
 const SECTOR_LABELS_RU: Record<string, string> = {
-  "": "Все секторы",
-  mining: "Горнодобывающий",
-  oilgas: "Нефтегазовый",
-  energy: "Энергетика",
-  transport: "Транспорт",
-  other: "Прочие",
+  "": i18nKey("Все секторы"),
+  mining: i18nKey("Горнодобывающий"),
+  oilgas: i18nKey("Нефтегазовый"),
+  energy: i18nKey("Энергетика"),
+  transport: i18nKey("Транспорт"),
+  other: i18nKey("Прочие"),
 };
 // Цвета аудиторов 1:1 с /consultants (seed consultants.json): KPMG #0033A0,
 // PwC #0066CC, EY #008A00, Deloitte #222222 — единый бренд-палитр по всей платформе.
@@ -232,7 +236,7 @@ function _isNum(v: unknown): boolean {
   if (v == null || v === "") return false;
   return Number.isFinite(Number(String(v).replace(/\s/g, "").replace(",", ".")));
 }
-const _AFFIRMATIVE_PLAN = "утверждён";
+const _AFFIRMATIVE_PLAN = "утверждён"; // i18n-exempt -- canonical persisted status prefix
 function planApproved(plan: unknown): boolean {
   // Зеркалит backend _plan_approved: план УТВЕРЖДЁН = число>0 в поле plan (7
   // флагманов держат сумму в статус-поле) ИЛИ строковый статус, начинающийся с
@@ -242,7 +246,9 @@ function planApproved(plan: unknown): boolean {
   return typeof plan === "string" && plan.trim().toLowerCase().startsWith(_AFFIRMATIVE_PLAN);
 }
 function forensicDone(c: ProcCompany): boolean {
+  // i18n-exempt-start -- canonical persisted status value.
   return c.forensic === "Завершён" && !!(c.auditor || "").trim() && !!(c.aYears || "").trim();
+  // i18n-exempt-end
 }
 
 // ─── Derived data (sector-filtered) ──────────────────────────────
@@ -289,8 +295,8 @@ const totals = computed(() => {
 
 // Человекочитаемая метка среза (год+период) — общая для computed и тоста fallback.
 function fmtPeriod(yr: number, per: Period): string {
-  if (per === "year") return `годовой ${yr}`;
-  if (per === "9m")   return `9 мес ${yr}`;
+  if (per === "year") return t('годовой {value0}', { value0: yr });
+  if (per === "9m")   return t('9 мес {value0}', { value0: yr });
   if (per.startsWith("q")) return `${per.toUpperCase()} ${yr}`;
   return String(yr);
 }
@@ -312,20 +318,24 @@ const planRows = computed(() => {
   let rows = sortedD.value;
   // Один предикат с бейджем/KPI: «Утверждён» = planApproved; «Не утверждён» =
   // есть статус-значение, но не утверждён (компании без плана «—» не попадают ни в один).
+  // i18n-exempt-start -- compare canonical values; button captions are translated separately.
   if (planFilter.value === "Утверждён") {
     rows = rows.filter(c => planApproved(c.plan));
   } else if (planFilter.value === "Не утверждён") {
     rows = rows.filter(c => c.plan != null && c.plan !== "" && !planApproved(c.plan));
   }
+  // i18n-exempt-end
   return rows;
 });
 
 const forRows = computed(() => {
   let rows = sortedD.value;
   if (forFilter.value) {
+    // i18n-exempt-start -- compare canonical values from the API.
     rows = rows.filter(c => forFilter.value === "Тендер"
       ? (c.forensic || "").indexOf("Тендер") >= 0
       : c.forensic === forFilter.value);
+    // i18n-exempt-end
   }
   if (audFilter.value) rows = rows.filter(c => (c.auditor || "").indexOf(audFilter.value) >= 0);
   return rows;
@@ -348,7 +358,7 @@ function fN(v: number | null | undefined): string {
   return fmt.fmtNumber(Math.round(v));
 }
 function cleanAud(a: string | undefined): string {
-  return a ? a.replace(/\s*до\s+\d{2}\.\d{2}\.\d{4}/, "") : "—";
+  return a ? a.replace(/\s*до\s+\d{2}\.\d{2}\.\d{4}/, "") : "—"; // i18n-exempt -- cleanup of legacy persisted suffix
 }
 function auditorColor(a: string | undefined): string {
   if (!a) return "#888780";
@@ -374,17 +384,21 @@ function planBadge(plan: string | number | undefined | null): { text: string; st
   if (plan == null || plan === "") return { text: "—", style: BADGE_STYLES.noplan };
   if (planApproved(plan)) {
     // сохраняем номер приказа, если он есть в строковом статусе («Утверждён №9/…»)
-    const text = typeof plan === "string" && plan.trim().length > "Утверждён".length
-      ? plan.trim() : "Утверждён";
+    const canonical = i18nKey("Утверждён");
+    const text = typeof plan === "string" && plan.trim().length > canonical.length
+      ? `${t(canonical)}${plan.trim().slice(canonical.length)}`
+      : t(canonical);
     return { text, style: BADGE_STYLES.approved };
   }
-  return { text: "Не утверждён", style: BADGE_STYLES.notApproved };
+  return { text: t("Не утверждён"), style: BADGE_STYLES.notApproved };
 }
 function forensicBadge(f: string | undefined): { text: string; style: BadgeStyle } {
   if (!f) return { text: "—", style: BADGE_STYLES.noplan };
-  if (f === "Завершён")    return { text: "Завершён",   style: BADGE_STYLES.done };
-  if (f === "В процессе")  return { text: "В процессе", style: BADGE_STYLES.progress };
-  if (f.indexOf("Тендер") >= 0) return { text: f, style: BADGE_STYLES.tender };
+  // i18n-exempt-start -- canonical status comparisons; returned captions are localized.
+  if (f === "Завершён")    return { text: t("Завершён"),   style: BADGE_STYLES.done };
+  if (f === "В процессе")  return { text: t("В процессе"), style: BADGE_STYLES.progress };
+  if (f.indexOf("Тендер") >= 0) return { text: `${t("Тендер")}${f.slice("Тендер".length)}`, style: BADGE_STYLES.tender };
+  // i18n-exempt-end
   return { text: f, style: BADGE_STYLES.none };
 }
 
@@ -425,20 +439,20 @@ async function editAction(action: "import" | "template" | "report" | "edit" | "c
       showEditModal.value = true;
       return;
     case "clear":
-      if (await confirmDialog({ message: `Удалить данные по закупкам за ${yearFilter.value}? Это действие нельзя отменить.`, danger: true })) {
+      if (await confirmDialog({ message: t('Удалить данные по закупкам за {value0}? Это действие нельзя отменить.', { value0: yearFilter.value }), danger: true })) {
         api.delete(`/forensic/data`, { params: { year: yearFilter.value } })
           .then(r => {
             const cleared = (r.data as { cleared?: number })?.cleared ?? 0;
-            toast.success(`Удалено ${cleared} year-записей.`);
+            toast.success(t('Удалено {value0} year-записей.', { value0: cleared }));
             load();
           })
           .catch((e: { response?: { data?: { detail?: string } }; message?: string }) => {
-            toast.error("Ошибка: " + (e?.response?.data?.detail || e?.message || "—"));
+            toast.error(t('Ошибка: {value0}', { value0: (e?.response?.data?.detail || e?.message || "—") }));
           });
       }
       return;
     case "report":
-      toast.info("Конструктор отчётов — отдельный модуль (планируется отдельно).");
+      toast.info(t('Конструктор отчётов — отдельный модуль (планируется отдельно).'));
       return;
   }
 }
@@ -477,9 +491,9 @@ async function onEditSaved(patches: { company: ProcCompany; year: number }[]) {
       failed++;
     }
   }
-  const parts = [`Сохранено: ${saved}`];
-  if (queued)  parts.push(`на модерации: ${queued}`);
-  if (failed)  parts.push(`ошибок: ${failed}`);
+  const parts = [t("Сохранено: {count}", { count: saved })];
+  if (queued)  parts.push(t("на модерации: {count}", { count: queued }));
+  if (failed)  parts.push(t("ошибок: {count}", { count: failed }));
   if (failed) toast.error(parts.join(" · "));
   else        toast.success(parts.join(" · "));
   showEditModal.value = false;
@@ -543,8 +557,8 @@ async function renderChart() {
 
   const datasets: unknown[] = hasFact.value
     ? [
-        { label: "План", data: plans, backgroundColor: colorsPlan, borderRadius: 4, barPercentage: 0.85, categoryPercentage: 0.7, order: 2 },
-        { label: "Факт", data: facts, backgroundColor: colorsFact, borderRadius: 4, barPercentage: 0.85, categoryPercentage: 0.7, order: 2 },
+        { label: i18nKey("План"), data: plans, backgroundColor: colorsPlan, borderRadius: 4, barPercentage: 0.85, categoryPercentage: 0.7, order: 2 },
+        { label: i18nKey("Факт"), data: facts, backgroundColor: colorsFact, borderRadius: 4, barPercentage: 0.85, categoryPercentage: 0.7, order: 2 },
       ]
     : [
         { data: plans, backgroundColor: colorsFact, borderRadius: 4, barPercentage: 0.72 },
@@ -616,7 +630,7 @@ async function renderChart() {
              ticks: { font: { size: 10 }, color: "#94A3B8", maxRotation: 55, minRotation: 25 } },
         y: { grid: { color: "rgba(0,0,0,.04)" }, border: { display: false },
              ticks: { font: { size: 10 }, color: "#94A3B8",
-                      callback: (v: number) => `${fmt.fmtNumber(Math.round(v))} млрд` } },
+                      callback: (v: number) => `${fmt.fmtNumber(Math.round(v))} ${t("млрд")}` } },
       },
       plugins: {
         legend: { display: false },
@@ -627,9 +641,7 @@ async function renderChart() {
             label: (ctx: { dataIndex: number }) => {
               const c = chartData.value[ctx.dataIndex];
               const pct = gPct(c);
-              return hasFact.value
-                ? ` План: ${fN(gP(c))} / Факт: ${fN(gF(c))} (${pct != null ? pct + "%" : "—"})`
-                : ` ${fN(gP(c))} млрд`;
+              return hasFact.value ? t('План: {value0} / Факт: {value1} ({value2})', { value0: fN(gP(c)), value1: fN(gF(c)), value2: pct != null ? pct + "%" : "—" }) : t('{value0} млрд', { value0: fN(gP(c)) });
             },
           },
         },
@@ -707,7 +719,7 @@ async function load() {
       // M-12 ([[feedback_everywhere_rule]]): не менять срез молча — чипы года/периода
       // «прыгнули» бы без объяснения. Явно сообщаем о подмене.
       if (yearFilter.value !== prevYear || periodFilter.value !== prevPer) {
-        toast.info(`Нет данных за ${fmtPeriod(prevYear, prevPer)} — показан ${fmtPeriod(yearFilter.value, periodFilter.value)}`);
+        toast.info(t('Нет данных за {value0} — показан {value1}', { value0: fmtPeriod(prevYear, prevPer), value1: fmtPeriod(yearFilter.value, periodFilter.value) }));
       }
     }
 
@@ -716,7 +728,7 @@ async function load() {
     rescan();
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    errorMsg.value = err?.response?.data?.detail || err?.message || "Ошибка загрузки";
+    errorMsg.value = err?.response?.data?.detail || err?.message || t('Ошибка загрузки');
     companies.value = [];
   } finally {
     loading.value = false;
@@ -784,7 +796,7 @@ onBeforeUnmount(() => {
         </div>
 
         <!-- ═══ Body / scroll container ═══ -->
-        <UzaStateBlock v-if="loading && !companies.length" state="loading" variant="text" loadingText="Загрузка..." />
+        <UzaStateBlock v-if="loading && !companies.length" state="loading" variant="text" :loadingText="t('Загрузка...')" />
         <UzaStateBlock v-else-if="errorMsg && !companies.length" state="error" variant="block" :text="errorMsg" />
 
         <div v-else ref="scanRoot" class="pr-body" @click="editMenuOpen = false">
@@ -861,7 +873,7 @@ onBeforeUnmount(() => {
           <!-- ═══ 2. Bar chart (Plan vs Fact) ═══ -->
           <div class="pr-cc pr-chart-card" :class="{ 'pr-zoomed': zoomed === 'chart' }" style="--d:200ms">
             <div class="pr-cc-h">
-              <div class="pr-cc-t">{{ t('Исполнение плана закупок,') }} {{ periodLabel }}</div>
+              <div class="pr-cc-t">{{ t('Исполнение плана закупок,') }} {{ t(periodLabel) }}</div>
               <div class="pr-cc-rt">
                 <div v-if="scope.showSectorPicker.value" class="pr-seg">
                   <button :class="{ on: !sectorFilter }" @click="sectorFilter = ''">{{ t('Все') }}</button>
@@ -893,7 +905,7 @@ onBeforeUnmount(() => {
                   <line x1="12" y1="20" x2="12" y2="4"/>
                   <line x1="6"  y1="20" x2="6"  y2="14"/>
                 </svg>
-                <div class="pr-empty-t">{{ t('Нет данных за') }} {{ periodLabel }}</div>
+                <div class="pr-empty-t">{{ t('Нет данных за') }} {{ t(periodLabel) }}</div>
                 <div class="pr-empty-s">
                   {{ t('Ни у одной из') }} {{ D.length }} {{ t('компаний нет плана за этот период.') }}
                   <template v-if="periodFilter !== 'year'">
@@ -919,8 +931,10 @@ onBeforeUnmount(() => {
                 <div class="pr-cc-rt">
                   <div class="pr-seg">
                     <button :class="{ on: planFilter === '' }" @click="planFilter = ''">{{ t('Все') }}</button>
-                    <button :class="{ on: planFilter === 'Утверждён' }" @click="planFilter = 'Утверждён'">{{ t('Утверждён') }}</button>
-                    <button :class="{ on: planFilter === 'Не утверждён' }" @click="planFilter = 'Не утверждён'">{{ t('Не утверждён') }}</button>
+          <!-- i18n-exempt-start: filter values are canonical API data; captions are translated. -->
+          <button :class="{ on: planFilter === 'Утверждён' }" @click="planFilter = 'Утверждён'">{{ t('Утверждён') }}</button>
+          <button :class="{ on: planFilter === 'Не утверждён' }" @click="planFilter = 'Не утверждён'">{{ t('Не утверждён') }}</button>
+          <!-- i18n-exempt-end -->
                   </div>
                   <button class="pr-zoom-btn" @click="toggleZoom('plan')" :title="zoomed === 'plan' ? t('Свернуть') : t('Развернуть')">
                     <svg v-if="zoomed !== 'plan'" width="14" height="14" viewBox="0 0 16 16" fill="none">
@@ -970,7 +984,7 @@ onBeforeUnmount(() => {
                         <span v-else style="color:var(--t3)">—</span>
                       </td>
                     </tr>
-                    <tr v-if="!planRows.length"><td colspan="5"><UzaStateBlock state="empty" variant="inline" text="Нет компаний" /></td></tr>
+                    <tr v-if="!planRows.length"><td colspan="5"><UzaStateBlock state="empty" variant="inline" :text="t('Нет компаний')" /></td></tr>
                   </tbody>
                 </table>
               </div>
@@ -983,10 +997,12 @@ onBeforeUnmount(() => {
                 <div class="pr-cc-rt">
                   <div class="pr-seg">
                     <button :class="{ on: forFilter === '' }" @click="forFilter = ''">{{ t('Все') }}</button>
-                    <button :class="{ on: forFilter === 'Завершён' }"  @click="forFilter = 'Завершён'">{{ t('Завершён') }}</button>
-                    <button :class="{ on: forFilter === 'В процессе' }" @click="forFilter = 'В процессе'">{{ t('В процессе') }}</button>
-                    <button :class="{ on: forFilter === 'Тендер' }"   @click="forFilter = 'Тендер'">{{ t('Тендер') }}</button>
-                    <button :class="{ on: forFilter === 'Не начат' }"  @click="forFilter = 'Не начат'">{{ t('Не начат') }}</button>
+          <!-- i18n-exempt-start: filter values are canonical API data; captions are translated. -->
+          <button :class="{ on: forFilter === 'Завершён' }"  @click="forFilter = 'Завершён'">{{ t('Завершён') }}</button>
+          <button :class="{ on: forFilter === 'В процессе' }" @click="forFilter = 'В процессе'">{{ t('В процессе') }}</button>
+          <button :class="{ on: forFilter === 'Тендер' }"   @click="forFilter = 'Тендер'">{{ t('Тендер') }}</button>
+          <button :class="{ on: forFilter === 'Не начат' }"  @click="forFilter = 'Не начат'">{{ t('Не начат') }}</button>
+          <!-- i18n-exempt-end -->
                   </div>
                   <button class="pr-zoom-btn" @click="toggleZoom('forensic')" :title="zoomed === 'forensic' ? t('Свернуть') : t('Развернуть')">
                     <svg v-if="zoomed !== 'forensic'" width="14" height="14" viewBox="0 0 16 16" fill="none">
@@ -1054,7 +1070,7 @@ onBeforeUnmount(() => {
                       </td>
                       <td class="muted">{{ c.aYears || '—' }}</td>
                     </tr>
-                    <tr v-if="!forRows.length"><td colspan="4"><UzaStateBlock state="empty" variant="inline" text="Нет компаний" /></td></tr>
+                    <tr v-if="!forRows.length"><td colspan="4"><UzaStateBlock state="empty" variant="inline" :text="t('Нет компаний')" /></td></tr>
                   </tbody>
                 </table>
               </div>

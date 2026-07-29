@@ -5,7 +5,7 @@
 """
 from __future__ import annotations
 
-from typing import Optional
+from typing import Any, Optional
 from uuid import UUID
 
 from sqlalchemy import text
@@ -131,6 +131,10 @@ async def notify_watchers(
     notif_type: str,
     title: str,
     body: Optional[str] = None,
+    title_template: Optional[str] = None,
+    body_template: Optional[str] = None,
+    template_vars: Optional[dict[str, Any]] = None,
+    translate_vars: Optional[set[str]] = None,
     link_url: Optional[str] = None,
     payload: Optional[dict] = None,
     priority: Optional[str] = None,
@@ -152,6 +156,10 @@ async def notify_watchers(
                     type=notif_type,
                     title=title,
                     body=body,
+                    title_template=title_template,
+                    body_template=body_template,
+                    template_vars=template_vars,
+                    translate_vars=translate_vars,
                     priority=priority,
                     payload=payload,
                     link_url=link_url,

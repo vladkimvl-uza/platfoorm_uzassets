@@ -160,7 +160,7 @@ const BAND_COLORS = ["#1D9E75", "#7DC4A0", "#EF9F27", "#E8590C"];
           <div class="spm-r-info">
             <input v-if="draft[r.key]" type="checkbox" class="spm-chk" v-model="draft[r.key].enabled"
                    :title="draft[r.key].enabled ? t('Учитывается в Overall') : t('Исключён из Overall')" />
-            <span class="spm-r-label" :title="r.formula">{{ r.label }}</span>
+            <span class="spm-r-label" :title="r.formula">{{ t(r.label) }}</span>
             <span class="spm-r-dir">{{ r.direction === 'gte' ? t('лучше ≥') : t('лучше ≤') }}</span>
             <span v-if="isRowOverridden(r)" class="spm-r-ovr">{{ t("настроено") }}</span>
             <span v-if="draft[r.key]" class="spm-wwrap" :class="{ off: !draft[r.key].enabled }">

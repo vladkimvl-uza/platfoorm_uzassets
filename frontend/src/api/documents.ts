@@ -8,6 +8,7 @@
  */
 import { api } from "@/api/client";
 import { t } from "@/locale/i18n";
+import { i18nKey } from "@/locale/keys";
 
 
 export type DocKind = "pdf" | "doc" | "sheet" | "slide" | "image" | "archive" | "other";
@@ -58,16 +59,16 @@ export interface DocFolder {
  * папка такого цвета читалась бы как тревога.
  */
 export const FOLDER_COLORS: { hex: string; name: string }[] = [
-  { hex: "#C7C3F0", name: "Лаванда" },
-  { hex: "#B9C7EE", name: "Барвинок" },
-  { hex: "#AFD3E8", name: "Незабудка" },
-  { hex: "#B3DCD2", name: "Мята" },
-  { hex: "#C2D6BC", name: "Шалфей" },
-  { hex: "#E4D9B4", name: "Пшеница" },
-  { hex: "#E6CDB2", name: "Песок" },
-  { hex: "#E4BFB4", name: "Терракота" },
-  { hex: "#E8C4CE", name: "Пудра" },
-  { hex: "#CBCDD6", name: "Графит" },
+  { hex: "#C7C3F0", name: i18nKey("Лаванда") },
+  { hex: "#B9C7EE", name: i18nKey("Барвинок") },
+  { hex: "#AFD3E8", name: i18nKey("Незабудка") },
+  { hex: "#B3DCD2", name: i18nKey("Мята") },
+  { hex: "#C2D6BC", name: i18nKey("Шалфей") },
+  { hex: "#E4D9B4", name: i18nKey("Пшеница") },
+  { hex: "#E6CDB2", name: i18nKey("Песок") },
+  { hex: "#E4BFB4", name: i18nKey("Терракота") },
+  { hex: "#E8C4CE", name: i18nKey("Пудра") },
+  { hex: "#CBCDD6", name: i18nKey("Графит") },
 ];
 
 /**
@@ -198,10 +199,10 @@ export function fmtBytes(n: number | null | undefined): string {
 /** Подпись и цвет типа документа — единый язык иконок библиотеки. */
 export const KIND_META: Record<string, { label: string; color: string; short: string }> = {
   pdf:     { label: "PDF",         color: "#E24B4A", short: "PDF" },
-  doc:     { label: "Документы",   color: "#378ADD", short: "DOC" },
-  sheet:   { label: "Таблицы",     color: "#1D9E75", short: "XLS" },
-  slide:   { label: "Презентации", color: "#EF9F27", short: "PPT" },
-  image:   { label: "Изображения", color: "#7C6FF7", short: "IMG" },
-  archive: { label: "Архивы",      color: "#8A8F98", short: "ZIP" },
-  other:   { label: "Прочее",      color: "#94A3B8", short: "FILE" },
+  doc:     { label: i18nKey("Документы"),   color: "#378ADD", short: "DOC" },
+  sheet:   { label: i18nKey("Таблицы"),     color: "#1D9E75", short: "XLS" },
+  slide:   { label: i18nKey("Презентации"), color: "#EF9F27", short: "PPT" },
+  image:   { label: i18nKey("Изображения"), color: "#7C6FF7", short: "IMG" },
+  archive: { label: i18nKey("Архивы"),      color: "#8A8F98", short: "ZIP" },
+  other:   { label: i18nKey("Прочее"),      color: "#94A3B8", short: "FILE" },
 };

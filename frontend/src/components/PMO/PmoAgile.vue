@@ -15,6 +15,12 @@ import {
   pmoApi,
   type AgileResponse, type AgileTask, type Sprint, type SprintPayload, type SprintStatus,
 } from "@/api/pmo";
+import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
+const { t: tr } = useI18n();
+const t = tr;
+
 
 const props = defineProps<{ companyCode: string; canEdit?: boolean; year?: number }>();
 
@@ -25,9 +31,9 @@ const myId = computed(() => (auth.user as any)?.id || null);
 
 // Приоритеты (как в Jira/ClickUp) — флаги
 const PRIORITY: Record<string, { l: string; c: string }> = {
-  high: { l: "Высокий", c: "#E24B4A" },
-  medium: { l: "Средний", c: "#EF9F27" },
-  low: { l: "Низкий", c: "#94A3B8" },
+  high: { l: i18nKey("Высокий"), c: "#E24B4A" },
+  medium: { l: i18nKey("Средний"), c: "#EF9F27" },
+  low: { l: i18nKey("Низкий"), c: "#94A3B8" },
 };
 const PRI_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 };
 function pri(t: AgileTask) { return PRIORITY[t.priority] || PRIORITY.medium; }
@@ -60,7 +66,7 @@ async function load() {
       if (act) activeView.value = act.id;
     }
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить Agile-доску";
+    error.value = e?.response?.data?.detail || e?.message || tr('Не удалось загрузить Agile-доску');
   } finally { loading.value = false; }
 }
 onMounted(load);
@@ -70,9 +76,9 @@ const sprints = computed<Sprint[]>(() => data.value?.sprints || []);
 const tasks = computed<AgileTask[]>(() => data.value?.tasks || []);
 
 const SP_STATUS: Record<SprintStatus, { l: string; c: string }> = {
-  planned: { l: "Планируется", c: "#94a3b8" },
-  active: { l: "Активный", c: "#1D9E75" },
-  done: { l: "Завершён", c: "#534AB7" },
+  planned: { l: i18nKey("Планируется"), c: "#94a3b8" },
+  active: { l: i18nKey("Активный"), c: "#1D9E75" },
+  done: { l: i18nKey("Завершён"), c: "#534AB7" },
 };
 
 const _CLOSED = ["done", "deferred"];
@@ -107,10 +113,10 @@ function sprintStat(sid: string) {
 
 // ── Доска: колонки ──
 const COLUMNS = [
-  { key: "todo", label: "К работе", statuses: ["new", "init"], canonical: "new" },
-  { key: "active", label: "В работе", statuses: ["active"], canonical: "active" },
-  { key: "review", label: "На согласовании", statuses: ["review"], canonical: "review" },
-  { key: "done", label: "Готово", statuses: ["done"], canonical: "done" },
+  { key: "todo", label: i18nKey("К работе"), statuses: ["new", "init"], canonical: "new" },
+  { key: "active", label: i18nKey("В работе"), statuses: ["active"], canonical: "active" },
+  { key: "review", label: i18nKey("На согласовании"), statuses: ["review"], canonical: "review" },
+  { key: "done", label: i18nKey("Готово"), statuses: ["done"], canonical: "done" },
 ];
 function colTasks(sid: string, col: typeof COLUMNS[number]) {
   return sprintTasks(sid).filter(t => col.statuses.includes(t.status) && matchF(t));
@@ -133,13 +139,13 @@ async function patchTask(taskId: string, body: any) {
   try {
     data.value = await pmoApi.patchTaskAgile(taskId, props.companyCode, body);
   } catch (e: any) {
-    toast.error(e?.response?.data?.detail || "Не удалось сохранить");
+    toast.error(e?.response?.data?.detail || tr('Не удалось сохранить'));
     await load();
   } finally { busy.value = false; }
 }
 async function assignToSprint(t: AgileTask, sid: string | null) {
   await patchTask(t.id, { sprint_id: sid });
-  if (sid) toast.success("Задача в спринте"); else toast.success("Возвращено в бэклог");
+  if (sid) toast.success(tr('Задача в спринте')); else toast.success(tr('Возвращено в бэклог'));
 }
 async function setPoints(t: AgileTask, ev: Event) {
   const v = (ev.target as HTMLInputElement).value;
@@ -173,25 +179,25 @@ function sprintEdit(s: Sprint) {
   sprintEditId.value = s.id; sprintOpen.value = true;
 }
 async function sprintSave() {
-  if (!sForm.value.name?.trim()) { toast.error("Название спринта обязательно"); return; }
+  if (!sForm.value.name?.trim()) { toast.error(tr('Название спринта обязательно')); return; }
   saving.value = true;
   try {
     if (sprintEditId.value) await pmoApi.updateSprint(sprintEditId.value, sForm.value);
     else { const s = await pmoApi.createSprint(props.companyCode, sForm.value); activeView.value = s.id; }
     sprintOpen.value = false;
     await load();
-    toast.success(sprintEditId.value ? "Спринт сохранён" : "Спринт создан");
-  } catch (e: any) { toast.error(e?.response?.data?.detail || "Не удалось сохранить"); }
+    toast.success(sprintEditId.value ? tr('Спринт сохранён') : tr('Спринт создан'));
+  } catch (e: any) { toast.error(e?.response?.data?.detail || tr('Не удалось сохранить')); }
   finally { saving.value = false; }
 }
 async function setSprintStatus(s: Sprint, status: SprintStatus) {
-  try { await pmoApi.updateSprint(s.id, { status }); await load(); toast.success("Статус спринта обновлён"); }
-  catch (e: any) { toast.error("Не удалось обновить"); }
+  try { await pmoApi.updateSprint(s.id, { status }); await load(); toast.success(tr('Статус спринта обновлён')); }
+  catch (e: any) { toast.error(tr('Не удалось обновить')); }
 }
 async function sprintRemove(s: Sprint) {
-  if (!(await confirmDialog({ message: `Удалить спринт «${s.name}»? Задачи вернутся в бэклог.`, danger: true }))) return;
-  try { await pmoApi.deleteSprint(s.id); if (activeView.value === s.id) activeView.value = "backlog"; await load(); toast.success("Спринт удалён"); }
-  catch (e: any) { toast.error("Не удалось удалить"); }
+  if (!(await confirmDialog({ message: tr('Удалить спринт «{value0}»? Задачи вернутся в бэклог.', { value0: s.name }), danger: true }))) return;
+  try { await pmoApi.deleteSprint(s.id); if (activeView.value === s.id) activeView.value = "backlog"; await load(); toast.success(tr('Спринт удалён')); }
+  catch (e: any) { toast.error(tr('Не удалось удалить')); }
 }
 
 const fmtDate = (s: string | null) => s ? new Date(s).toLocaleDateString("ru-RU", { day: "numeric", month: "short" }) : "—";
@@ -200,27 +206,27 @@ const fmtDate = (s: string | null) => s ? new Date(s).toLocaleDateString("ru-RU"
 <template>
   <div class="ag">
     <UzaStateBlock v-if="error" state="error" variant="banner" :text="error" dismissible @dismiss="error = null" />
-    <UzaStateBlock v-if="loading" state="loading" text="Загрузка Agile-доски…" />
+    <UzaStateBlock v-if="loading" state="loading" :text="t('Загрузка Agile-доски…')" />
 
     <template v-else>
       <!-- селектор: бэклог + спринты -->
       <div class="ag-bar">
         <div class="ag-chips">
           <button class="ag-chip" :class="{ on: activeView === 'backlog' }" @click="activeView = 'backlog'">
-            Бэклог <span class="ag-n">{{ backlog.length }}</span>
+            {{ tr('Бэклог') }} <span class="ag-n">{{ backlog.length }}</span>
           </button>
           <button v-for="s in sprints" :key="s.id" class="ag-chip" :class="{ on: activeView === s.id }" @click="activeView = s.id">
             <span class="ag-dot" :style="{ background: SP_STATUS[s.status].c }"></span>
             {{ s.name }} <span class="ag-n">{{ sprintTasks(s.id).length }}</span>
           </button>
         </div>
-        <button v-if="canEdit" class="ag-add" @click="sprintCreate">+ Спринт</button>
+        <button v-if="canEdit" class="ag-add" @click="sprintCreate">{{ tr('+ Спринт') }}</button>
       </div>
 
       <!-- фильтры (Jira/ClickUp-стиль): приоритет + исполнитель + мои -->
       <div v-if="tasks.length" class="ag-filters">
-        <span class="ag-flabel">Приоритет</span>
-        <button class="ag-fchip" :class="{ on: !filterPriority }" @click="filterPriority = null">Все</button>
+        <span class="ag-flabel">{{ tr('Приоритет') }}</span>
+        <button class="ag-fchip" :class="{ on: !filterPriority }" @click="filterPriority = null">{{ tr('Все') }}</button>
         <button
           v-for="(p, k) in PRIORITY" :key="k"
           class="ag-fchip" :class="{ on: filterPriority === k }"
@@ -229,22 +235,22 @@ const fmtDate = (s: string | null) => s ? new Date(s).toLocaleDateString("ru-RU"
         ><span class="ag-flag" :style="{ background: p.c }"></span>{{ p.l }}</button>
 
         <span class="ag-fdiv"></span>
-        <button v-if="myId" class="ag-fchip" :class="{ on: onlyMine }" @click="onlyMine = !onlyMine">Только мои</button>
+        <button v-if="myId" class="ag-fchip" :class="{ on: onlyMine }" @click="onlyMine = !onlyMine">{{ tr('Только мои') }}</button>
         <button
           v-for="a in assigneesInView" :key="a.id"
           class="ag-fav" :class="{ on: filterAssignee === a.id }" :title="a.name"
           @click="filterAssignee = filterAssignee === a.id ? null : a.id"
         >{{ avInitials(a.name) }}</button>
 
-        <button v-if="hasFilters" class="ag-freset" @click="resetFilters">Сбросить</button>
+        <button v-if="hasFilters" class="ag-freset" @click="resetFilters">{{ tr('Сбросить') }}</button>
       </div>
 
       <!-- ── БЭКЛОГ ── -->
       <div v-if="activeView === 'backlog'">
-        <UzaStateBlock v-if="!backlog.length" state="empty" variant="block" title="Бэклог пуст" text="Сюда попадают открытые задачи без спринта. Создайте задачи в разделе «Задачи» или снимите задачи со спринта." />
+        <UzaStateBlock v-if="!backlog.length" state="empty" variant="block" :title="tr('Бэклог пуст')" :text="t('Сюда попадают открытые задачи без спринта. Создайте задачи в разделе «Задачи» или снимите задачи со спринта.')" />
         <div v-else class="ag-list">
           <div v-for="(t, i) in backlog" :key="t.id" class="ag-bli" :style="{ animationDelay: Math.min(i*0.02, 0.3)+'s' }">
-            <span class="ag-pflag" :style="{ background: pri(t).c }" :title="'Приоритет: ' + pri(t).l"></span>
+            <span class="ag-pflag" :style="{ background: pri(t).c }" :title="tr('Приоритет: {value0}', { value0: pri(t).l })"></span>
             <div class="ag-bli-main">
               <div class="ag-bli-title">{{ t.title }}</div>
               <div class="ag-bli-meta">
@@ -258,12 +264,12 @@ const fmtDate = (s: string | null) => s ? new Date(s).toLocaleDateString("ru-RU"
               <span v-else-if="t.story_points != null" class="ag-sp">{{ t.story_points }} SP</span>
             </div>
             <select v-if="canEdit && sprints.length" class="ag-bli-sel" :value="''" @change="assignToSprint(t, ($event.target as HTMLSelectElement).value || null)">
-              <option value="">→ в спринт…</option>
+              <option value="">{{ tr('→ в спринт…') }}</option>
               <option v-for="s in sprints" :key="s.id" :value="s.id">{{ s.name }}</option>
             </select>
           </div>
         </div>
-        <div v-if="!sprints.length && canEdit" class="ag-hint">Создайте спринт, чтобы перетаскивать в него задачи из бэклога.</div>
+        <div v-if="!sprints.length && canEdit" class="ag-hint">{{ tr('Создайте спринт, чтобы перетаскивать в него задачи из бэклога.') }}</div>
       </div>
 
       <!-- ── ДОСКА СПРИНТА ── -->
@@ -280,14 +286,14 @@ const fmtDate = (s: string | null) => s ? new Date(s).toLocaleDateString("ru-RU"
           <div class="ag-sh-side">
             <div class="ag-sh-points">
               <span class="ag-sh-pn">{{ sprintStat(currentSprint.id).done }}<span class="ag-sh-pd">/{{ sprintStat(currentSprint.id).committed }}</span></span>
-              <span class="ag-sh-pl">SP готово<template v-if="currentSprint.capacity_points"> · ёмкость {{ currentSprint.capacity_points }}</template></span>
+              <span class="ag-sh-pl">{{ tr('SP готово') }}<template v-if="currentSprint.capacity_points"> {{ tr('· ёмкость') }} {{ currentSprint.capacity_points }}</template></span>
               <div class="ag-sh-bar"><span class="ag-sh-bar-fill" :style="{ width: sprintStat(currentSprint.id).pct + '%' }"></span></div>
             </div>
             <div v-if="canEdit" class="ag-sh-actions">
-              <button v-if="currentSprint.status === 'planned'" class="ag-sb ag-sb-ok" @click="setSprintStatus(currentSprint, 'active')">Старт</button>
-              <button v-else-if="currentSprint.status === 'active'" class="ag-sb ag-sb-ok" @click="setSprintStatus(currentSprint, 'done')">Завершить</button>
-              <button class="ag-sb" @click="sprintEdit(currentSprint)" title="Править"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
-              <button class="ag-sb ag-sb-del" @click="sprintRemove(currentSprint)" title="Удалить"><svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 3 L13 13 M13 3 L3 13" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
+              <button v-if="currentSprint.status === 'planned'" class="ag-sb ag-sb-ok" @click="setSprintStatus(currentSprint, 'active')">{{ tr('Старт') }}</button>
+              <button v-else-if="currentSprint.status === 'active'" class="ag-sb ag-sb-ok" @click="setSprintStatus(currentSprint, 'done')">{{ tr('Завершить') }}</button>
+              <button class="ag-sb" @click="sprintEdit(currentSprint)" :title="tr('Править')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+              <button class="ag-sb ag-sb-del" @click="sprintRemove(currentSprint)" :title="tr('Удалить')"><svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 3 L13 13 M13 3 L3 13" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
             </div>
           </div>
         </div>
@@ -298,7 +304,7 @@ const fmtDate = (s: string | null) => s ? new Date(s).toLocaleDateString("ru-RU"
             class="ag-col" :class="{ over: dragOverCol === col.key }"
             @dragover.prevent="dragOverCol = col.key" @dragleave="dragOverCol = null" @drop.prevent="onDrop(col)"
           >
-            <div class="ag-col-head"><span>{{ col.label }}</span><span v-if="colPoints(currentSprint.id, col)" class="ag-col-sp">{{ colPoints(currentSprint.id, col) }} SP</span><span class="ag-col-n">{{ colTasks(currentSprint.id, col).length }}</span></div>
+            <div class="ag-col-head"><span>{{ tr(col.label) }}</span><span v-if="colPoints(currentSprint.id, col)" class="ag-col-sp">{{ colPoints(currentSprint.id, col) }} SP</span><span class="ag-col-n">{{ colTasks(currentSprint.id, col).length }}</span></div>
             <div class="ag-col-body">
               <div
                 v-for="t in colTasks(currentSprint.id, col)" :key="t.id"
@@ -316,14 +322,14 @@ const fmtDate = (s: string | null) => s ? new Date(s).toLocaleDateString("ru-RU"
                   <span v-else class="ag-av ag-av-sm ag-av-none">?</span>
                   <input v-if="canEdit" type="number" min="0" class="ag-sp-input ag-sp-card" :value="t.story_points ?? ''" placeholder="SP" title="Story points" @change="setPoints(t, $event)" @dragstart.stop @mousedown.stop />
                   <span v-else-if="t.story_points != null" class="ag-sp">{{ t.story_points }}</span>
-                  <button v-if="canEdit" class="ag-card-back" title="В бэклог" @click="assignToSprint(t, null)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14l-4-4 4-4"/><path d="M5 10h11a4 4 0 0 1 0 8h-1"/></svg></button>
+                  <button v-if="canEdit" class="ag-card-back" :title="tr('В бэклог')" @click="assignToSprint(t, null)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14l-4-4 4-4"/><path d="M5 10h11a4 4 0 0 1 0 8h-1"/></svg></button>
                 </div>
               </div>
               <div v-if="!colTasks(currentSprint.id, col).length" class="ag-col-empty">—</div>
             </div>
           </div>
         </div>
-        <div v-if="canEdit" class="ag-hint">Перетаскивайте карточки между колонками, чтобы менять статус. Кнопка ↩ — вернуть задачу в бэклог.</div>
+        <div v-if="canEdit" class="ag-hint">{{ tr('Перетаскивайте карточки между колонками, чтобы менять статус. Кнопка ↩ — вернуть задачу в бэклог.') }}</div>
       </div>
     </template>
 
@@ -331,20 +337,20 @@ const fmtDate = (s: string | null) => s ? new Date(s).toLocaleDateString("ru-RU"
     <Transition name="ag-modal">
       <div v-if="sprintOpen" class="ag-ov" @click.self="sprintOpen = false">
         <div class="ag-modal">
-          <div class="ag-mh">{{ sprintEditId ? "Правка спринта" : "Новый спринт" }}</div>
+          <div class="ag-mh">{{ sprintEditId ? tr('Правка спринта') : tr('Новый спринт') }}</div>
           <div class="ag-mb">
-            <div class="ag-f"><label>Название</label><input v-model="sForm.name" placeholder="Например: Спринт 5" /></div>
-            <div class="ag-f"><label>Цель спринта</label><textarea v-model="sForm.goal" rows="2" placeholder="Что хотим достичь"></textarea></div>
+            <div class="ag-f"><label>{{ tr('Название') }}</label><input v-model="sForm.name" :placeholder="tr('Например: Спринт 5')" /></div>
+            <div class="ag-f"><label>{{ tr('Цель спринта') }}</label><textarea v-model="sForm.goal" rows="2" :placeholder="tr('Что хотим достичь')"></textarea></div>
             <div class="ag-f3">
-              <div class="ag-f"><label>Старт</label><input v-model="sForm.start_date" type="date" /></div>
-              <div class="ag-f"><label>Финиш</label><input v-model="sForm.end_date" type="date" /></div>
-              <div class="ag-f"><label>Ёмкость (SP)</label><input v-model.number="sForm.capacity_points" type="number" min="0" placeholder="0" /></div>
+              <div class="ag-f"><label>{{ tr('Старт') }}</label><input v-model="sForm.start_date" type="date" /></div>
+              <div class="ag-f"><label>{{ tr('Финиш') }}</label><input v-model="sForm.end_date" type="date" /></div>
+              <div class="ag-f"><label>{{ tr('Ёмкость (SP)') }}</label><input v-model.number="sForm.capacity_points" type="number" min="0" placeholder="0" /></div>
             </div>
-            <div class="ag-f"><label>Статус</label>
-              <select v-model="sForm.status"><option value="planned">Планируется</option><option value="active">Активный</option><option value="done">Завершён</option></select>
+            <div class="ag-f"><label>{{ tr('Статус') }}</label>
+              <select v-model="sForm.status"><option value="planned">{{ tr('Планируется') }}</option><option value="active">{{ tr('Активный') }}</option><option value="done">{{ tr('Завершён') }}</option></select>
             </div>
           </div>
-          <div class="ag-mf"><button class="ag-bg" @click="sprintOpen = false">Отмена</button><button class="ag-b" :disabled="saving" @click="sprintSave">{{ saving ? "Сохраняю…" : "Сохранить" }}</button></div>
+          <div class="ag-mf"><button class="ag-bg" @click="sprintOpen = false">{{ tr('Отмена') }}</button><button class="ag-b" :disabled="saving" @click="sprintSave">{{ saving ? tr('Сохраняю…') : tr('Сохранить') }}</button></div>
         </div>
       </div>
     </Transition>

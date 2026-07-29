@@ -93,23 +93,54 @@ async def _tick() -> int:
                         ntype = "deadline.approaching"
                         ntitle = f"До дедлайна {n} дн: {title}"[:255]
                         body = f"{kind_label} · срок через {n} дн — {due.strftime('%d.%m.%Y')}"
+                        title_template = "До дедлайна {days} дн: {title}"
+                        body_template = "{kind} · срок через {days} дн — {date}"
+                        template_vars = {
+                            "days": n, "title": title, "kind": kind_label,
+                            "date": due.strftime("%d.%m.%Y"),
+                        }
                     elif kind == "due_1d":
                         ntype = "deadline.approaching"
                         ntitle = f"Дедлайн завтра: {title}"[:255]
                         body = f"{kind_label} · срок завтра, {due.strftime('%d.%m.%Y')}"
+                        title_template = "Дедлайн завтра: {title}"
+                        body_template = "{kind} · срок завтра, {date}"
+                        template_vars = {
+                            "title": title, "kind": kind_label,
+                            "date": due.strftime("%d.%m.%Y"),
+                        }
                     elif kind == "approaching":
                         ntype = "deadline.approaching"
                         ntitle = f"Дедлайн приближается: {title}"[:255]
                         body = f"{kind_label} · до {due.strftime('%d.%m.%Y')}" + (f" ({days} дн)" if days else " (сегодня)")
+                        title_template = "Дедлайн приближается: {title}"
+                        body_template = (
+                            "{kind} · до {date} ({days} дн)" if days
+                            else "{kind} · до {date} (сегодня)"
+                        )
+                        template_vars = {
+                            "title": title, "kind": kind_label,
+                            "date": due.strftime("%d.%m.%Y"), "days": days,
+                        }
                     else:
                         ntype = "deadline.missed"
                         ntitle = f"Дедлайн пропущен: {title}"[:255]
                         body = f"{kind_label} · просрочено {days} дн (до {due.strftime('%d.%m.%Y')})"
+                        title_template = "Дедлайн пропущен: {title}"
+                        body_template = "{kind} · просрочено {days} дн (до {date})"
+                        template_vars = {
+                            "title": title, "kind": kind_label,
+                            "date": due.strftime("%d.%m.%Y"), "days": days,
+                        }
                     link = f"/library/companies/{cid}" if cid else None
                     for uid in recips:
                         try:
                             await notify(
                                 db, recipient_id=uid, type=ntype, title=ntitle, body=body,
+                                title_template=title_template,
+                                body_template=body_template,
+                                template_vars=template_vars,
+                                translate_vars={"kind"},
                                 payload={"entity_type": etype, "entity_id": eid, "due_date": str(due)},
                                 link_url=link, source_module=tbl, source_entity_id=eid,
                                 company_id=cid,

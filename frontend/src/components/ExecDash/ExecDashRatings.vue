@@ -68,12 +68,14 @@ function ratingBg(rating: string | null | undefined): string {
 }
 
 function outlookColor(outlook: string | null | undefined): string {
+  // i18n-exempt-start: multilingual rating-outlook aliases classify API data; they are never rendered.
   if (!outlook) return "#888780";
   const s = outlook.toLowerCase();
   if (s.includes("стаб") || s.includes("stab")) return "#888780";
   if (s.includes("поз") || s.includes("pos")) return "#1D9E75";
   if (s.includes("нег") || s.includes("neg")) return "#E24B4A";
   return "#888780";
+  // i18n-exempt-end
 }
 
 function isEmpty(cell: ExecRatingCell | null | undefined): boolean {

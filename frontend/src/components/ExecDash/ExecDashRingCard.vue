@@ -57,7 +57,7 @@ const tRingPct     = useNumberTween(
     </div>
 
     <div class="ed-ring-info">
-      <div class="ed-ring-lbl">{{ card.label }}</div>
+      <div class="ed-ring-lbl">{{ t(card.label) }}</div>
       <div class="ed-ring-cnt">
         <strong>{{ Math.round(tRatedCount) }}</strong>
         <span class="ed-ring-dim">{{ t("из") }} {{ Math.round(tTotal) }}</span>

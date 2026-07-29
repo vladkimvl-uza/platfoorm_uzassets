@@ -17,6 +17,7 @@
  */
 import { computed, useSlots } from "vue";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
 const { t } = useI18n();
 
 
@@ -35,8 +36,8 @@ const props = withDefaults(
     minHeight?: string;
   }>(),
   {
-    loadingText: "Загрузка…",
-    retryLabel: "Повторить",
+    loadingText: i18nKey("Загрузка…"),
+    retryLabel: i18nKey("Повторить"),
   },
 );
 
@@ -76,7 +77,7 @@ const role = computed(() =>
       <slot v-if="v === 'skeleton'" />
       <template v-else>
         <span v-if="v === 'spinner'" class="usb-spinner" aria-hidden="true" />
-        <span class="usb-load-txt">{{ text || loadingText }}</span>
+        <span class="usb-load-txt">{{ t(text || loadingText) }}</span>
       </template>
     </template>
 
@@ -91,25 +92,25 @@ const role = computed(() =>
             </svg>
           </slot>
         </span>
-        <div v-if="title" class="usb-title">{{ title }}</div>
-        <div class="usb-msg"><slot>{{ text }}</slot></div>
-        <button v-if="retry" class="usb-btn usb-retry" type="button" @click="emit('retry')">{{ retryLabel }}</button>
+        <div v-if="title" class="usb-title">{{ t(title) }}</div>
+        <div class="usb-msg"><slot>{{ t(text || '') }}</slot></div>
+        <button v-if="retry" class="usb-btn usb-retry" type="button" @click="emit('retry')">{{ t(retryLabel) }}</button>
         <div v-if="slots.actions" class="usb-actions"><slot name="actions" /></div>
       </template>
       <template v-else>
-        <span class="usb-msg"><slot>{{ text }}</slot></span>
+        <span class="usb-msg"><slot>{{ t(text || '') }}</slot></span>
         <button v-if="dismissible" class="usb-x" type="button" :aria-label="t('Закрыть')" @click="emit('dismiss')">×</button>
       </template>
     </template>
 
     <!-- ── EMPTY ───────────────────────────────────────────── -->
     <template v-else>
-      <slot v-if="v === 'inline'">{{ text }}</slot>
+      <slot v-if="v === 'inline'">{{ t(text || '') }}</slot>
       <template v-else>
         <span v-if="slots.icon" class="usb-ico" aria-hidden="true"><slot name="icon" /></span>
-        <div v-if="title" class="usb-title">{{ title }}</div>
-        <div class="usb-desc"><slot>{{ desc || text }}</slot></div>
-        <button v-if="actionLabel" class="usb-btn usb-cta" type="button" @click="emit('action')">{{ actionLabel }}</button>
+        <div v-if="title" class="usb-title">{{ t(title) }}</div>
+        <div class="usb-desc"><slot>{{ t(desc || text || '') }}</slot></div>
+        <button v-if="actionLabel" class="usb-btn usb-cta" type="button" @click="emit('action')">{{ t(actionLabel) }}</button>
         <div v-if="slots.actions" class="usb-actions"><slot name="actions" /></div>
       </template>
     </template>

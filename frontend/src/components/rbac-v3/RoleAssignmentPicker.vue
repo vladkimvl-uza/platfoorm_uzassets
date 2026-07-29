@@ -4,6 +4,8 @@ import type { RbacV3Role } from '@/api/rbacV3';
 import BIcon from '@/components/broadcasts/BIcon.vue';
 import RoleChip from './RoleChip.vue';
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 const { t } = useI18n();
 
 
@@ -26,32 +28,32 @@ const emit = defineEmits<{
 const CATEGORY_DEFS = [
   {
     id: 'base',
-    label: 'Основные',
+    label: i18nKey('Основные'),
     codes: ['admin', 'organization', 'viewer', 'readonly', 'audit_viewer', 'ceo'],
   },
   {
     id: 'finance',
-    label: 'Финансы',
+    label: i18nKey('Финансы'),
     codes: ['financier', 'finmodel', 'finance_controller', 'monitoring', 'fid', 'debt'],
   },
   {
     id: 'treasury',
-    label: 'Казначейство',
+    label: i18nKey('Казначейство'),
     codes: ['treasure_user', 'cfo_department', 'cfo_committee'],
   },
   {
     id: 'procurement',
-    label: 'Закупки',
+    label: i18nKey('Закупки'),
     codes: ['purchase_department', 'initiator', 'procurement_owner'],
   },
   {
     id: 'organization',
-    label: 'Организация',
+    label: i18nKey('Организация'),
     codes: ['department_worker', 'department_head', 'department_director', 'plan_department'],
   },
   {
     id: 'special',
-    label: 'Специальные',
+    label: i18nKey('Специальные'),
     codes: ['lawyer', 'investment', 'mdm_steward'],
   },
 ] as const;
@@ -79,9 +81,9 @@ const categories = computed(() => {
   }
 
   return [
-    { id: 'all', label: 'Все', count: props.roles.length },
+    { id: 'all', label: i18nKey('Все'), count: props.roles.length },
     ...(props.modelValue.length
-      ? [{ id: 'selected', label: 'Выбрано', count: props.modelValue.length }]
+      ? [{ id: 'selected', label: i18nKey('Выбрано'), count: props.modelValue.length }]
       : []),
     ...CATEGORY_DEFS
       .filter(category => roleCounts.has(category.id))
@@ -91,7 +93,7 @@ const categories = computed(() => {
         count: roleCounts.get(category.id) || 0,
       })),
     ...(roleCounts.has('other')
-      ? [{ id: 'other', label: 'Другие', count: roleCounts.get('other') || 0 }]
+      ? [{ id: 'other', label: i18nKey('Другие'), count: roleCounts.get('other') || 0 }]
       : []),
   ];
 });
@@ -184,7 +186,7 @@ function clearSelection() {
         :class="['rap-category', { on: activeCategory === category.id }]"
         @click="activeCategory = category.id"
       >
-        {{ category.label }}
+        {{ t(category.label) }}
         <span>{{ category.count }}</span>
       </button>
     </div>

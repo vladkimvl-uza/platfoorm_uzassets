@@ -1,5 +1,7 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
+import { i18nKey } from "@/locale/keys";
+
 
 const router = createRouter({
   history: createWebHistory(),
@@ -35,7 +37,7 @@ const router = createRouter({
       path: "/change-password",
       name: "change-password",
       component: () => import("@/views/ChangePasswordPage.vue"),
-      meta: { layout: "blank", requiresAuth: true, title: "Смена пароля" },
+      meta: { layout: "blank", requiresAuth: true, title: i18nKey("Смена пароля") },
     },
     // Homepage — full-screen entry page (no AppShell sidebar), 1:1 with legacy
     {
@@ -57,13 +59,9 @@ const router = createRouter({
           redirect: () => {
             try {
               const a = useAuthStore();
-              // Портфельный экран скрыт у пользователей, ограниченных своими
-              // компаниями, — КРОМЕ случая, когда право выдано лично (сетка
-              // «Доступ к модулям»): тогда «дал доступ — появился».
-              const portfolio =
-                !!a.user?.is_owner || a.user?.scope_unrestricted !== false;
-              const allowed = a.hasPermission("exec_dashboard.view")
-                && (portfolio || a.hasDirectPermission("exec_dashboard.view"));
+              // Effective permission — единый источник прав для редиректа,
+              // меню, маршрута и API. Данные внутри экрана уже company-scoped.
+              const allowed = a.hasPermission("exec_dashboard.view");
               return allowed ? "/executive-dashboard" : "/home";
             } catch {
               // Если Pinia ещё не готова — fallback на исходный /home.
@@ -78,7 +76,7 @@ const router = createRouter({
           // Гейт добавлен 29.07.2026: до него карточка «Дашборд» в сетке
           // доступа не управляла ничем — маршрут был открыт всем, и «Нет
           // доступа» у пользователя ничего не меняло.
-          meta: { title: "Проекты трансформации", requiresPermission: "dashboard.view" },
+          meta: { title: i18nKey("Проекты трансформации"), requiresPermission: "dashboard.view" },
         },
         {
           path: "executive-dashboard",
@@ -88,22 +86,6 @@ const router = createRouter({
           // одно право открывало сразу четыре разных экрана (Финансы, министр,
           // SOE Health, себестоимость), и админ не мог выдать их по отдельности.
           meta: { requiresAuth: true, requiresPermission: "exec_dashboard.view" },
-          // Портфельный экран: скрыт у ограниченных компаниями пользователей,
-          // но ЛИЧНАЯ выдача права его открывает (иначе выданный доступ молча
-          // не срабатывал). Данные экрана бэкенд и так режет областью.
-          beforeEnter: (_to, _from, next) => {
-            try {
-              const a = useAuthStore();
-              const portfolio =
-                !!a.user?.is_owner || a.user?.scope_unrestricted !== false;
-              if (!portfolio && !a.hasDirectPermission("exec_dashboard.view")) {
-                return next("/home");
-              }
-            } catch {
-              /* Pinia не готова — гейт по праву отработает выше */
-            }
-            next();
-          },
         },
         {
           path: "executive-overview",
@@ -112,7 +94,7 @@ const router = createRouter({
           // Гейт был на projects.view — права, которого НЕТ в каталоге и нет ни
           // у одной роли: экран не открывался никому, кроме owner/admin (bypass).
           // Переведён на существующее собственное право exec_overview.view.
-          meta: { title: "Сводный обзор портфеля", requiresAuth: true, requiresPermission: "exec_overview.view" },
+          meta: { title: i18nKey("Сводный обзор портфеля"), requiresAuth: true, requiresPermission: "exec_overview.view" },
         },
         {
           path: "execution-summary",
@@ -126,14 +108,14 @@ const router = createRouter({
           path: "companies/:id",
           name: "company-detail",
           component: () => import("@/views/CompanyDetail.vue"),
-          meta: { title: "Компания", requiresPermission: "companies.view" },
+          meta: { title: i18nKey("Компания"), requiresPermission: "companies.view" },
           props: true,
         },
         {
           path: "companies/:code/workspace",
           name: "company-workspace",
           component: () => import("@/views/CompanyWorkspace.vue"),
-          meta: { title: "Карточка компании", requiresPermission: "companies.view" },
+          meta: { title: i18nKey("Карточка компании"), requiresPermission: "companies.view" },
           props: true,
         },
 
@@ -142,13 +124,13 @@ const router = createRouter({
           path: "library/companies",
           name: "library-companies",
           component: () => import("@/views/library/CompanyLibraryIndex.vue"),
-          meta: { title: "Библиотека · Компании", requiresPermission: "companies.view" },
+          meta: { title: i18nKey("Библиотека · Компании"), requiresPermission: "companies.view" },
         },
         {
           path: "library/companies/:id",
           name: "library-company-detail",
           component: () => import("@/views/library/CompanyLibraryDetail.vue"),
-          meta: { title: "Карточка · Библиотека", requiresPermission: "companies.view" },
+          meta: { title: i18nKey("Карточка · Библиотека"), requiresPermission: "companies.view" },
           props: true,
         },
 
@@ -158,7 +140,7 @@ const router = createRouter({
         {
           path: "api-docs",
           component: () => import("@/views/devdocs/DevDocsLayout.vue"),
-          meta: { title: "API · Документация", public: true },
+          meta: { title: i18nKey("API · Документация"), public: true },
           children: [
             { path: "",               name: "devdocs-quickstart", component: () => import("@/views/devdocs/QuickstartPage.vue") },
             { path: "authentication", name: "devdocs-auth",       component: () => import("@/views/devdocs/AuthPage.vue") },
@@ -190,7 +172,7 @@ const router = createRouter({
           path: "admin/system-config",
           name: "system-config",
           component: () => import("@/views/SystemConfig.vue"),
-          meta: { title: "Системные константы", requiresPermission: "system.config.view" },
+          meta: { title: i18nKey("Системные константы"), requiresPermission: "system.config.view" },
         },
         // Настройка SMTP / email-уведомлений (owner/admin)
         {
@@ -200,21 +182,21 @@ const router = createRouter({
           // Настройки SMTP — платформенное администрирование: маршрут был
           // открыт любому авторизованному (бэкенд отказывал, но экран
           // администратора показывался). Гейт как у DB-консоли и TLS.
-          meta: { title: "Настройка почты (SMTP)", requiresOwnerOrAdmin: true },
+          meta: { title: i18nKey("Настройка почты (SMTP)"), requiresOwnerOrAdmin: true },
         },
         // DB-консоль (owner/admin only)
         {
           path: "admin/database",
           name: "admin-database",
           component: () => import("@/views/DatabaseAdmin.vue"),
-          meta: { title: "База данных", requiresOwnerOrAdmin: true },
+          meta: { title: i18nKey("База данных"), requiresOwnerOrAdmin: true },
         },
         // TLS-сертификат (owner/admin only)
         {
           path: "admin/tls",
           name: "admin-tls",
           component: () => import("@/views/TlsAdmin.vue"),
-          meta: { title: "TLS сертификат", requiresOwnerOrAdmin: true },
+          meta: { title: i18nKey("TLS сертификат"), requiresOwnerOrAdmin: true },
         },
         // .2: audit log moved into RBAC v2 as tab — keep redirect for old links
         {
@@ -226,7 +208,7 @@ const router = createRouter({
         {
           path: "admin/rbac",
           component: () => import("@/views/rbac-v3/RBACShell.vue"),
-          meta: { title: "Управление доступом", requiresPermission: "admin.users" },
+          meta: { title: i18nKey("Управление доступом"), requiresPermission: "admin.users" },
           children: [
             { path: "", redirect: { name: "rbac-v3-users" } },
             { path: "users", name: "rbac-v3-users", component: () => import("@/views/rbac-v3/UsersPage.vue") },
@@ -251,7 +233,7 @@ const router = createRouter({
           path: "admin/moderation",
           name: "admin-moderation",
           component: () => import("@/components/moderation/ModerationTab.vue"),
-          meta: { title: "Модерация", requiresPermission: "moderation.review" },
+          meta: { title: i18nKey("Модерация"), requiresPermission: "moderation.review" },
         },
         {
           path: "admin/security",
@@ -263,84 +245,84 @@ const router = createRouter({
           path: "notifications",
           name: "notifications",
           component: () => import("@/views/NotificationsView.vue"),
-          meta: { title: "Уведомления" },
+          meta: { title: i18nKey("Уведомления") },
         },
         {
           path: "notifications/settings",
           name: "notifications-settings",
           component: () => import("@/views/NotificationSettings.vue"),
-          meta: { title: "Настройки уведомлений" },
+          meta: { title: i18nKey("Настройки уведомлений") },
         },
         {
           path: "settings/security",
           name: "settings-security",
           component: () => import("@/views/SecuritySettings.vue"),
-          meta: { title: "Безопасность" },
+          meta: { title: i18nKey("Безопасность") },
         },
         // Admin Broadcasts
         {
           path: "admin/broadcasts",
           name: "admin-broadcasts",
           component: () => import("@/views/AdminBroadcasts.vue"),
-          meta: { title: "Кастомные рассылки", requiresPermission: "notifications.broadcast" },
+          meta: { title: i18nKey("Кастомные рассылки"), requiresPermission: "notifications.broadcast" },
         },
         // Catalogs — directions + consultants admin CRUD
         {
           path: "admin/catalogs",
           name: "admin-catalogs",
           component: () => import("@/views/admin/CatalogsPage.vue"),
-          meta: { title: "Каталоги · направления и консультанты", requiresPermission: "companies.edit" },
+          meta: { title: i18nKey("Каталоги · направления и консультанты"), requiresPermission: "companies.edit" },
         },
         // Storage backend admin (S3 / local) + smoke test
         {
           path: "admin/storage",
           name: "admin-storage",
           component: () => import("@/views/admin/StoragePage.vue"),
-          meta: { title: "Хранилище файлов", requiresPermission: "companies.edit" },
+          meta: { title: i18nKey("Хранилище файлов"), requiresPermission: "companies.edit" },
         },
         // API Catalog + Service Accounts + API keys
         {
           path: "admin/api",
           name: "admin-api",
           component: () => import("@/views/ApiCatalog.vue"),
-          meta: { title: "API & Интеграции", requiresPermission: "api_catalog.read" },
+          meta: { title: i18nKey("API & Интеграции"), requiresPermission: "api_catalog.read" },
         },
         {
           path: "boards",
           name: "boards",
           component: () => import("@/views/Boards.vue"),
-          meta: { title: "Доски", requiresPermission: "tasks.view" },
+          meta: { title: i18nKey("Доски"), requiresPermission: "tasks.view" },
         },
         {
           path: "board/:id",
           name: "board-kanban",
           component: () => import("@/views/BoardKanban.vue"),
-          meta: { title: "Доска", requiresPermission: "tasks.view" },
+          meta: { title: i18nKey("Доска"), requiresPermission: "tasks.view" },
           props: true,
         },
         {
           path: "projects",
           name: "projects",
           component: () => import("@/views/Projects.vue"),
-          meta: { title: "Проекты", requiresPermission: "tasks.view" },
+          meta: { title: i18nKey("Проекты"), requiresPermission: "tasks.view" },
         },
         {
           path: "followed",
           name: "followed",
           component: () => import("@/views/FollowedView.vue"),
-          meta: { title: "Отслеживаемое", requiresPermission: "tasks.view" },
+          meta: { title: i18nKey("Отслеживаемое"), requiresPermission: "tasks.view" },
         },
         {
           path: "calendar",
           name: "calendar",
           component: () => import("@/views/CalendarView.vue"),
-          meta: { title: "Календарь", requiresPermission: "tasks.view" },
+          meta: { title: i18nKey("Календарь"), requiresPermission: "tasks.view" },
         },
         {
           path: "project-builder",
           name: "project-builder",
           component: () => import("@/views/ProjectBuilder.vue"),
-          meta: { title: "Конструктор задач", requiresPermission: "tasks.edit" },
+          meta: { title: i18nKey("Конструктор задач"), requiresPermission: "tasks.edit" },
         },
         // Deep-link: уведомления/боты шлют /tasks/{id} и /projects/{id}. Отдельной
         // страницы /tasks больше нет — задачи открываются глобальной модалкой
@@ -367,7 +349,7 @@ const router = createRouter({
           path: "financials",
           name: "financials",
           component: () => import("@/views/Financials.vue"),
-          meta: { title: "Финансы", requiresPermission: "financials.view" },
+          meta: { title: i18nKey("Финансы"), requiresPermission: "financials.view" },
         },
         {
           path: "soe-health",
@@ -382,19 +364,19 @@ const router = createRouter({
           component: () => import("@/views/UnitCostDashboard.vue"),
           // Собственное право: нормы расхода и себестоимость — отдельный доступ
           // от финансовой отчётности (её могут не давать, а себестоимость — да).
-          meta: { title: "Удельная себестоимость", requiresPermission: "unit_cost.view" },
+          meta: { title: i18nKey("Удельная себестоимость"), requiresPermission: "unit_cost.view" },
         },
         {
           path: "financials-edit/nsbu",
           name: "financials-edit-nsbu",
           component: () => import("@/views/NsbuEditor.vue"),
-          meta: { title: "Финансы — НСБУ редактор", requiresPermission: "financials.edit" },
+          meta: { title: i18nKey("Финансы — НСБУ редактор"), requiresPermission: "financials.edit" },
         },
         {
           path: "financials-edit/ifrs",
           name: "financials-edit-ifrs",
           component: () => import("@/views/IfrsEditor.vue"),
-          meta: { title: "Финансы — МСФО редактор", requiresPermission: "financials.edit" },
+          meta: { title: i18nKey("Финансы — МСФО редактор"), requiresPermission: "financials.edit" },
         },
         // FinModel — единая глобальная страница, company/year выбираются в топбаре.
         {
@@ -405,7 +387,7 @@ const router = createRouter({
           // Локальный модуль удалён (был мёртвым кодом); beforeEnter редиректит
           // на внешний дашборд, компонент никогда не монтируется.
           component: { render: () => null },
-          meta: { title: "Финансовая модель", requiresPermission: "finmodel.view" },
+          meta: { title: i18nKey("Финансовая модель"), requiresPermission: "finmodel.view" },
           beforeEnter: (_to, _from, next) => {
             window.location.assign(
               "https://dashboard.uz-assets.uz/soe-dashboard/finmodel-3?currency=UZS&unit=B&modelId=50&sector=mining&company=org-33",
@@ -417,7 +399,7 @@ const router = createRouter({
           path: "business-plan",
           name: "business-plan",
           component: () => import("@/views/BusinessPlan.vue"),
-          meta: { title: "Бизнес-план", requiresPermission: "bp.view" },
+          meta: { title: i18nKey("Бизнес-план"), requiresPermission: "bp.view" },
         },
         {
           // Temp external redirect per user request 2026-05-23.
@@ -427,7 +409,7 @@ const router = createRouter({
           // Локальный модуль удалён (был мёртвым кодом); beforeEnter редиректит
           // на внешний дашборд, компонент никогда не монтируется.
           component: { render: () => null },
-          meta: { title: "Кредитный портфель", requiresPermission: "credit.view" },
+          meta: { title: i18nKey("Кредитный портфель"), requiresPermission: "credit.view" },
           beforeEnter: (_to, _from, next) => {
             // assign() (push), не replace() — так current history entry
             // (тот dashboard с которого пришли) сохраняется, и Back в
@@ -449,7 +431,7 @@ const router = createRouter({
           // Локальный модуль удалён (был мёртвым кодом); beforeEnter редиректит
           // на внешний дашборд, компонент никогда не монтируется.
           component: { render: () => null },
-          meta: { title: "Инвест-проекты", requiresPermission: "investment.view" },
+          meta: { title: i18nKey("Инвест-проекты"), requiresPermission: "investment.view" },
           beforeEnter: (_to, _from, next) => {
             // assign() (push) — оставляет current entry в history,
             // чтобы Back в браузере возвращал на dashboard.
@@ -472,7 +454,7 @@ const router = createRouter({
           // 2026-05-26: добавлен requiresPermission — раньше sidebar гейтил
           // через `v-if="can('consultants.view')"`, а роут — нет → юзер мог
           // зайти по прямой ссылке /consultants и увидеть пустой UI shell.
-          meta: { title: "Консультанты", requiresPermission: "consultants.view" },
+          meta: { title: i18nKey("Консультанты"), requiresPermission: "consultants.view" },
         },
         {
           path: "procurement/analysis",
@@ -481,14 +463,14 @@ const router = createRouter({
           // Право procurement_analysis.view существовало в каталоге, но нигде не
           // проверялось — экран открывался чужим procurement.view (форензик).
           // Теперь анализ закупок гейтится своим правом.
-          meta: { title: "Анализ закупочной деятельности", requiresPermission: "procurement_analysis.view" },
+          meta: { title: i18nKey("Анализ закупочной деятельности"), requiresPermission: "procurement_analysis.view" },
         },
         // Added with merged bundle: ESG + Corporate Governance modules.
         {
           path: "governance",
           name: "governance",
           component: () => import("@/views/Governance.vue"),
-          meta: { title: "Корпоративное управление", requiresPermission: "governance.view" },
+          meta: { title: i18nKey("Корпоративное управление"), requiresPermission: "governance.view" },
         },
         {
           path: "esg",
@@ -500,7 +482,7 @@ const router = createRouter({
           path: "ai-chat",
           name: "ai-chat",
           component: () => import("@/views/AiChat.vue"),
-          meta: { title: "ИИ-ассистент", requiresPermission: "ai.view" },
+          meta: { title: i18nKey("ИИ-ассистент"), requiresPermission: "ai.view" },
         },
         // RBAC v1/v2 removed — redirect to v3
         {

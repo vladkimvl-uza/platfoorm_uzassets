@@ -7,7 +7,7 @@
       :class="{ 'is-active': panelOpen, 'is-thinking': chat.isStreaming.value, 'is-disabled': noAccess }"
       type="button"
       :title="fabTitle"
-      :aria-label="fabAriaLabel"
+      :aria-label="t(fabAriaLabel)"
       @click="togglePanel"
     >
       <span class="ai-bubble-fab-text">AI</span>

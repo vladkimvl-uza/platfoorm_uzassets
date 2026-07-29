@@ -158,7 +158,7 @@
       :company-id="drill.companyId"
       :company-name="drill.companyName"
       :sector-code="drill.sectorCode"
-      :sector-label="drill.sectorLabel"
+      :sector-label="drill.sectorLabel ? t(drill.sectorLabel) : undefined"
       :line-key="drill.lineKey"
       :summary="state.summary.value"
       :year="state.selectedYear.value"
@@ -265,16 +265,18 @@ const yearOpts = computed(() => state.availableYears.value.map((y) => ({ value: 
 useAiPageContext({
   key: "business-plan",
   label: t("Бизнес-план"),
-  describeState: () => `Линза: ${lens.value === "all" ? "все статьи" : lens.value === "income" ? "только доходы" : "только расходы"}`,
+  describeState: () => t("Линза: {lens}", {
+    lens: lens.value === "all" ? t("все статьи") : lens.value === "income" ? t("только доходы") : t("только расходы"),
+  }),
   quickActions: [
     { label: t("План vs Факт по портфелю"),
-      prompt: "Сравни план и факт BP по портфелю за текущий год. Где наибольшие отклонения? Используй get_business_plan для топ-3 компаний." },
+      prompt: t("Сравни план и факт BP по портфелю за текущий год. Где наибольшие отклонения? Используй get_business_plan для топ-3 компаний.") },
     { label: t("Где провал?"),
-      prompt: "Найди компании где выполнение BP сильно отстаёт от плана (< 80%). Объясни причины через комментарии. search_comments для контекста." },
+      prompt: t("Найди компании, где выполнение BP сильно отстаёт от плана (< 80%). Объясни причины через комментарии. Используй search_comments для контекста.") },
     { label: t("Сравни 2025 vs 2026"),
-      prompt: "Сравни BP по revenue 2025 vs 2026 — используй compare_companies(metric=task_completion_2026) + get_business_plan для деталей." },
+      prompt: t("Сравни BP по revenue 2025 vs 2026. Используй compare_companies(metric=task_completion_2026) + get_business_plan для деталей.") },
     { label: t("Сводка расходов"),
-      prompt: "Дай сводку портфельных расходов: топ статьи opExpenses/COGS/finCost по году. Где экономия, где перерасход?" },
+      prompt: t("Дай сводку портфельных расходов: топ статей opExpenses/COGS/finCost по году. Где экономия, где перерасход?") },
   ],
 });
 

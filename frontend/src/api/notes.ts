@@ -3,17 +3,18 @@
  * Backend: /backend/app/api/routes/notes.py
  */
 import { api } from "./client";
+import { i18nKey } from "@/locale/keys";
 
 export type NoteKind = "event" | "decision" | "task" | "risk" | "observation";
 
 export const NOTE_KINDS: NoteKind[] = ["event", "decision", "task", "risk", "observation"];
 
 export const NOTE_KIND_LABELS: Record<NoteKind, string> = {
-  event: "Событие",
-  decision: "Решение",
-  task: "Задача",
-  risk: "Риск",
-  observation: "Наблюдение",
+  event: i18nKey("Событие"),
+  decision: i18nKey("Решение"),
+  task: i18nKey("Задача"),
+  risk: i18nKey("Риск"),
+  observation: i18nKey("Наблюдение"),
 };
 
 export const NOTE_KIND_COLORS: Record<NoteKind, string> = {
@@ -35,19 +36,19 @@ export const NOTE_KIND_ICONS: Record<NoteKind, string> = {
 export type LinkEntityType = "project" | "task" | "kpi_indicator" | "kpi_manager" | "esg_issue" | "esg_metric" | "board_member" | "loan" | "consultant" | "bp_metric" | "financial_line" | "procurement_contract" | "rating";
 
 export const LINK_ENTITY_LABELS: Record<LinkEntityType, string> = {
-  project: "Проект",
-  task: "Задача",
-  kpi_indicator: "KPI индикатор",
-  kpi_manager: "KPI руководитель",
-  esg_issue: "ESG issue",
-  esg_metric: "ESG метрика",
-  board_member: "Член совета",
-  loan: "Кредит",
-  consultant: "Консультант",
-  bp_metric: "Бизнес-план",
-  financial_line: "Фин. строка",
-  procurement_contract: "Закупка",
-  rating: "Рейтинг",
+  project: i18nKey("Проект"),
+  task: i18nKey("Задача"),
+  kpi_indicator: i18nKey("KPI индикатор"),
+  kpi_manager: i18nKey("KPI руководитель"),
+  esg_issue: i18nKey("ESG issue"),
+  esg_metric: i18nKey("ESG метрика"),
+  board_member: i18nKey("Член совета"),
+  loan: i18nKey("Кредит"),
+  consultant: i18nKey("Консультант"),
+  bp_metric: i18nKey("Бизнес-план"),
+  financial_line: i18nKey("Фин. строка"),
+  procurement_contract: i18nKey("Закупка"),
+  rating: i18nKey("Рейтинг"),
 };
 
 export interface NoteLink {

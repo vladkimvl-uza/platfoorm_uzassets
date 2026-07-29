@@ -7,6 +7,7 @@
 import { computed } from "vue";
 import ModalShell from "@/components/ModalShell.vue";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
 
 const { t } = useI18n();
 
@@ -48,11 +49,11 @@ function pctColor(p: number | null): string {
 const fillPct = computed(() => Math.max(0, Math.min(140, pct.value ?? 0)));
 const tone = computed(() => {
   const p = pct.value;
-  if (p == null) return { c: "#94A3B8", bg: "rgba(148,163,184,.14)", t: "нет факта" };
-  if (p >= 110) return { c: "#1D9E75", bg: "rgba(29,158,117,.12)", t: "план перевыполнен" };
-  if (p >= 100) return { c: "#1D9E75", bg: "rgba(29,158,117,.12)", t: "план выполнен" };
-  if (p >= 80) return { c: "#A36500", bg: "rgba(239,159,39,.14)", t: "требует внимания" };
-  return { c: "#C5352F", bg: "rgba(226,75,74,.12)", t: "недобор" };
+  if (p == null) return { c: "#94A3B8", bg: "rgba(148,163,184,.14)", t: i18nKey("нет факта") };
+  if (p >= 110) return { c: "#1D9E75", bg: "rgba(29,158,117,.12)", t: i18nKey("план перевыполнен") };
+  if (p >= 100) return { c: "#1D9E75", bg: "rgba(29,158,117,.12)", t: i18nKey("план выполнен") };
+  if (p >= 80) return { c: "#A36500", bg: "rgba(239,159,39,.14)", t: i18nKey("требует внимания") };
+  return { c: "#C5352F", bg: "rgba(226,75,74,.12)", t: i18nKey("недобор") };
 });
 </script>
 
@@ -62,7 +63,7 @@ const tone = computed(() => {
       <div class="bqd-hd">
         <span class="bqd-q">{{ q.toUpperCase() }}</span>
         <div>
-          <div class="bqd-t">{{ t("Разбор квартала") }}<span v-if="label"> · {{ label }}</span></div>
+          <div class="bqd-t">{{ t("Разбор квартала") }}<span v-if="label"> · {{ t(label) }}</span></div>
           <div class="bqd-sub" :style="{ color: tone.c }">{{ t(tone.t) }}</div>
         </div>
         <span v-if="pct != null" class="bqd-badge" :style="{ color: tone.c, background: tone.bg }">{{ pct }}%</span>

@@ -26,6 +26,8 @@ import { useFormatters } from "@/composables/useFormatters";
 import { useNumberTween } from "@/composables/useNumberTween";
 import BusinessPlanDrillModal, { type BpKind } from "@/components/UZA/BusinessPlanDrillModal.vue";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 
 const { t } = useI18n();
 
@@ -44,15 +46,15 @@ const tBehind    = useNumberTween(() => Number(block.value?.behind) || 0, { dura
 const rows = computed(() => block.value?.rows || []);
 
 const METRIC_TITLES: Record<string, string> = {
-  revenue: "Выручка",
+  revenue: i18nKey("Выручка"),
   ebitda: "EBITDA",
-  profit: "Прибыль",
+  profit: i18nKey("Прибыль"),
 };
 
 const METRIC_LABELS: Record<string, string> = {
-  revenue: "выручки",
+  revenue: i18nKey("выручки"),
   ebitda: "EBITDA",
-  profit: "чистой прибыли",
+  profit: i18nKey("чистой прибыли"),
 };
 
 const activeMetric = ref<string>("revenue");
@@ -89,7 +91,7 @@ function setPeriod(p: string): void {
 }
 
 const PERIOD_TABS: { key: string; label: string }[] = [
-  { key: "annual", label: "Год" },
+  { key: "annual", label: i18nKey("Год") },
   { key: "q1", label: "Q1" },
   { key: "q2", label: "Q2" },
   { key: "q3", label: "Q3" },
@@ -168,7 +170,7 @@ const hero = computed<Hero | null>(() => {
     const v = b.overall_delta ?? 0;
     bigVal = v >= 0 ? "+" + fmtNum(v) : fmtNum(v);
     bigUnit = "";  // fmtNum уже включает единицу (млрд/трлн)
-    const positiveSignedLabels = ["выход из убытка", "убыток сокращён", "значительный рост", "план перевыполнен"];
+    const positiveSignedLabels: readonly string[] = [i18nKey("выход из убытка"), i18nKey("убыток сокращён"), i18nKey("значительный рост"), i18nKey("план перевыполнен")];
     bigColor = positiveSignedLabels.includes(b.overall_label) ? "#5DC093" : "#E2807F";
   }
 
@@ -564,7 +566,7 @@ function tooltipFor(b: RenderBar): string {
               font-family="Geist, system-ui, sans-serif"
             >
               <title>{{ b.labelFull }}</title>
-              {{ b.label }}
+              {{ t(b.label) }}
             </text>
 
             <!-- Company name -->

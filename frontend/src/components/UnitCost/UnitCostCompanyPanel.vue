@@ -12,6 +12,8 @@ import CreditDonut, { type DonutEntry } from "@/components/CreditPortfolio/Credi
 import MentionableTextarea from "@/components/MentionableTextarea.vue";
 import { unitCostApi, FUELS, type UCCompany, type UCPrices, type UCWorld,
          type EditProduct, type EditImport, type EditComment } from "@/api/unitCost";
+import { i18nKey } from "@/locale/keys";
+
 
 const props = withDefaults(defineProps<{
   company: UCCompany | null;
@@ -25,7 +27,7 @@ const toast = useToast();
 const { t } = useI18n();
 
 const FUEL_UNIT: Record<string, string> = {
-  electricity: "кВт·ч/ед", gas: "м³/ед", diesel: "т/ед", mazut: "т/ед", coal: "т/ед", kerosene: "т/ед",
+  electricity: i18nKey("кВт·ч/ед"), gas: i18nKey("м³/ед"), diesel: i18nKey("т/ед"), mazut: i18nKey("т/ед"), coal: i18nKey("т/ед"), kerosene: i18nKey("т/ед"),
 };
 const FUEL_COLOR: Record<string, string> = {
   electricity: "#EF9F27", gas: "#378ADD", diesel: "#E24B4A", mazut: "#8B7FFF", coal: "#4B5468", kerosene: "#1D9E75",
@@ -109,7 +111,7 @@ function fmtDate(iso?: string): string {
 }
 function importCost(it: EditImport): number { return num(it.usd) * usdRate.value * num(it.qty); }
 const importTotal = computed(() => imports.value.reduce((s, it) => s + importCost(it), 0));
-function addImport() { imports.value.push({ name: "", unit: "т", usd: 0, qty: 0 }); }
+function addImport() { imports.value.push({ name: "", unit: t("т"), usd: 0, qty: 0 }); }
 function removeImport(i: number) { imports.value.splice(i, 1); }
 
 function calc(p: EditProduct) {
@@ -181,8 +183,8 @@ function toggle(i: number) { expanded.value = expanded.value === i ? null : i; }
 function addComponent(p: EditProduct) { p.components.push({ name: "", value: 0 }); }
 function removeComponent(p: EditProduct, i: number) { p.components.splice(i, 1); }
 function addProduct() {
-  draft.value.push({ name: "Новый продукт", unit: "ед.", output: 0, energy: {}, norm: {},
-    components: [{ name: "Сырьё и материалы", value: 0 }, { name: "Оплата труда", value: 0 }] });
+  draft.value.push({ name: t("Новый продукт"), unit: t("ед."), output: 0, energy: {}, norm: {},
+    components: [{ name: t("Сырьё и материалы"), value: 0 }, { name: t("Оплата труда"), value: 0 }] });
   expanded.value = draft.value.length - 1;
 }
 function removeProduct(i: number) {

@@ -16,6 +16,7 @@ import { ref, computed } from "vue";
 import { companiesApi } from "@/api/companies";
 import { companyDisplayName, sectorDisplayName } from "@/utils/displayNames";
 import { usePortfolioYearStore } from "@/stores/portfolioYear";
+import { t } from "@/locale/i18n";
 
 // ─── Lightweight types (resilient to backend shape variations) ───
 interface CompanyLite {
@@ -113,7 +114,7 @@ export const useCompaniesStore = defineStore("companies", () => {
       sectors.value   = (resp as any).sectors || [];
       loaded.value    = true;
     } catch (e: any) {
-      error.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить компании";
+      error.value = e?.response?.data?.detail || e?.message || t("Не удалось загрузить компании");
       console.warn("[companies store] fetch failed:", e);
     } finally {
       loading.value = false;
@@ -153,7 +154,7 @@ export const useCompaniesStore = defineStore("companies", () => {
           sector: {
             ...(meta || {}),
             code: key,
-            name_ru: meta?.name_ru || c.sector_name || (key === "_none" ? "Без сектора" : key),
+        name_ru: meta?.name_ru || c.sector_name || (key === "_none" ? t("Без сектора") : key),
             color,
           },
           companies: [],

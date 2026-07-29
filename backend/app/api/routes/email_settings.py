@@ -14,6 +14,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
+from app.core.i18n import current_locale, locale_of_user, tr
 from app.core.security import has_effective_permission
 from app.models.user import User
 from app.services.email.runtime_config import masked_view, save_to_db
@@ -71,18 +72,23 @@ async def send_test_email(
 ):
     """Отправить тестовое письмо на email текущего администратора."""
     await _require_admin(db, user)
+    locale = locale_of_user(user)
     ok = await send_generic_email(
         to=user.email,
-        eyebrow="Проверка",
-        title="Тестовое письмо UzAssets",
+        eyebrow=tr("Проверка", locale),
+        title=tr("Тестовое письмо UzAssets", locale),
         body_lines=[
-            "Это тестовое письмо из интерфейса настройки почты.",
-            "Если вы его получили — SMTP настроен корректно, уведомления будут доставляться.",
+            tr("Это тестовое письмо из интерфейса настройки почты.", locale),
+            tr("Если вы его получили — SMTP настроен корректно, уведомления будут доставляться.", locale),
         ],
+        locale=locale,
     )
     if not ok:
         raise HTTPException(
             http_status.HTTP_400_BAD_REQUEST,
-            "Не удалось отправить письмо. Проверьте, что SMTP включён и параметры верны (детали — в логах backend).",
+            tr(
+                "Не удалось отправить письмо. Проверьте, что SMTP включён и параметры верны (детали — в логах backend).",
+                current_locale(),
+            ),
         )
     return {"sent": True, "to": user.email}

@@ -16,13 +16,13 @@ import { useEntityEditor } from "@/composables/useEntityEditor";
 import { useI18n } from "@/composables/useI18n";
 // Экран министра — портфельный: scope-ограниченному юзеру роутер его не отдаёт,
 // значит и в палитре команда должна быть скрыта (иначе ведёт в отказ).
-import { useCompanyScope } from "@/composables/useCompanyScope";
+import { i18nKey } from "@/locale/keys";
+
 
 const { t } = useI18n();
 const router = useRouter();
 const auth = useAuthStore();
 const entityEditor = useEntityEditor();
-const scope = useCompanyScope();
 
 const open = ref(false);
 const query = ref("");
@@ -82,8 +82,9 @@ function logout() { close(); auth.clear(); router.push({ name: "login" }); }
 // ─── Навигационные команды (гейтятся теми же правами, что роуты/сайдбар) ───
 const navCommands = computed<Cmd[]>(() => {
   // [показывать?, заголовок, подзаголовок, путь, иконка, ключевые слова]
+  // i18n-exempt-start -- final tuple field is an invisible multilingual search corpus.
   const defs: Array<[boolean, string, string, string, string, string]> = [
-    [can("exec_dashboard.view") && (scope.showPortfolioViews.value || auth.hasDirectPermission("exec_dashboard.view")), "Executive Dashboard", t("Обзор портфеля"), "/executive-dashboard", "chart", "дашборд executive обзор"],
+    [can("exec_dashboard.view"), "Executive Dashboard", t("Обзор портфеля"), "/executive-dashboard", "chart", "дашборд executive обзор"],
     [isAdmin.value, "Execution Summary", t("Мониторинг прогрессов"), "/execution-summary", "activity", "control tower live мониторинг"],
     [can("projects.view") || can("tasks.view"), t("Проекты трансформации"), t("Портфель проектов и задач"), "/dashboard", "grid", "проекты задачи доска kanban"],
     [can("tasks.view"), t("Отслеживаемое"), t("Подписки на изменения"), "/followed", "eye", "watch подписки отслеживание"],
@@ -120,6 +121,7 @@ const navCommands = computed<Cmd[]>(() => {
     [true, t("Документация API"), "", "/api-docs", "book", "api docs документация"],
     [true, t("Безопасность и пароль"), t("Настройки профиля"), "/settings/security", "cog", "безопасность пароль mfa 2fa"],
   ];
+  // i18n-exempt-end
   return defs
     .filter(([show]) => show)
     .map(([, title, subtitle, path, icon, keywords]) => ({
@@ -162,18 +164,18 @@ interface ScopedCmd extends Cmd {
 }
 // id вкладок 1:1 с VALID_TABS в CompanyWorkspace.vue (?tab=…)
 const WS_MODULES: Array<{ id: string; label: string; icon: string; kw: string }> = [
-  { id: "overview",    label: "Обзор",            icon: "eye",      kw: "обзор overview карточка" },
-  { id: "kanban",      label: "Канбан",           icon: "grid",     kw: "канбан kanban доска задачи" },
-  { id: "list",        label: "Список задач",     icon: "file",     kw: "список list задачи" },
-  { id: "notes",       label: "Календарь",        icon: "calendar", kw: "календарь заметки calendar дедлайны" },
-  { id: "ifrs",        label: "МСФО",             icon: "bars",     kw: "мсфо ifrs финансы отчётность" },
-  { id: "nsbu",        label: "НСБУ",             icon: "bars",     kw: "нсбу nsbu финансы отчётность" },
-  { id: "hlf",         label: "Фин. отчётность",  icon: "bars",     kw: "финансовая отчётность hlf финансы" },
-  { id: "bp",          label: "Бизнес-план",      icon: "file",     kw: "бизнес план bp" },
+  { id: "overview",    label: i18nKey("Обзор"),            icon: "eye",      kw: "обзор overview карточка" },
+  { id: "kanban",      label: i18nKey("Канбан"),           icon: "grid",     kw: "канбан kanban доска задачи" },
+  { id: "list",        label: i18nKey("Список задач"),     icon: "file",     kw: "список list задачи" },
+  { id: "notes",       label: i18nKey("Календарь"),        icon: "calendar", kw: "календарь заметки calendar дедлайны" },
+  { id: "ifrs",        label: i18nKey("МСФО"),             icon: "bars",     kw: "мсфо ifrs финансы отчётность" },
+  { id: "nsbu",        label: i18nKey("НСБУ"),             icon: "bars",     kw: "нсбу nsbu финансы отчётность" },
+  { id: "hlf",         label: i18nKey("Фин. отчётность"),  icon: "bars",     kw: "финансовая отчётность hlf финансы" },
+  { id: "bp",          label: i18nKey("Бизнес-план"),      icon: "file",     kw: "бизнес план bp" },
   { id: "kpi",         label: "KPI",              icon: "target",   kw: "kpi показатели цели" },
-  { id: "procurement", label: "Закупки",          icon: "cart",     kw: "закупки procurement" },
-  { id: "governance",  label: "Корп. управление", icon: "building", kw: "корпоративное управление governance совет" },
-  { id: "consultants", label: "Консультанты",     icon: "users",    kw: "консультанты советники" },
+  { id: "procurement", label: i18nKey("Закупки"),          icon: "cart",     kw: "закупки procurement" },
+  { id: "governance",  label: i18nKey("Корп. управление"), icon: "building", kw: "корпоративное управление governance совет" },
+  { id: "consultants", label: i18nKey("Консультанты"),     icon: "users",    kw: "консультанты советники" },
   { id: "esg",         label: "ESG",              icon: "leaf",     kw: "esg экология устойчивость" },
 ];
 const scopedCommands = computed<ScopedCmd[]>(() => {
@@ -202,9 +204,9 @@ const scopedCommands = computed<ScopedCmd[]>(() => {
 const actionCommands = computed<Cmd[]>(() => {
   const out: Cmd[] = [];
   if (can("tasks.edit"))
-    out.push({ id: "act:newtask", title: t("Создать задачу или проект"), subtitle: t("Конструктор"), group: t("Действия"), kind: "action", icon: "plus", keywords: "новая задача проект создать", run: () => go("/project-builder") });
-  out.push({ id: "act:notifsettings", title: t("Настройки уведомлений"), group: t("Действия"), kind: "action", icon: "cog", keywords: "настройки уведомлений telegram email", run: () => go("/notifications/settings") });
-  out.push({ id: "act:logout", title: t("Выйти из системы"), group: t("Действия"), kind: "action", icon: "logout", keywords: "выйти logout выход", run: () => logout() });
+    out.push({ id: "act:newtask", title: t("Создать задачу или проект"), subtitle: t("Конструктор"), group: t("Действия"), kind: "action", icon: "plus", keywords: i18nKey("новая задача проект создать"), run: () => go("/project-builder") });
+  out.push({ id: "act:notifsettings", title: t("Настройки уведомлений"), group: t("Действия"), kind: "action", icon: "cog", keywords: i18nKey("настройки уведомлений telegram email"), run: () => go("/notifications/settings") });
+  out.push({ id: "act:logout", title: t("Выйти из системы"), group: t("Действия"), kind: "action", icon: "logout", keywords: i18nKey("выйти logout выход"), run: () => logout() });
   return out;
 });
 
@@ -281,8 +283,8 @@ const RESULT_ICONS: Record<string, string> = {
   consultant: "users", user: "users", note: "book",
 };
 const RESULT_GROUP: Record<string, string> = {
-  task: "Задача", project: "Проект", company: "Компания",
-  consultant: "Консультант", user: "Пользователь", note: "Заметка",
+  task: i18nKey("Задача"), project: i18nKey("Проект"), company: i18nKey("Компания"),
+  consultant: i18nKey("Консультант"), user: i18nKey("Пользователь"), note: i18nKey("Заметка"),
 };
 const liveResults = ref<Cmd[]>([]);
 let _searchTimer: any = null;

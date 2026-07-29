@@ -76,15 +76,15 @@ function _resizeToDataUrl(file: File): Promise<string> {
 async function onPhotoPick(ev: Event) {
   const file = (ev.target as HTMLInputElement).files?.[0];
   if (!file) return;
-  if (!file.type.startsWith("image/")) { err.value = "Выберите изображение"; return; }
+  if (!file.type.startsWith("image/")) { err.value = t('Выберите изображение'); return; }
   uploadingPhoto.value = true; err.value = null; ok.value = null;
   try {
     const dataUrl = await _resizeToDataUrl(file);
     auth.setUser(await authApi.updateMe({ avatar_url: dataUrl }));
-    ok.value = "Фото обновлено";
+    ok.value = t("Фото обновлено");
     setTimeout(() => { ok.value = null; }, 2000);
   } catch (e: any) {
-    err.value = e?.response?.data?.detail || "Не удалось загрузить фото";
+    err.value = e?.response?.data?.detail || t('Не удалось загрузить фото');
   } finally {
     uploadingPhoto.value = false;
     if (fileInput.value) fileInput.value.value = "";
@@ -94,7 +94,7 @@ async function onPhotoPick(ev: Event) {
 async function removePhoto() {
   uploadingPhoto.value = true; err.value = null;
   try { auth.setUser(await authApi.updateMe({ avatar_url: "" })); }
-  catch (e: any) { err.value = e?.response?.data?.detail || "Ошибка"; }
+  catch (e: any) { err.value = e?.response?.data?.detail || t('Ошибка'); }
   finally { uploadingPhoto.value = false; }
 }
 
@@ -123,10 +123,10 @@ async function saveProfile() {
     if (!orgLocked.value && form.organization_id) payload.organization_id = form.organization_id;
     const updated = await authApi.updateMe(payload);
     auth.setUser(updated);
-    ok.value = "Профиль сохранён";
+    ok.value = t("Профиль сохранён");
     setTimeout(() => { ok.value = null; }, 2200);
   } catch (e: any) {
-    err.value = e?.response?.data?.detail || "Не удалось сохранить";
+    err.value = e?.response?.data?.detail || t('Не удалось сохранить');
   } finally { saving.value = false; }
 }
 
@@ -139,15 +139,15 @@ function forgotFromProfile() {
 const pwd = reactive({ current: "", next: "", confirm: "" });
 async function changePassword() {
   err.value = null; ok.value = null;
-  if (pwd.next.length < 12) { err.value = "Новый пароль — минимум 12 символов"; return; }
-  if (pwd.next !== pwd.confirm) { err.value = "Пароли не совпадают"; return; }
+  if (pwd.next.length < 12) { err.value = t('Новый пароль — минимум 12 символов'); return; }
+  if (pwd.next !== pwd.confirm) { err.value = t('Пароли не совпадают'); return; }
   saving.value = true;
   try {
     await authApi.changePassword(pwd.current, pwd.next);
-    ok.value = "Пароль изменён. Другие сессии завершены.";
+    ok.value = t("Пароль изменён. Другие сессии завершены.");
     pwd.current = pwd.next = pwd.confirm = "";
   } catch (e: any) {
-    err.value = e?.response?.data?.detail || "Не удалось сменить пароль";
+    err.value = e?.response?.data?.detail || t('Не удалось сменить пароль');
   } finally { saving.value = false; }
 }
 
@@ -183,7 +183,7 @@ function goSecurity() { emit("close"); router.push("/settings/security"); }
               :linkedin="u?.linkedin_url" :website="u?.website_url" :telegram="u?.telegram_username"
             />
             <div class="up-photo-acts">
-              <button class="up-mini" :disabled="uploadingPhoto" @click="fileInput?.click()">{{ uploadingPhoto ? 'загрузка…' : 'сменить фото' }}</button>
+              <button class="up-mini" :disabled="uploadingPhoto" @click="fileInput?.click()">{{ uploadingPhoto ? t('загрузка…') : t('сменить фото') }}</button>
               <button v-if="avatar" class="up-mini up-mini-del" :disabled="uploadingPhoto" @click="removePhoto">{{ t('удалить') }}</button>
             </div>
           </div>
@@ -218,7 +218,7 @@ function goSecurity() { emit("close"); router.push("/settings/security"); }
             <div v-else class="up-field">
               <span class="up-lbl">{{ t('Компания / сектор') }}</span>
               <div class="up-locked">
-                <span>{{ u?.company || 'Не указана' }}<template v-if="u?.sector"> · {{ u?.sector }}</template></span>
+                <span>{{ u?.company || t('Не указана') }}<template v-if="u?.sector"> · {{ u?.sector }}</template></span>
                 <span class="up-locked-ic" :title="t('Изменяет только администратор')"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
               </div>
             </div>
@@ -245,7 +245,7 @@ function goSecurity() { emit("close"); router.push("/settings/security"); }
             <span v-for="r in u.roles" :key="r" class="up-role">{{ r }}</span>
           </div>
           <div class="up-actions">
-            <button class="up-btn up-primary" :disabled="saving" @click="saveProfile">{{ saving ? 'Сохранение…' : 'Сохранить профиль' }}</button>
+            <button class="up-btn up-primary" :disabled="saving" @click="saveProfile">{{ saving ? t('Сохранение…') : t('Сохранить профиль') }}</button>
           </div>
         </template>
 
@@ -257,7 +257,7 @@ function goSecurity() { emit("close"); router.push("/settings/security"); }
           </div>
           <button class="up-forgot" type="button" @click="forgotFromProfile">{{ t('Не помню текущий пароль') }}</button>
           <div class="up-actions">
-            <button class="up-btn up-primary" :disabled="saving" @click="changePassword">{{ saving ? 'Сохранение…' : 'Сменить пароль' }}</button>
+            <button class="up-btn up-primary" :disabled="saving" @click="changePassword">{{ saving ? t('Сохранение…') : t('Сменить пароль') }}</button>
           </div>
         </template>
       </div>

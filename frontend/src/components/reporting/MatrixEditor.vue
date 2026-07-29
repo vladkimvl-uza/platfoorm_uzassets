@@ -17,6 +17,8 @@ import {
   type ManualProject,
 } from "@/api/overviewMatrix";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 const { t } = useI18n();
 
 
@@ -47,12 +49,12 @@ const saving = ref(false);
 const loadError = ref(false);   // сбой загрузки → НЕ давать сохранять (иначе затрём отчёт пустым)
 
 const QOPTS: { v: number | null; l: string }[] = [
-  { v: null, l: "авто (по сроку)" },
+  { v: null, l: i18nKey("авто (по сроку)") },
   { v: 0, l: "Q1" }, { v: 1, l: "Q2" }, { v: 2, l: "Q3" }, { v: 3, l: "Q4" },
 ];
 const QEND_OPTS: { v: number | null; l: string }[] = [
-  { v: null, l: "— один" },
-  { v: 0, l: "до Q1" }, { v: 1, l: "до Q2" }, { v: 2, l: "до Q3" }, { v: 3, l: "до Q4" },
+  { v: null, l: i18nKey("— один") },
+  { v: 0, l: i18nKey("до Q1") }, { v: 1, l: i18nKey("до Q2") }, { v: 2, l: i18nKey("до Q3") }, { v: 3, l: i18nKey("до Q4") },
 ];
 
 // Рабочее состояние ручного отчёта + сохранённый базовый конфиг (чтобы не затереть hidden/overrides/custom).
@@ -92,7 +94,7 @@ async function loadCfg() {
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
     loadError.value = true;
-    toast.error("Не удалось загрузить: " + (err?.response?.data?.detail || err?.message || "ошибка"));
+    toast.error(t('Не удалось загрузить: {value0}', { value0: (err?.response?.data?.detail || err?.message || t("ошибка")) }));
   } finally {
     loading.value = false;
   }
@@ -161,16 +163,16 @@ function buildConfig(): MatrixConfig {
 
 async function save() {
   if (saving.value) return;
-  if (loadError.value) { toast.error("Загрузка не удалась — сохранение заблокировано, чтобы не затереть отчёт. Нажмите «Повторить»."); return; }
+  if (loadError.value) { toast.error(t('Загрузка не удалась — сохранение заблокировано, чтобы не затереть отчёт. Нажмите «Повторить».')); return; }
   saving.value = true;
   try {
     const cfg = buildConfig();
     const r = await overviewMatrixApi.save(props.companyId, props.year, cfg);
-    toast.success("Отчёт сохранён");
+    toast.success(t('Отчёт сохранён'));
     emit("saved", props.companyId, r.config);
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    toast.error("Не удалось сохранить: " + (err?.response?.data?.detail || err?.message || "ошибка"));
+    toast.error(t('Не удалось сохранить: {value0}', { value0: (err?.response?.data?.detail || err?.message || t("ошибка")) }));
   } finally {
     saving.value = false;
   }
@@ -317,7 +319,7 @@ const ministerCount = computed(() =>
         <span class="mx-foot-note">{{ t('Печатается 1-в-1: статус-цвет в матрице и таблица «Детали проекта».') }}</span>
         <div class="mx-foot-btns">
           <button class="mx-btn-cancel" type="button" :disabled="saving" @click="emit('close')">{{ t('Отмена') }}</button>
-          <button class="mx-btn-save" type="button" :disabled="saving || loading || loadError" @click="save">{{ saving ? 'Сохранение…' : 'Сохранить отчёт' }}</button>
+          <button class="mx-btn-save" type="button" :disabled="saving || loading || loadError" @click="save">{{ saving ? t('Сохранение…') : t('Сохранить отчёт') }}</button>
         </div>
       </div>
     </template>

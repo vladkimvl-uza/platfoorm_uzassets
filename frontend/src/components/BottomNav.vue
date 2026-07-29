@@ -10,6 +10,8 @@ import { computed } from "vue";
 import { RouterLink, useRoute } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 
 const { t } = useI18n();
 const emit = defineEmits<{ (e: "menu"): void }>();
@@ -22,10 +24,10 @@ function can(code: string): boolean {
 
 const items = computed(() =>
   [
-    { to: "/dashboard", label: "Главная", icon: "home", show: true },
-    { to: "/library/companies", label: "Компании", icon: "building", show: can("companies.view") },
-    { to: "/projects", label: "Проекты", icon: "tasks", show: can("tasks.view") },
-    { to: "/ai-chat", label: "ИИ", icon: "ai", show: can("ai.view") },
+    { to: "/dashboard", label: i18nKey("Главная"), icon: "home", show: true },
+    { to: "/library/companies", label: i18nKey("Компании"), icon: "building", show: can("companies.view") },
+    { to: "/projects", label: i18nKey("Проекты"), icon: "tasks", show: can("tasks.view") },
+    { to: "/ai-chat", label: i18nKey("ИИ"), icon: "ai", show: can("ai.view") },
   ].filter((i) => i.show),
 );
 

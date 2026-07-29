@@ -17,6 +17,7 @@ from typing import Any, Optional
 from fastapi import HTTPException
 from fastapi import status as http_status
 
+from app.core.i18n import current_locale, tr
 from app.uow.ports import UnitOfWorkABC
 
 log = logging.getLogger(__name__)
@@ -330,7 +331,10 @@ class ProductionService:
         try:
             wb = openpyxl.load_workbook(io.BytesIO(raw_bytes), data_only=True)
         except Exception as e:
-            raise HTTPException(400, f"Не удалось разобрать xlsx: {e}")
+            raise HTTPException(
+                400,
+                tr("Не удалось разобрать xlsx: {error}", current_locale(), error=str(e)),
+            )
 
         async with self.uow:
             meta = await self.uow.production.companies_meta()

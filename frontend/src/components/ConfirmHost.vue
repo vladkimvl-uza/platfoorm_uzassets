@@ -5,6 +5,9 @@
  */
 import { ref, watch, nextTick } from "vue";
 import { useConfirmHost } from "@/composables/useConfirm";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const { current, resolveDialog } = useConfirmHost();
 
@@ -72,7 +75,7 @@ function onKeydown(e: KeyboardEvent) {
 
             <div class="uc-actions">
               <button class="uc-btn uc-btn-ghost" type="button" @click="onCancel">
-                {{ current.opts.cancelText || "Отмена" }}
+                {{ current.opts.cancelText || t('Отмена') }}
               </button>
               <button
                 ref="okBtn"
@@ -81,7 +84,7 @@ function onKeydown(e: KeyboardEvent) {
                 type="button"
                 @click="onConfirm"
               >
-                {{ current.opts.confirmText || (current.kind === "prompt" ? "OK" : "Подтвердить") }}
+                {{ current.opts.confirmText || (current.kind === "prompt" ? "OK" : t("Подтвердить")) }}
               </button>
             </div>
           </div>

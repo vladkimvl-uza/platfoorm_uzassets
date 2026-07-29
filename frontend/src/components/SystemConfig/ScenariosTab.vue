@@ -29,6 +29,11 @@ import { parseDecimal } from "@/utils/parseDecimal";
 import ModalShell from "@/components/ModalShell.vue";
 import type { ScenarioOverride } from "@/api/scenarios";
 import InfoTooltip from "./InfoTooltip.vue";
+import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
+const { t } = useI18n();
+
 
 const sc = useScenarios();
 const isAdmin = useIsAdmin();
@@ -79,8 +84,7 @@ onMounted(async () => {
   } catch (err: any) {
     errorMsg.value =
       err?.response?.data?.detail ||
-      err?.message ||
-      "Не удалось загрузить сценарии";
+      err?.message || t('Не удалось загрузить сценарии');
   }
 });
 
@@ -152,17 +156,17 @@ async function saveRow(year: number) {
   // Validate
   const parsed: Record<string, number | null> = {};
   const labels: Record<FieldKey, string> = {
-    inflation_pct: "инфляции",
-    cb_rate_pct: "ставки ЦБ",
-    gdp_growth_pct: "роста ВВП",
+    inflation_pct: i18nKey("инфляции"),
+    cb_rate_pct: i18nKey("ставки ЦБ"),
+    gdp_growth_pct: i18nKey("роста ВВП"),
     usd_rate: "USD",
     eur_rate: "EUR",
-    uz_budget_trln: "бюджета",
+    uz_budget_trln: i18nKey("бюджета"),
   };
   for (const f of ALL_FIELDS) {
     const v = parseDecimal(row[f]);
     if (row[f] !== "" && v === null) {
-      errorMsg.value = `Год ${year}: некорректное значение ${labels[f]}`;
+      errorMsg.value = t('Год {value0}: некорректное значение {value1}', { value0: year, value1: labels[f] });
       return;
     }
     parsed[f] = v;
@@ -180,15 +184,15 @@ async function saveRow(year: number) {
       uz_budget_trln: ov.uz_budget_trln != null ? String(ov.uz_budget_trln) : "",
       dirty: false,
     };
-    successMsg.value = `Год ${year}: сохранено`;
+    const message = t("Год {year}: сохранено", { year });
+    successMsg.value = message;
     setTimeout(() => {
-      if (successMsg.value?.includes(String(year))) successMsg.value = null;
+      if (successMsg.value === message) successMsg.value = null;
     }, 2500);
   } catch (err: any) {
     errorMsg.value =
       err?.response?.data?.detail ||
-      err?.message ||
-      "Сохранение не удалось";
+      err?.message || t('Сохранение не удалось');
   }
 }
 
@@ -230,15 +234,15 @@ async function clearYearOverride(year: number) {
       usd_rate: "", eur_rate: "", uz_budget_trln: "",
       dirty: false,
     };
-    successMsg.value = `Год ${year}: override очищен (вернулись к базе)`;
+    const message = t("Год {year}: override очищен (вернулись к базе)", { year });
+    successMsg.value = message;
     setTimeout(() => {
-      if (successMsg.value?.includes(String(year))) successMsg.value = null;
+      if (successMsg.value === message) successMsg.value = null;
     }, 2500);
   } catch (err: any) {
     errorMsg.value =
       err?.response?.data?.detail ||
-      err?.message ||
-      "Очистка не удалась";
+      err?.message || t('Очистка не удалась');
   }
 }
 
@@ -264,19 +268,19 @@ async function submitAdd() {
   const code = addForm.value.code.trim().toLowerCase();
   const name = addForm.value.name_ru.trim();
   if (!code) {
-    addError.value = "Код сценария обязателен (например custom_2030_plan)";
+    addError.value = t('Код сценария обязателен (например custom_2030_plan)');
     return;
   }
   if (!/^[a-z0-9_]+$/.test(code)) {
-    addError.value = "Код может содержать только латиницу, цифры и нижнее подчёркивание";
+    addError.value = t('Код может содержать только латиницу, цифры и нижнее подчёркивание');
     return;
   }
   if (!name) {
-    addError.value = "Название сценария обязательно";
+    addError.value = t('Название сценария обязательно');
     return;
   }
   if (sc.scenarios.value.some((s) => s.code === code)) {
-    addError.value = `Сценарий с кодом '${code}' уже существует`;
+    addError.value = t('Сценарий с кодом \'{value0}\' уже существует', { value0: code });
     return;
   }
   addSubmitting.value = true;
@@ -299,15 +303,15 @@ async function submitAdd() {
     }
     sc.setActiveId(created.id);
     addOpen.value = false;
-    successMsg.value = `Сценарий «${created.name_ru}» создан`;
+    const message = t("Сценарий «{name}» создан", { name: created.name_ru });
+    successMsg.value = message;
     setTimeout(() => {
-      if (successMsg.value?.includes("создан")) successMsg.value = null;
+      if (successMsg.value === message) successMsg.value = null;
     }, 2500);
   } catch (err: any) {
     addError.value =
       err?.response?.data?.detail ||
-      err?.message ||
-      "Создание не удалось";
+      err?.message || t('Создание не удалось');
   } finally {
     addSubmitting.value = false;
   }
@@ -325,15 +329,15 @@ async function doDelete() {
     await sc.remove(id);
     delete edits.value[id];
     confirmDeleteId.value = null;
-    successMsg.value = "Сценарий удалён";
+    const message = t("Сценарий удалён");
+    successMsg.value = message;
     setTimeout(() => {
-      if (successMsg.value?.includes("удалён")) successMsg.value = null;
+      if (successMsg.value === message) successMsg.value = null;
     }, 2500);
   } catch (err: any) {
     errorMsg.value =
       err?.response?.data?.detail ||
-      err?.message ||
-      "Удаление не удалось";
+      err?.message || t('Удаление не удалось');
   }
 }
 
@@ -358,29 +362,21 @@ function getOverride(id: string, year: number): ScenarioOverride | null {
     <div class="st-hdr">
       <div>
         <div class="st-eyebrow">
-          Системные константы
+          {{ t('Системные константы') }}
           <InfoTooltip placement="bottom" align="left">
-            <strong>Зачем это нужно?</strong><br>
-            Сценарии нужны чтобы посмотреть «<em>а что если</em>». Например:
-            «Что будет с EBITDA портфеля если инфляция упадёт до 7% а ВВП
-            вырастет на 8%?». Каждый сценарий — это набор предположений
-            о будущем, и платформа считает прогноз именно по этим предположениям.
+            <strong>{{ t('Зачем это нужно?') }}</strong><br>
+            {{ t('Сценарии нужны чтобы посмотреть «') }}<em>{{ t('а что если') }}</em>{{ t('». Например: «Что будет с EBITDA портфеля если инфляция упадёт до 7% а ВВП вырастет на 8%?». Каждый сценарий — это набор предположений о будущем, и платформа считает прогноз именно по этим предположениям.') }}
           </InfoTooltip>
         </div>
         <h1 class="st-title">
-          Сценарии и прогнозы
+          {{ t('Сценарии и прогнозы') }}
           <InfoTooltip placement="bottom" align="left" :width="320">
-            <strong>Только в этой вкладке</strong><br>
-            Сценарии работают изолированно — они не влияют на Финансы,
-            Tax-блок, EE/BP и главный дашборд. Эти блоки продолжают
-            показывать факт. Сценарии используются <em>только здесь</em>,
-            а в будущем — в прогнозах (Pack 7.43).
+            <strong>{{ t('Только в этой вкладке') }}</strong><br>
+            {{ t('Сценарии работают изолированно — они не влияют на Финансы, Tax-блок, EE/BP и главный дашборд. Эти блоки продолжают показывать факт. Сценарии используются') }} <em>{{ t('только здесь') }}</em>{{ t(', а в будущем — в прогнозах (Pack 7.43).') }}
           </InfoTooltip>
         </h1>
         <p class="st-sub">
-          Создавайте наборы предположений (сценарии) и задавайте по годам
-          альтернативные значения макропоказателей. Базовый сценарий — без
-          отклонений, использует факт.
+          {{ t('Создавайте наборы предположений (сценарии) и задавайте по годам альтернативные значения макропоказателей. Базовый сценарий — без отклонений, использует факт.') }}
         </p>
       </div>
       <button
@@ -390,7 +386,7 @@ function getOverride(id: string, year: number): ScenarioOverride | null {
         type="button"
       >
         <svg viewBox="0 0 14 14" class="st-svg" width="13" height="13"><path d="M7 3v8M3 7h8"/></svg>
-        Новый сценарий
+        {{ t('Новый сценарий') }}
       </button>
     </div>
 
@@ -398,29 +394,24 @@ function getOverride(id: string, year: number): ScenarioOverride | null {
     <div v-if="errorMsg" class="st-alert st-alert-bad">{{ errorMsg }}</div>
     <div v-if="successMsg" class="st-alert st-alert-good">{{ successMsg }}</div>
     <div v-if="!isAdmin" class="st-alert st-alert-info">
-      Просмотр доступен всем авторизованным пользователям. Редактировать
-      сценарии и значения может только администратор (<code>admin.users</code>).
+      {{ t('Просмотр доступен всем авторизованным пользователям. Редактировать сценарии и значения может только администратор (') }}<code>admin.users</code>).
     </div>
 
-    <div v-if="sc.loading.value" class="st-loading">Загрузка…</div>
+    <div v-if="sc.loading.value" class="st-loading">{{ t('Загрузка…') }}</div>
 
     <template v-else>
       <!-- Scenario picker -->
       <div class="st-sec-l">
         <span>
-          Сценарии
+          {{ t('Сценарии') }}
           <InfoTooltip placement="bottom" align="left">
-            <strong>Что такое сценарий?</strong><br>
-            Это набор предположений о будущем. Например, можно создать сценарий
-            «Снижение цен на нефть в 2026» — задать в нём низкие значения USD/UZS
-            и инфляции, и посмотреть как изменится прогноз портфеля.
+            <strong>{{ t('Что такое сценарий?') }}</strong><br>
+            {{ t('Это набор предположений о будущем. Например, можно создать сценарий «Снижение цен на нефть в 2026» — задать в нём низкие значения USD/UZS и инфляции, и посмотреть как изменится прогноз портфеля.') }}
             <br><br>
-            Базовый сценарий — без изменений, использует факт. Оптимистичный
-            и Пессимистичный — заранее заполнены типовыми отклонениями.
-            Можно создавать свои.
+            {{ t('Базовый сценарий — без изменений, использует факт. Оптимистичный и Пессимистичный — заранее заполнены типовыми отклонениями. Можно создавать свои.') }}
           </InfoTooltip>
         </span>
-        <span class="hint">клик — выбрать активный · {{ sc.scenarios.value.length }} {{ sc.scenarios.value.length === 1 ? "сценарий" : "сценариев" }}</span>
+        <span class="hint">{{ t('клик — выбрать активный ·') }} {{ sc.scenarios.value.length }} {{ sc.scenarios.value.length === 1 ? t('сценарий') : t('сценариев') }}</span>
       </div>
 
       <div class="st-sc-grid">
@@ -433,11 +424,11 @@ function getOverride(id: string, year: number): ScenarioOverride | null {
           :style="{ '--sc-color': s.color_hex || '#888780' }"
           @click="pickScenario(s.id)"
         >
-          <span class="st-sc-l">{{ s.is_seeded ? "Системный" : "Кастомный" }}{{ s.id === sc.activeId.value ? " · активен" : "" }}</span>
+          <span class="st-sc-l">{{ s.is_seeded ? t('Системный') : t('Кастомный') }}{{ s.id === sc.activeId.value ? t('· активен') : "" }}</span>
           <span class="st-sc-n">{{ s.name_ru }}</span>
-          <span v-if="s.description" class="st-sc-d">{{ s.description }}</span>
+          <span v-if="s.description" class="st-sc-d">{{ s.is_seeded ? t(s.description) : s.description }}</span>
           <span class="st-sc-overrides">
-            {{ s.overrides.length }} {{ s.overrides.length === 1 ? "год" : "года/лет" }} с отклонениями
+            {{ s.overrides.length }} {{ s.overrides.length === 1 ? t('год') : t('года/лет') }} {{ t('с отклонениями') }}
           </span>
         </button>
       </div>
@@ -446,14 +437,14 @@ function getOverride(id: string, year: number): ScenarioOverride | null {
       <template v-if="sc.activeScenario.value">
         <div class="st-active">
           <div class="st-active-meta">
-            <div class="st-active-eyebrow">Активный сценарий</div>
+            <div class="st-active-eyebrow">{{ t('Активный сценарий') }}</div>
             <div class="st-active-name">
               <span class="st-active-dot" :style="{ background: sc.activeScenario.value.color_hex || '#888780' }"></span>
               {{ sc.activeScenario.value.name_ru }}
               <span class="st-active-code">{{ sc.activeScenario.value.code }}</span>
             </div>
             <div v-if="sc.activeScenario.value.description" class="st-active-desc">
-              {{ sc.activeScenario.value.description }}
+              {{ sc.activeScenario.value.is_seeded ? t(sc.activeScenario.value.description) : sc.activeScenario.value.description }}
             </div>
           </div>
           <div class="st-active-actions">
@@ -464,16 +455,13 @@ function getOverride(id: string, year: number): ScenarioOverride | null {
               @click="askDelete(sc.activeScenario.value.id)"
             >
               <svg viewBox="0 0 14 14" class="st-svg" width="11" height="11"><path d="M3 4h8M5 4V3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1M4 4l1 7a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1l1-7"/></svg>
-              Удалить
+              {{ t('Удалить') }}
             </button>
             <span v-else-if="sc.activeScenario.value.is_seeded" class="st-active-locked">
-              Системный — нельзя удалить
-              <InfoTooltip placement="left" align="right" :width="240">
-                <strong>Почему нельзя удалить?</strong><br>
-                Базовый / Оптимистичный / Пессимистичный — это набор
-                предустановленных сценариев на которые ссылается логика
-                платформы. Их можно очищать и редактировать, но удалять
-                нет. Создайте свой кастомный сценарий рядом.
+              {{ t('Системный — нельзя удалить') }}
+              <InfoTooltip placement="right" align="right" :width="240">
+                <strong>{{ t('Почему нельзя удалить?') }}</strong><br>
+                {{ t('Базовый / Оптимистичный / Пессимистичный — это набор предустановленных сценариев на которые ссылается логика платформы. Их можно очищать и редактировать, но удалять нет. Создайте свой кастомный сценарий рядом.') }}
               </InfoTooltip>
             </span>
           </div>
@@ -482,79 +470,72 @@ function getOverride(id: string, year: number): ScenarioOverride | null {
         <!-- Overrides editor -->
         <div class="st-sec-l">
           <span>
-            Отклонения от базы по годам
+            {{ t('Отклонения от базы по годам') }}
             <InfoTooltip placement="bottom" align="left" :width="320">
-              <strong>Что такое «отклонение»?</strong><br>
-              Это значение, которое заменяет факт. Например, если в базе
-              инфляция на 2026 = 11%, а в сценарии задано 7%, — значит
-              «<em>предположим что инфляция упала до 7%</em>».
+              <strong>{{ t('Что такое «отклонение»?') }}</strong><br>
+              {{ t('Это значение, которое заменяет факт. Например, если в базе инфляция на 2026 = 11%, а в сценарии задано 7%, — значит «') }}<em>{{ t('предположим что инфляция упала до 7%') }}</em>».
               <br><br>
-              <strong>Пустое поле</strong> = «как в базе». Если поле очистить,
-              для этого показателя берётся значение со вкладки «Макроэкономика».
+              <strong>{{ t('Пустое поле') }}</strong> {{ t('= «как в базе». Если поле очистить, для этого показателя берётся значение со вкладки «Макроэкономика».') }}
             </InfoTooltip>
           </span>
           <span class="hint">
-            пустое поле → используется значение со вкладки «Макроэкономика»
+            {{ t('пустое поле → используется значение со вкладки «Макроэкономика»') }}
           </span>
         </div>
 
         <table class="st-tbl">
           <thead>
             <tr>
-              <th class="st-th st-th-year">Год</th>
+              <th class="st-th st-th-year">{{ t('Год') }}</th>
               <th class="st-th">
-                Инфляция
+                {{ t('Инфляция') }}
                 <InfoTooltip placement="bottom" align="left">
-                  <strong>Инфляция, % за год</strong><br>
-                  На сколько в среднем выросли цены за год. Если 10% — то
-                  товар, который стоил 100 сум, теперь стоит 110.
+                  <strong>{{ t('Инфляция, % за год') }}</strong><br>
+                  {{ t('На сколько в среднем выросли цены за год. Если 10% — то товар, который стоил 100 сум, теперь стоит 110.') }}
                 </InfoTooltip>
                 <div class="st-th-hint">%</div>
               </th>
               <th class="st-th">
-                Ставка ЦБ
+                {{ t('Ставка ЦБ') }}
                 <InfoTooltip placement="bottom" align="left">
-                  <strong>Базовая ставка ЦБ РУ, %</strong><br>
-                  Под какой процент банки берут деньги у Центрального банка.
-                  Чем выше — тем дороже кредиты в экономике, и наоборот.
+                  <strong>{{ t('Базовая ставка ЦБ РУ, %') }}</strong><br>
+                  {{ t('Под какой процент банки берут деньги у Центрального банка. Чем выше — тем дороже кредиты в экономике, и наоборот.') }}
                 </InfoTooltip>
                 <div class="st-th-hint">%</div>
               </th>
               <th class="st-th">
-                Рост ВВП
+                {{ t('Рост ВВП') }}
                 <InfoTooltip placement="bottom" align="left">
-                  <strong>Темп роста ВВП, %</strong><br>
-                  На сколько выросла экономика страны за год. Если +5% —
-                  экономика на 5% больше чем была в прошлом году.
+                  <strong>{{ t('Темп роста ВВП, %') }}</strong><br>
+                  {{ t('На сколько выросла экономика страны за год. Если +5% — экономика на 5% больше чем была в прошлом году.') }}
                 </InfoTooltip>
                 <div class="st-th-hint">%</div>
               </th>
               <th class="st-th">
                 USD / UZS
                 <InfoTooltip placement="bottom" align="center">
-                  <strong>Курс доллара</strong><br>
-                  Сколько узбекских сумов стоит 1 доллар США (в среднем за год).
+                  <strong>{{ t('Курс доллара') }}</strong><br>
+                  {{ t('Сколько узбекских сумов стоит 1 доллар США (в среднем за год).') }}
                 </InfoTooltip>
-                <div class="st-th-hint">сум за 1 USD</div>
+                <div class="st-th-hint">{{ t('сум за 1 USD') }}</div>
               </th>
               <th class="st-th">
                 EUR / UZS
                 <InfoTooltip placement="bottom" align="center">
-                  <strong>Курс евро</strong><br>
-                  Сколько узбекских сумов стоит 1 евро (в среднем за год).
+                  <strong>{{ t('Курс евро') }}</strong><br>
+                  {{ t('Сколько узбекских сумов стоит 1 евро (в среднем за год).') }}
                 </InfoTooltip>
-                <div class="st-th-hint">сум за 1 EUR</div>
+                <div class="st-th-hint">{{ t('сум за 1 EUR') }}</div>
               </th>
               <th class="st-th">
-                Бюджет
+                {{ t('Бюджет') }}
                 <InfoTooltip placement="bottom" align="center">
-                  <strong>Бюджет Республики</strong><br>
-                  Сколько денег планирует получить государство за год,
-                  в триллионах сумов (доходная часть).
+                  <strong>{{ t('Бюджет Республики') }}</strong><br>
+                  {{ t('Сколько денег планирует получить государство за год, в триллионах сумов (доходная часть).') }}
                 </InfoTooltip>
-                <div class="st-th-hint">трлн сум</div>
+                <div class="st-th-hint">{{ t('трлн сум') }}</div>
               </th>
-              <th class="st-th st-th-actions">Действия</th>
+              <th class="st-th st-th-actions">{{ t('Действия') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -568,7 +549,7 @@ function getOverride(id: string, year: number): ScenarioOverride | null {
                 <span
                   v-if="getOverride(sc.activeId.value!, year)"
                   class="st-chip"
-                  title="Есть отклонения от базы"
+                  :title="t('Есть отклонения от базы')"
                 >override</span>
               </td>
               <td v-for="f in ALL_FIELDS" :key="f" class="st-td">
@@ -589,21 +570,21 @@ function getOverride(id: string, year: number): ScenarioOverride | null {
                     class="st-btn st-btn-sm st-btn-p"
                     :disabled="!getActiveEditRow(year)?.dirty"
                     @click="saveRow(year)"
-                  >Сохранить</button>
+                  >{{ t('Сохранить') }}</button>
                   <button
                     v-if="getActiveEditRow(year)?.dirty"
                     type="button"
                     class="st-btn st-btn-sm st-btn-g"
                     @click="resetRow(year)"
-                  >Отмена</button>
+                  >{{ t('Отмена') }}</button>
                   <button
                     v-else
                     type="button"
                     class="st-btn st-btn-sm st-btn-g"
                     :disabled="!getOverride(sc.activeId.value!, year)"
                     @click="clearYearOverride(year)"
-                    title="Очистить все отклонения для года (вернуться к базе)"
-                  >Очистить</button>
+                    :title="t('Очистить все отклонения для года (вернуться к базе)')"
+                  >{{ t('Очистить') }}</button>
                 </template>
                 <span v-else class="st-readonly">—</span>
               </td>
@@ -614,9 +595,7 @@ function getOverride(id: string, year: number): ScenarioOverride | null {
 
       <!-- Empty state if no scenarios -->
       <div v-if="!sc.activeScenario.value && sc.scenarios.value.length === 0" class="st-empty">
-        Сценарии ещё не настроены. Системные сценарии (Базовый/Оптимистичный/Пессимистичный)
-        обычно создаются автоматически при первом запуске. Если их нет —
-        перезапустите backend (self-heal создаст их).
+        {{ t('Сценарии ещё не настроены. Системные сценарии (Базовый/Оптимистичный/Пессимистичный) обычно создаются автоматически при первом запуске. Если их нет — перезапустите backend (self-heal создаст их).') }}
       </div>
 
       <!-- Footer help -->
@@ -625,82 +604,70 @@ function getOverride(id: string, year: number): ScenarioOverride | null {
           <div class="st-foot-card">
             <div class="st-foot-card-icon" style="background:rgba(127,119,221,.10); color:#534AB7;">1</div>
             <div>
-              <strong>Базовый — про факт.</strong> Использует значения
-              со вкладки «Макроэкономика» без изменений. Это «<em>что есть
-              на самом деле</em>».
+              <strong>{{ t('Базовый — про факт.') }}</strong> {{ t('Использует значения со вкладки «Макроэкономика» без изменений. Это «') }}<em>{{ t('что есть на самом деле') }}</em>».
             </div>
           </div>
           <div class="st-foot-card">
             <div class="st-foot-card-icon" style="background:rgba(29,158,117,.10); color:#0F6E56;">2</div>
             <div>
-              <strong>Оптимистичный — про «лучше».</strong> Заранее заполнены
-              пониженная инфляция, ускоренный ВВП, более крепкий сум.
-              Подходит для лучших оценок NPV и плановых KPI.
+              <strong>{{ t('Оптимистичный — про «лучше».') }}</strong> {{ t('Заранее заполнены пониженная инфляция, ускоренный ВВП, более крепкий сум. Подходит для лучших оценок NPV и плановых KPI.') }}
             </div>
           </div>
           <div class="st-foot-card">
             <div class="st-foot-card-icon" style="background:rgba(226,75,74,.10); color:#A32D2D;">3</div>
             <div>
-              <strong>Пессимистичный — про «хуже».</strong> Высокая инфляция,
-              высокая ставка, ослабление сума. Используйте для стресс-тестов.
+              <strong>{{ t('Пессимистичный — про «хуже».') }}</strong> {{ t('Высокая инфляция, высокая ставка, ослабление сума. Используйте для стресс-тестов.') }}
             </div>
           </div>
           <div class="st-foot-card">
             <div class="st-foot-card-icon" style="background:rgba(239,159,39,.10); color:#854F0B;">4</div>
             <div>
-              <strong>Кастомные — про любую идею.</strong> Создавайте под
-              конкретную задачу: «Шок 2026», «План Правительства РУ 2030»,
-              «Только бюджетные ограничения». Без лимита.
+              <strong>{{ t('Кастомные — про любую идею.') }}</strong> {{ t('Создавайте под конкретную задачу: «Шок 2026», «План Правительства РУ 2030», «Только бюджетные ограничения». Без лимита.') }}
             </div>
           </div>
         </div>
         <div class="st-foot-bottom">
-          Дальнейшее развитие (Pack 7.41–7.43): матрица коэффициентов влияния
-          (эластичности), эффект проектов трансформации в цифрах,
-          и многолетний прогноз с декомпозицией «база + макро + проекты».
+          {{ t('Дальнейшее развитие (Pack 7.41–7.43): матрица коэффициентов влияния (эластичности), эффект проектов трансформации в цифрах, и многолетний прогноз с декомпозицией «база + макро + проекты».') }}
         </div>
       </footer>
     </template>
 
     <!-- ─── Add scenario modal ─── -->
-    <ModalShell :open="addOpen" size="md" title="Создать кастомный сценарий" @close="closeAdd">
+    <ModalShell :open="addOpen" size="md" :title="t('Создать кастомный сценарий')" @close="closeAdd">
           <div class="st-form">
             <label class="st-fld">
               <span class="st-fld-l">
-                Название
+                {{ t('Название') }}
                 <InfoTooltip placement="right" align="right">
-                  <strong>Название сценария</strong><br>
-                  Любое имя по-русски. Например: «Шок 2026», «План
-                  Правительства 2030», «Стресс-тест по ставке ЦБ».
+                  <strong>{{ t('Название сценария') }}</strong><br>
+                  {{ t('Любое имя по-русски. Например: «Шок 2026», «План Правительства 2030», «Стресс-тест по ставке ЦБ».') }}
                 </InfoTooltip>
               </span>
-              <input type="text" v-model="addForm.name_ru" class="st-input" placeholder="Например: Шок 2026" />
+              <input type="text" v-model="addForm.name_ru" class="st-input" :placeholder="t('Например: Шок 2026')" />
             </label>
             <label class="st-fld">
               <span class="st-fld-l">
-                Код
+                {{ t('Код') }}
                 <InfoTooltip placement="right" align="right">
-                  <strong>Код (англ.)</strong><br>
-                  Уникальный идентификатор. Маленькие латинские буквы,
-                  цифры и нижнее подчёркивание. Например: <code>shock_2026</code>,
+                  <strong>{{ t('Код (англ.)') }}</strong><br>
+                  {{ t('Уникальный идентификатор. Маленькие латинские буквы, цифры и нижнее подчёркивание. Например:') }} <code>shock_2026</code>,
                   <code>government_plan_2030</code>.
                 </InfoTooltip>
               </span>
-              <input type="text" v-model="addForm.code" class="st-input" placeholder="например shock_2026"/>
+              <input type="text" v-model="addForm.code" class="st-input" :placeholder="t('например shock_2026')"/>
             </label>
             <label class="st-fld">
               <span class="st-fld-l">
-                Описание <span class="st-fld-hint">(опционально)</span>
+                {{ t('Описание') }} <span class="st-fld-hint">{{ t('(опционально)') }}</span>
               </span>
-              <textarea v-model="addForm.description" class="st-input st-textarea" rows="3" placeholder="Кратко: о чём этот сценарий, что моделирует, для чего использовать"></textarea>
+              <textarea v-model="addForm.description" class="st-input st-textarea" rows="3" :placeholder="t('Кратко: о чём этот сценарий, что моделирует, для чего использовать')"></textarea>
             </label>
             <label class="st-fld">
               <span class="st-fld-l">
-                Цвет акцента
+                {{ t('Цвет акцента') }}
                 <InfoTooltip placement="right" align="right">
-                  <strong>Цвет</strong><br>
-                  Используется для полоски акцента в карточке сценария
-                  и индикации в будущих графиках декомпозиции.
+                  <strong>{{ t('Цвет') }}</strong><br>
+                  {{ t('Используется для полоски акцента в карточке сценария и индикации в будущих графиках декомпозиции.') }}
                 </InfoTooltip>
               </span>
               <input type="color" v-model="addForm.color_hex" class="st-input st-color"/>
@@ -708,23 +675,21 @@ function getOverride(id: string, year: number): ScenarioOverride | null {
             <div v-if="addError" class="st-alert st-alert-bad">{{ addError }}</div>
           </div>
       <template #footer>
-        <button class="st-btn st-btn-g" @click="closeAdd" :disabled="addSubmitting">Отмена</button>
+        <button class="st-btn st-btn-g" @click="closeAdd" :disabled="addSubmitting">{{ t('Отмена') }}</button>
         <button class="st-btn st-btn-p" @click="submitAdd" :disabled="addSubmitting">
-          {{ addSubmitting ? "Создание…" : "Создать" }}
+          {{ addSubmitting ? t('Создание…') : t('Создать') }}
         </button>
       </template>
     </ModalShell>
 
     <!-- ─── Delete confirm ─── -->
-    <ModalShell :open="!!confirmDeleteId" size="sm" title="Удалить сценарий?" @close="confirmDeleteId = null">
+    <ModalShell :open="!!confirmDeleteId" size="sm" :title="t('Удалить сценарий?')" @close="confirmDeleteId = null">
           <p class="st-modal-text">
-            Все отклонения (override'ы) этого сценария будут удалены безвозвратно.
-            Если на сценарий ссылаются какие-то отчёты — удаление будет отклонено.
-            Обычно безопаснее очистить override'ы а сам сценарий оставить.
+            {{ t('Все отклонения (override\'ы) этого сценария будут удалены безвозвратно. Если на сценарий ссылаются какие-то отчёты — удаление будет отклонено. Обычно безопаснее очистить override\'ы а сам сценарий оставить.') }}
           </p>
       <template #footer>
-        <button class="st-btn st-btn-g" @click="confirmDeleteId = null">Отмена</button>
-        <button class="st-btn st-btn-d" @click="doDelete">Удалить</button>
+        <button class="st-btn st-btn-g" @click="confirmDeleteId = null">{{ t('Отмена') }}</button>
+        <button class="st-btn st-btn-d" @click="doDelete">{{ t('Удалить') }}</button>
       </template>
     </ModalShell>
   </div>

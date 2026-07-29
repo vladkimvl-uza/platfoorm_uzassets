@@ -66,13 +66,13 @@ function yoyColor(v: number | null | undefined): string {
            @click="emit('open-subsidies')" @keydown.enter="emit('open-subsidies')" @keydown.space.prevent="emit('open-subsidies')"
            :title="t('Реестр субсидий')">
         <div class="ffb-lbl">{{ t("Субсидии") }}</div>
-        <div class="ffb-val"><Odometer :value="subFmt.value" /><span class="ffb-u">{{ t(subFmt.unit || 'сум') }}</span></div>
+        <div class="ffb-val"><Odometer :value="subFmt.value" /><span class="ffb-u">{{ t(subFmt.unit || t('сум')) }}</span></div>
         <div class="ffb-sub">{{ t("реестр по компаниям и секторам") }}</div>
       </div>
       <!-- Спонсорство -->
       <div class="ffb-kpi" style="--accent:#7C6FF7; --d:70ms">
         <div class="ffb-lbl">{{ t("Спонсорство") }}</div>
-        <div class="ffb-val"><Odometer :value="spoFmt.value" /><span class="ffb-u">{{ t(spoFmt.unit || 'сум') }}</span></div>
+        <div class="ffb-val"><Odometer :value="spoFmt.value" /><span class="ffb-u">{{ t(spoFmt.unit || t('сум')) }}</span></div>
         <div class="ffb-sub">{{ t("благотворительность и спонсорство") }}</div>
       </div>
       <!-- Налог на прибыль -->

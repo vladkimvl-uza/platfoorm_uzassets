@@ -23,6 +23,11 @@ import { computed, onMounted, onUnmounted, ref } from "vue";
 import { useFocusTrap } from "@/composables/useFocusTrap";
 import { useRouter } from "vue-router";
 import { useFormatters } from "@/composables/useFormatters";
+import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
+const { t: tr } = useI18n();
+
 const fmt = useFormatters();
 
 export type FinKpiKind =
@@ -101,37 +106,37 @@ interface KpiMeta {
 
 const KPI_META: Record<FinKpiKind, KpiMeta> = {
   revenue: {
-    label: "Совокупная выручка",
+    label: i18nKey("Совокупная выручка"),
     color: "#7F77DD",
     valueGetter: (k) => k.totalRevenue,
     rowField: (r) => r.revenue,
     badgeGetter: (k) => k.revenueYoYPct != null
-      ? { text: fmtPctSigned(k.revenueYoYPct, 0) + " к пред. году", tone: k.revenueYoYPct >= 0 ? "good" : "bad" }
+      ? { text: tr("{value} к пред. году", { value: fmtPctSigned(k.revenueYoYPct, 0) }), tone: k.revenueYoYPct >= 0 ? "good" : "bad" }
       : null,
   },
   net_profit: {
-    label: "Чистая прибыль",
+    label: i18nKey("Чистая прибыль"),
     color: "#1D9E75",
     valueGetter: (k) => k.netProfit,
     rowField: (r) => r.profit,
-    badgeGetter: (k) => ({ text: "Маржа " + fmtPct(k.netMargin, 0), tone: k.netMargin >= 0 ? "good" : "bad" }),
+    badgeGetter: (k) => ({ text: tr("Маржа {value}", { value: fmtPct(k.netMargin, 0) }), tone: k.netMargin >= 0 ? "good" : "bad" }),
   },
   ebitda: {
     label: "EBITDA",
     color: "#EF9F27",
     valueGetter: (k) => k.ebitda,
     rowField: (r) => r.ebitda,
-    badgeGetter: (k) => ({ text: "Маржа " + fmtPct(k.ebitdaMargin, 0), tone: "neutral" }),
+    badgeGetter: (k) => ({ text: tr("Маржа {value}", { value: fmtPct(k.ebitdaMargin, 0) }), tone: "neutral" }),
   },
   assets: {
-    label: "Совокупные активы",
+    label: i18nKey("Совокупные активы"),
     color: "#378ADD",
     valueGetter: (k) => k.totalAssets,
     rowField: (r) => r.assets,
-    badgeGetter: (k) => ({ text: k.cosWithData + " компаний с данными", tone: "neutral" }),
+    badgeGetter: (k) => ({ text: tr("{count} компаний с данными", { count: k.cosWithData }), tone: "neutral" }),
   },
   net_debt: {
-    label: "Чистый долг",
+    label: i18nKey("Чистый долг"),
     color: "#E24B4A",
     valueGetter: (k) => k.totalDebt,
     rowField: (r) => r.debt,
@@ -214,45 +219,45 @@ const miniKpis = computed<MiniKpi[]>(() => {
   switch (props.kind) {
     case "revenue":
       return [
-        { label: "EBITDA маржа", value: fmtPct(k.ebitdaMargin, 0), accent: "#1D9E75" },
-        { label: "Чист. маржа", value: fmtPct(k.netMargin, 0), accent: "#7F77DD" },
-        { label: "Покрытие", value: `${k.cosWithData} / ${props.totalCompanies}`, accent: "#EF9F27" },
-        { label: "Лидер сектор", value: top, accent: "#378ADD" },
+        { label: i18nKey("EBITDA маржа"), value: fmtPct(k.ebitdaMargin, 0), accent: "#1D9E75" },
+        { label: i18nKey("Чист. маржа"), value: fmtPct(k.netMargin, 0), accent: "#7F77DD" },
+        { label: i18nKey("Покрытие"), value: `${k.cosWithData} / ${props.totalCompanies}`, accent: "#EF9F27" },
+        { label: i18nKey("Лидер сектор"), value: top, accent: "#378ADD" },
       ];
     case "net_profit":
       return [
-        { label: "Чист. маржа", value: fmtPct(k.netMargin, 0), accent: "#1D9E75" },
+        { label: i18nKey("Чист. маржа"), value: fmtPct(k.netMargin, 0), accent: "#1D9E75" },
         { label: "ROE", value: k.roe != null ? fmtPct(k.roe, 0) : "—", accent: "#7F77DD" },
-        { label: "Убыточных", value: k.lossMakingCount.toString(), accent: "#E24B4A" },
-        { label: "Лидер сектор", value: top, accent: "#378ADD" },
+        { label: i18nKey("Убыточных"), value: k.lossMakingCount.toString(), accent: "#E24B4A" },
+        { label: i18nKey("Лидер сектор"), value: top, accent: "#378ADD" },
       ];
     case "ebitda":
       return [
-        { label: "EBITDA маржа", value: fmtPct(k.ebitdaMargin, 0), accent: "#EF9F27" },
-        { label: "Чист. маржа", value: fmtPct(k.netMargin, 0), accent: "#1D9E75" },
-        { label: "Долг/EBITDA", value: k.ebitda > 0 ? (k.totalDebt / k.ebitda).toFixed(1) + "x" : "—", accent: "#E24B4A" },
-        { label: "Лидер сектор", value: top, accent: "#378ADD" },
+        { label: i18nKey("EBITDA маржа"), value: fmtPct(k.ebitdaMargin, 0), accent: "#EF9F27" },
+        { label: i18nKey("Чист. маржа"), value: fmtPct(k.netMargin, 0), accent: "#1D9E75" },
+        { label: i18nKey("Долг/EBITDA"), value: k.ebitda > 0 ? (k.totalDebt / k.ebitda).toFixed(1) + "x" : "—", accent: "#E24B4A" },
+        { label: i18nKey("Лидер сектор"), value: top, accent: "#378ADD" },
       ];
     case "assets":
       return [
-        { label: "Чист. долг", value: fmtMoney(k.totalDebt), accent: "#E24B4A" },
+        { label: i18nKey("Чист. долг"), value: fmtMoney(k.totalDebt), accent: "#E24B4A" },
         { label: "D/E", value: k.debtToEquity != null ? k.debtToEquity.toFixed(1) + "x" : "—", accent: "#7F77DD" },
         { label: "ROE", value: k.roe != null ? fmtPct(k.roe, 0) : "—", accent: "#1D9E75" },
-        { label: "Лидер сектор", value: top, accent: "#378ADD" },
+        { label: i18nKey("Лидер сектор"), value: top, accent: "#378ADD" },
       ];
     case "net_debt":
       return [
         { label: "D/E", value: k.debtToEquity != null ? k.debtToEquity.toFixed(1) + "x" : "—", accent: "#7F77DD" },
-        { label: "Долг/EBITDA", value: k.ebitda > 0 ? (k.totalDebt / k.ebitda).toFixed(1) + "x" : "—", accent: "#E24B4A" },
-        { label: "Активы", value: fmtMoney(k.totalAssets), accent: "#378ADD" },
-        { label: "Лидер сектор", value: top, accent: "#1D9E75" },
+        { label: i18nKey("Долг/EBITDA"), value: k.ebitda > 0 ? (k.totalDebt / k.ebitda).toFixed(1) + "x" : "—", accent: "#E24B4A" },
+        { label: i18nKey("Активы"), value: fmtMoney(k.totalAssets), accent: "#378ADD" },
+        { label: i18nKey("Лидер сектор"), value: top, accent: "#1D9E75" },
       ];
     case "fcf":
       return [
         { label: "CFO", value: fmtMoney(k.cfo), accent: "#1D9E75" },
         { label: "CFI", value: fmtMoney(k.cfi), accent: "#7F77DD" },
         { label: "ROE", value: k.roe != null ? fmtPct(k.roe, 0) : "—", accent: "#EF9F27" },
-        { label: "Лидер сектор", value: top, accent: "#378ADD" },
+        { label: i18nKey("Лидер сектор"), value: top, accent: "#378ADD" },
       ];
     default:
       return [];
@@ -355,7 +360,7 @@ onUnmounted(() => {
           <div class="fdm-shim" aria-hidden="true" />
           <div class="fdm-glow" aria-hidden="true" />
 
-          <button class="fdm-x" @click="close" aria-label="Закрыть">
+          <button class="fdm-x" @click="close" :aria-label="tr('Закрыть')">
             <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
               <path d="M3.5 3.5l7 7M10.5 3.5l-7 7"/>
             </svg>
@@ -364,10 +369,10 @@ onUnmounted(() => {
           <!-- ─── HEADER ─── -->
           <div class="fdm-sect fdm-row" style="--si:0; display:flex; justify-content:space-between; align-items:flex-end; gap:18px; flex-wrap:wrap; padding-top:20px;">
             <div>
-              <div class="fdm-h-l">{{ meta.label }}</div>
+              <div class="fdm-h-l">{{ tr(meta.label) }}</div>
               <div class="fdm-h-v">
                 <span class="num">{{ fmtMoney(headerDisplay) }}</span>
-                <span class="unit">{{ unitLabel }} {{ currencyLabel }}</span>
+                <span class="unit">{{ tr(unitLabel) }} {{ tr(currencyLabel) }}</span>
               </div>
               <span
                 v-if="badge"
@@ -380,8 +385,8 @@ onUnmounted(() => {
               </span>
             </div>
             <div class="fdm-h-tag-list">
-              <div>{{ extKpis.cosWithData }} / {{ totalCompanies }} компаний</div>
-              <div>{{ sectorAgg.length }} секторов</div>
+              <div>{{ extKpis.cosWithData }} / {{ totalCompanies }} {{ tr('компаний') }}</div>
+              <div>{{ sectorAgg.length }} {{ tr('секторов') }}</div>
               <div class="fdm-h-tag-year">FY {{ year }}</div>
             </div>
           </div>
@@ -395,7 +400,7 @@ onUnmounted(() => {
                 class="fdm-mini-kpi"
                 :style="{ '--kc': m.accent, '--ki': i }"
               >
-                <div class="fdm-mk-l">{{ m.label }}</div>
+                <div class="fdm-mk-l">{{ tr(m.label) }}</div>
                 <div class="fdm-mk-v">{{ m.value }}</div>
               </div>
             </div>
@@ -403,7 +408,7 @@ onUnmounted(() => {
 
           <!-- ─── По секторам ─── -->
           <div class="fdm-sect fdm-row" style="--si:2;">
-            <div class="fdm-l-sec">По секторам</div>
+            <div class="fdm-l-sec">{{ tr('По секторам') }}</div>
             <div v-if="sectorAgg.length" class="fdm-bar">
               <div
                 v-for="(s, i) in sectorAgg"
@@ -424,15 +429,15 @@ onUnmounted(() => {
                 <span class="fdm-leg-pct">{{ s.pct }}%</span>
               </span>
             </div>
-            <div v-else class="fdm-empty">Нет данных по секторам</div>
+            <div v-else class="fdm-empty">{{ tr('Нет данных по секторам') }}</div>
           </div>
 
           <!-- ─── Top-5 contributors ─── -->
           <div class="fdm-sect fdm-row" style="--si:3;">
             <div class="fdm-l-sec">
-              <span>Топ-5 компаний по показателю</span>
+              <span>{{ tr('Топ-5 компаний по показателю') }}</span>
               <span v-if="sortedRows.length > 5" class="fdm-l-side">
-                остальные {{ sortedRows.length - 5 }} ниже
+                {{ tr('остальные') }} {{ sortedRows.length - 5 }} {{ tr('ниже') }}
               </span>
             </div>
             <div v-if="topCompanies.length" class="fdm-toplist">
@@ -441,7 +446,7 @@ onUnmounted(() => {
                 :key="c.id"
                 class="fdm-top-row"
                 @click="gotoCompany(c.code)"
-                :title="'Открыть карточку «' + c.name + '»'"
+                :title="tr('Открыть карточку «{value0}»', { value0: c.name })"
               >
                 <span class="fdm-top-name">
                   <i class="fdm-top-tick" :style="{ background: sectorMeta[c.sector]?.color || '#888' }"/>
@@ -463,7 +468,7 @@ onUnmounted(() => {
                 </span>
               </div>
             </div>
-            <div v-else class="fdm-empty">Нет компаний с данными по этому KPI</div>
+            <div v-else class="fdm-empty">{{ tr('Нет компаний с данными по этому KPI') }}</div>
           </div>
 
           <!-- ─── Collapsible full list ─── -->
@@ -489,8 +494,8 @@ onUnmounted(() => {
                 <path d="M3.5 5l3.5 3.5L10.5 5"/>
               </svg>
               {{ expandedAll
-                ? `Свернуть · показано ${sortedRows.length}`
-                : `Показать все ${sortedRows.length} компаний` }}
+                ? tr('Свернуть · показано {value0}', { value0: sortedRows.length })
+                : tr('Показать все {value0} компаний', { value0: sortedRows.length }) }}
             </button>
 
             <div v-if="expandedAll" class="fdm-fulllist">
@@ -514,9 +519,9 @@ onUnmounted(() => {
 
           <!-- ─── FOOTER ─── -->
           <div class="fdm-ftr fdm-row" style="--si:5;">
-            <button class="fdm-btn fdm-btn-g" @click="close">Закрыть</button>
+            <button class="fdm-btn fdm-btn-g" @click="close">{{ tr('Закрыть') }}</button>
             <button class="fdm-btn fdm-btn-p" @click="gotoCta">
-              Открыть финансовый отчёт
+              {{ tr('Открыть финансовый отчёт') }}
               <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" width="12" height="12">
                 <path d="M3 7h8M7.5 3.5L11 7l-3.5 3.5"/>
               </svg>

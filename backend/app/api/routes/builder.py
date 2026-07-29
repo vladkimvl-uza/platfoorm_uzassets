@@ -27,6 +27,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import get_current_user, require_permission
+from app.core.i18n import current_locale, tr
 from app.database import get_db
 from app.dependencies.financials_reports import FinancialsReportsServiceDep
 from app.dependencies.kpi import KpiEditorServiceDep
@@ -146,7 +147,14 @@ def _extract_tabular(data: bytes, filename: str) -> tuple[str, str, int]:
                     parts.append("\t".join(cells))
         return "\n".join(parts)[:20000], "docx", len(parts)
 
-    raise HTTPException(422, f"Неподдерживаемый формат: {filename}. Excel / CSV / PDF / DOCX.")
+    raise HTTPException(
+        422,
+        tr(
+            "Неподдерживаемый формат: {filename}. Excel / CSV / PDF / DOCX.",
+            current_locale(),
+            filename=filename,
+        ),
+    )
 
 
 def _extract_json_obj(raw: str) -> dict[str, Any]:
@@ -422,7 +430,14 @@ async def ingest_document(
         if out_key == "other" and not out_fields and out_rows:
             out_fields = [{"name": k, "type": "str", "desc": "", "enum": []} for k in out_rows[0].keys()]
         if not out_rows:
-            raise HTTPException(422, f"ИИ отнёс документ к «{out_label}», но не распознал строки.")
+            raise HTTPException(
+                422,
+                tr(
+                    "ИИ отнёс документ к «{label}», но не распознал строки.",
+                    current_locale(),
+                    label=out_label,
+                ),
+            )
 
     return IngestOut(
         target=out_key,
@@ -655,10 +670,21 @@ async def bulk_create_kpi(
         })
 
     if not grouped:
+        unresolved_items = ", ".join(sorted(set(unresolved))[:8])
+        detail = (
+            tr(
+                "Не удалось сопоставить ни одну компанию из документа. Не распознаны: {items}",
+                current_locale(), items=unresolved_items,
+            )
+            if unresolved_items
+            else tr(
+                "Не удалось сопоставить ни одну компанию из документа.",
+                current_locale(),
+            )
+        )
         raise HTTPException(
             422,
-            "Не удалось сопоставить ни одну компанию из документа. "
-            + (f"Не распознаны: {', '.join(sorted(set(unresolved))[:8])}" if unresolved else ""),
+            detail,
         )
 
     await _enforce_company_scope(db, user, grouped.keys())   # H-2: scope-guard
@@ -783,10 +809,22 @@ async def bulk_create_financials(
         })
 
     if not rows:
+        unresolved_items = ", ".join(sorted(set(unresolved))[:8])
+        detail = (
+            tr(
+                "Не удалось сопоставить ни одну компанию из документа. Не распознаны: {items}",
+                current_locale(),
+                items=unresolved_items,
+            )
+            if unresolved_items
+            else tr(
+                "Не удалось сопоставить ни одну компанию из документа.",
+                current_locale(),
+            )
+        )
         raise HTTPException(
             422,
-            "Не удалось сопоставить ни одну компанию из документа. "
-            + (f"Не распознаны: {', '.join(sorted(set(unresolved))[:8])}" if unresolved else ""),
+            detail,
         )
 
     await _enforce_company_scope(db, user, {r["company_id"] for r in rows})   # H-2: scope-guard

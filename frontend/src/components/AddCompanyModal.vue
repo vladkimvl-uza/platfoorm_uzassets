@@ -31,8 +31,8 @@ function normCode() {
 
 async function submit() {
   error.value = "";
-  if (!code.value.trim()) { error.value = "Укажите код компании"; return; }
-  if (!nameRu.value.trim()) { error.value = "Укажите название (RU)"; return; }
+  if (!code.value.trim()) { error.value = t('Укажите код компании'); return; }
+  if (!nameRu.value.trim()) { error.value = t('Укажите название (RU)'); return; }
   saving.value = true;
   try {
     const detail = await companiesApi.create({
@@ -43,9 +43,7 @@ async function submit() {
     emit("created", detail);
   } catch (e: any) {
     const status = e?.response?.status;
-    error.value = status === 409
-      ? "Компания с таким кодом уже существует"
-      : (e?.response?.data?.detail || "Не удалось создать компанию");
+    error.value = status === 409 ? t('Компания с таким кодом уже существует') : (e?.response?.data?.detail || t('Не удалось создать компанию'));
   } finally {
     saving.value = false;
   }
@@ -82,7 +80,7 @@ async function submit() {
     <template #footer>
       <button class="acm-btn acm-btn-ghost" @click="emit('close')" :disabled="saving">{{ t('Отмена') }}</button>
       <button class="acm-btn acm-btn-primary" @click="submit" :disabled="saving">
-        {{ saving ? "Создание…" : "Создать" }}
+        {{ saving ? t('Создание…') : t('Создать') }}
       </button>
     </template>
   </ModalShell>

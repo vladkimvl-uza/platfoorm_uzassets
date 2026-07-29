@@ -19,6 +19,8 @@ import UzaSkeleton from "@/components/UZA/UzaSkeleton.vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import CtPeriodDrill from "@/components/ControlTower/CtPeriodDrill.vue";
 import CtCompanyModal from "@/components/ControlTower/CtCompanyModal.vue";
+import { i18nKey } from "@/locale/keys";
+
 
 interface Co { company_id: string; code: string; name: string; sector: string; color: string; badge: string; score: number | null; prog?: number; plan?: number; oblig?: number | null; due?: number; due_done?: number; tasks_done: number; tasks_total: number; projects_done: number; projects_total: number; comments: number; tasks_done_snap?: number; projects_done_snap?: number; comments_snap?: number; }
 interface Current { label: string; at: string; period: string; score: number; fact_now: number | null; due_done: number; due_total: number; progress_now: number; plan_now: number; tasks_done: number; tasks_total: number; overdue: number; companies: Co[]; snap_label?: string; snap_at?: string; }
@@ -44,11 +46,11 @@ const period = ref("all");
 // доступные годы — из бэкенда (data-driven), новый год появляется сам
 const years = computed(() => digest.value?.available_years || [year.value]);
 const PERIODS = [
-  { v: "all", l: "Весь год" },
-  { v: "q1", l: "I квартал" }, { v: "q2", l: "II квартал" }, { v: "q3", l: "III квартал" }, { v: "q4", l: "IV квартал" },
-  { v: "m1", l: "Январь" }, { v: "m2", l: "Февраль" }, { v: "m3", l: "Март" }, { v: "m4", l: "Апрель" },
-  { v: "m5", l: "Май" }, { v: "m6", l: "Июнь" }, { v: "m7", l: "Июль" }, { v: "m8", l: "Август" },
-  { v: "m9", l: "Сентябрь" }, { v: "m10", l: "Октябрь" }, { v: "m11", l: "Ноябрь" }, { v: "m12", l: "Декабрь" },
+  { v: "all", l: i18nKey("Весь год") },
+  { v: "q1", l: i18nKey("I квартал") }, { v: "q2", l: i18nKey("II квартал") }, { v: "q3", l: i18nKey("III квартал") }, { v: "q4", l: i18nKey("IV квартал") },
+  { v: "m1", l: i18nKey("Январь") }, { v: "m2", l: i18nKey("Февраль") }, { v: "m3", l: i18nKey("Март") }, { v: "m4", l: i18nKey("Апрель") },
+  { v: "m5", l: i18nKey("Май") }, { v: "m6", l: i18nKey("Июнь") }, { v: "m7", l: i18nKey("Июль") }, { v: "m8", l: i18nKey("Август") },
+  { v: "m9", l: i18nKey("Сентябрь") }, { v: "m10", l: i18nKey("Октябрь") }, { v: "m11", l: i18nKey("Ноябрь") }, { v: "m12", l: i18nKey("Декабрь") },
 ];
 
 const fromId = ref("");
@@ -131,8 +133,8 @@ function bandClass(v: number | null | undefined): "ok" | "good" | "warn" | "crit
 }
 const BAND_HEX: Record<string, string> = { ok: "#1D9E75", good: "#3FA36F", warn: "#EF9F27", crit: "#E24B4A", na: "#94A3B8" };
 const BAND_WORD: Record<string, string> = {
-  ok: "обязательства выполняются", good: "в целом по графику",
-  warn: "отставание", crit: "сильное отставание", na: "нет наступивших сроков",
+  ok: i18nKey("обязательства выполняются"), good: i18nKey("в целом по графику"),
+  warn: i18nKey("отставание"), crit: i18nKey("сильное отставание"), na: i18nKey("нет наступивших сроков"),
 };
 function bandColor(v: number | null | undefined): string { return BAND_HEX[bandClass(v)]; }
 function coColor(c: { oblig?: number | null }): string { return bandColor(c.oblig); }
@@ -141,7 +143,7 @@ function coColor(c: { oblig?: number | null }): string { return bandColor(c.obli
 const PROG = "#7C6FF7";
 function progColor(_v?: number | null): string { return PROG; }
 function fmtDate(s: string | undefined): string {
-  if (!s) return "—"; if (s === "Сейчас") return t("Сейчас");
+  if (!s) return "—"; if (s === "Сейчас") return t("Сейчас"); // i18n-exempt: canonical API snapshot label
   return new Date(s).toLocaleString("ru-RU", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 const cur = computed(() => digest.value?.current);
@@ -232,7 +234,8 @@ const trend = computed(() => {
   const d = last?.delta ?? 0;
   return { dir: (d > 0 ? "up" : d < 0 ? "down" : "flat") as "up" | "down" | "flat", delta: d };
 });
-const trendWord = computed(() => t({ up: "прогресс растёт", down: "прогресс снижается", flat: "без прироста" }[trend.value.dir]));
+const TREND_WORD = { up: i18nKey("прогресс растёт"), down: i18nKey("прогресс снижается"), flat: i18nKey("без прироста") };
+const trendWord = computed(() => t(TREND_WORD[trend.value.dir]));
 
 // Тренд для HERO — ВСЕГДА по всему портфелю, независимо от фильтра компании в
 // «Динамике» (иначе большое портфельное число сопровождалось трендом одной
@@ -251,7 +254,7 @@ const heroTrend = computed(() => {
   const d = past[past.length - 1]?.delta ?? 0;
   return { dir: (d > 0 ? "up" : d < 0 ? "down" : "flat") as "up" | "down" | "flat", delta: d };
 });
-const heroTrendWord = computed(() => t({ up: "прогресс растёт", down: "прогресс снижается", flat: "без прироста" }[heroTrend.value.dir]));
+const heroTrendWord = computed(() => t(TREND_WORD[heroTrend.value.dir]));
 
 // Sparkline накопительной линии (растущая траектория)
 const spark = computed(() => {
@@ -572,7 +575,7 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
           <div class="ph-snapcard-h">
             <div class="ph-snapbar-l">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 5h14a1 1 0 011 1v13a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1zM4 10h16M8 3v4M16 3v4"/></svg>
-              <span><b>{{ digest!.snapshots.length }}</b> {{ t(digest!.snapshots.length === 1 ? 'срез прогресса' : (digest!.snapshots.length < 5 && digest!.snapshots.length ? 'среза прогресса' : 'срезов прогресса')) }}</span>
+              <span><b>{{ digest!.snapshots.length }}</b> {{ t(digest!.snapshots.length === 1 ? t('срез прогресса') : (digest!.snapshots.length < 5 && digest!.snapshots.length ? t('среза прогресса') : t('срезов прогресса'))) }}</span>
               <button v-if="digest!.snapshots.length" class="ph-link" :aria-expanded="showSnaps" @click="showSnaps = !showSnaps">{{ showSnaps ? t('скрыть') : t('управлять') }}</button>
             </div>
             <button class="ph-freeze sm" @click="freeze" :disabled="freezing">
@@ -583,7 +586,7 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
           <div v-if="showSnaps && digest!.snapshots.length" class="ph-snaplist flat">
             <div v-for="s in digest!.snapshots" :key="s.id" class="ph-snaprow">
               <span class="ph-snap-dot" :style="{ background: progColor(s.score) }" />
-              <span class="ph-snap-lbl">{{ s.label }}</span>
+              <span class="ph-snap-lbl">{{ t(s.label) }}</span>
               <span class="ph-snap-score" :style="{ color: progColor(s.score) }">{{ s.score }}%</span>
               <span class="ph-snap-at">{{ fmtDate(s.at) }}</span>
               <button class="ph-snap-del" @click="delSnap(s)" :title="t('Удалить срез')">

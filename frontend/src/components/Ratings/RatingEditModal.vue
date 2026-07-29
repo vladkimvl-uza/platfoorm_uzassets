@@ -16,6 +16,8 @@ import { ratingsApi, type AgencyRatingBrief } from "@/api/ratings";
 import { isModerationQueued } from "@/api/client";
 import { useConfirm } from "@/composables/useConfirm";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 const { t } = useI18n();
 
 
@@ -72,7 +74,7 @@ const isDirty = computed(() => {
 async function requestClose() {
   if (isDirty.value && !result.value) {
     const ok = await confirmDialog({
-      message: "Есть несохранённые изменения. Закрыть без сохранения?", danger: true,
+      message: t("Есть несохранённые изменения. Закрыть без сохранения?"), danger: true,
     });
     if (!ok) return;
   }
@@ -87,12 +89,12 @@ const isEsg = computed(() => {
 
 const OUTLOOK_OPTIONS = [
   { value: "", label: "—" },
-  { value: "Stable", label: "Stable · Стабильный →" },
-  { value: "Positive", label: "Positive · Позитивный ↑" },
-  { value: "Negative", label: "Negative · Негативный ↓" },
-  { value: "Developing", label: "Developing · Развивающийся ↔" },
-  { value: "RWN", label: "RWN · CW Негативный ⚠" },
-  { value: "RWP", label: "RWP · CW Позитивный ⚠" },
+  { value: "Stable", label: i18nKey("Stable · Стабильный →") },
+  { value: "Positive", label: i18nKey("Positive · Позитивный ↑") },
+  { value: "Negative", label: i18nKey("Negative · Негативный ↓") },
+  { value: "Developing", label: i18nKey("Developing · Развивающийся ↔") },
+  { value: "RWN", label: i18nKey("RWN · CW Негативный ⚠") },
+  { value: "RWP", label: i18nKey("RWP · CW Позитивный ⚠") },
 ];
 
 // ─── Date string → ISO helper ─────────────────────────────────────
@@ -138,9 +140,9 @@ async function save() {
     if (isEdit.value && props.existing) {
       const r = await ratingsApi.update(props.existing.id, payload as Partial<AgencyRatingBrief>);
       if (isModerationQueued(r)) {
-        result.value = "Изменение отправлено на модерацию";
+      result.value = t("Изменение отправлено на модерацию");
       } else {
-        result.value = "Сохранено";
+      result.value = t("Сохранено");
       }
     } else {
       const r = await ratingsApi.create({
@@ -154,16 +156,16 @@ async function save() {
         report_url: reportUrl.value.trim() || undefined,
       });
       if (isModerationQueued(r)) {
-        result.value = "Создание отправлено на модерацию";
+      result.value = t("Создание отправлено на модерацию");
       } else {
-        result.value = "Создано";
+      result.value = t("Создано");
       }
     }
     emit("saved");
     setTimeout(() => emit("close"), 1000);
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    error.value = err?.response?.data?.detail || err?.message || "Ошибка сохранения";
+    error.value = err?.response?.data?.detail || err?.message || t('Ошибка сохранения');
   } finally {
     saving.value = false;
   }
@@ -172,7 +174,7 @@ async function save() {
 async function remove() {
   if (!props.existing) return;
   if (!(await confirmDialog({
-    message: `Удалить рейтинг ${props.agency} для ${props.companyName}?`,
+    message: t('Удалить рейтинг {value0} для {value1}?', { value0: props.agency, value1: props.companyName }),
     danger: true,
   }))) return;
   deleting.value = true;
@@ -181,15 +183,15 @@ async function remove() {
   try {
     const r = await ratingsApi.remove(props.existing.id);
     if (r && isModerationQueued(r)) {
-      result.value = "Удаление отправлено на модерацию";
+      result.value = t("Удаление отправлено на модерацию");
     } else {
-      result.value = "Удалено";
+      result.value = t("Удалено");
     }
     emit("saved");
     setTimeout(() => emit("close"), 1000);
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    error.value = err?.response?.data?.detail || err?.message || "Ошибка удаления";
+    error.value = err?.response?.data?.detail || err?.message || t('Ошибка удаления');
   } finally {
     deleting.value = false;
   }
@@ -203,11 +205,11 @@ async function remove() {
         <div class="rem-h">
           <div class="rem-h-l">
             <div class="rem-h-cat">
-              <span class="rem-h-pill" :class="{ esg: isEsg }">{{ isEsg ? "ESG" : "Кредит" }}</span>
+              <span class="rem-h-pill" :class="{ esg: isEsg }">{{ isEsg ? "ESG" : t('Кредит') }}</span>
               {{ agency }}
             </div>
             <div class="rem-h-t">
-              {{ isEdit ? "Редактировать рейтинг" : "Добавить рейтинг" }}
+              {{ isEdit ? t('Редактировать рейтинг') : t('Добавить рейтинг') }}
             </div>
             <div class="rem-h-s">{{ companyName }}</div>
           </div>
@@ -223,7 +225,7 @@ async function remove() {
                 v-model="rating"
                 type="text"
                 class="rem-fld-i"
-                :placeholder="isEsg ? 'напр. 54 или Level 3' : 'напр. BB+, AA-, …'"
+                :placeholder="isEsg ? t('напр. 54 или Level 3') : t('напр. BB+, AA-, …')"
                 autofocus
               />
               <div class="rem-fld-hint">
@@ -252,7 +254,7 @@ async function remove() {
             <div class="rem-fld">
               <label class="rem-fld-l">Outlook</label>
               <select v-model="outlook" class="rem-fld-i">
-                <option v-for="o in OUTLOOK_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
+                <option v-for="o in OUTLOOK_OPTIONS" :key="o.value" :value="o.value">{{ t(o.label) }}</option>
               </select>
             </div>
 
@@ -302,12 +304,12 @@ async function remove() {
             :disabled="saving || deleting"
             @click="remove"
           >
-            {{ deleting ? "Удаление…" : "Удалить" }}
+            {{ deleting ? t('Удаление…') : t('Удалить') }}
           </button>
           <div style="flex:1"></div>
           <button class="rem-btn" :disabled="saving || deleting" @click="requestClose">{{ t('Отмена') }}</button>
           <button class="rem-btn rem-btn-primary" :disabled="saving || deleting || !rating.trim()" @click="save">
-            {{ saving ? "Сохранение…" : (isEdit ? "Сохранить" : "Создать") }}
+            {{ saving ? t('Сохранение…') : (isEdit ? t('Сохранить') : t('Создать')) }}
           </button>
         </div>
       </div>

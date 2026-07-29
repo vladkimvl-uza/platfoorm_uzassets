@@ -22,6 +22,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit_chain import append_audit_entry
+from app.core.i18n import current_locale, locale_of_user, tr
 from app.core.password import hash_password, validate_password_policy
 from app.models.mfa import OutboxType
 from app.models.user import User
@@ -147,8 +148,10 @@ class ForgotPasswordService:
                 await db.rollback()
             raise HTTPException(
                 status.HTTP_404_NOT_FOUND,
-                "Аккаунт с таким email или логином не найден.",
+                tr("Аккаунт с таким email или логином не найден.", current_locale()),
             )
+
+        locale = locale_of_user(user)
 
         # Доступные каналы доставки кода.
         from app.services.email.service import email_configured, send_email
@@ -160,9 +163,15 @@ class ForgotPasswordService:
         chosen = requested or ("telegram" if tg_ok else ("email" if email_ok else None))
 
         if chosen == "telegram" and not tg_ok:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, "К аккаунту не привязан Telegram.")
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                tr("К аккаунту не привязан Telegram.", current_locale()),
+            )
         if chosen == "email" and not email_ok:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Отправка на email недоступна.")
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                tr("Отправка на email недоступна.", current_locale()),
+            )
         if chosen not in ("telegram", "email"):
             try:
                 await append_audit_entry(
@@ -175,7 +184,10 @@ class ForgotPasswordService:
                 await db.rollback()
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST,
-                "Нет доступного канала восстановления. Обратитесь к администратору.",
+                tr(
+                    "Нет доступного канала восстановления. Обратитесь к администратору.",
+                    current_locale(),
+                ),
             )
 
         reset_id = secrets.token_urlsafe(24)
@@ -192,21 +204,32 @@ class ForgotPasswordService:
                 db, user_id=user.id, msg_type=OutboxType.MFA_CODE,
                 payload={
                     "code": code, "purpose": "password_reset",
-                    "ttl_minutes": RESET_TTL_MINUTES, "subject": "Код восстановления пароля",
+                    "ttl_minutes": RESET_TTL_MINUTES,
+                    "subject": tr("Код восстановления пароля", locale),
+                    "locale": locale,
                 },
             )
-            msg = "Код отправлен в Telegram."
+            msg = tr("Код отправлен в Telegram.", current_locale())
         else:  # email
             from app.services.email import templates as _tpl
             subj, html = _tpl.notification_email(
-                eyebrow="Сброс пароля", title="Код восстановления пароля", accent="#111A3E",
+                eyebrow=tr("Сброс пароля", locale),
+                title=tr("Код восстановления пароля", locale),
+                accent="#111A3E",
                 lines=[
-                    f'Ваш код для восстановления доступа: <b style="font-size:20px;letter-spacing:.12em;color:#1E2A4A">{code}</b>',
-                    f"Код действителен <b>{RESET_TTL_MINUTES} минут</b>. Если вы не запрашивали сброс — проигнорируйте письмо.",
+                    tr(
+                        "Ваш код для восстановления доступа: {code}", locale,
+                        code=f'<b style="font-size:20px;letter-spacing:.12em;color:#1E2A4A">{code}</b>',
+                    ),
+                    tr(
+                        "Код действителен {minutes} минут. Если вы не запрашивали сброс — проигнорируйте письмо.",
+                        locale, minutes=f"<b>{RESET_TTL_MINUTES}</b>",
+                    ),
                 ],
+                locale=locale,
             )
-            await send_email(user.email, subj, html)
-            msg = "Код отправлен на email."
+            await send_email(user.email, subj, html, locale=locale)
+            msg = tr("Код отправлен на email.", current_locale())
 
         await append_audit_entry(
             db, actor_id=str(user.id), actor_email=user.email,
@@ -239,7 +262,7 @@ class ForgotPasswordService:
         if not user:
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST,
-                "Неверный код или истёк срок действия",
+                tr("Неверный код или истёк срок действия", current_locale()),
             )
 
         now = datetime.now(UTC)
@@ -256,7 +279,7 @@ class ForgotPasswordService:
                 await db.rollback()
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST,
-                "Код истёк. Запросите новый.",
+                tr("Код истёк. Запросите новый.", current_locale()),
             )
 
         if not mfa_service._check_bcrypt(
@@ -274,13 +297,19 @@ class ForgotPasswordService:
                 await db.commit()
                 raise HTTPException(
                     status.HTTP_400_BAD_REQUEST,
-                    "Превышено количество попыток. Запросите новый код.",
+                    tr(
+                        "Превышено количество попыток. Запросите новый код.",
+                        current_locale(),
+                    ),
                 )
             await db.commit()
             remaining = MAX_CODE_ATTEMPTS - user.password_reset_attempts
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST,
-                f"Неверный код. Осталось попыток: {remaining}",
+                tr(
+                    "Неверный код. Осталось попыток: {remaining}",
+                    current_locale(), remaining=remaining,
+                ),
             )
 
         try:
@@ -318,6 +347,8 @@ class ForgotPasswordService:
             title="Пароль изменён",
             body="Пароль вашего аккаунта был сброшен. Если это были не вы — "
                  "немедленно обратитесь к администратору.",
+            title_template="Пароль изменён",
+            body_template="Пароль вашего аккаунта был сброшен. Если это были не вы — немедленно обратитесь к администратору.",
         )
 
         return ForgotVerifyResponse(

@@ -14,6 +14,11 @@ import { computed, ref, watch, onMounted } from "vue";
 import { dbAdminApi, formatBytes, formatNumber } from "@/api/dbAdmin";
 import type { SchemaOverview, TableInfo, QueryResponse, TableRowsResponse } from "@/api/dbAdmin";
 import { useConfirm } from "@/composables/useConfirm";
+import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
+const { t: tr } = useI18n();
+
 
 type Tab = "schema" | "browse" | "sql";
 
@@ -44,7 +49,7 @@ async function loadSchema() {
       selectedTable.value = schema.value.tables[0];
     }
   } catch (e: any) {
-    schemaError.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить схему";
+    schemaError.value = e?.response?.data?.detail || e?.message || tr('Не удалось загрузить схему');
   } finally {
     schemaLoading.value = false;
   }
@@ -79,7 +84,7 @@ async function loadBrowse(name?: string) {
       order_dir: browseOrderDir.value,
     });
   } catch (e: any) {
-    browseError.value = e?.response?.data?.detail || e?.message || "Ошибка загрузки строк";
+    browseError.value = e?.response?.data?.detail || e?.message || tr('Ошибка загрузки строк');
   } finally {
     browseLoading.value = false;
   }
@@ -130,9 +135,7 @@ async function runSql(dryRun = false) {
   // запрос (иначе «страшный» confirm → молчаливый 403).
   if (sqlIsWrite.value && !dryRun && !allowWrites.value) {
     sqlError.value =
-      "Режим только чтение: запись и DDL отключены на сервере " +
-      "(DB_ADMIN_ALLOW_WRITES=false). Используйте «Dry-run» для проверки или " +
-      "alembic-миграцию для постоянных изменений.";
+      tr('Режим только чтение: запись и DDL отключены на сервере (DB_ADMIN_ALLOW_WRITES=false). Используйте «Dry-run» для проверки или alembic-миграцию для постоянных изменений.', {  });
     sqlResult.value = null;
     return;
   }
@@ -140,8 +143,8 @@ async function runSql(dryRun = false) {
   if (sqlIsDestructive.value && !dryRun) {
     const ok = await confirmDialog({
       message:
-        "ВНИМАНИЕ: запрос содержит destructive команды (DROP/TRUNCATE/DELETE/ALTER/GRANT/REVOKE).\n\n" +
-        "Это необратимая операция. Продолжить?",
+        i18nKey("ВНИМАНИЕ: запрос содержит destructive команды (DROP/TRUNCATE/DELETE/ALTER/GRANT/REVOKE).\n\n") +
+        i18nKey("Это необратимая операция. Продолжить?"),
       danger: true,
     });
     if (!ok) return;
@@ -152,7 +155,7 @@ async function runSql(dryRun = false) {
   try {
     sqlResult.value = await dbAdminApi.query(sqlText.value, dryRun);
   } catch (e: any) {
-    sqlError.value = e?.response?.data?.detail || e?.message || "Ошибка SQL";
+    sqlError.value = e?.response?.data?.detail || e?.message || tr('Ошибка SQL');
     sqlResult.value = null;
   } finally {
     sqlBusy.value = false;
@@ -203,14 +206,14 @@ onMounted(loadSchema);
       <div class="dba-title-row">
         <div>
           <div class="dba-eyebrow">ADMIN · INFRASTRUCTURE</div>
-          <h1 class="dba-title">Консоль базы данных</h1>
+          <h1 class="dba-title">{{ tr('Консоль базы данных') }}</h1>
           <div class="dba-sub">
-            Прямой доступ к PostgreSQL · все операции пишутся в audit_log
+            {{ tr('Прямой доступ к PostgreSQL · все операции пишутся в audit_log') }}
           </div>
         </div>
         <div v-if="schema" class="dba-meta">
-          <div><span class="dba-meta-label">Размер БД:</span> {{ formatBytes(schema.db_size_bytes) }}</div>
-          <div><span class="dba-meta-label">Таблиц:</span> {{ schema.tables.length }}</div>
+          <div><span class="dba-meta-label">{{ tr('Размер БД:') }}</span> {{ formatBytes(schema.db_size_bytes) }}</div>
+          <div><span class="dba-meta-label">{{ tr('Таблиц:') }}</span> {{ schema.tables.length }}</div>
           <div v-if="schema.db_version" class="dba-meta-ver">{{ schema.db_version.split(" ").slice(0, 2).join(" ") }}</div>
         </div>
       </div>
@@ -224,7 +227,7 @@ onMounted(loadSchema);
           :class="{ 'is-active': activeTab === t }"
           @click="activeTab = t"
         >
-          {{ t === "schema" ? "Схема" : t === "browse" ? "Просмотр" : "SQL-консоль" }}
+          {{ t === "schema" ? tr('Схема') : t === "browse" ? tr('Просмотр') : tr('SQL-консоль') }}
         </button>
       </div>
     </div>
@@ -236,11 +239,11 @@ onMounted(loadSchema);
         <input
           v-model="tableSearch"
           class="dba-search"
-          placeholder="Поиск таблицы…"
+          :placeholder="tr('Поиск таблицы…')"
           type="text"
         />
         <div class="dba-tree">
-          <div v-if="schemaLoading" class="dba-loading">Загрузка…</div>
+          <div v-if="schemaLoading" class="dba-loading">{{ tr('Загрузка…') }}</div>
           <div v-else-if="schemaError" class="dba-error">{{ schemaError }}</div>
           <div
             v-for="t in filteredTables"
@@ -264,24 +267,24 @@ onMounted(loadSchema);
             <h2 class="dba-detail-title">{{ selectedTable.name }}</h2>
             <div class="dba-detail-actions">
               <button class="dba-btn" @click="activeTab = 'browse'; loadBrowse(selectedTable.name)">
-                Просмотр строк →
+                {{ tr('Просмотр строк →') }}
               </button>
               <button class="dba-btn dba-btn-secondary" @click="insertSelectFrom(selectedTable)">
-                SELECT * в консоль →
+                {{ tr('SELECT * в консоль →') }}
               </button>
             </div>
           </div>
 
           <section class="dba-section">
-            <h3>Колонки ({{ selectedTable.columns.length }})</h3>
+            <h3>{{ tr('Колонки (') }}{{ selectedTable.columns.length }})</h3>
             <table class="dba-table">
               <thead>
                 <tr>
-                  <th>Имя</th>
-                  <th>Тип</th>
+                  <th>{{ tr('Имя') }}</th>
+                  <th>{{ tr('Тип') }}</th>
                   <th>NULL</th>
                   <th>Default</th>
-                  <th>Ключи</th>
+                  <th>{{ tr('Ключи') }}</th>
                 </tr>
               </thead>
               <tbody>
@@ -304,13 +307,13 @@ onMounted(loadSchema);
           </section>
 
           <section class="dba-section" v-if="selectedTable.indexes.length">
-            <h3>Индексы ({{ selectedTable.indexes.length }})</h3>
+            <h3>{{ tr('Индексы (') }}{{ selectedTable.indexes.length }})</h3>
             <table class="dba-table">
               <thead>
                 <tr>
-                  <th>Имя</th>
-                  <th>Тип</th>
-                  <th>Определение</th>
+                  <th>{{ tr('Имя') }}</th>
+                  <th>{{ tr('Тип') }}</th>
+                  <th>{{ tr('Определение') }}</th>
                 </tr>
               </thead>
               <tbody>
@@ -327,35 +330,34 @@ onMounted(loadSchema);
             </table>
           </section>
         </template>
-        <div v-else class="dba-empty">Выберите таблицу слева</div>
+        <div v-else class="dba-empty">{{ tr('Выберите таблицу слева') }}</div>
       </main>
     </div>
 
     <!-- ────── Browse ────── -->
     <div v-else-if="activeTab === 'browse'" class="dba-pane">
       <div class="dba-browse-header">
-        <h2 v-if="selectedTable">Просмотр: <span class="dba-mono">{{ selectedTable.name }}</span></h2>
-        <h2 v-else>Выберите таблицу во вкладке «Схема»</h2>
+        <h2 v-if="selectedTable">{{ tr('Просмотр:') }} <span class="dba-mono">{{ selectedTable.name }}</span></h2>
+        <h2 v-else>{{ tr('Выберите таблицу во вкладке «Схема»') }}</h2>
         <div class="dba-browse-controls" v-if="selectedTable">
           <button class="dba-btn dba-btn-secondary" @click="loadBrowse()" :disabled="browseLoading">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>Обновить
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>{{ tr('Обновить') }}
           </button>
           <select v-model.number="browseLimit" @change="browseOffset = 0; loadBrowse()" class="dba-select">
-            <option :value="25">25 / стр</option>
-            <option :value="50">50 / стр</option>
-            <option :value="100">100 / стр</option>
-            <option :value="500">500 / стр</option>
-            <option :value="1000">1000 / стр</option>
+            <option :value="25">{{ tr('25 / стр') }}</option>
+            <option :value="50">{{ tr('50 / стр') }}</option>
+            <option :value="100">{{ tr('100 / стр') }}</option>
+            <option :value="500">{{ tr('500 / стр') }}</option>
+            <option :value="1000">{{ tr('1000 / стр') }}</option>
           </select>
         </div>
       </div>
 
       <div v-if="browseError" class="dba-error">{{ browseError }}</div>
-      <div v-else-if="browseLoading" class="dba-loading">Загрузка…</div>
+      <div v-else-if="browseLoading" class="dba-loading">{{ tr('Загрузка…') }}</div>
       <template v-else-if="browseData">
         <div class="dba-browse-stats">
-          Всего: <b>{{ formatNumber(browseData.total) }}</b> ·
-          Показано {{ browseOffset + 1 }}–{{ Math.min(browseOffset + browseData.rows.length, browseData.total) }}
+          {{ tr('Всего:') }} <b>{{ formatNumber(browseData.total) }}</b> {{ tr('· Показано') }} {{ browseOffset + 1 }}–{{ Math.min(browseOffset + browseData.rows.length, browseData.total) }}
         </div>
         <div class="dba-grid-wrap">
           <table class="dba-grid">
@@ -382,13 +384,13 @@ onMounted(loadSchema);
           </table>
         </div>
         <div class="dba-pager">
-          <button class="dba-btn dba-btn-secondary" :disabled="browseOffset === 0" @click="browsePage(-1)">← Назад</button>
+          <button class="dba-btn dba-btn-secondary" :disabled="browseOffset === 0" @click="browsePage(-1)">{{ tr('← Назад') }}</button>
           <button
             class="dba-btn dba-btn-secondary"
             :disabled="browseOffset + browseLimit >= browseData.total"
             @click="browsePage(1)"
           >
-            Вперёд →
+            {{ tr('Вперёд →') }}
           </button>
         </div>
       </template>
@@ -398,26 +400,26 @@ onMounted(loadSchema);
     <div v-else class="dba-pane">
       <div class="dba-sql-toolbar">
         <button class="dba-btn dba-btn-primary" @click="runSql(false)" :disabled="sqlBusy">
-          ▶ Выполнить
+          {{ tr('▶ Выполнить') }}
         </button>
-        <button class="dba-btn dba-btn-secondary" @click="runSql(true)" :disabled="sqlBusy" title="Откатывает транзакцию после запроса">
+        <button class="dba-btn dba-btn-secondary" @click="runSql(true)" :disabled="sqlBusy" :title="tr('Откатывает транзакцию после запроса')">
           ▷ Dry-run
         </button>
         <span v-if="schema && !allowWrites"
               style="display:inline-flex;align-items:center;font-size:11px;font-weight:600;color:#64748B;background:rgba(100,116,139,.1);padding:3px 9px;border-radius:7px;"
-              title="Запись и DDL отключены на сервере (DB_ADMIN_ALLOW_WRITES=false). Доступны SELECT/EXPLAIN и Dry-run.">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Только чтение
+              :title="tr('Запись и DDL отключены на сервере (DB_ADMIN_ALLOW_WRITES=false). Доступны SELECT/EXPLAIN и Dry-run.')">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>{{ tr('Только чтение') }}
         </span>
         <button v-if="sqlResult" class="dba-btn dba-btn-secondary" @click="exportCsv">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Экспорт CSV
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>{{ tr('Экспорт CSV') }}
         </button>
         <span v-if="sqlIsDestructive" class="dba-warn">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Запрос содержит destructive команды
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>{{ tr('Запрос содержит destructive команды') }}
         </span>
         <span v-if="sqlResult" class="dba-meta-stat">
-          {{ sqlResult.command }} · {{ formatNumber(sqlResult.row_count) }} строк ·
+          {{ sqlResult.command }} · {{ formatNumber(sqlResult.row_count) }} {{ tr('строк ·') }}
           {{ sqlResult.duration_ms }} ms
-          <span v-if="sqlResult.truncated" class="dba-warn"> · обрезано до 10000</span>
+          <span v-if="sqlResult.truncated" class="dba-warn"> {{ tr('· обрезано до 10000') }}</span>
         </span>
       </div>
 
@@ -448,7 +450,7 @@ onMounted(loadSchema);
           </tbody>
         </table>
         <div v-else class="dba-empty">
-          Команда выполнена. Affected rows: {{ sqlResult.row_count }}
+          {{ tr('Команда выполнена. Affected rows:') }} {{ sqlResult.row_count }}
         </div>
       </div>
     </div>

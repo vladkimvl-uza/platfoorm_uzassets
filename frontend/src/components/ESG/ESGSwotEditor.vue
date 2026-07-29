@@ -12,6 +12,8 @@ import { esgApi, type ESGSwotResponse, type ESGSwotItemBrief, type ESGKpiBrief, 
 import { useToast } from "@/composables/useToast";
 import { useCompanyScope } from "@/composables/useCompanyScope";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 const { t } = useI18n();
 
 
@@ -83,12 +85,12 @@ async function submitKpi() {
       fact: kFact.value === "" ? null : Number(kFact.value),
       manager_id: kMgr.value || null,
     });
-    toast.success("KPI добавлен · синхронизирован с /kpi");
+    toast.success(t('KPI добавлен · синхронизирован с /kpi'));
     closeKpi();
     await loadKpis();
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    toast.error("Не добавлено: " + (err?.response?.data?.detail || err?.message || "ошибка"));
+    toast.error(t('Не добавлено: {value0}', { value0: (err?.response?.data?.detail || err?.message || t("ошибка")) }));
   } finally { kSaving.value = false; }
 }
 
@@ -116,7 +118,7 @@ const sectorGroups = computed(() => {
     let i = idx.get(key);
     if (i === undefined) {
       i = out.length; idx.set(key, i);
-      out.push({ key, name: c.sector_name || "Прочее", color: c.sector_color || "#94A3B8", companies: [] });
+      out.push({ key, name: c.sector_name || t("Прочее"), color: c.sector_color || "#94A3B8", companies: [] });
     }
     out[i].companies.push(c);
   }
@@ -133,7 +135,7 @@ const tableRows = computed<SweRow[]>(() => {
   // своими компаниями, он не показывается (решение владельца 29.07.2026).
   // Иначе компания читала бы сводные оценки по всем 22 организациям.
   const rows: SweRow[] = coScope.showPortfolioViews.value
-    ? [{ type: "portfolio", label: "Весь портфель", scope: "portfolio", cid: "", color: "#7C6FF7" }]
+    ? [{ type: "portfolio", label: i18nKey("Весь портфель"), scope: "portfolio", cid: "", color: "#7C6FF7" }]
     : [];
   for (const g of sectorGroups.value) {
     rows.push({ type: "sector", label: g.name, color: g.color, count: g.companies.length });
@@ -184,17 +186,17 @@ async function commit(scope: Scope, kind: Kind, cid: string, existing: ESGSwotIt
       company_id: scope === "company" ? cid : null,
       body, order_idx: existing?.order_idx ?? listLen,
     });
-    if ((r as { queued?: boolean }).queued) toast.info("Отправлено на согласование");
-    else { toast.success("Сохранено"); emit("saved"); }
+    if ((r as { queued?: boolean }).queued) toast.info(t('Отправлено на согласование'));
+    else { toast.success(t('Сохранено')); emit("saved"); }
     cancelEdit();
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    toast.error("Не сохранено: " + (err?.response?.data?.detail || err?.message || "ошибка"));
+    toast.error(t('Не сохранено: {value0}', { value0: (err?.response?.data?.detail || err?.message || t("ошибка")) }));
   } finally { saving.value = false; }
 }
 
 const KIND_AC: Record<Kind, string> = { strength: "#1D9E75", weakness: "#E24B4A" };
-const KIND_TITLE: Record<Kind, string> = { strength: "↑ Сильные стороны", weakness: "↓ Проблемные зоны" };
+const KIND_TITLE: Record<Kind, string> = { strength: i18nKey("↑ Сильные стороны"), weakness: i18nKey("↓ Проблемные зоны") };
 const KINDS: Kind[] = ["strength", "weakness"];
 // компании для секции ESG-KPI (все, чтобы можно было добавить; при read-only — только с KPI)
 const kpiCompanies = computed(() =>
@@ -217,13 +219,13 @@ const kpiCompanies = computed(() =>
           <template v-for="(row, ri) in tableRows" :key="kind+':'+(row.type==='sector' ? 'sec:'+row.label : row.scope+':'+row.cid)">
             <!-- секторный разделитель -->
             <div v-if="row.type === 'sector'" class="swe-obj-sec">
-              <span class="swe-obj-sec-dot" :style="{ background: row.color }"></span>{{ row.label }}
+              <span class="swe-obj-sec-dot" :style="{ background: row.color }"></span>{{ t(row.label) }}
               <span class="swe-obj-sec-cnt">{{ row.count }}</span>
             </div>
             <!-- объект (портфель / компания) со своими пунктами -->
             <div v-else class="swe-obj" :class="{ port: row.type === 'portfolio' }"
                  :style="{ '--d': Math.min(ri * 14, 300) + 'ms' }">
-              <div class="swe-obj-h"><span class="swe-obj-dot" :style="{ background: row.color }"></span>{{ row.label }}</div>
+              <div class="swe-obj-h"><span class="swe-obj-dot" :style="{ background: row.color }"></span>{{ t(row.label) }}</div>
               <div class="swe-items">
                 <div v-for="(it, i) in itemsFor(row.scope!, row.cid!, kind)" :key="it.id || (kind+i)"
                      class="swe-item" :class="kind === 'strength' ? 'good' : 'bad'">
@@ -262,7 +264,7 @@ const kpiCompanies = computed(() =>
       <div class="swe-w-t" style="color:#7C6FF7">{{ t('ESG-KPI по компаниям') }}{{ year ? ' · ' + year : '' }}</div>
       <div class="swe-kpi-grid">
         <div v-for="row in kpiCompanies" :key="'k:'+row.cid" class="swe-kpi-co">
-          <div class="swe-kpi-co-h"><span class="swe-obj-dot" :style="{ background: row.color }"></span>{{ row.label }}</div>
+          <div class="swe-kpi-co-h"><span class="swe-obj-dot" :style="{ background: row.color }"></span>{{ t(row.label) }}</div>
           <div v-if="kpisFor(row.cid!).length" class="swe-kpi-list">
             <div v-for="(k, ki) in kpisFor(row.cid!)" :key="ki" class="swe-kpi"
                  :title="(k.manager ? k.manager + ' · ' : '') + k.name">
@@ -306,7 +308,7 @@ const kpiCompanies = computed(() =>
         <div class="swe-km-note">{{ t('Сохранится в модуле «KPI» под менеджером «ESG / Устойчивое развитие» — появится и в') }} <b>/kpi</b>.</div>
         <div class="swe-km-actions">
           <button class="swe-km-cancel" type="button" @click="closeKpi">{{ t('Отмена') }}</button>
-          <button class="swe-km-save" type="button" :disabled="kSaving || !kName.trim()" @click="submitKpi">{{ kSaving ? 'Сохранение…' : 'Добавить KPI' }}</button>
+          <button class="swe-km-save" type="button" :disabled="kSaving || !kName.trim()" @click="submitKpi">{{ kSaving ? t('Сохранение…') : t('Добавить KPI') }}</button>
         </div>
       </div>
     </ModalShell>

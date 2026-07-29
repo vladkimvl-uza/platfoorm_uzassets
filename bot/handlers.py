@@ -12,6 +12,7 @@ from aiogram.types import (
 import config
 import db
 import formatter as fmt
+from i18n import VALID_LOCALES, locale_from_telegram, msg, normalize_locale
 
 log = logging.getLogger("uza-bot.handlers")
 router = Router()
@@ -19,24 +20,38 @@ router = Router()
 
 # ── Persistent reply-keyboard (2×2) shown after /start ───────────────────
 
-def _persistent_kbd() -> ReplyKeyboardMarkup:
+def _locale(message: Message, user: dict | None = None) -> str:
+    if user and user.get("ui_locale"):
+        return normalize_locale(user["ui_locale"])
+    language = message.from_user.language_code if message.from_user else None
+    return locale_from_telegram(language)
+
+
+def _persistent_kbd(locale: str = "ru") -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="📋 Мои задачи"),    KeyboardButton(text="🛡 На модерации")],
-            [KeyboardButton(text="📊 Дашборд"),        KeyboardButton(text="⚙ Настройки")],
+            [KeyboardButton(text=f"📋 {msg('menu_tasks', locale)}"),
+             KeyboardButton(text=f"🛡 {msg('menu_moderation', locale)}")],
+            [KeyboardButton(text=f"📊 {msg('menu_dashboard', locale)}"),
+             KeyboardButton(text=f"⚙ {msg('menu_settings', locale)}")],
         ],
         resize_keyboard=True,
         is_persistent=True,
-        input_field_placeholder="Выберите действие или используйте /menu",
+        input_field_placeholder=msg("menu_placeholder", locale),
     )
 
 
 # Map persistent-keyboard label → platform deep-link path.
+_MENU_KEYS: tuple[tuple[str, str, str], ...] = (
+    ("📋", "menu_tasks", "/my/tasks"),
+    ("🛡", "menu_moderation", "/admin/moderation"),
+    ("📊", "menu_dashboard", "/dashboard"),
+    ("⚙", "menu_settings", "/settings/notifications"),
+)
 _MENU_LINKS: dict[str, str] = {
-    "📋 Мои задачи":    "/my/tasks",
-    "🛡 На модерации": "/admin/moderation",
-    "📊 Дашборд":       "/dashboard",
-    "⚙ Настройки":     "/settings/notifications",
+    f"{icon} {msg(key, locale)}": path
+    for locale in VALID_LOCALES
+    for icon, key, path in _MENU_KEYS
 }
 
 
@@ -53,30 +68,24 @@ async def cmd_start_with_token(message: Message, command: CommandObject) -> None
 
     info = await db.lookup_user_by_link_token(token)
     if info is None:
-        return await message.answer(fmt.fmt_link_token_invalid())
+        return await message.answer(fmt.fmt_link_token_invalid(_locale(message)))
+
+    locale = normalize_locale(info.get("ui_locale"))
 
     full_name = _esc(info["full_name"])
     email     = _esc(info["email"])
     role      = _esc(info["role_label"])
 
-    card_text = (
-        "<b>UzAssets · Подтверждение привязки</b>\n"
-        "\n"
-        "Подтвердите, что этот Telegram принадлежит вам:\n"
-        "\n"
-        f"  Имя:   <b>{full_name}</b>\n"
-        f"  Email: <code>{email}</code>\n"
-        f"  Роль:  <i>{role}</i>\n"
-        "\n"
-        "<i>Если это не вы — нажмите «Это не я» и сообщите администратору.</i>"
+    card_text = msg(
+        "link_card", locale, name=full_name, email=email, role=role,
     )
     kbd = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(
-            text=f"✓ Это я, {info['full_name']}",
+            text=f"✓ {msg('confirm_me', locale, name=info['full_name'])}",
             callback_data=f"tglink:confirm:{token}",
         )],
         [InlineKeyboardButton(
-            text="⚠ Это не я",
+            text=f"⚠ {msg('not_me', locale).removesuffix(' ⚠')}",
             callback_data=f"tglink:deny:{token}",
         )],
     ])
@@ -87,14 +96,18 @@ async def cmd_start_with_token(message: Message, command: CommandObject) -> None
 async def cmd_start_plain(message: Message) -> None:
     user = await db.find_user_by_chat_id(message.from_user.id)
     if user:
+        locale = _locale(message, user)
         await message.answer(
             f"<b>UzAssets · {_esc(user['email'])}</b>\n\n"
-            "Этот чат уже привязан. Откройте /menu или /help.",
-            reply_markup=_persistent_kbd(),
+            + msg("already_linked", locale),
+            reply_markup=_persistent_kbd(locale),
             disable_web_page_preview=True,
         )
     else:
-        await message.answer(fmt.fmt_welcome_no_token(), disable_web_page_preview=True)
+        await message.answer(
+            fmt.fmt_welcome_no_token(_locale(message)),
+            disable_web_page_preview=True,
+        )
 
 
 # ── /menu ────────────────────────────────────────────────────────────────
@@ -103,10 +116,13 @@ async def cmd_start_plain(message: Message) -> None:
 async def cmd_menu(message: Message) -> None:
     user = await db.find_user_by_chat_id(message.from_user.id)
     if not user:
-        return await message.answer(fmt.fmt_not_linked(), disable_web_page_preview=True)
+        return await message.answer(
+            fmt.fmt_not_linked(_locale(message)), disable_web_page_preview=True,
+        )
+    locale = _locale(message, user)
     await message.answer(
-        fmt.fmt_menu(),
-        reply_markup=_persistent_kbd(),
+        fmt.fmt_menu(locale),
+        reply_markup=_persistent_kbd(locale),
         disable_web_page_preview=True,
     )
 
@@ -115,7 +131,10 @@ async def cmd_menu(message: Message) -> None:
 
 @router.message(Command("help"))
 async def cmd_help(message: Message) -> None:
-    await message.answer(fmt.fmt_help(), disable_web_page_preview=True)
+    user = await db.find_user_by_chat_id(message.from_user.id)
+    await message.answer(
+        fmt.fmt_help(_locale(message, user)), disable_web_page_preview=True,
+    )
 
 
 # ── /status ──────────────────────────────────────────────────────────────
@@ -124,15 +143,15 @@ async def cmd_help(message: Message) -> None:
 async def cmd_status(message: Message) -> None:
     user = await db.find_user_by_chat_id(message.from_user.id)
     if not user:
-        return await message.answer(fmt.fmt_not_linked(), disable_web_page_preview=True)
-    if not user.get("is_active"):
         return await message.answer(
-            "<b>UzAssets · Аккаунт отключён</b>\n\n"
-            "Ваш аккаунт деактивирован администратором."
+            fmt.fmt_not_linked(_locale(message)), disable_web_page_preview=True,
         )
+    locale = _locale(message, user)
+    if not user.get("is_active"):
+        return await message.answer(msg("account_disabled", locale))
 
     notifications = await db.get_recent_notifications(user["id"], limit=5)
-    await message.answer(fmt.fmt_status(user["email"], notifications),
+    await message.answer(fmt.fmt_status(user["email"], notifications, locale),
                          disable_web_page_preview=True)
 
 
@@ -142,17 +161,17 @@ async def cmd_status(message: Message) -> None:
 async def cmd_queue(message: Message) -> None:
     user = await db.find_user_by_chat_id(message.from_user.id)
     if not user:
-        return await message.answer(fmt.fmt_not_linked(), disable_web_page_preview=True)
+        return await message.answer(
+            fmt.fmt_not_linked(_locale(message)), disable_web_page_preview=True,
+        )
+    locale = _locale(message, user)
 
     has_mod_perm = await db.has_permission(user["id"], "moderation.review")
     if not has_mod_perm:
-        return await message.answer(
-            "<b>UzAssets · Недостаточно прав</b>\n\n"
-            "Для просмотра очереди модерации требуется право <code>moderation.review</code>."
-        )
+        return await message.answer(msg("moderation_permission", locale))
 
     items = await db.get_moderation_queue(limit=10)
-    await message.answer(fmt.fmt_queue(items), disable_web_page_preview=True)
+    await message.answer(fmt.fmt_queue(items, locale), disable_web_page_preview=True)
 
 
 # ── /sessions ────────────────────────────────────────────────────────────
@@ -161,26 +180,33 @@ async def cmd_queue(message: Message) -> None:
 async def cmd_sessions(message: Message) -> None:
     user = await db.find_user_by_chat_id(message.from_user.id)
     if not user:
-        return await message.answer(fmt.fmt_not_linked(), disable_web_page_preview=True)
+        return await message.answer(
+            fmt.fmt_not_linked(_locale(message)), disable_web_page_preview=True,
+        )
 
     sessions = await db.get_user_sessions(user["id"])
-    await message.answer(fmt.fmt_sessions(sessions), disable_web_page_preview=True)
+    await message.answer(
+        fmt.fmt_sessions(sessions, _locale(message, user)),
+        disable_web_page_preview=True,
+    )
 
 
 # ── /unlink ──────────────────────────────────────────────────────────────
 
 @router.message(Command("unlink"))
 async def cmd_unlink(message: Message) -> None:
+    user = await db.find_user_by_chat_id(message.from_user.id)
+    locale = _locale(message, user)
     ok = await db.unlink_telegram_by_chat(message.from_user.id)
     if ok:
         log.info("Unlinked chat_id=%s", message.from_user.id)
         await message.answer(
-            fmt.fmt_unlinked(),
+            fmt.fmt_unlinked(locale),
             reply_markup=ReplyKeyboardRemove(),
             disable_web_page_preview=True,
         )
     else:
-        await message.answer(fmt.fmt_not_linked(), disable_web_page_preview=True)
+        await message.answer(fmt.fmt_not_linked(locale), disable_web_page_preview=True)
 
 
 # ── Persistent-keyboard button taps → deep-link proxy ────────────────────
@@ -190,11 +216,13 @@ async def cmd_menu_proxy(message: Message) -> None:
     label = message.text or ""
     path  = _MENU_LINKS.get(label, "/")
     url   = f"{config.PLATFORM_URL.rstrip('/')}{path}"
+    user = await db.find_user_by_chat_id(message.from_user.id)
+    locale = _locale(message, user)
     await message.answer(
         f"<b>{_esc(label)}</b>\n\n"
         f"<a href=\"{_esc(url)}\">{_esc(url)}</a>",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="Открыть в платформе →", url=url)],
+            [InlineKeyboardButton(text=msg("open_platform", locale), url=url)],
         ]),
         disable_web_page_preview=True,
     )
@@ -205,11 +233,13 @@ async def cmd_menu_proxy(message: Message) -> None:
 @router.message(Command("cancel"))
 async def cmd_cancel(message: Message) -> None:
     from callbacks import clear_pending_reply, get_pending_reply
+    user = await db.find_user_by_chat_id(message.from_user.id)
+    locale = _locale(message, user)
     if get_pending_reply(message.from_user.id):
         clear_pending_reply(message.from_user.id)
-        await message.answer("<i>Ответ отменён.</i>")
+        await message.answer(f"<i>{msg('reply_cancelled', locale)}</i>")
     else:
-        await message.answer("<i>Нечего отменять.</i>")
+        await message.answer(f"<i>{msg('nothing_to_cancel', locale)}</i>")
 
 
 # ── Pending reply: next text message becomes a comment ──────────────────
@@ -222,12 +252,14 @@ async def cmd_pending_or_unknown(message: Message) -> None:
     from callbacks import get_pending_reply, clear_pending_reply, _signed_post
 
     pending = get_pending_reply(message.from_user.id) if message.from_user else None
+    user = await db.find_user_by_chat_id(message.from_user.id) if message.from_user else None
+    locale = _locale(message, user)
     if pending:
         ent_type = pending["entity_type"]
         ent_id = pending["entity_id"]
         body = (message.text or "").strip()
         if not body:
-            await message.answer("Пустой ответ не отправлен. Напишите текст или /cancel")
+            await message.answer(msg("empty_reply", locale))
             return
 
         chat_id = message.from_user.id
@@ -239,21 +271,23 @@ async def cmd_pending_or_unknown(message: Message) -> None:
             clear_pending_reply(chat_id)
             url = f"{config.PLATFORM_URL.rstrip('/')}/{ent_type}s/{ent_id}"
             await message.answer(
-                f"<b>✓ Комментарий отправлен</b>\n\n"
-                f"Опубликован на платформе. "
-                f"<a href=\"{_esc(url)}\">Открыть {ent_type} →</a>",
+                f"<b>✓ {msg('comment_sent', locale)}</b>\n\n"
+                f"{msg('published_platform', locale)} "
+                f"<a href=\"{_esc(url)}\">{msg('open_entity', locale, entity=_esc(ent_type))}</a>",
                 disable_web_page_preview=True,
             )
         elif code == 403:
-            await message.answer("Нет прав на комментирование. Ответ не сохранён.")
+            await message.answer(msg("comment_forbidden", locale))
             clear_pending_reply(chat_id)
         else:
-            detail = data.get("detail", "ошибка")
-            await message.answer(f"<i>Не удалось отправить:</i> {_esc(str(detail))}\n\nПопробуй ещё или /cancel")
+            detail = data.get("detail", "error")
+            await message.answer(
+                f"<i>{msg('send_failed', locale, detail=_esc(str(detail)))}</i>"
+            )
         return
 
     # Fallback
     await message.answer(
-        "<i>Неизвестная команда.</i> Используйте /menu или /help.",
+        f"<i>{msg('unknown_command', locale)}</i>",
         disable_web_page_preview=True,
     )

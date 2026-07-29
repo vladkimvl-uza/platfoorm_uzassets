@@ -47,7 +47,7 @@ function onUserCreated(userId: string) {
             :key="tab.name"
             :class="['rv3-tab', { on: activeTab === tab.name }]"
             @click="goTab(tab.name)"
-          >{{ tab.label }}</button>
+          >{{ t(tab.label) }}</button>
         </div>
       </div>
       <div class="rv3-tb-c">

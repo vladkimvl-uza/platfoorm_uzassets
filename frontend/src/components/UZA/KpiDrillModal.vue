@@ -30,6 +30,11 @@ import { useExecutiveDashboard } from "@/composables/useExecutiveDashboard";
 import { useCompaniesStore } from "@/stores/companies";
 import { tasksApi } from "@/api/tasks";
 import { projectsApi } from "@/api/projects";
+import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
+const { t: tr } = useI18n();
+
 
 export type KpiKind =
   | "projects"
@@ -62,50 +67,50 @@ interface KpiMeta {
 
 const KPI_META: Record<KpiKind, KpiMeta> = {
   projects: {
-    label: "Проектов в портфеле",
+    label: i18nKey("Проектов в портфеле"),
     template: "inventory",
     color: "#7F77DD",
-    cta: "Открыть все проекты",
+    cta: i18nKey("Открыть все проекты"),
     route: { name: "projects" },
     unit: "projects",
   },
   tasks: {
-    label: "Задач в портфеле",
+    label: i18nKey("Задач в портфеле"),
     template: "inventory",
     color: "#7F77DD",
-    cta: "Открыть все задачи",
+    cta: i18nKey("Открыть все задачи"),
     route: { name: "dashboard" },
     unit: "tasks",
   },
   done_projects: {
-    label: "Завершено · Проекты",
+    label: i18nKey("Завершено · Проекты"),
     template: "funnel",
     color: "#1D9E75",
-    cta: "Открыть завершённые проекты",
+    cta: i18nKey("Открыть завершённые проекты"),
     route: { name: "projects", query: { status: "done" } },
     unit: "projects",
   },
   done_tasks: {
-    label: "Завершено · Задачи",
+    label: i18nKey("Завершено · Задачи"),
     template: "funnel",
     color: "#1D9E75",
-    cta: "Открыть завершённые задачи",
+    cta: i18nKey("Открыть завершённые задачи"),
     route: { name: "dashboard", query: { status: "done" } },
     unit: "tasks",
   },
   deferred_tasks: {
-    label: "Перенесено · Задачи",
+    label: i18nKey("Перенесено · Задачи"),
     template: "funnel",
     color: "#7F77DD",
-    cta: "Открыть все задачи",
+    cta: i18nKey("Открыть все задачи"),
     route: { name: "dashboard" },
     unit: "tasks",
   },
   avg_progress: {
-    label: "Средний прогресс портфеля",
+    label: i18nKey("Средний прогресс портфеля"),
     template: "distribution",
     color: "#EF9F27",
-    cta: "Исполнение по компаниям",
+    cta: i18nKey("Исполнение по компаниям"),
     unit: "mixed",
   },
 };
@@ -136,14 +141,14 @@ const headerValue = computed<HeaderValue>(() => {
     case "projects":
       return {
         bigNum: m.proj_count,
-        sub: `${companies.totalCount} компаний · 5 секторов · FY ${year.value}`,
+        sub: tr("{companies} компаний · 5 секторов · FY {year}", { companies: companies.totalCount, year: year.value }),
         pctOfBase: null,
         badge: null,
       };
     case "tasks":
       return {
         bigNum: m.task_count,
-        sub: `${companies.totalCount} компаний · ${m.proj_count} проектов · FY ${year.value}`,
+        sub: tr("{companies} компаний · {projects} проектов · FY {year}", { companies: companies.totalCount, projects: m.proj_count, year: year.value }),
         pctOfBase: null,
         badge: null,
       };
@@ -151,27 +156,27 @@ const headerValue = computed<HeaderValue>(() => {
       const p = pct(m.done_proj, m.proj_count);
       return {
         bigNum: m.done_proj,
-        sub: `из ${m.proj_count}`,
+        sub: tr("из {count}", { count: m.proj_count }),
         pctOfBase: p,
-        badge: { text: `${p}% завершения`, tone: "good" },
+        badge: { text: tr("{percent}% завершения", { percent: p }), tone: "good" },
       };
     }
     case "done_tasks": {
       const p = pct(m.done_tasks, m.task_count);
       return {
         bigNum: m.done_tasks,
-        sub: `из ${m.task_count}`,
+        sub: tr("из {count}", { count: m.task_count }),
         pctOfBase: p,
-        badge: { text: `${p}% завершения`, tone: "good" },
+        badge: { text: tr("{percent}% завершения", { percent: p }), tone: "good" },
       };
     }
     case "deferred_tasks": {
       const p = pct(m.deferred_tasks, m.task_count);
       return {
         bigNum: m.deferred_tasks,
-        sub: `из ${m.task_count}`,
+        sub: tr("из {count}", { count: m.task_count }),
         pctOfBase: p,
-        badge: { text: `${p}% перенесённых`, tone: "bad" },
+        badge: { text: tr("{percent}% перенесённых", { percent: p }), tone: "bad" },
       };
     }
     case "avg_progress":
@@ -317,10 +322,10 @@ const loadingStatus = ref(false);
 const totalCount = computed(() => statusSegs.value.reduce((a, s) => a + s.count, 0));
 
 const STATUS_VIS: Array<{ codes: string[]; label: string; color: string }> = [
-  { codes: ["done"],                                  label: "Завершено",     color: "#5DC093" },
-  { codes: ["active", "in_progress", "review"],       label: "В работе",      color: "#EFB373" },
-  { codes: ["init", "new"],                           label: "Инициирование", color: "#378ADD" },
-  { codes: ["quarterly", "monthly", "ongoing"],       label: "Регулярные",    color: "#888780" },
+  { codes: ["done"],                                  label: i18nKey("Завершено"),     color: "#5DC093" },
+  { codes: ["active", "in_progress", "review"],       label: i18nKey("В работе"),      color: "#EFB373" },
+  { codes: ["init", "new"],                           label: i18nKey("Инициирование"), color: "#378ADD" },
+  { codes: ["quarterly", "monthly", "ongoing"],       label: i18nKey("Регулярные"),    color: "#888780" },
 ];
 
 async function loadInventoryStatus() {
@@ -347,8 +352,8 @@ async function loadInventoryStatus() {
     if (!segs.length && bm.value) {
       const total = props.kind === "projects" ? bm.value.proj_count : bm.value.task_count;
       const done = props.kind === "projects" ? bm.value.done_proj : bm.value.done_tasks;
-      segs.push({ code: "done", label: "Завершено", color: "#5DC093", count: done });
-      segs.push({ code: "active", label: "В работе", color: "#EFB373", count: Math.max(0, total - done) });
+      segs.push({ code: "done", label: i18nKey("Завершено"), color: "#5DC093", count: done });
+      segs.push({ code: "active", label: i18nKey("В работе"), color: "#EFB373", count: Math.max(0, total - done) });
     }
     statusSegs.value = segs;
   } catch (e) {
@@ -356,8 +361,8 @@ async function loadInventoryStatus() {
       const total = props.kind === "projects" ? bm.value.proj_count : bm.value.task_count;
       const done = props.kind === "projects" ? bm.value.done_proj : bm.value.done_tasks;
       statusSegs.value = [
-        { code: "done", label: "Завершено", color: "#5DC093", count: done },
-        { code: "active", label: "В работе", color: "#EFB373", count: Math.max(0, total - done) },
+        { code: "done", label: i18nKey("Завершено"), color: "#5DC093", count: done },
+        { code: "active", label: i18nKey("В работе"), color: "#EFB373", count: Math.max(0, total - done) },
       ];
     }
   } finally {
@@ -385,20 +390,20 @@ const funnelSegs = computed<FunnelSeg[]>(() => {
 
   return [
     {
-      label: "Завершено",
+      label: i18nKey("Завершено"),
       color: "#5DC093",
       count: done,
       pct: pct(done, total),
       highlight: props.kind === "done_projects" || props.kind === "done_tasks",
     },
     {
-      label: "В работе",
+      label: i18nKey("В работе"),
       color: "#EFB373",
       count: inProg,
       pct: pct(inProg, total),
     },
     {
-      label: "Перенесено",
+      label: i18nKey("Перенесено"),
       color: "#7F77DD",
       count: deferred,
       pct: pct(deferred, total),
@@ -573,7 +578,7 @@ onUnmounted(() => {
           <div class="kdm-shim" aria-hidden="true" />
           <div class="kdm-glow" aria-hidden="true" />
 
-          <button class="kdm-x" @click="close" aria-label="Закрыть">
+          <button class="kdm-x" @click="close" :aria-label="tr('Закрыть')">
             <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
               <path d="M3.5 3.5l7 7M10.5 3.5l-7 7"/>
             </svg>
@@ -582,7 +587,7 @@ onUnmounted(() => {
           <!-- ─── HEADER ─── -->
           <div class="kdm-hdr kdm-row" style="--si:0">
             <div class="kdm-hdr-l">
-              <div class="kdm-h-l">{{ meta.label }}</div>
+              <div class="kdm-h-l">{{ tr(meta.label) }}</div>
               <div class="kdm-h-v">
                 <span class="num">{{ headerNumDisplay }}</span><span v-if="headerValue.sub" class="sub"> · {{ headerValue.sub }}</span>
               </div>
@@ -604,7 +609,7 @@ onUnmounted(() => {
           <template v-if="meta.template === 'inventory'">
             <!-- Status breakdown -->
             <div class="kdm-sect kdm-row" style="--si:1">
-              <div class="kdm-l-sec">По статусу</div>
+              <div class="kdm-l-sec">{{ tr('По статусу') }}</div>
               <div v-if="loadingStatus && !statusSegs.length" class="kdm-skel-bar" />
               <template v-else-if="statusSegs.length">
                 <div class="kdm-bar">
@@ -622,17 +627,17 @@ onUnmounted(() => {
                 <div class="kdm-leg">
                   <span v-for="s in statusSegs" :key="s.code">
                     <i class="kdm-dot" :style="{ background: s.color }"/>
-                    {{ s.label }} · <strong>{{ s.count }}</strong>
+                    {{ tr(s.label) }} · <strong>{{ s.count }}</strong>
                     <span class="kdm-leg-pct">{{ pct(s.count, totalCount) }}%</span>
                   </span>
                 </div>
               </template>
-              <div v-else class="kdm-empty">Нет данных по статусам</div>
+              <div v-else class="kdm-empty">{{ tr('Нет данных по статусам') }}</div>
             </div>
 
             <!-- Sector breakdown grid -->
             <div class="kdm-sect kdm-row" style="--si:2">
-              <div class="kdm-l-sec">По секторам</div>
+              <div class="kdm-l-sec">{{ tr('По секторам') }}</div>
               <div class="kdm-sec-grid">
                 <div
                   v-for="(s, i) in sectorRows"
@@ -640,23 +645,23 @@ onUnmounted(() => {
                   class="kdm-mini-kpi"
                   :style="{ '--kc': s.color, '--ki': i }"
                 >
-                  <div class="kdm-mk-l">{{ s.label }}</div>
+                  <div class="kdm-mk-l">{{ tr(s.label) }}</div>
                   <div class="kdm-mk-v">{{ s.total }}</div>
-                  <div class="kdm-mk-d">{{ s.done }} завершено · {{ s.pct_done }}%</div>
+                  <div class="kdm-mk-d">{{ s.done }} {{ tr('завершено ·') }} {{ s.pct_done }}%</div>
                 </div>
               </div>
             </div>
 
             <!-- Top-5 companies -->
             <div class="kdm-sect kdm-row" style="--si:3">
-              <div class="kdm-l-sec">Top-5 компаний по объёму</div>
+              <div class="kdm-l-sec">{{ tr('Top-5 компаний по объёму') }}</div>
               <div class="kdm-toplist">
                 <div
                   v-for="(c, i) in topCompanies"
                   :key="c.company_id"
                   class="kdm-top-row"
                   @click="gotoCompany(c)"
-                  :title="'Открыть карточку «' + c.name + '»'"
+                  :title="tr('Открыть карточку «{value0}»', { value0: c.name })"
                 >
                   <span class="kdm-top-name">
                     <i class="kdm-top-tick" :style="{ background: c.sector_color }"/>
@@ -685,7 +690,7 @@ onUnmounted(() => {
           <template v-if="meta.template === 'funnel'">
             <!-- Funnel bar -->
             <div class="kdm-sect kdm-row" style="--si:1">
-              <div class="kdm-l-sec">Воронка статусов · всего {{ funnelTotal }}</div>
+              <div class="kdm-l-sec">{{ tr('Воронка статусов · всего') }} {{ funnelTotal }}</div>
               <div class="kdm-bar kdm-bar--lg">
                 <div
                   v-for="(s, i) in funnelSegs"
@@ -704,14 +709,14 @@ onUnmounted(() => {
               <div class="kdm-leg">
                 <span v-for="s in funnelSegs" :key="s.label">
                   <i class="kdm-dot" :style="{ background: s.color }"/>
-                  {{ s.label }}
+                  {{ tr(s.label) }}
                 </span>
               </div>
             </div>
 
             <!-- Per-sector progress -->
             <div class="kdm-sect kdm-row" style="--si:2">
-              <div class="kdm-l-sec">% завершения по секторам</div>
+              <div class="kdm-l-sec">{{ tr('% завершения по секторам') }}</div>
               <div class="kdm-row-list">
                 <div
                   v-for="(s, i) in sectorRows"
@@ -720,7 +725,7 @@ onUnmounted(() => {
                 >
                   <span class="kdm-sec-name">
                     <i class="kdm-top-tick" :style="{ background: s.color }"/>
-                    {{ s.label }}
+                    {{ tr(s.label) }}
                   </span>
                   <span class="kdm-sec-bar">
                     <span
@@ -739,7 +744,7 @@ onUnmounted(() => {
 
             <!-- Recent items -->
             <div class="kdm-sect kdm-row" style="--si:3" v-if="meta.template === 'funnel'">
-              <div class="kdm-l-sec">Последние 4 изменения</div>
+              <div class="kdm-l-sec">{{ tr('Последние 4 изменения') }}</div>
               <div v-if="loadingRecent && !recentItems.length" class="kdm-skel-list">
                 <div class="kdm-skel-row" v-for="i in 4" :key="i"/>
               </div>
@@ -749,7 +754,7 @@ onUnmounted(() => {
                   :key="t.id"
                   class="kdm-recent-row"
                   @click="gotoTask(t)"
-                  :title="'Открыть задачу'"
+                  :title="tr('Открыть задачу')"
                 >
                   <span class="kdm-recent-ic" :style="{ color: meta.color }">
                     <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="11" height="11">
@@ -765,7 +770,7 @@ onUnmounted(() => {
                   <span class="kdm-recent-date">{{ fmtDate(t.updated_at) }}</span>
                 </div>
               </div>
-              <div v-else class="kdm-empty">Нет недавних изменений</div>
+              <div v-else class="kdm-empty">{{ tr('Нет недавних изменений') }}</div>
             </div>
           </template>
 
@@ -776,7 +781,7 @@ onUnmounted(() => {
           <template v-if="meta.template === 'distribution'">
             <!-- Histogram -->
             <div class="kdm-sect kdm-row" style="--si:1">
-              <div class="kdm-l-sec">Распределение компаний по % прогресса</div>
+              <div class="kdm-l-sec">{{ tr('Распределение компаний по % прогресса') }}</div>
               <div class="kdm-histo">
                 <div
                   v-for="(b, i) in histogram"
@@ -792,14 +797,14 @@ onUnmounted(() => {
                       animationDelay: (0.5 + i * 0.12) + 's',
                     }"
                   />
-                  <div class="kdm-hbar-l">{{ b.label }}</div>
+                  <div class="kdm-hbar-l">{{ tr(b.label) }}</div>
                 </div>
               </div>
             </div>
 
             <!-- Per-sector average -->
             <div class="kdm-sect kdm-row" style="--si:2">
-              <div class="kdm-l-sec">Средний по сектору</div>
+              <div class="kdm-l-sec">{{ tr('Средний по сектору') }}</div>
               <div class="kdm-row-list">
                 <div
                   v-for="(s, i) in [...sectorRows].sort((a, b) => b.avg_pct - a.avg_pct)"
@@ -808,7 +813,7 @@ onUnmounted(() => {
                 >
                   <span class="kdm-sec-name">
                     <i class="kdm-top-tick" :style="{ background: s.color }"/>
-                    {{ s.label }}
+                    {{ tr(s.label) }}
                   </span>
                   <span class="kdm-sec-bar">
                     <span
@@ -828,7 +833,7 @@ onUnmounted(() => {
             <!-- Leaders / Laggards -->
             <div class="kdm-sect kdm-row kdm-ll" style="--si:3">
               <div>
-                <div class="kdm-l-sec" style="color:#0F6E56;">↑ Лидеры</div>
+                <div class="kdm-l-sec" style="color:#0F6E56;">{{ tr('↑ Лидеры') }}</div>
                 <div class="kdm-ll-list">
                   <div
                     v-for="c in leadersLaggards.leaders"
@@ -842,7 +847,7 @@ onUnmounted(() => {
                 </div>
               </div>
               <div>
-                <div class="kdm-l-sec" style="color:#A32D2D;">↓ Аутсайдеры</div>
+                <div class="kdm-l-sec" style="color:#A32D2D;">{{ tr('↓ Аутсайдеры') }}</div>
                 <div class="kdm-ll-list">
                   <div
                     v-for="c in leadersLaggards.laggards"
@@ -860,9 +865,9 @@ onUnmounted(() => {
 
           <!-- ─── FOOTER ─── -->
           <div class="kdm-ftr kdm-row" style="--si:4">
-            <button class="kdm-btn kdm-btn-g" @click="close">Закрыть</button>
+            <button class="kdm-btn kdm-btn-g" @click="close">{{ tr('Закрыть') }}</button>
             <button v-if="meta.route" class="kdm-btn kdm-btn-p" @click="gotoCta">
-              {{ meta.cta }}
+              {{ tr(meta.cta) }}
               <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" width="12" height="12">
                 <path d="M3 7h8M7.5 3.5L11 7l-3.5 3.5"/>
               </svg>

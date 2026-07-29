@@ -19,6 +19,8 @@ import FuelIcon from "@/components/UnitCost/FuelIcon.vue";
 import { unitCostApi, type UCOverview, type UCCompany } from "@/api/unitCost";
 import UnitCostCompanyModal from "@/components/UnitCost/UnitCostCompanyModal.vue";
 import UnitCostPricesModal from "@/components/UnitCost/UnitCostPricesModal.vue";
+import { i18nKey } from "@/locale/keys";
+
 
 const { t } = useI18n();
 const scope = useCompanyScope();
@@ -39,8 +41,8 @@ const YEARS = (() => {
   return out;
 })();
 const QUARTERS = [
-  { value: "annual", label: "Год" }, { value: "q1", label: "I кв" },
-  { value: "q2", label: "II кв" }, { value: "q3", label: "III кв" }, { value: "q4", label: "IV кв" },
+  { value: "annual", label: i18nKey("Год") }, { value: "q1", label: i18nKey("I кв") },
+  { value: "q2", label: i18nKey("II кв") }, { value: "q3", label: i18nKey("III кв") }, { value: "q4", label: i18nKey("IV кв") },
 ] as const;
 // реактивные подписи для UzaSegment (лейблы переводятся при смене языка)
 const quarterOptions = computed(() => QUARTERS.map((q) => ({ value: q.value, label: t(q.label) })));
@@ -118,7 +120,10 @@ function fmtNum(v: number | null | undefined, d = 0): string {
 }
 // честный тикер: помечаем только реально живые поля (USD — ЦБ, золото — спот);
 // Brent/медь — ориентиры без живого источника (правятся в «Цены и курсы»).
-const LIVE_SRC: Record<string, string> = { usd_rate: "курс ЦБ РУз", gold: "спот-рынок" };
+const LIVE_SRC: Record<string, string> = {
+  usd_rate: i18nKey("курс ЦБ РУз"),
+  gold: i18nKey("спот-рынок"),
+};
 const tickerItems = computed(() => {
   const w = worldLive.value; if (!w) return [];
   const lf = w.live_fields || [];
@@ -127,7 +132,7 @@ const tickerItems = computed(() => {
     { key: "brent", label: "Brent", val: "$" + fmtNum(w.brent, 1) },
     { key: "gold", label: "Gold", val: "$" + fmtNum(w.gold) },
     { key: "copper", label: "Cu", val: "$" + fmtNum(w.copper) },
-  ].map((it) => ({ ...it, live: lf.includes(it.key), src: LIVE_SRC[it.key] || "ориентир" }));
+  ].map((it) => ({ ...it, live: lf.includes(it.key), src: LIVE_SRC[it.key] || i18nKey("ориентир") }));
 });
 
 // фильтр по секторам (для списка компаний)
@@ -196,7 +201,7 @@ function donutHover(e: DonutEntry, total: number): [string, string] {
                 :title="tk.live ? (t('Живой источник: {src}', { src: t(tk.src) }) + (liveFresh ? ', ' + liveFresh : '')) : t('Ориентир: нет живого источника — задаётся вручную в «Цены и курсы»')">
             <span v-if="tk.live" class="uc-live"><i /></span>
             <span v-else class="uc-offdot" aria-hidden="true"></span>
-            <b>{{ tk.label }}</b>{{ tk.val }}
+            <b>{{ t(tk.label) }}</b>{{ tk.val }}
             <span v-if="tk.live" class="uc-tag uc-tag-live">live</span>
             <span v-else class="uc-tag uc-tag-off">{{ t("ориентир") }}</span>
           </span>
@@ -309,7 +314,7 @@ function donutHover(e: DonutEntry, total: number): [string, string] {
           </div>
           <div class="uc-prices">
             <div v-for="(p, i) in priceRows" :key="p.fuel" class="uc-price" :style="{ '--d': (i * 50) + 'ms', '--fc': FUEL_PAL[p.fuel] || '#7F77DD' }">
-              <div class="uc-price-l"><FuelIcon :fuel="p.fuel" :size="13" />{{ p.label }}</div>
+              <div class="uc-price-l"><FuelIcon :fuel="p.fuel" :size="13" />{{ t(p.label) }}</div>
               <div class="uc-price-v">{{ p.price.toLocaleString("ru") }}</div>
               <div class="uc-price-u">{{ p.unit }}</div>
             </div>

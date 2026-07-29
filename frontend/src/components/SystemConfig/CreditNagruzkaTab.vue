@@ -19,17 +19,17 @@
         <div class="cnt-eyebrow">{{ t('admin · сценарии и прогнозы') }}</div>
         <h2 class="cnt-title">
           {{ t('Кредитная нагрузка по 22 SOEs') }}
-          <span class="cnt-tip" :title="TT.intro">?</span>
+          <span class="cnt-tip" :title="t(TT.intro)">?</span>
         </h2>
         <p class="cnt-sub" v-if="summary">
           {{ fmtCount(summary.loans_count) }} {{ t('кредитов ·') }}
           {{ fmtCount(summary.companies_count) }} {{ t('предприятий ·') }}
-          {{ fmtCount(summary.banks_count) }} {{ t('банков · в области охвата:') }} <strong>{{ scopeLabel }}</strong>
+          {{ fmtCount(summary.banks_count) }} {{ t('банков · в области охвата:') }} <strong>{{ t(scopeLabel) }}</strong>
         </p>
       </div>
       <div class="cnt-hdr-r">
         <label class="cnt-field">
-          <span class="cnt-field-l">{{ t('Активный сценарий') }}<span class="cnt-tip" :title="TT.activeScenario">?</span></span>
+          <span class="cnt-field-l">{{ t('Активный сценарий') }}<span class="cnt-tip" :title="t(TT.activeScenario)">?</span></span>
           <select v-model="activeScenarioIdProxy" class="cnt-input">
             <option v-for="sc in scenarios" :key="sc.id" :value="sc.id">
               {{ sc.name_ru || sc.macro_scenario_key }}
@@ -40,7 +40,7 @@
     </div>
 
     <!-- Scope toggle -->
-    <div class="cnt-scope" :title="TT.scope">
+    <div class="cnt-scope" :title="t(TT.scope)">
       <button
         v-for="opt in SCOPE_OPTIONS"
         :key="opt.value"
@@ -49,54 +49,54 @@
         :class="{ on: scope === opt.value }"
         @click="setScope(opt.value)"
       >
-        {{ opt.label }}
-        <small v-if="opt.hint">{{ opt.hint }}</small>
+        {{ t(opt.label) }}
+        <small v-if="opt.hint">{{ t(opt.hint) }}</small>
       </button>
     </div>
 
     <div v-if="error" class="cnt-alert cnt-alert-bad">{{ error }}</div>
 
     <!-- ═══════════════ 2. KPI STRIP ═══════════════ -->
-    <div class="cnt-l"><span>{{ t('KPI портфеля') }}<span class="cnt-tip" :title="TT.kpi">?</span></span><span class="cnt-l-hint">{{ t('пересчитывается при смене scope / сценария') }}</span></div>
+    <div class="cnt-l"><span>{{ t('KPI портфеля') }}<span class="cnt-tip" :title="t(TT.kpi)">?</span></span><span class="cnt-l-hint">{{ t('пересчитывается при смене scope / сценария') }}</span></div>
     <div class="cnt-kpi-grid" v-if="summary">
       <div class="cnt-kpi" style="--kc:#534AB7;">
-        <div class="cnt-kpi-l">Outstanding<span class="cnt-tip" :title="TT.outstanding">?</span></div>
+        <div class="cnt-kpi-l">Outstanding<span class="cnt-tip" :title="t(TT.outstanding)">?</span></div>
         <div class="cnt-kpi-v">{{ fmtUsdMlrd(summary.debt_outstanding_usd) }}</div>
         <div class="cnt-kpi-d">{{ t('из $') }}{{ (Number(summary.sum_total_usd) / 1e9).toFixed(2) }} {{ t('млрд программы') }}</div>
       </div>
       <div class="cnt-kpi" style="--kc:#1D9E75;">
-        <div class="cnt-kpi-l">{{ t('Возвращено') }}<span class="cnt-tip" :title="TT.repaid">?</span></div>
+        <div class="cnt-kpi-l">{{ t('Возвращено') }}<span class="cnt-tip" :title="t(TT.repaid)">?</span></div>
         <div class="cnt-kpi-v">{{ fmtUsdMlrd(summary.repaid_usd) }}</div>
         <div class="cnt-kpi-d">{{ fmtPct(summary.repaid_pct) }}</div>
       </div>
       <div class="cnt-kpi" style="--kc:#EF9F27;">
-        <div class="cnt-kpi-l">{{ t('Средневзв. ставка') }}<span class="cnt-tip" :title="TT.rate">?</span></div>
+        <div class="cnt-kpi-l">{{ t('Средневзв. ставка') }}<span class="cnt-tip" :title="t(TT.rate)">?</span></div>
         <div class="cnt-kpi-v">{{ fmtPct(summary.avg_rate_pct, 2) }}</div>
         <div class="cnt-kpi-d">{{ t('взвеш. по долгу') }}</div>
       </div>
       <div class="cnt-kpi" style="--kc:#378ADD;">
-        <div class="cnt-kpi-l">{{ t('С госгарантией') }}<span class="cnt-tip" :title="TT.guaranteed">?</span></div>
+        <div class="cnt-kpi-l">{{ t('С госгарантией') }}<span class="cnt-tip" :title="t(TT.guaranteed)">?</span></div>
         <div class="cnt-kpi-v">{{ fmtPct(summary.guaranteed_pct) }}</div>
         <div class="cnt-kpi-d">{{ fmtUsdMlrd(summary.guaranteed_usd) }}</div>
       </div>
       <div class="cnt-kpi" style="--kc:#7F77DD;">
-        <div class="cnt-kpi-l">{{ t('К погашению 12мес') }}<span class="cnt-tip" :title="TT.due12">?</span></div>
+        <div class="cnt-kpi-l">{{ t('К погашению 12мес') }}<span class="cnt-tip" :title="t(TT.due12)">?</span></div>
         <div class="cnt-kpi-v">{{ fmtUsdMlrd(summary.next_12mo_payments_usd) }}</div>
         <div class="cnt-kpi-d">{{ summary.debt_outstanding_usd > 0 ? fmtPct(summary.next_12mo_payments_usd / summary.debt_outstanding_usd * 100) : '—' }} {{ t('от долга') }}</div>
       </div>
       <div class="cnt-kpi" style="--kc:#E24B4A;">
-        <div class="cnt-kpi-l">{{ t('Ожидаемые потери EL') }}<span class="cnt-tip" :title="TT.el">?</span></div>
+        <div class="cnt-kpi-l">{{ t('Ожидаемые потери EL') }}<span class="cnt-tip" :title="t(TT.el)">?</span></div>
         <div class="cnt-kpi-v">{{ fmtUsdMlrd(summary.expected_loss_usd) }}</div>
         <div class="cnt-kpi-d">{{ fmtCount(summary.flagged_loans_count) }} {{ t('флагнуто') }}</div>
       </div>
     </div>
 
     <!-- ═══════════════ 3. ASSUMPTIONS EDITOR ═══════════════ -->
-    <div class="cnt-l"><span>{{ t('Базовые допущения сценария') }}<span class="cnt-tip" :title="TT.assumptions">?</span></span><span class="cnt-l-hint">{{ t('автосохранение при потере фокуса') }}</span></div>
+    <div class="cnt-l"><span>{{ t('Базовые допущения сценария') }}<span class="cnt-tip" :title="t(TT.assumptions)">?</span></span><span class="cnt-l-hint">{{ t('автосохранение при потере фокуса') }}</span></div>
     <div class="cnt-card" v-if="activeScenario">
       <div class="cnt-ae-grid">
         <label class="cnt-ae-field">
-          <span class="cnt-ae-l">{{ t('Списание госкредитов %') }}<span class="cnt-tip" :title="TT.stateForg">?</span></span>
+          <span class="cnt-ae-l">{{ t('Списание госкредитов %') }}<span class="cnt-tip" :title="t(TT.stateForg)">?</span></span>
           <input
             type="number" step="0.1" min="0" max="100"
             class="cnt-input cnt-input-num"
@@ -108,7 +108,7 @@
         </label>
 
         <label class="cnt-ae-field">
-          <span class="cnt-ae-l">{{ t('Изм. ставки рефин. (п.п.)') }}<span class="cnt-tip" :title="TT.refDelta">?</span></span>
+          <span class="cnt-ae-l">{{ t('Изм. ставки рефин. (п.п.)') }}<span class="cnt-tip" :title="t(TT.refDelta)">?</span></span>
           <input
             type="number" step="0.25"
             class="cnt-input cnt-input-num"
@@ -120,7 +120,7 @@
         </label>
 
         <label class="cnt-ae-field">
-          <span class="cnt-ae-l">{{ t('Базовый default rate %') }}<span class="cnt-tip" :title="TT.defaultRate">?</span></span>
+          <span class="cnt-ae-l">{{ t('Базовый default rate %') }}<span class="cnt-tip" :title="t(TT.defaultRate)">?</span></span>
           <input
             type="number" step="0.5" min="0" max="100"
             class="cnt-input cnt-input-num"
@@ -132,7 +132,7 @@
         </label>
 
         <label class="cnt-ae-field">
-          <span class="cnt-ae-l">{{ t('Ускорение выплат %') }}<span class="cnt-tip" :title="TT.accel">?</span></span>
+          <span class="cnt-ae-l">{{ t('Ускорение выплат %') }}<span class="cnt-tip" :title="t(TT.accel)">?</span></span>
           <input
             type="number" step="1" min="0" max="100"
             class="cnt-input cnt-input-num"
@@ -146,7 +146,7 @@
     </div>
 
     <!-- ═══════════════ 4. RISK FORMULA EDITOR ═══════════════ -->
-    <div class="cnt-l"><span>{{ t('Формула риска (Basel EL)') }}<span class="cnt-tip" :title="TT.formula">?</span></span><span class="cnt-l-hint">{{ t('EL = долг × PD × (1 − RR)') }}</span></div>
+    <div class="cnt-l"><span>{{ t('Формула риска (Basel EL)') }}<span class="cnt-tip" :title="t(TT.formula)">?</span></span><span class="cnt-l-hint">{{ t('EL = долг × PD × (1 − RR)') }}</span></div>
     <div class="cnt-card cnt-rfe">
       <div class="cnt-rfe-vars">
         <strong>{{ t('Доступные переменные:') }}</strong>
@@ -171,7 +171,7 @@
       </div>
 
       <div v-if="formulaValidate" class="cnt-rfe-result" :class="formulaValidate.ok ? 'cnt-rfe-ok' : 'cnt-rfe-bad'">
-        <strong>{{ formulaValidate.ok ? '✓ Синтаксис корректен' : '✗ Ошибка' }}</strong>
+        <strong>{{ formulaValidate.ok ? t('✓ Синтаксис корректен') : t('✗ Ошибка') }}</strong>
         <div v-if="formulaValidate.error">{{ formulaValidate.error }}<span v-if="formulaValidate.error_position != null"> {{ t('(позиция') }} {{ formulaValidate.error_position }})</span></div>
         <div v-if="formulaValidate.variables_used?.length">
           {{ t('Обнаружены:') }} <code v-for="v in formulaValidate.variables_used" :key="v">{{ v }}</code>
@@ -194,7 +194,7 @@
     </div>
 
     <!-- ═══════════════ 5. CUSTOM INDICATORS ═══════════════ -->
-    <div class="cnt-l"><span>{{ t('Кастомные индикаторы') }}<span class="cnt-tip" :title="TT.customInd">?</span></span><span class="cnt-l-hint">{{ t('переменные доступные в формуле как custom.&lt;key&gt;') }}</span></div>
+    <div class="cnt-l"><span>{{ t('Кастомные индикаторы') }}<span class="cnt-tip" :title="t(TT.customInd)">?</span></span><span class="cnt-l-hint">{{ t('переменные доступные в формуле как custom.&lt;key&gt;') }}</span></div>
     <div class="cnt-card">
       <table class="cnt-tbl" v-if="customIndicators.length">
         <thead>
@@ -242,7 +242,7 @@
     </div>
 
     <!-- ═══════════════ 6. TOP LOANS TABLE ═══════════════ -->
-    <div class="cnt-l"><span>TOP-{{ topLoans.length }} {{ t('кредитов') }}<span class="cnt-tip" :title="TT.topLoans">?</span></span><span class="cnt-l-hint">{{ t('inline-редактирование per-loan override') }}</span></div>
+    <div class="cnt-l"><span>TOP-{{ topLoans.length }} {{ t('кредитов') }}<span class="cnt-tip" :title="t(TT.topLoans)">?</span></span><span class="cnt-l-hint">{{ t('inline-редактирование per-loan override') }}</span></div>
     <div class="cnt-card cnt-tl-wrap" v-if="topLoans.length">
       <table class="cnt-tbl">
         <thead>
@@ -292,10 +292,10 @@
     </div>
 
     <!-- ═══════════════ 7. READ-ONLY VIZ: Debt ratios + Waterfall ═══════════════ -->
-    <div class="cnt-l"><span>{{ t('Аналитика портфеля') }}<span class="cnt-tip" :title="TT.viz">?</span></span><span class="cnt-l-hint">{{ t('read-only: отношения долга + квартальный график') }}</span></div>
+    <div class="cnt-l"><span>{{ t('Аналитика портфеля') }}<span class="cnt-tip" :title="t(TT.viz)">?</span></span><span class="cnt-l-hint">{{ t('read-only: отношения долга + квартальный график') }}</span></div>
     <div class="cnt-2col">
       <div class="cnt-card">
-        <div class="cnt-card-h">{{ t('TOP-6 по Debt/EBITDA') }}<span class="cnt-tip" :title="TT.debtEbitda">?</span></div>
+        <div class="cnt-card-h">{{ t('TOP-6 по Debt/EBITDA') }}<span class="cnt-tip" :title="t(TT.debtEbitda)">?</span></div>
         <table class="cnt-tbl cnt-tbl-tight" v-if="ratios.length">
           <tbody>
             <tr v-for="r in ratios" :key="r.company_id">
@@ -309,7 +309,7 @@
       </div>
 
       <div class="cnt-card">
-        <div class="cnt-card-h">{{ t('Квартальный график погашения') }}<span class="cnt-tip" :title="TT.waterfall">?</span></div>
+        <div class="cnt-card-h">{{ t('Квартальный график погашения') }}<span class="cnt-tip" :title="t(TT.waterfall)">?</span></div>
         <div class="cnt-wf" v-if="forecast.length">
           <div v-for="(y, yi) in forecast" :key="yi" class="cnt-wf-yr">
             <div class="cnt-wf-yr-l">{{ y.period_year }} Q{{ y.period_quarter }}<span v-if="y.is_history" class="cnt-wf-tag">{{ t('факт') }}</span></div>
@@ -332,6 +332,8 @@ import { useCreditScenario, fmtUsdMlrd, fmtUsdMln, fmtPct, fmtCount } from "@/co
 import * as creditApi from "@/api/creditScenario"
 import { useConfirm } from "@/composables/useConfirm"
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 const { t } = useI18n();
 
 
@@ -355,11 +357,11 @@ const activeScenarioIdProxy = computed({
 })
 
 const SCOPE_OPTIONS: Array<{ value: creditApi.LenderScope; label: string; hint?: string }> = [
-  { value: "all_uz", label: "Все РУ", hint: "гос+местные" },
-  { value: "state", label: "Гос." },
-  { value: "local", label: "Местные" },
-  { value: "foreign", label: "Иностран." },
-  { value: "all", label: "Все", hint: "+облигации" },
+  { value: "all_uz", label: i18nKey("Все РУ"), hint: i18nKey("гос+местные") },
+  { value: "state", label: i18nKey("Гос.") },
+  { value: "local", label: i18nKey("Местные") },
+  { value: "foreign", label: i18nKey("Иностран.") },
+  { value: "all", label: i18nKey("Все"), hint: i18nKey("+облигации") },
 ]
 
 const CI_TYPES = ["number", "percentage", "currency_usd", "currency_uzs", "ratio", "text"]
@@ -434,7 +436,7 @@ async function onCreateIndicator() {
   newInd.min_value = null; newInd.max_value = null; newInd.current_value = null
 }
 async function onDeleteIndicator(id: string) {
-  if (!(await confirmDialog({ message: "Удалить индикатор?", danger: true }))) return
+  if (!(await confirmDialog({ message: t("Удалить индикатор?"), danger: true }))) return
   await deleteCustomIndicator(id)
 }
 async function updateIndicatorValue(ind: creditApi.CustomIndicator, ev: Event) {
@@ -456,7 +458,7 @@ async function onLoanOverride(loanId: string, field: string, ev: Event) {
   await upsertLoanOverride(loanId, { [field]: v } as any)
 }
 async function onDeleteOverride(loanId: string) {
-  if (!(await confirmDialog({ message: "Удалить override для этого кредита?", danger: true }))) return
+  if (!(await confirmDialog({ message: t("Удалить override для этого кредита?"), danger: true }))) return
   await deleteLoanOverride(loanId)
 }
 
@@ -472,27 +474,27 @@ onMounted(async () => {
 
 // ─── Tooltips ───
 const TT = {
-  intro: "Раздел для управления сценариями кредитной нагрузки 22 SOEs. Все правки изолированы — не влияют на factual данные в credit-portfolio.",
-  activeScenario: "Выбранный сценарий применяется ко всем расчётам ниже (KPI, формула риска, прогноз погашения).",
-  scope: "Выбор подмножества кредиторов для всех KPI и графиков ниже. По умолчанию — внутренние РУ (гос. + местные).",
-  kpi: "Сводка по портфелю в области охвата. Пересчитывается при смене сценария.",
-  outstanding: "Текущая задолженность по выбранному scope. Учитывает % списания из сценария.",
-  repaid: "Возвращено = Программа − Outstanding. Включает плановые и досрочные выплаты.",
-  rate: "Σ(rate × debt) / Σ debt — взвешенная по размеру долга. Учитывает изменение ставки рефинанса из сценария.",
-  guaranteed: "Доля кредитов с госгарантией. Влияет на recovery rate в формуле EL.",
-  due12: "Платежи следующих 12 месяцев — основной долг + проценты по графику.",
-  el: "Expected Loss = Σ debt × PD × (1 − RR). PD из формулы, RR из risk_rr_by_lender или is_guaranteed.",
-  assumptions: "Базовые гипотезы — применяются ко всему портфелю в этом сценарии. Сохраняются автоматически.",
-  stateForg: "% основного долга, который государство простит. Применяется к кредитам с lender_type='state'.",
-  refDelta: "Изменение ставки рефинансирования в процентных пунктах (+/-). Применяется к гос. + местным.",
-  defaultRate: "Базовая вероятность дефолта в этом сценарии (PD baseline). Может быть переопределена per-loan.",
-  accel: "% ускорения выплат от планового графика. Используется в прогнозе погашения.",
-  formula: "Python-выражение для расчёта Expected Loss. Возвращает финальное значение EL в USD. Безопасный AST-eval (без simpleeval).",
-  customInd: "Custom-переменные, доступные в формуле через custom.<key>. Например: 'доля юаня', 'мораторий 2026'.",
-  topLoans: "Топ-N кредитов по размеру долга. Inline-редактирование override: forgiveness% (% списания) и rate_override (новая ставка).",
-  viz: "Read-only визуализация: топ-должники по Debt/EBITDA и квартальный график погашения.",
-  debtEbitda: "Debt/EBITDA = долг / прибыль до налогов и амортизации. <2.5 здоровый, 2.5–3 повышенный, >3 критический.",
-  waterfall: "Сумма плановых выплат (основной долг + проценты) по годам 2023–2030. Источник: loan_repayments.",
+  intro: i18nKey("Раздел для управления сценариями кредитной нагрузки 22 SOEs. Все правки изолированы — не влияют на factual данные в credit-portfolio."),
+  activeScenario: i18nKey("Выбранный сценарий применяется ко всем расчётам ниже (KPI, формула риска, прогноз погашения)."),
+  scope: i18nKey("Выбор подмножества кредиторов для всех KPI и графиков ниже. По умолчанию — внутренние РУ (гос. + местные)."),
+  kpi: i18nKey("Сводка по портфелю в области охвата. Пересчитывается при смене сценария."),
+  outstanding: i18nKey("Текущая задолженность по выбранному scope. Учитывает % списания из сценария."),
+  repaid: i18nKey("Возвращено = Программа − Outstanding. Включает плановые и досрочные выплаты."),
+  rate: i18nKey("Σ(rate × debt) / Σ debt — взвешенная по размеру долга. Учитывает изменение ставки рефинанса из сценария."),
+  guaranteed: i18nKey("Доля кредитов с госгарантией. Влияет на recovery rate в формуле EL."),
+  due12: i18nKey("Платежи следующих 12 месяцев — основной долг + проценты по графику."),
+  el: i18nKey("Expected Loss = Σ debt × PD × (1 − RR). PD из формулы, RR из risk_rr_by_lender или is_guaranteed."),
+  assumptions: i18nKey("Базовые гипотезы — применяются ко всему портфелю в этом сценарии. Сохраняются автоматически."),
+  stateForg: i18nKey("% основного долга, который государство простит. Применяется к кредитам с lender_type='state'."),
+  refDelta: i18nKey("Изменение ставки рефинансирования в процентных пунктах (+/-). Применяется к гос. + местным."),
+  defaultRate: i18nKey("Базовая вероятность дефолта в этом сценарии (PD baseline). Может быть переопределена per-loan."),
+  accel: i18nKey("% ускорения выплат от планового графика. Используется в прогнозе погашения."),
+  formula: i18nKey("Python-выражение для расчёта Expected Loss. Возвращает финальное значение EL в USD. Безопасный AST-eval (без simpleeval)."),
+  customInd: i18nKey("Custom-переменные, доступные в формуле через custom.<key>. Например: 'доля юаня', 'мораторий 2026'."),
+  topLoans: i18nKey("Топ-N кредитов по размеру долга. Inline-редактирование override: forgiveness% (% списания) и rate_override (новая ставка)."),
+  viz: i18nKey("Read-only визуализация: топ-должники по Debt/EBITDA и квартальный график погашения."),
+  debtEbitda: i18nKey("Debt/EBITDA = долг / прибыль до налогов и амортизации. <2.5 здоровый, 2.5–3 повышенный, >3 критический."),
+  waterfall: i18nKey("Сумма плановых выплат (основной долг + проценты) по годам 2023–2030. Источник: loan_repayments."),
 }
 </script>
 

@@ -43,6 +43,10 @@ const loading   = ref(false);
 const search    = ref("");
 const filterSector  = ref("");
 const filterActive  = ref<"all" | "active" | "inactive">("active");
+const tabs = computed(() => [
+  { id: "companies" as const, label: t("Компании ({count})", { count: companies.value.length }) },
+  { id: "sectors" as const, label: t("Сектора ({count})", { count: sectors.value.length }) },
+]);
 
 // Dialogs
 const showCreateCompany = ref(false);
@@ -141,7 +145,7 @@ function toggleInlineCreate() {
     companyForm.value = {
       code: "", name_ru: "", name_short: "", name_uz: "", name_en: "",
       sector_code: "",
-      legal_form: "АО", inn: "", description: "",
+      legal_form: "АО", inn: "", description: "", // i18n-exempt: canonical API value
       website: "", address: "", ceo_name: "",
       employees_count: undefined, founded_year: undefined,
       is_active: true,
@@ -207,7 +211,7 @@ async function saveInline(c: CompanyListItem) {
     await loadCompanies();
     await companiesStore.reload();
   } catch (e: any) {
-    formError.value = e?.response?.data?.detail || e?.message || "Не удалось сохранить";
+    formError.value = e?.response?.data?.detail || e?.message || t('Не удалось сохранить');
   } finally {
     inlineSaving.value = false;
   }
@@ -220,7 +224,7 @@ async function toggleActive(c: CompanyListItem) {
     await loadCompanies();
     await companiesStore.reload();
   } catch (e: any) {
-    formError.value = e?.response?.data?.detail || e?.message || "Не удалось изменить статус";
+    formError.value = e?.response?.data?.detail || e?.message || t('Не удалось изменить статус');
   } finally {
     inlineSaving.value = false;
   }
@@ -256,9 +260,9 @@ async function submitCreateCompany() {
     await companiesStore.reload();
   } catch (e: any) {
     if (e?.response?.status === 409) {
-      formError.value = `Компания с тикером '${companyForm.value.code}' уже существует.`;
+      formError.value = t('Компания с тикером \'{value0}\' уже существует.', { value0: companyForm.value.code });
     } else {
-      formError.value = e?.response?.data?.detail || e?.message || "Ошибка создания";
+      formError.value = e?.response?.data?.detail || e?.message || t('Ошибка создания');
     }
   } finally {
     formSubmitting.value = false;
@@ -299,7 +303,7 @@ async function submitEditCompany() {
     await loadCompanies();
     await companiesStore.reload();
   } catch (e: any) {
-    formError.value = e?.response?.data?.detail || e?.message || "Ошибка сохранения";
+    formError.value = e?.response?.data?.detail || e?.message || t('Ошибка сохранения');
   } finally {
     formSubmitting.value = false;
   }
@@ -321,7 +325,7 @@ async function submitDeleteCompany() {
     await loadCompanies();
     await companiesStore.reload();
   } catch (e: any) {
-    formError.value = e?.response?.data?.detail || e?.message || "Ошибка удаления";
+    formError.value = e?.response?.data?.detail || e?.message || t('Ошибка удаления');
   } finally {
     formSubmitting.value = false;
   }
@@ -368,9 +372,9 @@ async function submitCreateSector() {
     await loadSectors();
   } catch (e: any) {
     if (e?.response?.status === 409) {
-      formError.value = `Сектор '${sectorForm.value.code}' уже существует.`;
+      formError.value = t('Сектор \'{value0}\' уже существует.', { value0: sectorForm.value.code });
     } else {
-      formError.value = e?.response?.data?.detail || e?.message || "Ошибка создания";
+      formError.value = e?.response?.data?.detail || e?.message || t('Ошибка создания');
     }
   } finally {
     formSubmitting.value = false;
@@ -392,7 +396,7 @@ async function submitEditSector() {
     showEditSector.value = false;
     await loadSectors();
   } catch (e: any) {
-    formError.value = e?.response?.data?.detail || e?.message || "Ошибка сохранения";
+    formError.value = e?.response?.data?.detail || e?.message || t('Ошибка сохранения');
   } finally {
     formSubmitting.value = false;
   }
@@ -415,7 +419,7 @@ async function submitDeleteSector() {
     if (e?.response?.status === 409) {
       formError.value = e?.response?.data?.detail;
     } else {
-      formError.value = e?.response?.data?.detail || e?.message || "Ошибка удаления";
+      formError.value = e?.response?.data?.detail || e?.message || t('Ошибка удаления');
     }
   } finally {
     formSubmitting.value = false;
@@ -432,10 +436,7 @@ async function submitDeleteSector() {
 
     <!-- Tabs -->
     <div class="flex gap-1 mb-4 border-b border-slate-200">
-      <button v-for="tab in [
-                {id: 'companies', label: `Компании (${companies.length})`},
-                {id: 'sectors',   label: `Сектора (${sectors.length})`},
-              ]" :key="tab.id"
+      <button v-for="tab in tabs" :key="tab.id"
               @click="activeTab = tab.id as any"
               class="px-4 py-2 text-sm transition-colors relative"
               :class="activeTab === tab.id ? 'text-uza-purple font-medium' : 'text-slate-500 hover:text-slate-700'">
@@ -462,7 +463,7 @@ async function submitDeleteSector() {
         </select>
         <button v-if="canCreateCompanies" @click="toggleInlineCreate"
                 class="px-4 py-2 text-sm bg-uza-purple text-white rounded-uza-pill hover:bg-uza-purple/90">
-          {{ showInlineCreate ? "− Скрыть форму" : "+ Добавить компанию" }}
+          {{ showInlineCreate ? t('− Скрыть форму') : t('+ Добавить компанию') }}
         </button>
       </div>
 
@@ -496,7 +497,7 @@ async function submitDeleteSector() {
           <button @click="submitCreateCompany"
                   :disabled="!companyForm.code || !companyForm.name_ru || formSubmitting"
                   class="px-4 py-1.5 text-sm bg-uza-purple text-white rounded-uza-pill hover:bg-uza-purple/90 disabled:opacity-50">
-            {{ formSubmitting ? "Создание…" : "Создать (с группой)" }}
+            {{ formSubmitting ? t('Создание…') : t('Создать (с группой)') }}
           </button>
         </div>
       </div>
@@ -533,13 +534,13 @@ async function submitDeleteSector() {
                     <input v-model="inlineDraft.name_ru" :placeholder="t('Полное название')"
                            @keyup.enter="saveInline(c)" @keyup.esc="cancelInline" class="ca-iedit ca-iedit-sm" />
                     <div style="display:flex;gap:6px;">
-                      <button class="ca-iedit-ok" :disabled="inlineSaving" @click="saveInline(c)">{{ inlineSaving ? '…' : 'Сохранить' }}</button>
+                      <button class="ca-iedit-ok" :disabled="inlineSaving" @click="saveInline(c)">{{ inlineSaving ? '…' : t('Сохранить') }}</button>
                       <button class="ca-iedit-cancel" @click="cancelInline">{{ t('Отмена') }}</button>
                     </div>
                     <div v-if="formError" class="ca-iedit-err">{{ formError }}</div>
                   </div>
                   <div v-else style="min-width:0;" :class="canEditCompanies ? 'ca-editable' : ''"
-                       :title="canEditCompanies ? 'Кликните для быстрого редактирования' : ''"
+                       :title="canEditCompanies ? t('Кликните для быстрого редактирования') : ''"
                        @click="startInline(c, 'name')">
                     <div class="text-slate-900">{{ c.name_short || c.name_ru }}</div>
                     <div class="text-xs text-slate-500">{{ c.name_ru }}</div>
@@ -553,7 +554,7 @@ async function submitDeleteSector() {
                   <option v-for="s in sectors" :key="s.code" :value="s.code">{{ s.name_ru }}</option>
                 </select>
                 <span v-else :class="canEditCompanies ? 'ca-editable' : ''"
-                      :title="canEditCompanies ? 'Кликните, чтобы сменить сектор' : ''"
+                      :title="canEditCompanies ? t('Кликните, чтобы сменить сектор') : ''"
                       @click="canEditCompanies && startInline(c, 'sector')">
                   <SectorChip v-if="c.sector_name" :name="c.sector_name" :color="c.sector_color" />
                   <span v-else class="text-slate-300 text-xs">—</span>
@@ -561,7 +562,7 @@ async function submitDeleteSector() {
               </td>
               <td class="px-3 py-3 text-center">
                 <button type="button" class="ca-status-toggle" :disabled="!canEditCompanies || inlineSaving"
-                        :title="canEditCompanies ? 'Кликните, чтобы переключить статус' : ''"
+                        :title="canEditCompanies ? t('Кликните, чтобы переключить статус') : ''"
                         @click="toggleActive(c)">
                   <span v-if="c.is_active" class="inline-block px-2 py-0.5 rounded-uza-pill text-[10px]"
                         style="background:#1D9E7515;color:#1D9E75">{{ t('Активна') }}</span>
@@ -570,7 +571,7 @@ async function submitDeleteSector() {
                 </button>
               </td>
               <td class="px-3 py-3 text-center text-[10px] uppercase tracking-uza-label2 text-slate-500">
-                {{ (c as any).is_custom ? "Custom" : "Системная" }}
+                {{ (c as any).is_custom ? "Custom" : t('Системная') }}
               </td>
               <td class="px-4 py-3 text-right whitespace-nowrap">
                 <button v-if="canEditCompanies" @click="openEditCompany(c)"
@@ -651,7 +652,7 @@ async function submitDeleteSector() {
     <!-- ============================== DIALOGS ============================== -->
     <!-- COMPANY: Create/Edit -->
     <ModalShell :open="showCreateCompany || showEditCompany" size="lg"
-                :title="showCreateCompany ? 'Новая компания' : ('Редактирование: ' + (editingCompany?.name_short || editingCompany?.code || ''))"
+                :title="showCreateCompany ? t('Новая компания') : t('Редактирование: {name}', { name: editingCompany?.name_short || editingCompany?.code || '' })"
                 @close="closeCompanyModal">
         <div class="space-y-3" @keydown.enter="onCompanyModalEnter">
           <div class="grid grid-cols-2 gap-3">
@@ -689,9 +690,11 @@ async function submitDeleteSector() {
               <label class="block text-xs text-slate-600 mb-1">{{ t('Правовая форма') }}</label>
               <select v-model="companyForm.legal_form"
                       class="w-full px-3 py-2 text-sm rounded-uza-pill border border-slate-200 bg-white focus:border-uza-purple">
+                <!-- i18n-exempt-start: option values are canonical API data; captions are translated. -->
                 <option value="АО">{{ t('АО') }}</option>
                 <option value="ГП">{{ t('ГП') }}</option>
                 <option value="ООО">{{ t('ООО') }}</option>
+                <!-- i18n-exempt-end -->
                 <option value="">{{ t('— не указано —') }}</option>
               </select>
             </div>
@@ -732,7 +735,7 @@ async function submitDeleteSector() {
         <button @click="showCreateCompany ? submitCreateCompany() : submitEditCompany()"
                 :disabled="formSubmitting || !companyForm.code || !companyForm.name_ru"
                 class="px-4 py-2 text-sm bg-uza-purple text-white rounded-uza-pill hover:bg-uza-purple/90 disabled:opacity-40">
-          {{ formSubmitting ? "Сохранение…" : (showCreateCompany ? "Создать" : "Сохранить") }}
+          {{ formSubmitting ? t('Сохранение…') : (showCreateCompany ? t('Создать') : t('Сохранить')) }}
         </button>
       </template>
     </ModalShell>
@@ -773,14 +776,14 @@ async function submitDeleteSector() {
         <button @click="submitDeleteCompany" :disabled="formSubmitting"
                 class="px-4 py-2 text-sm rounded-uza-pill text-white disabled:opacity-40"
                 :class="deleteCascade ? 'bg-uza-red hover:bg-red-700' : 'bg-uza-amber hover:bg-amber-600'">
-          {{ formSubmitting ? "Удаление…" : (deleteCascade ? "Удалить полностью" : "Деактивировать") }}
+          {{ formSubmitting ? t('Удаление…') : (deleteCascade ? t('Удалить полностью') : t('Деактивировать')) }}
         </button>
       </template>
     </ModalShell>
 
     <!-- SECTOR: Create/Edit -->
     <ModalShell :open="showCreateSector || showEditSector" size="sm"
-                :title="showCreateSector ? 'Новый сектор' : ('Редактирование: ' + (editingSector?.name_ru || ''))"
+                :title="showCreateSector ? t('Новый сектор') : t('Редактирование: {name}', { name: editingSector?.name_ru || '' })"
                 @close="showCreateSector = false; showEditSector = false">
         <div class="space-y-3">
           <div>
@@ -826,7 +829,7 @@ async function submitDeleteSector() {
         <button @click="showCreateSector ? submitCreateSector() : submitEditSector()"
                 :disabled="formSubmitting || !sectorForm.code || !sectorForm.name_ru"
                 class="px-4 py-2 text-sm bg-uza-purple text-white rounded-uza-pill hover:bg-uza-purple/90 disabled:opacity-40">
-          {{ formSubmitting ? "Сохранение…" : (showCreateSector ? "Создать" : "Сохранить") }}
+          {{ formSubmitting ? t('Сохранение…') : (showCreateSector ? t('Создать') : t('Сохранить')) }}
         </button>
       </template>
     </ModalShell>
@@ -846,7 +849,7 @@ async function submitDeleteSector() {
                 class="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-uza-pill">{{ t('Отмена') }}</button>
         <button @click="submitDeleteSector" :disabled="formSubmitting"
                 class="px-4 py-2 text-sm bg-uza-red text-white rounded-uza-pill hover:bg-red-700 disabled:opacity-40">
-          {{ formSubmitting ? "Удаление…" : "Удалить" }}
+          {{ formSubmitting ? t('Удаление…') : t('Удалить') }}
         </button>
       </template>
     </ModalShell>

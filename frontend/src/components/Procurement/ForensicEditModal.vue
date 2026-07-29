@@ -16,6 +16,8 @@ import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
 import { useI18n } from "@/composables/useI18n";
 import { execCol } from "@/utils/execBand";
+import { i18nKey } from "@/locale/keys";
+
 
 interface YearRow {
   y: number;
@@ -102,8 +104,8 @@ function getYr(c: ProcCompany, y: number): YearRow {
 }
 
 const SECTOR_LABELS_RU: Record<string, string> = {
-  mining: "Горнодобывающий", oilgas: "Нефтегазовый",
-  energy: "Энергетика", transport: "Транспорт", other: "Прочие",
+  mining: i18nKey("Горнодобывающий"), oilgas: i18nKey("Нефтегазовый"),
+  energy: i18nKey("Энергетика"), transport: i18nKey("Транспорт"), other: i18nKey("Прочие"),
 };
 
 function toggleCompany(i: number) {
@@ -324,8 +326,10 @@ async function save() {
                          <select> не превратил число в статус-строку и не затёр сумму. -->
                     <select v-if="typeof c.plan !== 'number'" class="pe-fld-i text" v-model="c.plan">
                       <option value="">—</option>
-                      <option value="Утверждён">{{ t("Утверждён") }}</option>
-                      <option value="Не утверждён">{{ t("Не утверждён") }}</option>
+                <!-- i18n-exempt-start: option values are canonical API data; captions are translated. -->
+                <option value="Утверждён">{{ t("Утверждён") }}</option>
+                <option value="Не утверждён">{{ t("Не утверждён") }}</option>
+                <!-- i18n-exempt-end -->
                     </select>
                     <div v-else class="pe-fld-i text" style="opacity:.7"
                          :title="t('Числовой план (флагман) — план утверждён на эту сумму; редактируется как «План год», не как статус')">
@@ -336,10 +340,12 @@ async function save() {
                     <div class="pe-fld-l">{{ t("Статус форензика") }}</div>
                     <select class="pe-fld-i text" v-model="c.forensic">
                       <option value="">—</option>
-                      <option value="Завершён">{{ t("Завершён") }}</option>
-                      <option value="В процессе">{{ t("В процессе") }}</option>
-                      <option :value="`Тендер в ${year}`">{{ t("Тендер") }}</option>
-                      <option value="Не начат">{{ t("Не начат") }}</option>
+                <!-- i18n-exempt-start: option values are canonical API data; captions are translated. -->
+                <option value="Завершён">{{ t("Завершён") }}</option>
+                <option value="В процессе">{{ t("В процессе") }}</option>
+                <option :value="`Тендер в ${year}`">{{ t("Тендер") }}</option>
+                <option value="Не начат">{{ t("Не начат") }}</option>
+                <!-- i18n-exempt-end -->
                     </select>
                   </div>
                   <div class="pe-fld">

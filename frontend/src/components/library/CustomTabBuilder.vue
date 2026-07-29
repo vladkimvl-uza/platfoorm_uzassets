@@ -89,10 +89,10 @@ const sectorFields = computed(() => store.allFields.filter(f => f.scope_type ===
 async function submit() {
   if (saving.value) return;
   error.value = null;
-  if (!name_ru.value.trim()) { error.value = "Введите название"; return; }
+  if (!name_ru.value.trim()) { error.value = t('Введите название'); return; }
   if (!code.value) autoCode();
-  if (!validCode.value) { error.value = "Некорректный код"; return; }
-  if (pickedFields.value.length === 0) { error.value = "Выберите хотя бы одно поле"; return; }
+  if (!validCode.value) { error.value = t('Некорректный код'); return; }
+  if (pickedFields.value.length === 0) { error.value = t('Выберите хотя бы одно поле'); return; }
   saving.value = true;
   try {
     await companyLibraryApi.createTab({
@@ -107,9 +107,9 @@ async function submit() {
     emit("created", code.value);
     emit("close");
   } catch (e: any) {
-    if (e?.response?.status === 409)      error.value = `Tab "${code.value}" уже существует`;
-    else if (e?.response?.status === 403) error.value = "Нет права library.tabs.manage";
-    else error.value = e?.response?.data?.detail || e?.message || "Не удалось создать раздел";
+    if (e?.response?.status === 409)      error.value = t('Tab "{value0}" уже существует', { value0: code.value });
+    else if (e?.response?.status === 403) error.value = t('Нет права library.tabs.manage');
+    else error.value = e?.response?.data?.detail || e?.message || t('Не удалось создать раздел');
   } finally {
     saving.value = false;
   }
@@ -264,7 +264,7 @@ async function submit() {
       <span v-if="error" class="ctb-err">{{ error }}</span>
       <button class="ctb-btn ctb-btn-secondary" @click="emit('close')">{{ t('Отмена') }}</button>
       <button class="ctb-btn ctb-btn-primary" :disabled="saving || !name_ru" @click="submit">
-        {{ saving ? "Создаём…" : "Создать раздел" }}
+        {{ saving ? t('Создаём…') : t('Создать раздел') }}
       </button>
     </template>
   </ModalShell>

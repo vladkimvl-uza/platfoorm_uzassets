@@ -14,6 +14,8 @@ import {
   type ForecastModel, type HistPoint,
 } from "@/utils/forecast";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 
 const { t } = useI18n();
 
@@ -25,10 +27,10 @@ const props = defineProps<{
 const emit = defineEmits<{ (e: "close"): void; (e: "ai-generate"): void }>();
 
 const METRICS = [
-  { id: "revenue", label: "Выручка" },
-  { id: "grossProfit", label: "Валовая прибыль" },
+  { id: "revenue", label: i18nKey("Выручка") },
+  { id: "grossProfit", label: i18nKey("Валовая прибыль") },
   { id: "ebitda", label: "EBITDA" },
-  { id: "profit", label: "Чистая прибыль" },
+  { id: "profit", label: i18nKey("Чистая прибыль") },
 ];
 
 const PORTFOLIO = "__portfolio__";

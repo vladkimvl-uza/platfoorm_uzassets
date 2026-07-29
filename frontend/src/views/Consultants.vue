@@ -178,7 +178,7 @@ async function load() {
     rescan();
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    errorMsg.value = err?.response?.data?.detail || err?.message || "Ошибка загрузки";
+    errorMsg.value = err?.response?.data?.detail || err?.message || t('Ошибка загрузки');
     data.value = null;
   } finally {
     loading.value = false;
@@ -242,7 +242,7 @@ async function openTaskEditor(taskId: string) {
   } catch (e) {
     console.warn("[consultants] openTaskEditor failed:", e);
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    toast.error(err?.response?.data?.detail || "Не удалось открыть задачу");
+    toast.error(err?.response?.data?.detail || t('Не удалось открыть задачу'));
   } finally {
     editorLoading.value = false;
   }
@@ -359,7 +359,7 @@ onMounted(load);
                 <button
                   class="cv-filter-mini"
                   :class="{ active: filterConsultantCode === c.code }"
-                  :title="filterConsultantCode === c.code ? 'Снять фильтр' : 'Фильтровать список задач'"
+                  :title="filterConsultantCode === c.code ? t('Снять фильтр') : t('Фильтровать список задач')"
                   @click.stop="selectConsultant(c.code)"
                 >
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -397,7 +397,7 @@ onMounted(load);
                 <button
                   class="cv-filter-mini"
                   :class="{ active: filterConsultantCode === c.code }"
-                  :title="filterConsultantCode === c.code ? 'Снять фильтр' : 'Фильтровать список задач'"
+                  :title="filterConsultantCode === c.code ? t('Снять фильтр') : t('Фильтровать список задач')"
                   @click.stop="selectConsultant(c.code)"
                 >
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -426,7 +426,7 @@ onMounted(load);
                 <div class="cv-heat-grad"></div>
                 <span class="cv-heat-grad-label">{{ t('мало → много') }}</span>
               </div>
-              <button class="cv-zoom-btn" @click="heatmapZoomed = !heatmapZoomed" :title="heatmapZoomed ? 'Свернуть' : 'Развернуть'">
+              <button class="cv-zoom-btn" @click="heatmapZoomed = !heatmapZoomed" :title="heatmapZoomed ? t('Свернуть') : t('Развернуть')">
                 <svg v-if="!heatmapZoomed" width="14" height="14" viewBox="0 0 16 16" fill="none">
                   <path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4"
                     stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -467,7 +467,7 @@ onMounted(load);
                       :style="{ background: cellBg(cnt, data.heatmap.max), color: cellFg(cnt, data.heatmap.max) }"
                       :role="cnt > 0 ? 'button' : undefined"
                       :tabindex="cnt > 0 ? 0 : undefined"
-                      :title="cnt > 0 ? `${r.board.name} × ${data.heatmap.consultants[ci].name}: ${cnt} задач — клик для детализации` : ''"
+                      :title="cnt > 0 ? t('{value0} × {value1}: {value2} задач — клик для детализации', { value0: r.board.name, value1: data.heatmap.consultants[ci].name, value2: cnt }) : ''"
                       @click="cnt > 0 && openDrillCell(r.board.id, data.heatmap.consultants[ci].id, cnt)"
                       @keydown.enter="cnt > 0 && openDrillCell(r.board.id, data.heatmap.consultants[ci].id, cnt)"
                       @keydown.space.prevent="cnt > 0 && openDrillCell(r.board.id, data.heatmap.consultants[ci].id, cnt)"
@@ -476,7 +476,7 @@ onMounted(load);
                 </tr>
               </tbody>
             </table>
-            <UzaStateBlock v-else state="empty" variant="inline" text="Нет данных для тепловой карты" />
+            <UzaStateBlock v-else state="empty" variant="inline" :text="t('Нет данных для тепловой карты')" />
           </div>
         </div>
       </div>
@@ -506,7 +506,7 @@ onMounted(load);
               @keydown.space.prevent="openDrillDirection(d)"
               :title="t('Открыть детализацию по направлению')"
             >
-              <span class="dir-label">{{ d.label }}</span>
+              <span class="dir-label">{{ t(d.label) }}</span>
               <div class="dir-bar-wrap">
                 <div class="dir-bar"><div class="dir-bar-fill" :style="{ width: d.completion_pct + '%' }"></div></div>
                 <span class="dir-pct">{{ d.tasks_done }}/{{ d.tasks_total }} ({{ d.completion_pct }}%)</span>
@@ -528,7 +528,7 @@ onMounted(load);
                 <span v-if="d.consultant_codes.length > 2" class="dir-badge-extra">+{{ d.consultant_codes.length - 2 }}</span>
               </div>
             </div>
-            <UzaStateBlock v-if="!data.dirs.length" state="empty" variant="inline" text="Нет данных по направлениям" />
+            <UzaStateBlock v-if="!data.dirs.length" state="empty" variant="inline" :text="t('Нет данных по направлениям')" />
           </div>
         </div>
 
@@ -561,7 +561,7 @@ onMounted(load);
                 <div class="proj-meta">
                   <span v-if="p.board_name">{{ p.board_name }}</span>
                   <span v-if="p.num"> · #{{ p.num }}</span>
-                  <span v-if="p.direction_label"> · {{ p.direction_label }}</span>
+                  <span v-if="p.direction_label"> · {{ t(p.direction_label) }}</span>
                   <span v-if="p.due_date"> · {{ fmtDate(p.due_date) }}</span>
                 </div>
               </div>
@@ -575,7 +575,7 @@ onMounted(load);
                 <span v-if="p.consultants.length > 3" class="proj-cons-pill extra">+{{ p.consultants.length - 3 }}</span>
               </div>
             </div>
-            <UzaStateBlock v-if="!filteredProjects.length" state="empty" variant="inline" text="Нет проектов" />
+            <UzaStateBlock v-if="!filteredProjects.length" state="empty" variant="inline" :text="t('Нет проектов')" />
             <div v-else class="proj-foot">
               <span>{{ filteredProjects.length }} {{ t('задач') }}{{ filterConsultantCode ? " · " + consultantByCode[filterConsultantCode]?.name : "" }}</span>
               <span v-if="filteredProjects.length > 50" class="proj-more">{{ t('показано первые 50') }}</span>

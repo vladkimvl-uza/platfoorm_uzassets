@@ -7,17 +7,19 @@ import { ref, computed, watch, onMounted } from "vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import { pmoApi, type Stakeholder, type StakeholderPayload, type Engagement } from "@/api/pmo";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 const { t } = useI18n();
 
 
 const props = defineProps<{ companyCode: string; canEdit?: boolean }>();
 
 const ENG: { v: Engagement; l: string }[] = [
-  { v: "unaware", l: "Не в курсе" },
-  { v: "resistant", l: "Сопротивл." },
-  { v: "neutral", l: "Нейтрален" },
-  { v: "supportive", l: "Поддерживает" },
-  { v: "leading", l: "Ведущий" },
+  { v: "unaware", l: i18nKey("Не в курсе") },
+  { v: "resistant", l: i18nKey("Сопротивл.") },
+  { v: "neutral", l: i18nKey("Нейтрален") },
+  { v: "supportive", l: i18nKey("Поддерживает") },
+  { v: "leading", l: i18nKey("Ведущий") },
 ];
 const ENG_I: Record<string, number> = Object.fromEntries(ENG.map((e, i) => [e.v, i]));
 
@@ -28,7 +30,7 @@ const items = ref<Stakeholder[]>([]);
 async function load() {
   loading.value = true; error.value = null;
   try { items.value = await pmoApi.listStakeholders(props.companyCode); }
-  catch (e: any) { error.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить"; }
+  catch (e: any) { error.value = e?.response?.data?.detail || e?.message || t('Не удалось загрузить'); }
   finally { loading.value = false; }
 }
 onMounted(load);
@@ -36,10 +38,10 @@ watch(() => props.companyCode, load);
 
 function quadrant(power: number, interest: number): { l: string; c: string } {
   const hp = power > 3, hi = interest > 3;
-  if (hp && hi) return { l: "Управлять тесно", c: "#7C6FF7" };
-  if (hp && !hi) return { l: "Удовлетворять", c: "#D97706" };
-  if (!hp && hi) return { l: "Информировать", c: "#0891B2" };
-  return { l: "Мониторить", c: "#94a3b8" };
+  if (hp && hi) return { l: i18nKey("Управлять тесно"), c: "#7C6FF7" };
+  if (hp && !hi) return { l: i18nKey("Удовлетворять"), c: "#D97706" };
+  if (!hp && hi) return { l: i18nKey("Информировать"), c: "#0891B2" };
+  return { l: i18nKey("Мониторить"), c: "#94a3b8" };
 }
 // Позиция точки на сетке: X = интерес, Y = власть (снизу-вверх)
 function dotStyle(s: Stakeholder) {
@@ -69,20 +71,20 @@ function openEdit(s: Stakeholder) {
   editingId.value = s.id; formOpen.value = true;
 }
 async function save() {
-  if (!form.value.name?.trim()) { error.value = "Имя обязательно"; return; }
+  if (!form.value.name?.trim()) { error.value = t('Имя обязательно'); return; }
   saving.value = true; error.value = null;
   try {
     if (editingId.value) await pmoApi.updateStakeholder(editingId.value, form.value);
     else await pmoApi.createStakeholder(props.companyCode, form.value);
     formOpen.value = false;
     await load();
-  } catch (e: any) { error.value = e?.response?.data?.detail || "Не удалось сохранить"; }
+  } catch (e: any) { error.value = e?.response?.data?.detail || t('Не удалось сохранить'); }
   finally { saving.value = false; }
 }
 async function removeItem(s: Stakeholder) {
-  if (!confirm(`Удалить «${s.name}»?`)) return;
+  if (!confirm(t("Удалить «{name}»?", { name: s.name }))) return;
   try { await pmoApi.deleteStakeholder(s.id); await load(); }
-  catch (e: any) { error.value = e?.response?.data?.detail || "Не удалось удалить"; }
+  catch (e: any) { error.value = e?.response?.data?.detail || t('Не удалось удалить'); }
 }
 </script>
 
@@ -95,12 +97,12 @@ async function removeItem(s: Stakeholder) {
       <button v-if="canEdit" class="ps-add" @click="openCreate">{{ t('+ Стейкхолдер') }}</button>
     </div>
 
-    <UzaStateBlock v-if="loading" state="loading" text="Загрузка реестра…" />
+    <UzaStateBlock v-if="loading" state="loading" :text="t('Загрузка реестра…')" />
     <UzaStateBlock
       v-else-if="!items.length"
       state="empty" variant="block"
       :title="t('Стейкхолдеров нет')"
-      text="Добавьте заинтересованные стороны — появятся на сетке власть×интерес и в матрице вовлечённости."
+      :text="t('Добавьте заинтересованные стороны — появятся на сетке власть×интерес и в матрице вовлечённости.')"
     />
 
     <template v-else>
@@ -120,7 +122,7 @@ async function removeItem(s: Stakeholder) {
               :key="'d' + s.id"
               class="ps-dot"
               :style="{ ...dotStyle(s), background: quadrant(s.power, s.interest).c }"
-              :title="`${s.name} · власть ${s.power}/5 · интерес ${s.interest}/5`"
+              :title="t('{value0} · власть {value1}/5 · интерес {value2}/5', { value0: s.name, value1: s.power, value2: s.interest })"
               @click="canEdit && openEdit(s)"
             >{{ initials(s.name) }}</button>
           </div>
@@ -180,7 +182,7 @@ async function removeItem(s: Stakeholder) {
     <!-- Модалка -->
     <div v-if="formOpen" class="ps-modal-ov" @click.self="formOpen = false">
       <div class="ps-modal">
-        <div class="ps-modal-h">{{ editingId ? "Правка стейкхолдера" : "Новый стейкхолдер" }}</div>
+        <div class="ps-modal-h">{{ editingId ? t('Правка стейкхолдера') : t('Новый стейкхолдер') }}</div>
         <div class="ps-modal-b">
           <div class="ps-f"><label>{{ t('Имя') }}</label><input v-model="form.name" :placeholder="t('ФИО / название стороны')" /></div>
           <div class="ps-f2">
@@ -204,7 +206,7 @@ async function removeItem(s: Stakeholder) {
         </div>
         <div class="ps-modal-f">
           <button class="ps-btn-ghost" @click="formOpen = false">{{ t('Отмена') }}</button>
-          <button class="ps-btn" :disabled="saving" @click="save">{{ saving ? "Сохраняю…" : "Сохранить" }}</button>
+          <button class="ps-btn" :disabled="saving" @click="save">{{ saving ? t('Сохраняю…') : t('Сохранить') }}</button>
         </div>
       </div>
     </div>

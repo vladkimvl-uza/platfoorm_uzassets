@@ -19,6 +19,7 @@
  */
 
 import { ref } from "vue";
+import { t } from "@/locale/i18n";
 
 export interface CellRef {
   field: string;   // e.g. 'revenue', 'opProfit', custom 'myDivYield'
@@ -28,12 +29,12 @@ export interface CellRef {
 export type CellMatrix = Record<string, Record<number, number | null>>;
 // matrix[field][year] = value
 
-const CELL_REF_RE = /([a-zA-Zа-яА-Я_][a-zA-Z0-9а-яА-Я_]*)\.(\d{4})/g;
+const CELL_REF_RE = /([a-zA-Zа-яА-Я_][a-zA-Z0-9а-яА-Я_]*)\.(\d{4})/g; // i18n-exempt: field-identifier grammar
 const FN_RE = /(GROWTH|CAGR|MARGIN|AVG)\s*\(([^()]*)\)/g;
 const ALLOWED_AFTER_NORMALIZE = /^[0-9+\-*/%().,\s]*$/;
 
 export function parseCellRef(s: string): CellRef | null {
-  const m = /^([a-zA-Zа-яА-Я_][a-zA-Z0-9а-яА-Я_]*)\.(\d{4})$/.exec(s.trim());
+  const m = /^([a-zA-Zа-яА-Я_][a-zA-Z0-9а-яА-Я_]*)\.(\d{4})$/.exec(s.trim()); // i18n-exempt: field-identifier grammar
   if (!m) return null;
   return { field: m[1], year: parseInt(m[2], 10) };
 }
@@ -121,7 +122,7 @@ export function safeEvalExpression(
     }
     return String(v);
   });
-  if (hasUnresolved) return { value: null, error: "Не все ячейки заполнены" };
+  if (hasUnresolved) return { value: null, error: t("Не все ячейки заполнены") };
 
   // 4. Convert |x| → Math.abs(x). Single level only.
   work = work.replace(/\|([^|]+)\|/g, "Math.abs($1)");
@@ -129,7 +130,7 @@ export function safeEvalExpression(
   // 5. Validate only allowed chars remain
   const stripped = work.replace(/Math\.abs/g, "");
   if (!ALLOWED_AFTER_NORMALIZE.test(stripped)) {
-    return { value: null, error: "Недопустимые символы в выражении" };
+    return { value: null, error: t("Недопустимые символы в выражении") };
   }
 
   // 6. Evaluate
@@ -138,11 +139,11 @@ export function safeEvalExpression(
     const fn = new Function("Math", `"use strict"; return (${work});`);
     const result = fn(Math);
     if (typeof result !== "number" || !isFinite(result)) {
-      return { value: null, error: "Результат не число" };
+      return { value: null, error: t("Результат не число") };
     }
     return { value: Math.round(result * 1000) / 1000, error: null };
   } catch (e) {
-    return { value: null, error: "Ошибка вычисления" };
+    return { value: null, error: t("Ошибка вычисления") };
   }
 }
 

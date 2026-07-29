@@ -11,6 +11,8 @@ import {
 } from "@/utils/progress";
 import DirectionBadge from "@/components/DirectionBadge.vue";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 
 const { t } = useI18n();
 
@@ -83,9 +85,9 @@ const PRIO_COLOR: Record<string, string> = {
 };
 
 const PRIO_LABEL: Record<string, string> = {
-  high:   "Высокий",
-  medium: "Средний",
-  low:    "Низкий",
+  high:   i18nKey("Высокий"),
+  medium: i18nKey("Средний"),
+  low:    i18nKey("Низкий"),
 };
 
 // Инициалы для аватара исполнителя (2 буквы)
@@ -111,11 +113,11 @@ async function loadProjectSubtasks() {
 }
 
 const SUB_STATUS: Record<string, { c: string; w: string }> = {
-  done:   { c: "#1D9E75", w: "Готово" },
-  review: { c: "#EF9F27", w: "На утверждении" },
-  active: { c: "#7F77DD", w: "В работе" },
-  new:    { c: "#94A3B8", w: "Не начато" },
-  init:   { c: "#64748B", w: "Инициирование" },
+  done:   { c: "#1D9E75", w: i18nKey("Готово") },
+  review: { c: "#EF9F27", w: i18nKey("На утверждении") },
+  active: { c: "#7F77DD", w: i18nKey("В работе") },
+  new:    { c: "#94A3B8", w: i18nKey("Не начато") },
+  init:   { c: "#64748B", w: i18nKey("Инициирование") },
 };
 function subOverdue(s: any): boolean {
   return !!s.due_date && s.status !== "done" && new Date(s.due_date) < new Date();
@@ -124,7 +126,9 @@ function subDot(s: any): string {
   return subOverdue(s) ? "#E24B4A" : (SUB_STATUS[s.status]?.c || "#7F77DD");
 }
 function subWord(s: any): string {
-  return subOverdue(s) ? t("Просрочено") : t(SUB_STATUS[s.status]?.w || "В работе");
+  if (subOverdue(s)) return t("Просрочено");
+  const status = SUB_STATUS[s.status]?.w;
+  return status ? t(status) : t("В работе");
 }
 function subDone(id: string): number {
   return (subtasksCache.value[id] || []).filter(s => s.status === "done").length;

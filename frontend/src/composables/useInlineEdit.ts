@@ -17,6 +17,8 @@
  * единый паттерн для всех будущих модалок с inline-редактированием.
  */
 import { ref, computed, type Ref } from "vue";
+import { t } from "@/locale/i18n";
+
 
 export type InlineEditState = "idle" | "editing" | "saving" | "success" | "error";
 
@@ -90,8 +92,7 @@ export function useInlineEdit<T>(opts: UseInlineEditOptions<T>) {
       }, successDur);
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-        || (e as Error)?.message
-        || "Не удалось сохранить";
+        || (e as Error)?.message || t('Не удалось сохранить');
       errorMsg.value = String(msg);
       state.value = "error";
     }

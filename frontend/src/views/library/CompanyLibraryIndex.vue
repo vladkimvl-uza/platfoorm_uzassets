@@ -30,7 +30,7 @@ const toast  = useToast();
 const scope = useCompanyScope();
 
 function onCellError(e: any) {
-  toast.error(e?.response?.data?.detail || "Не удалось сохранить поле");
+  toast.error(e?.response?.data?.detail || t('Не удалось сохранить поле'));
 }
 
 const sectors = ref<{ code: string; name_ru: string }[]>([]);
@@ -82,8 +82,8 @@ function onSort(code: string) {
 const lastUpdatedHint = computed(() => {
   if (!store.lastLoadedAt) return "";
   const ago = Math.round((Date.now() - store.lastLoadedAt) / 1000);
-  if (ago < 60) return `${ago} с назад`;
-  return `${Math.round(ago / 60)} мин назад`;
+  if (ago < 60) return t('{value0} с назад', { value0: ago });
+  return t('{value0} мин назад', { value0: Math.round(ago / 60) });
 });
 </script>
 
@@ -127,10 +127,10 @@ const lastUpdatedHint = computed(() => {
         <span
           class="cl-live-dot"
           :class="{ 'cl-live-dot-on': store.wsConnected }"
-          :title="store.wsConnected ? 'Real-time sync включена' : 'Offline — данные обновятся вручную'"
+          :title="store.wsConnected ? t('Real-time sync включена') : t('Offline — данные обновятся вручную')"
         ></span>
         <span class="cl-live-label">{{ store.wsConnected ? "Live" : "Offline" }}</span>
-        <span v-if="lastUpdatedHint" class="cl-live-sub">{{ t('· обновлено') }} {{ lastUpdatedHint }}</span>
+        <span v-if="lastUpdatedHint" class="cl-live-sub">{{ t('· обновлено') }} {{ t(lastUpdatedHint) }}</span>
       </div>
 
       <div class="cl-counter">{{ store.companies.length }} / {{ store.total || store.companies.length }}</div>

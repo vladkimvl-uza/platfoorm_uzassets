@@ -121,7 +121,7 @@ const esgSlice  = computed(() => esgEvents.value.slice(0, 8));
               </span>
               <span v-if="e.olk"
                     class="rrc-olk"
-                    :title="e.olk.label"
+                    :title="t(e.olk.label)"
                     :style="{ color: e.olk.fg, background: e.olk.bg }">
                 {{ e.olk.symbol }}
               </span>
@@ -159,7 +159,7 @@ const esgSlice  = computed(() => esgEvents.value.slice(0, 8));
               </span>
               <span v-if="e.olk"
                     class="rrc-olk"
-                    :title="e.olk.label"
+                    :title="t(e.olk.label)"
                     :style="{ color: e.olk.fg, background: e.olk.bg }">
                 {{ e.olk.symbol }}
               </span>

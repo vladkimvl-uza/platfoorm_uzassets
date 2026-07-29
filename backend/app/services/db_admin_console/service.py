@@ -22,6 +22,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit_chain import append_audit_entry
+from app.core.i18n import current_locale, tr
 from app.models.user import User
 from app.repositories.db_admin_repository import MAX_ROWS, DbAdminRepository
 
@@ -111,7 +112,7 @@ def _validate_identifier(name: str) -> None:
     if not _IDENTIFIER_RE.match(name):
         raise HTTPException(
             http_status.HTTP_400_BAD_REQUEST,
-            f"Недопустимый идентификатор: {name!r}",
+            tr("Недопустимый идентификатор: {name}", current_locale(), name=repr(name)),
         )
 
 
@@ -311,10 +312,11 @@ class DbAdminService:
             )
             raise HTTPException(
                 http_status.HTTP_403_FORBIDDEN,
-                f"Write operations ({command}) запрещены через /admin/db/query. "
-                f"Используйте dry_run=true для проверки или alembic migration "
-                f"для постоянных изменений. Env var DB_ADMIN_ALLOW_WRITES=true "
-                f"включает writes (требует deploy/restart).",
+                tr(
+                    "Операции записи ({command}) запрещены через /admin/db/query. Используйте dry_run=true для проверки или миграцию alembic для постоянных изменений. DB_ADMIN_ALLOW_WRITES=true включает запись и требует перезапуска deployment.",
+                    current_locale(),
+                    command=command,
+                ),
             )
 
         started = time.monotonic()

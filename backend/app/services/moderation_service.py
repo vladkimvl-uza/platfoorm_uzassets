@@ -301,6 +301,7 @@ async def _notify_on_create(
     """Notify moderator(s) about a new pending submission."""
     title = f"Новое предложение: {sub.target_entity_label or sub.target_module}"
     body  = sub.diff_summary or (sub.reason or "Открыть в очереди модерации")
+    body_is_fallback = not sub.diff_summary and not sub.reason
     link  = f"/admin/moderation?sub_tab=queue&open={sub.id}"
 
     recipients: list[UUID] = []
@@ -322,6 +323,9 @@ async def _notify_on_create(
             db, recipient_id=uid,
             type="moderation.pending",
             title=title, body=body,
+            title_template="Новое предложение: {entity}",
+            body_template=("Открыть в очереди модерации" if body_is_fallback else None),
+            template_vars={"entity": sub.target_entity_label or sub.target_module},
             priority="high",
             link_url=link,
             payload=payload,
@@ -697,6 +701,12 @@ async def _notify_status_change(
     await notify(
         db, recipient_id=sub.proposer_user_id, type=notif_type,
         title=title, body=body, link_url=link, payload=payload,
+        title_template="{status}: {entity}",
+        template_vars={
+            "status": titles[notif_type],
+            "entity": sub.target_entity_label or sub.target_module,
+        },
+        translate_vars={"status"},
         source_module="moderation", source_entity_id=str(sub.id),
         source_user_id=sub.resolved_by_id,
     )
@@ -748,6 +758,8 @@ async def _notify_comment(
         type="comment.replied",
         title=f"Комментарий в модерации: {sub.target_entity_label or sub.target_module}",
         body=snippet,
+        title_template="Комментарий в модерации: {entity}",
+        template_vars={"entity": sub.target_entity_label or sub.target_module},
         priority="normal",
         link_url=f"/admin/moderation?sub_tab=queue&open={sub.id}",
         payload={"submission_id": str(sub.id)},

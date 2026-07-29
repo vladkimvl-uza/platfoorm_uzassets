@@ -5,6 +5,7 @@
  */
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
+import { t } from "@/locale/i18n";
 import {
   apiCatalog,
   type CatalogSummary,
@@ -37,7 +38,7 @@ export const useApiCatalogStore = defineStore("apiCatalog", () => {
       summaryFetched.value = Date.now();
       return summary.value;
     } catch (e: any) {
-      summaryError.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить каталог";
+      summaryError.value = e?.response?.data?.detail || e?.message || t("Не удалось загрузить каталог");
       return null;
     } finally {
       summaryLoading.value = false;
@@ -74,7 +75,7 @@ export const useApiCatalogStore = defineStore("apiCatalog", () => {
     if (!summary.value) return [] as Array<{ group: string; modules: typeof summary.value.modules }>;
     const groups: Record<string, typeof summary.value.modules> = {};
     for (const m of summary.value.modules) {
-      const g = m.group || "Прочее";
+      const g = m.group || t("Прочее");
       (groups[g] ||= []).push(m);
     }
     return Object.entries(groups).map(([group, modules]) => ({ group, modules }));

@@ -113,7 +113,7 @@ onBeforeUnmount(() => {
 
         <div class="ucard-foot">
           <span v-if="merged.is_active === false" class="ucard-inactive">{{ t('● Отключён') }}</span>
-          <span v-else-if="lastActiveLabel" class="ucard-active">{{ t('Активность:') }} {{ lastActiveLabel }}</span>
+          <span v-else-if="lastActiveLabel" class="ucard-active">{{ t('Активность:') }} {{ t(lastActiveLabel) }}</span>
           <span v-else-if="state.loading" class="ucard-active ucard-skeleton">{{ t('загрузка…') }}</span>
           <span v-else class="ucard-active ucard-muted">{{ t('нет активности') }}</span>
         </div>

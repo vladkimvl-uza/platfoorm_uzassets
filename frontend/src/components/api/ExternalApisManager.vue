@@ -74,7 +74,7 @@ async function selectApi(a: ExternalApi) {
 onMounted(loadList);
 
 async function submitCreate() {
-  if (!newApi.value.slug || !newApi.value.name) { error.value = "Заполните slug и name"; return; }
+  if (!newApi.value.slug || !newApi.value.name) { error.value = t('Заполните slug и name'); return; }
   try {
     const created = await externalApis.create({
       slug: newApi.value.slug.trim(),
@@ -113,7 +113,7 @@ async function uploadSpec() {
     if (refreshed) await selectApi(refreshed);
   } catch (e: any) {
     if (e instanceof SyntaxError) {
-      error.value = "Неверный JSON: " + e.message;
+      error.value = t('Неверный JSON: {value0}', { value0: e.message });
     } else {
       error.value = e?.response?.data?.detail || e?.message;
     }
@@ -122,7 +122,7 @@ async function uploadSpec() {
 
 async function removeSpec() {
   if (!selected.value) return;
-  if (!(await confirmDialog({ message: `Удалить загруженный OpenAPI спецификацию (${selected.value.endpoint_count} endpoints)?`, danger: true }))) return;
+  if (!(await confirmDialog({ message: t('Удалить загруженный OpenAPI спецификацию ({value0} endpoints)?', { value0: selected.value.endpoint_count }), danger: true }))) return;
   try {
     await externalApis.removeSpec(selected.value.id);
     catalog.value = null;
@@ -196,7 +196,7 @@ function pasteSpec() {
           </select>
         </div>
 
-        <UzaStateBlock v-if="!apis.length" state="empty" variant="block" :title="t('Нет внешних API')" desc="Создайте первую запись">
+      <UzaStateBlock v-if="!apis.length" state="empty" variant="block" :title="t('Нет внешних API')" :desc="t('Создайте первую запись')">
           <template #icon><BIcon name="plug" :size="14" /></template>
         </UzaStateBlock>
 
@@ -210,7 +210,7 @@ function pasteSpec() {
             <div class="xa-row-slug"><code>{{ a.slug }}</code></div>
             <div class="xa-row-meta">
               <span class="xa-pill" :style="{ color: statusPill(a.status).color, background: statusPill(a.status).bg }">
-                {{ statusPill(a.status).label }}
+                {{ t(statusPill(a.status).label) }}
               </span>
               <span v-if="a.has_openapi_spec" class="xa-spec-chip">
                 <BIcon name="file-code" :size="14" /> {{ a.endpoint_count }}
@@ -228,7 +228,7 @@ function pasteSpec() {
               <div class="xa-hero-eye">
                 <code class="xa-slug">{{ selected.slug }}</code>
                 <span class="xa-pill" :style="{ color: statusPill(selected.status).color, background: statusPill(selected.status).bg }">
-                  {{ statusPill(selected.status).label }}
+                  {{ t(statusPill(selected.status).label) }}
                 </span>
                 <span v-if="selected.environment_kind" class="xa-env">{{ selected.environment_kind }}</span>
               </div>
@@ -266,7 +266,7 @@ function pasteSpec() {
                 </div>
                 <div>
                   <span>{{ t('Авторизация') }}</span>
-                  <code>{{ AUTH_LABELS[selected.auth_kind || "none"] }}</code>
+                  <code>{{ t(AUTH_LABELS[selected.auth_kind || "none"]) }}</code>
                 </div>
               </div>
             </div>
@@ -314,7 +314,7 @@ function pasteSpec() {
               </div>
             </div>
 
-            <UzaStateBlock v-if="!filteredEndpoints.length" state="empty" variant="block" text="Ничего не найдено">
+            <UzaStateBlock v-if="!filteredEndpoints.length" state="empty" variant="block" :text="t('Ничего не найдено')">
               <template #icon><BIcon name="search-off" :size="14" /></template>
             </UzaStateBlock>
             <div v-else class="xa-ep-list">
@@ -352,7 +352,7 @@ function pasteSpec() {
           </div>
         </template>
 
-        <UzaStateBlock v-else state="empty" variant="block" text="Выберите внешний API слева или создайте новый">
+        <UzaStateBlock v-else state="empty" variant="block" :text="t('Выберите внешний API слева или создайте новый')">
           <template #icon><BIcon name="arrow-left" :size="14" /></template>
         </UzaStateBlock>
       </div>
@@ -436,7 +436,7 @@ function pasteSpec() {
 
     <!-- ───── Modal: upload spec ───── -->
     <ModalShell :open="showSpecUpload" size="xl"
-                :title="'Загрузить OpenAPI спецификацию для ' + (selected?.name || '')"
+                :title="t('Загрузить OpenAPI спецификацию для {value0}', { value0: (selected?.name || '') })"
                 @close="showSpecUpload = false">
         <div class="xa-modal-body">
           <div style="font-size: 11.5px; color: var(--color-text-secondary); margin-bottom: 8px;">

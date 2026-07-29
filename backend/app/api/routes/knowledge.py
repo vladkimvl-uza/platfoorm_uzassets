@@ -17,6 +17,7 @@ from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
+from app.core.i18n import current_locale, tr
 from app.core.security import is_super_admin
 from app.models.knowledge import KnowledgeChunk, KnowledgeDoc
 from app.models.user import User
@@ -145,7 +146,8 @@ async def upload(
     if not chunks:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Не удалось извлечь текст из файла")
     doc = KnowledgeDoc(
-        title=(title or file.filename or "Документ")[:512],
+        # Canonical persisted fallback. The UI translates this marker on display.
+        title=(title or file.filename or "Документ")[:512],  # i18n-audit: ignore
         filename=file.filename,
         content_type=file.content_type,
         char_count=len(body),
@@ -194,7 +196,13 @@ async def reindex(
     pgvector; иначе вернёт ok=false с пояснением.
     """
     if not embeddings.is_enabled():
-        return {"ok": False, "reason": "VOYAGE_API_KEY не задан — семантический слой отключён"}
+        return {
+            "ok": False,
+            "reason": tr(
+                "VOYAGE_API_KEY не задан — семантический слой отключён",
+                current_locale(),
+            ),
+        }
     try:
         cursor = None
         processed = 0
@@ -222,7 +230,14 @@ async def reindex(
         return {"ok": True, "embedded": processed}
     except Exception as e:  # noqa: BLE001
         logger.warning("knowledge: reindex не выполнен: %s", e)
-        return {"ok": False, "reason": f"Семантический слой недоступен: {e}"}
+        return {
+            "ok": False,
+            "reason": tr(
+                "Семантический слой недоступен: {error}",
+                current_locale(),
+                error=e,
+            ),
+        }
 
 
 @router.delete("/{doc_id}")

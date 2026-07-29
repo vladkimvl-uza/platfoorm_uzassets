@@ -38,18 +38,21 @@ onMounted(() => exec.loadData());
 useAiPageContext({
   key: "exec-dash",
   label: "Executive Dashboard",
-  describeState: () => `Год ${exec.year.value}; секторы: ${(exec.selectedSectors.value || []).join(", ") || "все"}`,
+  describeState: () => t("Год {year}; секторы: {sectors}", {
+    year: exec.year.value,
+    sectors: (exec.selectedSectors.value || []).join(", ") || t("все"),
+  }),
   quickActions: [
     { label: t("Сводка по портфелю"),
-      prompt: "Дай аналитическую сводку по портфелю из 22 SOE: ключевые цифры, лидеры и отстающие, общая динамика. Используй get_kpi_summary." },
+      prompt: t("Дай аналитическую сводку по портфелю из 22 SOE: ключевые цифры, лидеры и отстающие, общая динамика. Используй get_kpi_summary.") },
     { label: t("Топ-3 риска по портфелю"),
-      prompt: "Найди топ-3 риска в портфеле: где провал KPI, где просрочки концентрируются, где credit-risk. Конкретные компании + рекомендации." },
+      prompt: t("Найди топ-3 риска в портфеле: где провал KPI, где просрочки концентрируются, где credit-risk. Конкретные компании + рекомендации.") },
     { label: t("IPO-готовность компаний"),
-      prompt: "Проанализируй IPO-готовность портфеля: какие компании ближе всего к IPO, какие блокеры (governance/ESG/KPI) у каждой из IPO-roadmap." },
+      prompt: t("Проанализируй IPO-готовность портфеля: какие компании ближе всего к IPO, какие блокеры (governance/ESG/KPI) у каждой из IPO-roadmap.") },
     { label: t("Сравни 2025 vs 2026"),
-      prompt: "Используй compare_years чтобы сравнить выполнение задач 2025 vs 2026 и compare_companies по EBITDA. Сделай вывод." },
+      prompt: t("Используй compare_years, чтобы сравнить выполнение задач 2025 vs 2026 и compare_companies по EBITDA. Сделай вывод.") },
     { label: t("Что важного сегодня?"),
-      prompt: "Что важного на сегодня: просроченные критичные задачи, недавние модерация-events, активные алерты. Используй list_overdue_tasks + get_moderation_queue + list_notifications." },
+      prompt: t("Что важного на сегодня: просроченные критичные задачи, недавние события модерации, активные алерты. Используй list_overdue_tasks + get_moderation_queue + list_notifications.") },
   ],
 });
 </script>

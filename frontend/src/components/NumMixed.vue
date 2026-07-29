@@ -8,7 +8,7 @@ const props = defineProps<{ value: number | string | null | undefined }>();
 
 const parts = computed(() => {
   const raw = String(props.value ?? "").trim();
-  const m = raw.match(/^([$₽€⃀]?)([\d\s,]*\d)(\.\d+)?\s*(%|x|×|M|B|K|млн|млрд|тыс|шт)?$/i);
+  const m = raw.match(/^([$₽€⃀]?)([\d\s,]*\d)(\.\d+)?\s*(%|x|×|M|B|K|млн|млрд|тыс|шт)?$/i); // i18n-exempt -- numeric parser suffixes
   if (!m) return null;
   return { pre: m[1] || "", int: m[2], dec: m[3] || "", unit: m[4] || "" };
 });

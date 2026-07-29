@@ -274,7 +274,7 @@ function excludedCount(cat: CategoryMeta): { kept: number; raw: number; excluded
 // «N компания/компаний» для футеров (правильная форма числа + перевод).
 function coLabel(catId: number): string {
   const n = coCountFor(catId);
-  return t(n === 1 ? "{n} компания" : "{n} компаний", { n });
+  return n === 1 ? t("{n} компания", { n }) : t("{n} компаний", { n });
 }
 
 // Пояснение отсечки — в script, чтобы «<» не попадал в текст шаблона.
@@ -393,13 +393,13 @@ function excludedNote(cat: CategoryMeta): string {
               </table>
               <div class="pa-acc-foot">
                 <template v-if="excludedCount(cat).excluded">
-                  {{ coLabel(cat.id) }}
+                  {{ t(coLabel(cat.id)) }}
                   · {{ t("{kept} товаров с benchmark из {raw}", { kept: excludedCount(cat).kept, raw: excludedCount(cat).raw }) }}
                   ({{ excludedNote(cat) }})
                   · {{ t("клик по товару — все покупатели") }}
                 </template>
                 <template v-else>
-                  {{ coLabel(cat.id) }}
+                  {{ t(coLabel(cat.id)) }}
                   · {{ t("{n} товаров", { n: excludedCount(cat).kept }) }} · {{ t("клик по товару — все покупатели") }}
                 </template>
               </div>
@@ -434,7 +434,7 @@ function excludedNote(cat: CategoryMeta): string {
                 </tbody>
               </table>
               <div class="pa-acc-foot">
-                {{ coLabel(cat.id) }} · {{ t("клик по строке — детализация") }}
+                {{ t(coLabel(cat.id)) }} · {{ t("клик по строке — детализация") }}
               </div>
             </template>
           </div>

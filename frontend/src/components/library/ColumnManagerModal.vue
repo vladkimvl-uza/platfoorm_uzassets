@@ -89,7 +89,7 @@ async function save() {
     await store.load();
     emit("close");
   } catch (e: any) {
-    saveError.value = e?.response?.data?.detail || e?.message || "Не удалось сохранить набор колонок";
+    saveError.value = e?.response?.data?.detail || e?.message || t('Не удалось сохранить набор колонок');
   } finally {
     saving.value = false;
   }
@@ -181,7 +181,7 @@ async function save() {
       <span v-if="saveError" class="cl-modal-err">{{ saveError }}</span>
       <button class="cl-btn cl-btn-secondary" @click="emit('close')">{{ t('Отмена') }}</button>
       <button class="cl-btn cl-btn-primary" :disabled="saving" @click="save">
-        {{ saving ? "Сохраняем…" : "Сохранить" }}
+        {{ saving ? t('Сохраняем…') : t('Сохранить') }}
       </button>
     </template>
   </ModalShell>

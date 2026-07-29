@@ -10,6 +10,7 @@ import { api } from "@/api/client";
 import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
 
 const { t } = useI18n();
 
@@ -115,7 +116,7 @@ async function remove(f: Attachment) {
   }
 }
 
-const heading = computed(() => t(props.title || "Загруженные отчёты"));
+const heading = computed(() => t(props.title || i18nKey("Загруженные отчёты")));
 </script>
 
 <template>

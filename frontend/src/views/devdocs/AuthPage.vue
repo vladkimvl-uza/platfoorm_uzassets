@@ -1,10 +1,10 @@
 <template>
   <article class="dp">
-    <h1 class="dp-h1">Аутентификация</h1>
-    <p class="dp-lead">Платформа использует JWT (HS256/RS256). Все запросы кроме <code>/auth/*</code> требуют header <code>Authorization: Bearer &lt;token&gt;</code>.</p>
+    <h1 class="dp-h1">{{ t('Аутентификация') }}</h1>
+    <p class="dp-lead">{{ t('Платформа использует JWT (HS256/RS256). Все запросы кроме') }} <code>/auth/*</code> {{ t('требуют header') }} <code>Authorization: Bearer &lt;token&gt;</code>.</p>
 
     <section class="dp-section">
-      <h2 class="dp-h2">1. Получение токена</h2>
+      <h2 class="dp-h2">{{ t('1. Получение токена') }}</h2>
       <pre class="dp-code">POST /api/auth/login
 Content-Type: application/json
 
@@ -12,7 +12,7 @@ Content-Type: application/json
   "login":    "v.kim@uz-assets.uz",
   "password": "&lt;your_password&gt;"
 &#125;</pre>
-      <p>Ответ:</p>
+      <p>{{ t('Ответ:') }}</p>
       <pre class="dp-code">{
   "access_token":  "eyJhbGc...",
   "refresh_token": "eyJhbGc...",
@@ -22,29 +22,34 @@ Content-Type: application/json
     </section>
 
     <section class="dp-section">
-      <h2 class="dp-h2">2. Использование токена</h2>
+      <h2 class="dp-h2">{{ t('2. Использование токена') }}</h2>
       <pre class="dp-code">curl -X GET 'https://platform.uz-assets.uz/api/companies' \
   -H 'Authorization: Bearer eyJhbGc...'</pre>
     </section>
 
     <section class="dp-section">
-      <h2 class="dp-h2">3. Обновление токена</h2>
-      <p><b>access_token</b> живёт 30 мин. Используйте <code>/auth/refresh</code> с refresh-токеном для получения нового. Refresh ротируется — старый аннулируется.</p>
+      <h2 class="dp-h2">{{ t('3. Обновление токена') }}</h2>
+      <p><b>access_token</b> {{ t('живёт 30 мин. Используйте') }} <code>/auth/refresh</code> {{ t('с refresh-токеном для получения нового. Refresh ротируется — старый аннулируется.') }}</p>
       <pre class="dp-code">POST /api/auth/refresh
 { "refresh_token": "eyJhbGc..." }</pre>
     </section>
 
     <section class="dp-section">
       <h2 class="dp-h2">4. MFA (2FA)</h2>
-      <p>Если у пользователя включена 2FA, <code>/auth/login</code> вернёт 200 с <code>{"need_mfa": true, "mfa_token": "..."}</code>. Вторым шагом — <code>POST /auth/login-mfa</code> с кодом из Telegram или TOTP.</p>
+      <p>{{ t('Если у пользователя включена 2FA,') }} <code>/auth/login</code> {{ t('вернёт 200 с') }} <code>{"need_mfa": true, "mfa_token": "..."}</code>{{ t('. Вторым шагом —') }} <code>POST /auth/login-mfa</code> {{ t('с кодом из Telegram или TOTP.') }}</p>
     </section>
 
     <section class="dp-section">
       <h2 class="dp-h2">5. Permissions (scopes)</h2>
-      <p>Каждый endpoint защищён правом из RBAC v3 (например <code>kpi.edit</code>, <code>moderation.review</code>). На странице каждого endpoint'а — required permission. Если у пользователя нет права — backend возвращает 403.</p>
+      <p>{{ t('Каждый endpoint защищён правом из RBAC v3 (например') }} <code>kpi.edit</code>, <code>moderation.review</code>{{ t('). На странице каждого endpoint\'а — required permission. Если у пользователя нет права — backend возвращает 403.') }}</p>
     </section>
   </article>
 </template>
+
+<script setup lang="ts">
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+</script>
 
 <style scoped>
 .dp { max-width: 720px; }

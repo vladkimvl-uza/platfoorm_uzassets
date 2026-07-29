@@ -17,6 +17,7 @@ from uuid import UUID
 from fastapi import HTTPException
 from fastapi import status as http_status
 
+from app.core.i18n import current_locale, tr
 from app.models.finmodel import (
     FinModelAuditLog,
     FinModelCellComment,
@@ -234,7 +235,10 @@ class FinModelService:
             if _is_locked(await r.get_year_lock(company_id, year)):
                 raise HTTPException(
                     http_status.HTTP_409_CONFLICT,
-                    f"Год {year} заблокирован — снимите блокировку",
+                    tr(
+                        "Год {year} заблокирован — снимите блокировку",
+                        current_locale(), year=year,
+                    ),
                 )
             row = await r.get_template_row(body.row_code)
             if row is None:
@@ -275,7 +279,8 @@ class FinModelService:
             await self._ensure_company(company_id)
             if _is_locked(await r.get_year_lock(company_id, year)):
                 raise HTTPException(
-                    http_status.HTTP_409_CONFLICT, f"Год {year} заблокирован",
+                    http_status.HTTP_409_CONFLICT,
+                    tr("Год {year} заблокирован", current_locale(), year=year),
                 )
             template = await r.load_template()
             rows_by_code = {tr.code: tr for tr in template}
@@ -332,7 +337,8 @@ class FinModelService:
             await self._ensure_company(company_id)
             if _is_locked(await r.get_year_lock(company_id, year)):
                 raise HTTPException(
-                    http_status.HTTP_409_CONFLICT, f"Год {year} заблокирован",
+                    http_status.HTTP_409_CONFLICT,
+                    tr("Год {year} заблокирован", current_locale(), year=year),
                 )
             existing = await r.get_macro_company(company_id, year)
             fields = (
@@ -376,7 +382,10 @@ class FinModelService:
             if _is_locked(await r.get_year_lock(company_id, year)):
                 raise HTTPException(
                     http_status.HTTP_409_CONFLICT,
-                    f"Год {year} заблокирован — снимите блокировку перед удалением",
+                    tr(
+                        "Год {year} заблокирован — снимите блокировку перед удалением",
+                        current_locale(), year=year,
+                    ),
                 )
             await r.delete_cells_for_year(company_id, year)
             await r.delete_macro_company_for_year(company_id, year)
@@ -397,13 +406,17 @@ class FinModelService:
             await self._ensure_company(company_id)
             if _is_locked(await r.get_year_lock(company_id, year)):
                 raise HTTPException(
-                    http_status.HTTP_409_CONFLICT, f"Год {year} заблокирован",
+                    http_status.HTTP_409_CONFLICT,
+                    tr("Год {year} заблокирован", current_locale(), year=year),
                 )
             src_cells = await r.load_year_cells(company_id, src_year)
             if not src_cells:
                 raise HTTPException(
                     http_status.HTTP_404_NOT_FOUND,
-                    f"В исходном году {src_year} нет данных",
+                    tr(
+                        "В исходном году {year} нет данных",
+                        current_locale(), year=src_year,
+                    ),
                 )
             await r.delete_cells_for_year(company_id, year)
             for sc in src_cells:
@@ -595,7 +608,7 @@ class FinModelService:
         except Exception as e:
             raise HTTPException(
                 http_status.HTTP_422_UNPROCESSABLE_ENTITY,
-                f"Не удалось разобрать файл: {e}",
+                tr("Не удалось разобрать файл: {error}", current_locale(), error=str(e)),
             )
 
     async def import_excel_commit(
@@ -678,7 +691,10 @@ class FinModelService:
             if not base_by_code:
                 raise HTTPException(
                     http_status.HTTP_404_NOT_FOUND,
-                    f"Базовый год {body.base_year} пуст",
+                    tr(
+                        "Базовый год {year} пуст",
+                        current_locale(), year=body.base_year,
+                    ),
                 )
 
             counts: dict = {"updated": 0, "skipped_locked_years": []}

@@ -17,6 +17,8 @@ import { computed } from "vue";
 import type { TaskBrief } from "@/api/tasks";
 import { useFormatters } from "@/composables/useFormatters";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 
 const { t } = useI18n();
 
@@ -36,17 +38,17 @@ const fmt = useFormatters();
 
 // ── Direction metadata (1:1 legacy const DIRS) ──────────────────────
 const DIRS: Record<string, { label: string; short: string; color: string }> = {
-  strategy:    { label: "Стратегическое управление",  short: "STRG",  color: "#6B7FD7" },
-  finance:     { label: "Финансы / риски / аудит",    short: "FIN",   color: "#E0A458" },
-  procurement: { label: "Система закупок",            short: "PROC",  color: "#7BA05B" },
-  orgdev:      { label: "Организационное развитие",   short: "ORG",   color: "#A78BC7" },
-  digital:     { label: "Цифровизация",               short: "DIG",   color: "#5FB3C4" },
-  operations:  { label: "Операционная эффективность", short: "OPS",   color: "#E08A7B" },
-  governance:  { label: "Корпоративное управление",   short: "GOV",   color: "#C77B96" },
+  strategy:    { label: i18nKey("Стратегическое управление"),  short: "STRG",  color: "#6B7FD7" },
+  finance:     { label: i18nKey("Финансы / риски / аудит"),    short: "FIN",   color: "#E0A458" },
+  procurement: { label: i18nKey("Система закупок"),            short: "PROC",  color: "#7BA05B" },
+  orgdev:      { label: i18nKey("Организационное развитие"),   short: "ORG",   color: "#A78BC7" },
+  digital:     { label: i18nKey("Цифровизация"),               short: "DIG",   color: "#5FB3C4" },
+  operations:  { label: i18nKey("Операционная эффективность"), short: "OPS",   color: "#E08A7B" },
+  governance:  { label: i18nKey("Корпоративное управление"),   short: "GOV",   color: "#C77B96" },
   esg:         { label: "ESG",                        short: "ESG",   color: "#5FA98A" },
-  pr:          { label: "Связи с общественностью",    short: "PR",    color: "#D89BB5" },
+  pr:          { label: i18nKey("Связи с общественностью"),    short: "PR",    color: "#D89BB5" },
   pmo:         { label: "PMO",                        short: "PMO",   color: "#7B9BD1" },
-  analytics:   { label: "Сводный отдел",              short: "ANL",   color: "#9B8EC4" },
+  analytics:   { label: i18nKey("Сводный отдел"),              short: "ANL",   color: "#9B8EC4" },
 };
 
 const dir = computed(() => {
@@ -167,7 +169,7 @@ function onDragStart(ev: DragEvent) {
           v-if="task.priority"
           class="kc-prio"
           :style="{ background: prioColor }"
-          :title="prioLabel"
+          :title="t(prioLabel)"
         ></span>
         <span class="kc-title">{{ task.title }}</span>
 
@@ -176,7 +178,7 @@ function onDragStart(ev: DragEvent) {
           v-if="transferFromLabel"
           class="kc-transfer-pill kc-transfer-from"
           :title="t('Перенесена из FY{year}', { year: (task as any).linked_year })"
-        >{{ transferFromLabel }}</span>
+        >{{ t(transferFromLabel) }}</span>
         <span
           v-else-if="hasLinkedTask"
           class="kc-transfer-pill kc-transfer-to"

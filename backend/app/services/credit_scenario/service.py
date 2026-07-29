@@ -14,6 +14,7 @@ from uuid import UUID
 
 from fastapi import HTTPException
 
+from app.core.i18n import current_locale, tr
 from app.models.credit_scenario import (
     CUSTOM_INDICATOR_AGGREGATIONS,
     CUSTOM_INDICATOR_INPUT_TYPES,
@@ -222,7 +223,10 @@ class CreditScenarioService:
             )
 
         if loan is None:
-            return FormulaTestResponse(ok=False, error="Нет ни одного кредита для теста")
+            return FormulaTestResponse(
+                ok=False,
+                error=tr("Нет ни одного кредита для теста", current_locale()),
+            )
 
         today = _date.today()
         days_to_maturity = (loan.date_due - today).days if loan.date_due else 9999

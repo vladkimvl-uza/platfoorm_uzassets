@@ -7,6 +7,7 @@
 import { reactive } from "vue";
 import { api } from "@/api/client";
 import { useToast } from "@/composables/useToast";
+import { t } from "@/locale/i18n";
 
 const state = reactive({
   active: true,
@@ -39,7 +40,7 @@ async function load(force = false): Promise<void> {
 }
 
 function _reason(e: any): string {
-  return e?.response?.data?.detail || e?.message || "неизвестная ошибка";
+  return e?.response?.data?.detail || e?.message || t("неизвестная ошибка");
 }
 
 // P1 аудита: обе операции глушили ошибку молча (`catch { /* ignore */ }`).
@@ -51,9 +52,9 @@ async function setActive(v: boolean): Promise<void> {
   try {
     const { data } = await api.put("/ai/activation", { active: v });
     state.active = !!data.active;
-    useToast().success(state.active ? "ИИ-ассистент включён" : "ИИ-ассистент выключен");
+    useToast().success(state.active ? t("ИИ-ассистент включён") : t("ИИ-ассистент выключен"));
   } catch (e) {
-    useToast().error(`Не удалось изменить состояние ассистента: ${_reason(e)}`);
+    useToast().error(t("Не удалось изменить состояние ассистента: {reason}", { reason: _reason(e) }));
     await load(true);   // вернуть UI к РЕАЛЬНОМУ состоянию сервера
   }
 }
@@ -65,11 +66,11 @@ async function setAccessMode(mode: "owner_only" | "rbac"): Promise<void> {
     await load(true);
     useToast().success(
       state.accessMode === "rbac"
-        ? "Доступ к ИИ: по правам (ai.view)"
-        : "Доступ к ИИ: только владелец",
+        ? t("Доступ к ИИ: по правам (ai.view)")
+        : t("Доступ к ИИ: только владелец"),
     );
   } catch (e) {
-    useToast().error(`Не удалось изменить режим доступа: ${_reason(e)}`);
+    useToast().error(t("Не удалось изменить режим доступа: {reason}", { reason: _reason(e) }));
     await load(true);
   }
 }

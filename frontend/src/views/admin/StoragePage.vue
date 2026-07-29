@@ -51,7 +51,7 @@ async function loadStatus() {
     const { data } = await api.get<StorageStatus>("/admin/storage/status");
     status.value = data;
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || "Ошибка загрузки";
+    error.value = e?.response?.data?.detail || t('Ошибка загрузки');
   } finally {
     loading.value = false;
   }
@@ -66,7 +66,7 @@ async function runTest() {
   } catch (e: any) {
     testResult.value = {
       ok: false,
-      steps: [{ step: "request", ok: false, ms: 0, error: e?.response?.data?.detail || "Сбой запроса" }],
+      steps: [{ step: "request", ok: false, ms: 0, error: e?.response?.data?.detail || t("Сбой запроса") }],
       key: "",
     };
   } finally {
@@ -90,7 +90,7 @@ const isLocal = computed(() => status.value?.config?.backend === "local");
       </div>
       <div class="stg-actions">
         <button class="stg-btn-ghost" @click="guideOpen = !guideOpen">
-          {{ guideOpen ? '× Закрыть инструкцию' : '? Как подключить S3' }}
+          {{ guideOpen ? t('× Закрыть инструкцию') : t('? Как подключить S3') }}
         </button>
         <button class="stg-btn-ghost" @click="loadStatus" :disabled="loading">{{ t('↻ Обновить') }}</button>
       </div>
@@ -103,7 +103,7 @@ const isLocal = computed(() => status.value?.config?.backend === "local");
       <div class="stg-card-head">
         <span class="stg-card-ttl">{{ t('Текущее состояние') }}</span>
         <span class="stg-status-chip" :class="{ ok: status.init_ok, err: !status.init_ok }">
-          {{ status.init_ok ? '● работает' : '● ошибка' }}
+          {{ status.init_ok ? t('● работает') : t('● ошибка') }}
         </span>
       </div>
 
@@ -150,7 +150,7 @@ const isLocal = computed(() => status.value?.config?.backend === "local");
           </div>
           <div class="stg-row">
             <span class="stg-k">Path-style</span>
-            <span class="stg-v">{{ status.config.s3_force_path_style ? 'Да (MinIO/uzcloud)' : 'Нет (AWS native)' }}</span>
+            <span class="stg-v">{{ status.config.s3_force_path_style ? t('Да (MinIO/uzcloud)') : t('Нет (AWS native)') }}</span>
           </div>
           <div class="stg-row">
             <span class="stg-k">Server-side encryption</span>
@@ -170,7 +170,7 @@ const isLocal = computed(() => status.value?.config?.backend === "local");
       <div class="stg-card-head">
         <span class="stg-card-ttl">Smoke-test</span>
         <button class="stg-btn-primary" @click="runTest" :disabled="testing">
-          {{ testing ? 'Тест…' : '▶ Запустить' }}
+          {{ testing ? t('Тест…') : t('▶ Запустить') }}
         </button>
       </div>
       <p class="stg-hint">
@@ -179,7 +179,7 @@ const isLocal = computed(() => status.value?.config?.backend === "local");
 
       <div v-if="testResult" class="stg-test-result">
         <div class="stg-test-summary" :class="{ ok: testResult.ok, err: !testResult.ok }">
-          {{ testResult.ok ? '✓ Все шаги прошли' : '✗ Часть шагов упала' }}
+          {{ testResult.ok ? t('✓ Все шаги прошли') : t('✗ Часть шагов упала') }}
         </div>
         <div v-if="testResult.key" class="stg-test-key">
           <span class="stg-k">{{ t('Ключ объекта') }}</span>
@@ -203,7 +203,7 @@ const isLocal = computed(() => status.value?.config?.backend === "local");
                 <span v-if="s.error" class="stg-err">{{ s.error }}</span>
                 <span v-else class="stg-test-detail">
                   <template v-if="s.step === 'upload' && s.size">size: {{ s.size }} bytes</template>
-                  <template v-if="s.step === 'download' && s.match !== undefined">match: {{ s.match ? 'да' : 'нет' }}</template>
+                  <template v-if="s.step === 'download' && s.match !== undefined">match: {{ s.match ? t('да') : t('нет') }}</template>
                   <template v-if="s.step === 'signed_url' && s.sample">URL: <code>{{ s.sample }}</code></template>
                 </span>
               </td>

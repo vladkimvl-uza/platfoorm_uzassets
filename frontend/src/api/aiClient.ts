@@ -5,6 +5,7 @@
 // New ChatStreamEvent variants:
 //   - tool_use_start { id, name, args }
 //   - tool_use_end   { id, name, ok, summary }
+import { t } from "@/locale/i18n";
 
 const API_BASE = "/api";
 const TOKEN_KEY = "uza_access_token";
@@ -82,7 +83,7 @@ function getAuthHeader(): Record<string, string> {
 }
 
 export function prettifyError(raw: unknown): string {
-  if (!raw) return "Неизвестная ошибка";
+  if (!raw) return t("Неизвестная ошибка");
   if (typeof raw === "string") return raw;
   if (typeof raw !== "object") return String(raw);
 
@@ -99,13 +100,13 @@ export function prettifyError(raw: unknown): string {
           if (innerErr?.message) {
             const t = innerErr.type;
             if (t === "rate_limit_error") {
-              return `Лимит токенов превышен. Подождите ~1 минуту и попробуйте снова.\n\n(${innerErr.message})`;
+              return t("Лимит токенов превышен. Подождите около минуты и попробуйте снова.\n\n({message})", { message: innerErr.message });
             }
             if (t === "invalid_request_error") {
-              return `Неверный запрос: ${innerErr.message}`;
+              return t("Неверный запрос: {message}", { message: innerErr.message });
             }
             if (t === "overloaded_error") {
-              return "Сервис AI временно перегружен. Попробуйте через несколько секунд.";
+              return t("Сервис AI временно перегружен. Попробуйте через несколько секунд.");
             }
             return innerErr.message;
           }

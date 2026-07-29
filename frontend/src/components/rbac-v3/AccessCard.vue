@@ -58,7 +58,7 @@ const dim  = computed(() => props.level === 'none' && !props.editable);
     @click="$emit('click')"
   >
     <div class="rv3-card-row">
-      <div class="rv3-card-name">{{ moduleLabel }}</div>
+      <div class="rv3-card-name">{{ t(moduleLabel) }}</div>
       <select
         v-if="editable"
         :value="level"
@@ -76,14 +76,14 @@ const dim  = computed(() => props.level === 'none' && !props.editable);
         v-else
         class="rv3-card-pill"
         :style="{ color: meta.color, background: meta.bg }"
-      >{{ meta.label }}</span>
+      >{{ t(meta.label) }}</span>
     </div>
     <div class="rv3-card-sub" :class="{ warn: manualGrant }">
       <template v-if="manualGrant">{{ t("+ персональный grant") }}</template>
       <template v-else>{{ scope ? t('{explain} · Область: {scope}', { explain, scope }) : explain }}</template>
     </div>
     <!-- Явное объяснение, почему у модуля нет варианта «Редактировать». -->
-    <div v-if="editable && !writeAvailable" class="rv3-card-hint">{{ writeHint }}</div>
+    <div v-if="editable && !writeAvailable" class="rv3-card-hint">{{ t(writeHint) }}</div>
   </div>
 </template>
 

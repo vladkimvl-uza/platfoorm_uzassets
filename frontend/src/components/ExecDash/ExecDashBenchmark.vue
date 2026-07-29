@@ -9,16 +9,18 @@
 import { computed, ref } from "vue";
 import { useExecutiveDashboard, type ExecCompanyOption } from "@/composables/useExecutiveDashboard";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 
 const { t } = useI18n();
 const exec = useExecutiveDashboard();
 
 type MetricKey = "pct" | "done_ratio" | "task_done" | "task_total";
 const METRICS: { key: MetricKey; label: string; unit: string; pct: boolean }[] = [
-  { key: "pct",        label: "Прогресс",          unit: "%",     pct: true },
-  { key: "done_ratio", label: "Выполнено задач",   unit: "%",     pct: true },
-  { key: "task_done",  label: "Задач выполнено",   unit: "",      pct: false },
-  { key: "task_total", label: "Задач всего",       unit: "",      pct: false },
+  { key: "pct",        label: i18nKey("Прогресс"),          unit: "%",     pct: true },
+  { key: "done_ratio", label: i18nKey("Выполнено задач"),   unit: "%",     pct: true },
+  { key: "task_done",  label: i18nKey("Задач выполнено"),   unit: "",      pct: false },
+  { key: "task_total", label: i18nKey("Задач всего"),       unit: "",      pct: false },
 ];
 const metric = ref<MetricKey>("pct");
 const activeMetric = computed(() => METRICS.find((m) => m.key === metric.value)!);

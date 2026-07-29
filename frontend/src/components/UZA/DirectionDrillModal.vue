@@ -169,11 +169,11 @@ function overdueLabel(p: ExecDirectionDrillTask | ExecDirectionDrillProject): st
 }
 function pluralDays(n: number): string {
   const m = n % 100;
-  if (m >= 11 && m <= 14) return "дней";
+  if (m >= 11 && m <= 14) return i18nKey("дней");
   const r = n % 10;
-  if (r === 1) return "день";
-  if (r >= 2 && r <= 4) return "дня";
-  return "дней";
+  if (r === 1) return i18nKey("день");
+  if (r >= 2 && r <= 4) return i18nKey("дня");
+  return i18nKey("дней");
 }
 </script>
 

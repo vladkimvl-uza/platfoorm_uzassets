@@ -1,16 +1,21 @@
 <template>
   <footer class="df-foot">
     <div class="df-row">
-      <span class="df-brand">UzAssets · Платформа управления портфелем</span>
+      <span class="df-brand">{{ t('UzAssets · Платформа управления портфелем') }}</span>
       <div class="df-links">
         <a href="/api/api-catalog/openapi.json" target="_blank">OpenAPI JSON</a>
         <a href="/api/api-catalog/postman.json" target="_blank">Postman collection</a>
         <RouterLink to="/api-docs">Quickstart</RouterLink>
-        <a href="mailto:v.kim@uz-assets.uz">Поддержка</a>
+        <a href="mailto:v.kim@uz-assets.uz">{{ t('Поддержка') }}</a>
       </div>
     </div>
   </footer>
 </template>
+
+<script setup lang="ts">
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+</script>
 
 <style scoped>
 .df-foot {

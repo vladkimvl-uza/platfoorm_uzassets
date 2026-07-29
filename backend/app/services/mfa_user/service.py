@@ -29,6 +29,7 @@ from fastapi import HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.i18n import current_locale, locale_of_user, tr
 from app.models.mfa import MfaMethod
 from app.models.user import User
 from app.schemas.mfa import (
@@ -97,9 +98,10 @@ class MfaUserService:
             if not getattr(current_user, "telegram_chat_id_encrypted", None):
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=(
+                    detail=tr(
                         "Telegram должен быть привязан до включения 2FA. "
-                        "Сначала вызовите /mfa/link-telegram."
+                        "Сначала вызовите /mfa/link-telegram.",
+                        current_locale(),
                     ),
                 )
         plain_codes = mfa_service.generate_recovery_codes()
@@ -138,7 +140,10 @@ class MfaUserService:
         if not ok:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Введите recovery code для подтверждения отключения 2FA.",
+                detail=tr(
+                    "Введите recovery code для подтверждения отключения 2FA.",
+                    current_locale(),
+                ),
             )
         current_user.mfa_enabled = False
         current_user.mfa_method = MfaMethod.NONE
@@ -171,7 +176,10 @@ class MfaUserService:
         if not body.confirm:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Подтверждение обязательно (передайте confirm=true).",
+                detail=tr(
+                    "Подтверждение обязательно (передайте confirm=true).",
+                    current_locale(),
+                ),
             )
         await mfa_service.unlink_telegram(db, current_user)
         await db.commit()
@@ -184,7 +192,10 @@ class MfaUserService:
         if not getattr(current_user, "mfa_enabled", False):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="2FA должна быть включена для генерации recovery codes.",
+                detail=tr(
+                    "2FA должна быть включена для генерации recovery codes.",
+                    current_locale(),
+                ),
             )
         plain_codes = mfa_service.generate_recovery_codes()
         hashed = [mfa_service._hash_bcrypt(c) for c in plain_codes]
@@ -240,21 +251,27 @@ class MfaUserService:
     async def test_notification(
         self, current_user: User, db: AsyncSession,
     ) -> MfaTestNotificationOut:
+        locale = locale_of_user(current_user)
         if not getattr(current_user, "telegram_chat_id_encrypted", None):
             return MfaTestNotificationOut(
                 enqueued=False,
-                detail="Telegram не привязан. Сначала /mfa/link-telegram.",
+                detail=tr(
+                    "Telegram не привязан. Сначала /mfa/link-telegram.",
+                    current_locale(),
+                ),
             )
         from app.models.mfa import OutboxType
         row = await mfa_service.enqueue_telegram_message(
             db, current_user.id, OutboxType.TEST,
             payload={
-                "title": "Тестовое уведомление UzAssets",
-                "body": (
+                "title": tr("Тестовое уведомление UzAssets", locale),
+                "body": tr(
                     "Если вы видите это сообщение, доставка через "
-                    "Telegram настроена корректно."
+                    "Telegram настроена корректно.",
+                    locale,
                 ),
                 "email": current_user.email,
+                "locale": locale,
             },
         )
         await db.commit()
@@ -298,7 +315,10 @@ class MfaUserService:
         if not getattr(current_user, "telegram_chat_id_encrypted", None):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Telegram должен быть привязан до отправки кода.",
+                detail=tr(
+                    "Telegram должен быть привязан до отправки кода.",
+                    current_locale(),
+                ),
             )
         from app.models.mfa import MfaLoginChallenge, OutboxType
         code = mfa_service._gen_login_code()
@@ -339,9 +359,10 @@ class MfaUserService:
         if not ok:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=(
+                detail=tr(
                     "Неверный код или срок действия истёк. "
-                    "Запросите код заново."
+                    "Запросите код заново.",
+                    current_locale(),
                 ),
             )
         plain_codes = mfa_service.generate_recovery_codes()

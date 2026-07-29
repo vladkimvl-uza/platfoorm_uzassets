@@ -14,6 +14,7 @@ from email.message import EmailMessage
 from email.utils import formataddr
 
 from app.config import settings
+from app.core.i18n import normalize_locale, tr
 from app.services.email import templates
 from app.services.email.runtime_config import effective
 
@@ -25,15 +26,16 @@ def email_configured() -> bool:
     return bool(cfg.get("SMTP_ENABLED") and cfg.get("SMTP_HOST"))
 
 
-def _send_sync(to: str, subject: str, html: str) -> None:
+def _send_sync(to: str, subject: str, html: str, locale: str = "ru") -> None:
     cfg = effective()
     msg = EmailMessage()
     msg["From"] = cfg.get("SMTP_FROM") or settings.SMTP_FROM
     msg["To"] = to
     msg["Subject"] = subject
-    msg.set_content(
-        "Это письмо в формате HTML. Откройте его в почтовом клиенте с поддержкой HTML."
-    )
+    msg.set_content(tr(
+        "Это письмо в формате HTML. Откройте его в почтовом клиенте с поддержкой HTML.",
+        locale,
+    ))
     msg.add_alternative(html, subtype="html")
 
     host = cfg.get("SMTP_HOST"); port = int(cfg.get("SMTP_PORT") or 587)
@@ -60,14 +62,14 @@ def _send_sync(to: str, subject: str, html: str) -> None:
             s.send_message(msg)
 
 
-async def send_email(to: str, subject: str, html: str) -> bool:
+async def send_email(to: str, subject: str, html: str, *, locale: str = "ru") -> bool:
     """Отправить письмо. Возвращает True при успехе, False если пропущено/ошибка.
     Никогда не бросает исключение наружу (best-effort)."""
     if not email_configured():
         log.info("email skipped (SMTP disabled): to=%s subject=%r", to, subject)
         return False
     try:
-        await asyncio.to_thread(_send_sync, to, subject, html)
+        await asyncio.to_thread(_send_sync, to, subject, html, normalize_locale(locale))
         log.info("email sent: to=%s subject=%r", to, subject)
         return True
     except Exception:  # noqa: BLE001 — best-effort, не валим вызывающий код
@@ -78,30 +80,33 @@ async def send_email(to: str, subject: str, html: str) -> bool:
 # ── Convenience-сендеры (используют брендовые шаблоны) ───────────────
 
 async def send_mfa_code_email(*, to: str, code: str, ip: str | None = None,
-                              when: str | None = None) -> bool:
-    subject, html = templates.mfa_code_email(code=code, email=to, ip=ip, when=when)
-    return await send_email(to, subject, html)
+                              when: str | None = None, locale: str = "ru") -> bool:
+    subject, html = templates.mfa_code_email(
+        code=code, email=to, ip=ip, when=when, locale=locale,
+    )
+    return await send_email(to, subject, html, locale=locale)
 
 
 async def send_invite_email(*, to: str, full_name: str, temp_password: str,
-                            must_change: bool = True) -> bool:
+                            must_change: bool = True, locale: str = "ru") -> bool:
     login_url = str(effective().get("PUBLIC_URL") or settings.PUBLIC_URL).rstrip("/") + "/login"
     subject, html = templates.invite_email(
         full_name=full_name, email=to, temp_password=temp_password,
-        login_url=login_url, must_change=must_change,
+        login_url=login_url, must_change=must_change, locale=locale,
     )
-    return await send_email(to, subject, html)
+    return await send_email(to, subject, html, locale=locale)
 
 
 async def send_generic_email(*, to: str, eyebrow: str, title: str,
                              body_lines: list[str], button_label: str | None = None,
-                             button_url: str | None = None, accent: str | None = None) -> bool:
+                             button_url: str | None = None, accent: str | None = None,
+                             locale: str = "ru") -> bool:
     subject, html = templates.generic_email(
         eyebrow=eyebrow, title=title, body_lines=body_lines,
         button_label=button_label, button_url=button_url,
-        accent=accent or templates._PURPLE,
+        accent=accent or templates._PURPLE, locale=locale,
     )
-    return await send_email(to, subject, html)
+    return await send_email(to, subject, html, locale=locale)
 
 
 __all__ = [

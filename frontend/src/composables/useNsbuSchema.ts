@@ -1,3 +1,6 @@
+import { i18nKey } from "@/locale/keys";
+import { t } from "@/locale/i18n";
+
 /**
  * useNsbuSchema.ts — Pack 7.51
  * ─────────────────────────────────────────────────────────────────
@@ -37,35 +40,35 @@ export interface FieldDef {
  */
 export const CANONICAL_METRICS: { code: string; label: string; section: SectionId }[] = [
   // P&L
-  { code: "revenue",       label: "Выручка",                 section: "pnl" },
-  { code: "cogs",          label: "Себестоимость",           section: "pnl" },
-  { code: "grossProfit",   label: "Валовая прибыль",         section: "pnl" },
-  { code: "opProfit",      label: "Операционная прибыль",    section: "pnl" },
-  { code: "depreciation",  label: "Амортизация",             section: "pnl" },
-  { code: "finCost",       label: "Финансовые расходы",      section: "pnl" },
-  { code: "finIncome",     label: "Финансовые доходы",       section: "pnl" },
-  { code: "interestExp",   label: "Процентные расходы",      section: "pnl" },
-  { code: "forex",         label: "Курсовая разница",        section: "pnl" },
-  { code: "pbt",           label: "Прибыль до налога",       section: "pnl" },
-  { code: "tax",           label: "Налог на прибыль",        section: "pnl" },
-  { code: "profit",        label: "Чистая прибыль",          section: "pnl" },
+  { code: "revenue",       label: i18nKey("Выручка"),                 section: "pnl" },
+  { code: "cogs",          label: i18nKey("Себестоимость"),           section: "pnl" },
+  { code: "grossProfit",   label: i18nKey("Валовая прибыль"),         section: "pnl" },
+  { code: "opProfit",      label: i18nKey("Операционная прибыль"),    section: "pnl" },
+  { code: "depreciation",  label: i18nKey("Амортизация"),             section: "pnl" },
+  { code: "finCost",       label: i18nKey("Финансовые расходы"),      section: "pnl" },
+  { code: "finIncome",     label: i18nKey("Финансовые доходы"),       section: "pnl" },
+  { code: "interestExp",   label: i18nKey("Процентные расходы"),      section: "pnl" },
+  { code: "forex",         label: i18nKey("Курсовая разница"),        section: "pnl" },
+  { code: "pbt",           label: i18nKey("Прибыль до налога"),       section: "pnl" },
+  { code: "tax",           label: i18nKey("Налог на прибыль"),        section: "pnl" },
+  { code: "profit",        label: i18nKey("Чистая прибыль"),          section: "pnl" },
   { code: "ebitda",        label: "EBITDA",                   section: "pnl" },
   // Balance Sheet
-  { code: "totalAssets",      label: "Итого активы",            section: "sofp" },
-  { code: "totalLiabilities", label: "Итого обязательства",     section: "sofp" },
-  { code: "equity",           label: "Собственный капитал",     section: "sofp" },
-  { code: "totalCA",          label: "Оборотные активы",        section: "sofp" },
-  { code: "totalNCA",         label: "Внеоборотные активы",     section: "sofp" },
-  { code: "ppe",              label: "Основные средства",       section: "sofp" },
-  { code: "cash",             label: "Денежные средства",       section: "sofp" },
-  { code: "debt",             label: "Финансовый долг",         section: "sofp" },
-  { code: "ltBorrowings",     label: "Долгосрочные обяз-ва",    section: "sofp" },
-  { code: "stBorrowings",     label: "Краткосрочные обяз-ва",   section: "sofp" },
-  { code: "ltBankLoans",      label: "Долгосроч. банк. кредиты",section: "sofp" },
-  { code: "inventories",      label: "Запасы",                  section: "sofp" },
-  { code: "tradeReceivables", label: "Дебиторская задолж-ть",   section: "sofp" },
-  { code: "accountsReceivable", label: "Дебиторская задолженность", section: "sofp" },
-  { code: "accountsPayable",    label: "Кредиторская задолженность", section: "sofp" },
+  { code: "totalAssets",      label: i18nKey("Итого активы"),            section: "sofp" },
+  { code: "totalLiabilities", label: i18nKey("Итого обязательства"),     section: "sofp" },
+  { code: "equity",           label: i18nKey("Собственный капитал"),     section: "sofp" },
+  { code: "totalCA",          label: i18nKey("Оборотные активы"),        section: "sofp" },
+  { code: "totalNCA",         label: i18nKey("Внеоборотные активы"),     section: "sofp" },
+  { code: "ppe",              label: i18nKey("Основные средства"),       section: "sofp" },
+  { code: "cash",             label: i18nKey("Денежные средства"),       section: "sofp" },
+  { code: "debt",             label: i18nKey("Финансовый долг"),         section: "sofp" },
+  { code: "ltBorrowings",     label: i18nKey("Долгосрочные обяз-ва"),    section: "sofp" },
+  { code: "stBorrowings",     label: i18nKey("Краткосрочные обяз-ва"),   section: "sofp" },
+  { code: "ltBankLoans",      label: i18nKey("Долгосроч. банк. кредиты"),section: "sofp" },
+  { code: "inventories",      label: i18nKey("Запасы"),                  section: "sofp" },
+  { code: "tradeReceivables", label: i18nKey("Дебиторская задолж-ть"),   section: "sofp" },
+  { code: "accountsReceivable", label: i18nKey("Дебиторская задолженность"), section: "sofp" },
+  { code: "accountsPayable",    label: i18nKey("Кредиторская задолженность"), section: "sofp" },
 ];
 
 export interface SectionDef {
@@ -111,7 +114,7 @@ export const AUTO_FORMULAS: Record<string, AutoFormulaDef> = {
     },
   },
   ebitda: {
-    expr: "opProfit + |depreciation| (или profit + |tax| + |dep| + |finCost|)",
+    expr: i18nKey("opProfit + |depreciation| (или profit + |tax| + |dep| + |finCost|)"),
     fn: (g) => {
       const op = g("opProfit"), dp = g("depreciation");
       if (op != null && dp != null) return op + Math.abs(dp);
@@ -151,42 +154,42 @@ export const AUTO_FORMULAS: Record<string, AutoFormulaDef> = {
 export const STANDARD_SCHEMA: SectionDef[] = [
   {
     id: "pnl",
-    label: "ОФР · Форма 2",
+    label: i18nKey("ОФР · Форма 2"),
     fields: [
-      { id: "revenue",       label: "Выручка",                          nsbuCode: "010", canonical: "revenue", groupHeader: "ДОХОДЫ И РАСХОДЫ" },
-      { id: "cogs",          label: "Себестоимость",                    nsbuCode: "020", canonical: "cogs", positiveOnly: true },
-      { id: "grossProfit",   label: "Валовая прибыль",                  nsbuCode: "030", canonical: "grossProfit", autoFormula: "grossProfit", isSubtotal: true },
-      { id: "opProfit",      label: "Операционная прибыль",             nsbuCode: "060", canonical: "opProfit", groupHeader: "ОПЕРАЦИОННЫЙ РЕЗУЛЬТАТ" },
-      { id: "depreciation",  label: "Амортизация",                       nsbuCode: "070", canonical: "depreciation", positiveOnly: true },
-      { id: "finIncome",     label: "Доходы от фин. деятельности",      nsbuCode: "110", canonical: "finIncome" },
-      { id: "finCost",       label: "Расходы от фин. деятельности",     nsbuCode: "170", canonical: "finCost", positiveOnly: true },
-      { id: "forex",         label: "Курсовая разница (справочно)",     nsbuCode: "180", canonical: "forex" },
-      { id: "pbt",           label: "Прибыль до налога",                nsbuCode: "190", canonical: "pbt", autoFormula: "pbt", isSubtotal: true, groupHeader: "ИТОГИ ПЕРИОДА" },
-      { id: "tax",           label: "Налог на прибыль",                 nsbuCode: "220", canonical: "tax", positiveOnly: true },
-      { id: "profit",        label: "Чистая прибыль",                   nsbuCode: "270", canonical: "profit", autoFormula: "profit", isSubtotal: true },
+      { id: "revenue",       label: i18nKey("Выручка"),                          nsbuCode: "010", canonical: "revenue", groupHeader: i18nKey("ДОХОДЫ И РАСХОДЫ") },
+      { id: "cogs",          label: i18nKey("Себестоимость"),                    nsbuCode: "020", canonical: "cogs", positiveOnly: true },
+      { id: "grossProfit",   label: i18nKey("Валовая прибыль"),                  nsbuCode: "030", canonical: "grossProfit", autoFormula: "grossProfit", isSubtotal: true },
+      { id: "opProfit",      label: i18nKey("Операционная прибыль"),             nsbuCode: "060", canonical: "opProfit", groupHeader: i18nKey("ОПЕРАЦИОННЫЙ РЕЗУЛЬТАТ") },
+      { id: "depreciation",  label: i18nKey("Амортизация"),                       nsbuCode: "070", canonical: "depreciation", positiveOnly: true },
+      { id: "finIncome",     label: i18nKey("Доходы от фин. деятельности"),      nsbuCode: "110", canonical: "finIncome" },
+      { id: "finCost",       label: i18nKey("Расходы от фин. деятельности"),     nsbuCode: "170", canonical: "finCost", positiveOnly: true },
+      { id: "forex",         label: i18nKey("Курсовая разница (справочно)"),     nsbuCode: "180", canonical: "forex" },
+      { id: "pbt",           label: i18nKey("Прибыль до налога"),                nsbuCode: "190", canonical: "pbt", autoFormula: "pbt", isSubtotal: true, groupHeader: i18nKey("ИТОГИ ПЕРИОДА") },
+      { id: "tax",           label: i18nKey("Налог на прибыль"),                 nsbuCode: "220", canonical: "tax", positiveOnly: true },
+      { id: "profit",        label: i18nKey("Чистая прибыль"),                   nsbuCode: "270", canonical: "profit", autoFormula: "profit", isSubtotal: true },
       { id: "ebitda",        label: "EBITDA",                            canonical: "ebitda", autoFormula: "ebitda", isSubtotal: true },
     ],
   },
   {
     id: "sofp",
-    label: "Баланс · Форма 1",
+    label: i18nKey("Баланс · Форма 1"),
     fields: [
-      { id: "ppe",              label: "Основные средства",        nsbuCode: "010", canonical: "ppe", groupHeader: "АКТИВЫ" },
-      { id: "totalNCA",         label: "Внеоборотные активы (итог)", nsbuCode: "190", canonical: "totalNCA", isSubtotal: true },
-      { id: "cash",             label: "Денежные средства",        nsbuCode: "320", canonical: "cash" },
-      { id: "accountsReceivable", label: "Дебиторская задолженность", nsbuCode: "210", canonical: "accountsReceivable" },
-      { id: "totalCA",          label: "Оборотные активы (итог)",  nsbuCode: "390", canonical: "totalCA", isSubtotal: true },
-      { id: "totalAssets",      label: "ИТОГО Активы",             nsbuCode: "400", canonical: "totalAssets", autoFormula: "totalAssets", isSubtotal: true },
-      { id: "equity",           label: "Собственный капитал",      nsbuCode: "480", canonical: "equity", groupHeader: "СОБСТВЕННЫЙ КАПИТАЛ", isSubtotal: true },
-      { id: "ltBorrowings",     label: "Долгосрочные обязательства (итог)", nsbuCode: "590", canonical: "ltBorrowings", positiveOnly: true, isSubtotal: true, groupHeader: "ОБЯЗАТЕЛЬСТВА" },
-      { id: "stBorrowings",     label: "Краткосрочные обязательства (итог)", nsbuCode: "780", canonical: "stBorrowings", positiveOnly: true, isSubtotal: true },
-      { id: "accountsPayable",  label: "Кредиторская задолженность", nsbuCode: "601", canonical: "accountsPayable", positiveOnly: true },
-      { id: "totalLiabilities", label: "ИТОГО Обязательства",      canonical: "totalLiabilities", autoFormula: "totalLiabilities", isSubtotal: true },
-      { id: "ltBankLoans",      label: "Долгосроч. банк. кредиты", nsbuCode: "7810", canonical: "ltBankLoans", positiveOnly: true, groupHeader: "ДОЛГ (детализация)" },
-      { id: "ltOtherLoans",     label: "Долгосрочные займы",        nsbuCode: "7820/7830/7840", positiveOnly: true },
-      { id: "stBankLoans",      label: "Краткосроч. банк. кредиты", nsbuCode: "6810", positiveOnly: true },
-      { id: "stOtherLoans",     label: "Краткосрочные займы",       nsbuCode: "6820/6830/6840", positiveOnly: true },
-      { id: "debt",             label: "Финансовый долг",          canonical: "debt", autoFormula: "debt", isSubtotal: true },
+      { id: "ppe",              label: i18nKey("Основные средства"),        nsbuCode: "010", canonical: "ppe", groupHeader: i18nKey("АКТИВЫ") },
+      { id: "totalNCA",         label: i18nKey("Внеоборотные активы (итог)"), nsbuCode: "190", canonical: "totalNCA", isSubtotal: true },
+      { id: "cash",             label: i18nKey("Денежные средства"),        nsbuCode: "320", canonical: "cash" },
+      { id: "accountsReceivable", label: i18nKey("Дебиторская задолженность"), nsbuCode: "210", canonical: "accountsReceivable" },
+      { id: "totalCA",          label: i18nKey("Оборотные активы (итог)"),  nsbuCode: "390", canonical: "totalCA", isSubtotal: true },
+      { id: "totalAssets",      label: i18nKey("ИТОГО Активы"),             nsbuCode: "400", canonical: "totalAssets", autoFormula: "totalAssets", isSubtotal: true },
+      { id: "equity",           label: i18nKey("Собственный капитал"),      nsbuCode: "480", canonical: "equity", groupHeader: i18nKey("СОБСТВЕННЫЙ КАПИТАЛ"), isSubtotal: true },
+      { id: "ltBorrowings",     label: i18nKey("Долгосрочные обязательства (итог)"), nsbuCode: "590", canonical: "ltBorrowings", positiveOnly: true, isSubtotal: true, groupHeader: i18nKey("ОБЯЗАТЕЛЬСТВА") },
+      { id: "stBorrowings",     label: i18nKey("Краткосрочные обязательства (итог)"), nsbuCode: "780", canonical: "stBorrowings", positiveOnly: true, isSubtotal: true },
+      { id: "accountsPayable",  label: i18nKey("Кредиторская задолженность"), nsbuCode: "601", canonical: "accountsPayable", positiveOnly: true },
+      { id: "totalLiabilities", label: i18nKey("ИТОГО Обязательства"),      canonical: "totalLiabilities", autoFormula: "totalLiabilities", isSubtotal: true },
+      { id: "ltBankLoans",      label: i18nKey("Долгосроч. банк. кредиты"), nsbuCode: "7810", canonical: "ltBankLoans", positiveOnly: true, groupHeader: i18nKey("ДОЛГ (детализация)") },
+      { id: "ltOtherLoans",     label: i18nKey("Долгосрочные займы"),        nsbuCode: "7820/7830/7840", positiveOnly: true },
+      { id: "stBankLoans",      label: i18nKey("Краткосроч. банк. кредиты"), nsbuCode: "6810", positiveOnly: true },
+      { id: "stOtherLoans",     label: i18nKey("Краткосрочные займы"),       nsbuCode: "6820/6830/6840", positiveOnly: true },
+      { id: "debt",             label: i18nKey("Финансовый долг"),          canonical: "debt", autoFormula: "debt", isSubtotal: true },
     ],
   },
 ];
@@ -200,14 +203,14 @@ export function validateField(field: FieldDef, value: number | null): string[] {
   const errors: string[] = [];
   if (value == null) return errors;
   if (!isFinite(value)) {
-    errors.push("Значение не число");
+    errors.push(t('Значение не число'));
     return errors;
   }
   if (field.positiveOnly && value < 0) {
-    errors.push(`«${field.label}» вводится положительным числом — автоматически взяли модуль`);
+    errors.push(t('«{value0}» вводится положительным числом — автоматически взяли модуль', { value0: field.label }));
   }
   if (Math.abs(value) > 1_000_000) {
-    errors.push(`Слишком большое значение: ${value} млрд сум выглядит подозрительно`);
+    errors.push(t('Слишком большое значение: {value0} млрд сум выглядит подозрительно', { value0: value }));
   }
   return errors;
 }

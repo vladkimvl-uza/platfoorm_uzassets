@@ -33,7 +33,7 @@ async function loadOverview() {
   overviewError.value = null;
   try { overview.value = await moderationApi.overview(); }
   catch (e: any) {
-    overviewError.value = e?.response?.data?.detail || "Не удалось загрузить сводку модерации";
+    overviewError.value = e?.response?.data?.detail || t('Не удалось загрузить сводку модерации');
   }
   finally { loading.value = false; }
 }
@@ -100,7 +100,7 @@ const openSubmissionId = computed(() => (route.query.open as string) || null);
       <div class="mod-ov-card">
         <span class="mod-ov-label">{{ t('Средн. время') }}</span>
         <span class="mod-ov-val">
-          {{ overview.avg_resolution_hours !== null ? overview.avg_resolution_hours.toFixed(1) + " ч" : "—" }}
+          {{ overview.avg_resolution_hours !== null ? t('{value0} ч', { value0: overview.avg_resolution_hours.toFixed(1) }) : "—" }}
         </span>
       </div>
       <div class="mod-ov-card mod-ov-mine">

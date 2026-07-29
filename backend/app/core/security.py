@@ -31,6 +31,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core import jwt as app_jwt
+from app.core.i18n import current_locale, tr
 from app.database import get_db
 from app.models.user import Role, User
 
@@ -169,7 +170,10 @@ async def get_current_user(
             status.HTTP_403_FORBIDDEN,
             detail={
                 "code": "password_change_required",
-                "message": "Требуется смена пароля. Воспользуйтесь /auth/change-password.",
+                "message": tr(
+                    "Требуется смена пароля. Воспользуйтесь /auth/change-password.",
+                    current_locale(),
+                ),
             },
             headers={"WWW-Authenticate": 'Bearer error="password_change_required"'},
         )

@@ -22,7 +22,7 @@ const modulesAll = computed<ModuleEntry[]>(() => {
     code:  m.name,
     name:  m.name,
     count: m.endpoints_count,
-    group: m.group || "Прочее",
+      group: m.group || t("Прочее"),
   }));
 });
 

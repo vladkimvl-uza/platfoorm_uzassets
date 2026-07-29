@@ -129,7 +129,7 @@ const displayName = computed(() => props.name || "");
         <input
           class="ua-input"
           :value="inputEmail"
-          :placeholder="placeholder || 'email или начало имени…'"
+          :placeholder="placeholder || t('email или начало имени…')"
           :disabled="disabled"
           type="text"
           @input="onInput"

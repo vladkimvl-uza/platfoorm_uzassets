@@ -20,6 +20,8 @@ import {
 import { useToast } from "@/composables/useToast";
 import PaModalShell from "./PaModalShell.vue";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 
 const { t } = useI18n();
 
@@ -45,11 +47,11 @@ const toast = useToast();
 
 // ─── Заключение центра экспертизы ───────────────────────────────────
 const CONCLUSION_STATUSES: { key: string; label: string }[] = [
-  { key: "", label: "Не задан" },
-  { key: "pending", label: "На рассмотрении" },
-  { key: "approved", label: "Согласовано" },
-  { key: "conditional", label: "Условно согласовано" },
-  { key: "rejected", label: "Отклонено" },
+  { key: "", label: i18nKey("Не задан") },
+  { key: "pending", label: i18nKey("На рассмотрении") },
+  { key: "approved", label: i18nKey("Согласовано") },
+  { key: "conditional", label: i18nKey("Условно согласовано") },
+  { key: "rejected", label: i18nKey("Отклонено") },
 ];
 
 const editingConcl = ref(false);
@@ -114,7 +116,7 @@ function fmtDateTime(d: string | null): string {
 
 const cat = computed(() => {
   const found = props.data.categories.find(c => paSameCat(c.id, props.purchase.category_id));
-  return found || { id: 0, name: "—", short: "ед", icon: null };
+  return found || { id: 0, name: "—", short: t("ед"), icon: null };
 });
 
 const related = computed<ClosureRow[]>(() =>

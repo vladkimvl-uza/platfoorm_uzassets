@@ -5,8 +5,8 @@
       <div class="kps-hero">
         <div class="kps-hero-l">
           <div class="kps-hero-top">
-            <div class="kps-hero-eyebrow">{{ t("Общее выполнение KPI") }} · FY {{ summary.year }} · {{ periodLabel }} · {{ t("{n} компаний", { n: summary.co_count }) }}</div>
-            <span class="kps-status" :class="execStatus.cls">{{ execStatus.label }}</span>
+            <div class="kps-hero-eyebrow">{{ t("Общее выполнение KPI") }} · FY {{ summary.year }} · {{ t(periodLabel) }} · {{ t("{n} компаний", { n: summary.co_count }) }}</div>
+            <span class="kps-status" :class="execStatus.cls">{{ t(execStatus.label) }}</span>
           </div>
           <div class="kps-hero-v">
             <span :style="{ color: overallColor }"><Odometer :value="overallText" /></span>
@@ -48,7 +48,7 @@
             @click="s.count && $emit('open-status', s.key)"
           >
             <span class="sw" :style="{ background: s.color }" />
-            {{ s.label }} · {{ s.count }}
+            {{ t(s.label) }} · {{ s.count }}
           </span>
         </div>
       </div>
@@ -101,7 +101,7 @@
               :title="`${t('Открыть сектор')} · ${s.label}`"
             >
               <div class="kps-sec-row-l">
-                <div class="kps-sec-name">{{ s.label }}</div>
+                <div class="kps-sec-name">{{ t(s.label) }}</div>
                 <div class="kps-sec-meta">{{ t("{n} компаний", { n: s.co_count }) }} · {{ t("{n} индикаторов", { n: s.count }) }}</div>
               </div>
               <div class="kps-sec-row-r">
@@ -183,7 +183,7 @@
           <div class="kps-q-foot">
             <span>FY {{ summary.year }} · {{ t("закрыто {n} из 4 · текущий результат", { n: closedQ }) }}
               <b :style="{ color: overallColor }">{{ overallText }}</b></span>
-            <span class="kps-q-foot-status" :class="execStatus.cls">{{ execStatus.label }}</span>
+            <span class="kps-q-foot-status" :class="execStatus.cls">{{ t(execStatus.label) }}</span>
           </div>
           <div v-if="hasFutureQ" class="kps-q-note">{{ t("Данные за следующие кварталы появятся после закрытия периода.") }}</div>
         </div>
@@ -249,6 +249,7 @@ import { computed } from "vue";
 import { kpiStatusColor, type KpiSummary, type KpiIndPayload, type KpiStatus, num } from "@/api/bpKpi";
 import { useFormatters } from "@/composables/useFormatters";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
 import Odometer from "@/components/Odometer.vue";
 
 const fmt = useFormatters();
@@ -349,16 +350,18 @@ function weightVal(ind: KpiIndPayload): number {
 
 // ─── Квартальный прогресс: состояние будущих кварталов + FY outlook ─
 const QORDER: Record<string, number> = { q1: 1, q2: 2, q3: 3, q4: 4 };
+const Q_NOT_STARTED = i18nKey("не начато");
+const Q_NO_DATA = i18nKey("нет данных");
 const curQIndex = computed(() => QORDER[props.summary.period] ?? 4);
 function quarterState(q: { q: string; fact: number | null }): string | null {
   if (q.fact != null) return null;
   const idx = QORDER[q.q] ?? 4;
-  if (props.summary.period !== "year" && idx > curQIndex.value) return "не начато";
-  return "нет данных";
+  if (props.summary.period !== "year" && idx > curQIndex.value) return Q_NOT_STARTED;
+  return Q_NO_DATA;
 }
 const closedQ = computed(() => props.summary.by_quarter.filter((q) => q.fact != null).length);
 const hasFutureQ = computed(() =>
-  props.summary.by_quarter.some((q) => quarterState(q) === "не начато"),
+  props.summary.by_quarter.some((q) => quarterState(q) === Q_NOT_STARTED),
 );
 </script>
 

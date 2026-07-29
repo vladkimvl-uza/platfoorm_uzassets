@@ -52,7 +52,7 @@ function fill(s: EmailSettings) {
 
 onMounted(async () => {
   try { fill(await emailSettingsApi.get()); }
-  catch (e: any) { error.value = e?.response?.data?.detail || "Не удалось загрузить настройки"; }
+  catch (e: any) { error.value = e?.response?.data?.detail || t('Не удалось загрузить настройки'); }
   finally { loading.value = false; }
 });
 
@@ -66,10 +66,10 @@ async function save() {
     const payload: any = { ...form };
     if (!payload.SMTP_PASSWORD) delete payload.SMTP_PASSWORD;  // пустое = не менять
     fill(await emailSettingsApi.update(payload));
-    ok.value = "Настройки сохранены";
+    ok.value = t("Настройки сохранены");
     setTimeout(() => { ok.value = null; }, 2500);
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || "Не удалось сохранить";
+    error.value = e?.response?.data?.detail || t('Не удалось сохранить');
   } finally { saving.value = false; }
 }
 
@@ -77,9 +77,9 @@ async function sendTest() {
   testing.value = true; error.value = null; ok.value = null;
   try {
     const r = await emailSettingsApi.sendTest();
-    ok.value = `Тестовое письмо отправлено на ${r.to}`;
+    ok.value = t("Тестовое письмо отправлено на {email}", { email: r.to });
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || "Не удалось отправить тестовое письмо";
+    error.value = e?.response?.data?.detail || t('Не удалось отправить тестовое письмо');
   } finally { testing.value = false; }
 }
 </script>
@@ -120,7 +120,7 @@ async function sendTest() {
         </label>
         <label class="es-field">
           <span class="es-lbl">{{ t('Пароль') }} <span v-if="passwordSet" class="es-pwd-set">{{ t('(задан — оставьте пустым, чтобы не менять)') }}</span></span>
-          <input v-model="form.SMTP_PASSWORD" type="password" class="es-in" :placeholder="passwordSet ? '••••••••' : 'пароль приложения'" autocomplete="new-password" />
+          <input v-model="form.SMTP_PASSWORD" type="password" class="es-in" :placeholder="passwordSet ? '••••••••' : t('пароль приложения')" autocomplete="new-password" />
         </label>
         <label class="es-field es-field-wide">
           <span class="es-lbl">{{ t('Отправитель (From)') }}</span>
@@ -147,10 +147,10 @@ async function sendTest() {
 
       <div class="es-actions">
         <button class="es-btn es-ghost" :disabled="testing || !form.SMTP_ENABLED" @click="sendTest">
-          {{ testing ? 'Отправка…' : '✉ Отправить тестовое письмо себе' }}
+          {{ testing ? t('Отправка…') : t('✉ Отправить тестовое письмо себе') }}
         </button>
         <button class="es-btn es-primary" :disabled="saving" @click="save">
-          {{ saving ? 'Сохранение…' : 'Сохранить' }}
+          {{ saving ? t('Сохранение…') : t('Сохранить') }}
         </button>
       </div>
     </div>

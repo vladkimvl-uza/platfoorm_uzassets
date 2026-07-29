@@ -17,6 +17,8 @@ import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
 import BIcon from "@/components/broadcasts/BIcon.vue";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 const { t } = useI18n();
 
 
@@ -40,7 +42,7 @@ async function loadDirections() {
   try {
     directions.value = await directionsApi.list();
   } catch (e: any) {
-    dirsError.value = e?.response?.data?.detail || "Не удалось загрузить направления";
+    dirsError.value = e?.response?.data?.detail || t('Не удалось загрузить направления');
   } finally {
     dirsLoading.value = false;
   }
@@ -66,7 +68,7 @@ function openEditDir(d: DirectionBrief) {
 async function saveDir() {
   const v = dirEditor.value;
   if (!v.label || !v.label.trim()) {
-    toast.error("Название обязательно");
+    toast.error(t('Название обязательно'));
     return;
   }
   try {
@@ -93,9 +95,9 @@ async function saveDir() {
     dirEditorOpen.value = false;
     await loadDirections();
     await directionsStore.reload();
-    toast.success("Направление сохранено");
+    toast.success(t('Направление сохранено'));
   } catch (e: any) {
-    toast.error(e?.response?.data?.detail || "Ошибка сохранения");
+    toast.error(e?.response?.data?.detail || t('Ошибка сохранения'));
   }
 }
 
@@ -111,25 +113,22 @@ async function deleteDir(d: DirectionBrief) {
   let reassignTo: string | undefined = undefined;
   if (total > 0) {
     const otherList = otherDirs.map((x, i) => `  ${i + 1}. ${x.label} (${x.code})`).join("\n");
+    const reassignPrompt = i18nKey("Направление «{label}» используется в {tasks} задачах и {projects} проектах.\n\nВведите НОМЕР направления для переноса этих записей,\nили оставьте пустым, чтобы убрать направление (станет «без направления»),\nили введите «-» для отмены:\n\n{otherList}");
     const userChoice = await promptDialog({
-      message:
-        `Направление «${d.label}» используется в ${usage.tasks} задачах и ${usage.projects} проектах.\n\n` +
-        `Введите НОМЕР направления для переноса этих записей,\n` +
-        `или оставьте пустым чтобы убрать направление (станет «без направления»),\n` +
-        `или введите «-» для отмены:\n\n` + otherList,
+      message: t(reassignPrompt, { label: d.label, tasks: usage.tasks, projects: usage.projects, otherList }),
     });
     if (userChoice === null || userChoice === "-") return;
     if (userChoice.trim()) {
       const idx = parseInt(userChoice.trim(), 10) - 1;
       if (idx < 0 || idx >= otherDirs.length || Number.isNaN(idx)) {
-        toast.error("Неверный номер");
+        toast.error(t('Неверный номер'));
         return;
       }
       reassignTo = otherDirs[idx].code;
     }
   } else {
     if (!(await confirmDialog({
-      message: `Удалить направление «${d.label}»?\n\nНи одна задача или проект не используют это направление — удаление безопасно.`,
+      message: t('Удалить направление «{value0}»? Ни одна задача или проект не используют это направление — удаление безопасно.', { value0: d.label }),
       danger: true,
     }))) return;
   }
@@ -138,9 +137,9 @@ async function deleteDir(d: DirectionBrief) {
     await directionsApi.remove(d.id, reassignTo ? { reassignTo } : undefined);
     await loadDirections();
     await directionsStore.reload();
-    toast.success("Направление удалено");
+    toast.success(t('Направление удалено'));
   } catch (e: any) {
-    toast.error(e?.response?.data?.detail || "Ошибка удаления");
+    toast.error(e?.response?.data?.detail || t('Ошибка удаления'));
   }
 }
 
@@ -161,7 +160,7 @@ async function loadConsultants() {
   try {
     consultants.value = await consultantsApi.listAll();
   } catch (e: any) {
-    consError.value = e?.response?.data?.detail || "Не удалось загрузить консультантов";
+    consError.value = e?.response?.data?.detail || t('Не удалось загрузить консультантов');
   } finally {
     consLoading.value = false;
   }
@@ -183,7 +182,7 @@ function openEditCons(c: ConsultantBrief) {
 async function saveCons() {
   const v = consEditor.value;
   if (!v.name_ru || !v.name_ru.trim()) {
-    toast.error("Название обязательно");
+    toast.error(t('Название обязательно'));
     return;
   }
   try {
@@ -209,9 +208,9 @@ async function saveCons() {
     }
     consEditorOpen.value = false;
     await loadConsultants();
-    toast.success("Консультант сохранён");
+    toast.success(t('Консультант сохранён'));
   } catch (e: any) {
-    toast.error(e?.response?.data?.detail || "Ошибка сохранения");
+    toast.error(e?.response?.data?.detail || t('Ошибка сохранения'));
   }
 }
 
@@ -220,7 +219,7 @@ async function toggleConsActive(c: ConsultantBrief) {
     await consultantsApi.update(c.id, { is_active: !c.is_active });
     await loadConsultants();
   } catch (e: any) {
-    toast.error(e?.response?.data?.detail || "Ошибка");
+    toast.error(e?.response?.data?.detail || t('Ошибка'));
   }
 }
 
@@ -231,21 +230,18 @@ async function hardDeleteCons(c: ConsultantBrief) {
     assignments = u.assignments;
   } catch { /* fall through */ }
 
+  const headline = t("УДАЛИТЬ ПОЛНОСТЬЮ «{name}»?", { name: c.name_ru });
   const msg = assignments > 0
-    ? `УДАЛИТЬ ПОЛНОСТЬЮ «${c.name_ru}»?\n\n` +
-      `Будут также удалены ${assignments} привязок к задачам/проектам (каскадно).\n` +
-      `Это необратимо.\n\n` +
-      `Если хочешь сохранить историю — закрой «Активен» вместо полного удаления.`
-    : `УДАЛИТЬ ПОЛНОСТЬЮ «${c.name_ru}»?\n\n` +
-      `Ни одной активной привязки нет — удаление безопасно. Это необратимо.`;
+    ? `${headline}\n\n${t("Будут также удалены {count} привязок к задачам/проектам (каскадно).", { count: assignments })}\n${t("Это необратимо. Если хотите сохранить историю, отключите «Активен» вместо полного удаления.")}`
+    : `${headline}\n\n${t("Активных привязок нет. Удаление необратимо.")}`;
 
   if (!(await confirmDialog({ message: msg, danger: true }))) return;
   try {
     await consultantsApi.remove(c.id, { hard: true });
     await loadConsultants();
-    toast.success("Консультант удалён");
+    toast.success(t('Консультант удалён'));
   } catch (e: any) {
-    toast.error(e?.response?.data?.detail || "Ошибка удаления");
+    toast.error(e?.response?.data?.detail || t('Ошибка удаления'));
   }
 }
 
@@ -286,7 +282,7 @@ onMounted(() => {
         <div v-for="d in directions" :key="d.id" class="cat-row">
           <div class="cat-row-color" :style="{ background: d.color }"></div>
           <div class="cat-row-main">
-            <div class="cat-row-name">{{ d.label }}
+            <div class="cat-row-name">{{ t(d.label) }}
               <span v-if="!d.is_custom" class="cat-row-tag" :title="t('Встроенное направление')">{{ t('встроенное') }}</span>
               <span v-else class="cat-row-tag cat-row-tag-custom">{{ t('кастомное') }}</span>
             </div>
@@ -301,7 +297,7 @@ onMounted(() => {
           <div class="cat-row-actions">
             <button class="cat-btn-icon" :title="t('Редактировать')" @click="openEditDir(d)"><BIcon name="edit" :size="14" /></button>
             <button class="cat-btn-icon cat-btn-icon-danger"
-                    :title="d.is_custom ? 'Удалить' : 'Удалить встроенное направление (с переносом записей)'"
+                    :title="d.is_custom ? t('Удалить') : t('Удалить встроенное направление (с переносом записей)')"
                     @click="deleteDir(d)"><BIcon name="trash" :size="14" /></button>
           </div>
         </div>
@@ -338,7 +334,7 @@ onMounted(() => {
             </div>
           </div>
           <div class="cat-row-actions">
-            <button class="cat-btn-icon" :title="c.is_active === false ? 'Активировать' : 'Деактивировать'"
+            <button class="cat-btn-icon" :title="c.is_active === false ? t('Активировать') : t('Деактивировать')"
                     @click="toggleConsActive(c)">
               <BIcon :name="c.is_active === false ? 'refresh' : 'power'" :size="14" />
             </button>
@@ -352,7 +348,7 @@ onMounted(() => {
 
     <!-- ════════════ Direction editor modal ════════════ -->
     <ModalShell :open="dirEditorOpen" size="md"
-                :title="dirEditor.isNew ? 'Новое направление' : 'Редактирование направления'"
+                :title="dirEditor.isNew ? t('Новое направление') : t('Редактирование направления')"
                 @close="dirEditorOpen = false">
         <div class="cat-modal-body">
           <label class="cat-fld">
@@ -396,7 +392,7 @@ onMounted(() => {
 
     <!-- ════════════ Consultant editor modal ════════════ -->
     <ModalShell :open="consEditorOpen" size="md"
-                :title="consEditor.isNew ? 'Новый консультант' : 'Редактирование консультанта'"
+                :title="consEditor.isNew ? t('Новый консультант') : t('Редактирование консультанта')"
                 @close="consEditorOpen = false">
         <div class="cat-modal-body">
           <label class="cat-fld">

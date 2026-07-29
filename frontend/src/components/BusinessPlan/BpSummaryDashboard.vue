@@ -116,7 +116,7 @@
               @click="$emit('open-sector', s.sector_code, s.label)"
               :title="t('Открыть сектор') + ' · ' + s.label"
             >
-              <div class="bps-sec-card-l">{{ s.label }}</div>
+              <div class="bps-sec-card-l">{{ t(s.label) }}</div>
               <div class="bps-sec-card-v">
                 <Odometer :value="fmtBn(s.sum_revenue)" /><span class="bps-sec-card-u">{{ t(unitLabel(s.sum_revenue)) }}</span>
               </div>
@@ -187,6 +187,8 @@ import BpQuarterDrillModal from "./BpQuarterDrillModal.vue";
 import Odometer from "@/components/Odometer.vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 
 const { t } = useI18n();
 
@@ -234,23 +236,23 @@ defineEmits<{
 // 4 KPI cards swap based on parent «lens» (Все / Доходы / Расходы)
 const KPI_BY_LENS = {
   all: [
-    { m: "revenue",    l: "Выручка",             ac: "#A39EE6" },
-    { m: "opProfit",   l: "Операционная прибыль", ac: "#7DC4A0" },
-    { m: "pbt",        l: "Прибыль до налогов",   ac: "#7DB4DC" },
-    { m: "profit",     l: "Чистая прибыль",       ac: "#E8B575" },
+    { m: "revenue",    l: i18nKey("Выручка"),             ac: "#A39EE6" },
+    { m: "opProfit",   l: i18nKey("Операционная прибыль"), ac: "#7DC4A0" },
+    { m: "pbt",        l: i18nKey("Прибыль до налогов"),   ac: "#7DB4DC" },
+    { m: "profit",     l: i18nKey("Чистая прибыль"),       ac: "#E8B575" },
   ],
   income: [
-    { m: "revenue",    l: "Выручка",              ac: "#7DC4A0" },
-    { m: "finIncome",  l: "Финансовые доходы",    ac: "#7DC4A0" },
-    { m: "otherOpInc", l: "Прочие опер. доходы",  ac: "#7DC4A0" },
-    { m: "opProfit",   l: "Операционная прибыль", ac: "#7DC4A0" },
-    { m: "profit",     l: "Чистая прибыль",       ac: "#7DC4A0" },
+    { m: "revenue",    l: i18nKey("Выручка"),              ac: "#7DC4A0" },
+    { m: "finIncome",  l: i18nKey("Финансовые доходы"),    ac: "#7DC4A0" },
+    { m: "otherOpInc", l: i18nKey("Прочие опер. доходы"),  ac: "#7DC4A0" },
+    { m: "opProfit",   l: i18nKey("Операционная прибыль"), ac: "#7DC4A0" },
+    { m: "profit",     l: i18nKey("Чистая прибыль"),       ac: "#7DC4A0" },
   ],
   expenses: [
-    { m: "cogs",       l: "Себестоимость",        ac: "#E8B575" },
-    { m: "opExpenses", l: "Расходы периода",      ac: "#E8B575" },
-    { m: "finCost",    l: "Финансовые расходы",   ac: "#E8B575" },
-    { m: "tax",        l: "Налог на прибыль",     ac: "#E8B575" },
+    { m: "cogs",       l: i18nKey("Себестоимость"),        ac: "#E8B575" },
+    { m: "opExpenses", l: i18nKey("Расходы периода"),      ac: "#E8B575" },
+    { m: "finCost",    l: i18nKey("Финансовые расходы"),   ac: "#E8B575" },
+    { m: "tax",        l: i18nKey("Налог на прибыль"),     ac: "#E8B575" },
   ],
 } as const;
 
@@ -307,7 +309,7 @@ function fmtBn(v: number | string | null | undefined): string {
 
 function unitLabel(v: number | string | null | undefined): string {
   if (v == null) return "—";
-  return Math.abs(num(v)) >= 1000 ? "трлн" : "млрд";
+  return Math.abs(num(v)) >= 1000 ? t('трлн') : t('млрд');
 }
 
 function deltaPctValue(key: string): number | null {
@@ -363,8 +365,8 @@ function pctColor(p: number | null): string {
 
 // Human label for the current headline metric (drives widget titles).
 const headlineLabel = computed(() => {
-  if (props.lens === "expenses") return "Расходы периода";
-  return "Выручка";
+  if (props.lens === "expenses") return t("Расходы периода");
+  return t("Выручка");
 });
 
 // ─── Прогноз оставшихся кварталов (ghost-бары «Динамики по кварталам») ───
@@ -383,8 +385,8 @@ watch(
   { immediate: true },
 );
 const headlineGenitive = computed(() => {
-  if (props.lens === "expenses") return "расходам периода";
-  return "выручке";
+  if (props.lens === "expenses") return i18nKey("расходам периода");
+  return i18nKey("выручке");
 });
 
 // Leaders / laggards.
@@ -438,7 +440,7 @@ watch(() => [props.summary.year, props.summary.period], () => {
 });
 
 const sectorMetricLabel = computed(() =>
-  sectorMetric.value === "profit" ? "Чистая прибыль" : headlineLabel.value,
+  sectorMetric.value === "profit" ? i18nKey("Чистая прибыль") : headlineLabel.value,
 );
 const sectorRows = computed(() =>
   sectorMetric.value === "profit"
@@ -464,12 +466,12 @@ const sectors = computed(() => {
 const waterfall = computed(() => {
   const get = (k: string) => metric(k).fact;
   const items = [
-    { k: "revenue", label: "Выручка", value: get("revenue") ?? 0, color: "#A39EE6" },
-    { k: "cogs", label: "Себестоимость", value: -Math.abs(get("cogs") ?? 0), color: "#E89B9A" },
-    { k: "grossProfit", label: "Валовая", value: get("grossProfit") ?? 0, color: "#7DC4A0" },
-    { k: "opExpenses", label: "Опер. расходы", value: -Math.abs(get("opExpenses") ?? 0), color: "#E89B9A" },
-    { k: "opProfit", label: "Опер. прибыль", value: get("opProfit") ?? 0, color: "#7DC4A0" },
-    { k: "profit", label: "Чистая прибыль", value: get("profit") ?? 0, color: "#1D9E75" },
+    { k: "revenue", label: i18nKey("Выручка"), value: get("revenue") ?? 0, color: "#A39EE6" },
+    { k: "cogs", label: i18nKey("Себестоимость"), value: -Math.abs(get("cogs") ?? 0), color: "#E89B9A" },
+    { k: "grossProfit", label: i18nKey("Валовая"), value: get("grossProfit") ?? 0, color: "#7DC4A0" },
+    { k: "opExpenses", label: i18nKey("Опер. расходы"), value: -Math.abs(get("opExpenses") ?? 0), color: "#E89B9A" },
+    { k: "opProfit", label: i18nKey("Опер. прибыль"), value: get("opProfit") ?? 0, color: "#7DC4A0" },
+    { k: "profit", label: i18nKey("Чистая прибыль"), value: get("profit") ?? 0, color: "#1D9E75" },
   ];
   const max = Math.max(...items.map((x) => Math.abs(x.value)));
   return items.map((x) => ({

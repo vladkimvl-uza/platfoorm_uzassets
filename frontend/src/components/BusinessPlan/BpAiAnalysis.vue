@@ -52,7 +52,7 @@
               <div v-if="fcTrend.length" class="bpai-chart">
                 <div class="bpai-chart-title">{{ t("Прогноз выручки «{name}» (история → прогноз), млрд сум", { name: fcScopeName }) }}</div>
                 <div v-for="(tr, i) in fcTrend" :key="i" class="bpai-bar-row">
-                  <span class="bpai-bar-lbl">{{ tr.label }}<span v-if="tr.projected" class="bpai-fc-tag">{{ t("прогноз") }}</span></span>
+                  <span class="bpai-bar-lbl">{{ t(tr.label) }}<span v-if="tr.projected" class="bpai-fc-tag">{{ t("прогноз") }}</span></span>
                   <div class="bpai-bar-track">
                     <div class="bpai-bar-fill" :class="{ proj: tr.projected }"
                          :style="{ width: Math.min(tr.value / fcTrendMax * 100, 100) + '%', background: '#6355E0' }"></div>
@@ -76,7 +76,7 @@
                 <div class="bpai-fc-scroll">
                   <table class="bpai-fc-tbl">
                     <thead><tr>
-                      <th>{{ fcScopeName === 'Портфель' ? t('Компания') : t('Метрика') }}</th>
+                      <th>{{ fcScopeName === PORTFOLIO_SCOPE ? t('Компания') : t('Метрика') }}</th>
                       <th>{{ t("Тек. факт") }}</th>
                       <template v-if="fcTblMode === 'quarters'">
                         <th v-for="q in FC_Q" :key="q">{{ q }} · {{ fcQYear }}</th>
@@ -89,7 +89,7 @@
                     </tr></thead>
                     <tbody>
                       <tr v-for="(r, i) in fcView" :key="i">
-                        <td class="bpai-fc-nm">{{ t(r.name) }}</td>
+                        <td class="bpai-fc-nm">{{ forecastRowName(r.name) }}</td>
                         <td>{{ fcCell(r.fact, null) }}</td>
                         <template v-if="fcTblMode === 'quarters'">
                           <td v-for="(q, qi) in FC_Q" :key="q">{{ fcCell(r.byYear[fcQYear]?.quarters?.[qi] ?? null, null) }}</td>
@@ -104,7 +104,7 @@
                             <template v-else>—</template>
                           </td>
                         </template>
-                        <td><span class="bpai-fc-conf" :class="'c-' + r.confidence">{{ fcMethodLabel(r.method) }}</span></td>
+                        <td><span class="bpai-fc-conf" :class="'c-' + r.confidence">{{ t(fcMethodLabel(r.method)) }}</span></td>
                       </tr>
                     </tbody>
                   </table>
@@ -148,6 +148,8 @@ import { renderMarkdown } from "@/utils/renderMarkdown";
 import { useToast } from "@/composables/useToast";
 import { useCompanyScope } from "@/composables/useCompanyScope";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 
 type Mode = "performance" | "linkage" | "forecast";
 type FcCell = { value: number | null; low: number | null; high: number | null; quarters?: (number | null)[] | null };
@@ -189,11 +191,11 @@ const fcTrendMax = computed(() => Math.max(1, ...fcTrend.value.map(t => t.value)
 const hasFcQuarters = computed(() => fcView.value.some(r => fcYears.value.some(y => r.byYear[y]?.quarters)));
 
 const MODES: { id: Mode; label: string; hint: string }[] = [
-  { id: "performance", label: "Исполнение", hint: "План / ожидаемое / факт по ОФР и производству" },
-  { id: "linkage", label: "Произв. ↔ Финансы", hint: "Связь натурального объёма с выручкой/маржой/прибылью" },
-  { id: "forecast", label: "Прогноз", hint: "Прогноз будущих целей БП + факторы (сырьё, курс, санкции)" },
+  { id: "performance", label: i18nKey("Исполнение"), hint: i18nKey("План / ожидаемое / факт по ОФР и производству") },
+  { id: "linkage", label: i18nKey("Произв. ↔ Финансы"), hint: i18nKey("Связь натурального объёма с выручкой/маржой/прибылью") },
+  { id: "forecast", label: i18nKey("Прогноз"), hint: i18nKey("Прогноз будущих целей БП + факторы (сырьё, курс, санкции)") },
 ];
-const MODE_LABEL: Record<Mode, string> = { performance: "Исполнение", linkage: "Произв.↔Финансы", forecast: "Прогноз" };
+const MODE_LABEL: Record<Mode, string> = { performance: i18nKey("Исполнение"), linkage: i18nKey("Произв.↔Финансы"), forecast: i18nKey("Прогноз") };
 
 const pickedId = ref<string | null>(props.selectedId || (props.companies[0]?.company_id ?? null));
 const selectedCompany = computed(() => props.companies.find(c => c.company_id === pickedId.value) || null);
@@ -217,9 +219,10 @@ function fcCell(v: number | null | undefined, unit: string | null): string {
     : a >= 10 ? v.toFixed(0) : v.toFixed(1).replace(/\.0$/, "");
 }
 const FC_METHOD: Record<string, string> = {
-  pace: "темп", seasonal: "сезон", run_rate: "run-rate", plan: "план",
-  actual: "факт", ols: "тренд", cagr: "CAGR", none: "нет данных",
+  pace: i18nKey("темп"), seasonal: i18nKey("сезон"), run_rate: "run-rate", plan: i18nKey("план"),
+  actual: i18nKey("факт"), ols: i18nKey("тренд"), cagr: "CAGR", none: i18nKey("нет данных"),
 };
+const PORTFOLIO_SCOPE = i18nKey("Портфель");
 function fcMethodLabel(m: string): string { return t(FC_METHOD[m] || m); }
 
 function savedKey(m: Mode = mode.value): string {
@@ -235,6 +238,11 @@ async function fetchSaved(): Promise<void> {
   } catch { /* нет доступа/оффлайн — игнор */ }
 }
 function resetForecastView(): void { fcView.value = []; fcYears.value = []; fcTrend.value = []; fcTblMode.value = "years"; }
+function forecastRowName(name: string): string {
+  // Portfolio rows are company names from the DB; company-mode rows are
+  // canonical metric labels produced by the forecast engine.
+  return fcScopeName.value === PORTFOLIO_SCOPE ? name : t(name);
+}
 function applyMode(m: Mode): void {
   mode.value = m;
   const o = saved.value[savedKey(m)];
@@ -284,10 +292,10 @@ function exportExcel(): void {
   if (!rawMd.value) return;
   const wb = XLSX.utils.book_new();
   if (mode.value === "forecast" && fcView.value.length) {
-    const head = [fcScopeName.value === "Портфель" ? t("Компания") : t("Метрика"), t("Тек. факт"), t("Ожид. {y}", { y: fcBaseYear.value }), ...fcYears.value, t("Метод")];
+    const head = [fcScopeName.value === PORTFOLIO_SCOPE ? t("Компания") : t("Метрика"), t("Тек. факт"), t("Ожид. {y}", { y: fcBaseYear.value }), ...fcYears.value, t("Метод")];
     const aoa: (string | number)[][] = [head];
     for (const r of fcView.value) {
-      const row: (string | number)[] = [t(r.name), fcCell(r.fact, null), fcCell(r.expected, null)];
+      const row: (string | number)[] = [forecastRowName(r.name), fcCell(r.fact, null), fcCell(r.expected, null)];
       for (const y of fcYears.value) {
         const c = r.byYear[y];
         row.push(c ? (c.low != null ? `${fcCell(c.value, null)} [${fcCell(c.low, null)}…${fcCell(c.high, null)}]` : fcCell(c.value, null)) : "—");
@@ -318,7 +326,7 @@ function exportExcel(): void {
   textWs["!cols"] = [{ wch: 120 }];
   XLSX.utils.book_append_sheet(wb, textWs, t("Полный текст"));
   const scopeName = scope.value === "company" ? (selectedCompany.value?.company_name_ru || "company") : t("портфель");
-  XLSX.writeFile(wb, `БП_${t(MODE_LABEL[mode.value])}_${scopeName}_${props.year}.xlsx`);
+  XLSX.writeFile(wb, `BP_${t(MODE_LABEL[mode.value])}_${scopeName}_${props.year}.xlsx`);
 }
 
 async function saveResult(raw: string): Promise<void> {
@@ -364,7 +372,7 @@ function buildPortfolioForecastView(fcs: BpCompanyForecast[], baseYear: number):
   }
   fcView.value = rows.sort((a, b) => (b.fact ?? -1) - (a.fact ?? -1));
   fcYears.value = Array.from(yset).sort();
-  fcTrend.value = []; fcBaseYear.value = baseYear; fcScopeName.value = "Портфель";
+  fcTrend.value = []; fcBaseYear.value = baseYear; fcScopeName.value = PORTFOLIO_SCOPE;
 }
 
 async function run(): Promise<void> {

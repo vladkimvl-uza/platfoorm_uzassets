@@ -8,6 +8,9 @@
  * Минимум 2% ширины при value>0, чтобы заливка не схлопывалась в ноль.
  */
 import { computed } from "vue";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const props = withDefaults(defineProps<{
   value: number;
@@ -43,7 +46,7 @@ const fillW = computed(() => (pct.value > 0 ? Math.max(2, pct.value) : 0));
     :aria-valuenow="Math.round(pct)"
     aria-valuemin="0"
     aria-valuemax="100"
-    :aria-label="ariaLabel"
+    :aria-label="ariaLabel ? t(ariaLabel) : undefined"
   >
     <div
       class="uza-pbar-fill"

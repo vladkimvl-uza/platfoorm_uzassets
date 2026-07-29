@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime, timedelta
-from typing import Optional
+from typing import Any, Optional
 
 import sqlalchemy as sa
 from fastapi import HTTPException, status
@@ -18,6 +18,7 @@ from app.config import settings
 from app.core import jwt as app_jwt
 from app.core import password as pw
 from app.core.audit_chain import append_audit_entry
+from app.core.i18n import current_locale, tr
 from app.models.user import Role, User, UserSession
 
 log = logging.getLogger(__name__)
@@ -42,17 +43,17 @@ def _idle_window() -> timedelta:
     return timedelta(minutes=minutes)
 
 
-def _device_label(ua: Optional[str]) -> str:
-    """Короткая метка устройства из user-agent (для уведомлений)."""
+def _device_parts(ua: Optional[str]) -> tuple[str, Optional[str]]:
+    """Браузер и ОС из user-agent; системные фолбэки переводятся отдельно."""
     if not ua:
-        return "неизвестное устройство"
+        return "неизвестное устройство", None
     os = ("Windows" if "Windows" in ua else "macOS" if ("Mac OS X" in ua or "Macintosh" in ua)
           else "Android" if "Android" in ua else "iOS" if ("iPhone" in ua or "iPad" in ua)
           else "Linux" if "Linux" in ua else "—")
     br = ("Edge" if "Edg/" in ua else "Opera" if ("OPR/" in ua or "Opera" in ua)
           else "Chrome" if "Chrome/" in ua else "Firefox" if "Firefox/" in ua
           else "Safari" if "Safari/" in ua else "браузер")
-    return f"{br} · {os}"
+    return br, os
 
 
 async def _known_login_ips(db: AsyncSession, user_id) -> set[str]:
@@ -62,7 +63,17 @@ async def _known_login_ips(db: AsyncSession, user_id) -> set[str]:
     return {r for (r,) in res.all() if r}
 
 
-async def send_security_alert(db: AsyncSession, user_id, *, title: str, body: str) -> None:
+async def send_security_alert(
+    db: AsyncSession,
+    user_id,
+    *,
+    title: str,
+    body: str,
+    title_template: Optional[str] = None,
+    body_template: Optional[str] = None,
+    template_vars: Optional[dict[str, Any]] = None,
+    translate_vars: Optional[set[str]] = None,
+) -> None:
     """Best-effort security-уведомление (in-app + Telegram/email). Без секретов
     в теле (841 п.5.1.2.2). Сбой доставки не ломает основной флоу."""
     try:
@@ -70,6 +81,10 @@ async def send_security_alert(db: AsyncSession, user_id, *, title: str, body: st
         await notifications_service.notify(
             db, recipient_id=user_id, type="security.alert",
             title=title, body=body, priority="high", source_module="security",
+            title_template=title_template,
+            body_template=body_template,
+            template_vars=template_vars,
+            translate_vars=translate_vars,
         )
     except Exception:
         log.warning("security alert notify failed", exc_info=True)
@@ -173,7 +188,11 @@ async def authenticate(
             pass
         raise HTTPException(
             status.HTTP_423_LOCKED,
-            f"Аккаунт заблокирован. Попробуйте снова через {remaining} мин.",
+            tr(
+                "Аккаунт заблокирован. Попробуйте снова через {minutes} мин.",
+                current_locale(),
+                minutes=remaining,
+            ),
         )
 
     # --- Inactive check ---
@@ -276,11 +295,24 @@ async def authenticate(
 
     # Уведомление о входе с нового IP (841 п.5.1.2.2 — без секретов в теле).
     if _new_ip:
+        _browser, _os = _device_parts(user_agent)
+        _device = _browser if _os is None else f"{_browser} · {_os}"
+        _body_template = (
+            "Выполнен вход с нового IP-адреса {ip} · {device}. Если это были не вы — смените пароль и обратитесь к администратору."
+            if _os is None
+            else "Выполнен вход с нового IP-адреса {ip} · {browser} · {os}. Если это были не вы — смените пароль и обратитесь к администратору."
+        )
         await send_security_alert(
             db, user.id,
             title="Новый вход в аккаунт",
-            body=f"Выполнен вход с нового IP-адреса {ip} · {_device_label(user_agent)}. "
+            body=f"Выполнен вход с нового IP-адреса {ip} · {_device}. "
                  f"Если это были не вы — смените пароль и обратитесь к администратору.",
+            title_template="Новый вход в аккаунт",
+            body_template=_body_template,
+            template_vars={
+                "ip": ip, "device": _device, "browser": _browser, "os": _os,
+            },
+            translate_vars={"device"} if _os is None else {"browser"},
         )
 
     return user, access, refresh

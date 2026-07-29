@@ -19,6 +19,7 @@ from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.i18n import current_locale, tr
 from app.models.bp_kpi import (
     BP_METRIC_DIRECTION,
     BP_METRIC_KEYS,
@@ -278,6 +279,7 @@ async def bp_attention_issues(
     """
     issues: list[dict] = []
     comp = await bp_compute(db, company_id, year, period)
+    locale = current_locale()
 
     # Rule 1: deviation ≥15% below plan on key metrics
     label_by_key = {m["key"]: m["label"] for m in BP_METRICS}
@@ -288,9 +290,14 @@ async def bp_attention_issues(
             if ratio < 0.85:
                 issues.append({
                     "severity": "high" if ratio < 0.70 else "medium",
-                    "title": label_by_key[k],
-                    "value": f"{round(ratio * 100)}% плана",
-                    "detail": f"Факт {bp_fmt(c['fact'])} vs план {bp_fmt(c['plan'])}",
+                    "title": tr(label_by_key[k], locale),
+                    "value": tr("{percent}% плана", locale, percent=round(ratio * 100)),
+                    "detail": tr(
+                        "Факт {fact} vs план {plan}",
+                        locale,
+                        fact=bp_fmt(c["fact"]),
+                        plan=bp_fmt(c["plan"]),
+                    ),
                 })
 
     # Rule 2: cost ratio increase
@@ -307,9 +314,14 @@ async def bp_attention_issues(
             if cost_ratio > cost_ratio_plan * 1.10:
                 issues.append({
                     "severity": "medium",
-                    "title": "Рост доли себестоимости",
-                    "value": f"{round(cost_ratio * 100)}% vs план {round(cost_ratio_plan * 100)}%",
-                    "detail": "Давление на маржинальность",
+                    "title": tr("Рост доли себестоимости", locale),
+                    "value": tr(
+                        "{fact}% vs план {plan}%",
+                        locale,
+                        fact=round(cost_ratio * 100),
+                        plan=round(cost_ratio_plan * 100),
+                    ),
+                    "detail": tr("Давление на маржинальность", locale),
                 })
 
     sev_order = {"high": 0, "medium": 1, "low": 2}

@@ -53,11 +53,11 @@ const forensicSubText = computed(() => {
   return parts.join(" · ");
 });
 
-function statusLabel(status: string, kind: "МСФО" | "Forensic"): string {
-  const k = t(kind);  // «МСФО» переводится (MHXS/IFRS), «Forensic» остаётся
+function statusLabel(status: string, kind: "ifrs" | "forensic"): string {
+  const k = kind === "ifrs" ? t("МСФО") : "Forensic";
   if (status === "done") return `${k} ✓`;
   if (status === "active" || status === "review") return t("{k} в процессе", { k });
-  if (status === "init" && kind === "Forensic") return t("Forensic тендер");
+  if (status === "init" && kind === "forensic") return t("Forensic тендер");
   return t("{k} не начат", { k });
 }
 
@@ -177,11 +177,11 @@ function statusColor(status: string): string {
           <span class="eds-att-name">{{ a.name }}</span>
           <span class="eds-att-status">
             <span :style="{ color: statusColor(a.ifrs_status) }">
-              {{ statusLabel(a.ifrs_status, 'МСФО') }}
+              {{ statusLabel(a.ifrs_status, 'ifrs') }}
             </span>
             <span class="eds-att-sep">·</span>
             <span :style="{ color: statusColor(a.forensic_status) }">
-              {{ statusLabel(a.forensic_status, 'Forensic') }}
+              {{ statusLabel(a.forensic_status, 'forensic') }}
             </span>
           </span>
         </div>

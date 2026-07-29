@@ -37,6 +37,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.i18n import current_locale, tr
 from app.config import settings
 from app.core import jwt as app_jwt
 from app.core.audit_chain import append_audit_entry
@@ -134,7 +135,10 @@ async def _exchange_code(code: str) -> str:
         async with httpx.AsyncClient(timeout=10.0) as c:
             resp = await c.post(settings.ONEID_TOKEN_URL, data=data)
     except Exception as e:
-        raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"One ID token endpoint недоступен: {e}")
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY,
+            tr("One ID token endpoint недоступен: {error}", current_locale(), error=str(e)),
+        )
     if resp.status_code != 200:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "One ID отклонил обмен кода.")
     try:
@@ -160,7 +164,10 @@ async def _fetch_userinfo(access_token: str) -> dict:
             resp = await c.post(settings.ONEID_TOKEN_URL, data=data)
             payload = resp.json()
     except Exception as e:
-        raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"One ID userinfo недоступен: {e}")
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY,
+            tr("One ID userinfo недоступен: {error}", current_locale(), error=str(e)),
+        )
     if not isinstance(payload, dict):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "One ID вернул некорректный профиль.")
     return payload

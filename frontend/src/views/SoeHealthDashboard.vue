@@ -22,6 +22,12 @@ import SoeHealthBoard, { type SoeHealthPayload, type SoeCompany } from "@/compon
 import SoeHealthParamsModal from "@/components/Financials/SoeHealthParamsModal.vue";
 import SoeHealthDrillModal from "@/components/Financials/SoeHealthDrillModal.vue";
 import CreditDonut, { type DonutEntry } from "@/components/CreditPortfolio/CreditDonut.vue";
+import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
+const { t: tr } = useI18n();
+const t = tr;
+
 
 const finPerm = usePermissions("financials");
 
@@ -56,7 +62,7 @@ async function load() {
   } catch (e: unknown) {
     if (my !== seq) return;
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    error.value = err?.response?.data?.detail || err?.message || "Не удалось загрузить";
+    error.value = err?.response?.data?.detail || err?.message || tr('Не удалось загрузить');
   } finally {
     if (my === seq) loading.value = false;
   }
@@ -79,9 +85,9 @@ function toggleSector(code: string | null) {
 
 // ─── Портфельный уровень: Pareto по компаниям ──────────────────────
 const PARETO_METRICS = [
-  { value: "totalLiabilities", label: "Обязательства" },
+  { value: "totalLiabilities", label: i18nKey("Обязательства") },
   { value: "ebitda", label: "EBITDA" },
-  { value: "debt", label: "Долг" },
+  { value: "debt", label: i18nKey("Долг") },
 ] as const;
 const paretoMetric = ref<string>("totalLiabilities");
 
@@ -125,8 +131,8 @@ function barLabel(vBln: number): string {
 }
 
 function fmtBln(v: number): string {
-  if (Math.abs(v) >= 1000) return (v / 1000).toLocaleString("ru", { maximumFractionDigits: 1 }) + " трлн";
-  return v.toLocaleString("ru", { maximumFractionDigits: 0 }) + " млрд";
+  if (Math.abs(v) >= 1000) return tr('{value0} трлн', { value0: (v / 1000).toLocaleString("ru", { maximumFractionDigits: 1 }) });
+  return tr('{value0} млрд', { value0: v.toLocaleString("ru", { maximumFractionDigits: 0 }) });
 }
 
 // ─── Размер vs риск (scatter): x = обязательства (√-шкала), y = балл 1..5 ──
@@ -157,10 +163,10 @@ function scY(overall: number): number {
 
 // ─── Разрезы по секторам ───────────────────────────────────────────
 const SECTOR_METRICS = [
-  { value: "totalLiabilities", label: "Обязательства" },
-  { value: "totalAssets", label: "Активы" },
-  { value: "revenue", label: "Выручка" },
-  { value: "equity", label: "Капитал" },
+  { value: "totalLiabilities", label: i18nKey("Обязательства") },
+  { value: "totalAssets", label: i18nKey("Активы") },
+  { value: "revenue", label: i18nKey("Выручка") },
+  { value: "equity", label: i18nKey("Капитал") },
 ] as const;
 const sectorMetric = ref<string>("totalLiabilities");
 interface SectorBar { code: string; name: string; color: string; v: number; pct: number }
@@ -178,10 +184,10 @@ const profitSplit = computed(() => pf.value?.profit_split || null);
 
 // ─── Фискальная материальность (% ВВП) ─────────────────────────────
 const FISCAL_ROWS = [
-  { key: "totalAssets", label: "Активы", accent: "#7F77DD" },
-  { key: "totalLiabilities", label: "Обязательства", accent: "#EF9F27" },
-  { key: "revenue", label: "Выручка", accent: "#1D9E75" },
-  { key: "debt", label: "Финансовый долг", accent: "#E24B4A" },
+  { key: "totalAssets", label: i18nKey("Активы"), accent: "#7F77DD" },
+  { key: "totalLiabilities", label: i18nKey("Обязательства"), accent: "#EF9F27" },
+  { key: "revenue", label: i18nKey("Выручка"), accent: "#1D9E75" },
+  { key: "debt", label: i18nKey("Финансовый долг"), accent: "#E24B4A" },
 ] as const;
 const fiscalCards = computed(() => {
   const pct = pf.value?.pct_gdp; const tot = pf.value?.totals;
@@ -194,7 +200,7 @@ const fiscalCards = computed(() => {
 const gdpBln = computed(() => pf.value?.gdp_bln || null);
 function fmtTrln(bln: number | null): string {
   if (bln == null) return "—";
-  return (bln / 1000).toLocaleString("ru", { maximumFractionDigits: 0 }) + " трлн";
+  return tr('{value0} трлн', { value0: (bln / 1000).toLocaleString("ru", { maximumFractionDigits: 0 }) });
 }
 
 // ─── Комбо «Активы и ROA» / «Капитал и ROE» по секторам (верт. бары) ──
@@ -232,10 +238,10 @@ const profitDonut = computed<DonutEntry[]>(() => {
   const p = profitSplit.value;
   if (!p) return [];
   const out: DonutEntry[] = [
-    { label: "Прибыльные", color: "#1D9E75", value: p.profitable, sub: String(p.profitable) },
-    { label: "Убыточные", color: "#E24B4A", value: p.loss, sub: String(p.loss) },
+    { label: i18nKey("Прибыльные"), color: "#1D9E75", value: p.profitable, sub: String(p.profitable) },
+    { label: i18nKey("Убыточные"), color: "#E24B4A", value: p.loss, sub: String(p.loss) },
   ];
-  if (p.unknown) out.push({ label: "Нет данных", color: "#C4C8D4", value: p.unknown, sub: String(p.unknown) });
+  if (p.unknown) out.push({ label: i18nKey("Нет данных"), color: "#C4C8D4", value: p.unknown, sub: String(p.unknown) });
   return out.filter((e) => e.value > 0);
 });
 const profitTotal = computed(() => {
@@ -270,9 +276,9 @@ function donutHover(e: DonutEntry, total: number): [string, string] {
 
 // ─── Тренды агрегатов (спарклайны) ─────────────────────────────────
 const TRENDS = [
-  { key: "roa", label: "ROA портфеля", fmt: "pct", accent: "#1D9E75" },
-  { key: "roe", label: "ROE портфеля", fmt: "pct", accent: "#378ADD" },
-  { key: "debtToEquity", label: "Долг / Капитал", fmt: "x", accent: "#EF9F27" },
+  { key: "roa", label: i18nKey("ROA портфеля"), fmt: "pct", accent: "#1D9E75" },
+  { key: "roe", label: i18nKey("ROE портфеля"), fmt: "pct", accent: "#378ADD" },
+  { key: "debtToEquity", label: i18nKey("Долг / Капитал"), fmt: "x", accent: "#EF9F27" },
   { key: "currentRatio", label: "Current Ratio", fmt: "x", accent: "#7F77DD" },
 ] as const;
 
@@ -308,7 +314,7 @@ const trendCards = computed<TrendCard[]>(() => {
       const d = vals[vals.length - 1].v - vals[vals.length - 2].v;
       const goodUp = t.key !== "debtToEquity";  // рост долга/капитала — плохо
       deltaGood = goodUp ? d >= 0 : d <= 0;
-      delta = (d >= 0 ? "+" : "") + (t.fmt === "pct" ? (d * 100).toFixed(1) + " п.п." : d.toFixed(2));
+      delta = (d >= 0 ? "+" : "") + (t.fmt === "pct" ? tr("{value} п.п.", { value: (d * 100).toFixed(1) }) : d.toFixed(2));
     }
     return { key: t.key, label: t.label, accent: t.accent, last, delta, deltaGood, points, area, lastXY };
   });
@@ -320,36 +326,36 @@ const seriesYears = computed(() => data.value?.series?.years || []);
   <div class="sh-page">
     <!-- ═══ Топбар — тёмная плашка в стиле financials (FinTopFilters) ═══ -->
     <header class="sh-bar">
-      <button class="sh-burger" @click="onBurger()" title="Меню / свернуть сайдбар">
+      <button class="sh-burger" @click="onBurger()" :title="tr('Меню / свернуть сайдбар')">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
           <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
         </svg>
       </button>
 
       <div class="sh-head">
-        <div class="sh-eyebrow">ФИНАНСЫ · ЗДОРОВЬЕ ПОРТФЕЛЯ</div>
+        <div class="sh-eyebrow">{{ tr('ФИНАНСЫ · ЗДОРОВЬЕ ПОРТФЕЛЯ') }}</div>
         <div class="sh-title-row">
           <span class="sh-title">SOE Health Check Tool</span>
           <span class="sh-sub">
-            RAG-оценка устойчивости · <strong>{{ standard }}</strong> · FY {{ year }}
-            <span v-if="data?.params_overridden" class="sh-ovr-badge" title="Пороги изменены относительно методики">пороги настроены</span>
+            {{ tr('RAG-оценка устойчивости ·') }} <strong>{{ standard }}</strong> · FY {{ year }}
+            <span v-if="data?.params_overridden" class="sh-ovr-badge" :title="tr('Пороги изменены относительно методики')">{{ tr('пороги настроены') }}</span>
           </span>
         </div>
       </div>
 
       <div class="sh-cluster">
-        <div class="sh-tabs uza-seg on-dark" title="Стандарт отчётности">
-          <button class="uza-seg-btn" :class="{ on: standard === 'NSBU' }" @click="standard = 'NSBU'">НСБУ</button>
-          <button class="uza-seg-btn" :class="{ on: standard === 'IFRS' }" @click="standard = 'IFRS'">МСФО</button>
+        <div class="sh-tabs uza-seg on-dark" :title="tr('Стандарт отчётности')">
+          <button class="uza-seg-btn" :class="{ on: standard === 'NSBU' }" @click="standard = 'NSBU'">{{ tr('НСБУ') }}</button>
+          <button class="uza-seg-btn" :class="{ on: standard === 'IFRS' }" @click="standard = 'IFRS'">{{ tr('МСФО') }}</button>
         </div>
         <div class="sh-div" aria-hidden="true"></div>
         <UzaYearStepper tone="dark" :model-value="year" :years="YEARS" prefix="FY "
                         @update:model-value="year = ($event as number) ?? year" />
         <div class="sh-div" aria-hidden="true"></div>
         <button v-if="finPerm.canEdit.value" class="sh-params-btn" type="button" @click="paramsOpen = true"
-                title="Редактор порогов риска">
+                :title="tr('Редактор порогов риска')">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
-          Пороги
+          {{ tr('Пороги') }}
         </button>
       </div>
     </header>
@@ -360,7 +366,7 @@ const seriesYears = computed(() => data.value?.series?.years || []);
     </div>
     <div v-else-if="error && !data" class="sh-state sh-err">
       {{ error }}
-      <button class="sh-retry" type="button" @click="load">Повторить</button>
+      <button class="sh-retry" type="button" @click="load">{{ tr('Повторить') }}</button>
     </div>
 
     <template v-else-if="data">
@@ -373,21 +379,21 @@ const seriesYears = computed(() => data.value?.series?.years || []);
       <section v-if="fiscalCards.length" class="sh-section">
         <div class="sh-card sh-fiscal" style="--d:40ms">
           <div class="sh-card-hd"><div>
-            <div class="sh-card-t">Фискальная материальность · % ВВП</div>
+            <div class="sh-card-t">{{ tr('Фискальная материальность · % ВВП') }}</div>
             <div class="sh-card-s">
-              портфель к номинальному ВВП · ВВП FY{{ data.year }} = {{ fmtTrln(gdpBln) }} сум
-              <span class="sh-gdp-src">IMF WEO · ред.</span>
+              {{ tr('портфель к номинальному ВВП · ВВП FY') }}{{ data.year }} = {{ fmtTrln(gdpBln) }} {{ tr('сум') }}
+              <span class="sh-gdp-src">{{ tr('IMF WEO · ред.') }}</span>
             </div>
           </div></div>
           <div class="sh-fiscal-grid kpi-rail">
             <div v-for="(f, i) in fiscalCards" :key="f.label" class="sh-fiscal-i"
                  :style="{ '--accent': f.accent, '--d': (i * 80) + 'ms' }">
-              <div class="sh-fiscal-l">{{ f.label }}</div>
+              <div class="sh-fiscal-l">{{ tr(f.label) }}</div>
               <div class="sh-fiscal-v">
-                <span v-if="f.pct != null"><Odometer :value="f.pct.toFixed(1)" /><span class="sh-fiscal-u">% ВВП</span></span>
+                <span v-if="f.pct != null"><Odometer :value="f.pct.toFixed(1)" /><span class="sh-fiscal-u">{{ tr('% ВВП') }}</span></span>
                 <span v-else>—</span>
               </div>
-              <div class="sh-fiscal-abs">{{ fmtTrln(f.abs) }} сум</div>
+              <div class="sh-fiscal-abs">{{ fmtTrln(f.abs) }} {{ tr('сум') }}</div>
             </div>
           </div>
         </div>
@@ -397,44 +403,44 @@ const seriesYears = computed(() => data.value?.series?.years || []);
       <section class="sh-section sh-4col">
         <div class="sh-card" style="--d:60ms">
           <div class="sh-card-hd"><div>
-            <div class="sh-card-t">Прибыльные компании</div>
-            <div class="sh-card-s">по знаку чистой прибыли · FY {{ data.year }}</div>
+            <div class="sh-card-t">{{ tr('Прибыльные компании') }}</div>
+            <div class="sh-card-s">{{ tr('по знаку чистой прибыли · FY') }} {{ data.year }}</div>
           </div></div>
           <CreditDonut v-if="profitDonut.length" :entries="profitDonut"
-            :center-value="String(profitTotal)" center-label="компаний"
+            :center-value="String(profitTotal)" :center-label="t('компаний')"
             :hover-fmt="donutHover" :size="140" />
-          <div v-else class="sh-none">нет данных</div>
+          <div v-else class="sh-none">{{ tr('нет данных') }}</div>
         </div>
         <div class="sh-card" style="--d:140ms">
           <div class="sh-card-hd"><div>
-            <div class="sh-card-t">Компании по секторам</div>
-            <div class="sh-card-s">распределение портфеля</div>
+            <div class="sh-card-t">{{ tr('Компании по секторам') }}</div>
+            <div class="sh-card-s">{{ tr('распределение портфеля') }}</div>
           </div></div>
           <CreditDonut v-if="sectorDonut.length" :entries="sectorDonut"
-            :center-value="String(sectorTotal)" center-label="компаний"
+            :center-value="String(sectorTotal)" :center-label="t('компаний')"
             :hover-fmt="donutHover" :size="140" clickable
             @slice-click="(_e, idx) => toggleSector(sectorDonutCodes[idx] || null)" />
-          <div v-else class="sh-none">нет данных</div>
+          <div v-else class="sh-none">{{ tr('нет данных') }}</div>
         </div>
         <div class="sh-card" style="--d:220ms">
           <div class="sh-card-hd"><div>
-            <div class="sh-card-t">Орг-правовая форма</div>
-            <div class="sh-card-s">по типу юрлица</div>
+            <div class="sh-card-t">{{ tr('Орг-правовая форма') }}</div>
+            <div class="sh-card-s">{{ tr('по типу юрлица') }}</div>
           </div></div>
           <CreditDonut v-if="legalDonut.length" :entries="legalDonut"
-            :center-value="String(legalTotal)" center-label="компаний"
+            :center-value="String(legalTotal)" :center-label="t('компаний')"
             :hover-fmt="donutHover" :size="140" />
-          <div v-else class="sh-none">нет данных</div>
+          <div v-else class="sh-none">{{ tr('нет данных') }}</div>
         </div>
         <div class="sh-card" style="--d:300ms">
           <div class="sh-card-hd"><div>
-            <div class="sh-card-t">Орган управления</div>
-            <div class="sh-card-s">собственник / надзорный орган</div>
+            <div class="sh-card-t">{{ tr('Орган управления') }}</div>
+            <div class="sh-card-s">{{ tr('собственник / надзорный орган') }}</div>
           </div></div>
           <CreditDonut v-if="ownershipDonut.length" :entries="ownershipDonut"
-            :center-value="String(ownershipTotal)" center-label="компаний"
+            :center-value="String(ownershipTotal)" :center-label="t('компаний')"
             :hover-fmt="donutHover" :size="140" />
-          <div v-else class="sh-none">нет данных</div>
+          <div v-else class="sh-none">{{ tr('нет данных') }}</div>
         </div>
       </section>
 
@@ -443,9 +449,9 @@ const seriesYears = computed(() => data.value?.series?.years || []);
         <div class="sh-card sh-pareto" style="--d:80ms">
           <div class="sh-card-hd">
             <div>
-              <div class="sh-card-t">Концентрация портфеля</div>
+              <div class="sh-card-t">{{ tr('Концентрация портфеля') }}</div>
               <div class="sh-card-s">
-                размер по компаниям (трлн сум) · топ-3 = <strong>{{ top3Pct.toFixed(0) }}%</strong> портфеля · клик — детали
+                {{ tr('размер по компаниям (трлн сум) · топ-3 =') }} <strong>{{ top3Pct.toFixed(0) }}%</strong> {{ tr('портфеля · клик — детали') }}
               </div>
             </div>
             <UzaSegment
@@ -463,15 +469,15 @@ const seriesYears = computed(() => data.value?.series?.years || []);
                  :class="{ dim: focusSector && b.sector !== focusSector }" @click="openCompany(b.code)">
                 <rect :x="pX(i)" :y="pY(b.v)" :width="pW()" :height="pH(b.v)" rx="3"
                       fill="#8B7FFF" fill-opacity="0.85" class="sh-vbar" :style="{ '--d': (i * 35) + 'ms' }">
-                  <title>{{ b.name }} · {{ fmtBln(b.v) }} · Σ {{ b.cum.toFixed(0) }}% · клик — детали</title>
+                  <title>{{ b.name }} · {{ fmtBln(b.v) }} · Σ {{ b.cum.toFixed(0) }}{{ tr('% · клик — детали') }}</title>
                 </rect>
                 <text :x="pX(i) + pW() / 2" :y="pY(b.v) - 5" text-anchor="middle" class="sh-vbar-val"
-                      :style="{ '--d': (i * 35 + 250) + 'ms' }">{{ barLabel(b.v) }}</text>
+                      :style="{ '--d': (i * 35 + 250) + 'ms' }">{{ tr(barLabel(b.v)) }}</text>
                 <text :x="pX(i) + pW() / 2" :y="PH - PB + 13" text-anchor="middle" class="sh-vbar-lbl">{{ b.code.toUpperCase() }}</text>
               </g>
             </svg>
           </div>
-          <div v-else class="sh-none">Нет данных за {{ data.year }} ({{ data.standard }})</div>
+          <div v-else class="sh-none">{{ tr('Нет данных за') }} {{ data.year }} ({{ data.standard }})</div>
         </div>
       </section>
 
@@ -481,11 +487,11 @@ const seriesYears = computed(() => data.value?.series?.years || []);
         <div class="sh-card" style="--d:80ms">
           <div class="sh-card-hd">
             <div>
-              <div class="sh-card-t">Размер обязательств и риск</div>
-              <div class="sh-card-s">ось X — обязательства (√-шкала) · ось Y — балл 1→5 · клик по точке — детали компании</div>
+              <div class="sh-card-t">{{ tr('Размер обязательств и риск') }}</div>
+              <div class="sh-card-s">{{ tr('ось X — обязательства (√-шкала) · ось Y — балл 1→5 · клик по точке — детали компании') }}</div>
             </div>
             <button v-if="focusSector" type="button" class="sh-focus-chip" @click="toggleSector(null)">
-              фокус · {{ (sectorBars.find(s => s.code === focusSector) || {}).name }} ✕
+              {{ tr('фокус ·') }} {{ (sectorBars.find(s => s.code === focusSector) || {}).name }} ✕
             </button>
           </div>
           <div v-if="riskDots.length" class="sh-pareto-svgwrap">
@@ -501,24 +507,24 @@ const seriesYears = computed(() => data.value?.series?.years || []);
                 <circle :cx="scX(d.liab)" :cy="scY(d.overall)" r="7"
                         :fill="d.color" fill-opacity="0.82" stroke="#fff" stroke-width="1.5"
                         class="sh-dot" :style="{ '--d': (i * 30) + 'ms' }">
-                  <title>{{ d.name }} · балл {{ d.overall.toFixed(1) }} · обяз. {{ fmtBln(d.liab) }} · клик — детали</title>
+                  <title>{{ d.name }} {{ tr('· балл') }} {{ d.overall.toFixed(1) }} {{ tr('· обяз.') }} {{ fmtBln(d.liab) }} {{ tr('· клик — детали') }}</title>
                 </circle>
                 <text :x="scX(d.liab)" :y="scY(d.overall) - 10" text-anchor="middle"
                       class="sh-dot-lbl">{{ d.code.toUpperCase() }}</text>
               </g>
             </svg>
           </div>
-          <div v-else class="sh-none">Нет данных за {{ data.year }} ({{ data.standard }})</div>
+          <div v-else class="sh-none">{{ tr('Нет данных за') }} {{ data.year }} ({{ data.standard }})</div>
         </div>
 
         <!-- Разрезы по секторам -->
         <div class="sh-card" style="--d:160ms">
           <div class="sh-card-hd">
             <div>
-              <div class="sh-card-t">Разрез по секторам</div>
+              <div class="sh-card-t">{{ tr('Разрез по секторам') }}</div>
               <div class="sh-card-s" v-if="profitSplit">
-                прибыльные {{ profitSplit.profitable }} · убыточные {{ profitSplit.loss }}
-                <span v-if="profitSplit.unknown">· н/д {{ profitSplit.unknown }}</span>
+                {{ tr('прибыльные') }} {{ profitSplit.profitable }} {{ tr('· убыточные') }} {{ profitSplit.loss }}
+                <span v-if="profitSplit.unknown">{{ tr('· н/д') }} {{ profitSplit.unknown }}</span>
               </div>
             </div>
             <UzaSegment
@@ -532,7 +538,7 @@ const seriesYears = computed(() => data.value?.series?.years || []);
             <button v-for="(s, i) in sectorBars" :key="s.code" type="button" class="sh-lolli"
                  :class="{ active: focusSector === s.code, dim: focusSector && focusSector !== s.code }"
                  :style="{ '--d': (i * 55) + 'ms', '--c': s.color }"
-                 :title="'Фокус на секторе: ' + s.name" @click="toggleSector(s.code)">
+                 :title="tr('Фокус на секторе: {value0}', { value0: s.name })" @click="toggleSector(s.code)">
               <span class="sh-lolli-name">{{ s.name }}</span>
               <span class="sh-lolli-track">
                 <span class="sh-lolli-line" :style="{ width: s.pct + '%' }" />
@@ -541,19 +547,19 @@ const seriesYears = computed(() => data.value?.series?.years || []);
               <span class="sh-lolli-val">{{ fmtBln(s.v) }}</span>
             </button>
           </div>
-          <div v-else class="sh-none">Нет данных за {{ data.year }} ({{ data.standard }})</div>
+          <div v-else class="sh-none">{{ tr('Нет данных за') }} {{ data.year }} ({{ data.standard }})</div>
         </div>
       </section>
 
       <!-- ═══ Активы/Капитал и рентабельность по секторам (комбо) ═══ -->
       <section class="sh-section sh-2eq">
         <div v-for="cfg in [
-               { key: 'a', vm: comboAssets, t: 'Активы и ROA', s: 'бар — активы (млрд) · справа — рентабельность активов', ret: 'ROA' },
-               { key: 'e', vm: comboEquity, t: 'Капитал и ROE', s: 'бар — капитал (млрд) · справа — рентабельность капитала', ret: 'ROE' },
+               { key: 'a', vm: comboAssets, t: i18nKey('Активы и ROA'), s: i18nKey('бар — активы (млрд) · справа — рентабельность активов'), ret: 'ROA' },
+               { key: 'e', vm: comboEquity, t: i18nKey('Капитал и ROE'), s: i18nKey('бар — капитал (млрд) · справа — рентабельность капитала'), ret: 'ROE' },
              ]" :key="cfg.key" class="sh-card" :style="{ '--d': (cfg.key === 'a' ? 80 : 160) + 'ms' }">
           <div class="sh-card-hd"><div>
-            <div class="sh-card-t">{{ cfg.t }}</div>
-            <div class="sh-card-s">{{ cfg.s }}</div>
+            <div class="sh-card-t">{{ tr(cfg.t) }}</div>
+            <div class="sh-card-s">{{ tr(cfg.s) }}</div>
           </div></div>
           <div v-if="cfg.vm.rows.length" class="sh-pareto-svgwrap">
             <svg :viewBox="`0 0 ${CW} ${CH}`" class="sh-pareto-svg" preserveAspectRatio="xMidYMid meet">
@@ -574,7 +580,7 @@ const seriesYears = computed(() => data.value?.series?.years || []);
               </g>
             </svg>
           </div>
-          <div v-else class="sh-none">Нет данных за {{ data.year }} ({{ data.standard }})</div>
+          <div v-else class="sh-none">{{ tr('Нет данных за') }} {{ data.year }} ({{ data.standard }})</div>
         </div>
       </section>
 
@@ -583,7 +589,7 @@ const seriesYears = computed(() => data.value?.series?.years || []);
         <div class="sh-trends">
           <div v-for="(t, i) in trendCards" :key="t.key" class="sh-card sh-trend"
                :style="{ '--accent': t.accent, '--d': (i * 70) + 'ms' }">
-            <div class="sh-trend-l">{{ t.label }}</div>
+            <div class="sh-trend-l">{{ tr(t.label) }}</div>
             <div class="sh-trend-v">
               <Odometer :value="t.last" />
               <span v-if="t.delta" class="sh-trend-d"
@@ -596,7 +602,7 @@ const seriesYears = computed(() => data.value?.series?.years || []);
               <circle v-if="t.lastXY" :cx="t.lastXY[0]" :cy="t.lastXY[1]" r="3.4"
                       :fill="t.accent" class="sh-spark-dot" />
             </svg>
-            <div v-else class="sh-none sm">мало данных</div>
+            <div v-else class="sh-none sm">{{ tr('мало данных') }}</div>
             <div class="sh-trend-yrs">{{ seriesYears[0] }}–{{ seriesYears[seriesYears.length - 1] }}</div>
           </div>
         </div>

@@ -22,6 +22,8 @@ import ModalShell from "@/components/ModalShell.vue";
 import { runForecast, type ForecastModel } from "@/utils/forecast";
 import { api } from "@/api/client";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 
 const { t } = useI18n();
 
@@ -184,11 +186,11 @@ function yoyColor(yoy: number | null): string {
 
 // ── Прогнозные колонки: заполняем будущие годы прогнозом по выбранной модели ──
 const FORECAST_OPTS: { id: FcSel; label: string }[] = [
-  { id: "off", label: "Прогноз: выкл" },
-  { id: "ai", label: "Прогноз: ИИ" },
-  { id: "runrate", label: "Прогноз: Run-rate" },
-  { id: "cagr", label: "Прогноз: CAGR" },
-  { id: "linear", label: "Прогноз: линейный" },
+  { id: "off", label: i18nKey("Прогноз: выкл") },
+  { id: "ai", label: i18nKey("Прогноз: ИИ") },
+  { id: "runrate", label: i18nKey("Прогноз: Run-rate") },
+  { id: "cagr", label: i18nKey("Прогноз: CAGR") },
+  { id: "linear", label: i18nKey("Прогноз: линейный") },
 ];
 const forecastModel = ref<FcSel>("off");
 
@@ -317,14 +319,14 @@ watch([forecastModel, () => props.metricKey], async ([m]) => {
 
 // Сменяющийся статус: что именно сейчас «делает» ИИ.
 const BUSY_PHRASES = [
-  "Анализирую историю компаний",
-  "Цены на золото и металлы",
-  "Нефть Brent и природный газ",
-  "Курс USD/UZS и инфляцию",
-  "Геополитику и санкционный фон",
-  "Текущие показатели компаний",
-  "Отраслевые темпы роста",
-  "Строю базовый сценарий",
+  i18nKey("Анализирую историю компаний"),
+  i18nKey("Цены на золото и металлы"),
+  i18nKey("Нефть Brent и природный газ"),
+  i18nKey("Курс USD/UZS и инфляцию"),
+  i18nKey("Геополитику и санкционный фон"),
+  i18nKey("Текущие показатели компаний"),
+  i18nKey("Отраслевые темпы роста"),
+  i18nKey("Строю базовый сценарий"),
 ];
 const busyIdx = ref(0);
 let busyTimer: ReturnType<typeof setInterval> | undefined;
@@ -463,7 +465,7 @@ function cellValue(c: SectorBucket["companies"][number], y: number): number | nu
                borderBottomColor: b.color + '24',
              }">
           <span class="fst-sec-label" :style="{ color: b.color }">
-            {{ b.label }} <span class="fst-sec-cnt">({{ b.companies.length }})</span>
+            {{ t(b.label) }} <span class="fst-sec-cnt">({{ b.companies.length }})</span>
           </span>
           <div class="fst-sec-meta">
             <span class="fst-sec-tot">Σ {{ fmtCompact(bucketSumAllYears(b), unit) }}</span>

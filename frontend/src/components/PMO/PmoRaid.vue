@@ -7,40 +7,42 @@ import { ref, computed, watch, onMounted } from "vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import { pmoApi, type RaidItem, type RaidPayload, type RaidKind, type RaidSeverity, type RaidStatus } from "@/api/pmo";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 const { t } = useI18n();
 
 
 const props = defineProps<{ companyCode: string; canEdit?: boolean }>();
 
 const KINDS: { v: RaidKind; l: string }[] = [
-  { v: "risk", l: "Риск" }, { v: "assumption", l: "Допущение" },
-  { v: "issue", l: "Проблема" }, { v: "dependency", l: "Зависимость" },
+  { v: "risk", l: i18nKey("Риск") }, { v: "assumption", l: i18nKey("Допущение") },
+  { v: "issue", l: i18nKey("Проблема") }, { v: "dependency", l: i18nKey("Зависимость") },
 ];
 const KIND_L: Record<string, string> = Object.fromEntries(KINDS.map(k => [k.v, k.l]));
 const SEVERITIES: { v: RaidSeverity; l: string; c: string }[] = [
-  { v: "low", l: "Низкая", c: "#5F5E5A" }, { v: "medium", l: "Средняя", c: "#D97706" },
-  { v: "high", l: "Высокая", c: "#E24B4A" }, { v: "critical", l: "Критич.", c: "#7F1D1D" },
+  { v: "low", l: i18nKey("Низкая"), c: "#5F5E5A" }, { v: "medium", l: i18nKey("Средняя"), c: "#D97706" },
+  { v: "high", l: i18nKey("Высокая"), c: "#E24B4A" }, { v: "critical", l: i18nKey("Критич."), c: "#7F1D1D" },
 ];
 const SEV_M = Object.fromEntries(SEVERITIES.map(s => [s.v, s]));
 const STATUSES: { v: RaidStatus; l: string; c: string }[] = [
-  { v: "open", l: "Открыт", c: "#E24B4A" }, { v: "mitigating", l: "В работе", c: "#D97706" }, { v: "closed", l: "Закрыт", c: "#1D9E75" },
+  { v: "open", l: i18nKey("Открыт"), c: "#E24B4A" }, { v: "mitigating", l: i18nKey("В работе"), c: "#D97706" }, { v: "closed", l: i18nKey("Закрыт"), c: "#1D9E75" },
 ];
 const STAT_M = Object.fromEntries(STATUSES.map(s => [s.v, s]));
 
 // PMBOK 7 — полярность (угроза/возможность) + стратегии реагирования
 const POLARITIES = [
-  { v: "threat", l: "Угроза", c: "#E24B4A" },
-  { v: "opportunity", l: "Возможность", c: "#1D9E75" },
+  { v: "threat", l: i18nKey("Угроза"), c: "#E24B4A" },
+  { v: "opportunity", l: i18nKey("Возможность"), c: "#1D9E75" },
 ];
 const POL_M = Object.fromEntries(POLARITIES.map(p => [p.v, p]));
 const RESPONSES: Record<string, { v: string; l: string }[]> = {
   threat: [
-    { v: "avoid", l: "Избегать" }, { v: "transfer", l: "Передать" },
-    { v: "mitigate", l: "Снизить" }, { v: "accept", l: "Принять" }, { v: "escalate", l: "Эскалировать" },
+    { v: "avoid", l: i18nKey("Избегать") }, { v: "transfer", l: i18nKey("Передать") },
+    { v: "mitigate", l: i18nKey("Снизить") }, { v: "accept", l: i18nKey("Принять") }, { v: "escalate", l: i18nKey("Эскалировать") },
   ],
   opportunity: [
-    { v: "exploit", l: "Использовать" }, { v: "share", l: "Разделить" },
-    { v: "enhance", l: "Усилить" }, { v: "accept", l: "Принять" }, { v: "escalate", l: "Эскалировать" },
+    { v: "exploit", l: i18nKey("Использовать") }, { v: "share", l: i18nKey("Разделить") },
+    { v: "enhance", l: i18nKey("Усилить") }, { v: "accept", l: i18nKey("Принять") }, { v: "escalate", l: i18nKey("Эскалировать") },
   ],
 };
 const RESP_L: Record<string, string> = {};
@@ -58,7 +60,7 @@ async function load() {
   try {
     items.value = await pmoApi.listRaid(props.companyCode);
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить RAID";
+    error.value = e?.response?.data?.detail || e?.message || t('Не удалось загрузить RAID');
   } finally {
     loading.value = false;
   }
@@ -121,7 +123,7 @@ function openEdit(it: RaidItem) {
   editingId.value = it.id; formOpen.value = true;
 }
 async function save() {
-  if (!form.value.title?.trim()) { error.value = "Название обязательно"; return; }
+  if (!form.value.title?.trim()) { error.value = t('Название обязательно'); return; }
   saving.value = true; error.value = null;
   try {
     if (editingId.value) await pmoApi.updateRaid(editingId.value, form.value);
@@ -129,13 +131,13 @@ async function save() {
     formOpen.value = false;
     await load();
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || "Не удалось сохранить";
+    error.value = e?.response?.data?.detail || t('Не удалось сохранить');
   } finally { saving.value = false; }
 }
 async function removeItem(it: RaidItem) {
-  if (!confirm(`Удалить «${it.title}»?`)) return;
+  if (!confirm(t("Удалить «{title}»?", { title: it.title }))) return;
   try { await pmoApi.deleteRaid(it.id); await load(); }
-  catch (e: any) { error.value = e?.response?.data?.detail || "Не удалось удалить"; }
+  catch (e: any) { error.value = e?.response?.data?.detail || t('Не удалось удалить'); }
 }
 
 const fmtDue = (s: string | null) => s ? new Date(s + "T00:00:00").toLocaleDateString("ru-RU", { day: "numeric", month: "short" }) : "—";
@@ -159,7 +161,7 @@ const fmtDue = (s: string | null) => s ? new Date(s + "T00:00:00").toLocaleDateS
       <button v-if="canEdit" class="pr-add" @click="openCreate">{{ t('+ Запись RAID') }}</button>
     </div>
 
-    <UzaStateBlock v-if="loading" state="loading" text="Загрузка реестра…" />
+    <UzaStateBlock v-if="loading" state="loading" :text="t('Загрузка реестра…')" />
 
     <template v-else>
       <div class="pr-cols">
@@ -176,7 +178,7 @@ const fmtDue = (s: string | null) => s ? new Date(s + "T00:00:00").toLocaleDateS
                   class="pr-mx-c"
                   :class="{ on: matrixCell && matrixCell.p === p && matrixCell.i === i, dim: cellCount(p,i) === 0 }"
                   :style="{ background: scoreColor(p*i) }"
-                  :title="`P${p} × I${i} = ${p*i}` + (cellCount(p,i) ? ` · ${cellCount(p,i)} откр.` : '')"
+                  :title="`P${p} × I${i} = ${p*i}` + (cellCount(p,i) ? t('· {value0} откр.', { value0: cellCount(p,i) }) : '')"
                   @click="toggleCell(p, i)"
                 >{{ cellCount(p,i) || "" }}</td>
               </tr>
@@ -192,7 +194,7 @@ const fmtDue = (s: string | null) => s ? new Date(s + "T00:00:00").toLocaleDateS
             {{ t('Фильтр: P') }}{{ matrixCell.p }}×I{{ matrixCell.i }}
             <button @click="matrixCell = null">{{ t('сбросить ×') }}</button>
           </div>
-          <UzaStateBlock v-if="!filtered.length" state="empty" variant="block" :title="t('Записей нет')" text="Добавьте риск/проблему/допущение/зависимость." />
+          <UzaStateBlock v-if="!filtered.length" state="empty" variant="block" :title="t('Записей нет')" :text="t('Добавьте риск/проблему/допущение/зависимость.')" />
           <table v-else class="uza-table pr-tbl">
             <thead>
               <tr>
@@ -236,7 +238,7 @@ const fmtDue = (s: string | null) => s ? new Date(s + "T00:00:00").toLocaleDateS
     <!-- Форма создания/правки -->
     <div v-if="formOpen" class="pr-modal-ov" @click.self="formOpen = false">
       <div class="pr-modal">
-        <div class="pr-modal-h">{{ editingId ? "Правка записи" : "Новая запись RAID" }}</div>
+        <div class="pr-modal-h">{{ editingId ? t('Правка записи') : t('Новая запись RAID') }}</div>
         <div class="pr-modal-b">
           <div class="pr-f2">
             <div class="pr-f"><label>{{ t('Тип') }}</label>
@@ -267,17 +269,17 @@ const fmtDue = (s: string | null) => s ? new Date(s + "T00:00:00").toLocaleDateS
             </div>
             <div class="pr-f"><label>{{ t('Срок') }}</label><input type="date" v-model="form.due_date" /></div>
           </div>
-          <div class="pr-f"><label>{{ t('Стратегия реагирования (') }}{{ form.polarity === 'opportunity' ? 'возможность' : 'угроза' }})</label>
+          <div class="pr-f"><label>{{ t('Стратегия реагирования (') }}{{ form.polarity === 'opportunity' ? t('возможность') : t('угроза') }})</label>
             <select v-model="form.response_strategy">
               <option :value="null">{{ t('— Не выбрана') }}</option>
               <option v-for="r in respOptions" :key="r.v" :value="r.v">{{ r.l }}</option>
             </select>
           </div>
-          <div class="pr-f"><label>{{ form.polarity === 'opportunity' ? 'План реализации' : 'Митигировка / план' }}</label><textarea v-model="form.mitigation" rows="2"></textarea></div>
+          <div class="pr-f"><label>{{ form.polarity === 'opportunity' ? t('План реализации') : t('Митигировка / план') }}</label><textarea v-model="form.mitigation" rows="2"></textarea></div>
         </div>
         <div class="pr-modal-f">
           <button class="pr-btn-ghost" @click="formOpen = false">{{ t('Отмена') }}</button>
-          <button class="pr-btn" :disabled="saving" @click="save">{{ saving ? "Сохраняю…" : "Сохранить" }}</button>
+          <button class="pr-btn" :disabled="saving" @click="save">{{ saving ? t('Сохраняю…') : t('Сохранить') }}</button>
         </div>
       </div>
     </div>

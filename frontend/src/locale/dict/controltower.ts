@@ -18,7 +18,7 @@ export const uz: Record<string, string> = {
   "Исполнение обязательств": "Majburiyatlar ijrosi",
   "обязательства выполняются": "majburiyatlar bajarilmoqda",
   "в целом по графику": "umuman jadval boʻyicha",
-  "отставание": "ortda qolish",
+  
   "сильное отставание": "jiddiy ortda qolish",
   "нет наступивших сроков": "muddatlar hali kelmagan",
   "выполнено {done} из {total} задач с наступившим сроком": "muddati kelgan {total} ta vazifadan {done} tasi bajarildi",
@@ -103,7 +103,7 @@ export const uz: Record<string, string> = {
   "Срез удалён": "Kesim oʻchirildi",
   "Не удалось зафиксировать: {err}": "Qayd etib boʻlmadi: {err}",
   "Не удалось удалить: {err}": "Oʻchirib boʻlmadi: {err}",
-  "Ошибка загрузки": "Yuklashda xatolik",
+  
   "Сейчас": "Hozir",
 
   // ── CtCompanyModal ──
@@ -113,8 +113,8 @@ export const uz: Record<string, string> = {
   "архивировал": "arxivladi",
   "Было": "Avval",
   "Стало": "Endi",
-  "Задачи завершено": "Yakunlangan vazifalar",
-  "Проекты завершено": "Yakunlangan loyihalar",
+  
+  
   "было": "avval",
   "Лента изменений": "Oʻzgarishlar lentasi",
   "последние 120 дней": "oxirgi 120 kun",
@@ -189,7 +189,7 @@ export const en: Record<string, string> = {
   "Исполнение обязательств": "Commitment fulfillment",
   "обязательства выполняются": "commitments on track",
   "в целом по графику": "broadly on schedule",
-  "отставание": "falling behind",
+  
   "сильное отставание": "far behind",
   "нет наступивших сроков": "no due dates yet",
   "выполнено {done} из {total} задач с наступившим сроком": "{done} of {total} due tasks completed",
@@ -274,7 +274,7 @@ export const en: Record<string, string> = {
   "Срез удалён": "Snapshot deleted",
   "Не удалось зафиксировать: {err}": "Failed to save snapshot: {err}",
   "Не удалось удалить: {err}": "Failed to delete: {err}",
-  "Ошибка загрузки": "Failed to load",
+  
   "Сейчас": "Now",
 
   // ── CtCompanyModal ──
@@ -329,7 +329,7 @@ export const en: Record<string, string> = {
   "· апр–июн": "· Apr–Jun",
   "· июл–сен": "· Jul–Sep",
   "· окт–дек": "· Oct–Dec",
-  "срок": "due",
+  
   "В графике": "On track",
   "Заблокирован": "Blocked",
   "(без названия)": "(untitled)",

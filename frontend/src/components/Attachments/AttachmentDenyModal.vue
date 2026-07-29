@@ -94,7 +94,7 @@ async function load() {
   try {
     deniedUsers.value = await attachmentsApi.listDeniedUsers(props.kind, props.attId);
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || "Не удалось загрузить";
+    error.value = e?.response?.data?.detail || t('Не удалось загрузить');
   } finally {
     loading.value = false;
   }
@@ -110,7 +110,7 @@ async function onPickUser(user: { id: string; email: string }) {
     await load();
     emit("changed");
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || "Не удалось скрыть";
+    error.value = e?.response?.data?.detail || t('Не удалось скрыть');
   }
 }
 
@@ -121,7 +121,7 @@ async function onAllow(userId: string) {
     await load();
     emit("changed");
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || "Не удалось восстановить";
+    error.value = e?.response?.data?.detail || t('Не удалось восстановить');
   }
 }
 

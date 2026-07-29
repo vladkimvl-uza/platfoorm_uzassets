@@ -18,6 +18,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.access import allowed_company_ids
+from app.core.i18n import current_locale, tr
 from app.core.security import get_current_user, has_effective_permission
 from app.database import get_db
 from app.dependencies.ratings import RatingsServiceDep
@@ -175,7 +176,7 @@ async def create_rating(
         return JSONResponse(
             status_code=http_status.HTTP_202_ACCEPTED,
             content={"queued": True, "submission_id": str(sub.id), "status": sub.status,
-                     "message": "Изменение отправлено на модерацию"},
+                     "message": tr("Изменение отправлено на модерацию", current_locale())},
         )
 
     rec, detail = await service.create_rating(payload, scope_company_ids=scope_ids)
@@ -211,7 +212,7 @@ async def update_rating(
         return JSONResponse(
             status_code=http_status.HTTP_202_ACCEPTED,
             content={"queued": True, "submission_id": str(sub.id), "status": sub.status,
-                     "message": "Изменение отправлено на модерацию"},
+                     "message": tr("Изменение отправлено на модерацию", current_locale())},
         )
 
     rec, detail = await service.update_rating(rating_id, payload, scope_company_ids=scope_ids)
@@ -246,7 +247,7 @@ async def delete_rating(
         return JSONResponse(
             status_code=http_status.HTTP_202_ACCEPTED,
             content={"queued": True, "submission_id": str(sub.id), "status": sub.status,
-                     "message": "Удаление отправлено на модерацию"},
+                     "message": tr("Удаление отправлено на модерацию", current_locale())},
         )
 
     await service.delete_rating(rating_id, scope_company_ids=scope_ids)

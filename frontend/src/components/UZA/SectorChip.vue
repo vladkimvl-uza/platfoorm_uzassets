@@ -1,5 +1,5 @@
 <template>
-  <span v-if="name" class="sector-chip" :style="chipStyle" :title="'Сектор: ' + name">
+  <span v-if="name" class="sector-chip" :style="chipStyle" :title="t('Сектор: {value0}', { value0: name })">
     <span class="sector-chip__dot" :style="{ background: dotColor }"></span>
     {{ name }}
   </span>
@@ -15,6 +15,9 @@
  * Цвет берётся из :color (sector_color из БД); при отсутствии — нейтральный.
  */
 import { computed } from "vue";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const props = withDefaults(
   defineProps<{

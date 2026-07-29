@@ -5,6 +5,8 @@ import { boardsApi } from "@/api/tasks";
 import type { BoardBrief } from "@/api/tasks";
 import { useCompanyScope } from "@/composables/useCompanyScope";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 const { t } = useI18n();
 
 
@@ -37,7 +39,7 @@ async function load() {
     items.value = resp.items;
     total.value = resp.total;
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить доски";
+    error.value = e?.response?.data?.detail || e?.message || t('Не удалось загрузить доски');
   } finally {
     loading.value = false;
   }
@@ -56,11 +58,11 @@ function openBoard(id: string) {
 }
 
 const STATUS_META: Record<string, { label: string; color: string }> = {
-  init:   { label: "Иниц.",       color: "#94A3B8" },
-  new:    { label: "Не начато",   color: "#7F77DD" },
-  active: { label: "В процессе",  color: "#378ADD" },
-  review: { label: "На согл.",    color: "#EF9F27" },
-  done:   { label: "Заверш.",     color: "#1D9E75" },
+  init:   { label: i18nKey("Иниц."),       color: "#94A3B8" },
+  new:    { label: i18nKey("Не начато"),   color: "#7F77DD" },
+  active: { label: i18nKey("В процессе"),  color: "#378ADD" },
+  review: { label: i18nKey("На согл."),    color: "#EF9F27" },
+  done:   { label: i18nKey("Заверш."),     color: "#1D9E75" },
 };
 </script>
 
@@ -71,7 +73,7 @@ const STATUS_META: Record<string, { label: string; color: string }> = {
       <h1 style="font-size: 18px; font-weight: 500; color: var(--t1);
                  letter-spacing: -.02em; margin-top: 2px;">{{ t('Канбан-доски') }}</h1>
       <div style="font-size: 11px; color: var(--t3); margin-top: 3px;">
-        {{ total }} {{ total === 1 ? "доска" : "досок" }}
+        {{ total }} {{ total === 1 ? t('доска') : t('досок') }}
       </div>
     </div>
 

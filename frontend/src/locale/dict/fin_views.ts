@@ -9,7 +9,7 @@ export const uz: Record<string, string> = {
   // ── Удельная себестоимость: общее ──
   "Удельная себестоимость": "Solishtirma tannarx",
   "Сохранение…": "Saqlanmoqda…",
-  "Сохраняю…": "Saqlanmoqda…",
+  
   "энергонормы предзаполнены из отчёта энергоёмкости · остальное — вручную":
     "energiya normalari energiya sigʻimi hisobotidan oldindan toʻldirilgan · qolgani — qoʻlda",
   "кВт·ч/ед": "kVt·soat/birlik",
@@ -58,7 +58,7 @@ export const uz: Record<string, string> = {
     "chet eldan xarid qilinadigan xomashyo va butlovchilar · narx USD × kurs {rate}",
   "+ позиция": "+ pozitsiya",
   "Наименование": "Nomi",
-  "Ед.": "Birl.",
+  
   "Цена, $": "Narx, $",
   "Кол-во": "Miqdor",
   "Итог, сум": "Jami, soʻm",
@@ -128,7 +128,7 @@ export const uz: Record<string, string> = {
   "из совокупной": "umumiydan",
   "энергоёмкость портфеля": "portfel energiya sigʻimi",
   "Заполнено продуктов": "Toʻldirilgan mahsulotlar",
-  "{n} компаний": "{n} kompaniya",
+  
   "Отклонение фактического удельного расхода от нормы, в деньгах":
     "Fakt solishtirma sarfning normadan ogʻishi, pulda",
   "перерасход к норме расхода": "sarf normasidan ortiqcha",
@@ -174,7 +174,7 @@ export const uz: Record<string, string> = {
   "К блоку «Высокоуровневые показатели»": "«Yuqori darajali koʻrsatkichlar» blokiga",
   "Наверх": "Yuqoriga",
   "К сводке": "Jamlanmaga",
-  "Сводка по портфелю": "Portfel boʻyicha jamlanma",
+  
   "EBITDA-margin тренд": "EBITDA-marja trendi",
   "Сравни 2025 vs 2026": "2025 vs 2026 solishtirish",
   "Ковенант-чек": "Kovenant tekshiruvi",
@@ -486,7 +486,7 @@ export const en: Record<string, string> = {
   "Удалить показатель «{label}»?": "Delete indicator “{label}”?",
   "«{label}» — вводите положительное число (взяли модуль)": "“{label}” — enter a positive number (absolute value taken)",
   "Не удалось загрузить данные портфеля из БД": "Failed to load portfolio data from DB",
-  "Не удалось загрузить список компаний": "Failed to load company list",
+  
   "Сохранено · отчётов: {r} · строк: {n}": "Saved · reports: {r} · lines: {n}",
   "Сохранено · отчётов: {r} · строк: {n} · удалено: {d}": "Saved · reports: {r} · lines: {n} · deleted: {d}",
   "Конфликт: данные изменились, пока вы редактировали. Перезагрузите редактор, чтобы не затереть чужие правки.":

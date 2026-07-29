@@ -93,7 +93,7 @@
             v-if="tagFor(c)"
             class="ai-sb-tag"
             :style="{ '--tag-c': tagFor(c)!.color }"
-          >{{ tagFor(c)!.label }}</span>
+          >{{ t(tagFor(c)!.label) }}</span>
           <span class="ai-sb-item-date">{{ formatDate(c.updated_at) }}</span>
           <span class="ai-sb-item-cnt">{{ c.message_count }}</span>
         </div>

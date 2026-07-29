@@ -22,7 +22,7 @@ export const uz: Record<string, string> = {
   "Выберите компанию.": "Kompaniyani tanlang.",
   "Сводка по портфелю": "Portfel boʻyicha jamlanma",
   "Выберите компанию": "Kompaniyani tanlang",
-  "{n} компаний": "{n} ta kompaniya",
+  
   "Сначала выберите компанию": "Avval kompaniyani tanlang",
   "Удалить весь KPI {name} за {year}?": "{name} kompaniyasining {year} yilgi barcha KPIsini oʻchirasizmi?",
   "Не удалось удалить": "Oʻchirib boʻlmadi",
@@ -202,10 +202,10 @@ export const uz: Record<string, string> = {
     "Bu qator choraklari qanday kiritilgan: chorak boʻyicha summalar yoki oʻsib boruvchi jami (Q4 = yil)",
   "Кварталы": "Choraklar",
   "Вес год": "Yil salmogʻi",
-  "План год": "Yil rejasi",
-  "Факт год": "Yil fakti",
+  
+  
   "Название KPI": "KPI nomi",
-  "ед": "birl",
+  
   "Направление задано связью с БП": "Yoʻnalish BR bilan bogʻlanish orqali belgilangan",
   "↑ больше=лучше · ↓ меньше=лучше (себестоимость, просрочка)": "↑ koʻproq=yaxshi · ↓ kamroq=yaxshi (tannarx, muddati oʻtganlik)",
   "больше": "koʻproq",
@@ -506,8 +506,8 @@ export const en: Record<string, string> = {
     "How this row's quarters are entered: per-quarter sums or cumulative (Q4 = year)",
   "Кварталы": "Quarters",
   "Вес год": "Weight (yr)",
-  "План год": "Plan (yr)",
-  "Факт год": "Actual (yr)",
+  
+  
   "Название KPI": "KPI name",
   "ед": "unit",
   "Направление задано связью с БП": "Direction is set by the BP link",

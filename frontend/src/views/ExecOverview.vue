@@ -17,6 +17,8 @@ import MatrixEditor from "@/components/reporting/MatrixEditor.vue";
 import { usePermissions } from "@/composables/usePermissions";
 import { useCompanyScope } from "@/composables/useCompanyScope";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 
 const { t } = useI18n();
 // Область доступа: при единственной компании чипы выбора компании не нужны.
@@ -149,11 +151,11 @@ function collapseAll() { collapsed.value = new Set((data.value?.sectors || []).m
 
 // дедлайны
 const DL: Record<DeadlineState, { l: string; c: string }> = {
-  overdue: { l: "просрочен", c: "#E24B4A" },
-  month: { l: "этот месяц", c: "#D97706" },
-  quarter: { l: "квартал", c: "#0891B2" },
-  later: { l: "позже", c: "#64748B" },
-  none: { l: "без срока", c: "#94A3B8" },
+  overdue: { l: i18nKey("просрочен"), c: "#E24B4A" },
+  month: { l: i18nKey("этот месяц"), c: "#D97706" },
+  quarter: { l: i18nKey("квартал"), c: "#0891B2" },
+  later: { l: i18nKey("позже"), c: "#64748B" },
+  none: { l: i18nKey("без срока"), c: "#94A3B8" },
 };
 function fmtDue(s: string | null): string {
   if (!s) return "—";
@@ -163,9 +165,9 @@ function fmtDue(s: string | null): string {
 function fmtFin(n: number | null): string {
   if (n == null) return "—";
   const a = Math.abs(n);
-  if (a >= 1e12) return (n / 1e12).toFixed(1) + " трлн";
-  if (a >= 1e9) return (n / 1e9).toFixed(1) + " млрд";
-  if (a >= 1e6) return (n / 1e6).toFixed(1) + " млн";
+  if (a >= 1e12) return t('{value0} трлн', { value0: (n / 1e12).toFixed(1) });
+  if (a >= 1e9) return t('{value0} млрд', { value0: (n / 1e9).toFixed(1) });
+  if (a >= 1e6) return t('{value0} млн', { value0: (n / 1e6).toFixed(1) });
   return new Intl.NumberFormat("ru-RU").format(Math.round(n));
 }
 
@@ -186,8 +188,8 @@ const creditCls = (g: string | null): string => {
   return "bad";
 };
 const OL: Record<string, { l: string; c: string }> = {
-  Positive: { l: "поз.", c: "#1D9E75" }, Negative: { l: "нег.", c: "#E24B4A" },
-  Stable: { l: "стаб.", c: "#94A3B8" }, Developing: { l: "разв.", c: "#D97706" },
+  Positive: { l: i18nKey("поз."), c: "#1D9E75" }, Negative: { l: i18nKey("нег."), c: "#E24B4A" },
+  Stable: { l: i18nKey("стаб."), c: "#94A3B8" }, Developing: { l: i18nKey("разв."), c: "#D97706" },
   RWN: { l: "RWN", c: "#E24B4A" }, RWP: { l: "RWP", c: "#1D9E75" },
 };
 const olMeta = (o: string | null): { l: string; c: string } | null =>
@@ -250,7 +252,7 @@ function companyDirections(c: { projects: ExecOverviewProject[] }): CoDir[] {
   for (const p of c.projects) {
     const key = p.direction_id || "__none__";
     let col = map.get(key);
-    if (!col) { col = { id: p.direction_id, name: p.direction || "Без направления", projects: [] }; map.set(key, col); }
+    if (!col) { col = { id: p.direction_id, name: p.direction || t("Без направления"), projects: [] }; map.set(key, col); }
     col.projects.push(p);
   }
   return Array.from(map.values()).sort((a, b) => {
@@ -298,7 +300,7 @@ function companyQuarterMatrix(c: ExecOverviewCompany): QRow[] {
       (cust.direction_id && r.id === cust.direction_id) ||
       (!cust.direction_id && r.name === (cust.direction_name || "")));
     if (!row) {
-      row = { id: cust.direction_id || null, name: cust.direction_name || "Прочее", bars: [], noDate: [] };
+      row = { id: cust.direction_id || null, name: cust.direction_name || t("Прочее"), bars: [], noDate: [] };
       rows.push(row);
     }
     const due = cust.due_date || null;
@@ -336,9 +338,9 @@ interface ManualReport { rows: ManualRow[]; details: ManualDetail[]; total: numb
 
 // Статусы и их подписи/цвета — 1-в-1 с печатью (легенда + матрица + таблица).
 const STATUS_META: Record<PStatus, { label: string; c: string; bg: string }> = {
-  on_track:  { label: "В графике",     c: "#1D7A5C", bg: "rgba(29,158,117,.10)" },
-  attention: { label: "Внимание",      c: "#9A6206", bg: "rgba(202,138,4,.12)" },
-  blocked:   { label: "Заблокирован",  c: "#A32D2D", bg: "rgba(226,75,74,.10)" },
+  on_track:  { label: i18nKey("В графике"),     c: "#1D7A5C", bg: "rgba(29,158,117,.10)" },
+  attention: { label: i18nKey("Внимание"),      c: "#9A6206", bg: "rgba(202,138,4,.12)" },
+  blocked:   { label: i18nKey("Заблокирован"),  c: "#A32D2D", bg: "rgba(226,75,74,.10)" },
 };
 function statusMeta(s: PStatus | null) {
   return s ? STATUS_META[s] : { label: "—", c: "#64748B", bg: "transparent" };
@@ -353,11 +355,11 @@ function normStatus(s: string | null | undefined): PStatus | null {
 }
 function projWord(n: number): string {
   const m = n % 100;
-  if (m >= 11 && m <= 14) return "проектов";
+  if (m >= 11 && m <= 14) return i18nKey("проектов");
   const r = n % 10;
-  if (r === 1) return "проект";
-  if (r >= 2 && r <= 4) return "проекта";
-  return "проектов";
+  if (r === 1) return i18nKey("проект");
+  if (r >= 2 && r <= 4) return i18nKey("проекта");
+  return i18nKey("проектов");
 }
 function buildManualReport(c: ExecOverviewCompany): ManualReport {
   const cfg = matrixConfigs.value[c.id];
@@ -457,10 +459,10 @@ const flatProjects = computed<FlatProj[]>(() => {
   return out;
 });
 const PHASES = [
-  { key: "new", label: "Не начато", statuses: ["new"], c: "#94A3B8" },
-  { key: "init", label: "Инициирование", statuses: ["init"], c: "#EFA92A" },
-  { key: "active", label: "В процессе", statuses: ["active", "quarterly", "monthly", "ongoing"], c: "#7C6FF7" },
-  { key: "review", label: "На согласовании", statuses: ["review"], c: "#D97706" },
+  { key: "new", label: i18nKey("Не начато"), statuses: ["new"], c: "#94A3B8" },
+  { key: "init", label: i18nKey("Инициирование"), statuses: ["init"], c: "#EFA92A" },
+  { key: "active", label: i18nKey("В процессе"), statuses: ["active", "quarterly", "monthly", "ongoing"], c: "#7C6FF7" },
+  { key: "review", label: i18nKey("На согласовании"), statuses: ["review"], c: "#D97706" },
 ];
 interface Lane { id: string; name: string; projects: FlatProj[]; }
 const roadmapLanes = computed<Lane[]>(() => {
@@ -470,7 +472,7 @@ const roadmapLanes = computed<Lane[]>(() => {
     if (projs.length) lanes.push({ id: d.id, name: d.name, projects: projs });
   }
   const noDir = flatProjects.value.filter(x => !x.p.direction_id);
-  if (noDir.length) lanes.push({ id: "__none__", name: "Без направления", projects: noDir });
+  if (noDir.length) lanes.push({ id: "__none__", name: t("Без направления"), projects: noDir });
   return lanes;
 });
 function lanePhase(lane: Lane, ph: typeof PHASES[number]): FlatProj[] {
@@ -573,7 +575,7 @@ watch(data, (d) => {
             <div v-for="c in s.companies" :key="c.id" class="eo-company">
               <div class="eo-co-head">
                 <span class="eo-co-name">{{ c.name }}</span>
-                <span class="eo-co-meta">{{ c.total }} {{ c.total === 1 ? "проект" : "проектов" }}</span>
+                <span class="eo-co-meta">{{ c.total }} {{ c.total === 1 ? t('проект') : t('проектов') }}</span>
                 <span v-if="c.overdue" class="eo-co-ov">{{ c.overdue }} {{ t('просрочено') }}</span>
                 <button v-if="matrixPerm.canEdit.value" class="eo-co-mtx" :title="t('Заполнить «Сводный обзор» вручную: направления, проекты по кварталам и детали в выноску')" @click="openMatrixEditor(c)">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="1.5"/><path d="M3 9h18M9 9v12"/></svg>
@@ -592,7 +594,7 @@ watch(data, (d) => {
                     </span>
                   </span>
                   <span v-if="c.credit_ratings.length || c.esg_ratings.length" class="eo-rt">
-                    <span v-for="r in c.credit_ratings" :key="'cr_' + r.agency" class="eo-rt-chip" :class="creditCls(r.rating)" :title="r.agency + ' — кредитный рейтинг'">
+                    <span v-for="r in c.credit_ratings" :key="'cr_' + r.agency" class="eo-rt-chip" :class="creditCls(r.rating)" :title="t('{value0} — кредитный рейтинг', { value0: r.agency })">
                       <span class="eo-rt-ag">{{ agShort(r.agency) }}</span>{{ r.rating }}<span v-if="olMeta(r.outlook)" class="eo-rt-ol" :style="{ color: olMeta(r.outlook).c }">{{ olMeta(r.outlook).l }}</span>
                     </span>
                     <span v-for="r in c.esg_ratings" :key="'esg_' + r.agency" class="eo-rt-chip esg" :title="r.agency + ' — ESG'">

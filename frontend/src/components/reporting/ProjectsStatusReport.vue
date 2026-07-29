@@ -26,6 +26,13 @@ import ReportAppendix from "@/components/reporting/ReportAppendix.vue";
 import EptLogo from "@/components/EptLogo.vue";
 import minfinLogoUrl from "@/assets/minfin-logo.png";
 import uzassetsLogoUrl from "@/assets/uzassets-logo-wide.png";
+import { useI18n } from "@/composables/useI18n";
+import { useFormatters } from "@/composables/useFormatters";
+import { i18nKey } from "@/locale/keys";
+
+const { t: tr } = useI18n();
+const fmt = useFormatters();
+
 
 const props = defineProps<{
   companyId: string;
@@ -44,15 +51,15 @@ const directionsStore = useDirectionsStore();
 
 // ─── Статусы: палитра 1:1 c work-табом (экран) ───────────────────
 const STATUS_META: Record<string, { label: string; color: string }> = {
-  init:      { label: "Инициировано",   color: "#7F77DD" },
-  new:       { label: "Не начато",       color: "#94A3B8" },
-  active:    { label: "В процессе",      color: "#378ADD" },
-  review:    { label: "На согласовании", color: "#EF9F27" },
-  done:      { label: "Завершено",       color: "#1D9E75" },
-  quarterly: { label: "Ежеквартально",   color: "#A855F7" },
-  monthly:   { label: "Ежемесячно",      color: "#6366F1" },
-  ongoing:   { label: "Постоянно",       color: "#06B6D4" },
-  deferred:  { label: "Отложено",        color: "#94A3B8" },
+  init:      { label: i18nKey("Инициировано"),   color: "#7F77DD" },
+  new:       { label: i18nKey("Не начато"),       color: "#94A3B8" },
+  active:    { label: i18nKey("В процессе"),      color: "#378ADD" },
+  review:    { label: i18nKey("На согласовании"), color: "#EF9F27" },
+  done:      { label: i18nKey("Завершено"),       color: "#1D9E75" },
+  quarterly: { label: i18nKey("Ежеквартально"),   color: "#A855F7" },
+  monthly:   { label: i18nKey("Ежемесячно"),      color: "#6366F1" },
+  ongoing:   { label: i18nKey("Постоянно"),       color: "#06B6D4" },
+  deferred:  { label: i18nKey("Отложено"),        color: "#94A3B8" },
 };
 const STATUS_OPTIONS = ["new", "init", "active", "review", "done", "quarterly", "monthly", "ongoing", "deferred"];
 function statusLabel(s: string) { return STATUS_META[s]?.label || s || "—"; }
@@ -76,16 +83,16 @@ function quarterOf(due: string | null | undefined): string {
   if (!due) return "—";
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(due));
   if (!m) return String(due);
-  return `${ROMAN[Math.ceil(Number(m[2]) / 3)] || ""} кв. ${m[1]}`;
+  return tr("{quarter} кв. {year}", { quarter: ROMAN[Math.ceil(Number(m[2]) / 3)] || "", year: m[1] });
 }
 function stampToday(): string {
-  try { return new Date().toLocaleDateString("ru-RU", { day: "2-digit", month: "long", year: "numeric" }); }
+  try { return fmt.fmtDate(new Date(), { long: true }); }
   catch { return ""; }
 }
 
 // ─── Направления (label + цвет) из store — 1:1 с work-табом ──────
 function dirLabel(code: string | null | undefined): string {
-  return code ? directionsStore.labelFor(code) : "Без направления";
+  return code ? directionsStore.labelFor(code) : tr('Без направления');
 }
 function dirColor(code: string | null | undefined): string {
   return code ? directionsStore.colorFor(code) : "#8A8FA3";
@@ -149,7 +156,7 @@ async function doSave() {
     const r = await reportWizardApi.save(props.companyCode, props.year, cfg);
     baseConfig.value = r.config || cfg;
   } catch (e: any) {
-    toast.error("Не удалось сохранить: " + (e?.response?.data?.detail || e?.message || ""));
+    toast.error(tr('Не удалось сохранить: {value0}', { value0: (e?.response?.data?.detail || e?.message || "") }));
   } finally { saving.value = false; }
 }
 function setOverride(id: string, field: keyof Override, value: string) {
@@ -158,7 +165,7 @@ function setOverride(id: string, field: keyof Override, value: string) {
 }
 function resetOverrides() {
   overrides.value = {}; scheduleSave();
-  toast.info("Ручные правки сброшены — данные снова из системы");
+  toast.info(tr('Ручные правки сброшены — данные снова из системы'));
 }
 
 // ─── Строки: порядок 1:1 c work-табом (CompanyBoardList.groups) ──
@@ -289,12 +296,12 @@ function autoGrow(e: Event) {
 //   интенсивность ячейки = доля от макс. значения; «Завершено» — глубокий
 //   индиго, остальные статусы — бренд-фиолет.
 const MATRIX_COLS: { key: string; label: string; statuses: string[] }[] = [
-  { key: "notstarted", label: "Не начато",      statuses: ["new", "deferred"] },
-  { key: "init",       label: "Инициировано",   statuses: ["init"] },
-  { key: "active",     label: "В процессе",      statuses: ["active"] },
-  { key: "review",     label: "Согласование",    statuses: ["review"] },
-  { key: "done",       label: "Завершено",       statuses: ["done"] },
-  { key: "recurring",  label: "Регулярные",      statuses: ["quarterly", "monthly", "ongoing"] },
+  { key: "notstarted", label: i18nKey("Не начато"),      statuses: ["new", "deferred"] },
+  { key: "init",       label: i18nKey("Инициировано"),   statuses: ["init"] },
+  { key: "active",     label: i18nKey("В процессе"),      statuses: ["active"] },
+  { key: "review",     label: i18nKey("Согласование"),    statuses: ["review"] },
+  { key: "done",       label: i18nKey("Завершено"),       statuses: ["done"] },
+  { key: "recurring",  label: i18nKey("Регулярные"),      statuses: ["quarterly", "monthly", "ongoing"] },
 ];
 const STATUS_TO_COL: Record<string, string> = (() => {
   const m: Record<string, string> = {};
@@ -327,7 +334,7 @@ function mxCellStyle(colKey: string, n: number): Record<string, string> {
 function matrixDocHtml(): string {
   const m = matrix.value;
   const hcell = (x: string, al = "center") => `<th style="border:1px solid #2a375a;background:#1e2a4a;color:#fff;font:700 9.5px Arial;padding:5px;text-align:${al}">${x}</th>`;
-  const headCols = MATRIX_COLS.map(c => hcell(c.label)).join("");
+  const headCols = MATRIX_COLS.map(c => hcell(tr(c.label))).join("");
   const body = m.dirRows.map(d => {
     const cells = MATRIX_COLS.map(c => {
       const n = d.counts[c.key] || 0;
@@ -343,11 +350,11 @@ function matrixDocHtml(): string {
   const cw = (60 / MATRIX_COLS.length).toFixed(1);
   const cols = `<colgroup><col style="width:28%"/>${MATRIX_COLS.map(() => `<col style="width:${cw}%"/>`).join("")}<col style="width:8%"/></colgroup>`;
   return `<div style="margin-top:18px">
-    <div style="font:800 12px Arial;color:#14171F;margin-bottom:6px">СТАТУС-МАТРИЦА <span style="font:400 10px Arial;color:#8A8C99">· направления × статусы</span></div>
+    <div style="font:800 12px Arial;color:#14171F;margin-bottom:6px">${tr("СТАТУС-МАТРИЦА")} <span style="font:400 10px Arial;color:#8A8C99">· ${tr("направления × статусы")}</span></div>
     <table style="border-collapse:collapse;width:100%;table-layout:fixed">${cols}
-      <thead><tr>${hcell("Направление", "left")}${headCols}${hcell("Всего")}</tr></thead>
+      <thead><tr>${hcell(tr("Направление"), "left")}${headCols}${hcell(tr("Всего"))}</tr></thead>
       <tbody>${body}</tbody>
-      <tfoot><tr><td style="border:1px solid #d7d9e0;font:800 10px Arial;padding:4px;background:#eceaf6">Итого</td>${foot}<td style="border:1px solid #d7d9e0;text-align:center;font:800 10px Arial;padding:4px;background:#e3e0f4">${m.grand}</td></tr></tfoot>
+      <tfoot><tr><td style="border:1px solid #d7d9e0;font:800 10px Arial;padding:4px;background:#eceaf6">${tr("Итого")}</td>${foot}<td style="border:1px solid #d7d9e0;text-align:center;font:800 10px Arial;padding:4px;background:#e3e0f4">${m.grand}</td></tr></tfoot>
     </table></div>`;
 }
 
@@ -368,17 +375,20 @@ function money(v: number | null): string {
   return s.replace(/[\s,]/g, " ");
 }
 const KPI_PERIODS: { key: "year" | "q1" | "q2" | "q3" | "q4"; label: string }[] = [
-  { key: "year", label: "Год" }, { key: "q1", label: "I кв." }, { key: "q2", label: "II кв." },
-  { key: "q3", label: "III кв." }, { key: "q4", label: "IV кв." },
+  { key: "year", label: i18nKey("Год") }, { key: "q1", label: i18nKey("I кв.") }, { key: "q2", label: i18nKey("II кв.") },
+  { key: "q3", label: i18nKey("III кв.") }, { key: "q4", label: i18nKey("IV кв.") },
 ];
-function periodLabel(p: string): string { return KPI_PERIODS.find(x => x.key === p)?.label || "Год"; }
+function periodLabel(p: string): string {
+  const label = KPI_PERIODS.find(x => x.key === p)?.label;
+  return label ? tr(label) : tr("Год");
+}
 const apxYearOptions = computed(() => { const y = props.year; return [y + 1, y, y - 1, y - 2, y - 3]; });
 
 // ─── Фин. показатели (editor-эндпоинт, последний доступный год) ──
 const FIN_METRICS = [
-  { key: "revenue", label: "Выручка" }, { key: "ebitda", label: "EBITDA" },
-  { key: "profit", label: "Чистая прибыль" }, { key: "totalAssets", label: "Итого активы" },
-  { key: "equity", label: "Капитал" }, { key: "debt", label: "Итого долг" },
+  { key: "revenue", label: i18nKey("Выручка") }, { key: "ebitda", label: "EBITDA" },
+  { key: "profit", label: i18nKey("Чистая прибыль") }, { key: "totalAssets", label: i18nKey("Итого активы") },
+  { key: "equity", label: i18nKey("Капитал") }, { key: "debt", label: i18nKey("Итого долг") },
 ];
 const finStandard = ref<"IFRS" | "NSBU">("IFRS");
 const finValues = ref<Record<string, Record<string, number | null>>>({});
@@ -473,7 +483,7 @@ const kpiVM = computed(() => ({
   empty: kpiLoaded.value && !kpiManagers.value.length,
   overall: kpiOverall.value, periodLabel: periodLabel(apxPeriod.value), year: apxYear.value,
   groups: kpiManagers.value.map(m => ({
-    id: m.id, title: m.short_title || m.title || "Руководитель", role: m.role,
+    id: m.id, title: m.short_title || m.title || i18nKey("Руководитель"), role: m.role,
     inds: m.indicators.map(ind => ({
       id: ind.id, name: ind.name, unit: ind.unit, weight: kpiWeight(ind, apxPeriod.value),
       plan: effKpiPlan(ind), fact: effKpiFact(ind), ratio: kpiRatio(ind),
@@ -553,9 +563,9 @@ function ratingsDocHtml(): string {
       <td style="border:1px solid #d7d9e0;text-align:center;font:400 10px Arial;padding:4px;color:#5F6270">${esc(r.date || "—")}</td></tr>`).join("");
     return `<div style="margin-bottom:8px"><div style="font:700 10.5px Arial;color:#3A3D48;margin:6px 0 4px">${title}</div>
       <table style="border-collapse:collapse;width:100%;table-layout:fixed"><colgroup><col style="width:40%"/><col style="width:24%"/><col style="width:18%"/><col style="width:18%"/></colgroup>
-      <thead><tr>${th("Агентство", "left")}${th("Рейтинг")}${th("Прогноз")}${th("Дата")}</tr></thead><tbody>${body}</tbody></table></div>`;
+      <thead><tr>${th(tr("Агентство"), "left")}${th(tr("Рейтинг"))}${th(tr("Прогноз"))}${th(tr("Дата"))}</tr></thead><tbody>${body}</tbody></table></div>`;
   };
-  return `<div style="margin-top:18px"><div style="font:800 12px Arial;color:#14171F;margin-bottom:6px">РЕЙТИНГИ</div>${tbl("Кредитные рейтинги", v.credit)}${tbl("ESG-рейтинги", v.esg)}</div>`;
+  return `<div style="margin-top:18px"><div style="font:800 12px Arial;color:#14171F;margin-bottom:6px">${tr("РЕЙТИНГИ")}</div>${tbl(tr("Кредитные рейтинги"), v.credit)}${tbl(tr("ESG-рейтинги"), v.esg)}</div>`;
 }
 
 // ─── Тумблеры + правки приложения ───────────────────────────────
@@ -580,8 +590,8 @@ function finDocHtml(): string {
     <td style="border:1px solid #d7d9e0;text-align:right;font:400 10px Arial;padding:4px">${money(r.prev)}</td>
     <td style="border:1px solid #d7d9e0;text-align:right;font:700 10px Arial;padding:4px">${money(r.cur)}</td>
     <td style="border:1px solid #d7d9e0;text-align:right;font:400 10px Arial;padding:4px;color:#5F6270">${r.yoy == null ? "" : (r.yoy > 0 ? "+" : "−") + Math.abs(Math.round(r.yoy * 100)) + "%"}</td></tr>`).join("");
-  return `<div style="margin-top:18px"><div style="font:800 12px Arial;color:#14171F;margin-bottom:6px">ОСНОВНЫЕ ФИНАНСОВЫЕ ПОКАЗАТЕЛИ <span style="font:400 10px Arial;color:#8A8C99">· за ${v.year} год · млрд сум · ${v.standard}</span></div>
-    <table style="border-collapse:collapse;width:100%;table-layout:fixed"><colgroup><col style="width:46%"/><col style="width:18%"/><col style="width:18%"/><col style="width:18%"/></colgroup><thead><tr>${th("Показатель", "left")}${th(String(v.prev))}${th(String(v.year))}${th("Δ г/г")}</tr></thead><tbody>${rows}</tbody></table></div>`;
+  return `<div style="margin-top:18px"><div style="font:800 12px Arial;color:#14171F;margin-bottom:6px">${tr("ОСНОВНЫЕ ФИНАНСОВЫЕ ПОКАЗАТЕЛИ")} <span style="font:400 10px Arial;color:#8A8C99">· ${tr("за {year} год · млрд сум", { year: v.year })} · ${v.standard}</span></div>
+    <table style="border-collapse:collapse;width:100%;table-layout:fixed"><colgroup><col style="width:46%"/><col style="width:18%"/><col style="width:18%"/><col style="width:18%"/></colgroup><thead><tr>${th(tr("Показатель"), "left")}${th(String(v.prev))}${th(String(v.year))}${th(tr("Δ г/г"))}</tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 function kpiDocHtml(): string {
   const v = kpiVM.value; if (v.empty) return "";
@@ -596,9 +606,9 @@ function kpiDocHtml(): string {
       <td style="border:1px solid #d7d9e0;text-align:center;font:700 10px Arial;padding:4px">${ind.ratio == null ? "—" : Math.round(ind.ratio * 100) + "%"}</td></tr>`).join("");
     return head + inds;
   }).join("");
-  const ov = v.overall == null ? "" : ` · итого ${Math.round(v.overall * 100)}%`;
-  return `<div style="margin-top:18px"><div style="font:800 12px Arial;color:#14171F;margin-bottom:6px">ИСПОЛНЕНИЕ KPI <span style="font:400 10px Arial;color:#8A8C99">· ${v.year} · ${v.periodLabel}${ov}</span></div>
-    <table style="border-collapse:collapse;width:100%;table-layout:fixed"><colgroup><col style="width:44%"/><col style="width:8%"/><col style="width:15%"/><col style="width:15%"/><col style="width:8%"/><col style="width:10%"/></colgroup><thead><tr>${th("КПЭ", "left")}${th("Ед.")}${th("План")}${th("Факт")}${th("Вес")}${th("Исполн.")}</tr></thead><tbody>${body}</tbody></table></div>`;
+  const ov = v.overall == null ? "" : ` · ${tr("итого {percent}%", { percent: Math.round(v.overall * 100) })}`;
+  return `<div style="margin-top:18px"><div style="font:800 12px Arial;color:#14171F;margin-bottom:6px">${tr("ИСПОЛНЕНИЕ KPI")} <span style="font:400 10px Arial;color:#8A8C99">· ${v.year} · ${v.periodLabel}${ov}</span></div>
+    <table style="border-collapse:collapse;width:100%;table-layout:fixed"><colgroup><col style="width:44%"/><col style="width:8%"/><col style="width:15%"/><col style="width:15%"/><col style="width:8%"/><col style="width:10%"/></colgroup><thead><tr>${th(tr("КПЭ"), "left")}${th(tr("Ед."))}${th(tr("План"))}${th(tr("Факт"))}${th(tr("Вес"))}${th(tr("Исполн."))}</tr></thead><tbody>${body}</tbody></table></div>`;
 }
 function bpDocHtml(): string {
   const v = bpVM.value; if (v.empty) return "";
@@ -608,9 +618,9 @@ function bpDocHtml(): string {
     <td style="border:1px solid #d7d9e0;text-align:right;font:400 10px Arial;padding:4px">${money(r.expect)}</td>
     <td style="border:1px solid #d7d9e0;text-align:right;font:400 10px Arial;padding:4px">${money(r.fact)}</td>
     <td style="border:1px solid #d7d9e0;text-align:center;font:700 10px Arial;padding:4px">${r.ratio == null ? "—" : Math.round(r.ratio * 100) + "%"}</td></tr>`).join("");
-  const ov = v.overall == null ? "" : ` · выручка ${Math.round(v.overall * 100)}%`;
-  return `<div style="margin-top:18px"><div style="font:800 12px Arial;color:#14171F;margin-bottom:6px">ИСПОЛНЕНИЕ БИЗНЕС-ПЛАНА <span style="font:400 10px Arial;color:#8A8C99">· ${v.year} · ${v.periodLabel} · млрд сум${ov}</span></div>
-    <table style="border-collapse:collapse;width:100%;table-layout:fixed"><colgroup><col style="width:44%"/><col style="width:16%"/><col style="width:16%"/><col style="width:16%"/><col style="width:8%"/></colgroup><thead><tr>${th("Показатель", "left")}${th("План")}${th("Ожид.")}${th("Факт")}${th("Исполн.")}</tr></thead><tbody>${rows}</tbody></table></div>`;
+  const ov = v.overall == null ? "" : ` · ${tr("выручка {percent}%", { percent: Math.round(v.overall * 100) })}`;
+  return `<div style="margin-top:18px"><div style="font:800 12px Arial;color:#14171F;margin-bottom:6px">${tr("ИСПОЛНЕНИЕ БИЗНЕС-ПЛАНА")} <span style="font:400 10px Arial;color:#8A8C99">· ${v.year} · ${v.periodLabel} · ${tr("млрд сум")}${ov}</span></div>
+    <table style="border-collapse:collapse;width:100%;table-layout:fixed"><colgroup><col style="width:44%"/><col style="width:16%"/><col style="width:16%"/><col style="width:16%"/><col style="width:8%"/></colgroup><thead><tr>${th(tr("Показатель"), "left")}${th(tr("План"))}${th(tr("Ожид."))}${th(tr("Факт"))}${th(tr("Исполн."))}</tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
 // ─── Печать (альбомная ориентация, teleport-оверлей) ─────────────
@@ -658,28 +668,37 @@ async function exportDoc() {
   exporting.value = true;
   try {
     const s = summary.value;
-    const sumLine = (t: typeof s.projects) =>
-      `завершено ${t.done} (${pct(t.done, t.total)}%) · в процессе ${t.inprogress} (${pct(t.inprogress, t.total)}%) · не начато ${t.notstarted} (${pct(t.notstarted, t.total)}%)`;
+    const sumLine = (totals: typeof s.projects) => tr(
+      i18nKey("завершено {done} ({donePct}%) · в процессе {active} ({activePct}%) · не начато {newCount} ({newPct}%)"),
+      {
+        done: totals.done,
+        donePct: pct(totals.done, totals.total),
+        active: totals.inprogress,
+        activePct: pct(totals.inprogress, totals.total),
+        newCount: totals.notstarted,
+        newPct: pct(totals.notstarted, totals.total),
+      },
+    );
     const [minfinB64, uzaB64, eptB64] = await Promise.all([
       rasterize(minfinLogoUrl, 46),
       rasterize(uzassetsLogoUrl, 30),
       rasterize("data:image/svg+xml;charset=utf-8," + encodeURIComponent(EPT_SVG), 30),
     ]);
-    const eptCell = `<table style="margin:0 auto;border-collapse:collapse"><tr>${eptB64 ? `<td style="vertical-align:middle;padding-right:7px"><img src="${eptB64}" height="30" style="height:30px"/></td>` : ""}<td style="vertical-align:middle;text-align:left;font:800 11px Arial;color:#4B4A9A;letter-spacing:.5px;line-height:1.2">ЕДИНАЯ ПЛАТФОРМА<br/>ТРАНСФОРМАЦИИ</td></tr></table>`;
+    const eptCell = `<table style="margin:0 auto;border-collapse:collapse"><tr>${eptB64 ? `<td style="vertical-align:middle;padding-right:7px"><img src="${eptB64}" height="30" style="height:30px"/></td>` : ""}<td style="vertical-align:middle;text-align:left;font:800 11px Arial;color:#4B4A9A;letter-spacing:.5px;line-height:1.2">${tr("ЕДИНАЯ ПЛАТФОРМА")}<br/>${tr("ТРАНСФОРМАЦИИ")}</td></tr></table>`;
     // Официальная тройная шапка (как в печати): Минфин · EPT · UzAssets.
     const head = `
       <table style="width:100%;border-collapse:collapse;border-bottom:2.5px solid #4B4A9A;margin-bottom:10px"><tr>
-        <td style="width:32%;text-align:left;padding-bottom:8px;vertical-align:middle">${minfinB64 ? `<img src="${minfinB64}" height="46" style="height:46px"/>` : `<span style="font:700 11px Arial;color:#1E2A4A">Иқтисодиёт ва молия вазирлиги</span>`}</td>
+        <td style="width:32%;text-align:left;padding-bottom:8px;vertical-align:middle">${minfinB64 ? `<img src="${minfinB64}" height="46" style="height:46px"/>` : `<span style="font:700 11px Arial;color:#1E2A4A">${tr("Министерство экономики и финансов")}</span>`}</td>
         <td style="width:36%;text-align:center;padding-bottom:8px;vertical-align:middle">${eptCell}</td>
         <td style="width:32%;text-align:right;padding-bottom:8px;vertical-align:middle">${uzaB64 ? `<img src="${uzaB64}" height="30" style="height:30px"/>` : `<span style="font:800 14px Arial;color:#6C5CE7">UzAssets</span>`}</td>
       </tr><tr>
         <td colspan="2" style="padding-top:8px;font:800 17px Arial;color:#14171F">${esc(props.companyName)}</td>
-        <td style="padding-top:8px;text-align:right;font:600 10px Arial;color:#8A8C99;text-transform:uppercase">${props.sectorName ? esc(props.sectorName) + " · " : ""}отчёт по проектам</td>
+        <td style="padding-top:8px;text-align:right;font:600 10px Arial;color:#8A8C99;text-transform:uppercase">${props.sectorName ? esc(props.sectorName) + " · " : ""}${tr("отчёт по проектам")}</td>
       </tr></table>
       <div style="font:11px Arial;color:#3A3D48;margin:0 0 12px;line-height:1.5">
-        <b>Проекты:</b> ${s.projects.total} — ${sumLine(s.projects)}<br/>
-        <b>Задачи:</b> ${s.tasks.total} — ${sumLine(s.tasks)}
-        <div style="color:#8A8C99;font-size:10px;margin-top:3px">FY ${props.year} · по состоянию на ${stampToday()}</div>
+        <b>${tr("Проекты:")}</b> ${s.projects.total} — ${sumLine(s.projects)}<br/>
+        <b>${tr("Задачи:")}</b> ${s.tasks.total} — ${sumLine(s.tasks)}
+        <div style="color:#8A8C99;font-size:10px;margin-top:3px">FY ${props.year} · ${tr("по состоянию на {date}", { date: stampToday() })}</div>
       </div>`;
     const th = (x: string) => `<th style="border:1px solid #2a375a;background:#1e2a4a;color:#fff;font:700 10px Arial;padding:6px;text-align:left">${x}</th>`;
     const td = (x: string, b = false) => `<td style="border:1px solid #d7d9e0;font:${b ? "700" : "400"} 10.5px Arial;padding:5px;vertical-align:top">${esc(x)}</td>`;
@@ -705,15 +724,15 @@ async function exportDoc() {
       </style></head>
       <body><div class="WordSection1">${head}
       <table style="border-collapse:collapse;width:100%;table-layout:fixed">${mainCols}
-        <thead><tr>${["№", "Направление", "Проект / Задача", "Срок", "Статус", "Комментарий / статус"].map(th).join("")}</tr></thead>
+        <thead><tr>${[tr("№"), tr("Направление"), tr("Проект / Задача"), tr("Срок"), tr("Статус"), tr("Комментарий / статус")].map(th).join("")}</tr></thead>
         <tbody>${body}</tbody></table>${sections}</div></body></html>`;
     const blob = new Blob(["﻿", html], { type: "application/msword" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url; a.download = `Отчёт по проектам — ${props.companyName} — FY${props.year}.doc`;
+    a.href = url; a.download = `${tr("Отчёт по проектам")} — ${props.companyName} — FY${props.year}.doc`;
     document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
   } catch (e: any) {
-    toast.error("Не удалось сформировать Word: " + (e?.message || ""));
+    toast.error(tr('Не удалось сформировать Word: {value0}', { value0: (e?.message || "") }));
   } finally { exporting.value = false; }
 }
 
@@ -731,88 +750,88 @@ watch(apxPeriod, () => { scheduleSave(); if (showBp.value) loadBp(); });
     <table class="psr-lh">
       <tbody>
         <tr class="lh-logos">
-          <td class="lh-left"><img :src="minfinLogoUrl" alt="Иқтисодиёт ва молия вазирлиги" class="lh-minfin" /></td>
+          <td class="lh-left"><img :src="minfinLogoUrl" :alt="tr('Иқтисодиёт ва молия вазирлиги')" class="lh-minfin" /></td>
           <td class="lh-center">
             <div class="lh-ept">
               <EptLogo :size="30" class="lh-ept-mark" />
-              <div class="lh-ept-t">ЕДИНАЯ ПЛАТФОРМА<br />ТРАНСФОРМАЦИИ</div>
+              <div class="lh-ept-t">{{ tr('ЕДИНАЯ ПЛАТФОРМА') }}<br />{{ tr('ТРАНСФОРМАЦИИ') }}</div>
             </div>
           </td>
           <td class="lh-right"><img :src="uzassetsLogoUrl" alt="UzAssets" class="lh-uza" /></td>
         </tr>
         <tr class="lh-titlerow">
           <td colspan="2" class="lh-company">{{ companyName }}</td>
-          <td class="lh-sector">{{ sectorName || "—" }} · отчёт по проектам</td>
+          <td class="lh-sector">{{ sectorName || "—" }} {{ tr('· отчёт по проектам') }}</td>
         </tr>
       </tbody>
     </table>
 
     <!-- ── Тулбар действий (вне печати) ── -->
     <div class="psr-toolbar">
-      <span class="psr-tb-sub">Реализация мероприятий трансформации · FY {{ year }}</span>
+      <span class="psr-tb-sub">{{ tr('Реализация мероприятий трансформации · FY') }} {{ year }}</span>
       <span class="psr-tb-sp" />
-      <transition name="psr-fade"><span v-if="saving" class="psr-saving">● сохранение</span></transition>
-      <button class="psr-btn ghost" @click="resetOverrides" title="Вернуть данные из системы">Сбросить правки</button>
+      <transition name="psr-fade"><span v-if="saving" class="psr-saving">{{ tr('● сохранение') }}</span></transition>
+      <button class="psr-btn ghost" @click="resetOverrides" :title="tr('Вернуть данные из системы')">{{ tr('Сбросить правки') }}</button>
       <button class="psr-btn ghost" @click="exportDoc">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-        Экспорт в Word
+        {{ tr('Экспорт в Word') }}
       </button>
       <button class="psr-btn" @click="openPrint">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z"/></svg>
-        Печать
+        {{ tr('Печать') }}
       </button>
     </div>
 
     <!-- ── Приложение: разделы в конце листа + выбор периода (вне печати) ── -->
     <div class="psr-apxbar">
-      <span class="psr-apx-label">В конце листа:</span>
+      <span class="psr-apx-label">{{ tr('В конце листа:') }}</span>
       <label class="psr-toggle" :class="{ on: showMatrix }">
         <input type="checkbox" :checked="showMatrix" @change="toggleMatrix" />
-        <span class="psr-toggle-track"><span class="psr-toggle-knob" /></span>Статус-матрица
+        <span class="psr-toggle-track"><span class="psr-toggle-knob" /></span>{{ tr('Статус-матрица') }}
       </label>
       <label class="psr-toggle" :class="{ on: showFin }">
         <input type="checkbox" :checked="showFin" @change="toggleFin" />
-        <span class="psr-toggle-track"><span class="psr-toggle-knob" /></span>Фин. показатели
+        <span class="psr-toggle-track"><span class="psr-toggle-knob" /></span>{{ tr('Фин. показатели') }}
       </label>
       <label class="psr-toggle" :class="{ on: showKpi }">
         <input type="checkbox" :checked="showKpi" @change="toggleKpi" />
-        <span class="psr-toggle-track"><span class="psr-toggle-knob" /></span>Исполнение KPI
+        <span class="psr-toggle-track"><span class="psr-toggle-knob" /></span>{{ tr('Исполнение KPI') }}
       </label>
       <label class="psr-toggle" :class="{ on: showBp }">
         <input type="checkbox" :checked="showBp" @change="toggleBp" />
-        <span class="psr-toggle-track"><span class="psr-toggle-knob" /></span>Бизнес-план
+        <span class="psr-toggle-track"><span class="psr-toggle-knob" /></span>{{ tr('Бизнес-план') }}
       </label>
       <label class="psr-toggle" :class="{ on: showRatings }">
         <input type="checkbox" :checked="showRatings" @change="toggleRatings" />
-        <span class="psr-toggle-track"><span class="psr-toggle-knob" /></span>Рейтинги
+        <span class="psr-toggle-track"><span class="psr-toggle-knob" /></span>{{ tr('Рейтинги') }}
       </label>
       <template v-if="showKpi || showBp">
         <span class="psr-apx-sep" />
-        <span class="psr-apx-label">Период:</span>
+        <span class="psr-apx-label">{{ tr('Период:') }}</span>
         <select class="psr-sel" :value="apxYear" @change="apxYear = Number(($event.target as HTMLSelectElement).value)">
           <option v-for="y in apxYearOptions" :key="y" :value="y">{{ y }}</option>
         </select>
         <div class="psr-segctl">
-          <button v-for="p in KPI_PERIODS" :key="p.key" :class="{ on: apxPeriod === p.key }" @click="apxPeriod = p.key">{{ p.label }}</button>
+          <button v-for="p in KPI_PERIODS" :key="p.key" :class="{ on: apxPeriod === p.key }" @click="apxPeriod = p.key">{{ tr(p.label) }}</button>
         </div>
       </template>
     </div>
 
     <!-- ── Фильтр-чипы по статусу (вне печати) ── -->
     <div v-if="rows.length" class="psr-filterbar">
-      <span class="psr-fb-l">Статус:</span>
+      <span class="psr-fb-l">{{ tr('Статус:') }}</span>
       <button class="psr-chip" :class="{ on: statusFilter === null }" @click="statusFilter = null">
-        Все <b>{{ filterChips.total }}</b>
+        {{ tr('Все') }} <b>{{ filterChips.total }}</b>
       </button>
       <button v-for="c in filterChips.chips" :key="c.key" class="psr-chip"
               :class="{ on: statusFilter === c.key }"
               :style="statusFilter === c.key ? { background: c.color + '18', borderColor: c.color, color: c.color } : {}"
               @click="statusFilter = statusFilter === c.key ? null : c.key">
-        <span class="psr-chip-dot" :style="{ background: c.color }" />{{ c.label }} <b>{{ c.count }}</b>
+        <span class="psr-chip-dot" :style="{ background: c.color }" />{{ tr(c.label) }} <b>{{ c.count }}</b>
       </button>
       <button v-if="filterChips.overdue" class="psr-chip psr-chip-od" :class="{ on: statusFilter === 'overdue' }"
               @click="statusFilter = statusFilter === 'overdue' ? null : 'overdue'">
-        <span class="psr-chip-dot" style="background:#E24B4A" />Просроченные <b>{{ filterChips.overdue }}</b>
+        <span class="psr-chip-dot" style="background:#E24B4A" />{{ tr('Просроченные') }} <b>{{ filterChips.overdue }}</b>
       </button>
     </div>
 
@@ -822,45 +841,45 @@ watch(apxPeriod, () => { scheduleSave(); if (showBp.value) loadBp(); });
       <table v-else class="psr-table">
         <thead>
           <tr>
-            <th class="c-pick" title="Отметьте, что включить в печать/экспорт">
-              <input type="checkbox" class="psr-cb" :checked="allIncluded" @change="toggleAll" title="Выбрать всё / снять всё" />
+            <th class="c-pick" :title="tr('Отметьте, что включить в печать/экспорт')">
+              <input type="checkbox" class="psr-cb" :checked="allIncluded" @change="toggleAll" :title="tr('Выбрать всё / снять всё')" />
             </th>
             <th class="c-num">№</th>
-            <th class="c-dir">Направление</th>
-            <th class="c-title">Проект / Задача</th>
-            <th class="c-srok">Срок</th>
-            <th class="c-status">Статус</th>
-            <th class="c-com">Комментарий / статус</th>
+            <th class="c-dir">{{ tr('Направление') }}</th>
+            <th class="c-title">{{ tr('Проект / Задача') }}</th>
+            <th class="c-srok">{{ tr('Срок') }}</th>
+            <th class="c-status">{{ tr('Статус') }}</th>
+            <th class="c-com">{{ tr('Комментарий / статус') }}</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="r in displayRows" :key="r.id" :class="{ 'is-project': r.kind === 'project', 'is-edited': isEdited(r), 'is-excluded': !isIncluded(r.id) }">
-            <td class="c-pick"><input type="checkbox" class="psr-cb" :checked="isIncluded(r.id)" @change="toggleRow(r.id)" :title="isIncluded(r.id) ? 'Включено в отчёт' : 'Исключено из отчёта'" /></td>
+            <td class="c-pick"><input type="checkbox" class="psr-cb" :checked="isIncluded(r.id)" @change="toggleRow(r.id)" :title="isIncluded(r.id) ? tr('Включено в отчёт') : tr('Исключено из отчёта')" /></td>
             <td class="c-num">{{ r.num }}</td>
             <td class="c-dir">
               <span class="psr-dir-dot" :style="{ background: dirColor(r.dirCode) }" />
-              <span class="psr-dir-l" :style="{ color: dirColor(r.dirCode) }">{{ dirLabel(r.dirCode) }}</span>
+              <span class="psr-dir-l" :style="{ color: dirColor(r.dirCode) }">{{ tr(dirLabel(r.dirCode)) }}</span>
             </td>
             <td class="c-title"><span class="psr-title-txt" :class="{ proj: r.kind === 'project' }">{{ r.title }}</span></td>
             <td class="c-srok"><input class="psr-in" :value="effSrok(r)" @change="setOverride(r.id, 'srok', ($event.target as HTMLInputElement).value)" /></td>
             <td class="c-status">
               <span class="psr-pill" :style="{ color: statusColor(effStatus(r)), background: statusColor(effStatus(r)) + '1a' }">
-                {{ statusLabel(effStatus(r)) }}
+                {{ tr(statusLabel(effStatus(r))) }}
                 <select class="psr-pill-sel" :value="effStatus(r)" @change="setOverride(r.id, 'status', ($event.target as HTMLSelectElement).value)">
-                  <option v-for="o in STATUS_OPTIONS" :key="o" :value="o">{{ statusLabel(o) }}</option>
+                  <option v-for="o in STATUS_OPTIONS" :key="o" :value="o">{{ tr(statusLabel(o)) }}</option>
                 </select>
               </span>
             </td>
             <td class="c-com">
               <div class="psr-com">
-                <span v-if="r.health" class="psr-health" :title="HEALTH_META[r.health].label" :style="{ background: HEALTH_META[r.health].color }" />
+                <span v-if="r.health" class="psr-health" :title="tr(HEALTH_META[r.health].label)" :style="{ background: HEALTH_META[r.health].color }" />
                 <textarea class="psr-ta" :value="effComment(r)" rows="1" placeholder="—"
                           @focus="autoGrow" @input="autoGrow"
                           @change="setOverride(r.id, 'comment', ($event.target as HTMLTextAreaElement).value)"></textarea>
               </div>
             </td>
           </tr>
-          <tr v-if="!rows.length"><td colspan="7" class="psr-empty">Нет проектов и задач за {{ year }} год.</td></tr>
+          <tr v-if="!rows.length"><td colspan="7" class="psr-empty">{{ tr('Нет проектов и задач за') }} {{ year }} {{ tr('год.') }}</td></tr>
         </tbody>
       </table>
     </div>
@@ -883,10 +902,10 @@ watch(apxPeriod, () => { scheduleSave(); if (showBp.value) loadBp(); });
     <Teleport to="body">
       <div v-if="printOpen" class="pdoc-overlay">
         <div class="pdoc-toolbar">
-          <span class="pdt-title">Предпросмотр печати · альбомная ориентация</span>
+          <span class="pdt-title">{{ tr('Предпросмотр печати · альбомная ориентация') }}</span>
           <span class="pdt-sp" />
-          <button class="pdt-btn" @click="doPrint">Печать</button>
-          <button class="pdt-btn ghost" @click="closePrint">Закрыть</button>
+          <button class="pdt-btn" @click="doPrint">{{ tr('Печать') }}</button>
+          <button class="pdt-btn ghost" @click="closePrint">{{ tr('Закрыть') }}</button>
         </div>
         <div class="pdoc-scroll">
           <div class="pdoc-sheet psr-print">
@@ -897,34 +916,34 @@ watch(apxPeriod, () => { scheduleSave(); if (showBp.value) loadBp(); });
                   <td class="lh-center">
                     <div class="lh-ept">
                       <EptLogo :size="30" class="lh-ept-mark" />
-                      <div class="lh-ept-t">ЕДИНАЯ ПЛАТФОРМА<br />ТРАНСФОРМАЦИИ</div>
+                      <div class="lh-ept-t">{{ tr('ЕДИНАЯ ПЛАТФОРМА') }}<br />{{ tr('ТРАНСФОРМАЦИИ') }}</div>
                     </div>
                   </td>
                   <td class="lh-right"><img :src="uzassetsLogoUrl" alt="" class="lh-uza" /></td>
                 </tr>
                 <tr class="lh-titlerow">
                   <td colspan="2" class="lh-company">{{ companyName }}</td>
-                  <td class="lh-sector">{{ sectorName || "—" }} · отчёт по проектам</td>
+                  <td class="lh-sector">{{ sectorName || "—" }} {{ tr('· отчёт по проектам') }}</td>
                 </tr>
               </tbody>
             </table>
             <div class="psr-print-sum">
-              <b>Проекты:</b> {{ summary.projects.total }} — завершено {{ summary.projects.done }} ({{ pct(summary.projects.done, summary.projects.total) }}%) · в процессе {{ summary.projects.inprogress }} ({{ pct(summary.projects.inprogress, summary.projects.total) }}%) · не начато {{ summary.projects.notstarted }} ({{ pct(summary.projects.notstarted, summary.projects.total) }}%)<br />
-              <b>Задачи:</b> {{ summary.tasks.total }} — завершено {{ summary.tasks.done }} ({{ pct(summary.tasks.done, summary.tasks.total) }}%) · в процессе {{ summary.tasks.inprogress }} ({{ pct(summary.tasks.inprogress, summary.tasks.total) }}%) · не начато {{ summary.tasks.notstarted }} ({{ pct(summary.tasks.notstarted, summary.tasks.total) }}%)
-              <span class="psr-print-stamp">по состоянию на {{ stampToday() }}</span>
+              <b>{{ tr('Проекты:') }}</b> {{ summary.projects.total }} {{ tr('— завершено') }} {{ summary.projects.done }} ({{ pct(summary.projects.done, summary.projects.total) }}{{ tr('%) · в процессе') }} {{ summary.projects.inprogress }} ({{ pct(summary.projects.inprogress, summary.projects.total) }}{{ tr('%) · не начато') }} {{ summary.projects.notstarted }} ({{ pct(summary.projects.notstarted, summary.projects.total) }}%)<br />
+              <b>{{ tr('Задачи:') }}</b> {{ summary.tasks.total }} {{ tr('— завершено') }} {{ summary.tasks.done }} ({{ pct(summary.tasks.done, summary.tasks.total) }}{{ tr('%) · в процессе') }} {{ summary.tasks.inprogress }} ({{ pct(summary.tasks.inprogress, summary.tasks.total) }}{{ tr('%) · не начато') }} {{ summary.tasks.notstarted }} ({{ pct(summary.tasks.notstarted, summary.tasks.total) }}%)
+              <span class="psr-print-stamp">{{ tr('по состоянию на') }} {{ stampToday() }}</span>
             </div>
             <table class="psr-print-tbl">
               <thead>
-                <tr><th>№</th><th>Направление</th><th>Проект / Задача</th><th>Срок</th><th>Статус</th><th>Комментарий / статус</th></tr>
+                <tr><th>№</th><th>{{ tr('Направление') }}</th><th>{{ tr('Проект / Задача') }}</th><th>{{ tr('Срок') }}</th><th>{{ tr('Статус') }}</th><th>{{ tr('Комментарий / статус') }}</th></tr>
               </thead>
               <tbody>
                 <tr v-for="r in printableRows" :key="r.id" :class="{ proj: r.kind === 'project' }">
                   <td class="pn">{{ r.num }}</td>
-                  <td class="pd">{{ dirLabel(r.dirCode) }}</td>
+                  <td class="pd">{{ tr(dirLabel(r.dirCode)) }}</td>
                   <td :class="{ pt: r.kind === 'project' }">{{ r.title }}</td>
                   <td class="ps">{{ effSrok(r) }}</td>
                   <td class="pst">
-                    <span class="psr-print-pill" :style="{ background: printStatusStyle(effStatus(r)).bg, color: printStatusStyle(effStatus(r)).color, fontWeight: printStatusStyle(effStatus(r)).weight }">{{ statusLabel(effStatus(r)) }}</span>
+                    <span class="psr-print-pill" :style="{ background: printStatusStyle(effStatus(r)).bg, color: printStatusStyle(effStatus(r)).color, fontWeight: printStatusStyle(effStatus(r)).weight }">{{ tr(statusLabel(effStatus(r))) }}</span>
                   </td>
                   <td class="pc">{{ effComment(r) }}</td>
                 </tr>
@@ -941,7 +960,7 @@ watch(apxPeriod, () => { scheduleSave(); if (showBp.value) loadBp(); });
               :bp="bpVM"
               :rat="ratingsVM"
             />
-            <div class="psr-print-foot">Единая платформа трансформации · UzAssets — сформировано {{ stampToday() }}</div>
+            <div class="psr-print-foot">{{ tr('Единая платформа трансформации · UzAssets — сформировано') }} {{ stampToday() }}</div>
           </div>
         </div>
       </div>

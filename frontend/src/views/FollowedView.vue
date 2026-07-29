@@ -5,6 +5,8 @@ import { PLATFORM_UPDATING_MESSAGE } from "@/api/client";
 import { useEntityEditor } from "@/composables/useEntityEditor";
 import { useToast } from "@/composables/useToast";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 const { t } = useI18n();
 
 
@@ -15,17 +17,17 @@ const loading = ref(true);
 const loadError = ref(false);
 
 const HEALTH: Record<string, { c: string; l: string }> = {
-  on_track: { c: "#1D9E75", l: "В графике" },
-  at_risk:  { c: "#EF9F27", l: "Под риском" },
-  delayed:  { c: "#E24B4A", l: "Задержка" },
-  blocked:  { c: "#7A1F1F", l: "Блокер" },
+  on_track: { c: "#1D9E75", l: i18nKey("В графике") },
+  at_risk:  { c: "#EF9F27", l: i18nKey("Под риском") },
+  delayed:  { c: "#E24B4A", l: i18nKey("Задержка") },
+  blocked:  { c: "#7A1F1F", l: i18nKey("Блокер") },
 };
 const STATUS: Record<string, { c: string; l: string }> = {
-  init: { c: "#94A3B8", l: "Инициировано" }, new: { c: "#94A3B8", l: "Не начато" },
-  active: { c: "#378ADD", l: "В процессе" }, review: { c: "#7F77DD", l: "На проверке" },
-  done: { c: "#1D9E75", l: "Завершено" }, quarterly: { c: "#7F77DD", l: "Ежеквартально" },
-  monthly: { c: "#7F77DD", l: "Ежемесячно" }, ongoing: { c: "#7F77DD", l: "Постоянно" },
-  deferred: { c: "#94A3B8", l: "Отложено" },
+  init: { c: "#94A3B8", l: i18nKey("Инициировано") }, new: { c: "#94A3B8", l: i18nKey("Не начато") },
+  active: { c: "#378ADD", l: i18nKey("В процессе") }, review: { c: "#7F77DD", l: i18nKey("На проверке") },
+  done: { c: "#1D9E75", l: i18nKey("Завершено") }, quarterly: { c: "#7F77DD", l: i18nKey("Ежеквартально") },
+  monthly: { c: "#7F77DD", l: i18nKey("Ежемесячно") }, ongoing: { c: "#7F77DD", l: i18nKey("Постоянно") },
+  deferred: { c: "#94A3B8", l: i18nKey("Отложено") },
 };
 const RISK_HEALTH = new Set(["at_risk", "delayed", "blocked"]);
 
@@ -35,7 +37,7 @@ async function load() {
     items.value = await watchesApi.mine();
   } catch (e: any) {
     loadError.value = true;
-    toast.error(e?.message || "Не удалось загрузить отслеживаемое");
+    toast.error(e?.message || t('Не удалось загрузить отслеживаемое'));
   } finally { loading.value = false; }
 }
 onMounted(load);
@@ -131,10 +133,10 @@ async function unfollow(it: WatchedItem, ev: Event) {
   items.value = items.value.filter((x) => !(x.entity_type === it.entity_type && x.entity_id === it.entity_id));
   try {
     await watchesApi.unfollow(it.entity_type, it.entity_id);
-    toast.success("Вы перестали отслеживать");
+    toast.success(t('Вы перестали отслеживать'));
   } catch (e: any) {
     items.value = snapshot;                            // откат оптимистичного удаления
-    toast.error(e?.message || "Не удалось отписаться");
+    toast.error(e?.message || t('Не удалось отписаться'));
   } finally { _unfollowing.value.delete(key); }
 }
 </script>
@@ -148,7 +150,7 @@ async function unfollow(it: WatchedItem, ev: Event) {
         <h1 class="fl-title">{{ t('Отслеживаемое') }}</h1>
         <div class="fl-sub">{{ t('Проекты и задачи, об изменениях которых вы получаете уведомления') }}</div>
       </div>
-      <div class="fl-live" :title="`${items.length} в отслеживании`">
+      <div class="fl-live" :title="t('{value0} в отслеживании', { value0: items.length })">
         <span class="fl-live-dot"></span>{{ items.length }}
       </div>
     </div>
@@ -245,14 +247,14 @@ async function unfollow(it: WatchedItem, ev: Event) {
         <span
           class="fl-dot"
           :class="{ pulse: it.current_health && RISK_HEALTH.has(it.current_health) }"
-          :title="(it.current_health && HEALTH[it.current_health]) ? HEALTH[it.current_health].l : 'Нет оценки хода'"
+          :title="(it.current_health && HEALTH[it.current_health]) ? HEALTH[it.current_health].l : t('Нет оценки хода')"
         ></span>
         <div class="fl-main">
           <div class="fl-row-title">
             <span v-if="it.num" class="fl-num">{{ it.num }}</span>{{ it.title }}
           </div>
           <div class="fl-row-meta">
-            <span class="fl-type">{{ it.entity_type === "project" ? "Проект" : "Задача" }}</span>
+            <span class="fl-type">{{ it.entity_type === "project" ? t('Проект') : t('Задача') }}</span>
             <span class="fl-meta-sep">·</span>
             <span class="fl-co">{{ it.company_name || "—" }}</span>
             <template v-if="it.current_health && HEALTH[it.current_health]">

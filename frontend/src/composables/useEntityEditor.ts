@@ -12,6 +12,8 @@
 // вместо router.push.
 import { reactive } from "vue";
 import { api } from "@/api/client";
+import { t } from "@/locale/i18n";
+
 
 type Kind = "task" | "project";
 
@@ -66,7 +68,7 @@ async function openEntity(kind: Kind, id: string): Promise<void> {
     state.entity = data;
   } catch (e: any) {
     state.error =
-      e?.response?.data?.detail || e?.message || "Не удалось загрузить запись";
+      e?.response?.data?.detail || e?.message || t('Не удалось загрузить запись');
   } finally {
     state.loading = false;
   }

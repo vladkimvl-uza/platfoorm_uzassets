@@ -9,6 +9,8 @@
 import { ref } from "vue";
 import { api } from "@/api/client";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 
 const { t } = useI18n();
 
@@ -28,9 +30,9 @@ const props = withDefaults(
   }>(),
   {
     endpoint:    "/forensic/import-excel",
-    title:       "Импорт плана/факта закупок · Excel",
-    description: "3-листовой файл: Инструкция · Компании · Данные. Скачайте шаблон ниже если ещё нет.",
-    sheetMatch:  () => /данные/i,
+    title:       i18nKey("Импорт плана/факта закупок · Excel"),
+    description: i18nKey("3-листовой файл: Инструкция · Компании · Данные. Скачайте шаблон ниже если ещё нет."),
+    sheetMatch:  () => /данные/i, // i18n-exempt -- supported source-sheet alias
     // Дефолты defineProps хойстятся ВНЕ setup() — вызывать здесь t() нельзя
     // (компилятор Vue падает). Строки-дефолты хранятся по-русски и
     // переводятся в точке отображения; formatResult по умолчанию null.

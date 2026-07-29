@@ -139,6 +139,9 @@ async def create_status_update(
         actor_id=user.id, notif_type="watch.progress",
         title=f"Обновлён ход отслеживаемого {label}",
         body=f"{user.full_name or user.email}: {excerpt}",
+        title_template="Обновлён ход отслеживаемого {kind}",
+        template_vars={"kind": label},
+        translate_vars={"kind"},
         payload={
             "entity_type": payload.entity_type, "entity_id": payload.entity_id,
             "entity_title": _title or None,

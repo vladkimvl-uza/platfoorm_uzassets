@@ -1,6 +1,8 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from "axios";
 import { useAuthStore } from "@/stores/auth";
 import router from "@/router";
+import { t } from "@/locale/i18n";
+
 
 // API base URL.
 // Default `/api` is a relative path — works in single-origin deployments
@@ -21,7 +23,7 @@ export const api = axios.create({
 // «сырое» axios-сообщение на 502/503/504/нет-ответа, поэтому любой показ
 // err.message получает этот текст автоматически.
 export const PLATFORM_UPDATING_MESSAGE =
-  "Идёт обновление платформы — подождите несколько секунд и повторите. Введённые данные не пропадут.";
+  t('Идёт обновление платформы — подождите несколько секунд и повторите. Введённые данные не пропадут.');
 
 // =====================================================================
 // Request: attach JWT
@@ -108,7 +110,7 @@ api.interceptors.response.use(
           const toast = useToast();
           const idShort = d.submission_id!.slice(0, 8);
           toast.info(
-            (d.message || "Изменение отправлено на модерацию") + ` · #${idShort}`,
+        (d.message || t("Изменение отправлено на модерацию")) + ` · #${idShort}`,
             5000,
           );
         })

@@ -93,9 +93,9 @@ function currencyTooltip(c: "UZS" | "USD" | "EUR"): string {
 
     <!-- Pack 7.50.1: header always rendered — no v-if. Fallback values if props missing. -->
     <div class="ft-head" data-pack="p750.1">
-        <div class="ft-head-eyebrow">{{ t(pageEyebrow || 'РАЗДЕЛ ПОРТФЕЛЯ') }}</div>
+        <div class="ft-head-eyebrow">{{ t(pageEyebrow || t('РАЗДЕЛ ПОРТФЕЛЯ')) }}</div>
         <div class="ft-head-title-row">
-          <span class="ft-head-title">{{ t(pageTitle || 'Финансовые показатели') }}</span>
+          <span class="ft-head-title">{{ t(pageTitle || t('Финансовые показатели')) }}</span>
           <span class="ft-head-sub">
             <slot name="subtitle"></slot>
           </span>
@@ -117,14 +117,14 @@ function currencyTooltip(c: "UZS" | "USD" | "EUR"): string {
         <button class="ft-view-btn" :class="{ on: viewMenuOpen }" @click.stop="viewMenuOpen = !viewMenuOpen" :title="t('Валюта · единицы')">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
           <span>{{ t("Вид") }}</span>
-          <span class="ft-view-cur">{{ currency }} · {{ t(unit === 'bln' ? 'млрд' : 'млн') }}</span>
+          <span class="ft-view-cur">{{ currency }} · {{ t(unit === 'bln' ? t('млрд') : t('млн')) }}</span>
         </button>
         <div v-if="viewMenuOpen" class="ft-view-bg" @click="viewMenuOpen = false"></div>
         <div v-if="viewMenuOpen" class="ft-view-pop" @click.stop>
           <div class="ft-view-row">
             <span class="ft-view-lbl">{{ t("Валюта") }}</span>
             <div class="ft-pill-grp">
-              <button v-for="c in CURRENCIES" :key="c.value" class="ft-pill ft-pill-sm" :class="{ on: currency === c.value }" :title="currencyTooltip(c.value)" @click="emit('update:currency', c.value)">{{ c.label }}</button>
+              <button v-for="c in CURRENCIES" :key="c.value" class="ft-pill ft-pill-sm" :class="{ on: currency === c.value }" :title="t(currencyTooltip(c.value))" @click="emit('update:currency', c.value)">{{ t(c.label) }}</button>
             </div>
           </div>
           <div class="ft-view-row">

@@ -24,6 +24,9 @@
  */
 import { ref, computed, watch, readonly } from "vue";
 import { systemConfigApi, type YearlyRate } from "@/api/systemConfig";
+import { t } from "@/locale/i18n";
+
+
 
 export type Currency = "UZS" | "USD" | "EUR";
 
@@ -191,9 +194,11 @@ export function useCurrencyConverter() {
     if (c === "UZS") {
       if (Math.abs(amountInMlrdUzs) >= 1000) {
         const v = amountInMlrdUzs / 1000;
-        return { value: _fmt3(v), unit: "триллион сум", full: `${_fmt3(v)} триллион сум` };
+        const unit = t("триллион сум");
+        return { value: _fmt3(v), unit, full: `${_fmt3(v)} ${unit}` };
       }
-      return { value: _fmt3(amountInMlrdUzs), unit: "миллиард сум", full: `${_fmt3(amountInMlrdUzs)} миллиард сум` };
+      const unit = t("миллиард сум");
+      return { value: _fmt3(amountInMlrdUzs), unit, full: `${_fmt3(amountInMlrdUzs)} ${unit}` };
     }
     // USD / EUR
     const rate = c === "EUR" ? getEurRate(year) : getUsdRate(year);
@@ -202,9 +207,11 @@ export function useCurrencyConverter() {
     const curLabel = c;
     if (Math.abs(foreignMln) >= 1000) {
       const v = foreignMln / 1000;
-      return { value: _fmt3(v), unit: `миллиард ${curLabel}`, full: `${_fmt3(v)} миллиард ${curLabel}` };
+      const unit = t("миллиард {currency}", { currency: curLabel });
+      return { value: _fmt3(v), unit, full: `${_fmt3(v)} ${unit}` };
     }
-    return { value: _fmt3(foreignMln), unit: `миллион ${curLabel}`, full: `${_fmt3(foreignMln)} миллион ${curLabel}` };
+    const unit = t("миллион {currency}", { currency: curLabel });
+    return { value: _fmt3(foreignMln), unit, full: `${_fmt3(foreignMln)} ${unit}` };
   }
 
   function formatValueOnly(amountInMlrdUzs: number | null | undefined, year: number, opts?: { force?: Currency }): string {
@@ -232,7 +239,7 @@ export function useCurrencyConverter() {
   }
   function setCurrency(c: Currency) { _currency.value = c; }
   const currencyLabel = computed(() => {
-    if (_currency.value === "UZS") return "сум";
+    if (_currency.value === "UZS") return t("сум");
     if (_currency.value === "EUR") return "EUR";
     return "USD";
   });
@@ -241,7 +248,7 @@ export function useCurrencyConverter() {
     if (_currency.value === "UZS") return "";
     const r = _currency.value === "EUR" ? getEurRate(year) : getUsdRate(year);
     const cur = _currency.value;
-    return `${Math.round(r).toLocaleString("ru-RU").replace(/\u00A0/g, " ")} сум за 1 ${cur}`;
+    return t('{value0} сум за 1 {value1}', { value0: Math.round(r).toLocaleString("ru-RU").replace(/\u00A0/g, " "), value1: cur });
   }
 
   async function reload(): Promise<void> {

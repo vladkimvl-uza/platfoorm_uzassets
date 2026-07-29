@@ -16,6 +16,7 @@ import type { CertStatus, InstallResult } from "@/api/tlsAdmin";
 import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
 import { useI18n } from "@/composables/useI18n";
+
 const { t } = useI18n();
 
 
@@ -38,7 +39,7 @@ async function load() {
   try {
     status.value = await tlsApi.status();
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || e?.message || "Ошибка загрузки";
+    error.value = e?.response?.data?.detail || e?.message || t('Ошибка загрузки');
   } finally {
     loading.value = false;
   }
@@ -53,14 +54,14 @@ const leResult = ref<InstallResult | string | null>(null);
 
 async function runLe() {
   if (!leDomain.value || !leEmail.value) return;
-  if (!(await confirmDialog({ message: `Выпустить сертификат для ${leDomain.value}?\n\nЭто перепишет текущий cert.`, danger: true }))) return;
+  if (!(await confirmDialog({ message: t('Выпустить сертификат для {value0}? Это перепишет текущий cert.', { value0: leDomain.value }), danger: true }))) return;
   leBusy.value = true;
   leResult.value = null;
   try {
     leResult.value = await tlsApi.letsEncrypt(leDomain.value.trim(), leEmail.value.trim(), leStaging.value);
     await load();
   } catch (e: any) {
-    leResult.value = e?.response?.data?.detail || e?.message || "Ошибка LE";
+    leResult.value = e?.response?.data?.detail || e?.message || t("Ошибка LE");
   } finally {
     leBusy.value = false;
   }
@@ -74,7 +75,7 @@ const uploadResult = ref<InstallResult | string | null>(null);
 
 async function uploadCert() {
   if (!certPem.value.trim() || !keyPem.value.trim()) return;
-  if (!(await confirmDialog({ message: "Установить новый сертификат? Текущий будет забэкаплен.", danger: true }))) return;
+  if (!(await confirmDialog({ message: t("Установить новый сертификат? Текущий будет забэкаплен."), danger: true }))) return;
   uploadBusy.value = true;
   uploadResult.value = null;
   try {
@@ -83,7 +84,7 @@ async function uploadCert() {
     keyPem.value = "";
     await load();
   } catch (e: any) {
-    uploadResult.value = e?.response?.data?.detail || e?.message || "Ошибка upload";
+    uploadResult.value = e?.response?.data?.detail || e?.message || t("Ошибка upload");
   } finally {
     uploadBusy.value = false;
   }
@@ -112,7 +113,7 @@ async function saveSchedule() {
     await tlsApi.updateSchedule(scheduleEnabled.value, scheduleInterval.value);
     await load();
   } catch (e: any) {
-    toast.error(e?.response?.data?.detail || e?.message || "Ошибка сохранения расписания");
+    toast.error(e?.response?.data?.detail || e?.message || t('Ошибка сохранения расписания'));
   } finally {
     scheduleBusy.value = false;
   }
@@ -129,9 +130,9 @@ function formatResult(r: InstallResult | string | null): string {
   if (!r) return "";
   if (typeof r === "string") return r;
   if (r.ok) {
-    return `✓ Установлено: ${r.info?.subject || "новый cert"} · истекает ${shortDate(r.info?.not_after)}`;
+  return t('✓ Установлено: {value0} · истекает {value1}', { value0: r.info?.subject || t("новый сертификат"), value1: shortDate(r.info?.not_after) });
   }
-  return "Не удалось установить";
+  return t('Не удалось установить');
 }
 
 onMounted(async () => {
@@ -147,7 +148,7 @@ onMounted(async () => {
       <div class="tls-eyebrow">ADMIN · INFRASTRUCTURE</div>
       <h1 class="tls-title">{{ t('TLS-сертификат') }}</h1>
       <div class="tls-sub">
-        {{ t('HTTPS-сертификат для') }} <code>{{ status?.config?.domain || "domain (не задан)" }}</code> {{ t('· управление через Let\'s Encrypt или ручную загрузку') }}
+        {{ t('HTTPS-сертификат для') }} <code>{{ status?.config?.domain || t('domain (не задан)') }}</code> {{ t('· управление через Let\'s Encrypt или ручную загрузку') }}
       </div>
     </div>
 
@@ -160,7 +161,7 @@ onMounted(async () => {
         <div class="tls-card-head">
           <h2>{{ t('Текущий сертификат') }}</h2>
           <span class="tls-tag" :class="`tls-tag-${status.active_label === 'production' ? 'ok' : 'warn'}`">
-            {{ status.active_label === "production" ? "PRODUCTION" : status.active_label === "dev-fallback" ? "DEV FALLBACK" : "НЕТ" }}
+            {{ status.active_label === "production" ? "PRODUCTION" : status.active_label === "dev-fallback" ? "DEV FALLBACK" : t('НЕТ') }}
           </span>
           <button class="tls-btn-icon" @click="load" :title="t('Обновить')" :aria-label="t('Обновить')">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
@@ -199,7 +200,7 @@ onMounted(async () => {
           <div class="tls-field">
             <div class="tls-field-label">{{ t('Источник') }}</div>
             <div class="tls-field-value">
-              {{ status.config?.source === "letsencrypt" ? "Let's Encrypt" : status.config?.source === "manual" ? "Ручная загрузка" : "—" }}
+              {{ status.config?.source === "letsencrypt" ? "Let's Encrypt" : status.config?.source === "manual" ? t('Ручная загрузка') : "—" }}
               <span v-if="status.config?.renewed_at" class="tls-meta">
                 {{ t('· обновлён') }} {{ shortDate(status.config.renewed_at) }}
               </span>
@@ -229,7 +230,7 @@ onMounted(async () => {
           </label>
           <div class="tls-actions">
             <button class="tls-btn tls-btn-primary" :disabled="leBusy || !leDomain || !leEmail" @click="runLe">
-              {{ leBusy ? "Выпуск…" : "Выпустить" }}
+              {{ leBusy ? t('Выпуск…') : t('Выпустить') }}
             </button>
             <div v-if="leResult" class="tls-result" :class="{ 'is-err': typeof leResult === 'string' || !(leResult as any).ok }">
               {{ formatResult(leResult) }}
@@ -262,7 +263,7 @@ onMounted(async () => {
           </div>
           <div class="tls-actions">
             <button class="tls-btn tls-btn-primary" :disabled="uploadBusy || !certPem || !keyPem" @click="uploadCert">
-              {{ uploadBusy ? "Установка…" : "Установить" }}
+              {{ uploadBusy ? t('Установка…') : t('Установить') }}
             </button>
             <div v-if="uploadResult" class="tls-result" :class="{ 'is-err': typeof uploadResult === 'string' || !(uploadResult as any).ok }">
               {{ formatResult(uploadResult) }}
@@ -305,7 +306,7 @@ onMounted(async () => {
           </div>
           <div class="tls-actions">
             <button class="tls-btn tls-btn-primary" :disabled="scheduleBusy" @click="saveSchedule">
-              {{ scheduleBusy ? "Сохранение…" : "Сохранить" }}
+              {{ scheduleBusy ? t('Сохранение…') : t('Сохранить') }}
             </button>
           </div>
           <div v-if="status.config?.last_le_attempt" class="tls-hint">

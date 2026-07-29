@@ -30,6 +30,9 @@ import {
 import { useFormatters } from "@/composables/useFormatters";
 import { useToast } from "@/composables/useToast";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const fmt = useFormatters();
 const toast = useToast();
@@ -75,7 +78,7 @@ async function load() {
     overview.value = await auditApi.overview(hours.value);
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    error.value = err?.response?.data?.detail || err?.message || "Не удалось загрузить журнал";
+    error.value = err?.response?.data?.detail || err?.message || t('Не удалось загрузить журнал');
   } finally {
     loading.value = false;
   }
@@ -172,7 +175,7 @@ async function loadMoreEvents() {
     extraEvents.value.push(...resp.items);
   } catch (e: unknown) {
     const err = e as { message?: string };
-    error.value = err?.message || "Не удалось загрузить дополнительные события";
+    error.value = err?.message || t('Не удалось загрузить дополнительные события');
   } finally {
     extraLoading.value = false;
   }
@@ -187,7 +190,7 @@ async function openEvent(id: string) {
   try {
     drillEvent.value = await auditApi.eventDetail(id);
   } catch (e: unknown) {
-    error.value = "Не удалось загрузить событие";
+    error.value = t('Не удалось загрузить событие');
   } finally {
     drillLoading.value = false;
   }
@@ -206,7 +209,7 @@ function exportCsv() {
       a.download = `audit-${hours.value}h.csv`;
       a.click();
     })
-    .catch(() => toast.error("Не удалось скачать CSV"));
+    .catch(() => toast.error(t('Не удалось скачать CSV')));
 }
 
 // ─── Chart geometry ────────────────────────────────────────
@@ -261,26 +264,25 @@ function clearFilters() {
       <div class="au-tb-l">
         <div class="au-tb-eyebrow">
           <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 1l6 3v4c0 4-3 7-6 7s-6-3-6-7V4l6-3z"/></svg>
-          UzAssets · Owner panel · Аудит
+          {{ t('UzAssets · Owner panel · Аудит') }}
         </div>
-        <div class="au-tb-title">Журнал активности портфеля</div>
+        <div class="au-tb-title">{{ t('Журнал активности портфеля') }}</div>
         <div class="au-tb-sub">
           <span v-if="overview">
-            <b>{{ fmt.fmtNumber(overview.stats.events_total) }}</b> событий за {{ hours }}ч
-            ·
-            <b>{{ overview.stats.online_users }}</b> пользователей онлайн
+            <b>{{ fmt.fmtNumber(overview.stats.events_total) }}</b> {{ t('событий за') }} {{ hours }}{{ t('ч ·') }}
+            <b>{{ overview.stats.online_users }}</b> {{ t('пользователей онлайн') }}
             <span class="au-live"><span class="au-live-dot"></span> live</span>
           </span>
-          <span v-else>загрузка…</span>
+          <span v-else>{{ t('загрузка…') }}</span>
         </div>
       </div>
       <div class="au-tb-r">
         <select v-model.number="hours" class="au-in">
-          <option :value="1">За 1 час</option>
-          <option :value="6">За 6 часов</option>
-          <option :value="24">За 24 часа</option>
-          <option :value="168">За неделю</option>
-          <option :value="720">За месяц</option>
+          <option :value="1">{{ t('За 1 час') }}</option>
+          <option :value="6">{{ t('За 6 часов') }}</option>
+          <option :value="24">{{ t('За 24 часа') }}</option>
+          <option :value="168">{{ t('За неделю') }}</option>
+          <option :value="720">{{ t('За месяц') }}</option>
         </select>
         <button
           v-if="auth.isOwner || auth.hasPermission('audit.admin')"
@@ -288,7 +290,7 @@ function clearFilters() {
           @click="exportCsv"
         >
           <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1v10M3 7l5 5 5-5M2 14h12"/></svg>
-          Экспорт CSV
+          {{ t('Экспорт CSV') }}
         </button>
         <button class="au-btn au-btn-primary" @click="router.push('/admin/rbac')">
           <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="2.5"/></svg>
@@ -302,23 +304,23 @@ function clearFilters() {
       <div class="au-emb-stat">
         <span class="au-emb-live"><span class="au-live-dot"></span> live</span>
         <span v-if="overview">
-          <b>{{ fmt.fmtNumber(overview.stats.events_total) }}</b> событий за {{ hours }}ч ·
-          <b>{{ overview.stats.online_users }}</b> онлайн ·
-          <b>{{ overview.stats.unique_users }}</b> уникальных пользователей
+          <b>{{ fmt.fmtNumber(overview.stats.events_total) }}</b> {{ t('событий за') }} {{ hours }}{{ t('ч ·') }}
+          <b>{{ overview.stats.online_users }}</b> {{ t('онлайн ·') }}
+          <b>{{ overview.stats.unique_users }}</b> {{ t('уникальных пользователей') }}
         </span>
       </div>
       <div class="au-emb-controls">
         <select v-model.number="hours" class="au-emb-select">
-          <option :value="1">1 час</option>
-          <option :value="6">6 часов</option>
-          <option :value="24">24 часа</option>
-          <option :value="168">неделя</option>
-          <option :value="720">месяц</option>
+          <option :value="1">{{ t('1 час') }}</option>
+          <option :value="6">{{ t('6 часов') }}</option>
+          <option :value="24">{{ t('24 часа') }}</option>
+          <option :value="168">{{ t('неделя') }}</option>
+          <option :value="720">{{ t('месяц') }}</option>
         </select>
         <button v-if="auth.isOwner || auth.hasPermission('audit.admin')"
                 class="au-emb-btn" @click="exportCsv">
           <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1v10M3 7l5 5 5-5M2 14h12"/></svg>
-          Экспорт CSV
+          {{ t('Экспорт CSV') }}
         </button>
       </div>
     </div>
@@ -327,19 +329,19 @@ function clearFilters() {
     <div class="au-filterbar">
       <div class="au-search">
         <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="#888780" stroke-width="2" stroke-linecap="round"><circle cx="7" cy="7" r="5"/><path d="M11 11l3 3"/></svg>
-        <input v-model="search" placeholder="Поиск по email, IP, endpoint, entity ID…" />
+        <input v-model="search" :placeholder="t('Поиск по email, IP, endpoint, entity ID…')" />
         <span class="au-kbd">⌘K</span>
       </div>
       <select v-model="filterUser" class="au-fl">
-        <option value="">Все пользователи</option>
+        <option value="">{{ t('Все пользователи') }}</option>
         <option v-for="u in userOptions" :key="u" :value="u">{{ u }}</option>
       </select>
       <select v-model="filterModule" class="au-fl">
-        <option value="">Все модули</option>
+        <option value="">{{ t('Все модули') }}</option>
         <option v-for="m in moduleOptions" :key="m" :value="m">{{ m }}</option>
       </select>
       <select v-model="filterAction" class="au-fl">
-        <option value="">Все действия</option>
+        <option value="">{{ t('Все действия') }}</option>
         <option value="VIEW">VIEW</option>
         <option value="CREATE">CREATE</option>
         <option value="UPDATE">UPDATE</option>
@@ -349,7 +351,7 @@ function clearFilters() {
         <option value="ERROR">ERROR</option>
       </select>
       <button v-if="search || filterUser || filterModule || filterAction"
-              class="au-clear" @click="clearFilters">× очистить</button>
+              class="au-clear" @click="clearFilters">{{ t('× очистить') }}</button>
     </div>
 
     <UzaStateBlock v-if="error" state="error" variant="block" :text="error" />
@@ -363,7 +365,7 @@ function clearFilters() {
           class="au-kpi fin-shimmer"
           :style="{ '--d': (40 + i * 50) + 'ms', '--ac': s.accent || '#7F77DD' }"
         >
-          <div class="au-kpi-lbl">{{ s.label }}</div>
+          <div class="au-kpi-lbl">{{ t(s.label) }}</div>
           <div class="au-kpi-v">{{ fmt.fmtNumber(s.value) }}</div>
           <div class="au-kpi-sub">
             {{ s.sub || "" }}
@@ -382,12 +384,12 @@ function clearFilters() {
           <div class="au-card-hd">
             <span class="au-card-ttl">
               <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 4h10M3 8h10M3 12h7"/></svg>
-              Лента событий · {{ filteredEvents.length }} {{ filteredEvents.length === overview.recent_events.length ? "последних" : "из " + overview.recent_events.length }}
+              {{ t('Лента событий ·') }} {{ filteredEvents.length }} {{ filteredEvents.length === overview.recent_events.length ? t('последних') : t('из {value0}', { value0: overview.recent_events.length }) }}
             </span>
-            <span class="au-card-meta">обновлено только что</span>
+            <span class="au-card-meta">{{ t('обновлено только что') }}</span>
           </div>
           <div class="au-feed-body">
-            <UzaStateBlock v-if="!filteredEvents.length" state="empty" variant="inline" text="Нет событий по фильтру" />
+            <UzaStateBlock v-if="!filteredEvents.length" state="empty" variant="inline" :text="t('Нет событий по фильтру')" />
             <div
               v-for="(ev, i) in filteredEvents"
               :key="ev.id"
@@ -412,7 +414,7 @@ function clearFilters() {
                 <div class="au-feed-main">
                   <b>{{ ev.actor_email || "anonymous" }}</b>
                   ·
-                  <span class="au-act-pill" :style="{ color: actionMeta(ev.action).color }">{{ actionMeta(ev.action).label }}</span>
+                  <span class="au-act-pill" :style="{ color: actionMeta(ev.action).color }">{{ t(actionMeta(ev.action).label) }}</span>
                   <span v-if="ev.module" class="au-mod">{{ ev.module }}</span>
                 </div>
                 <div class="au-feed-sub">
@@ -430,11 +432,11 @@ function clearFilters() {
             </div>
           </div>
           <div class="au-feed-foot">
-            <span v-if="extraLoading">Загрузка…</span>
+            <span v-if="extraLoading">{{ t('Загрузка…') }}</span>
             <span v-else-if="hasMore" @click="loadMoreEvents">
-              Загрузить ещё ({{ fmt.fmtNumber(totalEvents - allFeedEvents.length) }} событий) →
+              {{ t('Загрузить ещё (') }}{{ fmt.fmtNumber(totalEvents - allFeedEvents.length) }} {{ t('событий) →') }}
             </span>
-            <span v-else style="color: var(--t3, #888780);cursor:default">Показаны все события за период</span>
+            <span v-else style="color: var(--t3, #888780);cursor:default">{{ t('Показаны все события за период') }}</span>
           </div>
         </div>
 
@@ -446,12 +448,12 @@ function clearFilters() {
             <div class="au-card-hd">
               <span class="au-card-ttl">
                 <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3 3-5 6-5s6 2 6 5"/></svg>
-                Топ пользователи
+                {{ t('Топ пользователи') }}
               </span>
-              <span class="au-card-meta">за {{ hours }}ч</span>
+              <span class="au-card-meta">{{ t('за') }} {{ hours }}{{ t('ч') }}</span>
             </div>
             <div class="au-card-body">
-              <UzaStateBlock v-if="!overview.top_users.length" state="empty" variant="inline" text="Пусто" />
+              <UzaStateBlock v-if="!overview.top_users.length" state="empty" variant="inline" :text="t('Пусто')" />
               <div v-for="u in overview.top_users" :key="u.email" class="au-tu-row">
                 <span class="au-tu-av" :style="{ background: u.accent + '22', color: u.accent }">{{ u.initials }}</span>
                 <span class="au-tu-em">{{ u.email }}</span>
@@ -468,15 +470,15 @@ function clearFilters() {
             <div class="au-card-hd">
               <span class="au-card-ttl">
                 <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="5" height="5"/><rect x="9" y="2" width="5" height="5"/><rect x="2" y="9" width="5" height="5"/><rect x="9" y="9" width="5" height="5"/></svg>
-                Топ модули
+                {{ t('Топ модули') }}
               </span>
-              <span class="au-card-meta">по запросам</span>
+              <span class="au-card-meta">{{ t('по запросам') }}</span>
             </div>
             <div class="au-card-body">
-              <UzaStateBlock v-if="!overview.top_modules.length" state="empty" variant="inline" text="Пусто" />
+              <UzaStateBlock v-if="!overview.top_modules.length" state="empty" variant="inline" :text="t('Пусто')" />
               <div class="au-tm-grid">
                 <div v-for="m in overview.top_modules.slice(0, 6)" :key="m.module" class="au-tm-cell">
-                  <div class="au-tm-l">{{ m.label }}</div>
+                  <div class="au-tm-l">{{ t(m.label) }}</div>
                   <div class="au-tm-v">{{ fmt.fmtNumber(m.count) }}</div>
                 </div>
               </div>
@@ -491,13 +493,13 @@ function clearFilters() {
                 Security flags
               </span>
               <span class="au-card-meta" :class="{ bad: overview.security_flags.length > 0 }">
-                {{ overview.security_flags.length }} активных
+                {{ overview.security_flags.length }} {{ t('активных') }}
               </span>
             </div>
             <div class="au-card-body">
               <div v-if="!overview.security_flags.length" class="au-empty au-empty-ok">
                 <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="#0F6E56" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l3 3 5-6"/></svg>
-                Угроз не обнаружено
+                {{ t('Угроз не обнаружено') }}
               </div>
               <div v-for="f in overview.security_flags" :key="f.id" class="au-sf-row" :class="f.severity">
                 <div class="au-sf-ttl">{{ f.title }}</div>
@@ -514,7 +516,7 @@ function clearFilters() {
         <div class="au-card-hd">
           <span class="au-card-ttl">
             <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 12 5 8 9 10 15 4"/></svg>
-            События по типам · {{ hours }} часов
+            {{ t('События по типам ·') }} {{ hours }} {{ t('часов') }}
           </span>
           <div class="au-chart-legend">
             <span><span class="dot" style="background:#378ADD"></span>VIEW</span>
@@ -536,7 +538,7 @@ function clearFilters() {
             <path :d="chartData.paths.delete" fill="none" stroke="#D4537E" stroke-width="1.5"/>
             <path :d="chartData.paths.error"  fill="none" stroke="#E24B4A" stroke-width="1.5"/>
             <template v-for="(l, i) in chartData.xLabels" :key="i">
-              <text v-if="l.showLabel" :x="l.x" :y="chartData.padT + chartData.innerH + 12" text-anchor="middle" font-size="9" fill="#888780">{{ l.label }}</text>
+              <text v-if="l.showLabel" :x="l.x" :y="chartData.padT + chartData.innerH + 12" text-anchor="middle" font-size="9" fill="#888780">{{ t(l.label) }}</text>
             </template>
           </svg>
         </div>
@@ -547,16 +549,16 @@ function clearFilters() {
     <ModalShell :open="!!drillEvent" size="md" @close="closeDrill">
       <template v-if="drillEvent" #header>
         <div>
-          <div class="au-modal-eyebrow">Событие · {{ drillEvent.action }}</div>
+          <div class="au-modal-eyebrow">{{ t('Событие ·') }} {{ drillEvent.action }}</div>
           <div class="au-modal-ttl">{{ drillEvent.entity_label || drillEvent.http_path }}</div>
         </div>
       </template>
         <div v-if="drillEvent" class="au-modal-body">
           <div class="au-kv">
-            <div class="au-kv-l">Кто</div>
+            <div class="au-kv-l">{{ t('Кто') }}</div>
             <div class="au-kv-v">{{ drillEvent.actor_email || "—" }} <span v-if="drillEvent.actor_role" class="role">{{ drillEvent.actor_role }}</span></div>
 
-            <div class="au-kv-l">Когда</div>
+            <div class="au-kv-l">{{ t('Когда') }}</div>
             <div class="au-kv-v">{{ fmt.fmtDateTime(drillEvent.created_at) }}</div>
 
             <div class="au-kv-l">IP / UA</div>
@@ -565,7 +567,7 @@ function clearFilters() {
             <div class="au-kv-l">HTTP</div>
             <div class="au-kv-v">{{ drillEvent.http_method }} {{ drillEvent.http_path }} → <b :class="drillEvent.http_status && drillEvent.http_status >= 400 ? 'bad' : 'ok'">{{ drillEvent.http_status }}</b> ({{ drillEvent.duration_ms }} ms)</div>
 
-            <div class="au-kv-l">Модуль</div>
+            <div class="au-kv-l">{{ t('Модуль') }}</div>
             <div class="au-kv-v">{{ drillEvent.module || "—" }} · {{ drillEvent.entity_type || "—" }} #{{ drillEvent.entity_id || "—" }}</div>
 
             <div class="au-kv-l">HMAC</div>

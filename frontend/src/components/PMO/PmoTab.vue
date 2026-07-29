@@ -19,6 +19,11 @@ import PmoTeam from "./PmoTeam.vue";
 import PmoAgile from "./PmoAgile.vue";
 import { api } from "@/api/client";
 import { pmoApi, type ScheduleResponse, type ScheduleBar } from "@/api/pmo";
+import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+const { t: tr } = useI18n();
+const t = tr;
+
 
 const props = defineProps<{
   companyCode: string;
@@ -48,7 +53,7 @@ async function load() {
   try {
     data.value = await pmoApi.getSchedule(props.companyCode, props.year);
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить расписание";
+    error.value = e?.response?.data?.detail || e?.message || tr('Не удалось загрузить расписание');
   } finally {
     loading.value = false;
   }
@@ -66,7 +71,7 @@ const projectList = computed(() =>
 
 // ── Шкала года ────────────────────────────────────────────────────────
 const ROW_H = 34;
-const MONTHS = ["Янв", "Фев", "Мар", "Апр", "Май", "Июн", "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"];
+const MONTHS = [i18nKey("Янв"), i18nKey("Фев"), i18nKey("Мар"), i18nKey("Апр"), i18nKey("Май"), i18nKey("Июн"), i18nKey("Июл"), i18nKey("Авг"), i18nKey("Сен"), i18nKey("Окт"), i18nKey("Ноя"), i18nKey("Дек")];
 
 const yearStart = computed(() => new Date(props.year, 0, 1).getTime());
 const yearEnd = computed(() => new Date(props.year, 11, 31).getTime());
@@ -141,7 +146,7 @@ const rows = computed<GRow[]>(() => {
     for (const t of byProject.get(p.id) || []) push(t, true);
   }
   if (orphans.length) {
-    out.push({ bar: orphans[0], indent: false, top: i * ROW_H, geo: null, baseGeo: null, milestoneLeft: null, groupHeader: "Без проекта" });
+    out.push({ bar: orphans[0], indent: false, top: i * ROW_H, geo: null, baseGeo: null, milestoneLeft: null, groupHeader: i18nKey("Без проекта") });
     i++;
     for (const t of orphans) push(t, true);
   }
@@ -288,7 +293,7 @@ async function saveDates(bar: ScheduleBar, startStr: string, dueStr: string) {
     await api.patch(url, { start_date: startStr, due_date: dueStr });
     await load();
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || "Не удалось сохранить даты";
+    error.value = e?.response?.data?.detail || tr('Не удалось сохранить даты');
   }
 }
 function onBarClick(bar: ScheduleBar) {
@@ -328,7 +333,7 @@ async function onLinkUp() {
     await pmoApi.createDependency({ predecessor_id: st.source.id, successor_id: st.targetId });
     await load();
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || "Не удалось создать зависимость";
+    error.value = e?.response?.data?.detail || tr('Не удалось создать зависимость');
   }
 }
 const linkPath = computed(() => {
@@ -353,76 +358,76 @@ const fmtD = (s: string | null) =>
   <div class="pmo-root">
     <!-- Саб-навигация PMO -->
     <div class="pmo-subnav">
-      <button class="pmo-sn" :class="{ on: view === 'schedule' }" @click="view = 'schedule'">Расписание</button>
-      <button class="pmo-sn" :class="{ on: view === 'agile' }" @click="view = 'agile'">Спринты</button>
-      <button class="pmo-sn" :class="{ on: view === 'charter' }" @click="view = 'charter'">Устав</button>
-      <button class="pmo-sn" :class="{ on: view === 'raid' }" @click="view = 'raid'">Риски (RAID)</button>
-      <button class="pmo-sn" :class="{ on: view === 'stakeholders' }" @click="view = 'stakeholders'">Стейкхолдеры</button>
-      <button class="pmo-sn" :class="{ on: view === 'team' }" @click="view = 'team'">Команда</button>
-      <button class="pmo-sn" :class="{ on: view === 'log' }" @click="view = 'log'">Журнал</button>
-      <button class="pmo-sn" :class="{ on: view === 'health' }" @click="view = 'health'">Здоровье</button>
-      <button class="pmo-sn" :class="{ on: view === 'evm' }" @click="view = 'evm'">Освоенный объём</button>
+      <button class="pmo-sn" :class="{ on: view === 'schedule' }" @click="view = 'schedule'">{{ tr('Расписание') }}</button>
+      <button class="pmo-sn" :class="{ on: view === 'agile' }" @click="view = 'agile'">{{ tr('Спринты') }}</button>
+      <button class="pmo-sn" :class="{ on: view === 'charter' }" @click="view = 'charter'">{{ tr('Устав') }}</button>
+      <button class="pmo-sn" :class="{ on: view === 'raid' }" @click="view = 'raid'">{{ tr('Риски (RAID)') }}</button>
+      <button class="pmo-sn" :class="{ on: view === 'stakeholders' }" @click="view = 'stakeholders'">{{ tr('Стейкхолдеры') }}</button>
+      <button class="pmo-sn" :class="{ on: view === 'team' }" @click="view = 'team'">{{ tr('Команда') }}</button>
+      <button class="pmo-sn" :class="{ on: view === 'log' }" @click="view = 'log'">{{ tr('Журнал') }}</button>
+      <button class="pmo-sn" :class="{ on: view === 'health' }" @click="view = 'health'">{{ tr('Здоровье') }}</button>
+      <button class="pmo-sn" :class="{ on: view === 'evm' }" @click="view = 'evm'">{{ tr('Освоенный объём') }}</button>
     </div>
 
     <div v-show="view === 'schedule'" class="pmo">
-    <UzaStateBlock v-if="loading" state="loading" :text="`Построение расписания ${year}…`" />
-    <UzaStateBlock v-else-if="error" state="error" variant="block" title="Не удалось загрузить расписание" :text="error" retry @retry="load" />
+    <UzaStateBlock v-if="loading" state="loading" :text="tr('Построение расписания {value0}…', { value0: year })" />
+    <UzaStateBlock v-else-if="error" state="error" variant="block" :title="tr('Не удалось загрузить расписание')" :text="error" retry @retry="load" />
 
     <template v-else-if="data">
       <!-- KPI-лента портфеля -->
       <div class="pmo-kpis kpi-rail">
         <div class="pmo-kpi" :style="{ '--accent': data.portfolio_slip_days > 0 ? '#E24B4A' : '#1D9E75' }">
-          <div class="pmo-kpi-l">Слип портфеля</div>
+          <div class="pmo-kpi-l">{{ tr('Слип портфеля') }}</div>
           <div class="pmo-kpi-v" :style="{ color: data.portfolio_slip_days > 0 ? '#E24B4A' : 'var(--t1)' }">
-            {{ data.portfolio_slip_days > 0 ? "+" : "" }}{{ data.portfolio_slip_days }} дн
+            {{ data.portfolio_slip_days > 0 ? "+" : "" }}{{ data.portfolio_slip_days }} {{ tr('дн') }}
           </div>
         </div>
         <div class="pmo-kpi">
-          <div class="pmo-kpi-l">Прогноз финиша</div>
+          <div class="pmo-kpi-l">{{ tr('Прогноз финиша') }}</div>
           <div class="pmo-kpi-v">{{ fmtD(data.forecast_finish) }}</div>
         </div>
         <div class="pmo-kpi">
-          <div class="pmo-kpi-l">База (план)</div>
+          <div class="pmo-kpi-l">{{ tr('База (план)') }}</div>
           <div class="pmo-kpi-v">{{ fmtD(data.baseline_finish) }}</div>
         </div>
         <div class="pmo-kpi" :style="{ '--accent': data.overdue_count ? '#E24B4A' : '#94a3b8' }">
-          <div class="pmo-kpi-l">Просрочено</div>
+          <div class="pmo-kpi-l">{{ tr('Просрочено') }}</div>
           <div class="pmo-kpi-v" :style="{ color: data.overdue_count ? '#E24B4A' : 'var(--t1)' }">{{ data.overdue_count }}</div>
         </div>
         <div class="pmo-kpi" :style="{ '--accent': data.blocked_count ? '#D97706' : '#94a3b8' }">
-          <div class="pmo-kpi-l">Заблокировано</div>
+          <div class="pmo-kpi-l">{{ tr('Заблокировано') }}</div>
           <div class="pmo-kpi-v">{{ data.blocked_count }}</div>
         </div>
         <div class="pmo-kpi" :style="{ '--accent': '#E24B4A' }">
-          <div class="pmo-kpi-l">Критический путь</div>
-          <div class="pmo-kpi-v">{{ data.critical_path_ids.length }} зад.</div>
+          <div class="pmo-kpi-l">{{ tr('Критический путь') }}</div>
+          <div class="pmo-kpi-v">{{ data.critical_path_ids.length }} {{ tr('зад.') }}</div>
         </div>
       </div>
 
       <!-- Легенда -->
       <div class="pmo-legend">
-        <span><i class="lg-bar" style="background:#7F77DD"></i> задача</span>
-        <span><i class="lg-bar" style="background:#E24B4A"></i> критический путь</span>
-        <span><i class="lg-base"></i> базовый план</span>
-        <span><i class="lg-dia"></i> веха</span>
-        <span><i class="lg-slip">+Nд</i> слип</span>
+        <span><i class="lg-bar" style="background:#7F77DD"></i> {{ tr('задача') }}</span>
+        <span><i class="lg-bar" style="background:#E24B4A"></i> {{ tr('критический путь') }}</span>
+        <span><i class="lg-base"></i> {{ tr('базовый план') }}</span>
+        <span><i class="lg-dia"></i> {{ tr('веха') }}</span>
+        <span><i class="lg-slip">{{ tr('+Nд') }}</i> {{ tr('слип') }}</span>
       </div>
 
       <UzaStateBlock
         v-if="!rows.length"
         state="empty"
         variant="block"
-        title="Нет данных для расписания"
-        text="Добавьте проекты/задачи с датами начала и срока — они появятся на таймлайне."
+        :title="tr('Нет данных для расписания')"
+        :text="t('Добавьте проекты/задачи с датами начала и срока — они появятся на таймлайне.')"
       />
 
       <!-- Гантт -->
       <div v-else class="pmo-gantt">
         <!-- Заголовок месяцев -->
         <div class="pg-head">
-          <div class="pg-head-label">Проект / задача</div>
+          <div class="pg-head-label">{{ tr('Проект / задача') }}</div>
           <div class="pg-head-track">
-            <div v-for="(m, mi) in MONTHS" :key="m" class="pg-month" :style="{ left: (mi / 12 * 100) + '%' }">{{ m }}</div>
+            <div v-for="(m, mi) in MONTHS" :key="m" class="pg-month" :style="{ left: (mi / 12 * 100) + '%' }">{{ tr(m) }}</div>
           </div>
         </div>
 
@@ -435,13 +440,13 @@ const fmtD = (s: string | null) =>
               class="pg-label"
               :class="{ 'is-proj': r.bar.kind === 'project', 'is-indent': r.indent, 'is-click': !r.groupHeader }"
               :style="{ top: r.top + 'px', height: ROW_H + 'px' }"
-              :title="r.groupHeader ? '' : 'Открыть: ' + r.bar.title"
+              :title="r.groupHeader ? '' : tr('Открыть: {value0}', { value0: r.bar.title })"
               @click="!r.groupHeader && openBar(r.bar)"
             >
-              <span v-if="r.groupHeader" class="pg-grp">{{ r.groupHeader }}</span>
+              <span v-if="r.groupHeader" class="pg-grp">{{ tr(r.groupHeader) }}</span>
               <template v-else>
-                <span v-if="r.bar.on_critical_path" class="pg-cp-dot" title="Критический путь"></span>
-                <span v-if="r.bar.blocked" class="pg-lock" title="Заблокировано предшественником" aria-hidden="true">
+                <span v-if="r.bar.on_critical_path" class="pg-cp-dot" :title="tr('Критический путь')"></span>
+                <span v-if="r.bar.blocked" class="pg-lock" :title="tr('Заблокировано предшественником')" aria-hidden="true">
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
                 </span>
                 <span class="pg-label-txt">{{ r.bar.title }}</span>
@@ -502,7 +507,7 @@ const fmtD = (s: string | null) =>
                 v-if="r.milestoneLeft != null"
                 class="pg-milestone"
                 :style="{ top: (r.top + ROW_H / 2) + 'px', left: milestoneLeftLive(r) + '%' }"
-                :title="(canEdit ? 'Тяни — сдвинуть · клик — открыть\n' : '') + 'Веха: ' + r.bar.title + ' · ' + fmtD(r.bar.due)"
+                :title="tr('{value0}Веха: {value1} · {value2}', { value0: (canEdit ? tr('Тяни — сдвинуть · клик — открыть\n') : ''), value1: r.bar.title, value2: fmtD(r.bar.due) })"
                 @mousedown="onBarDown($event, r.bar, 'move')"
                 @click="onBarClick(r.bar)"
               ></div>
@@ -513,16 +518,16 @@ const fmtD = (s: string | null) =>
                 class="pg-bar"
                 :class="{ 'is-proj': r.bar.kind === 'project', 'is-done': r.bar.status === 'done', 'is-drag': drag && drag.bar.id === r.bar.id, 'is-link-target': link && link.targetId === r.bar.id }"
                 :style="barStyle(r)"
-                :title="(canEdit ? 'Тяни края — даты · тяни узелок — зависимость · клик — открыть\n' : 'Открыть: ') + r.bar.title + ' · ' + fmtD(r.bar.start) + ' → ' + fmtD(r.bar.due) + (r.bar.slip_days > 0 ? ' · слип +' + r.bar.slip_days + 'д' : '')"
+                :title="(canEdit ? tr('Тяни края — даты · тяни узелок — зависимость · клик — открыть') : tr('Открыть:')) + r.bar.title + ' · ' + fmtD(r.bar.start) + ' → ' + fmtD(r.bar.due) + (r.bar.slip_days > 0 ? tr('· слип +{value0}д', { value0: r.bar.slip_days }) : '')"
                 @mousedown="onBarDown($event, r.bar, 'move')"
                 @click="onBarClick(r.bar)"
               >
                 <span class="pg-bar-fill" :style="{ width: (r.bar.progress_percent || 0) + '%' }"></span>
-                <span v-if="r.bar.slip_days > 0" class="pg-slip">+{{ r.bar.slip_days }}д</span>
+                <span v-if="r.bar.slip_days > 0" class="pg-slip">+{{ r.bar.slip_days }}{{ tr('д') }}</span>
                 <template v-if="canEdit">
-                  <span class="pg-h pg-h-l" title="Сдвинуть старт" @mousedown.stop="onBarDown($event, r.bar, 'resize-start')"></span>
-                  <span class="pg-h pg-h-r" title="Сдвинуть дедлайн" @mousedown.stop="onBarDown($event, r.bar, 'resize-end')"></span>
-                  <span v-if="r.bar.kind === 'task'" class="pg-link" title="Протянуть зависимость к другой задаче" @mousedown.stop="onLinkDown($event, r.bar)"></span>
+                  <span class="pg-h pg-h-l" :title="tr('Сдвинуть старт')" @mousedown.stop="onBarDown($event, r.bar, 'resize-start')"></span>
+                  <span class="pg-h pg-h-r" :title="tr('Сдвинуть дедлайн')" @mousedown.stop="onBarDown($event, r.bar, 'resize-end')"></span>
+                  <span v-if="r.bar.kind === 'task'" class="pg-link" :title="tr('Протянуть зависимость к другой задаче')" @mousedown.stop="onLinkDown($event, r.bar)"></span>
                 </template>
               </div>
             </template>

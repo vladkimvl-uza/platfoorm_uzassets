@@ -14,6 +14,7 @@ from uuid import UUID
 from fastapi import HTTPException
 from fastapi import status as http_status
 
+from app.core.i18n import current_locale, tr
 from app.models.company_library import (
     FIELD_TYPES,
     SCOPE_TYPES,
@@ -631,8 +632,11 @@ class CompanyLibraryService:
         if rep is None:
             raise HTTPException(
                 http_status.HTTP_409_CONFLICT,
-                f"Нет IFRS {rtype} отчёта для компании. "
-                "Создайте через FinModel editor сначала.",
+                tr(
+                    "Для компании нет IFRS-отчёта типа {report_type}. Сначала создайте его в редакторе FinModel.",
+                    current_locale(),
+                    report_type=rtype,
+                ),
             )
         scale = rep.unit_scale or 1
         try:
@@ -681,8 +685,10 @@ class CompanyLibraryService:
         if rep is None:
             raise HTTPException(
                 http_status.HTTP_409_CONFLICT,
-                f"Нет IFRS {rtype} отчёта для компании. "
-                "Создайте через FinModel editor сначала.",
+                tr(
+                    "Для компании нет IFRS-отчёта типа {report_type}. Сначала создайте его в редакторе FinModel.",
+                    current_locale(), report_type=rtype,
+                ),
             )
         ln = await r.get_financial_line(rep.id, line_code)
         scale = rep.unit_scale or 1

@@ -17,6 +17,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.access import allowed_company_ids, has_unrestricted_view
+from app.core.i18n import current_locale, tr
 from app.core.security import get_current_user, has_effective_permission, require_permission
 from app.database import get_db
 from app.models.custom_api import CustomApiEndpoint
@@ -96,7 +97,10 @@ async def preview(
     user: User = Depends(require_permission("api_catalog.read")),
 ):
     if body.source not in reg.SOURCES:
-        raise HTTPException(422, f"Неизвестный источник: {body.source}")
+        raise HTTPException(
+            422,
+            tr("Неизвестный источник: {source}", current_locale(), source=body.source),
+        )
     scope = None if has_unrestricted_view(user) else (await allowed_company_ids(db, user) or [])
     rows = await reg.run_source(
         db, body.source, company_ids=scope, year=body.config.year,
@@ -128,9 +132,15 @@ async def create_endpoint(
         raise HTTPException(422, "slug: a-z, 0-9, дефис; 3–64 символа")
     src = reg.SOURCES.get(body.source)
     if src is None:
-        raise HTTPException(422, f"Неизвестный источник: {body.source}")
+        raise HTTPException(
+            422,
+            tr("Неизвестный источник: {source}", current_locale(), source=body.source),
+        )
     if (await db.execute(select(CustomApiEndpoint).where(CustomApiEndpoint.slug == slug))).scalar_one_or_none():
-        raise HTTPException(409, f"Endpoint со slug «{slug}» уже существует")
+        raise HTTPException(
+            409,
+            tr("Endpoint со slug «{slug}» уже существует", current_locale(), slug=slug),
+        )
     e = CustomApiEndpoint(
         slug=slug, title=body.title, description=body.description, source=body.source,
         config=body.config.model_dump(), required_permission=src["permission"],
@@ -197,7 +207,14 @@ async def dispatch(
         raise HTTPException(404, "Endpoint не найден или отключён")
 
     if not await has_effective_permission(db, user, e.required_permission):
-        raise HTTPException(403, f"Нужно право: {e.required_permission}")
+        raise HTTPException(
+            403,
+            tr(
+                "Нужно право: {permission}",
+                current_locale(),
+                permission=e.required_permission,
+            ),
+        )
 
     cfg = e.config or {}
     scope = None if has_unrestricted_view(user) else (await allowed_company_ids(db, user) or [])

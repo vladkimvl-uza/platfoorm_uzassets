@@ -38,13 +38,13 @@ onMounted(async () => {
       selectedCompany.value = scope.defaultCompanyId.value || companies.value[0]?.id || null;
     }
   } catch (e: any) {
-    toast.error(e?.message || "Не удалось загрузить список компаний");
+    toast.error(e?.message || t('Не удалось загрузить список компаний'));
   }
 });
 onUnmounted(() => window.removeEventListener("keydown", onKey));
 
 const selectedName = computed(() =>
-  selectedCompany.value ? (companies.value.find((c) => c.id === selectedCompany.value)?.name || "Компания") : "Все компании"
+  selectedCompany.value ? (companies.value.find((c) => c.id === selectedCompany.value)?.name || t("Компания")) : t("Все компании")
 );
 
 function onOpen(p: { entity_type: string; entity_id: string; company_id: string | null }) {
@@ -62,7 +62,7 @@ async function openIcal() {
       icalUrl.value = window.location.origin + path;
     } catch (e: any) {
       icalUrl.value = ""; icalError.value = true;
-      toast.error(e?.message || "Не удалось получить ссылку подписки");
+      toast.error(e?.message || t('Не удалось получить ссылку подписки'));
     }
   }
 }
@@ -72,7 +72,7 @@ async function copyIcal() {
     await navigator.clipboard.writeText(icalUrl.value);
     copied.value = true; setTimeout(() => (copied.value = false), 2000);
   } catch {
-    toast.info("Скопируйте ссылку вручную (выделена)");
+    toast.info(t('Скопируйте ссылку вручную (выделена)'));
   }
 }
 </script>
@@ -129,7 +129,7 @@ async function copyIcal() {
         <input class="gc-url" :value="icalUrl" readonly :aria-label="t('Ссылка подписки iCal')" @focus="($event.target as HTMLInputElement).select()" />
         <button class="gc-copy" :class="{ done: copied }" @click="copyIcal">
           <svg v-if="copied" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-          {{ copied ? "Скопировано" : "Копировать" }}
+          {{ copied ? t('Скопировано') : t('Копировать') }}
         </button>
       </div>
       <div class="gc-hint">

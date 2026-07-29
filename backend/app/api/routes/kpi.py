@@ -35,6 +35,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
 from app.core.access import allowed_company_ids, ensure_company_access, has_unrestricted_view
+from app.core.i18n import current_locale, tr
 from app.core.security import has_effective_permission
 from app.dependencies.kpi import (
     KpiEditorServiceDep,
@@ -153,7 +154,7 @@ async def replace_company_year(
             "queued": True,
             "submission_id": str(sub.id),
             "status": sub.status,
-            "message": "Изменение отправлено на модерацию",
+            "message": tr("Изменение отправлено на модерацию", current_locale()),
         }
 
     result = await service.replace_year(company_id, year, payload)

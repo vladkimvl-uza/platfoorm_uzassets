@@ -26,6 +26,8 @@ import { useI18n } from "@/composables/useI18n";
 import { useToast } from "@/composables/useToast";
 import ModalShell from "@/components/ModalShell.vue";
 import { kpiCompletionRatio, kpiWeightedRatio } from "@/utils/kpiRatio";
+import { i18nKey } from "@/locale/keys";
+
 
 const fmt = useFormatters();
 const { t } = useI18n();
@@ -502,7 +504,7 @@ const detailSummary = computed(() => {
   const m = detailManager.value;
   if (!m) return [];
   const periods = [
-    { key: "annual", label: "Год" },
+    { key: "annual", label: i18nKey("Год") },
     { key: "q1", label: "Q1" },
     { key: "q2", label: "Q2" },
     { key: "q3", label: "Q3" },
@@ -571,7 +573,7 @@ function fmtNum(v: number | null): string {
           :class="s.severity"
           :style="{ '--kpi2-accent': s.accent, '--kpi2-d': s.delay + 'ms', '--d': s.delay + 'ms' }"
         >
-          <div class="kpi2-lbl kpv-stat-lbl">{{ s.label }}</div>
+          <div class="kpi2-lbl kpv-stat-lbl">{{ t(s.label) }}</div>
           <div class="kpi2-val kpv-stat-val">{{ s.value }}</div>
           <div class="kpi2-sub kpv-stat-sub">{{ s.sub }}</div>
         </div>
@@ -855,7 +857,7 @@ function fmtNum(v: number | null): string {
               :style="{ '--qd': (ci * 45 + 80) + 'ms' }"
             >
               <div class="kdm-q-top">
-                <span class="kdm-q-lbl">{{ c.label }}</span>
+                <span class="kdm-q-lbl">{{ t(c.label) }}</span>
                 <span class="kdm-q-pct" :class="c.cls">{{ c.pct != null ? Math.round(c.pct) + '%' : '—' }}</span>
               </div>
               <div class="kdm-q-pf">

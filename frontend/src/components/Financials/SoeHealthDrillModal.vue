@@ -118,11 +118,11 @@ const best = computed(() =>
                :style="{ borderColor: company.z_score.zone.color + '55', color: company.z_score.zone.color }">
             <div class="shd-zbadge-k">Z-Score</div>
             <div class="shd-zbadge-v">{{ company.z_score.z.toFixed(2) }}</div>
-            <div class="shd-zbadge-l">{{ company.z_score.zone.label }}</div>
+            <div class="shd-zbadge-l">{{ t(company.z_score.zone.label) }}</div>
           </div>
           <div v-if="company.overall != null" class="shd-score" :style="{ background: company.zone?.color || '#94A3B8' }">
             <div class="shd-score-v"><Odometer :value="company.overall.toFixed(1)" /></div>
-            <div class="shd-score-l">{{ company.zone?.label }}</div>
+            <div class="shd-score-l">{{ company.zone?.label ? t(company.zone.label) : "" }}</div>
           </div>
         </div>
       </div>
@@ -134,7 +134,7 @@ const best = computed(() =>
         <div class="shd-w">
           <div class="shd-w-t" style="color:#E24B4A">↓ {{ t("Тянут вниз") }}</div>
           <div v-for="r in worst" :key="r.key" class="shd-ind bad">
-            <span class="shd-ind-name">{{ r.label }}</span>
+            <span class="shd-ind-name">{{ t(r.label) }}</span>
             <b :style="{ color: zoneColor(r.band) }">{{ fmtVal(r) }}</b>
           </div>
           <div v-if="!worst.length" class="shd-none">{{ t("нет критичных зон") }}</div>
@@ -142,7 +142,7 @@ const best = computed(() =>
         <div class="shd-w">
           <div class="shd-w-t" style="color:#1D9E75">↑ {{ t("Сильные стороны") }}</div>
           <div v-for="r in best" :key="r.key" class="shd-ind good">
-            <span class="shd-ind-name">{{ r.label }}</span>
+            <span class="shd-ind-name">{{ t(r.label) }}</span>
             <b :style="{ color: zoneColor(r.band) }">{{ fmtVal(r) }}</b>
           </div>
           <div v-if="!best.length" class="shd-none">—</div>
@@ -153,10 +153,10 @@ const best = computed(() =>
       <div class="shd-list">
         <div v-for="(r, i) in rows" :key="r.key" class="shd-row" :style="{ '--d': (i * 40) + 'ms' }">
           <div class="shd-row-top">
-            <span class="shd-r-label" :title="r.formula">{{ r.label }}</span>
+            <span class="shd-r-label" :title="r.formula">{{ t(r.label) }}</span>
             <span class="shd-r-group">{{ r.group }}</span>
             <span class="shd-r-val" :style="{ color: zoneColor(r.band) }">{{ fmtVal(r) }}</span>
-            <span class="shd-r-zone" :style="{ color: zoneColor(r.band), background: zoneColor(r.band) + '18' }">{{ zoneLabel(r.band) }}</span>
+            <span class="shd-r-zone" :style="{ color: zoneColor(r.band), background: zoneColor(r.band) + '18' }">{{ t(zoneLabel(r.band)) }}</span>
           </div>
           <div class="shd-scale">
             <div v-for="(z, zi) in zones" :key="z.key" class="shd-seg" :style="{ background: z.color }"
@@ -185,7 +185,7 @@ const best = computed(() =>
               </div>
               <div v-for="row in stmt.income_statement" :key="row.code"
                    class="shd-stmt-row" :class="{ tot: row.total }">
-                <span class="shd-stmt-lbl">{{ row.label }}</span>
+                <span class="shd-stmt-lbl">{{ t(row.label) }}</span>
                 <span class="shd-stmt-v">{{ fmtMoney(row.cur) }}</span>
                 <span class="shd-stmt-v prev">{{ fmtMoney(row.prev) }}</span>
                 <span class="shd-stmt-var" :style="{ color: varColor(row.var_pct) }">{{ fmtVar(row.var_pct) }}</span>
@@ -201,7 +201,7 @@ const best = computed(() =>
               </div>
               <div v-for="row in stmt.balance_sheet" :key="row.code"
                    class="shd-stmt-row" :class="{ tot: row.total }">
-                <span class="shd-stmt-lbl">{{ row.label }}</span>
+                <span class="shd-stmt-lbl">{{ t(row.label) }}</span>
                 <span class="shd-stmt-v">{{ fmtMoney(row.cur) }}</span>
                 <span class="shd-stmt-v prev">{{ fmtMoney(row.prev) }}</span>
                 <span class="shd-stmt-var" :style="{ color: varColor(row.var_pct) }">{{ fmtVar(row.var_pct) }}</span>

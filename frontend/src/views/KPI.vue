@@ -123,7 +123,7 @@
       :mode="drill.mode"
       :status-key="drill.statusKey"
       :sector-code="drill.sectorCode"
-      :sector-label="drill.sectorLabel"
+      :sector-label="drill.sectorLabel ? t(drill.sectorLabel) : undefined"
       :summary="state.summary.value"
       @close="drill = null"
     />

@@ -19,6 +19,7 @@ import { ref, computed, reactive, watch, onMounted, onBeforeUnmount, inject } fr
 import { useRouter } from "vue-router";
 import { useFormatters } from "@/composables/useFormatters";
 import { useCurrencyConverter } from "@/composables/useCurrencyConverter";
+import { useEntityEditor } from "@/composables/useEntityEditor";
 
 // Injected from CompanyWorkspace — opens the overdue drill modal on click
 const openOverdueModal = inject<(() => void) | null>("openOverdueModal", null);
@@ -26,6 +27,11 @@ import { api } from "@/api/client";
 import { computeProgress } from "@/utils/progress";
 import { useDirectionsStore } from "@/stores/directions";
 import ModalShell from "@/components/ModalShell.vue";
+import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
+const { t: tr } = useI18n();
+
 
 // Единый источник цветов направлений = каталог (стор), чтобы полоски «по
 // направлениям» совпадали с цветами из /admin (Каталоги), а не с легаси-хардкодом.
@@ -43,22 +49,22 @@ const converter = useCurrencyConverter();
 
 // DIRS catalog 1:1 with легаси (frontend/legacy/index.html line 6753)
 const DIRS: { id: string; label: string; color: string }[] = [
-  { id: "strategy",    label: "Стратегическое управление",  color: "#6B7FD7" },
-  { id: "finance",     label: "Финансы / риски / аудит",    color: "#E0A458" },
-  { id: "procurement", label: "Система закупок",            color: "#7BA05B" },
-  { id: "orgdev",      label: "Организационное развитие",   color: "#A78BC7" },
-  { id: "digital",     label: "Цифровизация",               color: "#5FB3C4" },
-  { id: "operations",  label: "Операционная эффективность", color: "#E08A7B" },
-  { id: "governance",  label: "Корпоративное управление",   color: "#C77B96" },
+  { id: "strategy",    label: i18nKey("Стратегическое управление"),  color: "#6B7FD7" },
+  { id: "finance",     label: i18nKey("Финансы / риски / аудит"),    color: "#E0A458" },
+  { id: "procurement", label: i18nKey("Система закупок"),            color: "#7BA05B" },
+  { id: "orgdev",      label: i18nKey("Организационное развитие"),   color: "#A78BC7" },
+  { id: "digital",     label: i18nKey("Цифровизация"),               color: "#5FB3C4" },
+  { id: "operations",  label: i18nKey("Операционная эффективность"), color: "#E08A7B" },
+  { id: "governance",  label: i18nKey("Корпоративное управление"),   color: "#C77B96" },
   { id: "esg",         label: "ESG",                        color: "#5FA98A" },
-  { id: "pr",          label: "Связи с общественностью",    color: "#D89BB5" },
+  { id: "pr",          label: i18nKey("Связи с общественностью"),    color: "#D89BB5" },
   { id: "pmo",         label: "PMO",                        color: "#7B9BD1" },
-  { id: "analytics",   label: "Сводный отдел",              color: "#9B8EC4" },
+  { id: "analytics",   label: i18nKey("Сводный отдел"),              color: "#9B8EC4" },
 ];
 const _DIRS_BY_ID = new Map(DIRS.map((d) => [d.id, d]));
 function _dirMeta(direction: string): { id: string; label: string; color: string } {
   const key = String(direction || "").toLowerCase();
-  const base = _DIRS_BY_ID.get(key) || { id: key, label: direction || "Без направления", color: "#94A3B8" };
+  const base = _DIRS_BY_ID.get(key) || { id: key, label: direction || i18nKey("Без направления"), color: "#94A3B8" };
   return { ...base, color: _dirColor(key, base.color) };   // цвет — из каталога
 }
 
@@ -72,7 +78,7 @@ interface Props {
 }
 const props = withDefaults(defineProps<Props>(), {
   overdue: 0,
-  sectorName: "Сектор",
+  sectorName: i18nKey("Сектор"),
 });
 
 // ============================================================
@@ -212,7 +218,13 @@ interface AttentionRow {
   title: string;
   deadline: string | null;
 }
-interface UpcomingRow { id: string; title: string; deadline: string; daysLeft: number; }
+interface UpcomingRow {
+  id: string;
+  kind: "project" | "task";
+  title: string;
+  deadline: string;
+  daysLeft: number;
+}
 const attentionList = ref<AttentionRow[]>([]);
 const attentionTotal = ref(0);
 const upcomingList = ref<UpcomingRow[]>([]);
@@ -220,15 +232,9 @@ const loadingAttention = ref(true);
 
 function _isDoneStatus(s: any): boolean {
   const v = String(s || "").toLowerCase();
+  // i18n-exempt-start -- canonical legacy values read from persisted records.
   return v === "done" || v === "completed" || v === "завершено" || v === "выполнено";
-}
-function _isProject(t: any): boolean {
-  // Heuristic from легаси: project has subtasks or explicit kind/type marker
-  if (!t) return false;
-  if (t.kind === "project" || t.type === "project") return true;
-  if (t.is_project === true) return true;
-  if (t.parent_id == null && Array.isArray(t.subtasks) && t.subtasks.length > 0) return true;
-  return false;
+  // i18n-exempt-end
 }
 function _parseDate(s: any): Date | null {
   if (!s) return null;
@@ -286,23 +292,23 @@ const bpDisplayedMetrics = computed(() => {
   if (!d) return [];
   if (bpView.value === "income") {
     return [
-      { label: "Выручка",         d: d.revenue,   tone: "income" as const },
-      { label: "Фин. доходы",     d: d.finIncome, tone: "income" as const },
-      { label: "Опер. прибыль",   d: d.opProfit,  tone: "income" as const },
+      { label: i18nKey("Выручка"),         d: d.revenue,   tone: "income" as const },
+      { label: i18nKey("Фин. доходы"),     d: d.finIncome, tone: "income" as const },
+      { label: i18nKey("Опер. прибыль"),   d: d.opProfit,  tone: "income" as const },
     ];
   }
   if (bpView.value === "expenses") {
     return [
-      { label: "Себестоимость",   d: d.cogs,       tone: "expense" as const },
-      { label: "Расходы периода", d: d.opExpenses, tone: "expense" as const },
-      { label: "Фин. расходы",    d: d.finCost,    tone: "expense" as const },
-      { label: "Налог",           d: d.tax,        tone: "expense" as const },
+      { label: i18nKey("Себестоимость"),   d: d.cogs,       tone: "expense" as const },
+      { label: i18nKey("Расходы периода"), d: d.opExpenses, tone: "expense" as const },
+      { label: i18nKey("Фин. расходы"),    d: d.finCost,    tone: "expense" as const },
+      { label: i18nKey("Налог"),           d: d.tax,        tone: "expense" as const },
     ];
   }
   return [
-    { label: "Выручка",         d: d.revenue,  tone: "neutral" as const },
-    { label: "Опер. прибыль",   d: d.opProfit, tone: "neutral" as const },
-    { label: "Чистая прибыль",  d: d.profit,   tone: "neutral" as const },
+    { label: i18nKey("Выручка"),         d: d.revenue,  tone: "neutral" as const },
+    { label: i18nKey("Опер. прибыль"),   d: d.opProfit, tone: "neutral" as const },
+    { label: i18nKey("Чистая прибыль"),  d: d.profit,   tone: "neutral" as const },
   ];
 });
 
@@ -331,6 +337,7 @@ const nowTick = ref(Date.now());
 
 // Sector peer navigation state — for skeleton flash on click
 const router = useRouter();
+const entityEditor = useEntityEditor();
 const navigatingTo = ref<string | null>(null);
 function navigateToPeer(code: string, isMine: boolean, accessible = true) {
   // Соседа по сектору видно всем в секторе, но открыть можно только компанию,
@@ -340,6 +347,14 @@ function navigateToPeer(code: string, isMine: boolean, accessible = true) {
   router.push(`/companies/${code}/workspace`).finally(() => {
     setTimeout(() => { navigatingTo.value = null; }, 400);
   });
+}
+
+function openAttentionItem(item: AttentionRow | UpcomingRow): void {
+  if (item.kind === "project") {
+    void entityEditor.openProject(item.id);
+  } else {
+    void entityEditor.openTask(item.id);
+  }
 }
 
 function fmtTimeAgo(iso: string): string {
@@ -376,10 +391,10 @@ function pctClassKpi(pct: number): string {
 function fmtBp(v: number | null | undefined): string {
   if (v == null || isNaN(v)) return "—";
   const av = Math.abs(v);
-  if (av >= 10000) return fmt.fmtNumber(v / 1000, { decimals: 1 }) + " трлн";
-  if (av >= 100)   return fmt.fmtNumber(Math.round(v)) + " млрд";
-  if (av >= 1)     return fmt.fmtNumber(v, { decimals: 1 }) + " млрд";
-  return fmt.fmtNumber(v, { decimals: 2 }) + " млрд";
+  if (av >= 10000) return tr('{value0} трлн', { value0: fmt.fmtNumber(v / 1000, { decimals: 1 }) });
+  if (av >= 100)   return tr('{value0} млрд', { value0: fmt.fmtNumber(Math.round(v)) });
+  if (av >= 1)     return tr('{value0} млрд', { value0: fmt.fmtNumber(v, { decimals: 1 }) });
+  return tr('{value0} млрд', { value0: fmt.fmtNumber(v, { decimals: 2 }) });
 }
 
 // ============================================================
@@ -437,6 +452,7 @@ function _extractEffect(
   }
 
   // Unit multiplier
+  // i18n-exempt-start -- canonical unit codes from the API, never rendered.
   const mult =
     ov.unit === "трлн"
       ? 1e12
@@ -445,6 +461,7 @@ function _extractEffect(
         : ov.unit === "млн"
           ? 1e6
           : 1;
+  // i18n-exempt-end
 
   let plannedUzs = planned * mult;
   let realizedUzs = realized * mult;
@@ -469,9 +486,9 @@ function _extractEffect(
 function fmtEffectUzs(v: number): string {
   if (!v || isNaN(v)) return "—";
   const av = Math.abs(v);
-  if (av >= 1e12) return fmt.fmtNumber(v / 1e12, { decimals: 1 }) + " трлн";
-  if (av >= 1e9)  return fmt.fmtNumber(v / 1e9,  { decimals: 1 }) + " млрд";
-  if (av >= 1e6)  return fmt.fmtNumber(Math.round(v / 1e6)) + " млн";
+  if (av >= 1e12) return tr('{value0} трлн', { value0: fmt.fmtNumber(v / 1e12, { decimals: 1 }) });
+  if (av >= 1e9)  return tr('{value0} млрд', { value0: fmt.fmtNumber(v / 1e9,  { decimals: 1 }) });
+  if (av >= 1e6)  return tr('{value0} млн', { value0: fmt.fmtNumber(Math.round(v / 1e6)) });
   return fmt.fmtNumber(Math.round(v));
 }
 
@@ -556,7 +573,7 @@ async function loadEffect() {
       }
     }
   } catch (e: any) {
-    errors.effect = e?.message || "Ошибка";
+    errors.effect = e?.message || tr('Ошибка');
     effectData.value = {
       plannedTotal: 0,
       realizedTotal: 0,
@@ -614,7 +631,7 @@ async function loadDirs() {
 
     dirsData.value = merged;
   } catch (e: any) {
-    errors.dirs = e?.message || "Ошибка";
+    errors.dirs = e?.message || tr('Ошибка');
     dirsData.value = [];
   } finally {
     loading.dirs = false;
@@ -662,7 +679,7 @@ async function loadAttention() {
     for (const t of tasks) {
       allItems.push({
         id: String(t.id),
-        kind: _isProject(t) ? "project" : "task",
+        kind: "task",
         title: String(t.title || t.name || "—"),
         deadline: _parseDate(t.deadline || t.due_date),
         rawDl: t.deadline || t.due_date || null,
@@ -687,6 +704,7 @@ async function loadAttention() {
       .slice(0, 3);
     upcomingList.value = upcoming.map((x) => ({
       id: x.id,
+      kind: x.kind,
       title: x.title,
       deadline: x.rawDl || "",
       daysLeft: Math.max(0, Math.ceil((x.deadline!.getTime() - today.getTime()) / 86_400_000)),
@@ -701,9 +719,9 @@ async function loadAttention() {
 }
 
 function fmtUpcoming(days: number): string {
-  if (days <= 7) return days + " дн.";
-  if (days <= 30) return Math.ceil(days / 7) + " нед.";
-  return Math.ceil(days / 30) + " мес.";
+  if (days <= 7) return tr('{value0} дн.', { value0: days });
+  if (days <= 30) return tr('{value0} нед.', { value0: Math.ceil(days / 7) });
+  return tr('{value0} мес.', { value0: Math.ceil(days / 30) });
 }
 function upcomingColor(days: number): string {
   if (days <= 7) return "#E24B4A";
@@ -781,7 +799,7 @@ async function loadSector() {
       .sort((a, b) => b.score - a.score)
       .slice(0, 5);
   } catch (e: any) {
-    errors.sector = e?.message || "Ошибка";
+    errors.sector = e?.message || tr('Ошибка');
   } finally {
     loading.sector = false;
   }
@@ -811,7 +829,7 @@ async function loadActivity(opts: { silent?: boolean } = {}) {
       activityAll.value = [];
       activityTotal.value = 0;
     } else {
-      errors.activity = e?.response?.data?.detail || e?.message || "Ошибка";
+      errors.activity = e?.response?.data?.detail || e?.message || tr('Ошибка');
     }
   } finally {
     loading.activity = false;
@@ -857,102 +875,108 @@ function isClickable(it: ActivityRow): boolean {
 
 // Human labels for technical field names (used by `field_updated` task_history rows).
 const FIELD_LABELS: Record<string, string> = {
-  assignee_email:  "ответственного",
-  assignee_name:   "ответственного",
-  assignee_id:     "ответственного",
-  status:          "статус",
-  priority:        "приоритет",
-  title:           "название",
-  description:     "описание",
-  due_date:        "срок",
-  start_date:      "дату начала",
-  progress_percent: "прогресс",
-  direction_id:    "направление",
-  board_id:        "доску",
-  result_at:       "результат",
+  assignee_email:  i18nKey("ответственного"),
+  assignee_name:   i18nKey("ответственного"),
+  assignee_id:     i18nKey("ответственного"),
+  status:          i18nKey("статус"),
+  priority:        i18nKey("приоритет"),
+  title:           i18nKey("название"),
+  description:     i18nKey("описание"),
+  due_date:        i18nKey("срок"),
+  start_date:      i18nKey("дату начала"),
+  progress_percent: i18nKey("прогресс"),
+  direction_id:    i18nKey("направление"),
+  board_id:        i18nKey("доску"),
+  result_at:       i18nKey("результат"),
   // Company fields
-  name_ru:         "название",
-  name_short:      "короткое название",
-  sector_code:     "сектор",
-  legal_form:      "форму собственности",
-  inn:             "ИНН",
-  status_ru:       "статус",
+  name_ru:         i18nKey("название"),
+  name_short:      i18nKey("короткое название"),
+  sector_code:     i18nKey("сектор"),
+  legal_form:      i18nKey("форму собственности"),
+  inn:             i18nKey("ИНН"),
+  status_ru:       i18nKey("статус"),
 };
 
 // Verb portion of "<module>.<verb>" actions
 const VERB_MAP: Record<string, string> = {
-  create:    "создал",
-  created:   "создал",
-  update:    "обновил",
-  updated:   "обновил",
-  delete:    "удалил",
-  deleted:   "удалил",
-  uploaded:  "загрузил",
-  approved:  "утвердил",
-  rejected:  "отклонил",
-  submitted: "отправил",
-  published: "опубликовал",
-  assigned:  "назначил",
-  revoked:   "отозвал",
-  restored:  "восстановил",
-  archived:  "архивировал",
-  replied:   "ответил",
-  read:      "прочитал",
-  view:      "просмотрел",
+  create:    i18nKey("создал"),
+  created:   i18nKey("создал"),
+  update:    i18nKey("обновил"),
+  updated:   i18nKey("обновил"),
+  delete:    i18nKey("удалил"),
+  deleted:   i18nKey("удалил"),
+  uploaded:  i18nKey("загрузил"),
+  approved:  i18nKey("утвердил"),
+  rejected:  i18nKey("отклонил"),
+  submitted: i18nKey("отправил"),
+  published: i18nKey("опубликовал"),
+  assigned:  i18nKey("назначил"),
+  revoked:   i18nKey("отозвал"),
+  restored:  i18nKey("восстановил"),
+  archived:  i18nKey("архивировал"),
+  replied:   i18nKey("ответил"),
+  read:      i18nKey("прочитал"),
+  view:      i18nKey("просмотрел"),
 };
 
 // Domain noun for "<module>" portion in accusative form
 const MODULE_NOUN: Record<string, string> = {
-  tasks:       "задачу",
-  projects:    "проект",
-  companies:   "компанию",
+  tasks:       i18nKey("задачу"),
+  projects:    i18nKey("проект"),
+  companies:   i18nKey("компанию"),
   kpi:         "KPI",
-  bp:          "бизнес-план",
-  ratings:     "рейтинг",
+  bp:          i18nKey("бизнес-план"),
+  ratings:     i18nKey("рейтинг"),
   esg:         "ESG",
-  governance:  "корп. управление",
-  procurement: "закупку",
-  credit:      "кредит",
-  comments:    "комментарий",
-  attachments: "файл",
-  rbac:        "права",
-  auth:        "аккаунт",
-  moderation:  "запрос на модерацию",
-  broadcasts:  "рассылку",
+  governance:  i18nKey("корп. управление"),
+  procurement: i18nKey("закупку"),
+  credit:      i18nKey("кредит"),
+  comments:    i18nKey("комментарий"),
+  attachments: i18nKey("файл"),
+  rbac:        i18nKey("права"),
+  auth:        i18nKey("аккаунт"),
+  moderation:  i18nKey("запрос на модерацию"),
+  broadcasts:  i18nKey("рассылку"),
 };
 
 function activityActionLabel(it: ActivityRow): string {
   // Exact matches first (task_history actions)
   const exact: Record<string, string> = {
-    status_changed: "сменил статус",
-    archived:       "архивировал",
-    unarchived:     "восстановил из архива",
-    result_set:     "отметил результат",
-    result_cleared: "снял результат",
-    CREATE:         "создал",
-    UPDATE:         "обновил",
-    DELETE:         "удалил",
-    VIEW:           "просмотрел",
-    FAILED:         "ошибка доступа",
+    status_changed: i18nKey("сменил статус"),
+    archived:       i18nKey("архивировал"),
+    unarchived:     i18nKey("восстановил из архива"),
+    result_set:     i18nKey("отметил результат"),
+    result_cleared: i18nKey("снял результат"),
+    CREATE:         i18nKey("создал"),
+    UPDATE:         i18nKey("обновил"),
+    DELETE:         i18nKey("удалил"),
+    VIEW:           i18nKey("просмотрел"),
+    FAILED:         i18nKey("ошибка доступа"),
   };
   const action = it.action || "";
 
   // task_history field updates → "изменил <field-label>"
   if (action === "field_updated") {
     const f = it.field || "";
-    const label = FIELD_LABELS[f] || (f ? `поле «${f}»` : "поле");
-    return `изменил ${label}`;
+    const label = FIELD_LABELS[f]
+      ? tr(FIELD_LABELS[f])
+      : f
+        ? tr("поле «{field}»", { field: f })
+        : tr("поле");
+    return tr('изменил {value0}', { value0: label });
   }
-  if (action in exact) return exact[action];
-  if (action.startsWith("login.")) return "вход";
+  if (action in exact) return tr(exact[action]);
+  if (action.startsWith("login.")) return tr('вход');
 
   // Namespaced "<module>.<verb>" → combine
   if (action.includes(".")) {
     const [module, verb] = action.split(".", 2);
     const verbRu = VERB_MAP[verb] || verb;
     const nounRu = MODULE_NOUN[module];
-    if (nounRu && VERB_MAP[verb]) return `${verbRu} ${nounRu}`;
-    if (VERB_MAP[verb]) return verbRu;
+    if (nounRu && VERB_MAP[verb]) {
+      return tr("{verb} {entity}", { verb: tr(verbRu), entity: tr(nounRu) });
+    }
+    if (VERB_MAP[verb]) return tr(verbRu);
   }
   return action || "—";
 }
@@ -968,37 +992,36 @@ function activityActionColor(it: ActivityRow): string {
 
 function activityEntityKindRu(t: string): string {
   const map: Record<string, string> = {
-    task:                  "Задача",
-    project:               "Проект",
-    comment:               "Комментарий",
+    task:                  i18nKey("Задача"),
+    project:               i18nKey("Проект"),
+    comment:               i18nKey("Комментарий"),
     kpi_submission:        "KPI",
-    bp_submission:         "Бизнес-план",
-    moderation_submission: "Модерация",
-    user:                  "Пользователь",
-    user_session:          "Сессия",
+    bp_submission:         i18nKey("Бизнес-план"),
+    moderation_submission: i18nKey("Модерация"),
+    user:                  i18nKey("Пользователь"),
+    user_session:          i18nKey("Сессия"),
     mfa_attempt:           "MFA",
-    company:               "Компания",
-    broadcast:             "Рассылка",
-    attachment:            "Файл",
+    company:               i18nKey("Компания"),
+    broadcast:             i18nKey("Рассылка"),
+    attachment:            i18nKey("Файл"),
   };
-  return map[t] || (t || "—");
+  return map[t] ? tr(map[t]) : (t || "—");
 }
 
 // Человекочитаемые статусы задач (вместо технических кодов init/quarterly/…).
 const TASK_STATUS_LABELS: Record<string, string> = {
-  init: "Инициация", new: "Новая", active: "В работе", review: "На проверке",
-  done: "Завершено", quarterly: "Квартальная", monthly: "Ежемесячная",
-  ongoing: "Постоянная", deferred: "Перенесена", blocked: "Заблокирована",
+  init: i18nKey("Инициация"), new: i18nKey("Новая"), active: i18nKey("В работе"), review: i18nKey("На проверке"),
+  done: i18nKey("Завершено"), quarterly: i18nKey("Квартальная"), monthly: i18nKey("Ежемесячная"),
+  ongoing: i18nKey("Постоянная"), deferred: i18nKey("Перенесена"), blocked: i18nKey("Заблокирована"),
 };
 // Значение diff в нормальном языке: статусы → русские лейблы, ISO-даты → ДД.ММ.ГГГГ.
 function _fmtActivityVal(v: any, field?: string | null, action?: string): string {
   const s = String(v ?? "").trim();
   if (!s) return "—";
   if (action === "status_changed" || field === "status") {
-    return TASK_STATUS_LABELS[s] || s;
+    return TASK_STATUS_LABELS[s] ? tr(TASK_STATUS_LABELS[s]) : s;
   }
-  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (m) return `${m[3]}.${m[2]}.${m[1]}`;
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return fmt.fmtDateNumeric(s);
   return s.length > 24 ? s.slice(0, 24) + "…" : s;
 }
 
@@ -1100,7 +1123,7 @@ async function loadKpi() {
     }
     kpiData.value = res;
   } catch (e: any) {
-    errors.kpi = e?.message || "Ошибка";
+    errors.kpi = e?.message || tr('Ошибка');
     kpiData.value = {
       managers: [], overallProgress: 0, totalManagers: 0,
       totalIndicators: 0, attentionCount: 0, hasAnyFact: false,
@@ -1205,7 +1228,7 @@ async function loadBp() {
     }
     bpData.value = res;
   } catch (e: any) {
-    errors.bp = e?.message || "Ошибка";
+    errors.bp = e?.message || tr('Ошибка');
     const blank: BpMetric = { plan: null, fact: null, expect: null, hasPlan: false, hasFact: false };
     bpData.value = {
       revenue: blank, opProfit: blank, profit: blank,
@@ -1262,18 +1285,18 @@ watch(
     <!-- ============================================================ -->
     <section class="cox-section cox-effect">
       <div class="cox-section-label">
-        Эконом. эффект · {{ year }}
+        {{ tr('Эконом. эффект ·') }} {{ year }}
         <span
           v-if="effectData && effectData.projectsWithEffect > 0"
           class="cox-card-sub"
         >
           {{ effectData.projectsWithEffect }} / {{ effectData.totalProjects }}
-          проектов с эффектом
+          {{ tr('проектов с эффектом') }}
         </span>
       </div>
       <div v-if="loading.effect" class="cox-loading">
         <div class="cox-spinner-sm"></div>
-        <span>Извлечение эффекта из карточек проектов...</span>
+        <span>{{ tr('Извлечение эффекта из карточек проектов...') }}</span>
       </div>
       <!-- Есть эффект -->
       <div
@@ -1282,13 +1305,13 @@ watch(
       >
         <div class="cox-effect-stats">
           <div class="cox-effect-stat">
-            <div class="cox-effect-stat-cap">План</div>
+            <div class="cox-effect-stat-cap">{{ tr('План') }}</div>
             <div class="cox-effect-stat-num">
               {{ fmtEffectUzs(effectData.plannedTotal) }}
             </div>
           </div>
           <div class="cox-effect-stat" data-color="green">
-            <div class="cox-effect-stat-cap">Факт</div>
+            <div class="cox-effect-stat-cap">{{ tr('Факт') }}</div>
             <div class="cox-effect-stat-num">
               {{ fmtEffectUzs(effectData.realizedTotal) }}
             </div>
@@ -1298,7 +1321,7 @@ watch(
             class="cox-effect-stat"
             data-color="purple"
           >
-            <div class="cox-effect-stat-cap">Выполнение</div>
+            <div class="cox-effect-stat-cap">{{ tr('Выполнение') }}</div>
             <div
               class="cox-effect-stat-num"
               :class="
@@ -1313,7 +1336,7 @@ watch(
         </div>
         <!-- Top-5 проектов по эффекту -->
         <div v-if="effectData.topProjects.length" class="cox-effect-tops">
-          <div class="cox-effect-tops-label">Топ проектов по эффекту:</div>
+          <div class="cox-effect-tops-label">{{ tr('Топ проектов по эффекту:') }}</div>
           <div
             v-for="p in effectData.topProjects"
             :key="p.id"
@@ -1322,11 +1345,11 @@ watch(
             <span class="cox-effect-top-title">{{ p.title }}</span>
             <span class="cox-effect-top-vals">
               <span class="cox-effect-top-val">
-                <span class="cox-effect-top-cap">план</span>
+                <span class="cox-effect-top-cap">{{ tr('план') }}</span>
                 {{ fmtEffectUzs(p.plannedUzs) }}
               </span>
               <span v-if="p.realizedUzs > 0" class="cox-effect-top-val">
-                <span class="cox-effect-top-cap">факт</span>
+                <span class="cox-effect-top-cap">{{ tr('факт') }}</span>
                 {{ fmtEffectUzs(p.realizedUzs) }}
               </span>
             </span>
@@ -1352,39 +1375,38 @@ watch(
         </svg>
         <div>
           <div class="cox-effect-empty-title">
-            Нет проектов с введённым эффектом
+            {{ tr('Нет проектов с введённым эффектом') }}
           </div>
           <div class="cox-effect-empty-hint">
-            Эконом. эффект указывается вручную в карточке проекта/задачи
-            ({{ effectData.totalProjects }}
+            {{ tr('Эконом. эффект указывается вручную в карточке проекта/задачи (') }}{{ effectData.totalProjects }}
             {{
-              effectData.totalProjects === 1 ? "проект" : effectData.totalProjects < 5 ? "проекта" : "проектов"
-            }} в {{ year }} году)
+              effectData.totalProjects === 1 ? tr('проект') : effectData.totalProjects < 5 ? tr('проекта') : tr('проектов')
+            }} {{ tr('в') }} {{ year }} {{ tr('году)') }}
           </div>
 
           <!-- Sprint B · Cumulative fallback for empty current year -->
           <div v-if="effectCumulative" class="cox-effect-cum">
             <div class="cox-effect-cum-tag">
-              ↻ Накопленный эффект {{ effectCumulative.fromYear }}–{{ effectCumulative.toYear }}
+              {{ tr('↻ Накопленный эффект') }} {{ effectCumulative.fromYear }}–{{ effectCumulative.toYear }}
             </div>
             <div class="cox-effect-cum-grid">
               <div class="cox-effect-cum-cell">
-                <span class="cox-effect-cum-cap">План</span>
+                <span class="cox-effect-cum-cap">{{ tr('План') }}</span>
                 <span class="cox-effect-cum-num">{{ fmtEffectUzs(effectCumulative.plannedTotal) }}</span>
               </div>
               <div v-if="effectCumulative.realizedTotal > 0" class="cox-effect-cum-cell">
-                <span class="cox-effect-cum-cap">Факт</span>
+                <span class="cox-effect-cum-cap">{{ tr('Факт') }}</span>
                 <span class="cox-effect-cum-num">{{ fmtEffectUzs(effectCumulative.realizedTotal) }}</span>
               </div>
               <div class="cox-effect-cum-cell">
-                <span class="cox-effect-cum-cap">Проектов</span>
+                <span class="cox-effect-cum-cap">{{ tr('Проектов') }}</span>
                 <span class="cox-effect-cum-num">{{ effectCumulative.projectsCount }}</span>
               </div>
             </div>
           </div>
         </div>
       </div>
-      <div v-else class="cox-empty-line">Нет проектов за {{ year }} год</div>
+      <div v-else class="cox-empty-line">{{ tr('Нет проектов за') }} {{ year }} {{ tr('год') }}</div>
     </section>
 
     <!-- ============================================================ -->
@@ -1393,26 +1415,26 @@ watch(
     <section class="cox-grid-4">
       <!-- 2. По направлениям -->
       <div class="cox-card">
-        <div class="cox-card-label">По направлениям</div>
-        <div v-if="loading.dirs" class="cox-loading-line">Загрузка...</div>
+        <div class="cox-card-label">{{ tr('По направлениям') }}</div>
+        <div v-if="loading.dirs" class="cox-loading-line">{{ tr('Загрузка...') }}</div>
         <template v-else-if="dirsData.length > 0">
           <div class="cox-dir-head">
             <span class="cox-dir-stripe-slot"></span>
             <span class="cox-dir-name-slot"></span>
             <span class="cox-dir-bar-slot"></span>
             <span class="cox-dir-pct-slot"></span>
-            <span class="cox-dir-num-head">Проекты</span>
-            <span class="cox-dir-num-head">Задачи</span>
+            <span class="cox-dir-num-head">{{ tr('Проекты') }}</span>
+            <span class="cox-dir-num-head">{{ tr('Задачи') }}</span>
           </div>
           <div class="cox-dirs-list">
             <div
               v-for="d in dirsData"
               :key="d.id"
               class="cox-dir-row"
-              :title="`${d.label}: проекты ${d.pDone}/${d.pTotal} (${d.pPct}%) · задачи ${d.tDone}/${d.tTotal}`"
+              :title="tr('{value0}: проекты {value1}/{value2} ({value3}%) · задачи {value4}/{value5}', { value0: d.label, value1: d.pDone, value2: d.pTotal, value3: d.pPct, value4: d.tDone, value5: d.tTotal })"
             >
               <span class="cox-dir-stripe" :style="{ background: _dirColor(d.id, d.color) }"></span>
-              <span class="cox-dir-name">{{ d.label }}</span>
+              <span class="cox-dir-name">{{ tr(d.label) }}</span>
               <span class="cox-dir-bar">
                 <span class="cox-dir-bar-fill"
                       :style="{ width: Math.min(100, d.pPct) + '%', background: pctColorMono(d.pPct) }"></span>
@@ -1423,13 +1445,13 @@ watch(
             </div>
           </div>
         </template>
-        <div v-else class="cox-empty-line">Нет направлений</div>
+        <div v-else class="cox-empty-line">{{ tr('Нет направлений') }}</div>
       </div>
 
       <!-- 3. Sector ranking -->
       <div class="cox-card">
         <div class="cox-card-label">{{ sectorName }}</div>
-        <div v-if="loading.sector" class="cox-loading-line">Загрузка...</div>
+        <div v-if="loading.sector" class="cox-loading-line">{{ tr('Загрузка...') }}</div>
         <div v-else-if="sectorRanking.length > 0" class="cox-rank-list">
           <div
             v-for="(s, i) in sectorRanking"
@@ -1440,9 +1462,9 @@ watch(
               'cox-rank-clickable': !s.isMine && s.accessible,
               'cox-rank-loading': navigatingTo === s.code,
             }"
-            :title="s.isMine ? 'Текущая компания'
-                    : s.accessible ? `Открыть «${s.name}»`
-                    : `${s.name} — сосед по сектору (нет доступа к карточке)`"
+            :title="s.isMine ? tr('Текущая компания')
+                    : s.accessible ? tr('Открыть «{value0}»', { value0: s.name })
+                    : tr('{value0} — сосед по сектору (нет доступа к карточке)', { value0: s.name })"
             @click="navigateToPeer(s.code, s.isMine, s.accessible)"
           >
             <span class="cox-rank-pos">{{ i + 1 }}</span>
@@ -1450,7 +1472,7 @@ watch(
             <span
               v-if="navigatingTo === s.code"
               class="cox-rank-spinner"
-              aria-label="Загрузка"
+              :aria-label="tr('Загрузка')"
             ></span>
             <span
               v-else
@@ -1461,49 +1483,55 @@ watch(
             </span>
           </div>
         </div>
-        <div v-else class="cox-empty-line">Нет данных по сектору</div>
+        <div v-else class="cox-empty-line">{{ tr('Нет данных по сектору') }}</div>
       </div>
 
       <!-- 4. Требуют внимания — real list (overdue) + Дедлайны (upcoming) — 1:1 с легасиом -->
       <div class="cox-card">
         <div class="cox-card-label">
-          Требуют внимания
+          {{ tr('Требуют внимания') }}
           <span v-if="attentionTotal > 0" class="cox-attention-badge">{{ attentionTotal }}</span>
         </div>
-        <div v-if="loadingAttention" class="cox-loading-line">Загрузка...</div>
+        <div v-if="loadingAttention" class="cox-loading-line">{{ tr('Загрузка...') }}</div>
         <template v-else>
           <div v-if="attentionList.length === 0 && upcomingList.length === 0" class="cox-attn-ok">
-            Просроченных нет
+            {{ tr('Просроченных нет') }}
           </div>
           <div v-if="attentionList.length > 0" class="cox-attn-list">
-            <div
+            <button
               v-for="item in attentionList"
               :key="item.kind + ':' + item.id"
+              type="button"
               class="cox-attn-row"
+              :aria-label="item.title"
+              @click="openAttentionItem(item)"
             >
               <span class="cox-attn-dot"></span>
               <span class="cox-attn-badge" :class="`cox-attn-badge-${item.kind}`">
-                {{ item.kind === "project" ? "ПРОЕКТ" : "ЗАДАЧА" }}
+                {{ item.kind === "project" ? tr('ПРОЕКТ') : tr('ЗАДАЧА') }}
               </span>
               <span class="cox-attn-title" :title="item.title">
                 {{ item.title.length > 26 ? item.title.slice(0, 24) + "…" : item.title }}
               </span>
               <span v-if="item.deadline" class="cox-attn-deadline">{{ item.deadline }}</span>
-            </div>
+            </button>
             <div
               v-if="attentionTotal > attentionList.length && openOverdueModal"
               class="cox-attn-more"
               @click="openOverdueModal && openOverdueModal()"
             >
-              Показать все ({{ attentionTotal }}) →
+              {{ tr('Показать все (') }}{{ attentionTotal }}) →
             </div>
           </div>
           <div v-if="upcomingList.length > 0" class="cox-attn-upcoming">
-            <div class="cox-attn-upcoming-h">Дедлайны</div>
-            <div
+            <div class="cox-attn-upcoming-h">{{ tr('Дедлайны') }}</div>
+            <button
               v-for="u in upcomingList"
-              :key="u.id"
+              :key="u.kind + ':' + u.id"
+              type="button"
               class="cox-attn-upcoming-row"
+              :aria-label="u.title"
+              @click="openAttentionItem(u)"
             >
               <span class="cox-attn-upcoming-days" :style="{ color: upcomingColor(u.daysLeft) }">
                 {{ fmtUpcoming(u.daysLeft) }}
@@ -1511,7 +1539,7 @@ watch(
               <span class="cox-attn-upcoming-title" :title="u.title">
                 {{ u.title.length > 28 ? u.title.slice(0, 26) + "…" : u.title }}
               </span>
-            </div>
+            </button>
           </div>
         </template>
       </div>
@@ -1521,15 +1549,15 @@ watch(
            открывает модалку с полным списком. -->
       <div class="cox-card">
         <div class="cox-card-label cox-card-label-row">
-          <span>Активность</span>
+          <span>{{ tr('Активность') }}</span>
           <div class="cox-activity-head-actions">
             <button
               class="cox-activity-refresh"
               :class="{ 'is-spin': activityRefreshing }"
               :disabled="activityRefreshing"
               @click="refreshActivity"
-              title="Обновить"
-              aria-label="Обновить"
+              :title="tr('Обновить')"
+              :aria-label="tr('Обновить')"
             >
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
                    stroke="currentColor" stroke-width="2"
@@ -1544,11 +1572,11 @@ watch(
               class="cox-activity-all-btn"
               @click="openActivityModal"
             >
-              Все ({{ activityTotal || activityAll.length }}) →
+              {{ tr('Все (') }}{{ activityTotal || activityAll.length }}) →
             </button>
           </div>
         </div>
-        <div v-if="loading.activity" class="cox-loading-line">Загрузка...</div>
+        <div v-if="loading.activity" class="cox-loading-line">{{ tr('Загрузка...') }}</div>
         <div v-else-if="errors.activity" class="cox-empty-line">{{ errors.activity }}</div>
         <div
           v-else-if="activityData.length > 0"
@@ -1560,7 +1588,7 @@ watch(
             type="button"
             class="cox-activity-row"
             :style="{ '--d': i * 45 + 'ms', '--acc': activityActionColor(a) }"
-            :title="'Подробнее: ' + (a.actor || '—') + ' — ' + activityActionLabel(a)"
+            :title="tr('Подробнее: {value0} — {value1}', { value0: (a.actor || '—'), value1: activityActionLabel(a) })"
             @click="openActivityDetail(a)"
           >
             <span
@@ -1573,8 +1601,8 @@ watch(
               </svg>
             </span>
             <span class="cox-activity-body">
-              <span class="cox-activity-title" :title="a.title || activityActionLabel(a)">
-                {{ a.title || activityActionLabel(a) }}
+              <span class="cox-activity-title" :title="a.title || tr(activityActionLabel(a))">
+                {{ a.title || tr(activityActionLabel(a)) }}
               </span>
               <span class="cox-activity-meta">
                 <!-- КТО: имя автора первым — раньше строка начиналась с типа
@@ -1583,7 +1611,7 @@ watch(
                 <span class="cox-activity-meta-sep">·</span>
                 <span>{{ activityEntityKindRu(a.entity_type) }}</span>
                 <span class="cox-activity-meta-sep">·</span>
-                <span>{{ activityActionLabel(a) }}</span>
+                <span>{{ tr(activityActionLabel(a)) }}</span>
                 <span v-if="shortDiff(a)" class="cox-activity-meta-diff">{{ shortDiff(a) }}</span>
                 <span class="cox-activity-time">{{ fmtTimeAgo(a.ts) }}</span>
               </span>
@@ -1594,12 +1622,12 @@ watch(
             </svg>
           </button>
         </div>
-        <div v-else class="cox-empty-line">Нет записей</div>
+        <div v-else class="cox-empty-line">{{ tr('Нет записей') }}</div>
       </div>
     </section>
 
     <!-- ─── Модалка «Вся активность» — канон ModalShell ─── -->
-    <ModalShell :open="activityModalOpen" size="md" title="Активность · последние 14 дней" @close="closeActivityModal">
+    <ModalShell :open="activityModalOpen" size="md" :title="tr('Активность · последние 14 дней')" @close="closeActivityModal">
         <div class="cox-act-modal-body">
           <ul v-if="activityAll.length > 0" class="cox-act-full-list">
             <li
@@ -1613,7 +1641,7 @@ watch(
               <div class="cox-act-full-row">
                 <div class="cox-act-full-line1">
                   <span class="cox-act-full-actor">{{ it.actor }}</span>
-                  <span class="cox-act-full-action">{{ activityActionLabel(it) }}</span>
+                  <span class="cox-act-full-action">{{ tr(activityActionLabel(it)) }}</span>
                   <span v-if="it.title" class="cox-act-full-target" :title="it.title">{{ it.title }}</span>
                 </div>
                 <div class="cox-act-full-line2">
@@ -1628,15 +1656,15 @@ watch(
               </div>
             </li>
           </ul>
-          <div v-else class="cox-empty-line">Нет активности</div>
+          <div v-else class="cox-empty-line">{{ tr('Нет активности') }}</div>
         </div>
     </ModalShell>
 
     <!-- ─── Детали одного события: «кто · что именно · где · когда» ─── -->
-    <ModalShell :open="!!activityDetail" size="sm" title="Событие" @close="closeActivityDetail">
+    <ModalShell :open="!!activityDetail" size="sm" :title="tr('Событие')" @close="closeActivityDetail">
       <div v-if="activityDetail" class="cox-actd" :style="{ '--acc': activityActionColor(activityDetail) }">
         <div class="cox-actd-head">
-          <span class="cox-actd-chip">{{ activityActionLabel(activityDetail) }}</span>
+          <span class="cox-actd-chip">{{ tr(activityActionLabel(activityDetail)) }}</span>
           <span class="cox-actd-ts">{{ fmtTimeAgo(activityDetail.ts) }}</span>
         </div>
         <div class="cox-actd-entity">{{ activityDetail.title || activityDetail.entity_label || '—' }}</div>
@@ -1647,18 +1675,18 @@ watch(
         <div v-else-if="shortDiff(activityDetail)" class="cox-actd-text">{{ shortDiff(activityDetail) }}</div>
         <div class="cox-actd-meta">
           <div class="cox-actd-row">
-            <span class="cox-actd-l">Кто</span>
+            <span class="cox-actd-l">{{ tr('Кто') }}</span>
             <span class="cox-actd-v">
               <b>{{ activityDetail.actor || '—' }}</b>
               <em v-if="activityDetail.actor_job_title">{{ activityDetail.actor_job_title }}</em>
             </span>
           </div>
           <div class="cox-actd-row">
-            <span class="cox-actd-l">Где</span>
+            <span class="cox-actd-l">{{ tr('Где') }}</span>
             <span class="cox-actd-v">{{ activityEntityKindRu(activityDetail.entity_type) }}</span>
           </div>
           <div class="cox-actd-row">
-            <span class="cox-actd-l">Когда</span>
+            <span class="cox-actd-l">{{ tr('Когда') }}</span>
             <span class="cox-actd-v">{{ fmt.fmtDateTime(activityDetail.ts) }}</span>
           </div>
         </div>
@@ -1669,9 +1697,9 @@ watch(
           class="cox-actd-open"
           @click="(() => { const it = activityDetail!; closeActivityDetail(); closeActivityModal(); openEntity(it); })()"
         >
-          {{ activityDetail?.entity_type === 'project' ? 'Открыть проект' : 'Открыть задачу' }} →
+          {{ activityDetail?.entity_type === 'project' ? tr('Открыть проект') : tr('Открыть задачу') }} →
         </button>
-        <button class="cox-actd-close" @click="closeActivityDetail">Закрыть</button>
+        <button class="cox-actd-close" @click="closeActivityDetail">{{ tr('Закрыть') }}</button>
       </template>
     </ModalShell>
 
@@ -1686,14 +1714,14 @@ watch(
             <span>KPI ·</span>
             <span class="cox-year-switcher">
               <button class="cox-year-arrow" @click="stepKpiYear(-1)"
-                      :disabled="kpiYear <= 2020" aria-label="Предыдущий год">‹</button>
+                      :disabled="kpiYear <= 2020" :aria-label="tr('Предыдущий год')">‹</button>
               <span class="cox-year-val">{{ kpiYear }}</span>
               <button class="cox-year-arrow" @click="stepKpiYear(1)"
-                      :disabled="kpiYear >= 2030" aria-label="Следующий год">›</button>
+                      :disabled="kpiYear >= 2030" :aria-label="tr('Следующий год')">›</button>
             </span>
             <span v-if="kpiData && kpiData.fallbackYear && kpiData.fallbackYear !== kpiYear"
-                  class="cox-fallback-badge" :title="`За ${kpiYear} факт не введён — показаны последние данные`">
-              данные за {{ kpiData.fallbackYear }}
+                  class="cox-fallback-badge" :title="tr('За {value0} факт не введён — показаны последние данные', { value0: kpiYear })">
+              {{ tr('данные за') }} {{ kpiData.fallbackYear }}
             </span>
             <span class="cox-period-switcher">
               <button v-for="p in PERIODS" :key="p"
@@ -1706,17 +1734,17 @@ watch(
             v-if="kpiData && kpiData.totalManagers > 0"
             class="cox-card-sub"
           >
-            {{ kpiData.totalManagers }} рук. ·
-            {{ kpiData.totalIndicators }} показателей
+            {{ kpiData.totalManagers }} {{ tr('рук. ·') }}
+            {{ kpiData.totalIndicators }} {{ tr('показателей') }}
             <span
               v-if="kpiData.attentionCount > 0"
               class="cox-attention-inline"
             >
-              · {{ kpiData.attentionCount }} требуют внимания
+              · {{ kpiData.attentionCount }} {{ tr('требуют внимания') }}
             </span>
           </span>
         </div>
-        <div v-if="loading.kpi" class="cox-loading-line">Загрузка KPI...</div>
+        <div v-if="loading.kpi" class="cox-loading-line">{{ tr('Загрузка KPI...') }}</div>
         <div
           v-else-if="kpiData && kpiData.managers.length > 0"
           class="cox-kpi-block"
@@ -1731,10 +1759,10 @@ watch(
             >
               {{ kpiData.overallProgress }}%
             </div>
-            <div class="cox-kpi-summary-cap">общий прогресс</div>
+            <div class="cox-kpi-summary-cap">{{ tr('общий прогресс') }}</div>
           </div>
           <div v-else class="cox-kpi-no-fact">
-            Факт не введён ни по одному показателю
+            {{ tr('Факт не введён ни по одному показателю') }}
           </div>
           <div class="cox-kpi-managers">
             <div
@@ -1757,8 +1785,8 @@ watch(
               <div
                 class="cox-kpi-bar-track"
                 :title="m.hasFact
-                  ? `${m.title}: выполнение ${m.progress}%`
-                  : `${m.title}: факт не введён`"
+                  ? tr('{value0}: выполнение {value1}%', { value0: m.title, value1: m.progress })
+                  : tr('{value0}: факт не введён', { value0: m.title })"
               >
                 <div
                   v-if="m.hasFact"
@@ -1772,7 +1800,7 @@ watch(
           </div>
         </div>
         <div v-else class="cox-empty-line">
-          Нет KPI данных за {{ year }}
+          {{ tr('Нет KPI данных за') }} {{ year }}
         </div>
       </div>
 
@@ -1780,27 +1808,27 @@ watch(
       <div class="cox-card cox-card-tall">
         <div class="cox-card-label cox-card-label-row">
           <span class="cox-card-label-left">
-            <span>Бизнес-план ·</span>
+            <span>{{ tr('Бизнес-план ·') }}</span>
             <span class="cox-year-switcher">
               <button class="cox-year-arrow" @click="stepBpYear(-1)"
-                      :disabled="bpYear <= 2020" aria-label="Предыдущий год">‹</button>
+                      :disabled="bpYear <= 2020" :aria-label="tr('Предыдущий год')">‹</button>
               <span class="cox-year-val">{{ bpYear }}</span>
               <button class="cox-year-arrow" @click="stepBpYear(1)"
-                      :disabled="bpYear >= 2030" aria-label="Следующий год">›</button>
+                      :disabled="bpYear >= 2030" :aria-label="tr('Следующий год')">›</button>
             </span>
             <span v-if="bpData && bpData.fallbackYear && bpData.fallbackYear !== bpYear"
-                  class="cox-fallback-badge" :title="`За ${bpYear} данных нет — показаны последние`">
-              данные за {{ bpData.fallbackYear }}
+                  class="cox-fallback-badge" :title="tr('За {value0} данных нет — показаны последние', { value0: bpYear })">
+              {{ tr('данные за') }} {{ bpData.fallbackYear }}
             </span>
             <span class="cox-bp-view-switcher">
               <button class="cox-bp-view-btn cox-bp-view-btn-inc"
                       :class="{ active: bpView === 'income' }"
                       @click="setBpView('income')"
-                      title="Выручка / Фин. доходы / Опер. прибыль">Доходы</button>
+                      :title="tr('Выручка / Фин. доходы / Опер. прибыль')">{{ tr('Доходы') }}</button>
               <button class="cox-bp-view-btn cox-bp-view-btn-exp"
                       :class="{ active: bpView === 'expenses' }"
                       @click="setBpView('expenses')"
-                      title="Себестоимость / Расходы / Фин.расходы / Налог">Расходы</button>
+                      :title="tr('Себестоимость / Расходы / Фин.расходы / Налог')">{{ tr('Расходы') }}</button>
             </span>
             <span class="cox-period-switcher">
               <button v-for="p in PERIODS" :key="p"
@@ -1817,7 +1845,7 @@ watch(
             {{ bpData.overallPct }}%
           </span>
         </div>
-        <div v-if="loading.bp" class="cox-loading-line">Загрузка БП...</div>
+        <div v-if="loading.bp" class="cox-loading-line">{{ tr('Загрузка БП...') }}</div>
         <div
           v-else-if="bpData && bpData.hasData"
           class="cox-bp-block"
@@ -1826,7 +1854,7 @@ watch(
           <template v-for="m in bpDisplayedMetrics" :key="m.label">
             <div class="cox-bp-row">
               <div class="cox-bp-row-head">
-                <span class="cox-bp-row-label">{{ m.label }}</span>
+                <span class="cox-bp-row-label">{{ tr(m.label) }}</span>
                 <span
                   v-if="m.d.hasPlan && m.d.hasFact && m.d.plan !== 0"
                   class="cox-bp-row-pct"
@@ -1838,27 +1866,27 @@ watch(
               </div>
               <div class="cox-bp-vals">
                 <div class="cox-bp-val">
-                  <span class="cox-bp-val-cap">план</span>
+                  <span class="cox-bp-val-cap">{{ tr('план') }}</span>
                   <span class="cox-bp-val-num" :class="{ 'cox-bp-empty': !m.d.hasPlan }">
                     {{ m.d.hasPlan ? fmtBp(m.d.plan) : '—' }}
                   </span>
                 </div>
                 <div class="cox-bp-val">
-                  <span class="cox-bp-val-cap">факт</span>
+                  <span class="cox-bp-val-cap">{{ tr('факт') }}</span>
                   <span class="cox-bp-val-num cox-bp-fact" :class="{ 'cox-bp-empty': !m.d.hasFact }">
                     {{ m.d.hasFact ? fmtBp(m.d.fact) : '—' }}
                   </span>
                 </div>
                 <div v-if="m.d.expect != null" class="cox-bp-val">
-                  <span class="cox-bp-val-cap">ожид.</span>
+                  <span class="cox-bp-val-cap">{{ tr('ожид.') }}</span>
                   <span class="cox-bp-val-num">{{ fmtBp(m.d.expect) }}</span>
                 </div>
               </div>
               <div
                 class="cox-bp-bar-track"
                 :title="m.d.hasPlan && m.d.hasFact && m.d.plan !== 0
-                  ? `${m.label}: план ${fmtBp(m.d.plan)} · факт ${fmtBp(m.d.fact)} · ${Math.round(((m.d.fact ?? 0) / (m.d.plan || 1)) * 100)}% · Δ ${fmtBp((m.d.fact ?? 0) - (m.d.plan ?? 0))}`
-                  : `${m.label}: план ${m.d.hasPlan ? fmtBp(m.d.plan) : '—'} · факт ${m.d.hasFact ? fmtBp(m.d.fact) : 'не введён'}`"
+                  ? tr('{value0}: план {value1} · факт {value2} · {value3}% · Δ {value4}', { value0: m.label, value1: fmtBp(m.d.plan), value2: fmtBp(m.d.fact), value3: Math.round(((m.d.fact ?? 0) / (m.d.plan || 1)) * 100), value4: fmtBp((m.d.fact ?? 0) - (m.d.plan ?? 0)) })
+                  : tr('{value0}: план {value1} · факт {value2}', { value0: m.label, value1: m.d.hasPlan ? fmtBp(m.d.plan) : '—', value2: m.d.hasFact ? fmtBp(m.d.fact) : tr('не введён') })"
               >
                 <div
                   v-if="m.d.hasPlan && m.d.hasFact && m.d.plan !== 0"
@@ -1874,25 +1902,25 @@ watch(
         <div v-else-if="bpBaseline" class="cox-bp-baseline">
           <div class="cox-bp-baseline-head">
             <span class="cox-bp-baseline-icon">↻</span>
-            <span>Бизнес-план на <b>{{ year }}</b> не заполнен. Факт за <b>{{ bpBaseline.year }}</b>:</span>
+            <span>{{ tr('Бизнес-план на') }} <b>{{ year }}</b> {{ tr('не заполнен. Факт за') }} <b>{{ bpBaseline.year }}</b>:</span>
           </div>
           <div class="cox-bp-baseline-rows">
             <div v-if="bpBaseline.revenue != null" class="cox-bp-baseline-row">
-              <span>Выручка</span>
+              <span>{{ tr('Выручка') }}</span>
               <span class="cox-bp-baseline-num">{{ fmtBp(bpBaseline.revenue) }}</span>
             </div>
             <div v-if="bpBaseline.opProfit != null" class="cox-bp-baseline-row">
-              <span>Опер. прибыль</span>
+              <span>{{ tr('Опер. прибыль') }}</span>
               <span class="cox-bp-baseline-num">{{ fmtBp(bpBaseline.opProfit) }}</span>
             </div>
             <div v-if="bpBaseline.profit != null" class="cox-bp-baseline-row">
-              <span>Чистая прибыль</span>
+              <span>{{ tr('Чистая прибыль') }}</span>
               <span class="cox-bp-baseline-num">{{ fmtBp(bpBaseline.profit) }}</span>
             </div>
           </div>
         </div>
         <div v-else class="cox-empty-line">
-          Бизнес-план на {{ year }} год не заполнен
+          {{ tr('Бизнес-план на') }} {{ year }} {{ tr('год не заполнен') }}
         </div>
       </div>
     </section>
@@ -2370,14 +2398,25 @@ watch(
   display: flex;
   align-items: center;
   gap: 6px;
+  width: 100%;
   padding: 5px 0;
+  border: 0;
   border-bottom: 0.5px solid rgba(30, 42, 74, 0.06);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
   cursor: pointer;
   border-radius: 3px;
   transition: background 0.12s;
 }
 .cox-attn-row:hover {
   background: rgba(30, 42, 74, 0.04);
+}
+.cox-attn-row:focus-visible,
+.cox-attn-upcoming-row:focus-visible {
+  outline: 2px solid rgba(127, 119, 221, 0.7);
+  outline-offset: 2px;
 }
 .cox-attn-dot {
   width: 5px;
@@ -2449,8 +2488,14 @@ watch(
   display: flex;
   align-items: center;
   gap: 5px;
+  width: 100%;
   padding: 4px 0;
+  border: 0;
   border-bottom: 0.5px solid rgba(30, 42, 74, 0.06);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
   cursor: pointer;
   border-radius: 3px;
   transition: background 0.12s;

@@ -15,6 +15,8 @@ import { esgApi, type ESGMaturityCompany } from "@/api/esg";
 import { ratingsApi } from "@/api/ratings";
 import { useToast } from "@/composables/useToast";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 const { t } = useI18n();
 
 
@@ -30,11 +32,11 @@ const toast = useToast();
 
 const ESG_AGENCIES = ["Sustainable Fitch", "S&P ESG", "CDP", "MSCI", "Sustainalytics", "ISS"];
 const REP_OPTS = [
-  { v: 0, label: "нет" }, { v: 1, label: "разовый" },
-  { v: 2, label: "регулярный" }, { v: 3, label: "IFRS SDS" },
+  { v: 0, label: i18nKey("нет") }, { v: 1, label: i18nKey("разовый") },
+  { v: 2, label: i18nKey("регулярный") }, { v: 3, label: "IFRS SDS" },
 ];
 const ASSUR_OPTS = [
-  { v: 0, label: "нет" }, { v: 1, label: "запланировано" }, { v: 2, label: "пройдено" },
+  { v: 0, label: i18nKey("нет") }, { v: 1, label: i18nKey("запланировано") }, { v: 2, label: i18nKey("пройдено") },
 ];
 
 interface RatingRow { id?: string; agency: string; value: string; report_url: string; _new?: boolean }
@@ -88,7 +90,7 @@ function init() {
 }
 watch(() => [props.open, props.company?.company_id], () => { if (props.open) init(); }, { immediate: true });
 
-const title = computed(() => props.company?.company_name || props.company?.company_code || "Компания");
+const title = computed(() => props.company?.company_name || props.company?.company_code || i18nKey("Компания"));
 
 function addRow() {
   if (!props.canEdit) return;
@@ -150,14 +152,14 @@ async function save() {
 
     if (!calls.length) { requestClose(); return; }
     await Promise.all(calls);
-    if (queued) toast.info("Часть изменений отправлена на согласование");
-    else toast.success("Сохранено");
+    if (queued) toast.info(t('Часть изменений отправлена на согласование'));
+    else toast.success(t('Сохранено'));
     emit("saved");
     initial = snap();
     requestClose();
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    toast.error("Не сохранено: " + (err?.response?.data?.detail || err?.message || "ошибка"));
+    toast.error(t('Не сохранено: {value0}', { value0: (err?.response?.data?.detail || err?.message || t("ошибка")) }));
   } finally {
     saving.value = false;
   }
@@ -184,7 +186,7 @@ async function save() {
         <template v-if="!repNr">
           <div class="erm-seg">
             <button v-for="o in REP_OPTS" :key="o.v" type="button" class="erm-seg-btn"
-                    :class="{ on: repStage === o.v }" :disabled="!canEdit" @click="repStage = o.v">{{ o.label }}</button>
+                    :class="{ on: repStage === o.v }" :disabled="!canEdit" @click="repStage = o.v">{{ t(o.label) }}</button>
           </div>
           <input v-model="repLink" type="url" class="erm-inp" :placeholder="t('https://… ссылка на отчёт')" :disabled="!canEdit" />
         </template>
@@ -199,7 +201,7 @@ async function save() {
         </div>
         <div v-if="!assurNr" class="erm-seg">
           <button v-for="o in ASSUR_OPTS" :key="o.v" type="button" class="erm-seg-btn"
-                  :class="{ on: assurStage === o.v }" :disabled="!canEdit" @click="assurStage = o.v">{{ o.label }}</button>
+                  :class="{ on: assurStage === o.v }" :disabled="!canEdit" @click="assurStage = o.v">{{ t(o.label) }}</button>
         </div>
         <div v-else class="erm-nr-note">{{ t('Заверение исключено из статистики') }}</div>
       </section>
@@ -221,7 +223,7 @@ async function save() {
         <div class="erm-rate-foot">
           <button v-if="canEdit" type="button" class="erm-add" @click="addRow">{{ t('+ рейтинг') }}</button>
           <label class="erm-planned" :class="{ dis: rows.some((r) => r.value.trim()) }"
-                 :title="rows.some((r) => r.value.trim()) ? 'Есть полученный рейтинг' : 'Отметить как запланированный'">
+                 :title="rows.some((r) => r.value.trim()) ? t('Есть полученный рейтинг') : t('Отметить как запланированный')">
             <input type="checkbox" v-model="planned" :disabled="!canEdit" /> {{ t('запланировано получение рейтинга') }}
           </label>
         </div>
@@ -231,7 +233,7 @@ async function save() {
     <template #footer>
       <button class="erm-cancel" type="button" @click="requestClose">{{ t('Отмена') }}</button>
       <button v-if="canEdit" class="erm-save" type="button" :disabled="!dirty || saving" @click="save">
-        {{ saving ? "Сохранение…" : "Сохранить" }}
+        {{ saving ? t('Сохранение…') : t('Сохранить') }}
       </button>
     </template>
   </ModalShell>

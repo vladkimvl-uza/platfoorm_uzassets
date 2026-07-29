@@ -7,6 +7,7 @@ import { ref, computed, watch, onMounted } from "vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import { pmoApi, type HealthResponse, type StatusReport } from "@/api/pmo";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
 const { t } = useI18n();
 
 
@@ -21,7 +22,11 @@ const genBusy = ref(false);
 const useAi = ref(false);
 const showHistory = ref(false);
 
-const RAG_RU: Record<string, string> = { green: "зелёный", amber: "жёлтый", red: "красный" };
+const RAG_LABELS: Record<string, string> = {
+  green: i18nKey("зелёный"),
+  amber: i18nKey("жёлтый"),
+  red: i18nKey("красный"),
+};
 const RAG_C: Record<string, string> = { green: "#1D9E75", amber: "#D97706", red: "#E24B4A" };
 
 async function load() {
@@ -34,7 +39,7 @@ async function load() {
     data.value = h;
     reports.value = rs;
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить здоровье";
+    error.value = e?.response?.data?.detail || e?.message || t('Не удалось загрузить здоровье');
   } finally {
     loading.value = false;
   }
@@ -49,7 +54,7 @@ async function generate() {
     reports.value = [rep, ...reports.value];
     showHistory.value = true;
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || "Не удалось сформировать отчёт";
+    error.value = e?.response?.data?.detail || t('Не удалось сформировать отчёт');
   } finally {
     genBusy.value = false;
   }
@@ -61,7 +66,7 @@ const latest = computed(() => reports.value[0] || null);
 
 <template>
   <div class="ph">
-    <UzaStateBlock v-if="loading" state="loading" text="Расчёт здоровья портфеля…" />
+    <UzaStateBlock v-if="loading" state="loading" :text="t('Расчёт здоровья портфеля…')" />
     <UzaStateBlock v-else-if="error" state="error" variant="block" :title="t('Ошибка')" :text="error" retry @retry="load" />
 
     <template v-else-if="data">
@@ -71,7 +76,7 @@ const latest = computed(() => reports.value[0] || null);
           <span class="ph-rag-dot"></span>
           <div>
             <div class="ph-rag-l">{{ t('Здоровье портфеля') }}</div>
-            <div class="ph-rag-v">{{ RAG_RU[data.portfolio_rag] }}</div>
+            <div class="ph-rag-v">{{ t(RAG_LABELS[data.portfolio_rag]) }}</div>
           </div>
         </div>
         <div class="ph-counts">
@@ -84,7 +89,7 @@ const latest = computed(() => reports.value[0] || null);
         <div class="ph-gen">
           <label class="ph-ai"><input type="checkbox" v-model="useAi" :disabled="!canEdit" /> {{ t('AI-резюме') }}</label>
           <button class="ph-gen-btn" :disabled="!canEdit || genBusy" @click="generate">
-            {{ genBusy ? "Формирую…" : "Сформировать статус-отчёт" }}
+            {{ genBusy ? t('Формирую…') : t('Сформировать статус-отчёт') }}
           </button>
         </div>
       </div>
@@ -95,7 +100,7 @@ const latest = computed(() => reports.value[0] || null);
           <span class="ph-rag-dot sm" :style="{ '--rag': RAG_C[latest.rag] }"></span>
           {{ t('Статус-отчёт ·') }} {{ fmtDt(latest.created_at) }}
           <button class="ph-hist-toggle" @click="showHistory = !showHistory">
-            {{ showHistory ? "скрыть историю" : `история (${reports.length})` }}
+            {{ showHistory ? t('скрыть историю') : t('история ({value0})', { value0: reports.length }) }}
           </button>
         </div>
         <pre class="ph-report-body">{{ latest.summary }}</pre>
@@ -122,7 +127,7 @@ const latest = computed(() => reports.value[0] || null);
           <div class="ph-card-h">
             <span class="ph-rag-dot sm"></span>
             <span class="ph-card-title">{{ p.title }}</span>
-            <span class="ph-card-rag">{{ RAG_RU[p.rag] }}</span>
+            <span class="ph-card-rag">{{ t(RAG_LABELS[p.rag]) }}</span>
           </div>
           <div class="ph-bar"><span :style="{ width: p.progress_percent + '%', background: RAG_C[p.rag] }"></span></div>
           <div class="ph-metrics">
@@ -137,7 +142,7 @@ const latest = computed(() => reports.value[0] || null);
         </div>
       </div>
 
-      <UzaStateBlock v-if="!data.projects.length" state="empty" variant="block" :title="t('Нет проектов')" text="Добавьте проекты с задачами и датами — здесь появится их здоровье." />
+      <UzaStateBlock v-if="!data.projects.length" state="empty" variant="block" :title="t('Нет проектов')" :text="t('Добавьте проекты с задачами и датами — здесь появится их здоровье.')" />
     </template>
   </div>
 </template>

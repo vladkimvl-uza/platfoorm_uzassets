@@ -7,29 +7,30 @@
  * tri-pillar splits (3-card strips, 3-column grids).
  */
 import { api, type ModerationQueuedTag } from "./client";
+import { i18nKey } from "@/locale/keys";
 
 export type Pillar = "E" | "S" | "G";
 export type Severity = "low" | "med" | "high" | "critical";
 export type IssueStatus = "open" | "in_progress" | "mitigated" | "closed";
 
 export const PILLAR_META: { key: Pillar; label: string; color: string; full: string }[] = [
-  { key: "E", label: "Окружающая среда", color: "#1D9E75", full: "Environmental" },
-  { key: "S", label: "Социальная сфера", color: "#7F77DD", full: "Social" },
-  { key: "G", label: "Корпуправление",   color: "#378ADD", full: "Governance" },
+  { key: "E", label: i18nKey("Окружающая среда"), color: "#1D9E75", full: "Environmental" },
+  { key: "S", label: i18nKey("Социальная сфера"), color: "#7F77DD", full: "Social" },
+  { key: "G", label: i18nKey("Корпуправление"),   color: "#378ADD", full: "Governance" },
 ];
 
 export const SEVERITY_META: { key: Severity; label: string; color: string }[] = [
-  { key: "low",      label: "Низкая",       color: "#7DC4A0" },
-  { key: "med",      label: "Средняя",      color: "#EF9F27" },
-  { key: "high",     label: "Высокая",      color: "#E24B4A" },
-  { key: "critical", label: "Критическая", color: "#991B1B" },
+  { key: "low",      label: i18nKey("Низкая"),       color: "#7DC4A0" },
+  { key: "med",      label: i18nKey("Средняя"),      color: "#EF9F27" },
+  { key: "high",     label: i18nKey("Высокая"),      color: "#E24B4A" },
+  { key: "critical", label: i18nKey("Критическая"), color: "#991B1B" },
 ];
 
 export const ISSUE_STATUS_META: { key: IssueStatus; label: string; color: string }[] = [
-  { key: "open",        label: "Открыто",     color: "#E24B4A" },
-  { key: "in_progress", label: "В работе",    color: "#EF9F27" },
-  { key: "mitigated",   label: "Смягчено",    color: "#7DC4A0" },
-  { key: "closed",      label: "Закрыто",     color: "#94A3B8" },
+  { key: "open",        label: i18nKey("Открыто"),     color: "#E24B4A" },
+  { key: "in_progress", label: i18nKey("В работе"),    color: "#EF9F27" },
+  { key: "mitigated",   label: i18nKey("Смягчено"),    color: "#7DC4A0" },
+  { key: "closed",      label: i18nKey("Закрыто"),     color: "#94A3B8" },
 ];
 
 // ---------------------------------------------------------------------

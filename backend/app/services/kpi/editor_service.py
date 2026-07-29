@@ -156,7 +156,8 @@ class KpiEditorService:
             if mgr is None:
                 mgr = KpiManager(
                     company_id=company_id, year=year,
-                    sort_order=len(existing), title=manager_title.strip() or "Импорт KPI",
+                    # Canonical persisted fallback; translated by the UI on display.
+                    sort_order=len(existing), title=manager_title.strip() or "Импорт KPI",  # i18n-audit: ignore
                 )
                 await self.uow.kpi.add_manager(mgr)   # flush → id
                 base_sort = 0

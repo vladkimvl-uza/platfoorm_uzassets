@@ -17,6 +17,7 @@ from typing import Any, Optional
 
 from fastapi import HTTPException
 
+from app.core.i18n import current_locale, tr
 log = logging.getLogger(__name__)
 
 
@@ -152,7 +153,10 @@ class TlsAdminService:
             x509.load_pem_x509_certificate(cert_pem.encode(), default_backend())
             load_pem_private_key(key_pem.encode(), password=None, backend=default_backend())
         except Exception as e:
-            raise HTTPException(400, f"PEM невалидный: {e}")
+            raise HTTPException(
+                400,
+                tr("PEM невалидный: {error}", current_locale(), error=str(e)),
+            )
 
         cert_path = CERT_DIR / "fullchain.pem"
         key_path = CERT_DIR / "privkey.pem"

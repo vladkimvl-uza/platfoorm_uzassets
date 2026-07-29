@@ -16,6 +16,7 @@
  *   <50%   — критично (красный)
  *   null   — нет данных (серый var(--t3))
  */
+import { i18nKey } from "@/locale/keys";
 
 export const EXEC_OVER = "#7C3AED"; // переисполнение >110%
 export const EXEC_GOOD = "#1D9E75"; // в норме
@@ -32,8 +33,8 @@ export function execCol(p: number | null | undefined): string {
 
 export function execZone(p: number | null | undefined): string {
   if (p == null) return "";
-  if (p > 110) return "переисполнение — проверить единицы/двойной ввод";
-  if (p >= 80) return "в норме";
-  if (p >= 50) return "отставание";
-  return "критично";
+  if (p > 110) return i18nKey("переисполнение — проверить единицы/двойной ввод");
+  if (p >= 80) return i18nKey("в норме");
+  if (p >= 50) return i18nKey("отставание");
+  return i18nKey("критично");
 }

@@ -5,6 +5,8 @@
 
 import type { AgencyRatingBrief } from "@/api/ratings";
 import type { SectorBrief } from "@/api/companies";
+import { t } from "@/locale/i18n";
+import { i18nKey } from "@/locale/keys";
 
 // ─── Agencies ──────────────────────────────────────────────────────────────
 export const CREDIT_AGENCIES = ["Fitch", "S&P", "Moody's"] as const;
@@ -48,10 +50,12 @@ export function formatDate(d: string | null | undefined): string {
 }
 
 const MON_MAP: Record<string, string> = {
+  // i18n-exempt-start -- accepted date tokens from persisted/imported data.
   янв:"01",фев:"02",мар:"03",апр:"04",май:"05",июн:"06",
   июл:"07",авг:"08",сен:"09",окт:"10",ноя:"11",дек:"12",
   jan:"01",feb:"02",mar:"03",apr:"04",may:"05",jun:"06",
   jul:"07",aug:"08",sep:"09",oct:"10",nov:"11",dec:"12",
+  // i18n-exempt-end
 };
 
 /** Build a sortable YYYY-MM-DD key from various date string forms. */
@@ -115,19 +119,19 @@ export function badgeStyle(agency: string, rating: string | null | undefined): B
 export interface OutlookBadge { label: string; fg: string; bg: string; symbol: string; }
 
 const OUTLOOK_MAP: Record<string, [string, string, string, string]> = {
-  Stable:      ["Стабильный",      "#64748B", "#F1F5F9", "→"],
-  Positive:    ["Позитивный",      "#1D9E75", "#ECFDF5", "↑"],
-  Negative:    ["Негативный",      "#EF4444", "#FEE2E2", "↓"],
-  Developing:  ["Развивающийся",   "#D97706", "#FEF9C3", "↔"],
-  RWN:         ["CW Негативный",   "#EF4444", "#FEE2E2", "⚠"],
-  RWP:         ["CW Позитивный",   "#1D9E75", "#ECFDF5", "⚠"],
+  Stable:      [i18nKey("Стабильный"),      "#64748B", "#F1F5F9", "→"],
+  Positive:    [i18nKey("Позитивный"),      "#1D9E75", "#ECFDF5", "↑"],
+  Negative:    [i18nKey("Негативный"),      "#EF4444", "#FEE2E2", "↓"],
+  Developing:  [i18nKey("Развивающийся"),   "#D97706", "#FEF9C3", "↔"],
+  RWN:         [i18nKey("CW Негативный"),   "#EF4444", "#FEE2E2", "⚠"],
+  RWP:         [i18nKey("CW Позитивный"),   "#1D9E75", "#ECFDF5", "⚠"],
 };
 
 export function outlookBadge(outlook: string | null | undefined): OutlookBadge | null {
   if (!outlook) return null;
   const v = OUTLOOK_MAP[outlook];
   if (!v) return null;
-  return { label: v[0], fg: v[1], bg: v[2], symbol: v[3] };
+  return { label: t(v[0]), fg: v[1], bg: v[2], symbol: v[3] };
 }
 
 // ─── Sector helpers ────────────────────────────────────────────────────────
@@ -216,8 +220,8 @@ export function ensureRatingsCss(): void {
 // ─── Pluralisation for "X компаний" / "X компании" ────────────────────────
 export function pluralCompanies(n: number): string {
   const m100 = n % 100, m10 = n % 10;
-  if (m100 >= 11 && m100 <= 14) return "компаний";
-  if (m10 === 1) return "компания";
-  if (m10 >= 2 && m10 <= 4) return "компании";
-  return "компаний";
+  if (m100 >= 11 && m100 <= 14) return t("компаний");
+  if (m10 === 1) return t("компания");
+  if (m10 >= 2 && m10 <= 4) return t("компании");
+  return t("компаний");
 }

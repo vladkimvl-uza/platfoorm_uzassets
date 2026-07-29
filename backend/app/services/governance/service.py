@@ -8,6 +8,7 @@ from uuid import UUID
 
 from fastapi import HTTPException
 
+from app.core.i18n import current_locale, tr
 from app.models.governance import BoardMember, CommitteeMeeting, GovernanceData
 from app.schemas.governance import (
     COMMITTEE_MEETING_FIELDS,
@@ -510,7 +511,13 @@ class GovernanceService:
         scope_company_ids: Optional[Sequence[UUID]],
     ) -> CommitteeMeetingUpsertResult:
         if payload.field not in COMMITTEE_MEETING_FIELDS:
-            raise HTTPException(400, detail=f"Недопустимое поле: {payload.field}")
+            raise HTTPException(
+                400,
+                detail=tr(
+                    "Недопустимое поле: {field}",
+                    current_locale(), field=payload.field,
+                ),
+            )
         if scope_company_ids is not None and payload.company_id not in scope_company_ids:
             raise HTTPException(403, detail="No access to this company")
 

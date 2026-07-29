@@ -1678,7 +1678,7 @@ watch(reconYear, () => { if (reconOpen.value) loadRecon(); });
                 <tr v-for="d in reconDiffs" :key="d.metric" :class="`sig-${d.significance}`">
                   <td class="ne-recon-metric">
                     <span class="ne-recon-code">{{ d.metric }}</span>
-                    <span class="ne-recon-label">{{ d.label }}</span>
+                    <span class="ne-recon-label">{{ t(d.label) }}</span>
                   </td>
                   <td class="ne-recon-val">{{ fmtReconNum(d.nsbu_value) }}</td>
                   <td class="ne-recon-val">{{ fmtReconNum(d.ifrs_value) }}</td>

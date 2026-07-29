@@ -1,3 +1,4 @@
+import { i18nKey } from "@/locale/keys";
 /**
  * Company Navigation — static config for CompanyHeader + CompanyTabBar.
  *
@@ -45,36 +46,36 @@ export interface TabIndicators {
 // Без гейта остаются «Обзор» и «Сотрудники» — это сама карточка компании,
 // доступ к ней даёт модуль «Компании» (companies.view).
 export const COMPANY_TABS: TabConfig[] = [
-  { id: 'overview',    label: 'Обзор',          groupId: 'overview' },
-  { id: 'people',      label: 'Сотрудники',     groupId: 'overview' },
+  { id: 'overview',    label: i18nKey('Обзор'),          groupId: 'overview' },
+  { id: 'people',      label: i18nKey('Сотрудники'),     groupId: 'overview' },
 
   // Канбан + Список объединены в «Работа» (переключатель вида внутри таба).
-  { id: 'work',        label: 'Работа',         groupId: 'tasks', gated: 'tasks' },
+  { id: 'work',        label: i18nKey('Работа'),         groupId: 'tasks', gated: 'tasks' },
   // Документы — библиотека компании. Файлы из карточек задач/проектов/отчётов
   // лежат здесь же (document_links), поэтому вкладка идёт сразу за «Работой».
-  { id: 'documents',   label: 'Документы',      groupId: 'tasks', gated: 'companies' },
+  { id: 'documents',   label: i18nKey('Документы'),      groupId: 'tasks', gated: 'companies' },
   // PMO — только для роли с правом pmo.view (расписание/Гантт; позже RAID/здоровье).
   { id: 'pmo',         label: 'PMO',            groupId: 'tasks', gated: 'pmo' },
-  { id: 'notes',       label: 'Календарь',      groupId: 'tasks', gated: 'tasks' },
+  { id: 'notes',       label: i18nKey('Календарь'),      groupId: 'tasks', gated: 'tasks' },
   // «Отчёт» — мастер отчётов; бэкенд /report-wizard спрашивает reports.view.
-  { id: 'reporting',   label: 'Отчёт',          groupId: 'tasks', gated: 'reports' },
+  { id: 'reporting',   label: i18nKey('Отчёт'),          groupId: 'tasks', gated: 'reports' },
 
-  { id: 'ifrs',        label: 'МСФО',           groupId: 'finance', gated: 'financials' },
-  { id: 'nsbu',        label: 'НСБУ',           groupId: 'finance', gated: 'financials' },
-  { id: 'hlf',         label: 'Фин. отчётность', groupId: 'finance', gated: 'financials' },
-  { id: 'bp',          label: 'Бизнес-план',    groupId: 'finance', gated: 'bp' },
+  { id: 'ifrs',        label: i18nKey('МСФО'),           groupId: 'finance', gated: 'financials' },
+  { id: 'nsbu',        label: i18nKey('НСБУ'),           groupId: 'finance', gated: 'financials' },
+  { id: 'hlf',         label: i18nKey('Фин. отчётность'), groupId: 'finance', gated: 'financials' },
+  { id: 'bp',          label: i18nKey('Бизнес-план'),    groupId: 'finance', gated: 'bp' },
   // Себестоимость — тот же бэкенд, что и полноэкранный /unit-cost, поэтому и
   // право то же (unit_cost.view). Без гейта вкладка осталась бы окном в модуль
   // в обход его собственного права.
-  { id: 'unitcost',    label: 'Себестоимость',  groupId: 'finance', gated: 'unit_cost' },
+  { id: 'unitcost',    label: i18nKey('Себестоимость'),  groupId: 'finance', gated: 'unit_cost' },
 
   { id: 'kpi',         label: 'KPI',            groupId: 'performance', gated: 'kpi' },
   // Закупки во вкладке читают procurementAnalysisApi — то же право, что у
   // полноэкранного /procurement/analysis, а не форензик-право procurement.view.
-  { id: 'procurement', label: 'Закупки',        groupId: 'performance', gated: 'procurement_analysis' },
+  { id: 'procurement', label: i18nKey('Закупки'),        groupId: 'performance', gated: 'procurement_analysis' },
 
-  { id: 'governance',  label: 'Корп. упр.',     groupId: 'governance', gated: 'governance' },
-  { id: 'consultants', label: 'Консультанты',   groupId: 'governance', gated: 'consultants' },
+  { id: 'governance',  label: i18nKey('Корп. упр.'),     groupId: 'governance', gated: 'governance' },
+  { id: 'consultants', label: i18nKey('Консультанты'),   groupId: 'governance', gated: 'consultants' },
   { id: 'esg',         label: 'ESG',            groupId: 'governance', gated: 'esg' },
 ];
 

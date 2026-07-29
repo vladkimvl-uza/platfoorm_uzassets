@@ -9,6 +9,7 @@ import { useToast } from "@/composables/useToast";
 import type { CompanyListItem, SectorBrief } from "@/api/companies";
 import { ifrsReportHistoryApi, type IfrsHistoryLastChange } from "@/api/ifrsReportHistory";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
 
 const { t } = useI18n();
 
@@ -99,10 +100,11 @@ function companyDelay(cid: string): DelayInfo {
 function delayTip(cid: string): string {
   const d = companyDelay(cid);
   if (d.lastY == null) return t("Нет заполненных дат");
+  const tipKey = d.status === "late"
+    ? i18nKey("{y}: лаг {lag} дн. от 31.12.{y}; дедлайн 15.06.{next} — опубликовано позже срока")
+    : i18nKey("{y}: лаг {lag} дн. от 31.12.{y}; дедлайн 15.06.{next} — в срок");
   const base = t(
-    d.status === "late"
-      ? "{y}: лаг {lag} дн. от 31.12.{y}; дедлайн 15.06.{next} — опубликовано позже срока"
-      : "{y}: лаг {lag} дн. от 31.12.{y}; дедлайн 15.06.{next} — в срок",
+    tipKey,
     { y: d.lastY, lag: d.lag, next: d.lastY + 1 },
   );
   if (d.improve == null) return base;

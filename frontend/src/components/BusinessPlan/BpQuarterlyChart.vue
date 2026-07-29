@@ -14,6 +14,7 @@
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { ytdToDeltas, type BpQuarterOutlook, type BpQuarterRow } from "@/api/bpKpi";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
 
 const { t } = useI18n();
 
@@ -185,10 +186,10 @@ const cumForecastPts = computed(() => {
 const cumForecastLine = computed(() => cumForecastPts.value.map(p => `${p.x},${p.y}`).join(" "));
 
 const _FC_METHOD_RU: Record<string, string> = {
-  pace: "план × темп", seasonal: "сезонность прошлого года", run_rate: "run-rate",
-  plan: "по плану", actual: "год закрыт", mixed: "смешанный", none: "нет данных",
+  pace: i18nKey("план × темп"), seasonal: i18nKey("сезонность прошлого года"), run_rate: "run-rate",
+  plan: i18nKey("по плану"), actual: i18nKey("год закрыт"), mixed: i18nKey("смешанный"), none: i18nKey("нет данных"),
 };
-const _FC_CONF_RU: Record<string, string> = { high: "высокая", medium: "средняя", low: "низкая", none: "—" };
+const _FC_CONF_RU: Record<string, string> = { high: i18nKey("высокая"), medium: i18nKey("средняя"), low: i18nKey("низкая"), none: "—" };
 const forecastMeta = computed(() => {
   const f = props.forecast;
   if (!f || !hasForecast.value) return null;
@@ -243,7 +244,7 @@ function tip(i: number) {
 <template>
   <div class="bqc">
     <div class="bqc-hd">
-      <span class="bqc-t">{{ t("Динамика по кварталам") }}<span v-if="label"> · {{ label }}</span></span>
+      <span class="bqc-t">{{ t("Динамика по кварталам") }}<span v-if="label"> · {{ t(label) }}</span></span>
       <span class="bqc-legend">
         <span><i class="bqc-sw bqc-sw-plan" />{{ t("План (за кв.)") }}</span>
         <span><i class="bqc-sw bqc-sw-fact" />{{ t("Факт (за кв.)") }}</span>

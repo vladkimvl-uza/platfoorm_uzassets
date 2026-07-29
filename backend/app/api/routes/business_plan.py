@@ -18,6 +18,7 @@ from fastapi import status as http_status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
+from app.core.i18n import current_locale, tr
 from app.core.editor_lock import check_editor_token, compute_bp_editor_token
 from app.core.access import (
     allowed_company_ids,
@@ -342,7 +343,7 @@ async def bulk_upsert(
         return {
             "queued": True, "submission_id": str(sub.id),
             "status": sub.status,
-            "message": "Изменение отправлено на модерацию",
+            "message": tr("Изменение отправлено на модерацию", current_locale()),
         }
 
     n = await service.bulk_upsert(payload, scope_company_ids=await _scope(db, user))

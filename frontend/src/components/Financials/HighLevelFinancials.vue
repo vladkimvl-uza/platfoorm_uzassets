@@ -24,6 +24,8 @@ import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
 import { useI18n } from "@/composables/useI18n";
 import { useCompanyScope } from "@/composables/useCompanyScope";
+import { i18nKey } from "@/locale/keys";
+
 
 const toast = useToast();
 const { confirmDialog } = useConfirm();
@@ -256,9 +258,9 @@ function renderMd(src: string): string {
 // ─── ИИ-анализ: полная кросс-компанийная аналитика всех показателей ───
 type AnScenario = "cfo" | "investor" | "shareholder";
 const AN_SCENARIOS: { id: AnScenario; label: string; hint: string }[] = [
-  { id: "cfo", label: "Senior CFO", hint: "Здоровье портфеля, риски, план действий" },
-  { id: "investor", label: "Инвестор", hint: "Куда направить капитал, инвест-идеи" },
-  { id: "shareholder", label: "Акционер", hint: "Дивиденды, стоимость, возврат капитала" },
+  { id: "cfo", label: "Senior CFO", hint: i18nKey("Здоровье портфеля, риски, план действий") },
+  { id: "investor", label: i18nKey("Инвестор"), hint: i18nKey("Куда направить капитал, инвест-идеи") },
+  { id: "shareholder", label: i18nKey("Акционер"), hint: i18nKey("Дивиденды, стоимость, возврат капитала") },
 ];
 type AnRow = { code: string; name: string; kpis: Record<string, number | null> };
 type AnDef = { key: string; label: string; unit: string };
@@ -771,10 +773,10 @@ async function removeYear(yr: number) {
 function _newRow(sec: HlfSection, type: "line" | "subheader" | "subtotal" | "section_header" | "total"): HlfRow {
   return {
     type,
-    label: type === "line" ? "Новая строка" :
-           type === "subheader" ? "Новая подсекция" :
-           type === "subtotal" ? "Итого" :
-           type === "section_header" ? "НОВЫЙ ЗАГОЛОВОК" : "ИТОГО",
+    label: type === "line" ? i18nKey("Новая строка") :
+           type === "subheader" ? i18nKey("Новая подсекция") :
+           type === "subtotal" ? i18nKey("Итого") :
+           type === "section_header" ? i18nKey("НОВЫЙ ЗАГОЛОВОК") : i18nKey("ИТОГО"),
     values: sec.years.map(() => null),
     // Новые итоговые строки по умолчанию авто-суммируются.
     ...(type === "total" || type === "subtotal" ? { auto: true } : {}),
@@ -794,10 +796,12 @@ function insertRow(sec: HlfSection, idx: number, type: "line" | "subheader" | "s
 // Балансовые «Total ...» суммируются автоматически (assets/liabilities/equity),
 // но грандтотал «...and equity» и P&L-подытоги (Gross profit и т.п.) — НЕ авто.
 function isAdditiveTotalLabel(label: string): boolean {
+  // i18n-exempt-start: multilingual aliases classify imported report rows; they are never rendered.
   const l = (label || "").toLowerCase();
   if (/\band\s+equity|equity\s+and\b|и\s+капитал|капитал\s+и/.test(l)) return false;
   return /total[\s\S]*(asset|liabilit|equit)/i.test(l)
       || /(жами|итого)[\s\S]*(актив|мажб|капитал)/i.test(l);
+  // i18n-exempt-end
 }
 function effectiveAuto(row: HlfRow): boolean {
   if (row.type !== "total" && row.type !== "subtotal") return false;
@@ -859,8 +863,10 @@ function moveRow(sec: HlfSection, rowIdx: number, dir: -1 | 1) {
 // идущие подряд строки type='line' сразу после «Cost of sales» до первого не-line
 // (обычно «Gross profit» = subtotal). Работает для всех компаний без правки данных.
 function isCostOfSalesLabel(label: string): boolean {
+  // i18n-exempt-start: multilingual aliases classify imported report rows; they are never rendered.
   const l = (label || "").trim().toLowerCase();
   return l === "cost of sales" || l === "cost of goods sold" || l.includes("себестоимост");
+  // i18n-exempt-end
 }
 const costGroups = computed<Record<string, { parentIdx: number; childIdxs: number[] }>>(() => {
   const out: Record<string, { parentIdx: number; childIdxs: number[] }> = {};
@@ -904,7 +910,7 @@ function addSection() {
   if (!data.value) return;
   data.value.sections.push({
     id: `custom_${Date.now()}`,
-    title: "Новая секция",
+    title: i18nKey("Новая секция"),
     years: [...data.value.years],
     rows: [],
   });
@@ -978,6 +984,7 @@ async function onFileChange(evt: Event) {
 // ════════════════════════════════════════════════════════════════════════
 // KPI EXTRACTION
 // ════════════════════════════════════════════════════════════════════════
+// i18n-exempt-start -- multilingual aliases classify imported financial rows; they are never rendered.
 const LABEL_MATCHERS: Record<string, string[]> = {
   revenue: ["выручка", "revenue", "тушум", "sales revenue"],
   cogs: ["себестоимость", "cost of sales", "cost of goods", "cost of revenue", "таннарх", "cos"],
@@ -1012,6 +1019,7 @@ const LABEL_MATCHERS: Record<string, string[]> = {
   ],
   dividends_paid: ["dividends paid", "тўланган дивидендл"],
 };
+// i18n-exempt-end
 
 function matchRow(rows: HlfRow[], key: string): HlfRow | null {
   const patterns = LABEL_MATCHERS[key];
@@ -1047,12 +1055,14 @@ function rowValueForYear(r: HlfRow, targetYear: number | null): number | null {
 }
 
 function totalDebtIn(rows: HlfRow[], targetYear: number): number | null {
+  // i18n-exempt-start: multilingual aliases classify imported report rows; they are never rendered.
   const matched = rows.filter(r =>
     r.type !== "section_header" && r.type !== "subheader" &&
     (r.label.toLowerCase().includes("займ") ||
      r.label.toLowerCase().includes("borrowing") ||
      (r.mapping || "").toLowerCase().includes("қарзлар"))
   );
+  // i18n-exempt-end
   let sum = 0, any = false;
   for (const r of matched) {
     const v = rowValueForYear(r, targetYear);
@@ -1352,9 +1362,9 @@ const kpiCards = computed(() => kpis.value.map(k => ({
         <span class="hlf-coverage">{{ kpiCoverage(activeKpiYearIdx) }}/{{ kpis.length }} KPI</span>
       </div>
       <div class="hlf-kpis">
-        <div v-for="c in kpiCards" :key="c.k.key" class="hlf-kpi" :title="c.k.label"
+        <div v-for="c in kpiCards" :key="c.k.key" class="hlf-kpi" :title="t(c.k.label)"
              :style="{ '--kpi-accent': c.color }">
-          <div class="hlf-kpi-lbl">{{ c.k.label }}</div>
+          <div class="hlf-kpi-lbl">{{ t(c.k.label) }}</div>
           <div class="hlf-kpi-val" :style="{ color: c.color }"><NumMixed :value="c.valStr" /></div>
           <div v-if="activeKpiYearIdx > 0" class="hlf-kpi-foot">
             <span v-if="c.delta && c.delta.dir !== 0" class="hlf-kpi-delta"
@@ -1437,7 +1447,7 @@ const kpiCards = computed(() => kpis.value.map(k => ({
                             @click="toggleCost(sec.id)">
                       <svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2l4 3-4 3"/></svg>
                     </button>
-                    <span :class="{ 'hlf-cost-child-lbl': isCostChild(sec.id, rowIdx) }">{{ row.label }}</span>
+                    <span :class="{ 'hlf-cost-child-lbl': isCostChild(sec.id, rowIdx) }">{{ t(row.label) }}</span>
                     <span v-if="isCostParent(sec.id, rowIdx) && costCollapsed(sec.id)" class="hlf-cost-badge">{{ costChildCount(sec.id) }}</span>
                   </template>
                 </td>

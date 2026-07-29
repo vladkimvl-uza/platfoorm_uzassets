@@ -13,6 +13,11 @@
  * Стили берут токены --fs- и --r-; цвета — через var(...) с фолбэками.
  */
 import { computed, ref } from "vue";
+import { i18nKey } from "@/locale/keys";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
+
 
 interface Column<R> {
   key: string;
@@ -36,7 +41,7 @@ const props = withDefaults(defineProps<{
   emptyText?: string;
 }>(), {
   rowKey: "id",
-  emptyText: "Нет данных",
+  emptyText: i18nKey("Нет данных"),
 });
 
 const emit = defineEmits<{ "row-click": [T] }>();
@@ -95,7 +100,7 @@ function ariaSort(col: Column<T>): "ascending" | "descending" | "none" | undefin
           >
             <slot :name="`head-${col.key}`" :col="col">
               <span class="udt-th-in">
-                {{ col.label }}
+                {{ col.label ? t(col.label) : "" }}
                 <svg v-if="col.sortable" class="udt-sort-ico" :class="{ on: sortKey === col.key, desc: sortKey === col.key && sortDir === 'desc' }"
                      width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true">
                   <polyline points="6 15 12 9 18 15" />

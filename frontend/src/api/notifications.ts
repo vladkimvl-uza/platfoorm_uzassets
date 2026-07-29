@@ -1,4 +1,7 @@
 import { api } from "./client";
+import { t } from "@/locale/i18n";
+import { i18nKey } from "@/locale/keys";
+
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -138,9 +141,9 @@ export const notificationsApi = {
 // ─── Display helpers ─────────────────────────────────────────
 
 export const PRIORITY_LABELS: Record<Priority, { label: string; color: string; bg: string }> = {
-  low:      { label: "Низкий",   color: "#5F5E5A", bg: "rgba(136,135,128,.1)" },
-  normal:   { label: "Обычный",  color: "#534AB7", bg: "rgba(127,119,221,.1)" },
-  high:     { label: "Высокий",  color: "#854F0B", bg: "rgba(239,159,39,.12)" },
+  low:      { label: i18nKey("Низкий"),   color: "#5F5E5A", bg: "rgba(136,135,128,.1)" },
+  normal:   { label: i18nKey("Обычный"),  color: "#534AB7", bg: "rgba(127,119,221,.1)" },
+  high:     { label: i18nKey("Высокий"),  color: "#854F0B", bg: "rgba(239,159,39,.12)" },
   critical: { label: "Critical", color: "#A32D2D", bg: "rgba(226,75,74,.12)" },
 };
 
@@ -198,10 +201,10 @@ export function formatRelativeTime(iso: string): string {
   const then = new Date(iso).getTime();
   const now = Date.now();
   const diffSec = Math.floor((now - then) / 1000);
-  if (diffSec < 30)         return "только что";
-  if (diffSec < 60)         return `${diffSec} с`;
-  if (diffSec < 3600)       return `${Math.floor(diffSec / 60)} мин`;
-  if (diffSec < 86400)      return `${Math.floor(diffSec / 3600)} ч`;
-  if (diffSec < 86400 * 7)  return `${Math.floor(diffSec / 86400)} д`;
+  if (diffSec < 30)         return t('только что');
+  if (diffSec < 60)         return t('{value0} с', { value0: diffSec });
+  if (diffSec < 3600)       return t('{value0} мин', { value0: Math.floor(diffSec / 60) });
+  if (diffSec < 86400)      return t('{value0} ч', { value0: Math.floor(diffSec / 3600) });
+  if (diffSec < 86400 * 7)  return t('{value0} д', { value0: Math.floor(diffSec / 86400) });
   return new Date(iso).toLocaleDateString("ru-RU");
 }

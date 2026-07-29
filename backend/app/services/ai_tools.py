@@ -3367,6 +3367,8 @@ async def _tool_create_task(args: dict, db: AsyncSession) -> dict:
                 db, recipient_id=assignee.id, type="task.assigned",
                 title=f"Новая задача: {title[:120]}",
                 body=(args.get("description") or title),
+                title_template="Новая задача: {title}",
+                template_vars={"title": title[:120]},
                 priority="high", source_user_id=actor.id,
                 link_url=f"/tasks/{task.id}", company_id=company_id,
             )

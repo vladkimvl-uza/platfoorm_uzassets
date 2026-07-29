@@ -13,6 +13,8 @@ import { companiesApi, type CompanyEmployee } from "@/api/companies";
 import { formatRelativeTime } from "@/api/audit";
 import UserCardAnchor from "@/components/user/UserCardAnchor.vue";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 const { t } = useI18n();
 
 
@@ -23,6 +25,9 @@ const error = ref<string | null>(null);
 const employees = ref<CompanyEmployee[]>([]);
 const search = ref("");
 const deptFilter = ref<string | null>(null);
+const NO_DEPARTMENT = "__no_department__";
+const departmentKey = (employee: CompanyEmployee) => employee.department || NO_DEPARTMENT;
+const departmentLabel = (key: string) => key === NO_DEPARTMENT ? t("Без отдела") : key;
 
 async function load() {
   if (!props.code) return;
@@ -32,7 +37,7 @@ async function load() {
     const res = await companiesApi.getEmployees(props.code);
     employees.value = res.employees;
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || "Не удалось загрузить сотрудников";
+    error.value = e?.response?.data?.detail || t('Не удалось загрузить сотрудников');
     employees.value = [];
   } finally {
     loading.value = false;
@@ -51,19 +56,19 @@ const onlineCount = computed(() => employees.value.filter((e) => isOnline(e)).le
 const deptList = computed(() => {
   const map = new Map<string, number>();
   for (const e of employees.value) {
-    const key = e.department || "Без отдела";
+    const key = departmentKey(e);
     map.set(key, (map.get(key) || 0) + 1);
   }
   return Array.from(map.entries())
     .map(([name, count]) => ({ name, count }))
-    .sort((a, b) => (a.name === "Без отдела" ? 1 : b.name === "Без отдела" ? -1 : b.count - a.count));
+    .sort((a, b) => (a.name === NO_DEPARTMENT ? 1 : b.name === NO_DEPARTMENT ? -1 : b.count - a.count));
 });
 
 const kpis = computed(() => [
-  { label: "Сотрудников", value: String(employees.value.length), unit: "", color: "#7F77DD" },
-  { label: "Активных", value: String(activeCount.value), unit: employees.value.length ? Math.round(activeCount.value / employees.value.length * 100) + "%" : "", color: "#1D9E75" },
-  { label: "В сети сейчас", value: String(onlineCount.value), unit: "", color: "#0E7490", live: onlineCount.value > 0 },
-  { label: deptList.value.length === 1 ? "Отдел" : "Отделов", value: String(deptList.value.length), unit: "", color: "#A855F7" },
+  { label: i18nKey("Сотрудников"), value: String(employees.value.length), unit: "", color: "#7F77DD" },
+  { label: i18nKey("Активных"), value: String(activeCount.value), unit: employees.value.length ? Math.round(activeCount.value / employees.value.length * 100) + "%" : "", color: "#1D9E75" },
+  { label: i18nKey("В сети сейчас"), value: String(onlineCount.value), unit: "", color: "#0E7490", live: onlineCount.value > 0 },
+  { label: deptList.value.length === 1 ? i18nKey("Отдел") : i18nKey("Отделов"), value: String(deptList.value.length), unit: "", color: "#A855F7" },
 ]);
 
 // ── Фильтрация ───────────────────────────────────────────────────
@@ -74,7 +79,7 @@ function toggleDept(name: string) {
 const filtered = computed(() => {
   const q = search.value.trim().toLowerCase();
   let list = employees.value;
-  if (deptFilter.value) list = list.filter((e) => (e.department || "Без отдела") === deptFilter.value);
+  if (deptFilter.value) list = list.filter((e) => departmentKey(e) === deptFilter.value);
   if (q) {
     list = list.filter((e) =>
       (e.full_name || "").toLowerCase().includes(q) ||
@@ -87,7 +92,9 @@ const filtered = computed(() => {
   // Владелец → выше, затем по отделу, затем по имени.
   return [...list].sort((a, b) => {
     if (a.is_owner !== b.is_owner) return a.is_owner ? -1 : 1;
-    const da = a.department || "яя", db = b.department || "яя";
+    const da = departmentKey(a), db = departmentKey(b);
+    if (da === NO_DEPARTMENT) return 1;
+    if (db === NO_DEPARTMENT) return -1;
     if (da !== db) return da.localeCompare(db, "ru");
     return (a.full_name || "").localeCompare(b.full_name || "", "ru");
   });
@@ -132,7 +139,7 @@ const filtered = computed(() => {
           class="cet-kpi"
           :style="`--accent:${k.color};--d:${ki}`"
         >
-          <div class="cet-kpi-l">{{ k.label }}</div>
+          <div class="cet-kpi-l">{{ t(k.label) }}</div>
           <div class="cet-kpi-v">
             {{ k.value }}
             <span v-if="(k as any).live" class="cet-kpi-live"></span>
@@ -155,7 +162,7 @@ const filtered = computed(() => {
             :class="{ 'cet-chip--on': deptFilter === d.name }"
             @click="toggleDept(d.name)"
           >
-            {{ d.name }}<span class="cet-chip-cnt">{{ d.count }}</span>
+            {{ departmentLabel(d.name) }}<span class="cet-chip-cnt">{{ d.count }}</span>
           </button>
         </div>
       </div>
@@ -163,7 +170,7 @@ const filtered = computed(() => {
       <!-- Состав — карточки людей в стиле членов совета -->
       <div class="cet-sec">
         <div class="cet-sec-l">
-          {{ t('Состав (') }}{{ filtered.length }} {{ filtered.length === 1 ? 'чел.' : 'чел.' }})
+          {{ t('Состав (') }}{{ filtered.length }} {{ filtered.length === 1 ? t('чел.') : t('чел.') }})
         </div>
 
         <div v-if="filtered.length === 0" class="cet-empty cet-empty--sm">
@@ -198,7 +205,7 @@ const filtered = computed(() => {
                 <span v-if="isOnline(e)" class="cet-mbadge cet-mbadge--on">{{ t('В сети') }}</span>
                 <span v-else-if="!e.is_active" class="cet-mbadge">{{ t('Неактивен') }}</span>
               </div>
-              <div class="cet-mdates">{{ e.last_active ? formatRelativeTime(e.last_active) : 'нет активности' }}</div>
+              <div class="cet-mdates">{{ e.last_active ? formatRelativeTime(e.last_active) : t('нет активности') }}</div>
             </div>
             <svg class="cet-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
           </UserCardAnchor>

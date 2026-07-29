@@ -251,7 +251,7 @@ export const en: Record<string, string> = {
 
   // ── ChangePasswordPage ──
   "слабый": "weak",
-  "средний": "fair",
+  
   "хороший": "good",
   "сильный": "strong",
   "Не удалось сменить пароль": "Could not change the password",

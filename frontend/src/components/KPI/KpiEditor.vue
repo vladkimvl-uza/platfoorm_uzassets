@@ -257,6 +257,8 @@ import { usePermissions } from "@/composables/usePermissions";
 import { useI18n } from "@/composables/useI18n";
 import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
+import { i18nKey } from "@/locale/keys";
+
 
 const { confirmDialog } = useConfirm();
 const { t } = useI18n();
@@ -287,7 +289,7 @@ const loadError = ref(false);
 const bpOptions = BP_FIELDS.filter((f) => !f.sub).map((f) => ({ value: f.key, label: f.label }));
 function isLinked(ind: any): boolean { return !!ind.bp_metric_key; }
 function bpProvLabel(ind: any): string {
-  return ({ nsbu: "НСБУ", ytd: "нараст. итог (Q4)", bp_plan: "план БП" } as Record<string, string>)[ind.bp_source] || "БП";
+  return ({ nsbu: i18nKey("НСБУ"), ytd: i18nKey("нараст. итог (Q4)"), bp_plan: i18nKey("план БП") } as Record<string, string>)[ind.bp_source] || t('БП');
 }
 function bpVal(v: any): string {
   if (v == null || v === "") return "—";
@@ -342,7 +344,7 @@ const weightTotal = computed(() => {
 
 function addManager() {
   managers.value.push({
-    title: "Новый руководитель",
+    title: i18nKey("Новый руководитель"),
     short_title: "",
     role: "",
     sort_order: managers.value.length,
@@ -360,7 +362,7 @@ async function removeManager(idx: number) {
 function addIndicator() {
   if (!activeManager.value) return;
   activeManager.value.indicators.push({
-    name: "Новый KPI",
+    name: t("Новый KPI"),
     unit: "",
     direction: "up",
     weight: 0,
@@ -390,8 +392,8 @@ function removeIndicator(idx: number) {
 const kpiDraft = ref<KpiPlanDraft | null>(null);
 const kpiDraftOpen = ref(false);
 const kpiDraftLoading = ref(false);
-const KPI_DRAFT_METHOD_RU: Record<string, string> = { cagr: "CAGR", ols: "OLS-тренд", none: "—" };
-const KPI_DRAFT_CONF_RU: Record<string, string> = { high: "высокая", medium: "средняя", low: "низкая", none: "—" };
+const KPI_DRAFT_METHOD_RU: Record<string, string> = { cagr: "CAGR", ols: i18nKey("OLS-тренд"), none: "—" };
+const KPI_DRAFT_CONF_RU: Record<string, string> = { high: i18nKey("высокая"), medium: i18nKey("средняя"), low: i18nKey("низкая"), none: "—" };
 
 function normName(s: unknown): string {
   return String(s ?? "").toLowerCase().split(/\s+/).join(" ").trim();

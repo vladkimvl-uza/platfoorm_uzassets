@@ -8,6 +8,8 @@
  */
 import { reactive, ref } from "vue";
 import { financialsApi, type PortfolioSummaryResponse } from "@/api/financials";
+import { t } from "@/locale/i18n";
+
 
 const LS_KEY = "uz_exec_dash_finance_v1";
 
@@ -94,7 +96,7 @@ async function loadData(): Promise<void> {
     });
   } catch (e: any) {
     summary.value = null;
-    error.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить финансовые данные";
+    error.value = e?.response?.data?.detail || e?.message || t('Не удалось загрузить финансовые данные');
     console.error("[useExecutiveDashboardFinance.loadData]", e);
   } finally {
     loading.data = false;

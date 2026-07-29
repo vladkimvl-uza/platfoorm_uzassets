@@ -5,6 +5,9 @@
  */
 import { computed, ref } from "vue";
 import type { CatalogEndpointWithSubstitution } from "@/api/apiCatalog";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 const props = defineProps<{
   endpoint: CatalogEndpointWithSubstitution | (CatalogEndpointWithSubstitution & { display_path?: undefined });
@@ -81,14 +84,14 @@ async function copyPath() {
       <span
         class="ep-access"
         :style="{ background: accessMeta.bg, color: accessMeta.fg }"
-      >{{ accessMeta.label }}</span>
+      >{{ t(accessMeta.label) }}</span>
     </div>
 
     <div v-if="endpoint.summary" class="ep-summary">{{ endpoint.summary }}</div>
 
     <div class="ep-actions">
       <button class="ep-action" :class="{ 'ep-action-ok': copied }" @click="copyPath">
-        {{ copied ? "✓ Скопировано" : "Копировать" }}
+        {{ copied ? t('✓ Скопировано') : t('Копировать') }}
       </button>
       <button
         v-if="endpoint.method !== 'WEBSOCKET'"

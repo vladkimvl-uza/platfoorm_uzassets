@@ -1,3 +1,5 @@
+import { i18nKey } from "@/locale/keys";
+import { t } from "@/locale/i18n";
 interface ForensicCompanyMini {
   n: string;
   k: string;
@@ -5,11 +7,11 @@ interface ForensicCompanyMini {
 }
 
 const SECTOR_LABELS_RU: Record<string, string> = {
-  mining:    "Горнодобывающий",
-  oilgas:    "Нефтегазовый",
-  energy:    "Энергетика",
-  transport: "Транспорт",
-  other:     "Прочие",
+  mining:    i18nKey("Горнодобывающий"),
+  oilgas:    i18nKey("Нефтегазовый"),
+  energy:    i18nKey("Энергетика"),
+  transport: i18nKey("Транспорт"),
+  other:     i18nKey("Прочие"),
 };
 
 /** Generate the workbook and trigger browser download. xlsx lazy-loaded on first call. */
@@ -19,30 +21,33 @@ export async function downloadForensicTemplate(companies: ForensicCompanyMini[],
 
   // ─── Sheet 1: Instructions ───
   const instr: (string | number)[][] = [
-    [`ШАБЛОН ИМПОРТА · Закупки и Форензик аудит · ${year} год`],
+    [t("ШАБЛОН ИМПОРТА · Закупки и Форензик аудит · {year} год", { year })],
     [""],
-    ["КАК ЗАПОЛНЯТЬ:"],
-    ["1. Лист «Компании» — справочник, не редактируйте."],
-    ["2. Лист «Данные» — заполните по каждой компании план/факт по году + квартально."],
+    [t("КАК ЗАПОЛНЯТЬ:")],
+    [t("1. Лист «Компании» — справочник, не редактируйте.")],
+    [t("2. Лист «Данные» — заполните по каждой компании план/факт по году + квартально.")],
     [""],
-    ["ПОЛЯ:"],
-    ["• Код компании — обязателен, ровно как в листе «Компании»."],
-    ["• Год — 4-значное число."],
-    ["• Все суммы — в млрд сум, только числа (без пробелов / валют)."],
-    ["• Статус плана: «Утверждён» / «Не утверждён» / пусто."],
-    ["• Статус форензика: «Завершён» / «В процессе» / «Тендер в YYYY» / «Не начат» / пусто."],
-    ["• Аудитор: KPMG / PwC / Deloitte / E&Y (или пусто)."],
+    [t("ПОЛЯ:")],
+    [t("• Код компании — обязателен, ровно как в листе «Компании».")],
+    [t("• Год — 4-значное число.")],
+    [t("• Все суммы — в млрд сум, только числа (без пробелов / валют).")],
+    [t("• Статус плана: «Утверждён» / «Не утверждён» / пусто.")],
+    [t("• Статус форензика: «Завершён» / «В процессе» / «Тендер в YYYY» / «Не начат» / пусто.")],
+    [t("• Аудитор: KPMG / PwC / Deloitte / E&Y (или пусто).")],
     [""],
-    ["ИМПОРТ ВЫПОЛНЯЕТСЯ ЧЕРЕЗ МЕНЮ ⋮ → ИМПОРТ EXCEL"],
+    [t("ИМПОРТ ВЫПОЛНЯЕТСЯ ЧЕРЕЗ МЕНЮ ⋮ → ИМПОРТ EXCEL")],
   ];
   const ws0 = XLSX.utils.aoa_to_sheet(instr);
   ws0["!cols"] = [{ wch: 90 }];
-  XLSX.utils.book_append_sheet(wb, ws0, "Инструкция");
+  XLSX.utils.book_append_sheet(wb, ws0, "Инструкция"); // i18n-exempt -- stable workbook sheet name
 
   // ─── Sheet 2: Companies ───
   const coData: (string | number)[][] = [
+    // i18n-exempt-start -- exact import headers consumed by the parser.
     ["Код", "Полное название", "Сектор (id)", "Сектор (название)"],
+    // i18n-exempt-end
   ];
+  // i18n-exempt-start -- official fallback company names are data.
   const cos = companies.length ? companies : [
     { n: "НГМК",          k: "ngmk", s: "mining"    },
     { n: "Узбекуголь",    k: "uug",  s: "mining"    },
@@ -52,14 +57,16 @@ export async function downloadForensicTemplate(companies: ForensicCompanyMini[],
     { n: "UzTelecom",     k: "utc",  s: "transport" },
     { n: "Узкимёсаноат",  k: "uks",  s: "other"     },
   ];
+  // i18n-exempt-end
   for (const co of cos) {
-    coData.push([co.k, co.n, co.s, SECTOR_LABELS_RU[co.s] || ""]);
+    coData.push([co.k, co.n, co.s, SECTOR_LABELS_RU[co.s] ? t(SECTOR_LABELS_RU[co.s]) : ""]);
   }
   const ws1 = XLSX.utils.aoa_to_sheet(coData);
   ws1["!cols"] = [{ wch: 12 }, { wch: 38 }, { wch: 14 }, { wch: 28 }];
-  XLSX.utils.book_append_sheet(wb, ws1, "Компании");
+  XLSX.utils.book_append_sheet(wb, ws1, "Компании"); // i18n-exempt -- importer contract
 
   // ─── Sheet 3: Data — one row per (company × year) ───
+  // i18n-exempt-start -- exact import headers and accepted status values.
   const dataHeaders = [
     "Код компании", "Компания", "Год",
     "План год", "Факт год",
@@ -86,6 +93,7 @@ export async function downloadForensicTemplate(companies: ForensicCompanyMini[],
       i === 0 ? "2024-2025" : `${year - 1}-${year}`,
     ]);
   });
+  // i18n-exempt-end
 
   // 20 empty rows for the user
   for (let i = 0; i < 20; i++) {
@@ -100,8 +108,8 @@ export async function downloadForensicTemplate(companies: ForensicCompanyMini[],
     { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 },
     { wch: 18 }, { wch: 22 }, { wch: 12 }, { wch: 16 },
   ];
-  XLSX.utils.book_append_sheet(wb, ws2, "Данные");
+  XLSX.utils.book_append_sheet(wb, ws2, "Данные"); // i18n-exempt -- importer contract
 
   // Trigger download
-  XLSX.writeFile(wb, `шаблон_закупки_forensic_${year}.xlsx`);
+  XLSX.writeFile(wb, `procurement_forensic_template_${year}.xlsx`);
 }

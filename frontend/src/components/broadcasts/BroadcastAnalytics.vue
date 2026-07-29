@@ -46,7 +46,7 @@ const distMax = computed(() => {
 
 async function resendNonResponders() {
   if (!data.value) return;
-  if (!(await confirmDialog({ message: `Повторить отправку ${data.value.non_responders.length} не ответившим?` }))) return;
+  if (!(await confirmDialog({ message: t('Повторить отправку {value0} не ответившим?', { value0: data.value.non_responders.length }) }))) return;
   try {
     await broadcastsApi.sendNow(props.templateId);
     await load();

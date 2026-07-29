@@ -23,10 +23,15 @@ from __future__ import annotations
 import importlib
 import pkgutil
 import re
+from contextvars import ContextVar, Token
 from typing import Any, Optional
 
 VALID_LOCALES = ("ru", "uz-latn", "uz-cyr", "en")
 DEFAULT_LOCALE = "ru"
+
+_request_locale: ContextVar[str] = ContextVar(
+    "uzassets_ui_locale", default=DEFAULT_LOCALE,
+)
 
 # ── Транслитерация uz-latn → uz-cyr (порт frontend/src/locale/translit.ts) ──
 
@@ -120,6 +125,39 @@ _cyr_cache: dict[str, str] = {}
 def normalize_locale(raw: Optional[str]) -> str:
     v = (raw or "").strip().lower()
     return v if v in VALID_LOCALES else DEFAULT_LOCALE
+
+
+def current_locale() -> str:
+    """Локаль текущего HTTP-запроса; вне запроса безопасный RU-default."""
+    return _request_locale.get()
+
+
+def push_locale(raw: Optional[str]) -> Token[str]:
+    """Установить request-scoped локаль и вернуть token для обязательного reset."""
+    return _request_locale.set(normalize_locale(raw))
+
+
+def pop_locale(token: Token[str]) -> None:
+    """Сбросить request-scoped локаль после завершения запроса."""
+    _request_locale.reset(token)
+
+
+def ai_language_instruction(locale: Optional[str] = None) -> str:
+    """Жёсткая инструкция LLM отвечать на языке текущего интерфейса."""
+    loc = normalize_locale(locale or current_locale())
+    target = {
+        "ru": "русском языке",
+        "uz-latn": "узбекском языке в латинской графике (oʻ, gʻ)",
+        "uz-cyr": "узбекском языке в кириллической графике (ў, ғ, қ, ҳ)",
+        "en": "английском языке",
+    }[loc]
+    return (
+        "=== ЯЗЫК ТЕКУЩЕГО ИНТЕРФЕЙСА ===\n"
+        f"Локаль интерфейса: {loc}. Весь пользовательский ответ, включая заголовки, "
+        f"таблицы, пояснения и follow-up вопросы, пиши на {target}. "
+        "Русский язык системных инструкций и исходных данных не должен менять язык "
+        "ответа. Названия компаний, людей и введённый пользователем контент сохраняй as-is."
+    )
 
 
 def tr(ru: str, locale: Optional[str], **vars: Any) -> str:

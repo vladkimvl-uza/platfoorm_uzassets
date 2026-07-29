@@ -26,6 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.access import allowed_company_ids
 from app.core.audit_chain import append_audit_entry
+from app.core.i18n import current_locale, tr
 from app.core.security import has_effective_permission
 from app.models.financial import FinancialLine, FinancialReport
 from app.models.user import User
@@ -340,7 +341,7 @@ class FinancialsReportsService:
             return None, {
                 "queued": True, "submission_id": str(sub.id),
                 "status": sub.status,
-                "message": "Изменение отправлено на модерацию",
+                "message": tr("Изменение отправлено на модерацию", current_locale()),
             }
 
         if payload.expected_prev_checksum:

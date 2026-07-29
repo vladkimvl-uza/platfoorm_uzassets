@@ -35,6 +35,11 @@ import ModalShell from "@/components/ModalShell.vue";
 import ScenariosTab from "@/components/SystemConfig/ScenariosTab.vue";
 import CreditNagruzkaTab from "@/components/SystemConfig/CreditNagruzkaTab.vue";
 import ElasticityProjectsTab from "@/components/SystemConfig/ElasticityProjectsTab.vue";
+import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
+const { t: tr } = useI18n();
+
 
 const conv = useCurrencyConverter();
 const route = useRoute();
@@ -137,7 +142,7 @@ async function load() {
     }
     edits.value = e;
   } catch (err: any) {
-    errorMsg.value = err?.response?.data?.detail || err?.message || "Не удалось загрузить системные константы";
+    errorMsg.value = err?.response?.data?.detail || err?.message || tr('Не удалось загрузить системные константы');
   } finally {
     loading.value = false;
   }
@@ -172,13 +177,13 @@ async function saveRow(year: number) {
 
   const parsed: Record<string, number | null> = {};
   const labels: Record<EditableField, string> = {
-    usd_rate: "USD", eur_rate: "EUR", uz_budget_trln: "бюджета", gdp_bln: "ВВП",
-    inflation_pct: "инфляции", cb_rate_pct: "ставки ЦБ", gdp_growth_pct: "роста ВВП",
+    usd_rate: "USD", eur_rate: "EUR", uz_budget_trln: i18nKey("бюджета"), gdp_bln: i18nKey("ВВП"),
+    inflation_pct: i18nKey("инфляции"), cb_rate_pct: i18nKey("ставки ЦБ"), gdp_growth_pct: i18nKey("роста ВВП"),
   };
   for (const f of ALL_FIELDS) {
     const v = parseDecimal(e[f]);
     if (e[f] !== "" && v === null) {
-      errorMsg.value = `Год ${year}: некорректное значение ${labels[f]}`;
+      errorMsg.value = tr('Год {value0}: некорректное значение {value1}', { value0: year, value1: labels[f] });
       return;
     }
     parsed[f] = v;
@@ -191,11 +196,12 @@ async function saveRow(year: number) {
     const idx = rows.value.findIndex((r) => r.year === year);
     if (idx >= 0) rows.value[idx] = updated;
     edits.value[year].dirty = false;
-    successMsg.value = `Год ${year}: сохранено`;
+    const message = tr("Год {year}: сохранено", { year });
+    successMsg.value = message;
     await conv.reload();
-    setTimeout(() => { if (successMsg.value?.includes(String(year))) successMsg.value = null; }, 2500);
+    setTimeout(() => { if (successMsg.value === message) successMsg.value = null; }, 2500);
   } catch (err: any) {
-    errorMsg.value = err?.response?.data?.detail || err?.message || "Сохранение не удалось";
+    errorMsg.value = err?.response?.data?.detail || err?.message || tr('Сохранение не удалось');
   }
 }
 
@@ -227,11 +233,11 @@ async function submitAdd() {
   addError.value = null;
   const y = Number(addForm.value.year);
   if (!isFinite(y) || y < 2000 || y > 2100) {
-    addError.value = "Год должен быть между 2000 и 2100";
+    addError.value = tr('Год должен быть между 2000 и 2100');
     return;
   }
   if (rows.value.some((r) => r.year === y)) {
-    addError.value = `Год ${y} уже существует`;
+    addError.value = tr('Год {value0} уже существует', { value0: y });
     return;
   }
   const usd = parseDecimal(addForm.value.usd_rate);
@@ -262,11 +268,12 @@ async function submitAdd() {
       dirty: false,
     };
     addOpen.value = false;
-    successMsg.value = `Год ${y} добавлен`;
+    const message = tr("Год {year} добавлен", { year: y });
+    successMsg.value = message;
     await conv.reload();
-    setTimeout(() => { if (successMsg.value?.includes(`Год ${y}`)) successMsg.value = null; }, 2500);
+    setTimeout(() => { if (successMsg.value === message) successMsg.value = null; }, 2500);
   } catch (err: any) {
-    addError.value = err?.response?.data?.detail || err?.message || "Создание не удалось";
+    addError.value = err?.response?.data?.detail || err?.message || tr('Создание не удалось');
   } finally {
     addSubmitting.value = false;
   }
@@ -283,7 +290,7 @@ async function doDelete() {
     await systemConfigApi.deleteYearlyRate(y);
     rows.value = rows.value.filter((r) => r.year !== y);
     delete edits.value[y];
-    successMsg.value = `Год ${y} удалён`;
+    successMsg.value = tr("Год {year} удалён", { year: y });
     confirmDelete.value = null;
     await conv.reload();
   } catch (err: any) {
@@ -294,9 +301,9 @@ async function doDelete() {
       const lines = typeof detail === "string"
         ? [detail]
         : Object.entries(detail).map(([k, v]) => `• ${k}: ${v}`);
-      errorMsg.value = `Год ${y} нельзя удалить — есть зависимые данные:\n${lines.join("\n")}`;
+      errorMsg.value = tr('Год {value0} нельзя удалить — есть зависимые данные: {value1}', { value0: y, value1: lines.join("\n") });
     } else {
-      errorMsg.value = err?.response?.data?.detail || err?.message || "Удаление не удалось";
+      errorMsg.value = err?.response?.data?.detail || err?.message || tr('Удаление не удалось');
     }
     confirmDelete.value = null;
   }
@@ -308,7 +315,7 @@ function previewUsd(amount: number, year: number): string {
   const rate = e ? parseDecimal(e.usd_rate) : null;
   if (!rate || rate <= 0) return "—";
   const usdMln = (amount * 1e9) / rate / 1e6;
-  return `${(Math.round(usdMln * 1000) / 1000).toFixed(3)} млн USD`;
+  return tr("{amount} млн USD", { amount: (Math.round(usdMln * 1000) / 1000).toFixed(3) });
 }
 </script>
 
@@ -316,42 +323,40 @@ function previewUsd(amount: number, year: number): string {
   <div class="sc-wrap">
     <header v-if="activeTab !== 'scenarios' && activeTab !== 'credit' && activeTab !== 'elastic'" class="sc-hdr">
       <div>
-        <div class="sc-eyebrow">Системные константы</div>
-        <h1 class="sc-title">Курсы валют и макроэкономика</h1>
+        <div class="sc-eyebrow">{{ tr('Системные константы') }}</div>
+        <h1 class="sc-title">{{ tr('Курсы валют и макроэкономика') }}</h1>
         <p class="sc-sub">
-          Среднегодовые курсы валют, бюджет Республики и макропоказатели по годам —
-          используются для конвертации сумм и расчёта производных KPI во всех дашбордах.
+          {{ tr('Среднегодовые курсы валют, бюджет Республики и макропоказатели по годам — используются для конвертации сумм и расчёта производных KPI во всех дашбордах.') }}
         </p>
       </div>
       <button v-if="isAdmin" class="sc-btn sc-btn-p" @click="openAdd">
         <svg viewBox="0 0 14 14" class="sc-svg" width="13" height="13"><path d="M7 3v8M3 7h8"/></svg>
-        Добавить год
+        {{ tr('Добавить год') }}
       </button>
     </header>
 
     <div v-if="errorMsg && activeTab !== 'scenarios' && activeTab !== 'credit' && activeTab !== 'elastic'" class="sc-alert sc-alert-bad">{{ errorMsg }}</div>
     <div v-if="successMsg && activeTab !== 'scenarios' && activeTab !== 'credit' && activeTab !== 'elastic'" class="sc-alert sc-alert-good">{{ successMsg }}</div>
     <div v-if="!isAdmin && activeTab !== 'scenarios' && activeTab !== 'credit' && activeTab !== 'elastic'" class="sc-alert sc-alert-info">
-      Просмотр доступен всем авторизованным пользователям. Для редактирования
-      нужно разрешение <code>admin.users</code> (или статус владельца).
+      {{ tr('Просмотр доступен всем авторизованным пользователям. Для редактирования нужно разрешение') }} <code>admin.users</code> {{ tr('(или статус владельца).') }}
     </div>
 
     <!-- Tabs -->
     <div class="sc-tabs">
       <button type="button" class="sc-tab" :class="{ on: activeTab === 'rates' }" @click="activeTab = 'rates'">
-        Валюты и бюджет
+        {{ tr('Валюты и бюджет') }}
       </button>
       <button type="button" class="sc-tab" :class="{ on: activeTab === 'macro' }" @click="activeTab = 'macro'">
-        Макроэкономика
+        {{ tr('Макроэкономика') }}
       </button>
       <button type="button" class="sc-tab" :class="{ on: activeTab === 'scenarios' }" @click="activeTab = 'scenarios'">
-        Сценарии и прогнозы
+        {{ tr('Сценарии и прогнозы') }}
       </button>
         <button type="button" class="sc-tab" :class="{ on: activeTab === 'credit' }" @click="activeTab = 'credit'">
-          Кредитная нагрузка
+          {{ tr('Кредитная нагрузка') }}
         </button>
         <button type="button" class="sc-tab" :class="{ on: activeTab === 'elastic' }" @click="activeTab = 'elastic'">
-          Эластичность и проекты
+          {{ tr('Эластичность и проекты') }}
         </button>
     </div>
 
@@ -360,19 +365,19 @@ function previewUsd(amount: number, year: number): string {
     <CreditNagruzkaTab v-if="activeTab === 'credit'" />
     <ElasticityProjectsTab v-if="activeTab === 'elastic'" />
 
-    <div v-else-if="loading" class="sc-loading">Загрузка…</div>
+    <div v-else-if="loading" class="sc-loading">{{ tr('Загрузка…') }}</div>
 
     <!-- ─── Tab 1: Currency rates + budget ─── -->
     <table v-else-if="rows.length && activeTab === 'rates'" class="sc-tbl">
       <thead>
         <tr>
-          <th class="sc-th sc-th-year">Год</th>
-          <th class="sc-th">Курс USD / UZS<div class="sc-th-hint">средний за год, сум за 1 USD</div></th>
-          <th class="sc-th">Курс EUR / UZS<div class="sc-th-hint">средний за год, сум за 1 EUR</div></th>
-          <th class="sc-th">Бюджет Республики<div class="sc-th-hint">доходная часть, трлн сум</div></th>
-          <th class="sc-th">ВВП Республики<div class="sc-th-hint">номинальный, млрд сум (для %ВВП)</div></th>
-          <th class="sc-th sc-th-preview">Эквивалент 1 млрд сум<div class="sc-th-hint">проверочный расчёт</div></th>
-          <th class="sc-th sc-th-actions">Действия</th>
+          <th class="sc-th sc-th-year">{{ tr('Год') }}</th>
+          <th class="sc-th">{{ tr('Курс USD / UZS') }}<div class="sc-th-hint">{{ tr('средний за год, сум за 1 USD') }}</div></th>
+          <th class="sc-th">{{ tr('Курс EUR / UZS') }}<div class="sc-th-hint">{{ tr('средний за год, сум за 1 EUR') }}</div></th>
+          <th class="sc-th">{{ tr('Бюджет Республики') }}<div class="sc-th-hint">{{ tr('доходная часть, трлн сум') }}</div></th>
+          <th class="sc-th">{{ tr('ВВП Республики') }}<div class="sc-th-hint">{{ tr('номинальный, млрд сум (для %ВВП)') }}</div></th>
+          <th class="sc-th sc-th-preview">{{ tr('Эквивалент 1 млрд сум') }}<div class="sc-th-hint">{{ tr('проверочный расчёт') }}</div></th>
+          <th class="sc-th sc-th-actions">{{ tr('Действия') }}</th>
         </tr>
       </thead>
       <tbody>
@@ -380,20 +385,20 @@ function previewUsd(amount: number, year: number): string {
           <td class="sc-td sc-td-year">
             <div class="sc-year-stack">
               <strong>{{ r.year }}</strong>
-              <span v-if="r.label && r.label !== String(r.year)" class="sc-year-label">{{ r.label }}</span>
+              <span v-if="r.label && r.label !== String(r.year)" class="sc-year-label">{{ tr(r.label) }}</span>
             </div>
             <span v-if="r.is_closed && !unlockedYears.has(r.year)" class="sc-chip sc-chip-closed">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>закрыт</span>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>{{ tr('закрыт') }}</span>
             <span v-if="r.is_closed && unlockedYears.has(r.year)" class="sc-chip sc-chip-unlocked">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>разблокирован</span>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>{{ tr('разблокирован') }}</span>
             <button
               v-if="isAdmin && r.is_closed"
               type="button"
               class="sc-btn sc-btn-sm sc-btn-g"
               @click="toggleUnlock(r.year)"
-              :title="unlockedYears.has(r.year) ? 'Снова заблокировать год' : 'Разблокировать год для редактирования (audit-trail запишет действие)'"
+              :title="unlockedYears.has(r.year) ? tr('Снова заблокировать год') : tr('Разблокировать год для редактирования (audit-trail запишет действие)')"
             >
-              {{ unlockedYears.has(r.year) ? 'Заблокировать' : 'Разблокировать' }}
+              {{ unlockedYears.has(r.year) ? tr('Заблокировать') : tr('Разблокировать') }}
             </button>
           </td>
           <td class="sc-td">
@@ -402,7 +407,7 @@ function previewUsd(amount: number, year: number): string {
                 :value="edits[r.year]?.usd_rate ?? ''"
                 @input="(e) => onFieldInput(r.year, 'usd_rate', (e.target as HTMLInputElement).value)"
                 :disabled="!isEditable(r.year)" placeholder="—" />
-              <span class="sc-input-unit">сум</span>
+              <span class="sc-input-unit">{{ tr('сум') }}</span>
             </div>
           </td>
           <td class="sc-td">
@@ -411,7 +416,7 @@ function previewUsd(amount: number, year: number): string {
                 :value="edits[r.year]?.eur_rate ?? ''"
                 @input="(e) => onFieldInput(r.year, 'eur_rate', (e.target as HTMLInputElement).value)"
                 :disabled="!isEditable(r.year)" placeholder="—" />
-              <span class="sc-input-unit">сум</span>
+              <span class="sc-input-unit">{{ tr('сум') }}</span>
             </div>
           </td>
           <td class="sc-td">
@@ -420,7 +425,7 @@ function previewUsd(amount: number, year: number): string {
                 :value="edits[r.year]?.uz_budget_trln ?? ''"
                 @input="(e) => onFieldInput(r.year, 'uz_budget_trln', (e.target as HTMLInputElement).value)"
                 :disabled="!isEditable(r.year)" placeholder="—" />
-              <span class="sc-input-unit">трлн</span>
+              <span class="sc-input-unit">{{ tr('трлн') }}</span>
             </div>
           </td>
           <td class="sc-td">
@@ -429,7 +434,7 @@ function previewUsd(amount: number, year: number): string {
                 :value="edits[r.year]?.gdp_bln ?? ''"
                 @input="(e) => onFieldInput(r.year, 'gdp_bln', (e.target as HTMLInputElement).value)"
                 :disabled="!isEditable(r.year)" placeholder="—" />
-              <span class="sc-input-unit">млрд</span>
+              <span class="sc-input-unit">{{ tr('млрд') }}</span>
             </div>
           </td>
           <td class="sc-td sc-td-preview">{{ previewUsd(1, r.year) }}</td>
@@ -437,9 +442,9 @@ function previewUsd(amount: number, year: number): string {
             <template v-if="isAdmin">
               <button class="sc-btn sc-btn-sm sc-btn-p"
                 :disabled="!edits[r.year]?.dirty"
-                @click="saveRow(r.year)">Сохранить</button>
+                @click="saveRow(r.year)">{{ tr('Сохранить') }}</button>
               <button v-if="edits[r.year]?.dirty" class="sc-btn sc-btn-sm sc-btn-g"
-                @click="resetRow(r.year)">Отмена</button>
+                @click="resetRow(r.year)">{{ tr('Отмена') }}</button>
               <button v-else class="sc-btn sc-btn-sm sc-btn-d"
                 @click="confirmDelete = r.year">
                 <svg viewBox="0 0 14 14" class="sc-svg" width="11" height="11"><path d="M3 4h8M5 4V3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1M4 4l1 7a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1l1-7"/></svg>
@@ -455,11 +460,11 @@ function previewUsd(amount: number, year: number): string {
     <table v-else-if="rows.length && activeTab === 'macro'" class="sc-tbl">
       <thead>
         <tr>
-          <th class="sc-th sc-th-year">Год</th>
-          <th class="sc-th">Инфляция<div class="sc-th-hint">годовая, % CPI</div></th>
-          <th class="sc-th">Ставка ЦБ<div class="sc-th-hint">базовая ставка ЦБ РУ, %</div></th>
-          <th class="sc-th">Рост ВВП<div class="sc-th-hint">темп реального роста, %</div></th>
-          <th class="sc-th sc-th-actions">Действия</th>
+          <th class="sc-th sc-th-year">{{ tr('Год') }}</th>
+          <th class="sc-th">{{ tr('Инфляция') }}<div class="sc-th-hint">{{ tr('годовая, % CPI') }}</div></th>
+          <th class="sc-th">{{ tr('Ставка ЦБ') }}<div class="sc-th-hint">{{ tr('базовая ставка ЦБ РУ, %') }}</div></th>
+          <th class="sc-th">{{ tr('Рост ВВП') }}<div class="sc-th-hint">{{ tr('темп реального роста, %') }}</div></th>
+          <th class="sc-th sc-th-actions">{{ tr('Действия') }}</th>
         </tr>
       </thead>
       <tbody>
@@ -467,20 +472,20 @@ function previewUsd(amount: number, year: number): string {
           <td class="sc-td sc-td-year">
             <div class="sc-year-stack">
               <strong>{{ r.year }}</strong>
-              <span v-if="r.label && r.label !== String(r.year)" class="sc-year-label">{{ r.label }}</span>
+              <span v-if="r.label && r.label !== String(r.year)" class="sc-year-label">{{ tr(r.label) }}</span>
             </div>
             <span v-if="r.is_closed && !unlockedYears.has(r.year)" class="sc-chip sc-chip-closed">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>закрыт</span>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>{{ tr('закрыт') }}</span>
             <span v-if="r.is_closed && unlockedYears.has(r.year)" class="sc-chip sc-chip-unlocked">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>разблокирован</span>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>{{ tr('разблокирован') }}</span>
             <button
               v-if="isAdmin && r.is_closed"
               type="button"
               class="sc-btn sc-btn-sm sc-btn-g"
               @click="toggleUnlock(r.year)"
-              :title="unlockedYears.has(r.year) ? 'Снова заблокировать год' : 'Разблокировать год для редактирования (audit-trail запишет действие)'"
+              :title="unlockedYears.has(r.year) ? tr('Снова заблокировать год') : tr('Разблокировать год для редактирования (audit-trail запишет действие)')"
             >
-              {{ unlockedYears.has(r.year) ? 'Заблокировать' : 'Разблокировать' }}
+              {{ unlockedYears.has(r.year) ? tr('Заблокировать') : tr('Разблокировать') }}
             </button>
           </td>
           <td class="sc-td">
@@ -514,9 +519,9 @@ function previewUsd(amount: number, year: number): string {
             <template v-if="isAdmin">
               <button class="sc-btn sc-btn-sm sc-btn-p"
                 :disabled="!edits[r.year]?.dirty"
-                @click="saveRow(r.year)">Сохранить</button>
+                @click="saveRow(r.year)">{{ tr('Сохранить') }}</button>
               <button v-if="edits[r.year]?.dirty" class="sc-btn sc-btn-sm sc-btn-g"
-                @click="resetRow(r.year)">Отмена</button>
+                @click="resetRow(r.year)">{{ tr('Отмена') }}</button>
               <button v-else class="sc-btn sc-btn-sm sc-btn-d"
                 @click="confirmDelete = r.year">
                 <svg viewBox="0 0 14 14" class="sc-svg" width="11" height="11"><path d="M3 4h8M5 4V3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1M4 4l1 7a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1l1-7"/></svg>
@@ -529,82 +534,73 @@ function previewUsd(amount: number, year: number): string {
     </table>
 
     <div v-else-if="activeTab !== 'scenarios' && activeTab !== 'credit' && activeTab !== 'elastic'" class="sc-empty">
-      В реестре нет ни одного года. Нажмите «Добавить год» чтобы создать первую запись.
+      {{ tr('В реестре нет ни одного года. Нажмите «Добавить год» чтобы создать первую запись.') }}
     </div>
 
     <footer v-if="activeTab !== 'scenarios' && activeTab !== 'credit' && activeTab !== 'elastic'" class="sc-foot">
-      <strong>Как это работает:</strong>
-      Курсы USD/EUR/UZS — переключатель валют во всех KPI и модалках исполнительного
-      дашборда. Бюджет Республики — расчёт «процент бюджета Республики» в налоговом блоке.
-      Макроэкономические показатели — справочные значения для аналитических отчётов
-      и фильтров. Изменения сохраняются моментально и подхватываются всеми открытыми
-      блоками без перезагрузки страницы.
+      <strong>{{ tr('Как это работает:') }}</strong>
+      {{ tr('Курсы USD/EUR/UZS — переключатель валют во всех KPI и модалках исполнительного дашборда. Бюджет Республики — расчёт «процент бюджета Республики» в налоговом блоке. Макроэкономические показатели — справочные значения для аналитических отчётов и фильтров. Изменения сохраняются моментально и подхватываются всеми открытыми блоками без перезагрузки страницы.') }}
       <br />
       <small>
-        Для добавления других валют или индикаторов (CNY, RUB, ставка рефинансирования
-        и т.д.) — нужна миграция БД (новая колонка в <code>year_registry</code>).
-        Эта страница расширится автоматически после добавления соответствующего поля
-        в схему.
+        {{ tr('Для добавления других валют или индикаторов (CNY, RUB, ставка рефинансирования и т.д.) — нужна миграция БД (новая колонка в') }} <code>year_registry</code>{{ tr('). Эта страница расширится автоматически после добавления соответствующего поля в схему.') }}
       </small>
     </footer>
 
     <!-- ─── Add modal ─── -->
-    <ModalShell :open="addOpen" size="md" title="Добавить год в реестр" @close="closeAdd">
+    <ModalShell :open="addOpen" size="md" :title="tr('Добавить год в реестр')" @close="closeAdd">
           <div class="sc-form">
             <label class="sc-fld">
-              <span class="sc-fld-l">Год</span>
+              <span class="sc-fld-l">{{ tr('Год') }}</span>
               <input type="number" min="2000" max="2100" v-model.number="addForm.year" class="sc-input"/>
             </label>
             <label class="sc-fld">
-              <span class="sc-fld-l">Метка <span class="sc-fld-hint">опциональная подпись, например «FY 2027 · план»</span></span>
-              <input type="text" v-model="addForm.label" class="sc-input" placeholder="по умолчанию = год"/>
+              <span class="sc-fld-l">{{ tr('Метка') }} <span class="sc-fld-hint">{{ tr('опциональная подпись, например «FY 2027 · план»') }}</span></span>
+              <input type="text" v-model="addForm.label" class="sc-input" :placeholder="tr('по умолчанию = год')"/>
             </label>
-            <div class="sc-form-section">Валюты и бюджет</div>
+            <div class="sc-form-section">{{ tr('Валюты и бюджет') }}</div>
             <label class="sc-fld">
-              <span class="sc-fld-l">Курс USD / UZS <span class="sc-fld-hint">сум за 1 USD</span></span>
-              <input type="text" v-model="addForm.usd_rate" class="sc-input" placeholder="например 12576.41"/>
-            </label>
-            <label class="sc-fld">
-              <span class="sc-fld-l">Курс EUR / UZS <span class="sc-fld-hint">сум за 1 EUR</span></span>
-              <input type="text" v-model="addForm.eur_rate" class="sc-input" placeholder="например 14140"/>
+              <span class="sc-fld-l">{{ tr('Курс USD / UZS') }} <span class="sc-fld-hint">{{ tr('сум за 1 USD') }}</span></span>
+              <input type="text" v-model="addForm.usd_rate" class="sc-input" :placeholder="tr('например 12576.41')"/>
             </label>
             <label class="sc-fld">
-              <span class="sc-fld-l">Бюджет Республики <span class="sc-fld-hint">трлн сум</span></span>
-              <input type="text" v-model="addForm.uz_budget_trln" class="sc-input" placeholder="например 350"/>
-            </label>
-            <div class="sc-form-section">Макроэкономика <span class="sc-form-section-hint">опционально</span></div>
-            <label class="sc-fld">
-              <span class="sc-fld-l">Инфляция <span class="sc-fld-hint">годовая CPI, %</span></span>
-              <input type="text" v-model="addForm.inflation_pct" class="sc-input" placeholder="например 9.5"/>
+              <span class="sc-fld-l">{{ tr('Курс EUR / UZS') }} <span class="sc-fld-hint">{{ tr('сум за 1 EUR') }}</span></span>
+              <input type="text" v-model="addForm.eur_rate" class="sc-input" :placeholder="tr('например 14140')"/>
             </label>
             <label class="sc-fld">
-              <span class="sc-fld-l">Ставка ЦБ <span class="sc-fld-hint">базовая, %</span></span>
-              <input type="text" v-model="addForm.cb_rate_pct" class="sc-input" placeholder="например 14"/>
+              <span class="sc-fld-l">{{ tr('Бюджет Республики') }} <span class="sc-fld-hint">{{ tr('трлн сум') }}</span></span>
+              <input type="text" v-model="addForm.uz_budget_trln" class="sc-input" :placeholder="tr('например 350')"/>
+            </label>
+            <div class="sc-form-section">{{ tr('Макроэкономика') }} <span class="sc-form-section-hint">{{ tr('опционально') }}</span></div>
+            <label class="sc-fld">
+              <span class="sc-fld-l">{{ tr('Инфляция') }} <span class="sc-fld-hint">{{ tr('годовая CPI, %') }}</span></span>
+              <input type="text" v-model="addForm.inflation_pct" class="sc-input" :placeholder="tr('например 9.5')"/>
             </label>
             <label class="sc-fld">
-              <span class="sc-fld-l">Рост ВВП <span class="sc-fld-hint">реальный, %</span></span>
-              <input type="text" v-model="addForm.gdp_growth_pct" class="sc-input" placeholder="например 5.6"/>
+              <span class="sc-fld-l">{{ tr('Ставка ЦБ') }} <span class="sc-fld-hint">{{ tr('базовая, %') }}</span></span>
+              <input type="text" v-model="addForm.cb_rate_pct" class="sc-input" :placeholder="tr('например 14')"/>
+            </label>
+            <label class="sc-fld">
+              <span class="sc-fld-l">{{ tr('Рост ВВП') }} <span class="sc-fld-hint">{{ tr('реальный, %') }}</span></span>
+              <input type="text" v-model="addForm.gdp_growth_pct" class="sc-input" :placeholder="tr('например 5.6')"/>
             </label>
             <div v-if="addError" class="sc-alert sc-alert-bad">{{ addError }}</div>
           </div>
       <template #footer>
-        <button class="sc-btn sc-btn-g" @click="closeAdd" :disabled="addSubmitting">Отмена</button>
+        <button class="sc-btn sc-btn-g" @click="closeAdd" :disabled="addSubmitting">{{ tr('Отмена') }}</button>
         <button class="sc-btn sc-btn-p" @click="submitAdd" :disabled="addSubmitting">
-          {{ addSubmitting ? "Создание…" : "Создать" }}
+          {{ addSubmitting ? tr('Создание…') : tr('Создать') }}
         </button>
       </template>
     </ModalShell>
 
     <!-- ─── Delete confirm ─── -->
-    <ModalShell :open="confirmDelete != null" size="sm" :title="'Удалить год ' + (confirmDelete ?? '') + '?'" @close="confirmDelete = null">
+    <ModalShell :open="confirmDelete != null" size="sm" :title="tr('Удалить год {value0}?', { value0: (confirmDelete ?? '') })" @close="confirmDelete = null">
           <p class="sc-modal-text">
-            Эта операция необратима. Если на этот год есть рейтинги, финансовые
-            данные или другие записи — удаление будет отклонено сервером.
-            Обычно безопаснее обнулить значения вместо удаления.
+            {{ tr('Эта операция необратима. Если на этот год есть рейтинги, финансовые данные или другие записи — удаление будет отклонено сервером. Обычно безопаснее обнулить значения вместо удаления.') }}
           </p>
       <template #footer>
-        <button class="sc-btn sc-btn-g" @click="confirmDelete = null">Отмена</button>
-        <button class="sc-btn sc-btn-d" @click="doDelete">Удалить</button>
+        <button class="sc-btn sc-btn-g" @click="confirmDelete = null">{{ tr('Отмена') }}</button>
+        <button class="sc-btn sc-btn-d" @click="doDelete">{{ tr('Удалить') }}</button>
       </template>
     </ModalShell>
   </div>

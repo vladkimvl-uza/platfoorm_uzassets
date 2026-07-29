@@ -257,7 +257,7 @@ const isEmpty = computed(() => detail.value != null && _mc(detail.value) === 0 &
                         <button class="ec-metric-ix" type="button" @click="cancelEdit" :title="t('Отмена')">×</button>
                       </span>
                       <span v-else class="ec-metric-val" :class="{ 'ec-metric-val-edit': canEditEsg }"
-                            :title="canEditEsg ? 'Кликните, чтобы изменить значение' : ''"
+                            :title="canEditEsg ? t('Кликните, чтобы изменить значение') : ''"
                             @click.stop="canEditEsg && startEdit(m)">{{ fmtMetricValue(m.value, m.unit) }}</span>
                       <span v-if="m.target != null" class="ec-metric-target">{{ t('/ цель') }} {{ fmtMetricValue(m.target, m.unit) }}</span>
                     </div>
@@ -269,7 +269,7 @@ const isEmpty = computed(() => detail.value != null && _mc(detail.value) === 0 &
                     <div class="ec-metric-bar-fill" :style="{ width: Math.min(100, m.target_attainment_pct || 0) + '%', backgroundColor: attBarFill(m.target_attainment_pct) }" />
                   </div>
                 </div>
-                <UzaStateBlock v-if="!metricsFor(p.key).length" state="empty" variant="inline" :text="`Нет метрик за ${detail.year}`" />
+                <UzaStateBlock v-if="!metricsFor(p.key).length" state="empty" variant="inline" :text="t('Нет метрик за {value0}', { value0: detail.year })" />
               </div>
             </div>
           </div>
@@ -285,8 +285,8 @@ const isEmpty = computed(() => detail.value != null && _mc(detail.value) === 0 &
               <div class="ec-issue-h">
                 <span class="ec-issue-pillar" :style="{ background: pillarMeta(i.pillar).color + '18', color: pillarMeta(i.pillar).color }">{{ i.pillar }}</span>
                 <span class="ec-issue-title">{{ i.title }}</span>
-                <span class="ec-issue-sev" :style="{ color: severityMeta(i.severity).color }">{{ severityMeta(i.severity).label }}</span>
-                <span class="ec-issue-status" :style="{ background: issueStatusMeta(i.status).color + '18', color: issueStatusMeta(i.status).color }">{{ issueStatusMeta(i.status).label }}</span>
+                <span class="ec-issue-sev" :style="{ color: severityMeta(i.severity).color }">{{ t(severityMeta(i.severity).label) }}</span>
+                <span class="ec-issue-status" :style="{ background: issueStatusMeta(i.status).color + '18', color: issueStatusMeta(i.status).color }">{{ t(issueStatusMeta(i.status).label) }}</span>
               </div>
               <div v-if="i.description" class="ec-issue-d">{{ i.description }}</div>
             </div>

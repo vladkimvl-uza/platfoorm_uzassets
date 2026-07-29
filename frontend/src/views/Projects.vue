@@ -13,6 +13,8 @@ import TaskProjectEditor from "@/components/TaskProjectEditor.vue";
 import { useToast } from "@/composables/useToast";
 import type { ProjectDetail } from "@/api/projects";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 const { t } = useI18n();
 
 
@@ -61,13 +63,13 @@ watch(modalProjectId, async (id) => {
     const { data } = await api.get<ProjectDetail>(`/projects/${id}`);
     editorEntity.value = data;
   } catch (e: any) {
-    toast.error("Ошибка загрузки проекта: " + (e?.message || ""));
+    toast.error(t('Ошибка загрузки проекта: {value0}', { value0: (e?.message || "") }));
     modalOpen.value = false;
   }
 });
 
 function onEditorSaved(_id: string) {
-  toast.success("Проект сохранён");
+  toast.success(t('Проект сохранён'));
   modalOpen.value = false;
   if (typeof load === "function") load();
 }
@@ -77,14 +79,14 @@ function onEditorClose() {
 }
 
 const STATUS_CHIPS = [
-  { id: "new",       label: "Не начато",       accent: "#94A3B8", accentBg: "#F1F5F9" },
-  { id: "init",      label: "Инициирование",   accent: "#64748B", accentBg: "#E2E8F0" },
-  { id: "active",    label: "В процессе",      accent: "#3B82F6", accentBg: "rgba(55,138,221,.10)" },
-  { id: "review",    label: "На согласовании", accent: "#F59E0B", accentBg: "#FEF9C3" },
-  { id: "done",      label: "Завершено",       accent: "#10B981", accentBg: "#D1FAE5" },
-  { id: "quarterly", label: "Ежеквартально",   accent: "#7E22CE", accentBg: "rgba(168,85,247,.13)" },
-  { id: "monthly",   label: "Ежемесячно",      accent: "#4338CA", accentBg: "rgba(99,102,241,.13)" },
-  { id: "ongoing",   label: "Постоянно",       accent: "#0E7490", accentBg: "rgba(6,182,212,.13)" },
+  { id: "new",       label: i18nKey("Не начато"),       accent: "#94A3B8", accentBg: "#F1F5F9" },
+  { id: "init",      label: i18nKey("Инициирование"),   accent: "#64748B", accentBg: "#E2E8F0" },
+  { id: "active",    label: i18nKey("В процессе"),      accent: "#3B82F6", accentBg: "rgba(55,138,221,.10)" },
+  { id: "review",    label: i18nKey("На согласовании"), accent: "#F59E0B", accentBg: "#FEF9C3" },
+  { id: "done",      label: i18nKey("Завершено"),       accent: "#10B981", accentBg: "#D1FAE5" },
+  { id: "quarterly", label: i18nKey("Ежеквартально"),   accent: "#7E22CE", accentBg: "rgba(168,85,247,.13)" },
+  { id: "monthly",   label: i18nKey("Ежемесячно"),      accent: "#4338CA", accentBg: "rgba(99,102,241,.13)" },
+  { id: "ongoing",   label: i18nKey("Постоянно"),       accent: "#0E7490", accentBg: "rgba(6,182,212,.13)" },
 ];
 
 // ─── URL sync ────────────────────────────────────────────────────
@@ -140,7 +142,7 @@ async function load() {
     total.value = r.data.total || 0;
     byStatus.value = r.data.by_status || {};
   } catch (e: any) {
-    errorMsg.value = e?.response?.data?.detail || e?.message || "Ошибка загрузки";
+    errorMsg.value = e?.response?.data?.detail || e?.message || t('Ошибка загрузки');
     items.value = [];
   } finally {
     loading.value = false;
@@ -237,12 +239,12 @@ watch(() => route.query.open, (open) => {
   <div class="projects-page">
     <!-- Header -->
     <div class="page-header">
-      <div class="page-eyebrow">{{ t('ПОРТФЕЛЬ') }} <span style="color: #7F77DD;">{{ portfolioYear || "Все годы" }}</span></div>
+      <div class="page-eyebrow">{{ t('ПОРТФЕЛЬ') }} <span style="color: #7F77DD;">{{ portfolioYear || t('Все годы') }}</span></div>
       <h1 class="page-title">{{ t('Проекты') }}</h1>
       <div class="page-sub">
         <span style="font-variant-numeric: tabular-nums;">{{ total }}</span>
         <span style="color: var(--t3); margin-left: 6px;">{{
-          total === 1 ? "проект" : (total < 5 ? "проекта" : "проектов")
+          total === 1 ? t('проект') : (total < 5 ? t('проекта') : t('проектов'))
         }}</span>
       </div>
     </div>
@@ -250,7 +252,7 @@ watch(() => route.query.open, (open) => {
     <!-- Status chips row -->
     <div class="chip-row">
       <ChipFilter v-for="s in STATUS_CHIPS" :key="s.id"
-                  :label="s.label"
+                  :label="t(s.label)"
                   :count="byStatus[s.id]"
                   :active="statusFilter === s.id"
                   :accent="s.accent"
@@ -299,7 +301,7 @@ watch(() => route.query.open, (open) => {
              :placeholder="t('Поиск по номеру, названию, исполнителю…')" />
       <select v-model="directionFilter" class="filter-select">
         <option value="">{{ t('Все направления') }}</option>
-        <option v-for="d in directionsList" :key="d.code" :value="d.code">{{ d.label }}</option>
+        <option v-for="d in directionsList" :key="d.code" :value="d.code">{{ t(d.label) }}</option>
       </select>
       <select v-model="priorityFilter" class="filter-select">
         <option value="">{{ t('Все приоритеты') }}</option>
@@ -387,7 +389,7 @@ watch(() => route.query.open, (open) => {
           </span>
         </div>
         <div class="col-actions">
-          <button class="row-edit-btn" :title="'Редактировать проект'"
+          <button class="row-edit-btn" :title="t('Редактировать проект')"
                   @click="openEdit(p.id, $event)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

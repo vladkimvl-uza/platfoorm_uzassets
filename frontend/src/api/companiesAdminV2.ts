@@ -1,4 +1,5 @@
 import { api } from "./client";
+import { i18nKey } from "@/locale/keys";
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -180,22 +181,22 @@ export const COLOR_PALETTE = [
 ];
 
 export const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  active:        { label: "Активна",         color: "#1D9E75" },
+  active:        { label: i18nKey("Активна"),         color: "#1D9E75" },
   pilot:         { label: "Pilot",            color: "#534AB7" },
-  under_audit:   { label: "На аудите",       color: "#EF9F27" },
-  divested:      { label: "Продана",         color: "#888780" },
-  restructuring: { label: "Реструктуризация", color: "#EF9F27" },
+  under_audit:   { label: i18nKey("На аудите"),       color: "#EF9F27" },
+  divested:      { label: i18nKey("Продана"),         color: "#888780" },
+  restructuring: { label: i18nKey("Реструктуризация"), color: "#EF9F27" },
   m_a:           { label: "M&A",              color: "#D4537E" },
-  ipo_imminent:  { label: "IPO скоро",       color: "#378ADD" },
+  ipo_imminent:  { label: i18nKey("IPO скоро"),       color: "#378ADD" },
 };
 
 export const EXCLUSION_REASONS: Record<string, string> = {
-  restructuring:    "Реструктуризация",
-  m_a:              "Слияние / M&A",
-  divestment:       "Дивестиция",
-  not_in_portfolio: "Не входила в портфель",
-  audit:            "Аудит данных",
-  other:            "Другое",
+  restructuring:    i18nKey("Реструктуризация"),
+  m_a:              i18nKey("Слияние / M&A"),
+  divestment:       i18nKey("Дивестиция"),
+  not_in_portfolio: i18nKey("Не входила в портфель"),
+  audit:            i18nKey("Аудит данных"),
+  other:            i18nKey("Другое"),
 };
 
 export const MODULE_FLAGS = [

@@ -27,6 +27,7 @@ import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import BpQuarterDrillModal from "./BpQuarterDrillModal.vue";
 import { useToast } from "@/composables/useToast";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
 import {
   BP_FIELDS,
   bpApi,
@@ -441,10 +442,10 @@ const coProj = computed<Map<number, { value: number; low: number | null; high: n
   return m;
 });
 const _FC_METHOD_RU: Record<string, string> = {
-  pace: "план × темп", seasonal: "сезонность прошлого года", run_rate: "run-rate",
-  plan: "по плану", actual: "год закрыт", mixed: "смешанный", none: "нет данных",
+  pace: i18nKey("план × темп"), seasonal: i18nKey("сезонность прошлого года"), run_rate: "run-rate",
+  plan: i18nKey("по плану"), actual: i18nKey("год закрыт"), mixed: i18nKey("смешанный"), none: i18nKey("нет данных"),
 };
-const _FC_CONF_RU: Record<string, string> = { high: "высокая", medium: "средняя", low: "низкая", none: "—" };
+const _FC_CONF_RU: Record<string, string> = { high: i18nKey("высокая"), medium: i18nKey("средняя"), low: i18nKey("низкая"), none: "—" };
 const coForecastMeta = computed(() => {
   const f = coOutlook.value;
   if (!f || !coProj.value.size) return null;
@@ -628,7 +629,7 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
       <div class="bpv-context">
         <span class="bpv-ctx-co">{{ companyName }}</span>
         <span class="bpv-ctx-sep">·</span>
-        <span class="bpv-ctx-period">FY {{ year }} · {{ periodLabel }} · {{ t("млрд сум") }}</span>
+        <span class="bpv-ctx-period">FY {{ year }} · {{ t(periodLabel) }} · {{ t("млрд сум") }}</span>
         <span v-if="factAutoCount > 0" class="bpv-ctx-auto">
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 5l2.5 2.5L8.5 2.5"/></svg>
           {{ t("авто из НСБУ: {n}", { n: factAutoCount }) }}
@@ -655,7 +656,7 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
           :class="s.severity"
           :style="{ '--d': (i * 50 + 40) + 'ms' }"
         >
-          <div class="bpv-stat-lbl">{{ s.label }}</div>
+          <div class="bpv-stat-lbl">{{ t(s.label) }}</div>
           <div class="bpv-stat-val"><Odometer :value="s.value" /></div>
           <div class="bpv-stat-sub">{{ s.sub }}</div>
         </div>
@@ -673,7 +674,7 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
             <svg width="8" height="8" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 5l2.5 2.5L8.5 2.5"/></svg>
             {{ t("НСБУ") }}
           </span>
-          <div class="kpi2-lbl bpv-kpi-l">{{ k.label }}</div>
+          <div class="kpi2-lbl bpv-kpi-l">{{ t(k.label) }}</div>
           <div class="kpi2-val bpv-kpi-v" :class="{ 'is-empty': k.fact == null }">
             <Odometer :value="k.fact != null ? bpFmt(k.fact) : '—'" />
           </div>
@@ -729,7 +730,7 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
               <g class="bpv-grid-g">
                 <template v-for="(g, gi) in gridLines" :key="gi">
                   <line :x1="PAD_L" :y1="g.y" :x2="CHART_W - PAD_R" :y2="g.y" stroke="#E2E8F0" stroke-width="0.5" stroke-dasharray="2 3"/>
-                  <text :x="PAD_L - 6" :y="g.y + 3" font-size="9" fill="#94A3B8" text-anchor="end">{{ g.label }}</text>
+                  <text :x="PAD_L - 6" :y="g.y + 3" font-size="9" fill="#94A3B8" text-anchor="end">{{ t(g.label) }}</text>
                 </template>
                 <!-- нулевая база (заметна при отрицательных дельтах) -->
                 <line v-if="chartMin < 0" :x1="PAD_L" :y1="chartBaseY" :x2="CHART_W - PAD_R" :y2="chartBaseY" stroke="#B9B6C9" stroke-width="1" stroke-dasharray="3 3"/>

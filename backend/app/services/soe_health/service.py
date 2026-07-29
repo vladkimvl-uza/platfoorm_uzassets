@@ -29,6 +29,7 @@ from fastapi import HTTPException
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.i18n import current_locale, tr
 # ─── Методика: коэффициенты и пороги МВФ (Parameters-лист) ────────────
 # direction: gte — «больше = лучше» (value≥t1 → бенд 1) · lte — «меньше = лучше»
 # thresholds: [t1, t2, t3, t4] → бенды 1..5
@@ -330,7 +331,10 @@ class SoeHealthService:
         clean: dict[str, dict] = {}
         for k, o in (overrides or {}).items():
             if k not in meta:
-                raise HTTPException(400, f"Неизвестный коэффициент: {k}")
+                raise HTTPException(
+                    400,
+                    tr("Неизвестный коэффициент: {key}", current_locale(), key=k),
+                )
             if not isinstance(o, dict):
                 continue
             entry: dict[str, Any] = {}
@@ -338,19 +342,35 @@ class SoeHealthService:
             thr = o.get("thresholds")
             if thr is not None:
                 if not isinstance(thr, list) or len(thr) != 4:
-                    raise HTTPException(400, f"{meta[k]['label']}: нужно ровно 4 порога")
+                    raise HTTPException(
+                        400,
+                        tr(
+                            "{label}: нужно ровно 4 порога",
+                            current_locale(), label=meta[k]["label"],
+                        ),
+                    )
                 try:
                     thr = [float(x) for x in thr]
                 except (TypeError, ValueError):
-                    raise HTTPException(400, f"{meta[k]['label']}: пороги должны быть числами")
+                    raise HTTPException(
+                        400,
+                        tr(
+                            "{label}: пороги должны быть числами",
+                            current_locale(), label=meta[k]["label"],
+                        ),
+                    )
                 d = meta[k]["direction"]
                 mono = all(thr[i] > thr[i + 1] for i in range(3)) if d == "gte" \
                     else all(thr[i] < thr[i + 1] for i in range(3))
                 if not mono:
+                    template = (
+                        "{label}: пороги должны строго убывать (чем больше, тем лучше)"
+                        if d == "gte"
+                        else "{label}: пороги должны строго возрастать (чем меньше, тем лучше)"
+                    )
                     raise HTTPException(
                         400,
-                        f"{meta[k]['label']}: пороги должны быть строго "
-                        + ("убывающими (лучше ≥)" if d == "gte" else "возрастающими (лучше ≤)"),
+                        tr(template, current_locale(), label=meta[k]["label"]),
                     )
                 if thr != [float(x) for x in meta[k]["thresholds"]]:
                     entry["thresholds"] = thr
@@ -364,9 +384,21 @@ class SoeHealthService:
                 try:
                     w = float(o["weight"])
                 except (TypeError, ValueError):
-                    raise HTTPException(400, f"{meta[k]['label']}: вес должен быть числом")
+                    raise HTTPException(
+                        400,
+                        tr(
+                            "{label}: вес должен быть числом",
+                            current_locale(), label=meta[k]["label"],
+                        ),
+                    )
                 if w < 0:
-                    raise HTTPException(400, f"{meta[k]['label']}: вес не может быть отрицательным")
+                    raise HTTPException(
+                        400,
+                        tr(
+                            "{label}: вес не может быть отрицательным",
+                            current_locale(), label=meta[k]["label"],
+                        ),
+                    )
                 if abs(w - float(meta[k].get("weight", 1.0))) > 1e-9:
                     entry["weight"] = w
             if entry:

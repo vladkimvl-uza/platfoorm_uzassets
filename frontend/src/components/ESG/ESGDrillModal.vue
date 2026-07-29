@@ -44,7 +44,7 @@ const { t } = useI18n();
     </template>
 
     <div class="dm-body">
-      <p v-if="description" class="dm-desc">{{ description }}</p>
+      <p v-if="description" class="dm-desc">{{ t(description) }}</p>
       <div class="dm-list">
         <button v-for="(r, i) in rows" :key="r.id" type="button" class="dm-row"
                 :style="{ '--d': (i * 32) + 'ms' }" @click="emit('open-company', r.id)">

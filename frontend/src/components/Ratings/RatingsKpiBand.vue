@@ -93,7 +93,7 @@ function pctColor(p: number): string {
 }
 
 function dynamicLabel(n: number): string {
-  return n > 0 ? `+${n} компаний с 2024` : "= без изменений";
+  return n > 0 ? t('+{value0} компаний с 2024', { value0: n }) : t('= без изменений');
 }
 function dynamicColor(n: number): string {
   return n > 0 ? "#1D9E75" : "var(--t3, #64748B)";
@@ -109,7 +109,7 @@ function dynamicColor(n: number): string {
         <Odometer :value="fitchCount" /><span class="rkb-tot"> / {{ tot }}</span>
       </div>
       <div class="rkb-sub" :style="{ color: dynamicColor(fitchRecent) }">
-        {{ dynamicLabel(fitchRecent) }}
+        {{ t(dynamicLabel(fitchRecent)) }}
       </div>
     </div>
 
@@ -120,7 +120,7 @@ function dynamicColor(n: number): string {
         <Odometer :value="spCount" /><span class="rkb-tot"> / {{ tot }}</span>
       </div>
       <div class="rkb-sub" :style="{ color: dynamicColor(spRecent) }">
-        {{ dynamicLabel(spRecent) }}
+        {{ t(dynamicLabel(spRecent)) }}
       </div>
     </div>
 
@@ -131,7 +131,7 @@ function dynamicColor(n: number): string {
         <Odometer :value="moodCount" /><span class="rkb-tot"> / {{ tot }}</span>
       </div>
       <div class="rkb-sub" :style="{ color: dynamicColor(moodRecent) }">
-        {{ dynamicLabel(moodRecent) }}
+        {{ t(dynamicLabel(moodRecent)) }}
       </div>
     </div>
 
@@ -142,7 +142,7 @@ function dynamicColor(n: number): string {
         <Odometer :value="esgCount" /><span class="rkb-tot"> / {{ tot }}</span>
       </div>
       <div class="rkb-sub" :style="{ color: dynamicColor(esgRecent) }">
-        {{ dynamicLabel(esgRecent) }}
+        {{ t(dynamicLabel(esgRecent)) }}
       </div>
     </div>
 

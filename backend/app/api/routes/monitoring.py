@@ -29,6 +29,7 @@ from app.core.access import (
     has_unrestricted_view,
 )
 from app.core.progress import NON_OVERDUE_STATUSES
+from app.core.i18n import current_locale, tr
 from app.core.security import require_permission
 from app.database import get_db
 from app.models.company import Company, Direction, Sector
@@ -1057,6 +1058,9 @@ async def exec_brief(
     try:
         text = await complete_once(system=system, prompt=prompt, max_tokens=1700, temperature=0.3)
     except Exception as e:
-        raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"Ошибка генерации: {e}") from e
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY,
+            tr("Ошибка генерации: {error}", current_locale(), error=str(e)),
+        ) from e
 
     return {"brief": text, "facts": facts, "generated_at": datetime.now(UTC).isoformat()}

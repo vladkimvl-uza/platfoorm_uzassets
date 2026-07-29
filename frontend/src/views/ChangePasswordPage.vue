@@ -16,6 +16,8 @@ import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { authApi } from "@/api/auth";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 
 const { t } = useI18n();
 const router = useRouter();
@@ -105,14 +107,14 @@ async function submit() {
 }
 
 const CHECK_LABELS: { key: keyof ReturnType<typeof checks.value.valueOf>; label: string }[] = [
-  { key: "length",    label: "Минимум 12 символов" } as any,
-  { key: "upper",     label: "Заглавная буква (A-Z)" } as any,
-  { key: "lower",     label: "Строчная буква (a-z)" } as any,
-  { key: "digit",     label: "Цифра (0-9)" } as any,
-  { key: "special",   label: "Спецсимвол (!@#$ …)" } as any,
-  { key: "no_repeat", label: "Нет 3+ одинаковых подряд" } as any,
-  { key: "no_seq",    label: "Нет последовательностей (1234, qwer)" } as any,
-  { key: "no_common", label: "Не в списке распространённых" } as any,
+  { key: "length",    label: i18nKey("Минимум 12 символов") } as any,
+  { key: "upper",     label: i18nKey("Заглавная буква (A-Z)") } as any,
+  { key: "lower",     label: i18nKey("Строчная буква (a-z)") } as any,
+  { key: "digit",     label: i18nKey("Цифра (0-9)") } as any,
+  { key: "special",   label: i18nKey("Спецсимвол (!@#$ …)") } as any,
+  { key: "no_repeat", label: i18nKey("Нет 3+ одинаковых подряд") } as any,
+  { key: "no_seq",    label: i18nKey("Нет последовательностей (1234, qwer)") } as any,
+  { key: "no_common", label: i18nKey("Не в списке распространённых") } as any,
 ];
 </script>
 
@@ -176,7 +178,7 @@ const CHECK_LABELS: { key: keyof ReturnType<typeof checks.value.valueOf>; label:
             <div class="cpw-strength-bar">
               <div class="cpw-strength-fill" :style="{ width: strength + '%', background: strengthColor }"></div>
             </div>
-            <span class="cpw-strength-lbl" :style="{ color: strengthColor }">{{ strengthLabel }}</span>
+            <span class="cpw-strength-lbl" :style="{ color: strengthColor }">{{ t(strengthLabel) }}</span>
           </div>
         </label>
 

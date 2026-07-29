@@ -348,7 +348,8 @@ async def _recipients(db: AsyncSession, company_id: Optional[UUID]) -> list[UUID
 # т.к. changed_fields теперь приходят из ключей тела запроса по всем разделам.
 _FIELD_LABELS: dict[str, str] = {
     # задачи / проекты / общее
-    "title": "название", "name": "название", "description": "описание",
+    # Canonical payload labels; the notification presenter localizes them.
+    "title": "название", "name": "название", "description": "описание",  # i18n-audit: ignore
     "status": "статус", "due_date": "срок", "start_date": "дата начала",
     "assignee_id": "исполнитель", "assignee_email": "исполнитель", "assignees": "исполнители",
     "consultant_ids": "консультанты", "consultants": "консультанты",

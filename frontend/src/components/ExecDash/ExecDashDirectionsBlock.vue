@@ -117,7 +117,7 @@ function fmtCell(done: number, total: number): { text: string; color: string } {
           @keydown="onRowKeydown($event, d)"
         >
           <div class="edd-bar" :style="{ background: dirColor(d) }" />
-          <span class="edd-label" :title="d.label">{{ d.label }}</span>
+          <span class="edd-label" :title="t(d.label)">{{ t(d.label) }}</span>
 
           <div class="edd-cell edd-cell-progress">
             <div class="edd-pbar">
@@ -154,7 +154,7 @@ function fmtCell(done: number, total: number): { text: string; color: string } {
       v-if="drillCode"
       :direction-code="drillCode"
       :year="exec.year.value"
-      :fallback-label="drillLabel"
+      :fallback-label="t(drillLabel)"
       :fallback-color="drillColor"
       @close="closeDrill"
     />

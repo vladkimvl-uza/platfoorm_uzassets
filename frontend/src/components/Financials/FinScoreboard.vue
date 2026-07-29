@@ -344,7 +344,7 @@ function rowClick(co: string) {
                 }]"
                 :style="c.width ? { width: c.width } : {}"
                 @click="toggleSort(ci, c.sortable)">
-              {{ c.label }}
+              {{ t(c.label) }}
               <span v-if="c.sortable"
                     class="fsb-sort-arrow"
                     :class="{

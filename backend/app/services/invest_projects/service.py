@@ -14,6 +14,7 @@ from fastapi import status as http_status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.access import allowed_company_ids, has_unrestricted_view
+from app.core.i18n import current_locale, tr
 from app.models.user import User
 from app.repositories.invest_projects_repository import InvestProjectsRepository
 
@@ -77,7 +78,10 @@ class InvestProjectsService:
         if requested not in allowed_codes:
             raise HTTPException(
                 http_status.HTTP_403_FORBIDDEN,
-                f"Нет доступа к данным компании {parts[1]}",
+                tr(
+                    "Нет доступа к данным компании {company}",
+                    current_locale(), company=parts[1],
+                ),
             )
 
     async def get_path(

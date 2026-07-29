@@ -319,6 +319,7 @@ async def update_task(
             notif_type="watch.status",
             title="Статус отслеживаемой задачи изменён",
             body=f"{user.full_name or user.email}: {info.get('old_status')} → {info.get('new_status')}",
+            title_template="Статус отслеживаемой задачи изменён",
             payload={
                 "entity_type": "task", "entity_id": str(task.id),
                 "entity_title": task.title,
@@ -337,6 +338,7 @@ async def update_task(
             notif_type="watch.deadline",
             title="Срок отслеживаемой задачи изменён",
             body=f"{user.full_name or user.email}: {_old_due or '—'} → {_new_due or '—'}",
+            title_template="Срок отслеживаемой задачи изменён",
             payload={
                 "entity_type": "task", "entity_id": str(task.id),
                 "entity_title": task.title,
@@ -365,6 +367,9 @@ async def toggle_task_result(
         notif_type="watch.result",
         title="Результат отслеживаемой задачи обновлён",
         body=f"{user.full_name or user.email} отметил(а) результат",
+        title_template="Результат отслеживаемой задачи обновлён",
+        body_template="{actor} отметил(а) результат",
+        template_vars={"actor": user.full_name or user.email},
         payload={"entity_type": "task", "entity_id": str(task_id), "action": "result"},
     )
     return res

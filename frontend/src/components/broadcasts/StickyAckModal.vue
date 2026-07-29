@@ -41,16 +41,16 @@ function tickCountdown() {
   }
   const ms = new Date(current.value.ack_deadline).getTime() - Date.now();
   if (ms <= 0) {
-    countdownText.value = "ДЕДЛАЙН ПРОПУЩЕН";
+    countdownText.value = t("ДЕДЛАЙН ПРОПУЩЕН");
     return;
   }
   const totalSec = Math.floor(ms / 1000);
   const h = Math.floor(totalSec / 3600);
   const m = Math.floor((totalSec % 3600) / 60);
   const s = totalSec % 60;
-  if (h > 24) countdownText.value = `${Math.floor(h / 24)} д ${h % 24} ч`;
-  else if (h > 0) countdownText.value = `${h} ч ${String(m).padStart(2, "0")} мин`;
-  else countdownText.value = `${m} мин ${String(s).padStart(2, "0")} с`;
+  if (h > 24) countdownText.value = t("{days} д {hours} ч", { days: Math.floor(h / 24), hours: h % 24 });
+  else if (h > 0) countdownText.value = t("{hours} ч {minutes} мин", { hours: h, minutes: String(m).padStart(2, "0") });
+  else countdownText.value = t("{minutes} мин {seconds} с", { minutes: m, seconds: String(s).padStart(2, "0") });
 }
 
 async function fetchSticky() {
@@ -79,14 +79,14 @@ async function submitAck(value?: "yes" | "no") {
     const mode = current.value.ack_mode;
     if (mode === "text") {
       if (!textResponse.value.trim()) {
-        error.value = "Введите текстовый ответ";
+        error.value = t('Введите текстовый ответ');
         submitting.value = false;
         return;
       }
       payload.response_text = textResponse.value.trim();
     } else if (mode === "select") {
       if (!selectResponse.value) {
-        error.value = "Выберите вариант";
+        error.value = t('Выберите вариант');
         submitting.value = false;
         return;
       }
@@ -94,7 +94,7 @@ async function submitAck(value?: "yes" | "no") {
     } else if (mode === "yesno") {
       const v = value ?? yesnoResponse.value;
       if (!v) {
-        error.value = "Выберите Да или Нет";
+        error.value = t('Выберите Да или Нет');
         submitting.value = false;
         return;
       }
@@ -109,7 +109,7 @@ async function submitAck(value?: "yes" | "no") {
     queue.value = queue.value.filter((n) => n.id !== current.value!.id);
     resetForm();
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || e?.message || "Не удалось подтвердить";
+    error.value = e?.response?.data?.detail || e?.message || t('Не удалось подтвердить');
   } finally {
     submitting.value = false;
   }
@@ -221,7 +221,7 @@ const remaining = computed(() => queue.value.filter((n) => !postponedIds.value.h
                   @click="submitAck()"
                   :disabled="submitting">
             <BIcon name="check" :size="13" />
-            {{ submitting ? "Отправка..." : "Подтвердить" }}
+            {{ submitting ? t('Отправка...') : t('Подтвердить') }}
           </button>
         </div>
       </div>

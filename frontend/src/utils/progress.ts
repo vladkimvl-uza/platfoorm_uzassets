@@ -1,3 +1,6 @@
+import { i18nKey } from "@/locale/keys";
+import { t as tr } from "@/locale/i18n";
+
 /**
  * Progress computation — exact port of legacy functions
  * `_taskWeight` and `computeProgress` from index.html ~line 7044/7064.
@@ -87,8 +90,8 @@ export function isQuarterlyAllDone(t: TaskWithStatus | null | undefined): boolea
 /** Quarterly badge label — "✓ Все кварталы закрыты" or "Ежеквартально · N/4". */
 export function quarterlyBadgeText(t: TaskWithStatus | null | undefined): string {
   const n = quarterlyDoneCount(t);
-  if (n === 4) return "✓ Все кварталы закрыты";
-  return `Ежеквартально · ${n}/4`;
+  if (n === 4) return tr('✓ Все кварталы закрыты');
+  return tr('Ежеквартально · {value0}/4', { value0: n });
 }
 
 export interface ProgressResult {
@@ -146,14 +149,14 @@ export const STATUS_ORDER: TaskStatus[] = [
 
 /** Status display labels — verbatim from legacy SLABELS (line 50587). */
 export const STATUS_LABELS: Record<string, string> = {
-  new:       "Не начато",
-  init:      "Инициирование",
-  active:    "В процессе",
-  review:    "На согласовании",
-  done:      "Завершено",
-  quarterly: "Ежеквартально",
-  monthly:   "Ежемесячно",
-  ongoing:   "Постоянно",
+  new:       i18nKey("Не начато"),
+  init:      i18nKey("Инициирование"),
+  active:    i18nKey("В процессе"),
+  review:    i18nKey("На согласовании"),
+  done:      i18nKey("Завершено"),
+  quarterly: i18nKey("Ежеквартально"),
+  monthly:   i18nKey("Ежемесячно"),
+  ongoing:   i18nKey("Постоянно"),
 };
 
 /** Status colour mapping — verbatim from legacy SDOTS (line 50588). */

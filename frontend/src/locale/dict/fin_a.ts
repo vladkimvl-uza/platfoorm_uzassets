@@ -45,7 +45,7 @@ export const uz: Record<string, string> = {
   // ── Секции и строки НСБУ ──
   "ОФР · форма 2": "Moliyaviy natijalar · 2-shakl",
   "Баланс · форма 1": "Balans · 1-shakl",
-  "ОФР": "Moliyaviy natijalar",
+  
   "ОПД": "Umumlashgan daromad",
   "ДДС": "Pul oqimlari",
   "ДОХОДЫ И РАСХОДЫ": "DAROMADLAR VA XARAJATLAR",
@@ -104,11 +104,11 @@ export const uz: Record<string, string> = {
   "импорт {d}": "import {d}",
   "есть несохранённые изменения": "saqlanmagan oʻzgarishlar bor",
   "Выберите компанию": "Kompaniyani tanlang",
-  "Анализ ИИ": "AI tahlili",
-  "Анализирую…": "Tahlil qilyapman…",
+  
+  
   "+ год": "+ yil",
   "+ секция": "+ boʻlim",
-  "Сохраняю…": "Saqlayapman…",
+  
   "Импорт…": "Import…",
   "Добавить колонку для года:": "Yil uchun ustun qoʻshish:",
   "Импорт завершён.": "Import yakunlandi.",
@@ -134,7 +134,7 @@ export const uz: Record<string, string> = {
   "+ подсекция": "+ kichik boʻlim",
   "+ подытог": "+ oraliq jami",
   "+ итого": "+ jami",
-  "Поиск компании…": "Kompaniya qidiruvi…",
+  
   "Вставить строку ниже": "Pastga qator kiritish",
   "Автосумма: включена": "Avtosumma: yoqilgan",
   "Включить автосумму": "Avtosummani yoqish",
@@ -154,7 +154,7 @@ export const uz: Record<string, string> = {
   "Финансовая отчётность сохранена": "Moliyaviy hisobot saqlandi",
   "Данные изменились, пока вы редактировали. Перезагрузите, чтобы не затереть чужие правки.": "Siz tahrirlayotganda maʼlumotlar oʻzgardi. Boshqalarning tahrirlarini oʻchirib yubormaslik uchun sahifani qayta yuklang.",
   "Конфликт: отчётность изменена. Перезагрузите, чтобы увидеть актуальные данные.": "Ziddiyat: hisobot oʻzgartirilgan. Dolzarb maʼlumotlarni koʻrish uchun qayta yuklang.",
-  "неизвестная ошибка": "nomaʼlum xatolik",
+  
   "Отчётность не сохранена: {e}": "Hisobot saqlanmadi: {e}",
 
   // ── ИИ-анализ ──
@@ -181,7 +181,7 @@ export const uz: Record<string, string> = {
   "Анализ ИИ — Единая платформа трансформации": "AI tahlili — Yagona transformatsiya platformasi",
   "Единая платформа трансформации": "Yagona transformatsiya platformasi",
   "Высокоуровневые показатели — анализ ИИ": "Yuqori darajali koʻrsatkichlar — AI tahlili",
-  "{n} компаний": "{n} ta kompaniya",
+  
   "Визуализация показателей": "Koʻrsatkichlar vizualizatsiyasi",
   "ИИ-АНАЛИЗ КОМПАНИИ": "KOMPANIYA AI-TAHLILI",
   "ИИ-АНАЛИЗ ПОРТФЕЛЯ": "PORTFEL AI-TAHLILI",
@@ -301,7 +301,7 @@ export const en: Record<string, string> = {
   "Иерархия из консолидированного шаблона": "Hierarchy from the consolidated template",
   "ред. {d}": "edited {d}",
   "импорт {d}": "imported {d}",
-  "есть несохранённые изменения": "unsaved changes",
+  
   "Выберите компанию": "Select a company",
   "Анализ ИИ": "AI analysis",
   "Анализирую…": "Analyzing…",
@@ -375,7 +375,7 @@ export const en: Record<string, string> = {
   "Формулирую план действий для инвесткомитета…": "Drafting the action plan for the investment committee…",
   "Загружаю отчётность: {n}…": "Loading statements: {n}…",
   "Нет данных для анализа — загрузите отчётность компаний.": "No data to analyze — upload company statements.",
-  "ИИ вернул пустой ответ.": "The AI returned an empty response.",
+  
   "Ошибка анализа": "Analysis error",
   "Анализ ИИ — Единая платформа трансформации": "AI Analysis — Unified Transformation Platform",
   "Единая платформа трансформации": "Unified Transformation Platform",

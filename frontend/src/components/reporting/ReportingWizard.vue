@@ -25,6 +25,8 @@ import type { TaskBrief } from "@/api/tasks";
 import { reportWizardApi } from "@/api/reportWizard";
 import { useToast } from "@/composables/useToast";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 const { t } = useI18n();
 
 
@@ -88,7 +90,7 @@ async function loadTasks(pid: string): Promise<TaskBrief[]> {
 function blankNarrative(): ReportPage { return base("narrative"); }
 function blankMatrix(): ReportPage {
   const p = base("matrix");
-  p.matrixTitle = "Статус по ключевым направлениям";
+  p.matrixTitle = t("Статус по ключевым направлениям");
   return p;
 }
 const pages = ref<ReportPage[]>([blankNarrative()]);
@@ -134,7 +136,7 @@ async function loadSaved() {
     // нельзя дать «Сохранить», иначе пустая страница затрёт сохранённый отчёт.
     loadError.value = true;
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    toast.error("Не удалось загрузить сохранённый отчёт: " + (err?.response?.data?.detail || err?.message || "ошибка") + ". Не сохраняйте — нажмите «Повторить».");
+    toast.error(t('Не удалось загрузить сохранённый отчёт: {value0}. Не сохраняйте — нажмите «Повторить».', { value0: (err?.response?.data?.detail || err?.message || t("ошибка")) }));
   }
 }
 onMounted(loadSaved);
@@ -144,7 +146,7 @@ watch(() => [props.companyCode, props.year], () => { pages.value = [blankNarrati
 
 async function saveReport() {
   if (saving.value) return;
-  if (loadError.value) { toast.error("Загрузка не удалась — сохранение заблокировано, чтобы не затереть отчёт. Нажмите «Повторить»."); return; }
+  if (loadError.value) { toast.error(t('Загрузка не удалась — сохранение заблокировано, чтобы не затереть отчёт. Нажмите «Повторить».')); return; }
   saving.value = true;
   try {
     // Сохраняем СВОЙ ключ `pages`, не затирая соседний projects_status_report.
@@ -157,7 +159,7 @@ async function saveReport() {
     // (тост «Отчёт сохранён» попадал на печатный лист сводного отчёта).
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    toast.error("Не удалось сохранить: " + (err?.response?.data?.detail || err?.message || "ошибка"));
+    toast.error(t('Не удалось сохранить: {value0}', { value0: (err?.response?.data?.detail || err?.message || t("ошибка")) }));
   } finally {
     saving.value = false;
   }
@@ -220,11 +222,11 @@ function selProjects(page: ReportPage): { p: ProjectBrief; tasks: TaskBrief[] }[
 
 // ── matrix: строки ──
 const PRESETS: { label: string; auto: "credit" | "esg" | null }[] = [
-  { label: "Кредитный рейтинг", auto: "credit" },
-  { label: "ESG рейтинг", auto: "esg" },
-  { label: "МСФО отчётность", auto: null },
-  { label: "Форензик аудит", auto: null },
-  { label: "Внутренний аудит", auto: null },
+  { label: i18nKey("Кредитный рейтинг"), auto: "credit" },
+  { label: i18nKey("ESG рейтинг"), auto: "esg" },
+  { label: i18nKey("МСФО отчётность"), auto: null },
+  { label: i18nKey("Форензик аудит"), auto: null },
+  { label: i18nKey("Внутренний аудит"), auto: null },
 ];
 function addRow(page: ReportPage, preset?: { label: string; auto: "credit" | "esg" | null }) {
   page.rows.push({ id: _rseq++, label: preset?.label ?? "", auto: preset?.auto ?? null, value: "" });
@@ -270,7 +272,7 @@ function printReport() {
         <button class="rw-btn" @click="addNarrative">{{ t('+ Направление') }}</button>
         <button class="rw-btn" @click="addMatrix">{{ t('+ Статус-матрица') }}</button>
         <button v-if="loadError" class="rw-btn rw-btn-retry" @click="loadSaved" :title="t('Перезагрузить сохранённый отчёт')">{{ t('↻ Повторить') }}</button>
-        <button class="rw-btn rw-btn-save" :disabled="saving || loadError" @click="saveReport">{{ saving ? 'Сохранение…' : 'Сохранить' }}</button>
+        <button class="rw-btn rw-btn-save" :disabled="saving || loadError" @click="saveReport">{{ saving ? t('Сохранение…') : t('Сохранить') }}</button>
         <button class="rw-btn rw-btn-print" :disabled="!printablePages.length" @click="printReport">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
           {{ t('Печать отчёта') }}<template v-if="printablePages.length"> ({{ printablePages.length }})</template>
@@ -281,10 +283,10 @@ function printReport() {
     <TransitionGroup tag="div" name="rwpage" class="rw-pages" appear>
       <div v-for="(page, i) in pages" :key="page.id" class="rw-pg" :style="{ '--d': i * 50 + 'ms' }">
         <div class="rw-pg-top">
-          <span class="rw-pg-n" :class="{ mx: page.type === 'matrix' }">{{ t('Лист') }} {{ i + 1 }} · {{ page.type === 'matrix' ? 'Статус-матрица' : 'Направление' }}</span>
+          <span class="rw-pg-n" :class="{ mx: page.type === 'matrix' }">{{ t('Лист') }} {{ i + 1 }} · {{ page.type === 'matrix' ? t('Статус-матрица') : t('Направление') }}</span>
           <select v-if="page.type === 'narrative'" v-model="page.directionId" class="rw-select">
             <option value="" disabled>{{ t('Выберите направление…') }}</option>
-            <option v-for="d in directions" :key="d.id" :value="d.id">{{ d.label }}</option>
+            <option v-for="d in directions" :key="d.id" :value="d.id">{{ t(d.label) }}</option>
           </select>
           <input v-else v-model="page.matrixTitle" class="rw-input rw-grow" :placeholder="t('Заголовок матрицы…')" />
           <button v-if="pages.length > 1" class="rw-rm" @click="removePage(page.id)">{{ t('Удалить лист') }}</button>
@@ -306,7 +308,7 @@ function printReport() {
                   <template v-else>
                     <div v-if="(tasksByProject[p.id] || []).length" class="rw-tk-head">
                       <span class="rw-tk-head-l">{{ t('Задачи — отметьте нужные') }}</span>
-                      <button class="rw-tk-all" @click="toggleAllTasks(page, p.id)">{{ allTasksSel(page, p.id) ? 'Снять все' : 'Выбрать все' }}</button>
+                      <button class="rw-tk-all" @click="toggleAllTasks(page, p.id)">{{ allTasksSel(page, p.id) ? t('Снять все') : t('Выбрать все') }}</button>
                     </div>
                     <button v-for="t in (tasksByProject[p.id] || [])" :key="t.id"
                       class="rw-tk" :class="{ on: isTaskSel(page, p.id, t.id) }" @click="toggleTask(page, p.id, t.id)">
@@ -339,7 +341,7 @@ function printReport() {
             <label class="rw-label">{{ t('Быстрое добавление направлений') }}</label>
             <div class="rw-presets">
               <button v-for="pr in PRESETS" :key="pr.label" class="rw-preset" @click="addRow(page, pr)">
-                + {{ pr.label }}<span v-if="pr.auto" class="rw-auto-tag">{{ t('авто') }}</span>
+                + {{ t(pr.label) }}<span v-if="pr.auto" class="rw-auto-tag">{{ t('авто') }}</span>
               </button>
             </div>
           </div>
@@ -368,7 +370,7 @@ function printReport() {
         <template v-else>{{ t('Черновик ещё не сохранён') }}</template>
       </span>
       <button class="rw-btn rw-btn-save rw-savebar-btn" :disabled="saving || loadError" @click="saveReport">
-        {{ saving ? 'Сохранение…' : 'Сохранить отчёт' }}
+        {{ saving ? t('Сохранение…') : t('Сохранить отчёт') }}
       </button>
     </div>
 
@@ -397,7 +399,7 @@ function printReport() {
           </div>
 
           <div v-for="page in printablePages" :key="'rwpp_' + page.id" class="rw-pp-block">
-            <div class="rw-pp-block-h">{{ page.type === 'matrix' ? (page.matrixTitle || 'Статус по ключевым направлениям') : dirName(page.directionId) }}</div>
+            <div class="rw-pp-block-h">{{ page.type === 'matrix' ? (page.matrixTitle || t('Статус по ключевым направлениям')) : dirName(page.directionId) }}</div>
 
             <!-- narrative -->
             <template v-if="page.type === 'narrative'">

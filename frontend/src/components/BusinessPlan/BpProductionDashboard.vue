@@ -18,6 +18,8 @@ import { useProductionData } from "@/composables/useProductionData";
 import type { ProdCompany } from "@/api/production";
 import { execCol as pctCol, execZone as pctZone } from "@/utils/execBand";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 
 const { t } = useI18n();
 
@@ -58,11 +60,11 @@ const PERIOD_OPTS = computed(() => [
   { value: "annual", label: t("Год") },
 ]);
 const SECTOR_META: Record<string, { label: string; color: string }> = {
-  mining: { label: "Горнодоб.", color: "#9B8EC4" },
-  oilgas: { label: "Нефтегаз", color: "#1D9E75" },
-  energy: { label: "Энергетика", color: "#EF9F27" },
-  transport: { label: "Транспорт", color: "#378ADD" },
-  other: { label: "Прочие", color: "#888780" },
+  mining: { label: i18nKey("Горнодоб."), color: "#9B8EC4" },
+  oilgas: { label: i18nKey("Нефтегаз"), color: "#1D9E75" },
+  energy: { label: i18nKey("Энергетика"), color: "#EF9F27" },
+  transport: { label: i18nKey("Транспорт"), color: "#378ADD" },
+  other: { label: i18nKey("Прочие"), color: "#888780" },
 };
 
 onMounted(async () => { await st.loadAvailable(); await st.load(); });
@@ -76,7 +78,7 @@ const chartMode = ref<"yoy" | "plan">("yoy");
 
 const CHART_MODES = [
   { value: "yoy", label: "2025 → 2026" },
-  { value: "plan", label: "План · Ожид" },
+  { value: "plan", label: i18nKey("План · Ожид") },
 ];
 
 // ─── formatting ───────────────────────────────────────────────
@@ -248,7 +250,7 @@ watch([() => st.data.value, filtered], async () => { await nextTick(); rescan();
         <span class="pd-fl-sp" />
         <select v-if="scope.showCompanyPicker.value" class="pd-co-select" :value="companyFilter || ''" @change="companyFilter = ($event.target as HTMLSelectElement).value || null">
           <option value="">{{ t("Все компании") }}</option>
-          <option v-for="o in companyOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
+          <option v-for="o in companyOptions" :key="o.value" :value="o.value">{{ t(o.label) }}</option>
         </select>
         <button v-if="hasFilter" class="pd-clear" @click="clearFilters">× {{ t("сбросить") }}</button>
       </div>

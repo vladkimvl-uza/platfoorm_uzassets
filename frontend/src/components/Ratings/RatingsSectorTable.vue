@@ -24,6 +24,8 @@ import {
   displayRating, coSector, sectorColor,
 } from "./ratingsHelpers";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 const { t } = useI18n();
 
 
@@ -46,7 +48,7 @@ const agencies = computed(() =>
 );
 
 const accent = computed(() => props.kind === "credit" ? "#378ADD" : "#1D9E75");
-const titleText = computed(() => props.kind === "credit" ? "Кредитный рейтинг" : "ESG рейтинг");
+const titleText = computed(() => props.kind === "credit" ? i18nKey("Кредитный рейтинг") : i18nKey("ESG рейтинг"));
 
 // Group companies by sector (using sectors[] from API as canonical list)
 interface SectorGroup {
@@ -92,7 +94,7 @@ const groups = computed<SectorGroup[]>(() => {
       sector: {
         id: "_orphan",
         code: "_orphan",
-        name_ru: "Другое",
+      name_ru: t("Другое"),
         name_uz: null, name_en: null,
         color_hex: "#64748B",
         sort_order: 9999,
@@ -192,9 +194,9 @@ const legend = computed(() => {
     ];
   }
   return [
-    { bg: "#DCFCE7", fg: "#1D9E75", label: "Лидер (1-2 / 60+ / A)" },
-    { bg: "#FEF9C3", fg: "#D97706", label: "Средний (3 / 40-59 / B)" },
-    { bg: "#FEE2E2", fg: "#EF4444", label: "Слабый (4-5 / <40 / C-D)" },
+    { bg: "#DCFCE7", fg: "#1D9E75", label: i18nKey("Лидер (1-2 / 60+ / A)") },
+    { bg: "#FEF9C3", fg: "#D97706", label: i18nKey("Средний (3 / 40-59 / B)") },
+    { bg: "#FEE2E2", fg: "#EF4444", label: i18nKey("Слабый (4-5 / <40 / C-D)") },
   ];
 });
 </script>
@@ -267,7 +269,7 @@ const legend = computed(() => {
                         </span>
                         <span v-if="c.olk"
                               class="rst-olk"
-                              :title="c.olk.label"
+                              :title="t(c.olk.label)"
                               :style="{ color: c.olk.fg, background: c.olk.bg }">
                           {{ c.olk.symbol }}
                         </span>
@@ -299,7 +301,7 @@ const legend = computed(() => {
     <div class="rst-legend">
       <span v-for="lg in legend" :key="lg.label" class="rst-leg-item">
         <span class="rst-leg-swatch" :style="{ background: lg.bg }" />
-        <span class="rst-leg-text" :style="{ color: lg.fg }">{{ lg.label }}</span>
+        <span class="rst-leg-text" :style="{ color: lg.fg }">{{ t(lg.label) }}</span>
       </span>
       <span class="rst-leg-item rst-leg-mut">
         <span class="rst-leg-empty-circle" />

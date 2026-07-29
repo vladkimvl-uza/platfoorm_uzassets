@@ -1,5 +1,7 @@
 import { ref, shallowRef } from "vue";
 import { productionApi, type ProdOverview } from "@/api/production";
+import { t } from "@/locale/i18n";
+
 
 /** State for the Production-indicators tab (mirrors useBusinessPlanData shape). */
 export function useProductionData() {
@@ -22,7 +24,7 @@ export function useProductionData() {
     } catch (e: unknown) {
       if (my !== seq) return;
       const err = e as { response?: { data?: { detail?: string } }; message?: string };
-      error.value = err?.response?.data?.detail || err?.message || "Ошибка загрузки";
+      error.value = err?.response?.data?.detail || err?.message || t('Ошибка загрузки');
       data.value = null;
     } finally {
       if (my === seq) loading.value = false;

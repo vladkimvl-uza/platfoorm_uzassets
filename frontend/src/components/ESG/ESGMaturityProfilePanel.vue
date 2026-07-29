@@ -12,6 +12,8 @@ import ESGReportsTable from "@/components/ESG/ESGReportsTable.vue";
 import ESGMaturityMatrix from "@/components/ESG/ESGMaturityMatrix.vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 const { t } = useI18n();
 
 
@@ -32,7 +34,7 @@ async function loadMaturity() {
   try {
     heatmap.value = await esgApi.getMaturityHeatmap(props.year);
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || "Не удалось загрузить зрелость";
+    error.value = e?.response?.data?.detail || t('Не удалось загрузить зрелость');
     heatmap.value = null;
   } finally {
     loading.value = false;
@@ -56,7 +58,7 @@ const ratingsLoading = ref(false);
 const histOpen = ref<string | null>(null);
 const histItems = ref<AgencyRatingHistoryItem[]>([]);
 const histLoading = ref(false);
-const ACTION_LBL: Record<string, string> = { create: "создан", update: "изменён", delete: "удалён", snapshot: "снимок" };
+const ACTION_LBL: Record<string, string> = { create: i18nKey("создан"), update: i18nKey("изменён"), delete: i18nKey("удалён"), snapshot: i18nKey("снимок") };
 
 async function loadRatings() {
   histOpen.value = null;
@@ -88,7 +90,7 @@ function histDate(iso: string): string {
 
 <template>
   <div class="mpp">
-    <UzaStateBlock v-if="loading" state="loading" text="Загрузка ESG-зрелости…" />
+    <UzaStateBlock v-if="loading" state="loading" :text="t('Загрузка ESG-зрелости…')" />
     <UzaStateBlock v-else-if="error" state="error" variant="block" :text="error" retry @retry="loadMaturity" />
 
     <template v-else>
@@ -99,7 +101,7 @@ function histDate(iso: string): string {
           <ESGMaturityMatrix :heatmap="singleHeatmap" :can-edit="canEdit" @saved="loadMaturity" />
         </div>
       </div>
-      <UzaStateBlock v-else state="empty" variant="inline" :text="`Матрица зрелости за ${year} год не заполнена`" />
+      <UzaStateBlock v-else state="empty" variant="inline" :text="t('Матрица зрелости за {value0} год не заполнена', { value0: year })" />
 
       <!-- Динамика рейтингов -->
       <div class="mpp-rh">

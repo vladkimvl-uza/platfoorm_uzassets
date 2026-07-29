@@ -26,10 +26,14 @@ import { computed, onMounted, onUnmounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { api } from "@/api/client";
 import { useI18n } from "@/composables/useI18n";
+import { useFormatters } from "@/composables/useFormatters";
 import Odometer from "@/components/Odometer.vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
+import { i18nKey } from "@/locale/keys";
+
 
 const { t } = useI18n();
+const fmt = useFormatters();
 
 type Bucket = "total" | "done" | "active" | "overdue" | "deferred";
 type Entity = "projects" | "tasks";
@@ -206,11 +210,11 @@ onUnmounted(() => {
 
 // ─── Display constants ───
 const HERO_VERB: Record<Bucket, string> = {
-  total:    "всего",
-  done:     "завершено",
-  active:   "в работе",
-  overdue:  "просрочено",
-  deferred: "перенесено",
+  total:    i18nKey("всего"),
+  done:     i18nKey("завершено"),
+  active:   i18nKey("в работе"),
+  overdue:  i18nKey("просрочено"),
+  deferred: i18nKey("перенесено"),
 };
 
 const _BUCKET_ACCENT: Record<Bucket, string> = {
@@ -231,10 +235,9 @@ const heroNum = computed(() => {
     : data.value.summary.tasks_count;
 });
 const heroUnit = computed(() => {
-  const action = HERO_VERB[props.bucket] || "";
-  const noun = props.initialEntity === "projects" ? "проектов" : "задач";
-  // Ключ перевода — целиком составленная русская фраза («задач завершено» и т.п.)
-  return t(action ? `${noun} ${action}` : `${noun} всего`);
+  const action = t(HERO_VERB[props.bucket] || i18nKey("всего"));
+  const noun = t(props.initialEntity === "projects" ? i18nKey("проектов") : i18nKey("задач"));
+  return t("{entity} {action}", { entity: noun, action });
 });
 const heroOf = computed(() => {
   if (!data.value) return "";
@@ -256,21 +259,19 @@ const summaryChip = computed(() => {
 });
 
 function formatDate(d: string | null): string {
-  if (!d) return "—";
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d);
-  return m ? `${m[3]}.${m[2]}.${m[1]}` : d;
+  return d ? fmt.fmtDateNumeric(d) : "—";
 }
 function pluralDays(n: number): string {
   const m = n % 100;
-  if (m >= 11 && m <= 14) return "дней";
+  if (m >= 11 && m <= 14) return t("дней");
   const r = n % 10;
-  if (r === 1) return "день";
-  if (r >= 2 && r <= 4) return "дня";
-  return "дней";
+  if (r === 1) return t("день");
+  if (r >= 2 && r <= 4) return t("дня");
+  return t("дней");
 }
 function overdueLabel(p: DrillItem): string {
   if (p.days_overdue && p.days_overdue > 0) {
-    return t("просрочено {n} {days}", { n: p.days_overdue, days: t(pluralDays(p.days_overdue)) });
+    return t("просрочено {n} {days}", { n: p.days_overdue, days: pluralDays(p.days_overdue) });
   }
   return formatDate(p.due_date);
 }
@@ -334,16 +335,16 @@ function ctaLabel(): string {
                   <div class="ddm-mk-v"><Odometer :value="data.summary.companies_count" /><span class="ddm-mk-u">{{ t("с проектами или задачами") }}</span></div>
                 </div>
                 <div class="ddm-mini" style="--kc:#1D9E75; --ki:1;">
-                  <div class="ddm-mk-l">{{ t(bucket === "total" ? "Проекты всего" : `Проекты ${HERO_VERB[bucket]}`) }}</div>
+                  <div class="ddm-mk-l">{{ t(bucket === "total" ? t('Проекты всего') : t('Проекты {value0}', { value0: HERO_VERB[bucket] })) }}</div>
                   <div class="ddm-mk-v"><Odometer :value="data.summary.projects_count" /><span class="ddm-mk-u">{{ t("из") }} {{ data.summary.projects_total_all }}</span></div>
                 </div>
                 <div class="ddm-mini" style="--kc:#EF9F27; --ki:2;">
-                  <div class="ddm-mk-l">{{ t(bucket === "total" ? "Задачи всего" : `Задачи ${HERO_VERB[bucket]}`) }}</div>
+                  <div class="ddm-mk-l">{{ t(bucket === "total" ? t('Задачи всего') : t('Задачи {value0}', { value0: HERO_VERB[bucket] })) }}</div>
                   <div class="ddm-mk-v"><Odometer :value="data.summary.tasks_count" /><span class="ddm-mk-u">{{ t("из") }} {{ data.summary.tasks_total_all }}</span></div>
                 </div>
                 <div class="ddm-mini" style="--kc:#E24B4A; --ki:3;">
                   <div class="ddm-mk-l">{{ data.summary.extra_label ? t(data.summary.extra_label) : "—" }}</div>
-                  <div class="ddm-mk-v"><Odometer :value="data.summary.extra_value" /><span class="ddm-mk-u">{{ t(initialEntity === "projects" ? "проектов" : "задач") }}</span></div>
+                  <div class="ddm-mk-v"><Odometer :value="data.summary.extra_value" /><span class="ddm-mk-u">{{ t(initialEntity === "projects" ? t('проектов') : t('задач')) }}</span></div>
                 </div>
               </div>
             </div>
@@ -351,7 +352,7 @@ function ctaLabel(): string {
             <!-- Companies list -->
             <div class="ddm-sect ddm-row" style="--si:2;">
               <div class="ddm-l-sec">
-                <span>{{ t(initialEntity === "projects" ? "Компании · отсортированы по числу проектов" : "Компании · отсортированы по числу задач") }}</span>
+                <span>{{ t(initialEntity === "projects" ? t('Компании · отсортированы по числу проектов') : t('Компании · отсортированы по числу задач')) }}</span>
                 <span class="side">{{ t("{n} компаний", { n: data.summary.companies_count }) }}</span>
               </div>
 
@@ -424,9 +425,9 @@ function ctaLabel(): string {
                         </span>
                         <span class="ddm-itm-name">{{ p.title }}</span>
                         <span class="ddm-itm-meta" :style="p.is_overdue ? { color: '#A32D2D' } : undefined">
-                          {{ p.is_overdue ? overdueLabel(p) : formatDate(p.due_date) }}
+                          {{ p.is_overdue ? t(overdueLabel(p)) : formatDate(p.due_date) }}
                         </span>
-                        <span class="ddm-itm-status" :style="{ color: statusTextColor(p) }">{{ statusIcon(p).label }}</span>
+                        <span class="ddm-itm-status" :style="{ color: statusTextColor(p) }">{{ t(statusIcon(p).label) }}</span>
                       </div>
                     </div>
                     <div v-else class="ddm-co-empty">{{ t("Проектов в этой выборке нет") }}</div>
@@ -463,7 +464,7 @@ function ctaLabel(): string {
                         <span class="ddm-itm-meta" :style="item.is_overdue ? { color: '#A32D2D' } : undefined">
                           {{ item.assignee_name || (item.is_overdue ? overdueLabel(item) : formatDate(item.due_date)) }}
                         </span>
-                        <span class="ddm-itm-status" :style="{ color: statusTextColor(item) }">{{ statusIcon(item).label }}</span>
+                        <span class="ddm-itm-status" :style="{ color: statusTextColor(item) }">{{ t(statusIcon(item).label) }}</span>
                       </div>
                     </div>
                     <div v-else class="ddm-co-empty">{{ t("Задач в этой выборке нет") }}</div>
@@ -495,7 +496,7 @@ function ctaLabel(): string {
           <div class="ddm-ftr ddm-row" style="--si:3;">
             <button class="ddm-btn ddm-btn-g" @click="close">{{ t("Закрыть") }}</button>
             <button class="ddm-btn ddm-btn-p" @click="gotoListAll">
-              {{ ctaLabel() }}
+              {{ t(ctaLabel()) }}
               <svg viewBox="0 0 14 14" class="svg-ic" width="12" height="12"><path d="M3 7h8M7.5 3.5L11 7l-3.5 3.5"/></svg>
             </button>
           </div>

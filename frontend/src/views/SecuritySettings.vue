@@ -65,7 +65,7 @@ async function loadSessions() {
 async function revokeOne(id: string) {
   try {
     await authApi.revokeSession(id);
-    notice.value = "Сессия завершена";
+    notice.value = t("Сессия завершена");
     await loadSessions();
   } catch (e) {
     error.value = formatError(e);
@@ -76,7 +76,7 @@ async function revokeOthers() {
   revokingOthers.value = true;
   try {
     const n = await authApi.revokeOtherSessions();
-    notice.value = n > 0 ? `Завершено сессий: ${n}` : "Других активных сессий нет";
+    notice.value = n > 0 ? t("Завершено сессий: {count}", { count: n }) : t("Других активных сессий нет");
     await loadSessions();
   } catch (e) {
     error.value = formatError(e);
@@ -87,7 +87,7 @@ async function revokeOthers() {
 
 /** Человекочитаемая метка устройства/браузера из user-agent. */
 function deviceLabel(ua: string | null): string {
-  if (!ua) return "Неизвестное устройство";
+  if (!ua) return t('Неизвестное устройство');
   const os = /Windows/i.test(ua) ? "Windows"
     : /Mac OS X|Macintosh/i.test(ua) ? "macOS"
     : /Android/i.test(ua) ? "Android"
@@ -97,7 +97,7 @@ function deviceLabel(ua: string | null): string {
     : /OPR\/|Opera/i.test(ua) ? "Opera"
     : /Chrome\//i.test(ua) ? "Chrome"
     : /Firefox\//i.test(ua) ? "Firefox"
-    : /Safari\//i.test(ua) ? "Safari" : "браузер";
+    : /Safari\//i.test(ua) ? "Safari" : t("браузер");
   return `${br} · ${os}`;
 }
 
@@ -149,7 +149,7 @@ async function startLink() {
           linkDeepLink.value = null;
           linkToken.value = null;
           if (pollTimer) clearInterval(pollTimer);
-          flash("Telegram успешно привязан.");
+          flash(t("Telegram успешно привязан."));
         } else if (elapsed >= 300) {
           linkPolling.value = false;
           if (pollTimer) clearInterval(pollTimer);
@@ -175,7 +175,7 @@ async function confirmUnlink() {
     await mfaApi.unlinkTelegram();
     unlinkModalOpen.value = false;
     await refresh();
-    flash("Telegram отвязан.");
+    flash(t("Telegram отвязан."));
   } catch (e) {
     error.value = formatError(e);
   }
@@ -200,7 +200,7 @@ async function confirmDisable() {
     disableModalOpen.value = false;
     disableCode.value = "";
     await refresh();
-    flash("2FA отключена.");
+    flash(t("2FA отключена."));
   } catch (e) {
     error.value = formatError(e);
   }
@@ -220,7 +220,7 @@ async function confirmRegenerate() {
 
 function copyRecoveryCodes() {
   const text = recoveryCodes.value.join("\n");
-  navigator.clipboard.writeText(text).then(() => flash("Скопировано в буфер обмена."));
+  navigator.clipboard.writeText(text).then(() => flash(t("Скопировано в буфер обмена.")));
 }
 
 function dismissRecoveryCodes() {
@@ -236,9 +236,9 @@ async function sendTest() {
   try {
     const r = await mfaApi.testNotification();
     if (r.enqueued) {
-      flash("Тест отправлен. Сообщение придёт в Telegram через несколько секунд.");
+      flash(t("Тест отправлен. Сообщение придёт в Telegram через несколько секунд."));
     } else {
-      error.value = r.detail ?? "Не удалось отправить.";
+      error.value = r.detail ?? t('Не удалось отправить.');
     }
   } catch (e) {
     error.value = formatError(e);
@@ -276,8 +276,8 @@ const linkUiState = computed(() => {
 const linkExpiresIn = computed(() => {
   if (!linkExpiresAt.value) return "";
   const ms = new Date(linkExpiresAt.value).getTime() - Date.now();
-  if (ms <= 0) return "истёк";
-  return `${Math.ceil(ms / 60000)} мин`;
+  if (ms <= 0) return t("истёк");
+  return t("{minutes} мин", { minutes: Math.ceil(ms / 60000) });
 });
 </script>
 
@@ -314,7 +314,7 @@ const linkExpiresIn = computed(() => {
           'pill-green': linkUiState === 'linked-with-mfa' || linkUiState === 'linked-no-mfa',
           'pill-grey':  linkUiState === 'not-linked',
         }">
-          {{ linkUiState === 'not-linked' ? 'не привязан' : 'привязан' }}
+          {{ linkUiState === 'not-linked' ? t('не привязан') : t('привязан') }}
         </div>
       </div>
 
@@ -343,7 +343,7 @@ const linkExpiresIn = computed(() => {
       <div v-else class="ss-card-body">
         <div class="ss-info-row">
           <span class="ss-label">{{ t('Аккаунт:') }}</span>
-          <span class="ss-value">{{ status.telegram_username ? '@' + status.telegram_username : 'без username' }}</span>
+          <span class="ss-value">{{ status.telegram_username ? '@' + status.telegram_username : t('без username') }}</span>
         </div>
         <div class="ss-info-row" v-if="status.telegram_linked_at">
           <span class="ss-label">{{ t('Привязан:') }}</span>
@@ -351,7 +351,7 @@ const linkExpiresIn = computed(() => {
         </div>
         <div class="ss-actions">
           <button class="ss-btn-ghost" :disabled="testSending" @click="sendTest">
-            {{ testSending ? "Отправка…" : "Отправить тест" }}
+            {{ testSending ? t('Отправка…') : t('Отправить тест') }}
           </button>
           <button class="ss-btn-danger" @click="unlinkModalOpen = true">{{ t('Отвязать') }}</button>
         </div>
@@ -369,7 +369,7 @@ const linkExpiresIn = computed(() => {
         </div>
         <div class="ss-card-title">{{ t('Двухфакторная аутентификация') }}</div>
         <div class="ss-card-pill" :class="{ 'pill-green': status.enabled, 'pill-grey': !status.enabled }">
-          {{ status.enabled ? 'включена' : 'отключена' }}
+          {{ status.enabled ? t('включена') : t('отключена') }}
         </div>
       </div>
 
@@ -445,14 +445,14 @@ const linkExpiresIn = computed(() => {
         <div class="ss-divider"></div>
 
         <div v-for="(label, field) in {
-          type_assignments: 'Назначения задач',
-          type_mentions:    'Упоминания (@me)',
-          type_deadlines:   'Дедлайны и просрочки',
-          type_moderation:  'Очередь модерации',
-          type_broadcasts:  'Рассылки администратора',
-          type_system:      'Системные уведомления',
+          type_assignments: t('Назначения задач'),
+          type_mentions:    t('Упоминания (@me)'),
+          type_deadlines:   t('Дедлайны и просрочки'),
+          type_moderation:  t('Очередь модерации'),
+          type_broadcasts:  t('Рассылки администратора'),
+          type_system:      t('Системные уведомления'),
         }" :key="field" class="ss-toggle-row ss-toggle-row-thin">
-          <div class="ss-toggle-name">{{ label }}</div>
+          <div class="ss-toggle-name">{{ t(label) }}</div>
           <label class="ss-switch">
             <input
               type="checkbox"
@@ -519,7 +519,7 @@ const linkExpiresIn = computed(() => {
         <div class="ss-card-title">{{ t('Активные сессии') }}</div>
         <button v-if="hasOtherSessions" class="ss-btn-ghost ss-sess-revoke-all"
                 :disabled="revokingOthers" @click="revokeOthers">
-          {{ revokingOthers ? 'Завершаю…' : 'Завершить остальные' }}
+          {{ revokingOthers ? t('Завершаю…') : t('Завершить остальные') }}
         </button>
       </div>
       <div class="ss-card-body">
@@ -529,11 +529,11 @@ const linkExpiresIn = computed(() => {
         <ul v-else class="ss-sess-list">
           <li v-for="s in sessions" :key="s.id" class="ss-sess-item" :class="{ 'is-current': s.current }">
             <div class="ss-sess-main">
-              <span class="ss-sess-device">{{ deviceLabel(s.user_agent) }}</span>
+              <span class="ss-sess-device">{{ t(deviceLabel(s.user_agent)) }}</span>
               <span v-if="s.current" class="ss-sess-badge">{{ t('текущая') }}</span>
             </div>
             <div class="ss-sess-meta">
-              <span>{{ s.ip_address || 'IP неизвестен' }}</span>
+              <span>{{ s.ip_address || t('IP неизвестен') }}</span>
               <span class="ss-sess-dot">·</span>
               <span>{{ t('вход') }} {{ fmt.fmtDateTime(s.started_at) }}</span>
             </div>

@@ -75,7 +75,7 @@ async function load() {
     sectors.value = companiesResp.sectors || [];
     allRatings.value = ratingsResp.items || [];
   } catch (e: any) {
-    errorMsg.value = e?.response?.data?.detail || e?.message || "Ошибка загрузки";
+    errorMsg.value = e?.response?.data?.detail || e?.message || t('Ошибка загрузки');
     console.error("Ratings load failed:", e);
   } finally {
     loading.value = false;
@@ -169,7 +169,7 @@ function onShowAllChanges() {
         <div class="rt-tb-sub" v-if="!loading">
           <span><b>{{ totalCount }}</b> {{ pluralCompanies(totalCount) }}</span>
           <span v-if="sectorFilter" class="rt-dot">·</span>
-          <span v-if="sectorFilter">{{ t('сектор:') }} <b>{{ activeSectorLabel() }}</b></span>
+          <span v-if="sectorFilter">{{ t('сектор:') }} <b>{{ t(activeSectorLabel()) }}</b></span>
         </div>
       </div>
       <div class="rt-tb-r">
@@ -185,7 +185,7 @@ function onShowAllChanges() {
               }"
             ></span>
             <span :style="{ color: sortedSectors.find(s => String(s.code).toLowerCase() === sectorFilter)?.color_hex || '#fff' }">
-              {{ sectorFilter ? activeSectorLabel() : 'Все секторы' }}
+              {{ sectorFilter ? t(activeSectorLabel()) : t('Все секторы') }}
             </span>
             <svg
               class="rt-chev"

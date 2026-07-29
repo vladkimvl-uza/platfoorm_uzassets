@@ -8,6 +8,9 @@
 import { Chart, type ChartConfiguration } from "@/utils/chartjsRegister";
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import Odometer from "@/components/Odometer.vue";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
 
 export interface DonutEntry {
   label: string;
@@ -184,7 +187,7 @@ function pctOf(v: number): number {
       >
         <div class="cp-donut-leg-dot" :style="{ background: e.color }" />
         <div class="cp-donut-leg-txt">
-          <span class="cp-donut-leg-label">{{ e.label }}</span>
+          <span class="cp-donut-leg-label">{{ t(e.label) }}</span>
           <span class="cp-donut-leg-meta">
             <template v-if="e.sub">{{ e.sub }}<span class="cp-donut-leg-sep">·</span>{{ pctOf(e.value) }}%</template>
             <template v-else>{{ pctOf(e.value) }}%</template>

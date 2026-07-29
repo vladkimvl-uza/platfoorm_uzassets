@@ -330,23 +330,13 @@ const timelineGroups = computed<TimelineGroup[]>(() => {
       return { key: "this_week", label: i18nKey("На этой неделе") };
     if (diff < -1 && diff >= -7)
       return { key: "last_week", label: i18nKey("На прошлой неделе") };
-    // Иначе -- по месяцам
-    const months = [
-      "Январь",
-      "Февраль",
-      "Март",
-      "Апрель",
-      "Май",
-      "Июнь",
-      "Июль",
-      "Август",
-      "Сентябрь",
-      "Октябрь",
-      "Ноябрь",
-      "Декабрь",
-    ];
+    // Иначе -- по месяцам в активной локали.
     const key = `m_${d.getFullYear()}_${d.getMonth()}`;
-    const label = `${months[d.getMonth()]} ${d.getFullYear()}`;
+    const label = new Intl.DateTimeFormat(INTL_LOCALE[locale.value], {
+      month: "long",
+      year: "numeric",
+      timeZone: APP_TIMEZONE,
+    }).format(d);
     return { key, label };
   }
 
@@ -714,10 +704,11 @@ function holidayDow(iso: string): string {
 
 function formatDateGroup(g: TimelineGroup): string {
   // "Сегодня · 8 мая" вместо просто "Сегодня"
+  const label = tr(g.label);
   if (["today", "yesterday", "tomorrow"].includes(g.key)) {
-    return `${g.label} · ${formatDateShort(g.dateIso)}`;
+    return `${label} · ${formatDateShort(g.dateIso)}`;
   }
-  return g.label;
+  return label;
 }
 
 function dueProgress(n: Note): {

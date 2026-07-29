@@ -92,6 +92,7 @@ import AiInput from "@/components/Ai/AiInput.vue";
 import { useAiChat } from "@/composables/useAiChat";
 import { useAiActivation } from "@/composables/useAiActivation";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
 
 const { t } = useI18n();
 
@@ -110,17 +111,17 @@ const chat = useAiChat();
 const msgsBox = ref<HTMLElement | null>(null);
 
 const SUGGESTIONS = [
-  "Проанализируй маржинальность по компаниям портфеля",
-  "Кто тянет финансовый результат вниз и почему?",
-  "Спрогнозируй выручку и прибыль на Q3–Q4 (run-rate)",
-  "Сравни EBITDA компаний год к году",
-  "IPO в Узбекистане и их результаты — что есть на рынке?",
+  i18nKey("Проанализируй маржинальность по компаниям портфеля"),
+  i18nKey("Кто тянет финансовый результат вниз и почему?"),
+  i18nKey("Спрогнозируй выручку и прибыль на Q3–Q4 (run-rate)"),
+  i18nKey("Сравни EBITDA компаний год к году"),
+  i18nKey("IPO в Узбекистане и их результаты — что есть на рынке?"),
 ];
 const FOLLOWUPS = [
-  "Построй график динамики",
-  "Сравни с планом",
-  "Дай рекомендации",
-  "Покажи таблицей",
+  i18nKey("Построй график динамики"),
+  i18nKey("Сравни с планом"),
+  i18nKey("Дай рекомендации"),
+  i18nKey("Покажи таблицей"),
 ];
 
 // Финансовый копилот: сильная модель + нативный web-поиск + полный набор
@@ -128,7 +129,7 @@ const FOLLOWUPS = [
 async function ask(text: string) {
   if (chat.isStreaming.value || !text.trim()) return;
   const prompt = props.context
-    ? `[Контекст экрана: ${props.context}]\n${text}`
+    ? t("[Контекст экрана: {context}]\n{text}", { context: props.context, text })
     : text;
   stick.value = true;            // новый запрос — прилипаем к низу
   await chat.send(prompt, { model: "ai-balanced", maxTokens: 16000, web: true });
@@ -180,12 +181,7 @@ defineExpose({ generate, open });
 
 // Кнопка «Прогноз ИИ» внутри панели.
 function genForecast() {
-  ask(
-    "Сгенерируй прогноз ключевых показателей (выручка, EBITDA, чистая прибыль) на " +
-    "2025–2027 по портфелю и крупнейшим компаниям: возьми историю из модуля финансов, " +
-    "при необходимости подтяни отраслевые темпы через web. Укажи метод и допущения. " +
-    "Выведи результат таблицами по годам (их можно скачать в Excel) и краткий вывод.",
-  );
+  ask(t("Сгенерируй прогноз ключевых показателей (выручка, EBITDA, чистая прибыль) на 2025–2027 по портфелю и крупнейшим компаниям: возьми историю из модуля финансов, при необходимости подтяни отраслевые темпы через web. Укажи метод и допущения. Выведи результат таблицами по годам (их можно скачать в Excel) и краткий вывод."));
 }
 </script>
 

@@ -15,15 +15,24 @@
  * `vite build`, который типы не проверяет, поэтому ошибки копились бесконтрольно.
  */
 import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 
-// Заморожено 2026-07-22 после удаления мёртвого кода (было 58 → стало 56).
-const BUDGET = 56;
+// Обновлено 2026-07-29 после исправления журнала аудита (было 56 → стало 55).
+const BUDGET = 55;
 
-const res = spawnSync("npx", ["vue-tsc", "-b"], {
+// --force не даёт incremental-кэшу скрыть ошибки из предыдущего запуска.
+// Локальный bin запускаем через Node, чтобы не зависеть от shell/npx на Windows.
+const vueTscBin = fileURLToPath(new URL("../node_modules/vue-tsc/bin/vue-tsc.js", import.meta.url));
+const res = spawnSync(process.execPath, [vueTscBin, "-b", "--force"], {
   encoding: "utf8",
-  shell: true,
+  shell: false,
   maxBuffer: 1024 * 1024 * 64,
 });
+
+if (res.error) {
+  console.error(`Не удалось запустить vue-tsc: ${res.error.message}`);
+  process.exit(1);
+}
 
 const out = (res.stdout || "") + (res.stderr || "");
 const count = (out.match(/error TS\d+/g) || []).length;

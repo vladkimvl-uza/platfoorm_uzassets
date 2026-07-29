@@ -12,6 +12,11 @@ import {
 import BroadcastComposer from "@/components/broadcasts/BroadcastComposer.vue";
 import BroadcastAnalytics from "@/components/broadcasts/BroadcastAnalytics.vue";
 import BIcon from "@/components/broadcasts/BIcon.vue";
+import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
+const { t: tr } = useI18n();
+
 
 const list = ref<TemplateListItem[]>([]);
 const selectedId = ref<string | null>(null);
@@ -35,11 +40,11 @@ function selectTemplate(id: string, v: "composer" | "analytics" = "composer") {
 
 async function createNew() {
   const draft: TemplatePayload = {
-    name: "Новая рассылка",
+    name: tr("Новая рассылка"),
     is_active: false,
     type: "announcement",
     priority: "normal",
-    title: "Заголовок рассылки",
+    title: i18nKey("Заголовок рассылки"),
     body: "",
     link_url: null,
     attachments: null,
@@ -87,10 +92,10 @@ function onDeleted() {
 }
 
 const scheduleSummary = (t: TemplateListItem): string => {
-  if (t.schedule_mode === "oneshot") return "Однократно";
+  if (t.schedule_mode === "oneshot") return tr("Однократно");
   if (t.schedule_mode === "interval") {
     if (t.next_run_at) return `→ ${new Date(t.next_run_at).toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`;
-    return "Повторяющееся";
+  return tr("Повторяющееся");
   }
   return t.schedule_mode;
 };
@@ -104,12 +109,12 @@ const scheduleSummary = (t: TemplateListItem): string => {
           <BIcon name="speakerphone" :size="18" />
         </span>
         <div>
-          <div class="abr-eyebrow">Owner panel · уведомления</div>
-          <div class="abr-title">Кастомные рассылки</div>
+          <div class="abr-eyebrow">{{ tr('Owner panel · уведомления') }}</div>
+          <div class="abr-title">{{ tr('Кастомные рассылки') }}</div>
         </div>
       </div>
       <div class="abr-tb-r">
-        <span class="abr-counter">{{ list.length }} шаблонов</span>
+        <span class="abr-counter">{{ list.length }} {{ tr('шаблонов') }}</span>
       </div>
     </div>
 
@@ -121,14 +126,14 @@ const scheduleSummary = (t: TemplateListItem): string => {
     <div class="abr-grid">
       <div class="abr-list-col">
         <button class="abr-new" @click="createNew">
-          <BIcon name="plus" :size="15" /> Новая рассылка
+          <BIcon name="plus" :size="15" /> {{ tr('Новая рассылка') }}
         </button>
 
-        <div v-if="loading && list.length === 0" class="abr-empty">Загрузка…</div>
+        <div v-if="loading && list.length === 0" class="abr-empty">{{ tr('Загрузка…') }}</div>
         <div v-else-if="!list.length" class="abr-empty">
           <BIcon name="speakerphone" :size="26" style="color: var(--t3, #94A3B8);" />
-          <div>Рассылок ещё нет</div>
-          <div style="font-size: 10.5px; margin-top: 2px; color: var(--t3, #94A3B8);">Создайте первую — она появится здесь</div>
+          <div>{{ tr('Рассылок ещё нет') }}</div>
+          <div style="font-size: 10.5px; margin-top: 2px; color: var(--t3, #94A3B8);">{{ tr('Создайте первую — она появится здесь') }}</div>
         </div>
 
         <div v-else class="abr-list">
@@ -144,17 +149,17 @@ const scheduleSummary = (t: TemplateListItem): string => {
             <div class="abr-row-tags">
               <span class="abr-pri-pill"
                     :style="{ color: PRIORITY_PILL[t.priority].color, background: PRIORITY_PILL[t.priority].bg }">
-                {{ PRIORITY_PILL[t.priority].label }}
+                {{ tr(PRIORITY_PILL[t.priority].label) }}
               </span>
               <span v-if="t.is_sticky" class="abr-sticky-pill">
                 <BIcon name="pin" :size="10" /> sticky
               </span>
-              <span v-if="t.ack_mode !== 'none'" class="abr-ack-pill">{{ ACK_MODE_LABELS[t.ack_mode] }}</span>
+              <span v-if="t.ack_mode !== 'none'" class="abr-ack-pill">{{ tr(ACK_MODE_LABELS[t.ack_mode]) }}</span>
             </div>
             <div class="abr-row-meta">{{ scheduleSummary(t) }}</div>
             <div v-if="t.total_dispatches > 0" class="abr-row-stats">
               <BIcon name="send" :size="11" />
-              {{ t.total_dispatches }} запусков · {{ t.total_acks_lifetime }} откликов
+              {{ t.total_dispatches }} {{ tr('запусков ·') }} {{ t.total_acks_lifetime }} {{ tr('откликов') }}
             </div>
           </div>
         </div>
@@ -163,16 +168,16 @@ const scheduleSummary = (t: TemplateListItem): string => {
       <div class="abr-detail-col">
         <div v-if="!selectedId" class="abr-no-sel">
           <BIcon name="arrow-left" :size="18" style="opacity:.4;" />
-          Выберите рассылку слева или создайте новую
+          {{ tr('Выберите рассылку слева или создайте новую') }}
         </div>
 
         <template v-else>
           <div class="abr-view-tabs">
             <button class="abr-vt" :class="{ active: view === 'composer' }" @click="view = 'composer'">
-              <BIcon name="edit" :size="14" /> Редактор
+              <BIcon name="edit" :size="14" /> {{ tr('Редактор') }}
             </button>
             <button class="abr-vt" :class="{ active: view === 'analytics' }" @click="view = 'analytics'">
-              <BIcon name="chart-bar" :size="14" /> Аналитика
+              <BIcon name="chart-bar" :size="14" /> {{ tr('Аналитика') }}
             </button>
           </div>
 

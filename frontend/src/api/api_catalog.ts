@@ -1,4 +1,5 @@
 import { api } from "./client";
+import { i18nKey } from "@/locale/keys";
 
 // ─── Types ─────────────────────────────────────────────────────
 
@@ -193,18 +194,18 @@ export function methodPill(m: string) {
 
 export function envPill(env: Environment) {
   return env === "production"
-    ? { color: "#0F6E56", bg: "rgba(29,158,117,.12)", label: "production" }
-    : { color: "#854F0B", bg: "rgba(239,159,39,.15)", label: "sandbox" };
+    ? { color: "#0F6E56", bg: "rgba(29,158,117,.12)", label: i18nKey("production") }
+    : { color: "#854F0B", bg: "rgba(239,159,39,.15)", label: i18nKey("sandbox") };
 }
 
 export function keyStatusPill(key: ApiKey): { color: string; bg: string; label: string } {
-  if (key.revoked_at) return { color: "#A32D2D", bg: "rgba(226,75,74,.1)",  label: "revoked" };
+  if (key.revoked_at) return { color: "#A32D2D", bg: "rgba(226,75,74,.1)",  label: i18nKey("revoked") };
   if (key.expires_at && new Date(key.expires_at) <= new Date()) {
-    return { color: "#A32D2D", bg: "rgba(226,75,74,.1)", label: "expired" };
+    return { color: "#A32D2D", bg: "rgba(226,75,74,.1)", label: i18nKey("expired") };
   }
   if (key.expires_at) {
     const days = (new Date(key.expires_at).getTime() - Date.now()) / 86_400_000;
-    if (days < 30) return { color: "#854F0B", bg: "rgba(239,159,39,.15)", label: "истекает" };
+    if (days < 30) return { color: "#854F0B", bg: "rgba(239,159,39,.15)", label: i18nKey("истекает") };
   }
-  return { color: "#0F6E56", bg: "rgba(29,158,117,.12)", label: "active" };
+  return { color: "#0F6E56", bg: "rgba(29,158,117,.12)", label: i18nKey("active") };
 }

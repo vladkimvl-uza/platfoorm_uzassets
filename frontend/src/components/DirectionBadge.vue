@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
 defineProps<{
   direction: { code: string; label: string; color: string } | null | undefined;
   variant?: "bar" | "dot" | "pill";
@@ -19,7 +21,7 @@ defineProps<{
     <!-- bar/dot: НЕЙТРАЛЬНЫЙ текст + цвет только в акценте (полоска/точка) — иначе
          разноцветные названия «светофорят». pill остаётся цветным чипом. -->
     <span class="dir-label" :style="(variant || 'bar') === 'pill' ? {} : { color: 'var(--t1, #1E2A4A)' }">
-      {{ direction.label }}
+      {{ t(direction.label) }}
     </span>
   </div>
 </template>

@@ -22,6 +22,8 @@ import {
   type SupplierConcentration,
 } from "@/api/procurement_analysis";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 
 const { t } = useI18n();
 
@@ -37,9 +39,9 @@ type Seg = "top" | "cross" | "expensive";
 const seg = ref<Seg>("top");
 
 const segs: { key: Seg; label: string; hint: string }[] = [
-  { key: "top", label: "Топ по сумме", hint: "Крупнейшие поставщики по объёму спенда" },
-  { key: "cross", label: "Сквозные", hint: "Работают с двумя и более компаниями (≥2)" },
-  { key: "expensive", label: "Дорогие", hint: "С премией к медиане рынка" },
+  { key: "top", label: i18nKey("Топ по сумме"), hint: i18nKey("Крупнейшие поставщики по объёму спенда") },
+  { key: "cross", label: i18nKey("Сквозные"), hint: i18nKey("Работают с двумя и более компаниями (≥2)") },
+  { key: "expensive", label: i18nKey("Дорогие"), hint: i18nKey("С премией к медиане рынка") },
 ];
 
 const segCount = (k: Seg): number => {
@@ -279,7 +281,7 @@ function premiumClass(p: number): string {
             <td class="ta-r">
               <span class="psp-hhi" :class="hhiBand(Number(c.hhi) || 0).cls">
                 {{ fmtN(Math.round(Number(c.hhi) || 0)) }}
-                <small>{{ hhiBand(Number(c.hhi) || 0).label }}</small>
+                <small>{{ t(hhiBand(Number(c.hhi) || 0).label) }}</small>
               </span>
             </td>
           </tr>

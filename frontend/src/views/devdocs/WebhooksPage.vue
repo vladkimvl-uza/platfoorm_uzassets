@@ -1,31 +1,36 @@
 <template>
   <article class="dp">
     <h1 class="dp-h1">Webhooks</h1>
-    <p class="dp-lead">Платформа умеет push'ить события на ваш HTTP endpoint в момент изменения данных. Подходит для синхронизации с CRM, ERP, BI.</p>
+    <p class="dp-lead">{{ t('Платформа умеет push\'ить события на ваш HTTP endpoint в момент изменения данных. Подходит для синхронизации с CRM, ERP, BI.') }}</p>
 
     <section class="dp-section">
       <h2 class="dp-h2">Event types</h2>
       <ul class="dp-list">
-        <li><code>company.field_updated</code> — поле в библиотеке поменялось (любой модуль)</li>
-        <li><code>moderation.submitted</code> — новая заявка на модерацию</li>
-        <li><code>moderation.resolved</code> — заявка утверждена/отклонена</li>
-        <li><code>kpi.target_missed</code> — KPI ниже целевого &lt;70%</li>
-        <li><code>credit.overdue</code> — кредит вышел в просрочку</li>
-        <li><code>esg.issue_critical</code> — критический ESG-инцидент</li>
+        <li><code>company.field_updated</code> {{ t('— поле в библиотеке поменялось (любой модуль)') }}</li>
+        <li><code>moderation.submitted</code> {{ t('— новая заявка на модерацию') }}</li>
+        <li><code>moderation.resolved</code> {{ t('— заявка утверждена/отклонена') }}</li>
+        <li><code>kpi.target_missed</code> {{ t('— KPI ниже целевого &lt;70%') }}</li>
+        <li><code>credit.overdue</code> {{ t('— кредит вышел в просрочку') }}</li>
+        <li><code>esg.issue_critical</code> {{ t('— критический ESG-инцидент') }}</li>
       </ul>
     </section>
 
     <section class="dp-section">
       <h2 class="dp-h2">Delivery</h2>
-      <p>POST с JSON-телом, header <code>X-UzAssets-Signature: sha256=...</code> (HMAC от secret, выданного при создании subscription). Ретраи: 5 попыток с back-off 1m → 5m → 15m → 1h → 6h.</p>
+      <p>{{ t('POST с JSON-телом, header') }} <code>X-UzAssets-Signature: sha256=...</code> {{ t('(HMAC от secret, выданного при создании subscription). Ретраи: 5 попыток с back-off 1m → 5m → 15m → 1h → 6h.') }}</p>
     </section>
 
     <section class="dp-section">
-      <h2 class="dp-h2">Real-time WebSocket (альтернатива)</h2>
-      <p>Если webhook overkill — есть live WS-канал <code>/api/ws/companies</code> и <code>/api/ws/companies/&#123;id&#125;</code> с тем же набором событий <code>field_update</code>. Подключение JWT-auth, экспоненциальный re-connect.</p>
+      <h2 class="dp-h2">{{ t('Real-time WebSocket (альтернатива)') }}</h2>
+      <p>{{ t('Если webhook overkill — есть live WS-канал') }} <code>/api/ws/companies</code> {{ t('и') }} <code>/api/ws/companies/&#123;id&#125;</code> {{ t('с тем же набором событий') }} <code>field_update</code>{{ t('. Подключение JWT-auth, экспоненциальный re-connect.') }}</p>
     </section>
   </article>
 </template>
+
+<script setup lang="ts">
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+</script>
 
 <style scoped>
 .dp { max-width: 720px; }

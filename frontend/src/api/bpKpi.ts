@@ -3,11 +3,15 @@
  * 1:1 mirror of backend routes /bp/* and /kpi/*.
  */
 import { api, type ModerationQueuedTag } from "./client";
+import { fmtNumber } from "@/locale";
+import { getCurrentLocale, t } from "@/locale/i18n";
+import { i18nKey } from "@/locale/keys";
+
 
 // ─── Constants (mirror legacy BP_FIELDS, BP_PERIODS) ─────────────
 
 export const BP_PERIODS: { key: BpPeriod; label: string }[] = [
-  { key: "annual", label: "Год" },
+  { key: "annual", label: i18nKey("Год") },
   { key: "q1", label: "Q1" },
   { key: "q2", label: "Q2" },
   { key: "q3", label: "Q3" },
@@ -33,28 +37,28 @@ export interface BpFieldMeta {
 
 // Default — also returned by GET /bp/metrics
 export const BP_FIELDS: BpFieldMeta[] = [
-  { key: "revenue",     label: "Чистая выручка от реализации",                   group: "opRevenue", auto: false },
-  { key: "cogs",        label: "Себестоимость реализованной продукции",          group: "opRevenue", auto: false, positive: true },
-  { key: "grossProfit", label: "Валовая прибыль",                                 group: "opRevenue", auto: true,  formula: "revenue - cogs" },
-  { key: "opExpenses",  label: "Расходы периода",                                 group: "opExpenses", auto: false, positive: true },
-  { key: "sellExp",     label: "— расходы на реализацию",                         group: "opExpenses", auto: false, positive: true, sub: true },
-  { key: "adminExp",    label: "— административные расходы",                      group: "opExpenses", auto: false, positive: true, sub: true },
-  { key: "otherOpExp",  label: "— прочие операционные расходы",                   group: "opExpenses", auto: false, positive: true, sub: true },
-  { key: "otherOpInc",  label: "Прочие доходы от основной деятельности",          group: "opResult",   auto: false },
-  { key: "opProfit",    label: "Операционная прибыль",                            group: "opResult",   auto: true,  formula: "grossProfit - opExpenses + otherOpInc" },
-  { key: "finIncome",   label: "Финансовые доходы",                               group: "finActivity", auto: false },
-  { key: "divIncome",   label: "— доходы в виде дивидендов",                      group: "finActivity", auto: false, sub: true },
-  { key: "intIncome",   label: "— доходы в виде процентов",                       group: "finActivity", auto: false, sub: true },
-  { key: "fxIncome",    label: "— доходы от курсовых разниц",                     group: "finActivity", auto: false, sub: true },
-  { key: "otherFinInc", label: "— прочие фин. доходы",                            group: "finActivity", auto: false, sub: true },
-  { key: "finCost",     label: "Финансовые расходы",                              group: "finActivity", auto: false, positive: true },
-  { key: "intExp",      label: "— расходы в виде процентов",                      group: "finActivity", auto: false, positive: true, sub: true },
-  { key: "fxLoss",      label: "— убытки от курсовых разниц",                     group: "finActivity", auto: false, positive: true, sub: true },
-  { key: "otherFinExp", label: "— прочие фин. расходы",                           group: "finActivity", auto: false, positive: true, sub: true },
-  { key: "hhProfit",    label: "Прибыль от общехоз. деятельности",                group: "final",      auto: true, formula: "opProfit + finIncome - finCost" },
-  { key: "pbt",         label: "Прибыль до налогообложения",                      group: "final",      auto: true, formula: "hhProfit" },
-  { key: "tax",         label: "Налог на прибыль",                                group: "final",      auto: false, positive: true },
-  { key: "profit",      label: "Чистая прибыль (убыток) периода",                 group: "final",      auto: true, formula: "pbt - tax", overridable: true },
+  { key: "revenue",     label: i18nKey("Чистая выручка от реализации"),                   group: "opRevenue", auto: false },
+  { key: "cogs",        label: i18nKey("Себестоимость реализованной продукции"),          group: "opRevenue", auto: false, positive: true },
+  { key: "grossProfit", label: i18nKey("Валовая прибыль"),                                 group: "opRevenue", auto: true,  formula: "revenue - cogs" },
+  { key: "opExpenses",  label: i18nKey("Расходы периода"),                                 group: "opExpenses", auto: false, positive: true },
+  { key: "sellExp",     label: i18nKey("— расходы на реализацию"),                         group: "opExpenses", auto: false, positive: true, sub: true },
+  { key: "adminExp",    label: i18nKey("— административные расходы"),                      group: "opExpenses", auto: false, positive: true, sub: true },
+  { key: "otherOpExp",  label: i18nKey("— прочие операционные расходы"),                   group: "opExpenses", auto: false, positive: true, sub: true },
+  { key: "otherOpInc",  label: i18nKey("Прочие доходы от основной деятельности"),          group: "opResult",   auto: false },
+  { key: "opProfit",    label: i18nKey("Операционная прибыль"),                            group: "opResult",   auto: true,  formula: "grossProfit - opExpenses + otherOpInc" },
+  { key: "finIncome",   label: i18nKey("Финансовые доходы"),                               group: "finActivity", auto: false },
+  { key: "divIncome",   label: i18nKey("— доходы в виде дивидендов"),                      group: "finActivity", auto: false, sub: true },
+  { key: "intIncome",   label: i18nKey("— доходы в виде процентов"),                       group: "finActivity", auto: false, sub: true },
+  { key: "fxIncome",    label: i18nKey("— доходы от курсовых разниц"),                     group: "finActivity", auto: false, sub: true },
+  { key: "otherFinInc", label: i18nKey("— прочие фин. доходы"),                            group: "finActivity", auto: false, sub: true },
+  { key: "finCost",     label: i18nKey("Финансовые расходы"),                              group: "finActivity", auto: false, positive: true },
+  { key: "intExp",      label: i18nKey("— расходы в виде процентов"),                      group: "finActivity", auto: false, positive: true, sub: true },
+  { key: "fxLoss",      label: i18nKey("— убытки от курсовых разниц"),                     group: "finActivity", auto: false, positive: true, sub: true },
+  { key: "otherFinExp", label: i18nKey("— прочие фин. расходы"),                           group: "finActivity", auto: false, positive: true, sub: true },
+  { key: "hhProfit",    label: i18nKey("Прибыль от общехоз. деятельности"),                group: "final",      auto: true, formula: "opProfit + finIncome - finCost" },
+  { key: "pbt",         label: i18nKey("Прибыль до налогообложения"),                      group: "final",      auto: true, formula: "hhProfit" },
+  { key: "tax",         label: i18nKey("Налог на прибыль"),                                group: "final",      auto: false, positive: true },
+  { key: "profit",      label: i18nKey("Чистая прибыль (убыток) периода"),                 group: "final",      auto: true, formula: "pbt - tax", overridable: true },
 ];
 
 // ─── Field-set helpers ─────────────────────────────────────────────
@@ -743,9 +747,9 @@ export function bpFmt(v: string | number | null | undefined): string {
   const n = num(v);
   if (isNaN(n)) return "—";
   const av = Math.abs(n);
-  if (av >= 1000) return Math.round(n).toLocaleString("ru-RU").replace(/,/g, " ");
-  if (av >= 10) return n.toFixed(0);
-  return n.toFixed(2);
+  if (av >= 1000) return fmtNumber(Math.round(n), getCurrentLocale(), { decimals: 0 });
+  if (av >= 10) return fmtNumber(n, getCurrentLocale(), { decimals: 0 });
+  return fmtNumber(n, getCurrentLocale(), { decimals: 2 });
 }
 
 /** Auto-scale: >= 1000 млрд → trln, otherwise млрд */
@@ -755,14 +759,14 @@ export function bpFmtScaled(v: string | number | null | undefined): { value: str
   const av = Math.abs(n);
   if (av >= 1000) {
     return {
-      value: (n / 1000).toLocaleString("ru-RU", { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
-      unit: "трлн",
+      value: fmtNumber(n / 1000, getCurrentLocale(), { decimals: 1 }),
+      unit: t("трлн"),
     };
   }
-  if (av >= 100) return { value: Math.round(n).toLocaleString("ru-RU"), unit: "млрд" };
+  if (av >= 100) return { value: fmtNumber(Math.round(n), getCurrentLocale(), { decimals: 0 }), unit: t("млрд") };
   return {
-    value: n.toLocaleString("ru-RU", { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
-    unit: "млрд",
+    value: fmtNumber(n, getCurrentLocale(), { decimals: 1 }),
+    unit: t("млрд"),
   };
 }
 
@@ -790,20 +794,22 @@ export function kpiStatusColor(pct: number): string {
 
 export function kpiStatusLabel(s: KpiStatus): string {
   switch (s) {
-    case "over": return "Превышено";
-    case "hit": return "На цели";
-    case "risk": return "В риске";
-    case "crit": return "Критично";
-    case "fail": return "Провал";
+    case "over": return t('Превышено');
+    case "hit": return t('На цели');
+    case "risk": return t('В риске');
+    case "crit": return t('Критично');
+    case "fail": return t('Провал');
   }
 }
 
 export function shortenCompanyName(co: string | null | undefined): string {
   if (!co) return "";
+  // i18n-exempt-start -- legal-form cleanup for company names, not UI copy.
   return String(co)
     .replace(/^АО\s*"?/, "")
     .replace(/^"/, "")
     .replace(/"$/, "")
     .replace(/\s*ДК$/, "")
     .replace(/\s*АЖ$/, " АЖ");
+  // i18n-exempt-end
 }

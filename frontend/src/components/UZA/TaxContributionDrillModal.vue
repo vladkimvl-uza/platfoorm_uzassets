@@ -34,6 +34,11 @@ import { useRouter } from "vue-router";
 import type { ExecTaxKpi, ExecTaxTopPayer } from "@/api/executiveDashboard";
 import { useCurrencyConverter } from "@/composables/useCurrencyConverter";
 import CurrencyToggle from "@/components/UZA/CurrencyToggle.vue";
+import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
+const { t: tr } = useI18n();
+
 
 export type TaxKind = "income_tax" | "vat" | "total" | "budget_share";
 
@@ -67,49 +72,49 @@ interface KindMeta {
 
 const KIND_META: Record<TaxKind, KindMeta> = {
   income_tax: {
-    label: "Налог на прибыль — вклад в бюджет",
+    label: i18nKey("Налог на прибыль — вклад в бюджет"),
     color: "#378ADD",
     bigValueMlrd: (k) => k.income_tax,
     isPct: false,
     badge: (k) => k.yoy_income_tax_pct != null
       ? {
-          text: fmtSignedPct(k.yoy_income_tax_pct) + " к предыдущему году",
+          text: fmtSignedPct(k.yoy_income_tax_pct) + i18nKey(" к предыдущему году"),
           tone: k.yoy_income_tax_pct >= 0 ? "good" : "bad",
         }
       : null,
   },
   vat: {
-    label: "Налог на добавленную стоимость — вклад в бюджет",
+    label: i18nKey("Налог на добавленную стоимость — вклад в бюджет"),
     color: "#1D9E75",
     bigValueMlrd: (k) => k.vat,
     isPct: false,
     badge: (k) => k.yoy_vat_pct != null
       ? {
-          text: fmtSignedPct(k.yoy_vat_pct) + " к предыдущему году · ставка 12% от выручки",
+          text: fmtSignedPct(k.yoy_vat_pct) + i18nKey(" к предыдущему году · ставка 12% от выручки"),
           tone: k.yoy_vat_pct >= 0 ? "good" : "bad",
         }
-      : { text: "ставка 12% от выручки", tone: "neutral" },
+      : { text: i18nKey("ставка 12% от выручки"), tone: "neutral" },
   },
   total: {
-    label: "Итоговый налоговый вклад портфеля",
+    label: i18nKey("Итоговый налоговый вклад портфеля"),
     color: "#7F77DD",
     bigValueMlrd: (k) => k.total,
     isPct: false,
     badge: (k) => k.yoy_total_pct != null
       ? {
-          text: fmtSignedPct(k.yoy_total_pct) + " к предыдущему году · налог на прибыль плюс НДС",
+          text: fmtSignedPct(k.yoy_total_pct) + i18nKey(" к предыдущему году · налог на прибыль плюс НДС"),
           tone: k.yoy_total_pct >= 0 ? "good" : "bad",
         }
-      : { text: "налог на прибыль плюс налог на добавленную стоимость", tone: "neutral" },
+      : { text: i18nKey("налог на прибыль плюс налог на добавленную стоимость"), tone: "neutral" },
   },
   budget_share: {
-    label: "Доля портфеля в доходной части бюджета Республики Узбекистан",
+    label: i18nKey("Доля портфеля в доходной части бюджета Республики Узбекистан"),
     color: "#EF9F27",
     bigValueMlrd: (k) => k.budget_share_pct,
     isPct: true,
     badge: (k) => k.budget != null
       ? {
-          text: "из " + conv.format(k.budget, props.year).full,
+          text: i18nKey("из ") + conv.format(k.budget, props.year).full,
           tone: (k.budget_share_pct ?? 0) >= 25 ? "good" : "neutral",
         }
       : null,
@@ -137,7 +142,7 @@ const heroFormatted = computed(() => {
   const raw = m.bigValueMlrd(props.kpi);
   if (raw == null) return { value: "—", unit: "" };
   if (m.isPct) {
-    return { value: fmt3(raw), unit: "% от 350.000 триллион сум" };
+    return { value: fmt3(raw), unit: i18nKey("% от 350.000 триллион сум") };
   }
   const f = conv.format(raw, props.year);
   return { value: f.value, unit: f.unit };
@@ -199,41 +204,41 @@ const miniKpis = computed<MiniKpi[]>(() => {
   switch (props.kind) {
     case "income_tax": {
       return [
-        { label: "Налог на добавленную стоимость", ...fmtAmount(k.vat), accent: "#1D9E75" },
-        { label: "Итоговый налоговый вклад", ...fmtAmount(k.total), accent: "#7F77DD" },
+        { label: i18nKey("Налог на добавленную стоимость"), ...fmtAmount(k.vat), accent: "#1D9E75" },
+        { label: i18nKey("Итоговый налоговый вклад"), ...fmtAmount(k.total), accent: "#7F77DD" },
         {
-          label: "Доля в бюджете Республики",
+          label: i18nKey("Доля в бюджете Республики"),
           value: k.budget_share_pct != null ? fmt3(k.budget_share_pct) : "—",
           unit: "%",
           accent: "#EF9F27",
         },
-        { label: "Лидирующий сектор", value: top, unit: "", accent: "#378ADD" },
+        { label: i18nKey("Лидирующий сектор"), value: top, unit: "", accent: "#378ADD" },
       ];
     }
     case "vat": {
       return [
-        { label: "Налог на прибыль", ...fmtAmount(k.income_tax), accent: "#378ADD" },
-        { label: "Итоговый налоговый вклад", ...fmtAmount(k.total), accent: "#7F77DD" },
+        { label: i18nKey("Налог на прибыль"), ...fmtAmount(k.income_tax), accent: "#378ADD" },
+        { label: i18nKey("Итоговый налоговый вклад"), ...fmtAmount(k.total), accent: "#7F77DD" },
         {
-          label: "Динамика год к году",
+          label: i18nKey("Динамика год к году"),
           value: k.yoy_vat_pct != null ? fmtSignedPct(k.yoy_vat_pct) : "—",
           unit: "",
           accent: "#1D9E75",
         },
-        { label: "Лидирующий сектор", value: top, unit: "", accent: "#EF9F27" },
+        { label: i18nKey("Лидирующий сектор"), value: top, unit: "", accent: "#EF9F27" },
       ];
     }
     case "total": {
       return [
-        { label: "Налог на прибыль", ...fmtAmount(k.income_tax), accent: "#378ADD" },
-        { label: "Налог на добавленную стоимость", ...fmtAmount(k.vat), accent: "#1D9E75" },
+        { label: i18nKey("Налог на прибыль"), ...fmtAmount(k.income_tax), accent: "#378ADD" },
+        { label: i18nKey("Налог на добавленную стоимость"), ...fmtAmount(k.vat), accent: "#1D9E75" },
         {
-          label: "Доля в бюджете Республики",
+          label: i18nKey("Доля в бюджете Республики"),
           value: k.budget_share_pct != null ? fmt3(k.budget_share_pct) : "—",
           unit: "%",
           accent: "#EF9F27",
         },
-        { label: "Лидирующий сектор", value: top, unit: "", accent: "#378ADD" },
+        { label: i18nKey("Лидирующий сектор"), value: top, unit: "", accent: "#378ADD" },
       ];
     }
     case "budget_share": {
@@ -245,16 +250,16 @@ const miniKpis = computed<MiniKpi[]>(() => {
       const top3Sum = top3.reduce((a, p) => a + Number(p.amount ?? 0), 0);
       const top3Share = Math.round((top3Sum / Math.max(1, k.total)) * 100);
       return [
-        { label: "Итоговый налоговый вклад", ...fmtAmount(k.total), accent: "#7F77DD" },
-        { label: "Налог на прибыль", ...fmtAmount(k.income_tax), accent: "#378ADD" },
+        { label: i18nKey("Итоговый налоговый вклад"), ...fmtAmount(k.total), accent: "#7F77DD" },
+        { label: i18nKey("Налог на прибыль"), ...fmtAmount(k.income_tax), accent: "#378ADD" },
         {
-          label: "Концентрация — крупнейший плательщик",
+          label: i18nKey("Концентрация — крупнейший плательщик"),
           value: top1Share + "%",
           unit: "",
           accent: "#E24B4A",
         },
         {
-          label: "Концентрация — три крупнейших",
+          label: i18nKey("Концентрация — три крупнейших"),
           value: top3Share + "%",
           unit: "",
           accent: "#EF9F27",
@@ -367,7 +372,7 @@ onUnmounted(() => {
           <div class="txd-shim" aria-hidden="true" />
           <div class="txd-glow" aria-hidden="true" />
 
-          <button class="txd-x" @click="close" aria-label="Закрыть модальное окно">
+          <button class="txd-x" @click="close" :aria-label="tr('Закрыть модальное окно')">
             <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
               <path d="M3.5 3.5l7 7M10.5 3.5l-7 7"/>
             </svg>
@@ -376,13 +381,13 @@ onUnmounted(() => {
           <!-- Header -->
           <div class="txd-sect txd-row" style="--si:0; padding-top:20px;">
             <div class="txd-h-top">
-              <div class="txd-h-l">{{ meta.label }}</div>
+              <div class="txd-h-l">{{ tr(meta.label) }}</div>
               <!-- Pack 7.37: toggle moved below to avoid collision with X close button -->
             </div>
             <div class="txd-h-row-flex">
               <div class="txd-h-v">
                 <span class="num">{{ headerDisplayStr }}</span>
-                <span class="unit">{{ heroFormatted.unit }} · {{ year }} год</span>
+                <span class="unit">{{ heroFormatted.unit }} · {{ year }} {{ tr('год') }}</span>
               </div>
               <CurrencyToggle
                 v-if="!meta.isPct"
@@ -402,11 +407,11 @@ onUnmounted(() => {
               {{ badgeText.text }}
             </span>
             <div class="txd-h-tag-list">
-              <span>{{ cosCount }} компаний с налоговыми данными</span>
+              <span>{{ cosCount }} {{ tr('компаний с налоговыми данными') }}</span>
               <span class="txd-h-sep">·</span>
-              <span>{{ sectorAgg.length }} секторов</span>
+              <span>{{ sectorAgg.length }} {{ tr('секторов') }}</span>
               <span class="txd-h-sep">·</span>
-              <span>{{ standardLabel }}</span>
+              <span>{{ tr(standardLabel) }}</span>
             </div>
           </div>
 
@@ -419,7 +424,7 @@ onUnmounted(() => {
                 class="txd-mini"
                 :style="{ '--kc': m.accent, '--ki': i }"
               >
-                <div class="txd-mk-l">{{ m.label }}</div>
+                <div class="txd-mk-l">{{ tr(m.label) }}</div>
                 <div class="txd-mk-v">
                   {{ m.value }}<span v-if="m.unit" class="txd-mk-u">{{ m.unit }}</span>
                 </div>
@@ -429,7 +434,7 @@ onUnmounted(() => {
 
           <!-- Sector breakdown -->
           <div class="txd-sect txd-row" style="--si:2;">
-            <div class="txd-l-sec">Распределение по секторам</div>
+            <div class="txd-l-sec">{{ tr('Распределение по секторам') }}</div>
             <div v-if="sectorAgg.length" class="txd-bar">
               <div
                 v-for="(s, i) in sectorAgg"
@@ -446,20 +451,20 @@ onUnmounted(() => {
             <div v-if="sectorAgg.length" class="txd-leg">
               <span v-for="s in sectorAgg" :key="s.id">
                 <i class="txd-dot" :style="{ background: s.color }"/>
-                {{ s.label }} · <strong>{{ conv.format(s.totalMlrd, year).value }}</strong>
+                {{ tr(s.label) }} · <strong>{{ conv.format(s.totalMlrd, year).value }}</strong>
                 <span class="txd-leg-unit">{{ conv.format(s.totalMlrd, year).unit }}</span>
-                <span class="txd-leg-pct">{{ s.pct }} процентов</span>
+                <span class="txd-leg-pct">{{ s.pct }} {{ tr('процентов') }}</span>
               </span>
             </div>
-            <div v-else class="txd-empty">Нет данных по секторам</div>
+            <div v-else class="txd-empty">{{ tr('Нет данных по секторам') }}</div>
           </div>
 
           <!-- Top-5 payers -->
           <div class="txd-sect txd-row" style="--si:3;">
             <div class="txd-l-sec">
-              <span>Пять крупнейших плательщиков · {{ year }} год</span>
+              <span>{{ tr('Пять крупнейших плательщиков ·') }} {{ year }} {{ tr('год') }}</span>
               <span v-if="cosCount > 5" class="txd-l-side">
-                ещё {{ cosCount - 5 }} компаний скрыто
+                {{ tr('ещё') }} {{ cosCount - 5 }} {{ tr('компаний скрыто') }}
               </span>
             </div>
             <div v-if="topPayers.length" class="txd-toplist">
@@ -468,7 +473,7 @@ onUnmounted(() => {
                 :key="p.company_id"
                 class="txd-top-row"
                 @click="gotoCompany(p.company_id)"
-                :title="'Открыть карточку компании «' + p.name + '»'"
+                :title="tr('Открыть карточку компании «{value0}»', { value0: p.name })"
               >
                 <span class="txd-top-rank">{{ i + 1 }}</span>
                 <span class="txd-top-name">
@@ -488,18 +493,18 @@ onUnmounted(() => {
                 <span class="txd-top-val">
                   <span class="amt">{{ conv.format(p.amount, year).value }}</span>
                   <span class="unit">{{ conv.format(p.amount, year).unit }}</span>
-                  <span class="pct">{{ payerPct(p) }} процентов</span>
+                  <span class="pct">{{ payerPct(p) }} {{ tr('процентов') }}</span>
                 </span>
               </div>
             </div>
-            <div v-else class="txd-empty">Нет данных по плательщикам</div>
+            <div v-else class="txd-empty">{{ tr('Нет данных по плательщикам') }}</div>
           </div>
 
           <!-- Footer -->
           <div class="txd-ftr txd-row" style="--si:4;">
-            <button class="txd-btn txd-btn-g" @click="close">Закрыть</button>
+            <button class="txd-btn txd-btn-g" @click="close">{{ tr('Закрыть') }}</button>
             <button class="txd-btn txd-btn-p" @click="gotoFinancials">
-              Открыть финансовые данные
+              {{ tr('Открыть финансовые данные') }}
               <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" width="12" height="12">
                 <path d="M3 7h8M7.5 3.5L11 7l-3.5 3.5"/>
               </svg>

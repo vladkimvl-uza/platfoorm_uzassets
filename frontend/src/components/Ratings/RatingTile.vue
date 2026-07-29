@@ -14,6 +14,8 @@ import { reactive, ref, computed } from "vue";
 import { ratingsApi, type AgencyRatingBrief } from "@/api/ratings";
 import { isModerationQueued } from "@/api/client";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 const { t } = useI18n();
 
 
@@ -30,20 +32,20 @@ const emit = defineEmits<{ saved: [] }>();
 
 const OUTLOOKS = [
   { v: "", l: "—" },
-  { v: "Stable", l: "Стабильный" },
-  { v: "Positive", l: "Позитивный" },
-  { v: "Negative", l: "Негативный" },
-  { v: "Developing", l: "Развивающийся" },
-  { v: "RWN", l: "CW Негативный" },
-  { v: "RWP", l: "CW Позитивный" },
+  { v: "Stable", l: i18nKey("Стабильный") },
+  { v: "Positive", l: i18nKey("Позитивный") },
+  { v: "Negative", l: i18nKey("Негативный") },
+  { v: "Developing", l: i18nKey("Развивающийся") },
+  { v: "RWN", l: i18nKey("CW Негативный") },
+  { v: "RWP", l: i18nKey("CW Позитивный") },
 ];
 const OUTLOOK_VIEW: Record<string, { l: string; fg: string; bg: string }> = {
-  Stable:     { l: "Стабильный",    fg: "#64748B", bg: "#F1F5F9" },
-  Positive:   { l: "Позитивный",    fg: "#1D9E75", bg: "#ECFDF5" },
-  Negative:   { l: "Негативный",    fg: "#EF4444", bg: "#FEE2E2" },
-  Developing: { l: "Развивающийся", fg: "#D97706", bg: "#FEF9C3" },
-  RWN:        { l: "CW Негативный", fg: "#EF4444", bg: "#FEE2E2" },
-  RWP:        { l: "CW Позитивный", fg: "#1D9E75", bg: "#ECFDF5" },
+  Stable:     { l: i18nKey("Стабильный"),    fg: "#64748B", bg: "#F1F5F9" },
+  Positive:   { l: i18nKey("Позитивный"),    fg: "#1D9E75", bg: "#ECFDF5" },
+  Negative:   { l: i18nKey("Негативный"),    fg: "#EF4444", bg: "#FEE2E2" },
+  Developing: { l: i18nKey("Развивающийся"), fg: "#D97706", bg: "#FEF9C3" },
+  RWN:        { l: i18nKey("CW Негативный"), fg: "#EF4444", bg: "#FEE2E2" },
+  RWP:        { l: i18nKey("CW Позитивный"), fg: "#1D9E75", bg: "#ECFDF5" },
 };
 
 function creditColor(r: string | null | undefined): string {
@@ -138,7 +140,7 @@ async function save(): Promise<void> {
       emit("saved");
     }
   } catch (e: any) {
-    err.value = e?.response?.data?.detail || e?.message || "Не удалось сохранить";
+    err.value = e?.response?.data?.detail || e?.message || t('Не удалось сохранить');
   } finally {
     saving.value = false;
   }
@@ -152,7 +154,7 @@ async function save(): Promise<void> {
       <div v-if="editing" key="edit" class="rt-edit">
         <div class="rt-agency">
           <span class="rt-agency-mono" :style="{ background: agencyMark.bg, color: agencyMark.fg }">{{ agencyMark.mono }}</span>
-          <span class="rt-agency-name">{{ label }}</span>
+          <span class="rt-agency-name">{{ t(label) }}</span>
         </div>
         <input v-if="mode === 'credit'" v-model="buf.rating" class="rt-in rt-in-grade"
                placeholder="BB+" maxlength="16" :disabled="saving" />
@@ -169,7 +171,7 @@ async function save(): Promise<void> {
           <button class="rt-btn rt-btn-ghost" @click="cancel" :disabled="saving">{{ t('Отмена') }}</button>
           <button class="rt-btn rt-btn-save" @click="save" :disabled="saving">
             <span v-if="saving" class="rt-spin" aria-hidden="true"></span>
-            {{ saving ? "" : "Сохранить" }}
+            {{ saving ? "" : t('Сохранить') }}
           </button>
         </div>
       </div>
@@ -179,7 +181,7 @@ async function save(): Promise<void> {
            :class="{ 'rt-clickable': canEdit }">
         <div class="rt-agency">
           <span class="rt-agency-mono" :style="{ background: agencyMark.bg, color: agencyMark.fg }">{{ agencyMark.mono }}</span>
-          <span class="rt-agency-name">{{ label }}</span>
+          <span class="rt-agency-name">{{ t(label) }}</span>
         </div>
         <div class="rt-plus">{{ canEdit ? "+" : "—" }}</div>
         <div v-if="canEdit" class="rt-add-hint">{{ t('добавить') }}</div>
@@ -195,7 +197,7 @@ async function save(): Promise<void> {
         </button>
         <div class="rt-agency">
           <span class="rt-agency-mono" :style="{ background: agencyMark.bg, color: agencyMark.fg }">{{ agencyMark.mono }}</span>
-          <span class="rt-agency-name">{{ label }}</span>
+          <span class="rt-agency-name">{{ t(label) }}</span>
         </div>
 
         <template v-if="mode === 'credit'">

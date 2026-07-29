@@ -10,7 +10,11 @@ import { ref, computed, watch, onMounted } from "vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import { pmoApi, type EvmResponse, type EvmProject, type EvmRag } from "@/api/pmo";
 import { useI18n } from "@/composables/useI18n";
+import { useFormatters } from "@/composables/useFormatters";
+import { i18nKey } from "@/locale/keys";
+
 const { t } = useI18n();
+const fmt = useFormatters();
 
 
 const props = defineProps<{ companyCode: string; year?: number }>();
@@ -24,16 +28,16 @@ async function load() {
   try {
     data.value = await pmoApi.getEvm(props.companyCode, props.year);
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || e?.message || "Не удалось рассчитать освоенный объём";
+    error.value = e?.response?.data?.detail || e?.message || t('Не удалось рассчитать освоенный объём');
   } finally { loading.value = false; }
 }
 onMounted(load);
 watch(() => [props.companyCode, props.year], load);
 
 const fmtMoney = (n: number | null | undefined) =>
-  n == null ? "—" : new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(n);
+  n == null ? "—" : fmt.fmtNumber(n);
 const fmtSigned = (n: number | null | undefined) =>
-  n == null ? "—" : (n > 0 ? "+" : "") + new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(n);
+  n == null ? "—" : fmt.fmtNumber(n, { signed: true });
 const fmtIdx = (n: number | null | undefined) => n == null ? "—" : n.toFixed(2);
 
 // Позиция маркера индекса на шкале 0.5..1.5 → 0..100%
@@ -48,21 +52,21 @@ function idxColor(v: number | null): string {
   return "#E24B4A";
 }
 function idxVerdict(v: number | null, kind: "spi" | "cpi"): string {
-  if (v == null) return "нет данных";
+  if (v == null) return t("нет данных");
   if (kind === "spi") {
-    if (v >= 1.0) return "идём по графику / с опережением";
-    if (v >= 0.95) return "почти по графику";
-    if (v >= 0.85) return "лёгкое отставание";
-    return "существенное отставание";
+    if (v >= 1.0) return t("идём по графику / с опережением");
+    if (v >= 0.95) return t("почти по графику");
+    if (v >= 0.85) return t("лёгкое отставание");
+    return t("существенное отставание");
   }
-  if (v >= 1.0) return "в рамках бюджета / экономия";
-  if (v >= 0.95) return "почти в бюджете";
-  if (v >= 0.85) return "лёгкий перерасход";
-  return "существенный перерасход";
+  if (v >= 1.0) return t("в рамках бюджета / экономия");
+  if (v >= 0.95) return t("почти в бюджете");
+  if (v >= 0.85) return t("лёгкий перерасход");
+  return t("существенный перерасход");
 }
 
 const RAG_C: Record<EvmRag, string> = { green: "#1D9E75", amber: "#D97706", red: "#E24B4A", na: "#94a3b8" };
-const RAG_L: Record<EvmRag, string> = { green: "В норме", amber: "Внимание", red: "Риск", na: "—" };
+const RAG_L: Record<EvmRag, string> = { green: i18nKey("В норме"), amber: i18nKey("Внимание"), red: i18nKey("Риск"), na: "—" };
 
 const hasBudget = computed(() => !!data.value && data.value.budgeted_count > 0);
 const sortedProjects = computed<EvmProject[]>(() => {
@@ -79,18 +83,18 @@ function openProject(p: EvmProject) { selected.value = p; }
 // Описание метрик для модалки проекта
 interface MetricDef { key: keyof EvmProject; label: string; fmt: "money" | "signed" | "index"; hint: string; }
 const PROJECT_METRICS: MetricDef[] = [
-  { key: "bac", label: "BAC · бюджет", fmt: "money", hint: "Плановый бюджет проекта. Источник — поле «бюджет» в карточке проекта." },
-  { key: "ev", label: "EV · освоено", fmt: "money", hint: "Освоенный объём = BAC × прогресс." },
-  { key: "pv", label: "PV · план", fmt: "money", hint: "Плановый объём = BAC × плановый % (по базовым/плановым датам)." },
-  { key: "ac", label: "AC · факт затрат", fmt: "money", hint: "Фактические затраты. Источник — поле «факт затрат» проекта." },
-  { key: "spi", label: "SPI · индекс расписания", fmt: "index", hint: "EV ÷ PV. ≥ 1 — идём по графику, < 1 — отставание." },
-  { key: "cpi", label: "CPI · индекс стоимости", fmt: "index", hint: "EV ÷ AC. ≥ 1 — в рамках бюджета, < 1 — перерасход." },
-  { key: "sv", label: "SV · откл. графика", fmt: "signed", hint: "EV − PV. Отрицательное — отставание в деньгах." },
-  { key: "cv", label: "CV · откл. стоимости", fmt: "signed", hint: "EV − AC. Отрицательное — перерасход." },
-  { key: "eac", label: "EAC · прогноз стоимости", fmt: "money", hint: "Прогноз итоговой стоимости = BAC ÷ CPI." },
-  { key: "etc", label: "ETC · осталось потратить", fmt: "money", hint: "EAC − AC — сколько ещё предстоит потратить." },
-  { key: "vac", label: "VAC · прогноз отклонения", fmt: "signed", hint: "BAC − EAC. Отрицательное — прогноз перерасхода." },
-  { key: "tcpi", label: "TCPI · требуемая эффективность", fmt: "index", hint: "Какой CPI нужен до конца, чтобы уложиться в бюджет." },
+  { key: "bac", label: i18nKey("BAC · бюджет"), fmt: "money", hint: i18nKey("Плановый бюджет проекта. Источник — поле «бюджет» в карточке проекта.") },
+  { key: "ev", label: i18nKey("EV · освоено"), fmt: "money", hint: i18nKey("Освоенный объём = BAC × прогресс.") },
+  { key: "pv", label: i18nKey("PV · план"), fmt: "money", hint: i18nKey("Плановый объём = BAC × плановый % (по базовым/плановым датам).") },
+  { key: "ac", label: i18nKey("AC · факт затрат"), fmt: "money", hint: i18nKey("Фактические затраты. Источник — поле «факт затрат» проекта.") },
+  { key: "spi", label: i18nKey("SPI · индекс расписания"), fmt: "index", hint: i18nKey("EV ÷ PV. ≥ 1 — идём по графику, < 1 — отставание.") },
+  { key: "cpi", label: i18nKey("CPI · индекс стоимости"), fmt: "index", hint: i18nKey("EV ÷ AC. ≥ 1 — в рамках бюджета, < 1 — перерасход.") },
+  { key: "sv", label: i18nKey("SV · откл. графика"), fmt: "signed", hint: i18nKey("EV − PV. Отрицательное — отставание в деньгах.") },
+  { key: "cv", label: i18nKey("CV · откл. стоимости"), fmt: "signed", hint: i18nKey("EV − AC. Отрицательное — перерасход.") },
+  { key: "eac", label: i18nKey("EAC · прогноз стоимости"), fmt: "money", hint: i18nKey("Прогноз итоговой стоимости = BAC ÷ CPI.") },
+  { key: "etc", label: i18nKey("ETC · осталось потратить"), fmt: "money", hint: i18nKey("EAC − AC — сколько ещё предстоит потратить.") },
+  { key: "vac", label: i18nKey("VAC · прогноз отклонения"), fmt: "signed", hint: i18nKey("BAC − EAC. Отрицательное — прогноз перерасхода.") },
+  { key: "tcpi", label: i18nKey("TCPI · требуемая эффективность"), fmt: "index", hint: i18nKey("Какой CPI нужен до конца, чтобы уложиться в бюджет.") },
 ];
 function metricStr(p: EvmProject, m: MetricDef): string {
   const v = p[m.key] as number | null;
@@ -107,7 +111,7 @@ function metricNeg(p: EvmProject, m: MetricDef): boolean {
 <template>
   <div class="ev">
     <UzaStateBlock v-if="error" state="error" variant="banner" :text="error" dismissible @dismiss="error = null" />
-    <UzaStateBlock v-if="loading" state="loading" text="Считаем освоенный объём…" />
+    <UzaStateBlock v-if="loading" state="loading" :text="t('Считаем освоенный объём…')" />
 
     <template v-else-if="data">
       <!-- инфо: откуда данные -->
@@ -163,7 +167,7 @@ function metricNeg(p: EvmProject, m: MetricDef): boolean {
 
       <!-- по проектам -->
       <div class="ev-tblwrap">
-        <UzaStateBlock v-if="!sortedProjects.length" state="empty" variant="block" :title="t('Нет проектов')" text="Добавьте проекты в портфель, чтобы видеть освоенный объём." />
+        <UzaStateBlock v-if="!sortedProjects.length" state="empty" variant="block" :title="t('Нет проектов')" :text="t('Добавьте проекты в портфель, чтобы видеть освоенный объём.')" />
         <table v-else class="uza-table ev-tbl">
           <thead>
             <tr>
@@ -186,7 +190,7 @@ function metricNeg(p: EvmProject, m: MetricDef): boolean {
               <td class="is-mono" :class="{ 'ev-tneg': (p.cv ?? 0) < 0 }">{{ fmtSigned(p.cv) }}</td>
               <td class="is-mono">{{ fmtMoney(p.eac) }}</td>
               <td class="is-mono" :class="{ 'ev-tneg': (p.vac ?? 0) < 0 }">{{ fmtSigned(p.vac) }}</td>
-              <td><span class="ev-rag" :style="{ color: RAG_C[p.rag], background: RAG_C[p.rag] + '18' }"><span class="ev-rag-dot" :style="{ background: RAG_C[p.rag] }"></span>{{ RAG_L[p.rag] }}</span></td>
+              <td><span class="ev-rag" :style="{ color: RAG_C[p.rag], background: RAG_C[p.rag] + '18' }"><span class="ev-rag-dot" :style="{ background: RAG_C[p.rag] }"></span>{{ t(RAG_L[p.rag]) }}</span></td>
             </tr>
           </tbody>
         </table>
@@ -204,7 +208,7 @@ function metricNeg(p: EvmProject, m: MetricDef): boolean {
               <div class="ev-mh-eyebrow">{{ t('EVM проекта') }}</div>
               <div class="ev-mh-title">{{ selected.title }}</div>
             </div>
-            <span class="ev-rag ev-rag-lg" :style="{ color: RAG_C[selected.rag], background: RAG_C[selected.rag] + '18' }"><span class="ev-rag-dot" :style="{ background: RAG_C[selected.rag] }"></span>{{ RAG_L[selected.rag] }}</span>
+            <span class="ev-rag ev-rag-lg" :style="{ color: RAG_C[selected.rag], background: RAG_C[selected.rag] + '18' }"><span class="ev-rag-dot" :style="{ background: RAG_C[selected.rag] }"></span>{{ t(RAG_L[selected.rag]) }}</span>
           </div>
           <div class="ev-mb">
             <div class="ev-mprog">
@@ -217,15 +221,15 @@ function metricNeg(p: EvmProject, m: MetricDef): boolean {
             </div>
             <div class="ev-metrics">
               <div v-for="m in PROJECT_METRICS" :key="String(m.key)" class="ev-metric">
-                <div class="ev-metric-top"><span class="ev-metric-l">{{ m.label }}</span><span class="ev-metric-v" :class="{ 'ev-tneg': metricNeg(selected, m) }">{{ metricStr(selected, m) }}</span></div>
-                <div class="ev-metric-hint">{{ m.hint }}</div>
+                <div class="ev-metric-top"><span class="ev-metric-l">{{ t(m.label) }}</span><span class="ev-metric-v" :class="{ 'ev-tneg': metricNeg(selected, m) }">{{ metricStr(selected, m) }}</span></div>
+                <div class="ev-metric-hint">{{ t(m.hint) }}</div>
               </div>
             </div>
             <div class="ev-src">
               <div class="ev-src-t">{{ t('Источник данных') }}</div>
               <div class="ev-src-r"><b>{{ t('Прогресс') }}</b> {{ t('— взвешенный расчёт по статусам задач проекта.') }}</div>
               <div class="ev-src-r"><b>{{ t('План') }}</b> {{ t('— доля прошедшего планового времени по базовым/плановым датам.') }}</div>
-              <div class="ev-src-r" :class="{ 'ev-src-warn': selected.bac == null }"><b>{{ t('Бюджет / факт') }}</b> — {{ selected.bac == null ? "не заполнены: добавьте бюджет и факт затрат в карточке проекта, чтобы видеть CPI, EV и прогноз" : "из полей проекта (бюджет и факт затрат)" }}.</div>
+              <div class="ev-src-r" :class="{ 'ev-src-warn': selected.bac == null }"><b>{{ t('Бюджет / факт') }}</b> — {{ selected.bac == null ? t('не заполнены: добавьте бюджет и факт затрат в карточке проекта, чтобы видеть CPI, EV и прогноз') : t('из полей проекта (бюджет и факт затрат)') }}.</div>
             </div>
           </div>
           <div class="ev-mf"><button class="ev-btn" @click="selected = null">{{ t('Закрыть') }}</button></div>

@@ -14,6 +14,7 @@ from uuid import UUID
 from fastapi import HTTPException
 from fastapi import status as http_status
 
+from app.core.i18n import current_locale, tr
 from app.models.project import ProjectComment
 from app.models.task import TaskComment
 from app.uow.ports import UnitOfWorkABC
@@ -110,7 +111,12 @@ class BotCallbacksService:
             if sub_module_value and str(sub_module_value).lower() != module:
                 raise HTTPException(
                     http_status.HTTP_409_CONFLICT,
-                    f"Submission принадлежит модулю «{sub_module_value}», ожидался «{module}»",
+                    tr(
+                        "Submission принадлежит модулю «{actual}», ожидался «{expected}»",
+                        current_locale(),
+                        actual=sub_module_value,
+                        expected=module,
+                    ),
                 )
 
             session = self.uow._session  # type: ignore[attr-defined]

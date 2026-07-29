@@ -45,7 +45,7 @@ async function load() {
     counts.value = r.counts_by_status;
     total.value = r.total;
   } catch (e: any) {
-    loadError.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить очередь";
+    loadError.value = e?.response?.data?.detail || e?.message || t('Не удалось загрузить очередь');
     console.warn("queue load failed", e);
   }
   finally { loading.value = false; }
@@ -83,7 +83,7 @@ async function onResolved() {
                 :class="{ active: filterStatuses.includes(s) }"
                 :style="filterStatuses.includes(s) ? { background: STATUS_LABELS[s].bg, color: STATUS_LABELS[s].color } : {}"
                 @click="toggleStatus(s)">
-          {{ STATUS_LABELS[s].label }}
+          {{ t(STATUS_LABELS[s].label) }}
           <span class="mq-chip-cnt">{{ counts[s] ?? 0 }}</span>
         </button>
       </div>
@@ -102,17 +102,17 @@ async function onResolved() {
     <div v-else class="mq-list">
       <div v-for="s in items" :key="s.id" class="mq-row" :class="`status-${s.status}`" @click="open(s.id)">
         <span class="mq-status-pill" :style="{ background: STATUS_LABELS[s.status].bg, color: STATUS_LABELS[s.status].color }">
-          {{ STATUS_LABELS[s.status].label }}
+          {{ t(STATUS_LABELS[s.status].label) }}
         </span>
         <div class="mq-row-body">
           <div class="mq-row-top">
             <span v-if="s.proposer_is_external" class="mq-ext">EXTERNAL</span>
             <span class="mq-proposer">{{ dir.shortName(s.proposer_user_id) }}</span>
             <span class="mq-module">· {{ s.target_module }}</span>
-            <span class="mq-action">· {{ ACTION_LABELS[s.action as keyof typeof ACTION_LABELS] || s.action }}</span>
+            <span class="mq-action">· {{ t(ACTION_LABELS[s.action as keyof typeof ACTION_LABELS] || s.action) }}</span>
             <span class="mq-time">· {{ formatRelativeTime(s.created_at) }}</span>
           </div>
-          <div class="mq-title">{{ s.target_entity_label || s.target_field || "(без названия)" }}</div>
+          <div class="mq-title">{{ s.target_entity_label || s.target_field || t('(без названия)') }}</div>
           <div v-if="s.diff_summary" class="mq-diff">{{ s.diff_summary }}</div>
         </div>
         <BIcon name="chevron-right" :size="16" class="mq-row-arrow" />

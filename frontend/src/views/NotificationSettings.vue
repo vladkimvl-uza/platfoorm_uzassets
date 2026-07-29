@@ -99,7 +99,7 @@ async function saveAll() {
       digest_mode: p.digest_mode,
     }));
     await notificationsApi.updatePreferences(payload);
-    okMsg.value = "Настройки сохранены";
+    okMsg.value = t("Настройки сохранены");
     setTimeout(() => (okMsg.value = null), 2500);
   } catch (e: any) {
     error.value = e?.response?.data?.detail || e?.message;
@@ -108,7 +108,7 @@ async function saveAll() {
 
 async function sendTest() {
   await notificationsApi.sendTest();
-  okMsg.value = "Тестовое уведомление отправлено — проверьте колокольчик";
+    okMsg.value = t("Тестовое уведомление отправлено. Проверьте центр уведомлений.");
   setTimeout(() => (okMsg.value = null), 3000);
 }
 

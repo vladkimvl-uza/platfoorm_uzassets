@@ -1,4 +1,7 @@
 import { api } from "./client";
+import { t } from "@/locale/i18n";
+import { i18nKey } from "@/locale/keys";
+
 
 // ─── Types ─────────────────────────────────────────────────────
 
@@ -223,12 +226,12 @@ export const broadcastsApi = {
 // ─── Display helpers ───────────────────────────────────────────
 
 export const ACK_MODE_LABELS: Record<AckMode, string> = {
-  none: "Без ответа",
-  click: "Подтверждение",
-  text: "Текст",
-  select: "Выбор",
-  yesno: "Да/Нет",
-  file: "Файл",
+  none: i18nKey("Без ответа"),
+  click: i18nKey("Подтверждение"),
+  text: i18nKey("Текст"),
+  select: i18nKey("Выбор"),
+  yesno: i18nKey("Да/Нет"),
+  file: i18nKey("Файл"),
 };
 
 export const PRIORITY_PILL: Record<Priority, { color: string; bg: string; label: string }> = {
@@ -243,14 +246,14 @@ export function formatRelativeTime(iso: string): string {
   const diffSec = Math.floor((Date.now() - then) / 1000);
   if (diffSec < 0) {
     const absSec = -diffSec;
-    if (absSec < 3600) return `через ${Math.floor(absSec / 60)} мин`;
-    if (absSec < 86400) return `через ${Math.floor(absSec / 3600)} ч`;
-    return `через ${Math.floor(absSec / 86400)} дн`;
+    if (absSec < 3600) return t('через {value0} мин', { value0: Math.floor(absSec / 60) });
+    if (absSec < 86400) return t('через {value0} ч', { value0: Math.floor(absSec / 3600) });
+    return t('через {value0} дн', { value0: Math.floor(absSec / 86400) });
   }
-  if (diffSec < 30) return "только что";
-  if (diffSec < 60) return `${diffSec} с`;
-  if (diffSec < 3600) return `${Math.floor(diffSec / 60)} мин`;
-  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)} ч`;
-  if (diffSec < 86400 * 7) return `${Math.floor(diffSec / 86400)} д`;
+  if (diffSec < 30) return t('только что');
+  if (diffSec < 60) return t('{value0} с', { value0: diffSec });
+  if (diffSec < 3600) return t('{value0} мин', { value0: Math.floor(diffSec / 60) });
+  if (diffSec < 86400) return t('{value0} ч', { value0: Math.floor(diffSec / 3600) });
+  if (diffSec < 86400 * 7) return t('{value0} д', { value0: Math.floor(diffSec / 86400) });
   return new Date(iso).toLocaleDateString("ru-RU");
 }

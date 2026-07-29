@@ -160,7 +160,7 @@
                 <!-- per-cell метка источника/ручного ввода + кнопка применить обновление -->
                 <span v-if="canEditRow(f) && isAutoFact(f.key)" class="bpe-badge bpe-badge-auto" :title="t('Автоподстановка из {src}', { src: sourceLabel(f.key) })">
                   <svg width="7" height="7" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 5l2.5 2.5L8.5 2.5"/></svg>
-                  {{ t("авто") }} · {{ sourceLabel(f.key) }}
+                  {{ t("авто") }} · {{ t(sourceLabel(f.key)) }}
                 </span>
                 <span v-else-if="canEditRow(f) && isManualFact(f.key)" class="bpe-badge bpe-badge-manual" :title="t('Введено вручную')">{{ t("✎ вручную") }}</span>
                 <button v-if="canEditRow(f) && sourceUpdated(f.key)" class="bpe-badge bpe-badge-upd" :title="t('Применить значение источника ({src}): {value}', { src: sourceLabel(f.key), value: autoFact(f.key) })" @click="applyAuto(f.key)">{{ t("↻ обновить") }}</button>
@@ -255,6 +255,7 @@ import { computed, onMounted, ref, watch } from "vue";
 import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
 
 const toast = useToast();
 const { confirmDialog } = useConfirm();
@@ -437,8 +438,8 @@ const draft = ref<BpPlanDraft | null>(null);
 const draftOpen = ref(false);
 const draftLoading = ref(false);
 const QK: Period[] = ["q1", "q2", "q3", "q4"];
-const DRAFT_METHOD_RU: Record<string, string> = { cagr: "CAGR", ols: "OLS-тренд", none: "—" };
-const DRAFT_CONF_RU: Record<string, string> = { high: "высокая", medium: "средняя", low: "низкая", none: "—" };
+const DRAFT_METHOD_RU: Record<string, string> = { cagr: "CAGR", ols: i18nKey("OLS-тренд"), none: "—" };
+const DRAFT_CONF_RU: Record<string, string> = { high: i18nKey("высокая"), medium: i18nKey("средняя"), low: i18nKey("низкая"), none: "—" };
 
 async function openDraft() {
   if (draftLoading.value) return;

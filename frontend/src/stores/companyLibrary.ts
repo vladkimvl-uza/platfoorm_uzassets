@@ -9,6 +9,7 @@
  */
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
+import { t } from "@/locale/i18n";
 import {
   companyLibraryApi,
   type FieldDefinition,
@@ -102,7 +103,7 @@ export const useCompanyLibraryStore = defineStore("companyLibrary", () => {
       activeViewId.value  = resp.active_view_id ?? activeViewId.value;
       lastLoadedAt.value  = Date.now();
     } catch (e: any) {
-      error.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить библиотеку";
+      error.value = e?.response?.data?.detail || e?.message || t("Не удалось загрузить библиотеку");
     } finally {
       loading.value = false;
     }

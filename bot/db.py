@@ -6,6 +6,7 @@ directly for two reasons:
 2. The bot only does a handful of queries вЂ” ORM overhead isn't worth it
 """
 import hashlib
+import json
 import logging
 from datetime import datetime, timezone
 from typing import Any, Optional
@@ -53,7 +54,8 @@ async def find_user_by_chat_id(chat_id: int) -> Optional[dict]:
     """
     async with _pool.acquire() as c:
         rows = await c.fetch("""
-            SELECT id, email, full_name, is_active, telegram_chat_id_encrypted, telegram_username
+            SELECT id, email, full_name, is_active, ui_locale,
+                   telegram_chat_id_encrypted, telegram_username
             FROM users
             WHERE telegram_chat_id_encrypted IS NOT NULL
         """)
@@ -69,7 +71,10 @@ async def find_user_by_chat_id(chat_id: int) -> Optional[dict]:
 
 async def find_user_by_email(email: str) -> Optional[dict]:
     async with _pool.acquire() as c:
-        row = await c.fetchrow("SELECT id, email, full_name, is_active FROM users WHERE email = $1", email)
+        row = await c.fetchrow(
+            "SELECT id, email, full_name, is_active, ui_locale FROM users WHERE email = $1",
+            email,
+        )
     return dict(row) if row else None
 
 
@@ -93,7 +98,7 @@ async def lookup_user_by_link_token(token: str) -> Optional[dict]:
         # roles table uses (code, name_ru); the old (id, name) columns no longer exist.
         # Prefer human-readable name_ru; fall back to code if it's missing.
         row = await c.fetchrow("""
-            SELECT u.id, u.email, u.full_name, u.is_owner,
+            SELECT u.id, u.email, u.full_name, u.is_owner, u.ui_locale,
                    (SELECT COALESCE(r.name_ru, r.code)
                       FROM roles r
                       JOIN user_role ur ON ur.role_id = r.id
@@ -123,6 +128,7 @@ async def lookup_user_by_link_token(token: str) -> Optional[dict]:
             "email": row["email"],
             "full_name": row["full_name"] or row["email"],
             "role_label": role_label,
+            "ui_locale": row["ui_locale"] or "ru",
         }
 
 
@@ -146,7 +152,7 @@ async def confirm_link_telegram(
     async with _pool.acquire() as c:
         async with c.transaction():
             row = await c.fetchrow("""
-                SELECT id, email, full_name
+                SELECT id, email, full_name, ui_locale
                 FROM users
                 WHERE telegram_link_token_hashed = $1
                   AND telegram_link_token_expires_at > $2
@@ -164,13 +170,16 @@ async def confirm_link_telegram(
                 WHERE id = $4
             """, chat_id_enc, username_clean, now, row["id"])
 
+            link_payload = json.dumps({
+                "email": row["email"],
+                "username": username_clean,
+                "locale": row["ui_locale"] or "ru",
+            }, ensure_ascii=False)
             await c.execute("""
                 INSERT INTO telegram_outbox (user_id, type, status, payload, created_at)
                 VALUES ($1, 'link_confirmation', 'pending',
                         $2::jsonb, $3)
-            """, row["id"],
-                 f'{{"email": "{row["email"]}", "username": {("null" if not username_clean else chr(34)+username_clean+chr(34))}}}',
-                 now)
+            """, row["id"], link_payload, now)
 
             return dict(row)
 

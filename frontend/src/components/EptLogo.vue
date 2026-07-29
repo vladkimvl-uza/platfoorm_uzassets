@@ -12,6 +12,11 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { i18nKey } from "@/locale/keys";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+
+
 
 interface Props {
   size?: number
@@ -20,7 +25,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   size: 64,
-  ariaLabel: 'UzAssets — Единая платформа трансформации',
+  ariaLabel: i18nKey('UzAssets — Единая платформа трансформации'),
 })
 
 const renderKey = ref(0)
@@ -54,7 +59,7 @@ defineExpose({ replay })
       :width="size"
       :height="height"
       viewBox="0 0 240 220"
-      :aria-label="ariaLabel"
+      :aria-label="t(ariaLabel)"
       role="img"
       xmlns="http://www.w3.org/2000/svg"
     >

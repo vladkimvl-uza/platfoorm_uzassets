@@ -11,6 +11,8 @@ import { esgApi, type ESGMaturityHeatmap, type ESGMaturityCompany, type ESGRatin
 import { ratingsApi } from "@/api/ratings";
 import ESGReportRatingModal from "@/components/ESG/ESGReportRatingModal.vue";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 const { t } = useI18n();
 
 
@@ -22,6 +24,7 @@ const props = defineProps<{
 const emit = defineEmits<{ (e: "saved"): void; (e: "open-company", id: string): void }>();
 
 const toast = useToast();
+const errorText = (err: any) => err?.response?.data?.detail || err?.message || t("ошибка");
 const rows = ref<ESGMaturityCompany[]>([]);
 
 // Единое окно «внешней валидации» (отчётность + заверение + рейтинг) по компании.
@@ -46,7 +49,7 @@ const grouped = computed(() => {
     if (i === undefined) {
       i = out.length;
       idx.set(key, i);
-      out.push({ key, name: c.sector_name || "Прочее", color: c.sector_color || "#94A3B8", companies: [] });
+      out.push({ key, name: c.sector_name || t("Прочее"), color: c.sector_color || "#94A3B8", companies: [] });
     }
     out[i].companies.push(c);
   }
@@ -67,15 +70,15 @@ function emsColor(e: number): string {
   return "#E2807F";
 }
 const ISO = [
-  { sub: "iso14001", label: "14001", tip: "ISO 14001 · Экологический менеджмент" },
-  { sub: "iso45001", label: "45001", tip: "ISO 45001 · Охрана труда и пром. безопасность" },
-  { sub: "iso50001", label: "50001", tip: "ISO 50001 · Энергоменеджмент" },
+  { sub: "iso14001", label: "14001", tip: i18nKey("ISO 14001 · Экологический менеджмент") },
+  { sub: "iso45001", label: "45001", tip: i18nKey("ISO 45001 · Охрана труда и пром. безопасность") },
+  { sub: "iso50001", label: "50001", tip: i18nKey("ISO 50001 · Энергоменеджмент") },
 ];
 // D2 «Подготовка ESG-отчётности» — 0..3 (заверение вынесено в отдельную колонку D2A)
-const REP_LABELS = ["нет", "разовый", "регулярный", "IFRS SDS"];
+const REP_LABELS = [i18nKey("нет"), i18nKey("разовый"), i18nKey("регулярный"), "IFRS SDS"];
 const REP_COLORS = ["#94A3B8", "#378ADD", "#378ADD", "#7C6FF7"];
 // D2A «Прохождение независимого заверения» — нет / запланировано / пройдено
-const ASSUR_LABELS = ["нет", "запланировано", "пройдено"];
+const ASSUR_LABELS = [i18nKey("нет"), i18nKey("запланировано"), i18nKey("пройдено")];
 const ASSUR_COLORS = ["#94A3B8", "#D9A05A", "#1D9E75"];
 // Клампим отображаемую стадию отчётности: legacy-данные могли иметь D2=4
 // («+ assurance»); теперь заверение — отдельное измерение, D2 ≤ 3.
@@ -118,11 +121,11 @@ async function commitRatingEdit(r: ESGRatingMini) {
   try {
     const payload = r.score ? { score: val } : { rating: val };
     const res = await ratingsApi.update(r.id, payload as never);
-    if ((res as { queued?: boolean }).queued) toast.info("Отправлено на согласование");
-    else { toast.success("Рейтинг обновлён"); emit("saved"); }
+    if ((res as { queued?: boolean }).queued) toast.info(t('Отправлено на согласование'));
+    else { toast.success(t('Рейтинг обновлён')); emit("saved"); }
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    toast.error("Не сохранено: " + (err?.response?.data?.detail || err?.message || "ошибка"));
+    toast.error(t('Не сохранено: {value0}', { value0: errorText(err) }));
   } finally { ratingSaving.value = false; }
 }
 
@@ -140,11 +143,11 @@ async function confirmDeleteRating(r: ESGRatingMini) {
   ratingSaving.value = true;
   try {
     const res = await ratingsApi.remove(r.id);
-    if (res) toast.info("Отправлено на согласование");
-    else { toast.success("Рейтинг удалён"); emit("saved"); }
+    if (res) toast.info(t('Отправлено на согласование'));
+    else { toast.success(t('Рейтинг удалён')); emit("saved"); }
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    toast.error("Не удалено: " + (err?.response?.data?.detail || err?.message || "ошибка"));
+    toast.error(t('Не удалено: {value0}', { value0: errorText(err) }));
   } finally { ratingSaving.value = false; }
 }
 
@@ -168,12 +171,12 @@ async function commitAddRating(c: ESGMaturityCompany) {
   ratingSaving.value = true;
   try {
     const res = await ratingsApi.create({ company_id: c.company_id, agency: addAgency.value, score: val });
-    if ((res as { queued?: boolean }).queued) toast.info("Отправлено на согласование");
-    else { toast.success("Рейтинг добавлен"); emit("saved"); }
+    if ((res as { queued?: boolean }).queued) toast.info(t('Отправлено на согласование'));
+    else { toast.success(t('Рейтинг добавлен')); emit("saved"); }
     cancelAddRating();
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    toast.error("Не добавлено: " + (err?.response?.data?.detail || err?.message || "ошибка"));
+    toast.error(t('Не добавлено: {value0}', { value0: errorText(err) }));
   } finally { ratingSaving.value = false; }
 }
 
@@ -215,12 +218,12 @@ async function setStage(c: ESGMaturityCompany, dim: string, sub: string, stage: 
   saving.value = key;
   try {
     const r = await esgApi.upsertMaturityCell({ company_id: c.company_id, year: props.heatmap!.year, dimension: dim, sub_key: sub, stage });
-    if ((r as { queued?: boolean }).queued) toast.info("Отправлено на согласование");
-    else { toast.success("Сохранено"); emit("saved"); }
+    if ((r as { queued?: boolean }).queued) toast.info(t('Отправлено на согласование'));
+    else { toast.success(t('Сохранено')); emit("saved"); }
   } catch (e: unknown) {
     if (cell) cell.stage = prev ?? 0;
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    toast.error("Не сохранено: " + (err?.response?.data?.detail || err?.message || "ошибка"));
+    toast.error(t('Не сохранено: {value0}', { value0: errorText(err) }));
   } finally { saving.value = null; }
 }
 // ISO chip: клик циклит превью 0→1→2→0 (применяется по ✓)
@@ -298,12 +301,12 @@ async function commitLink(c: ESGMaturityCompany) {
   saving.value = ckey(c.company_id, "D2", "url");
   try {
     const r = await esgApi.upsertMaturityCell({ company_id: c.company_id, year: props.heatmap!.year, dimension: "D2", sub_key: "", evidence_url: url });
-    if ((r as { queued?: boolean }).queued) toast.info("Отправлено на согласование");
-    else { toast.success("Ссылка сохранена"); emit("saved"); }
+    if ((r as { queued?: boolean }).queued) toast.info(t('Отправлено на согласование'));
+    else { toast.success(t('Ссылка сохранена')); emit("saved"); }
   } catch (e: unknown) {
     if (cell) cell.evidence_url = prevUrl;
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    toast.error("Не сохранено: " + (err?.response?.data?.detail || err?.message || "ошибка"));
+    toast.error(t('Не сохранено: {value0}', { value0: errorText(err) }));
   } finally { saving.value = null; }
 }
 </script>
@@ -323,7 +326,7 @@ async function commitLink(c: ESGMaturityCompany) {
         </tr>
         <tr class="mm-subh">
           <th class="mm-h-co"></th>
-          <th v-for="x in ISO" :key="x.sub" :title="x.tip">{{ x.label }}</th>
+          <th v-for="x in ISO" :key="x.sub" :title="t(x.tip)">{{ t(x.label) }}</th>
           <th>{{ t('разовый · регул. · IFRS SDS') }}</th>
           <th>{{ t('независимая верификация') }}</th>
           <th></th>
@@ -345,7 +348,7 @@ async function commitLink(c: ESGMaturityCompany) {
                       :title="t('Единое окно: отчётность, заверение и рейтинги')">✎</button>
               <button v-if="canEdit" type="button" class="mm-nn-toggle" :class="{ on: isNotNeeded(c) }"
                       @click.stop="toggleNotNeeded(c)"
-                      :title="isNotNeeded(c) ? 'Вернуть компанию в метрики' : 'Базовые ESG-практики — реализация проекта не требуется, исключить из метрик'">⊘</button>
+                      :title="isNotNeeded(c) ? t('Вернуть компанию в метрики') : t('Базовые ESG-практики — реализация проекта не требуется, исключить из метрик')">⊘</button>
               <span v-if="isPending(c,'meta','not_needed')" class="mm-confirm mm-confirm-inline" @click.stop>
                 <button type="button" class="mm-ok" :title="t('Применить')" @click.stop="confirmPending">✓</button>
                 <button type="button" class="mm-no" :title="t('Отмена')" @click.stop="cancelPending">✕</button>
@@ -371,7 +374,7 @@ async function commitLink(c: ESGMaturityCompany) {
             <template v-else>
             <td v-for="(x, xi) in ISO" :key="x.sub" class="mm-c mm-cedit">
               <button type="button" class="mm-iso" :class="['s'+dStage(c,'D1',x.sub), { ed: canEdit, pend: isPending(c,'D1',x.sub) }]"
-                      :disabled="!canEdit" :title="x.tip" @click="cycleIso(c, x.sub)">
+                      :disabled="!canEdit" :title="t(x.tip)" @click="cycleIso(c, x.sub)">
                 {{ dStage(c,'D1',x.sub) >= 2 ? '✓' : dStage(c,'D1',x.sub) === 1 ? '◐' : '—' }}
               </button>
               <button v-if="canEdit && xi === ISO.length - 1" type="button" class="mm-nr-tg"
@@ -388,16 +391,16 @@ async function commitLink(c: ESGMaturityCompany) {
                 <button type="button" class="mm-pill" :class="{ ed: canEdit, pend: isPending(c,'D2','') || isPending(c,'nr','D2'), nr: isDimNr(c,'D2') }"
                         :style="isDimNr(c,'D2') ? {} : { color: REP_COLORS[repStage(c)], background: REP_COLORS[repStage(c)] + '1E' }"
                         :disabled="!canEdit"
-                        :title="isDimNr(c,'D2') ? 'Подготовка отчётности: не требуется · клик → вернуть статус' : 'Подготовка ESG-отчётности: '+REP_LABELS[repStage(c)]+' · клик циклит, после «IFRS SDS» → не требуется'"
+                        :title="isDimNr(c,'D2') ? t('Подготовка отчётности: не требуется · клик → вернуть статус') : t('Подготовка ESG-отчётности: {value0} · клик циклит, после «IFRS SDS» → не требуется', { value0: REP_LABELS[repStage(c)] })"
                         @click="cycleRep(c)">
-                  {{ isDimNr(c,'D2') ? 'не требуется' : REP_LABELS[repStage(c)] }}
+                  {{ isDimNr(c,'D2') ? t('не требуется') : REP_LABELS[repStage(c)] }}
                 </button>
                 <template v-if="!isDimNr(c,'D2')">
                   <a v-if="cellEvidence(c,'D2') && !isLinkEdit(c)" class="mm-rchip-lnk" :href="cellEvidence(c,'D2') || undefined"
                      target="_blank" rel="noopener" :title="t('Открыть отчёт')" @click.stop>↗</a>
                   <button v-if="canEdit && !isLinkEdit(c)" type="button" class="mm-rep-lnkbtn"
                           @click.stop="startLinkEdit(c)"
-                          :title="cellEvidence(c,'D2') ? 'Изменить ссылку на отчёт' : 'Добавить ссылку на отчёт'">
+                          :title="cellEvidence(c,'D2') ? t('Изменить ссылку на отчёт') : t('Добавить ссылку на отчёт')">
                     {{ cellEvidence(c,'D2') ? '✎' : '+' }}
                   </button>
                 </template>
@@ -416,12 +419,12 @@ async function commitLink(c: ESGMaturityCompany) {
                       :class="{ ed: canEdit, pend: isPending(c,'D2A','') || isPending(c,'nr','D2A'), nr: isDimNr(c,'D2A') }"
                       :style="isDimNr(c,'D2A') ? {} : { color: ASSUR_COLORS[dStage(c,'D2A','')], background: ASSUR_COLORS[dStage(c,'D2A','')] + '1E' }"
                       :disabled="!canEdit"
-                      :title="isDimNr(c,'D2A') ? 'Независимое заверение: не требуется · клик → вернуть статус' : 'Прохождение независимого заверения: '+ASSUR_LABELS[dStage(c,'D2A','')]+' · клик циклит нет → запланировано → пройдено'"
+                      :title="isDimNr(c,'D2A') ? t('Независимое заверение: не требуется · клик → вернуть статус') : t('Прохождение независимого заверения: {value0} · клик циклит нет → запланировано → пройдено', { value0: ASSUR_LABELS[dStage(c,'D2A','')] })"
                       @click="cycleAssur(c)">
-                {{ isDimNr(c,'D2A') ? 'не требуется' : ASSUR_LABELS[dStage(c,'D2A','')] }}
+                {{ isDimNr(c,'D2A') ? t('не требуется') : ASSUR_LABELS[dStage(c,'D2A','')] }}
               </button>
               <button v-if="canEdit" type="button" class="mm-nr-tg" :class="{ on: isDimNr(c,'D2A') }"
-                      @click.stop="toggleDimNr(c,'D2A')" :title="isDimNr(c,'D2A') ? 'Вернуть заверение в статистику' : 'Не требуется — исключить заверение из статистики'">{{ t('н/т') }}</button>
+                      @click.stop="toggleDimNr(c,'D2A')" :title="isDimNr(c,'D2A') ? t('Вернуть заверение в статистику') : t('Не требуется — исключить заверение из статистики')">{{ t('н/т') }}</button>
               <div v-if="isPending(c,'D2A','') || isPending(c,'nr','D2A')" class="mm-confirm">
                 <button type="button" class="mm-ok" :title="t('Применить')" @click.stop="confirmPending">✓</button>
                 <button type="button" class="mm-no" :title="t('Отмена')" @click.stop="cancelPending">✕</button>
@@ -432,7 +435,7 @@ async function commitLink(c: ESGMaturityCompany) {
               <span v-if="isDimNr(c,'D3')" class="mm-nr">{{ t('не требуется') }}</span>
               <div v-else class="mm-rates">
                 <span v-for="(r, i) in c.ratings" :key="r.id || i" class="mm-rchip">
-                  <span v-if="r.prev" class="mm-rprev" :title="'было: ' + r.prev">{{ r.prev }}<span class="mm-rarrow">→</span></span>
+                  <span v-if="r.prev" class="mm-rprev" :title="t('было: {value0}', { value0: r.prev })">{{ r.prev }}<span class="mm-rarrow">→</span></span>
                   <input v-if="isRatingEdit(r)" :ref="rfocus" v-model="ratingDraft" type="text" class="mm-rinp" @click.stop
                          @keydown.enter.prevent="commitRatingEdit(r)" @keydown.esc.stop.prevent="cancelRatingEdit" @blur="commitRatingEdit(r)" />
                   <button v-else type="button" class="mm-rchip-v mm-rchip-vbtn" :class="{ ed: canEdit }" :disabled="!canEdit"
@@ -461,7 +464,7 @@ async function commitLink(c: ESGMaturityCompany) {
                 <button v-else-if="canEdit" type="button" class="mm-radd" @click.stop="startAddRating(c)">{{ t('+ рейтинг') }}</button>
               </div>
               <button v-if="canEdit && !isAddRating(c)" type="button" class="mm-nr-tg" :class="{ on: isDimNr(c,'D3') }"
-                      @click.stop="toggleDimNr(c,'D3')" :title="isDimNr(c,'D3') ? 'Вернуть рейтинг в статистику' : 'Не требуется — исключить рейтинг из статистики'">{{ t('н/т') }}</button>
+                      @click.stop="toggleDimNr(c,'D3')" :title="isDimNr(c,'D3') ? t('Вернуть рейтинг в статистику') : t('Не требуется — исключить рейтинг из статистики')">{{ t('н/т') }}</button>
               <div v-if="isPending(c,'nr','D3')" class="mm-confirm">
                 <button type="button" class="mm-ok" :title="t('Применить')" @click.stop="confirmPending">✓</button>
                 <button type="button" class="mm-no" :title="t('Отмена')" @click.stop="cancelPending">✕</button>
@@ -474,7 +477,7 @@ async function commitLink(c: ESGMaturityCompany) {
                 <i v-for="i in 4" :key="i" class="mm-dot clm" :class="{ on: dStage(c,'D4','') >= i, ed: canEdit, pend: isPending(c,'D4','') }" @click="clickStep(c,'D4',i-1)"></i>
               </span>
               <button v-if="canEdit" type="button" class="mm-nr-tg" :class="{ on: isDimNr(c,'D4') }"
-                      @click.stop="toggleDimNr(c,'D4')" :title="isDimNr(c,'D4') ? 'Вернуть в статистику' : 'Не требуется — исключить из статистики'">{{ t('н/т') }}</button>
+                      @click.stop="toggleDimNr(c,'D4')" :title="isDimNr(c,'D4') ? t('Вернуть в статистику') : t('Не требуется — исключить из статистики')">{{ t('н/т') }}</button>
               <div v-if="isPending(c,'D4','') || isPending(c,'nr','D4')" class="mm-confirm">
                 <button type="button" class="mm-ok" :title="t('Применить')" @click.stop="confirmPending">✓</button>
                 <button type="button" class="mm-no" :title="t('Отмена')" @click.stop="cancelPending">✕</button>
@@ -487,7 +490,7 @@ async function commitLink(c: ESGMaturityCompany) {
                 <i v-for="i in 3" :key="i" class="mm-dot rsk" :class="{ on: dStage(c,'D5','') >= i, ed: canEdit, pend: isPending(c,'D5','') }" @click="clickStep(c,'D5',i-1)"></i>
               </span>
               <button v-if="canEdit" type="button" class="mm-nr-tg" :class="{ on: isDimNr(c,'D5') }"
-                      @click.stop="toggleDimNr(c,'D5')" :title="isDimNr(c,'D5') ? 'Вернуть в статистику' : 'Не требуется — исключить из статистики'">{{ t('н/т') }}</button>
+                      @click.stop="toggleDimNr(c,'D5')" :title="isDimNr(c,'D5') ? t('Вернуть в статистику') : t('Не требуется — исключить из статистики')">{{ t('н/т') }}</button>
               <div v-if="isPending(c,'D5','') || isPending(c,'nr','D5')" class="mm-confirm">
                 <button type="button" class="mm-ok" :title="t('Применить')" @click.stop="confirmPending">✓</button>
                 <button type="button" class="mm-no" :title="t('Отмена')" @click.stop="cancelPending">✕</button>

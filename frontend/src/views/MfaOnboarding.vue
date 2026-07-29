@@ -29,6 +29,8 @@ import { authApi } from "@/api/auth";
 import { useAuthStore } from "@/stores/auth";
 import { useFormatters } from "@/composables/useFormatters";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 
 const { t } = useI18n();
 const fmt = useFormatters();
@@ -73,12 +75,12 @@ const userRoleLabel = computed(() => {
   if (auth.user?.is_owner) return t("Администратор платформы");
   const roles = auth.user?.roles || [];
   const map: Record<string, string> = {
-    admin: "Администратор",
-    financier: "Финансист",
-    department_head: "Руководитель отдела",
-    consultant: "Консультант",
-    auditor: "Аудитор",
-    viewer: "Наблюдатель",
+    admin: i18nKey("Администратор"),
+    financier: i18nKey("Финансист"),
+    department_head: i18nKey("Руководитель отдела"),
+    consultant: i18nKey("Консультант"),
+    auditor: i18nKey("Аудитор"),
+    viewer: i18nKey("Наблюдатель"),
   };
   for (const r of roles) {
     const lower = r.toLowerCase();
@@ -516,7 +518,7 @@ onBeforeUnmount(() => {
                     <div class="mfa-ob-pc-label">Email</div>
                     <div class="mfa-ob-pc-value mfa-ob-mono">{{ userEmail }}</div>
                     <div class="mfa-ob-pc-label">{{ t("Роль") }}</div>
-                    <div class="mfa-ob-pc-value">{{ userRoleLabel }}</div>
+                    <div class="mfa-ob-pc-value">{{ t(userRoleLabel) }}</div>
                   </div>
                   <div class="mfa-ob-phone-time">9:41</div>
                 </div>

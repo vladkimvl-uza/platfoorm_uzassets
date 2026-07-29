@@ -35,6 +35,8 @@ import { useCompanyScope } from "@/composables/useCompanyScope";
 import { usePermissions } from "@/composables/usePermissions";
 import { useToast } from "@/composables/useToast";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 const { t } = useI18n();
 
 
@@ -90,7 +92,7 @@ async function load() {
     rescan();
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    error.value = err?.response?.data?.detail || err?.message || "Не удалось загрузить дашборд";
+    error.value = err?.response?.data?.detail || err?.message || t('Не удалось загрузить дашборд');
   } finally {
     loading.value = false;
   }
@@ -116,9 +118,9 @@ const headerSub = computed(() => {
   if (!overview.value) return "";
   const k = overview.value.kpis;
   const parts: string[] = [];
-  parts.push(year.value ? `FY ${year.value}` : "все годы");
-  if (sectorCode.value) parts.push(`сектор ${sectorCode.value}`);
-  parts.push(`${k.companies_with_data} из ${k.total_companies} компаний с данными`);
+  parts.push(year.value ? `FY ${year.value}` : t("все годы"));
+  if (sectorCode.value) parts.push(t("сектор {sector}", { sector: sectorCode.value }));
+  parts.push(t("{withData} из {total} компаний с данными", { withData: k.companies_with_data, total: k.total_companies }));
   return parts.join(" · ");
 });
 
@@ -246,14 +248,14 @@ function sortIcon(c: MatrixCol): string {
 // 4 столбца-комитета: подпись → поле в ячейке.
 // Колонки наблюдательного совета (заседания + решения) — идут первыми.
 const SB_COLS: { key: CommitteeMeetingField; label: string; full?: string }[] = [
-  { key: "sb_meetings",  label: "Заседания НС" },
-  { key: "sb_decisions", label: "Решения (протоколы)", full: "Количество решений, принятых по итогам заседания и оформленных протоколом" },
+  { key: "sb_meetings",  label: i18nKey("Заседания НС") },
+  { key: "sb_decisions", label: i18nKey("Решения (протоколы)"), full: i18nKey("Количество решений, принятых по итогам заседания и оформленных протоколом") },
 ];
 const COMMITTEE_COLS: { key: CommitteeMeetingField; label: string; full?: string }[] = [
-  { key: "audit_mtg",    label: "Аудит" },
-  { key: "strategy_mtg", label: "Стратегия" },
-  { key: "anticorr_mtg", label: "Антикор." },
-  { key: "nomrem_mtg",   label: "Назнач. и вознагр.", full: "Комитет по назначениям и вознаграждениям" },
+  { key: "audit_mtg",    label: i18nKey("Аудит") },
+  { key: "strategy_mtg", label: i18nKey("Стратегия") },
+  { key: "anticorr_mtg", label: i18nKey("Антикор.") },
+  { key: "nomrem_mtg",   label: i18nKey("Назнач. и вознагр."), full: i18nKey("Комитет по назначениям и вознаграждениям") },
 ];
 // Все колонки таблицы: НС → комитеты.
 const ALL_CM_COLS = [...SB_COLS, ...COMMITTEE_COLS];
@@ -379,7 +381,7 @@ async function loadCommittees() {
     }
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    committeeError.value = err?.response?.data?.detail || err?.message || "Не удалось загрузить комитеты";
+    committeeError.value = err?.response?.data?.detail || err?.message || t('Не удалось загрузить комитеты');
   } finally {
     committeeLoading.value = false;
   }
@@ -393,7 +395,7 @@ function selectPeriod(p: CommitteeMeetingPeriod) {
 async function addPeriod() {
   const year = Math.trunc(Number(pickerYear.value));
   if (!year || year < 2000 || year > 2100) {
-    toast.error("Укажите корректный год (2000–2100)");
+    toast.error(t('Укажите корректный год (2000–2100)'));
     return;
   }
   const q = pickerQuarter.value === "0" ? null : Number(pickerQuarter.value);
@@ -404,7 +406,7 @@ async function addPeriod() {
   };
   const k = periodKey(newP);
   if (committeePeriods.value.some((p) => periodKey(p) === k)) {
-    toast.info("Такой период уже есть");
+    toast.info(t('Такой период уже есть'));
     activeCommitteeKey.value = k;
     periodPickerOpen.value = false;
     return;
@@ -456,7 +458,7 @@ async function commitEdit(companyId: string, field: CommitteeMeetingField) {
   cancelEdit();
 
   if (raw !== "" && Number.isNaN(newVal as number)) {
-    toast.error("Не сохранено: введите число");
+    toast.error(t('Не сохранено: введите число'));
     return;
   }
   if (newVal === oldVal) return; // без изменений
@@ -472,7 +474,7 @@ async function commitEdit(companyId: string, field: CommitteeMeetingField) {
       field,
       value: newVal,
     });
-    toast.success("Сохранено");
+    toast.success(t('Сохранено'));
     // Пульс-подсветка.
     savedPulse.value = key;
     setTimeout(() => { if (savedPulse.value === key) savedPulse.value = null; }, 900);
@@ -480,7 +482,8 @@ async function commitEdit(companyId: string, field: CommitteeMeetingField) {
     // Откат при ошибке.
     setCellLocal(companyId, p, field, oldVal);
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    toast.error(`Не сохранено: ${err?.response?.data?.detail || err?.message || "ошибка сети"}`);
+    const reason = err?.response?.data?.detail || err?.message || t("ошибка сети");
+    toast.error(t('Не сохранено: {value0}', { value0: reason }));
   }
 }
 
@@ -517,13 +520,13 @@ interface DrillRow {
 
 const kpiDrillTitle = computed<string>(() => {
   switch (kpiDrill.value) {
-    case "score":   return "Оценка корпоративного управления";
-    case "indep":   return "Независимые директора";
-    case "members": return "Состав наблюдательных советов";
-    case "meetings": return "Заседания наблюдательного совета";
-    case "vacant":  return "Вакантные позиции в НС";
-    case "women":   return "Женщины в наблюдательных советах";
-    case "dno":     return "Страхование D&O";
+    case "score":   return t("Оценка корпоративного управления");
+    case "indep":   return t("Независимые директора");
+    case "members": return t("Состав наблюдательных советов");
+    case "meetings": return t("Заседания наблюдательного совета");
+    case "vacant":  return t("Вакантные позиции в НС");
+    case "women":   return t("Женщины в наблюдательных советах");
+    case "dno":     return t("Страхование D&O");
     default:        return "";
   }
 });
@@ -553,7 +556,7 @@ const kpiDrillRows = computed<DrillRow[]>(() => {
           r,
           primary: String(i),
           primaryColor: i === 0 ? "#E24B4A" : "#1E2A4A",
-          secondary: `из ${bs} (${pct}%)`,
+          secondary: t("из {total} ({percent}%)", { total: bs, percent: pct }),
         };
       });
     }
@@ -563,7 +566,7 @@ const kpiDrillRows = computed<DrillRow[]>(() => {
         r,
         primary: String(r.board_size ?? 0),
         primaryColor: "#1E2A4A",
-        secondary: `${r.independent_count ?? 0} независимых / ${r.nonexec_count ?? r.board_size ?? 0} неисполнительных`,
+        secondary: t("{independent} независимых / {nonExecutive} неисполнительных", { independent: r.independent_count ?? 0, nonExecutive: r.nonexec_count ?? r.board_size ?? 0 }),
       }));
     }
     case "meetings": {
@@ -572,7 +575,7 @@ const kpiDrillRows = computed<DrillRow[]>(() => {
         r,
         primary: r.meetings_per_year != null ? String(r.meetings_per_year) : "—",
         primaryColor: meetColor(r.meetings_per_year),
-        secondary: "заседаний за год",
+        secondary: t("заседаний за год"),
       }));
     }
     case "vacant": {
@@ -582,7 +585,7 @@ const kpiDrillRows = computed<DrillRow[]>(() => {
         r,
         primary: String(r.vacant_seats ?? 0),
         primaryColor: "#E24B4A",
-        secondary: `из ${r.board_size ?? 0} позиций`,
+        secondary: t("из {count} позиций", { count: r.board_size ?? 0 }),
       }));
     }
     case "women": {
@@ -595,14 +598,14 @@ const kpiDrillRows = computed<DrillRow[]>(() => {
           r,
           primary: String(w),
           primaryColor: w > 0 ? "#EF9F27" : "#888780",
-          secondary: bs ? `из ${bs} (${pct}%)` : "—",
+          secondary: bs ? t("из {total} ({percent}%)", { total: bs, percent: pct }) : "—",
         };
       });
     }
     case "dno": {
       const f = rows.filter(r => !!r.has_dno_insurance)
         .sort((a, b) => (a.company_name ?? a.company_code).localeCompare(b.company_name ?? b.company_code, "ru"));
-      return f.map(r => ({ r, primary: "✓", primaryColor: "#1D9E75", secondary: "застрахован" }));
+      return f.map(r => ({ r, primary: "✓", primaryColor: "#1D9E75", secondary: t("застрахован") }));
     }
   }
   return [];
@@ -654,7 +657,7 @@ onMounted(() => {
         </div>
 
         <!-- ═══ Body / scroll container ═══ -->
-        <UzaStateBlock v-if="loading && !overview" state="loading" variant="text" text="Загрузка..." />
+        <UzaStateBlock v-if="loading && !overview" state="loading" variant="text" :text="t('Загрузка...')" />
         <UzaStateBlock v-else-if="error && !overview" state="error" variant="block" :text="error" />
         <div v-else-if="overview" ref="scanRoot" class="dash-scroll gv-body">
 
@@ -793,7 +796,7 @@ onMounted(() => {
                                : (r.independent_pct ?? 0) >= 33 ? '#1D9E75'
                                : (r.independent_pct ?? 0) >= 20 ? '#EF9F27' : '#888780',
                         fontWeight: 500
-                      }" :title="r.independent_pct != null ? Math.round(r.independent_pct) + '% совета (цель ≥33%)' : ''">{{ r.independent_count ?? "—" }}</td>
+                      }" :title="r.independent_pct != null ? t('{value0}% совета (цель ≥33%)', { value0: Math.round(r.independent_pct) }) : ''">{{ r.independent_count ?? "—" }}</td>
                       <td class="num" :style="{
                         color: (r.meetings_per_year ?? 99) <= 5 ? '#E24B4A' : '#888780',
                         fontWeight: 500
@@ -845,7 +848,7 @@ onMounted(() => {
                   class="gv-cm-chip"
                   :class="{ on: activePeriod && (activePeriod.year === p.year && (activePeriod.quarter || 0) === (p.quarter || 0)) }"
                   @click="selectPeriod(p)"
-                >{{ p.label }}</button>
+                >{{ t(p.label) }}</button>
 
                 <div class="gv-cm-addwrap" ref="periodAddwrapEl">
                   <button
@@ -874,7 +877,7 @@ onMounted(() => {
                 </div>
               </div>
 
-              <UzaStateBlock v-if="committeeLoading && !committeeData" state="loading" variant="text" text="Загрузка..." />
+              <UzaStateBlock v-if="committeeLoading && !committeeData" state="loading" variant="text" :text="t('Загрузка...')" />
               <UzaStateBlock v-else-if="committeeError && !committeeData" state="error" variant="block" :text="committeeError" />
 
               <div v-else class="gv-mat-wrap">
@@ -882,7 +885,7 @@ onMounted(() => {
                   <thead>
                     <tr>
                       <th class="lt">{{ t('Компания') }}</th>
-                      <th v-for="col in ALL_CM_COLS" :key="col.key" :title="col.full || col.label" :class="{ 'gv-cm-sep': col.key === 'audit_mtg' }">{{ col.label }}</th>
+                      <th v-for="col in ALL_CM_COLS" :key="col.key" :title="t(col.full || col.label)" :class="{ 'gv-cm-sep': col.key === 'audit_mtg' }">{{ t(col.label) }}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -935,7 +938,7 @@ onMounted(() => {
               <div class="gv-mat-legend">
                 <span v-if="canEditCommittees" class="gv-cm-hint">{{ t('Клик по ячейке — правка количества заседаний') }}</span>
                 <span class="gv-mat-legend-meta">
-                  {{ t('Σ заседаний комитетов за') }} {{ activePeriod ? activePeriod.label : '—' }}: <b>{{ committeeSum }}</b>
+                  {{ t('Σ заседаний комитетов за') }} {{ activePeriod ? t(activePeriod.label) : '—' }}: <b>{{ committeeSum }}</b>
                 </span>
               </div>
             </div>
@@ -949,7 +952,7 @@ onMounted(() => {
           <template #header>
             <div>
               <div class="gv-modal-t">{{ kpiDrillTitle }}</div>
-              <div class="gv-modal-s">{{ kpiDrillRows.length }} {{ kpiDrillRows.length === 1 ? 'компания' : 'компаний' }}</div>
+              <div class="gv-modal-s">{{ kpiDrillRows.length }} {{ kpiDrillRows.length === 1 ? t('компания') : t('компаний') }}</div>
             </div>
           </template>
               <div class="gv-modal-body">

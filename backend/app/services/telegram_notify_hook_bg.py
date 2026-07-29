@@ -61,14 +61,18 @@ def _platform_link(notif: Notification) -> str:
 # Both _build_payload and _build_buttons delegate to telegram_notify_hook so
 # the foreground (commit=True) and background (commit=False → schedule_forward)
 # paths produce identical Telegram messages, banners, and inline keyboards.
-def _build_payload(notif: Notification, source_user: Optional[User]) -> dict:
+def _build_payload(
+    notif: Notification,
+    source_user: Optional[User],
+    recipient_user: Optional[User] = None,
+) -> dict:
     from app.services.telegram_notify_hook import _build_payload as _main_payload
-    return _main_payload(notif, source_user)
+    return _main_payload(notif, source_user, recipient_user)
 
 
-def _build_buttons(notif: Notification) -> Optional[list]:
+def _build_buttons(notif: Notification, locale: str = "ru") -> Optional[list]:
     from app.services.telegram_notify_hook import _build_inline_buttons as _main_buttons
-    return _main_buttons(notif)
+    return _main_buttons(notif, locale)
 
 
 async def _do_forward(notif_id: str) -> None:
@@ -101,8 +105,10 @@ async def _do_forward(notif_id: str) -> None:
                 created_at=datetime.now(UTC),
                 user_id=user.id,
                 type=OutboxType.NOTIFICATION,
-                payload=_build_payload(notif, source_user),
-                inline_buttons=_build_buttons(notif),
+                payload=_build_payload(notif, source_user, user),
+                inline_buttons=_build_buttons(
+                    notif, getattr(user, "ui_locale", None) or "ru",
+                ),
             )
             db.add(ob)
             await db.commit()

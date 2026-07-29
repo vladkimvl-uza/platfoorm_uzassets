@@ -8,8 +8,10 @@
  */
 
 import { useToast } from "@/composables/useToast";
+import { useI18n } from "@/composables/useI18n";
 
 const { toasts, remove } = useToast();
+const { t } = useI18n();
 
 </script>
 

@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
 from app.core.access import ensure_company_access
+from app.core.i18n import current_locale, tr
 from app.core.security import has_effective_permission
 from app.models.company import Company
 from app.models.pmo import (
@@ -82,7 +83,7 @@ async def _company_or_404(db: AsyncSession, code: str) -> Company:
         await db.execute(select(Company).where(Company.code == code))
     ).scalar_one_or_none()
     if company is None:
-        raise HTTPException(http_status.HTTP_404_NOT_FOUND, f"Компания «{code}» не найдена")
+        raise HTTPException(http_status.HTTP_404_NOT_FOUND, tr("Компания «{company}» не найдена", current_locale(), company=code))
     return company
 
 
@@ -106,7 +107,7 @@ async def get_schedule(
             detail="Не удалось построить расписание. Попробуйте позже.",
         )
     if result is None:
-        raise HTTPException(http_status.HTTP_404_NOT_FOUND, f"Компания «{code}» не найдена")
+        raise HTTPException(http_status.HTTP_404_NOT_FOUND, tr("Компания «{company}» не найдена", current_locale(), company=code))
     return result
 
 
@@ -347,7 +348,7 @@ async def get_health(
             detail="Не удалось рассчитать здоровье портфеля. Попробуйте позже.",
         )
     if result is None:
-        raise HTTPException(http_status.HTTP_404_NOT_FOUND, f"Компания «{code}» не найдена")
+        raise HTTPException(http_status.HTTP_404_NOT_FOUND, tr("Компания «{company}» не найдена", current_locale(), company=code))
     return result
 
 
@@ -373,7 +374,7 @@ async def get_evm(
             detail="Не удалось рассчитать освоенный объём. Попробуйте позже.",
         )
     if result is None:
-        raise HTTPException(http_status.HTTP_404_NOT_FOUND, f"Компания «{code}» не найдена")
+        raise HTTPException(http_status.HTTP_404_NOT_FOUND, tr("Компания «{company}» не найдена", current_locale(), company=code))
     return result
 
 
@@ -402,7 +403,7 @@ async def get_agile(
             detail="Не удалось загрузить Agile-доску. Попробуйте позже.",
         )
     if result is None:
-        raise HTTPException(http_status.HTTP_404_NOT_FOUND, f"Компания «{code}» не найдена")
+        raise HTTPException(http_status.HTTP_404_NOT_FOUND, tr("Компания «{company}» не найдена", current_locale(), company=code))
     return result
 
 
@@ -540,6 +541,7 @@ async def patch_task_agile(
             notif_type="watch.status",
             title="Статус отслеживаемой задачи изменён",
             body=f"{user.full_name or user.email}: {_old_status} → {new_status}",
+            title_template="Статус отслеживаемой задачи изменён",
             payload={
                 "entity_type": "task", "entity_id": str(t.id),
                 "entity_title": t.title,
@@ -576,7 +578,7 @@ async def get_workload(
             detail="Не удалось рассчитать загрузку команды. Попробуйте позже.",
         )
     if result is None:
-        raise HTTPException(http_status.HTTP_404_NOT_FOUND, f"Компания «{code}» не найдена")
+        raise HTTPException(http_status.HTTP_404_NOT_FOUND, tr("Компания «{company}» не найдена", current_locale(), company=code))
     return result
 
 
@@ -701,7 +703,10 @@ async def create_status_report(
             detail="Не удалось сформировать статус-отчёт. Попробуйте позже.",
         )
     if rep is None:
-        raise HTTPException(http_status.HTTP_404_NOT_FOUND, f"Компания «{code}» не найдена")
+        raise HTTPException(
+            http_status.HTTP_404_NOT_FOUND,
+            tr("Компания «{company}» не найдена", current_locale(), company=code),
+        )
     return rep
 
 

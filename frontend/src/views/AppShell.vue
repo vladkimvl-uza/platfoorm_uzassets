@@ -29,7 +29,6 @@ const aiAct = useAiActivation();
 const aiActive = computed(() => aiAct.state.active);
 const { t } = useI18n();
 // Область доступа: по ней прячем портфельные пункты меню (экран министра).
-const scope = useCompanyScope();
 import UserProfileModal from "@/components/UserProfileModal.vue";
 import WelcomeModal from "@/components/WelcomeModal.vue";
 import UserAffiliationBadge from "@/components/rbac-v3/UserAffiliationBadge.vue";
@@ -38,7 +37,6 @@ import EptLogo from "@/components/EptLogo.vue";
 import AppTopbar from "@/components/AppTopbar.vue";
 import LangSwitcher from "@/components/LangSwitcher.vue";
 import { useI18n } from "@/composables/useI18n";
-import { useCompanyScope } from "@/composables/useCompanyScope";
 import PasswordExpiryBanner from "@/components/PasswordExpiryBanner.vue";
 import UserCardHost from "@/components/user/UserCardHost.vue";
 import UserViewModal from "@/components/user/UserViewModal.vue";
@@ -218,14 +216,10 @@ function isAdmin(): boolean {
 // codes the router enforces. `auth.hasPermission` already bypasses for
 // owner + role admin so they keep seeing every section.
 const can = (code: string) => auth.hasPermission(code);
-// Executive Dashboard: по умолчанию портфельный экран скрыт у пользователей,
-// ограниченных своими компаниями. НО если администратор выдал право ЛИЧНО
-// (сетка «Доступ к модулям»), пункт показывается — иначе выданный доступ молча
-// не срабатывал («дал доступ, а он не появился»).
-const showExecDash = computed(
-  () => can("exec_dashboard.view")
-    && (scope.showPortfolioViews.value || auth.hasDirectPermission("exec_dashboard.view")),
-);
+// Видимость модуля определяется тем же effective permission, что и маршрут/API.
+// Сам payload уже режется company scope на бэкенде, поэтому дополнительный
+// portfolio-гейт здесь делал валидно выданный доступ невидимым.
+const showExecDash = computed(() => can("exec_dashboard.view"));
 // Group visibility: show the collapsible header iff at least one sub-link
 // is visible to this user.
 // Себестоимость и SOE Health переехали на собственные права — без них носитель
@@ -456,7 +450,7 @@ function exitImpersonate() {
         <button class="sb-search" type="button" @click="openCommandPalette" :title="t('Поиск и команды ({k})', { k: cmdHint })">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <span class="sb-search-label">{{ t("Поиск") }}</span>
-          <kbd class="sb-search-kbd">{{ cmdHint }}</kbd>
+          <kbd class="sb-search-kbd">{{ t(cmdHint) }}</kbd>
         </button>
 
         <!-- ИИ-ассистент — premium card (Pack 7.44 — main value-prop) -->
@@ -477,15 +471,11 @@ function exitImpersonate() {
         <div v-if="can('ai.view')" class="ai-pcard-divider"></div>
 
         <!-- ── Группа: Обзор ── -->
-        <!-- Заголовок группы повторяет условия своих пунктов (включая область
-             портфеля у экрана министра), иначе у scope-ограниченного юзера
-             остался бы заголовок без единой ссылки под ним. -->
+        <!-- Заголовок группы повторяет условия своих пунктов. -->
         <div v-if="showExecDash || can('monitoring.view') || isAdmin()" class="sb-group-label first">{{ t("Обзор") }}</div>
 
-        <!-- 1. Executive Dashboard (AMBER) — same gate as the route
-             (собственное право exec_dashboard.view, не заимствованное у Финансов).
-             Плюс область: портфельный экран не показываем пользователю,
-             ограниченному своими компаниями (решение владельца 29.07.2026). -->
+        <!-- 1. Executive Dashboard (AMBER) — тот же effective permission,
+             что у маршрута и scoped API. -->
         <RouterLink
           v-if="showExecDash"
           to="/executive-dashboard"
@@ -526,7 +516,7 @@ function exitImpersonate() {
         </RouterLink>
 
         <!-- ── Группа: Проекты и сроки ── -->
-        <div v-if="can('projects.view') || can('tasks.view')" class="sb-group-label">{{ t("Проекты и сроки") }}</div>
+        <div v-if="can('dashboard.view') || can('projects.view') || can('tasks.view')" class="sb-group-label">{{ t("Проекты и сроки") }}</div>
 
         <!-- 2. Проекты трансформации — гейтится собственным правом дашборда
              (dashboard.view). Раньше стояло projects.view||tasks.view: карточка

@@ -1,4 +1,6 @@
 import { api } from "./client";
+import { t } from "@/locale/i18n";
+
 
 // ─── Types matching backend Pydantic schemas ─────────────────
 
@@ -258,9 +260,9 @@ export function formatRelativeTime(iso: string): string {
   const d = new Date(iso);
   const diff = Date.now() - d.getTime();
   const sec = Math.floor(diff / 1000);
-  if (sec < 60) return `${sec}с назад`;
-  if (sec < 3600) return `${Math.floor(sec / 60)}мин назад`;
-  if (sec < 86400) return `${Math.floor(sec / 3600)}ч назад`;
+  if (sec < 60) return t('{value0}с назад', { value0: sec });
+  if (sec < 3600) return t('{value0}мин назад', { value0: Math.floor(sec / 60) });
+  if (sec < 86400) return t('{value0}ч назад', { value0: Math.floor(sec / 3600) });
   return d.toLocaleDateString("ru-RU");
 }
 
@@ -271,9 +273,9 @@ export function formatTime(iso: string): string {
 export function formatDateShort(iso: string): string {
   const d = new Date(iso);
   const today = new Date();
-  if (d.toDateString() === today.toDateString()) return "сегодня";
+  if (d.toDateString() === today.toDateString()) return t('сегодня');
   const yest = new Date(today);
   yest.setDate(yest.getDate() - 1);
-  if (d.toDateString() === yest.toDateString()) return "вчера";
+  if (d.toDateString() === yest.toDateString()) return t('вчера');
   return d.toLocaleDateString("ru-RU", { day: "2-digit", month: "short" });
 }

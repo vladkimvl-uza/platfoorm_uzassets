@@ -72,7 +72,7 @@ const methodColor = computed(() => {
       </div>
     </header>
 
-    <p v-if="endpoint.description" class="ep-desc">{{ endpoint.description }}</p>
+    <p v-if="endpoint.description" class="ep-desc">{{ t(endpoint.description) }}</p>
 
     <section class="ep-code-section">
       <div class="ep-code-tabs">

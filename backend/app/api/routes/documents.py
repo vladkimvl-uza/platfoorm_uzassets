@@ -36,6 +36,7 @@ from sqlalchemy import func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.access import ensure_company_access
+from app.core.i18n import current_locale, tr
 from app.core.security import get_current_user, has_effective_permission
 from app.database import get_db
 from app.models.company import Company
@@ -143,7 +144,11 @@ async def _require_write(db: AsyncSession, user: User, source: str) -> None:
         return
     raise HTTPException(
         http_status.HTTP_403_FORBIDDEN,
-        f"Недостаточно прав: требуется {code}",
+        tr(
+            "Недостаточно прав: требуется {permission}",
+            current_locale(),
+            permission=code,
+        ),
     )
 
 
@@ -455,7 +460,11 @@ async def upload_document(
     if len(data) > _MAX_UPLOAD_BYTES:
         raise HTTPException(
             http_status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            f"Файл больше {_MAX_UPLOAD_BYTES // (1024 * 1024)} МБ",
+            tr(
+                "Файл больше {size} МБ",
+                current_locale(),
+                size=_MAX_UPLOAD_BYTES // (1024 * 1024),
+            ),
         )
     filename = _SAFE_NAME.sub("", file.filename or "file").strip() or "file"
     ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else "bin"

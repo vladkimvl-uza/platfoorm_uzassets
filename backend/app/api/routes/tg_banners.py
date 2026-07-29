@@ -49,12 +49,15 @@ async def list_banners():
 async def get_banner(
     module: str, severity: str,
     m: Optional[str] = Query(None, max_length=32, description="headline metric"),
+    lang: str = Query("ru", max_length=12, description="recipient UI locale"),
 ) -> Response:
     """Render (or serve cached) banner for (module, severity).
     Optional `?m=$12.4M` query adds a big focal metric to the banner.
     """
     try:
-        data = tg_banner.get_banner_bytes(module, severity, headline_metric=m)
+        data = tg_banner.get_banner_bytes(
+            module, severity, headline_metric=m, locale=lang,
+        )
     except Exception as e:
         log.warning("tg-banner render failed: %s/%s → %s", module, severity, e, exc_info=True)
         raise HTTPException(

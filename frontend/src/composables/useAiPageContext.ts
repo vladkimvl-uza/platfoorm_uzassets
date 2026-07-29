@@ -17,6 +17,7 @@
 //   });
 
 import { ref, onMounted, onBeforeUnmount, computed } from "vue";
+import { t } from "@/locale/i18n";
 
 export interface PageQuickAction {
   label: string;
@@ -53,12 +54,10 @@ export function getCurrentPageContext() {
  *  with describeState() output, framed как explicit request to AI. */
 export function buildSummaryPrompt(ctx: PageContext): string {
   const state = ctx.describeState ? ctx.describeState() : "";
-  const stateLine = state ? `Текущее состояние: ${state}.` : "";
+  const stateLine = state ? t("Текущее состояние: {state}.", { state }) : "";
   return [
-    `Я нахожусь на странице «${ctx.label}» платформы UzAssets.`,
+    t("Я нахожусь на странице «{page}» платформы UzAssets.", { page: ctx.label }),
     stateLine,
-    "Дай сжатую аналитическую сводку: ключевые цифры, главные риски, " +
-      "что требует внимания. Используй tools чтобы подтянуть актуальные данные. " +
-      "Структурируй как: ▶ Что вижу / ▶ Что значит / ▶ Что делать.",
+    t("Дай сжатую аналитическую сводку: ключевые цифры, главные риски, что требует внимания. Используй tools, чтобы подтянуть актуальные данные. Структурируй как: Что вижу / Что значит / Что делать."),
   ].filter(Boolean).join(" ");
 }

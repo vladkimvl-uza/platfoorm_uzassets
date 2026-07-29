@@ -92,7 +92,7 @@ function closeDrill() {
       :company-id="drill.company_id"
       :board-id="drill.board_id"
       :sector-color="drill.sector_color"
-      :sector-label="drill.sector_label"
+      :sector-label="t(drill.sector_label)"
       :initial-name="drill.name"
       :initial-pct="drill.pct"
       :task-total="drill.task_total"

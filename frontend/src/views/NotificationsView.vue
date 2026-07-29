@@ -152,7 +152,7 @@ const iconPath = (k: string) => NOTIF_ICON_PATHS[k] || NOTIF_ICON_PATHS.bell;
               class="ni-prio-btn" :class="{ active: filterPriorities.includes(p) }"
               :style="filterPriorities.includes(p) ? { background: priorityBg(p), color: priorityColor(p) } : {}"
               @click="togglePrio(p)">
-        {{ PRIORITY_LABELS[p].label }}
+        {{ t(PRIORITY_LABELS[p].label) }}
       </button>
     </div>
 
@@ -180,7 +180,7 @@ const iconPath = (k: string) => NOTIF_ICON_PATHS[k] || NOTIF_ICON_PATHS.bell;
           <div class="ni-meta">
             <span class="ni-act" :style="{ color: desc(n).accent, background: desc(n).accent + '14' }">{{ desc(n).verb }}</span>
             <span v-if="n.priority === 'high' || n.priority === 'critical'" class="ni-prio" :style="{ background: priorityBg(n.priority), color: priorityColor(n.priority) }">
-              {{ PRIORITY_LABELS[n.priority]?.label }}
+              {{ t(PRIORITY_LABELS[n.priority]?.label) }}
             </span>
             <span v-if="(n.payload as any)?.is_external" class="ni-ext">EXTERNAL</span>
             <span class="ni-time">{{ formatRelativeTime(n.created_at) }}</span>

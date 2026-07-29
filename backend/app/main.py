@@ -270,7 +270,10 @@ app.add_middleware(
     # If-Match carries the editor optimistic-lock token on PUTs; X-Editor-Token
     # returns the fresh token on GET/PUT. Both must be allowed/exposed or the
     # BP/KPI/financials editor locks silently degrade to no-check cross-origin.
-    allow_headers=["Authorization", "Content-Type", "X-Request-ID", "X-Api-Key", "If-Match"],
+    allow_headers=[
+        "Authorization", "Content-Type", "X-Request-ID", "X-Api-Key",
+        "X-UI-Locale", "If-Match",
+    ],
     expose_headers=["X-Editor-Token"],
 )
 
@@ -283,6 +286,7 @@ app.add_middleware(
 try:
     from app.core.security_middleware import (
         SecurityHeadersMiddleware, RequestIDMiddleware, BodySizeLimitMiddleware,
+        LocaleContextMiddleware,
     )
     from starlette.middleware.trustedhost import TrustedHostMiddleware
 
@@ -290,6 +294,8 @@ try:
     app.add_middleware(SecurityHeadersMiddleware)
     # Request ID for correlation in logs.
     app.add_middleware(RequestIDMiddleware)
+    # Request-scoped UI locale for backend errors, notifications and AI.
+    app.add_middleware(LocaleContextMiddleware)
     # Reject oversized bodies at app level (nginx has client_max_body_size 25m).
     app.add_middleware(BodySizeLimitMiddleware)
     # Host header allow-list — rejects evil-host pings.
@@ -305,7 +311,7 @@ try:
         logger.info(f"TrustedHostMiddleware: {_trusted}")
     else:
         logger.warning("TrustedHostMiddleware NOT registered (no TRUSTED_HOSTS configured)")
-    logger.info("Defense-in-depth middlewares registered (SecurityHeaders, RequestID, BodySize, TrustedHost)")
+    logger.info("Defense-in-depth middlewares registered (SecurityHeaders, RequestID, LocaleContext, BodySize, TrustedHost)")
 except Exception as e:
     logger.warning(f"Defense-in-depth middlewares not registered: {e}")
 

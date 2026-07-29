@@ -11,6 +11,7 @@ import {
   type ChatStreamEvent,
   type ToolCall,
 } from "@/api/aiClient";
+import { t } from "@/locale/i18n";
 
 export interface UiMessage {
   id?: string;
@@ -27,21 +28,21 @@ export interface UiMessage {
 // понятное русское сообщение. Чтобы пользователь видел осмысленный текст в
 // пузыре, а не пустой красный блок и не «All connection attempts failed».
 function friendlyAiError(raw: string): string {
-  if (!raw) return "Не удалось получить ответ ИИ-движка. Попробуйте ещё раз.";
+  if (!raw) return t("Не удалось получить ответ ИИ-движка. Попробуйте ещё раз.");
   const m = raw.toLowerCase();
   if (
     m.includes("all connection attempts failed") || m.includes("failed to fetch") ||
     m.includes("networkerror") || m.includes("econnrefused") || m.includes("getaddrinfo") ||
     m.includes("network") || (m.includes("connection") && !m.includes("403"))
   )
-    return "Не удалось связаться с ИИ-движком — похоже, временная проблема с сетью. Попробуйте ещё раз через несколько секунд.";
+    return t("Не удалось связаться с ИИ-движком — похоже, временная проблема с сетью. Попробуйте ещё раз через несколько секунд.");
   if (m.includes("timeout") || m.includes("timed out") || m.includes("deadline"))
-    return "ИИ-движок не ответил вовремя. Попробуйте ещё раз — возможно, запрос был слишком объёмным.";
+    return t("ИИ-движок не ответил вовремя. Попробуйте ещё раз — возможно, запрос был слишком объёмным.");
   if (m.includes("429") || m.includes("rate limit") || m.includes("overloaded"))
-    return "ИИ-движок сейчас перегружен. Подождите несколько секунд и повторите.";
-  if (m.includes("503") || m.includes("unavailable") || m.includes("не сконфигурирован"))
-    return "ИИ-движок временно недоступен. Попробуйте позже.";
-  return raw;
+    return t("ИИ-движок сейчас перегружен. Подождите несколько секунд и повторите.");
+  if (m.includes("503") || m.includes("unavailable") || m.includes("не сконфигурирован")) // i18n-exempt: backend error classifier
+    return t("ИИ-движок временно недоступен. Попробуйте позже.");
+  return t("ИИ-движок сообщил об ошибке: {message}", { message: raw });
 }
 
 export function useAiChat() {
@@ -220,7 +221,7 @@ export function useAiChat() {
     if (isStreaming.value) return;
     const last = messages.value[messages.value.length - 1];
     if (!last || last.role !== "assistant" || !last.maxTokensReached) return;
-    await send("Продолжай с того места где остановился.", options);
+    await send(t("Продолжай с того места, где остановился."), options);
   }
 
   /** Drop trailing assistant + user turn (for retry flow). Returns the user text. */

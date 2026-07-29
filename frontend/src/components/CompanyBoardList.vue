@@ -91,6 +91,11 @@ const directions = ref<{ id: string; code: string; name_ru: string; name_en?: st
 // Directions metadata — single source of truth = directions store
 // (Pack 149: dynamic, replaces former hardcoded DIRS_META).
 import { useDirectionsStore } from "@/stores/directions";
+import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
+const { t: tr } = useI18n();
+
 const directionsStore = useDirectionsStore();
 // Backwards-compat shim: code → {label, color} computed from the store so
 // existing call sites (`DIRS_META[code]?.label`) keep working.
@@ -102,7 +107,7 @@ const DIRS_META = computed<Record<string, { label: string; color: string }>>(() 
   return out;
 });
 function dirLabelFor(code: string | null | undefined): string {
-  if (!code) return "Без направления";
+  if (!code) return tr("Без направления");
   return directionsStore.labelFor(code);
 }
 function colorForDirCode(code: string | null | undefined): string {
@@ -146,7 +151,7 @@ async function loadAll() {
     // часть записей не пришла и потеряется при клиентской фильтрации по году.
     const LIST_LIMIT = 500;
     if (pData.length >= LIST_LIMIT || tData.length >= LIST_LIMIT) {
-      toast.info(`Показаны первые ${LIST_LIMIT} записей — список усечён, часть данных не отображается`);
+      toast.info(tr('Показаны первые {value0} записей — список усечён, часть данных не отображается', { value0: LIST_LIMIT }));
     }
     if (props.year) {
       const yr = Number(props.year);
@@ -171,7 +176,7 @@ async function loadAll() {
     directions.value = _arr(dRes.data);
     consultants.value = _arr(cRes);
   } catch (e: any) {
-    errorMsg.value = e?.response?.data?.detail || e?.message || "Ошибка загрузки";
+    errorMsg.value = e?.response?.data?.detail || e?.message || tr('Ошибка загрузки');
   } finally {
     loading.value = false;
   }
@@ -231,14 +236,14 @@ interface StatusMeta {
   label: string;
 }
 const STATUS_META: Record<string, StatusMeta> = {
-  init: { dot: "#7F77DD", label: "Инициировано" },
-  new: { dot: "#94A3B8", label: "Не начато" },
-  active: { dot: "#378ADD", label: "В процессе" },
-  review: { dot: "#EF9F27", label: "На согласовании" },
-  done: { dot: "#1D9E75", label: "Завершено" },
-  quarterly: { dot: "#A855F7", label: "Ежеквартально" },
-  monthly: { dot: "#6366F1", label: "Ежемесячно" },
-  ongoing: { dot: "#06B6D4", label: "Постоянно" },
+  init: { dot: "#7F77DD", label: i18nKey("Инициировано") },
+  new: { dot: "#94A3B8", label: i18nKey("Не начато") },
+  active: { dot: "#378ADD", label: i18nKey("В процессе") },
+  review: { dot: "#EF9F27", label: i18nKey("На согласовании") },
+  done: { dot: "#1D9E75", label: i18nKey("Завершено") },
+  quarterly: { dot: "#A855F7", label: i18nKey("Ежеквартально") },
+  monthly: { dot: "#6366F1", label: i18nKey("Ежемесячно") },
+  ongoing: { dot: "#06B6D4", label: i18nKey("Постоянно") },
 };
 
 function statusMeta(s: string): StatusMeta {
@@ -362,17 +367,17 @@ async function saveField(field: EditField, value: any): Promise<void> {
       : await projectsApi.update(id, payload as any);
     const row = _localRow(kind, id);
     if (isModerationQueued(res)) {
-      toast.info("Изменение отправлено на модерацию");
+      toast.info(tr('Изменение отправлено на модерацию'));
     } else if (row) {
       if (field === "status") row.status = value;
       else if (field === "direction") { row.direction = value || null; row.direction_id = null; }
       else if (field === "consultant") row.consultant = value || null;
       else if (field === "due") row.due_date = value || null;
       emit("changed");   // → родитель обновит производные вью (консультанты/обзор)
-      toast.success("Сохранено");
+      toast.success(tr('Сохранено'));
     }
   } catch (e: any) {
-    toast.error(e?.response?.data?.detail || e?.message || "Не удалось сохранить");
+    toast.error(e?.response?.data?.detail || e?.message || tr('Не удалось сохранить'));
   } finally {
     savingCell.value = false;
     pop.value = null;
@@ -517,7 +522,7 @@ async function onToggleResult(kind: "task" | "project", id: string) {
     }
   } catch (e: any) {
     console.warn("[result] toggle failed", e);
-    toast.error(e?.response?.data?.detail || "Не удалось переключить результат");
+    toast.error(e?.response?.data?.detail || tr('Не удалось переключить результат'));
   }
 }
 
@@ -575,10 +580,10 @@ function _isCarriedFrom(t: any): boolean {
 
 // ─── Текущий статус (health) — цвет/подпись точки в списке ───
 const _HEALTH: Record<string, { c: string; l: string }> = {
-  on_track: { c: "#1D9E75", l: "В графике" },
-  at_risk:  { c: "#EF9F27", l: "Под риском" },
-  delayed:  { c: "#E24B4A", l: "Задержка" },
-  blocked:  { c: "#7A1F1F", l: "Блокер" },
+  on_track: { c: "#1D9E75", l: i18nKey("В графике") },
+  at_risk:  { c: "#EF9F27", l: i18nKey("Под риском") },
+  delayed:  { c: "#E24B4A", l: i18nKey("Задержка") },
+  blocked:  { c: "#7A1F1F", l: i18nKey("Блокер") },
 };
 function healthColor(h?: string | null): string { return h && _HEALTH[h] ? _HEALTH[h].c : ""; }
 function statusExcerpt(item: ProjectItem | TaskItem): string {
@@ -608,9 +613,9 @@ const gridCols = computed(() =>
 // Приоритет задачи/проекта → метка + цвет.
 function priorityMeta(p: any): { label: string; color: string; bg: string } | null {
   const v = String(p?.priority || "").toLowerCase();
-  if (v === "high")   return { label: "Высокий", color: "#C5352F", bg: "rgba(226,75,74,.12)" };
-  if (v === "medium") return { label: "Средний", color: "#A36500", bg: "rgba(239,159,39,.14)" };
-  if (v === "low")    return { label: "Низкий",  color: "#0F6E56", bg: "rgba(29,158,117,.12)" };
+  if (v === "high")   return { label: i18nKey("Высокий"), color: "#C5352F", bg: "rgba(226,75,74,.12)" };
+  if (v === "medium") return { label: i18nKey("Средний"), color: "#A36500", bg: "rgba(239,159,39,.14)" };
+  if (v === "low")    return { label: i18nKey("Низкий"),  color: "#0F6E56", bg: "rgba(29,158,117,.12)" };
   return null;
 }
 const gridColsHd = computed(() => `18px ${gridCols.value}`);
@@ -819,14 +824,14 @@ function clearFilters() {
     <div class="bl-filters">
       <!-- Direction chips row -->
       <div v-if="dirChipsData.length" class="bl-chip-row">
-        <span class="bl-chip-row-label">Направление</span>
+        <span class="bl-chip-row-label">{{ tr('Направление') }}</span>
         <div class="bl-chips">
           <button
             class="bl-chip"
             :class="{ active: !dirFilter }"
             @click="dirFilter = ''"
           >
-            Все
+            {{ tr('Все') }}
             <span class="bl-chip-count">{{ counts["all"] || 0 }}</span>
           </button>
           <button
@@ -838,7 +843,7 @@ function clearFilters() {
             @click="dirFilter = dirFilter === d.code ? '' : d.code"
           >
             <span class="bl-chip-dot"></span>
-            {{ d.label }}
+            {{ tr(d.label) }}
             <span class="bl-chip-count">{{ d.count }}</span>
           </button>
         </div>
@@ -846,7 +851,7 @@ function clearFilters() {
 
       <!-- Status filters row -->
       <div class="bl-chip-row">
-        <span class="bl-chip-row-label">Статус</span>
+        <span class="bl-chip-row-label">{{ tr('Статус') }}</span>
         <div class="bl-chips">
           <button
             class="bl-chip bl-chip-status"
@@ -855,7 +860,7 @@ function clearFilters() {
             @click="statusFilter = statusFilter === 'overdue' ? '' : 'overdue'"
           >
             <span class="bl-chip-dot"></span>
-            Просрочены
+            {{ tr('Просрочены') }}
             <span class="bl-chip-count">{{ counts["overdue"] || 0 }}</span>
           </button>
           <button
@@ -867,32 +872,32 @@ function clearFilters() {
             @click="statusFilter = statusFilter === key ? '' : key"
           >
             <span class="bl-chip-dot"></span>
-            {{ meta.label }}
+            {{ tr(meta.label) }}
             <span class="bl-chip-count">{{ counts[key] || 0 }}</span>
           </button>
           <button
             class="bl-chip bl-chip-status"
             :class="{ active: onlyCarried }"
             :style="{ '--chip-color': '#7C6FF7' }"
-            title="Показать только перенесённые с прошлого года"
+            :title="tr('Показать только перенесённые с прошлого года')"
             @click="onlyCarried = !onlyCarried"
           >
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:2px"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 5 5v2a5 5 0 0 1-5 5H8"/></svg>
-            Перенесённые
+            {{ tr('Перенесённые') }}
             <span class="bl-chip-count">{{ counts["carried"] || 0 }}</span>
           </button>
           <button
             class="bl-chip bl-chip-status"
             :class="{ active: onlyWatched }"
             :style="{ '--chip-color': '#7F77DD' }"
-            title="Показать только отслеживаемые"
+            :title="tr('Показать только отслеживаемые')"
             @click="onlyWatched = !onlyWatched"
           >
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:2px"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
-            Отслеживаемые
+            {{ tr('Отслеживаемые') }}
           </button>
           <button v-if="dirFilter || statusFilter || onlyWatched || onlyCarried" class="bl-clear" @click="clearFilters">
-            × Сбросить
+            {{ tr('× Сбросить') }}
           </button>
         </div>
       </div>
@@ -901,13 +906,13 @@ function clearFilters() {
     <!-- ═══ LOADING / ERROR / EMPTY ═══ -->
     <div v-if="loading" class="bl-state">
       <div class="bl-spinner"></div>
-      <span>Загрузка...</span>
+      <span>{{ tr('Загрузка...') }}</span>
     </div>
     <div v-else-if="errorMsg" class="bl-state bl-state-err">
       {{ errorMsg }}
     </div>
     <div v-else-if="groups.length === 0" class="bl-state">
-      Нет проектов и задач{{ year ? ` за ${year} год` : "" }}
+      {{ tr('Нет проектов и задач') }}{{ year ? tr('за {value0} год', { value0: year }) : "" }}
     </div>
 
     <!-- ═══ TABLE — 1:1 с легасиом renderBoardList (index.html:54538) ═══ -->
@@ -915,14 +920,14 @@ function clearFilters() {
       <!-- Header (колонки тянутся за правую кромку; двойной клик по «Название» — сброс) -->
       <div class="bl-thead">
         <div></div>
-        <div class="bl-th" @dblclick="resetCols" title="Двойной клик — сбросить ширины">Название</div>
-        <div class="bl-th">Направление<span class="bl-resize" @mousedown="startResize('dir', $event)"></span></div>
-        <div class="bl-th bl-center">Консультант<span class="bl-resize" @mousedown="startResize('cons', $event)"></span></div>
-        <div class="bl-th bl-center">Статус<span class="bl-resize" @mousedown="startResize('status', $event)"></span></div>
-        <div class="bl-th bl-center">Приоритет<span class="bl-resize" @mousedown="startResize('priority', $event)"></span></div>
-        <div class="bl-th bl-center">Ход проекта<span class="bl-resize" @mousedown="startResize('hod', $event)"></span></div>
-        <div class="bl-th bl-center">Результат<span class="bl-resize" @mousedown="startResize('result', $event)"></span></div>
-        <div class="bl-th bl-right">Дедлайн<span class="bl-resize" @mousedown="startResize('dates', $event)"></span></div>
+        <div class="bl-th" @dblclick="resetCols" :title="tr('Двойной клик — сбросить ширины')">{{ tr('Название') }}</div>
+        <div class="bl-th">{{ tr('Направление') }}<span class="bl-resize" @mousedown="startResize('dir', $event)"></span></div>
+        <div class="bl-th bl-center">{{ tr('Консультант') }}<span class="bl-resize" @mousedown="startResize('cons', $event)"></span></div>
+        <div class="bl-th bl-center">{{ tr('Статус') }}<span class="bl-resize" @mousedown="startResize('status', $event)"></span></div>
+        <div class="bl-th bl-center">{{ tr('Приоритет') }}<span class="bl-resize" @mousedown="startResize('priority', $event)"></span></div>
+        <div class="bl-th bl-center">{{ tr('Ход проекта') }}<span class="bl-resize" @mousedown="startResize('hod', $event)"></span></div>
+        <div class="bl-th bl-center">{{ tr('Результат') }}<span class="bl-resize" @mousedown="startResize('result', $event)"></span></div>
+        <div class="bl-th bl-right">{{ tr('Дедлайн') }}<span class="bl-resize" @mousedown="startResize('dates', $event)"></span></div>
       </div>
 
       <!-- Groups -->
@@ -940,7 +945,7 @@ function clearFilters() {
           <div
             class="bl-handle"
             :class="{ 'bl-handle-on': canEditRows }"
-            :title="canEditRows ? 'Перетащите, чтобы изменить порядок' : ''"
+            :title="canEditRows ? tr('Перетащите, чтобы изменить порядок') : ''"
             :draggable="canEditRows"
             @click.stop
             @dragstart="onRowDragStart('project', g.project.id, '__projects__', $event)"
@@ -950,14 +955,14 @@ function clearFilters() {
             <div class="bl-title-cell">
               <span class="bl-num bl-num-project">{{ g.project.num || "" }}</span>
               <span class="bl-title bl-title-project">{{ g.project.title }}</span>
-              <span v-if="g.project.has_unread_comments" class="bl-unread" title="Есть непрочитанный комментарий">
+              <span v-if="g.project.has_unread_comments" class="bl-unread" :title="tr('Есть непрочитанный комментарий')">
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
               </span>
               <span
                 v-if="transferBadge(g.project)"
                 class="bl-transfer-badge"
                 :class="`bl-tb-${transferBadge(g.project)!.tone}`"
-                :title="transferBadge(g.project)!.tone === 'from' ? `Перенесён из FY${transferBadge(g.project)!.year}` : `Перенесён на FY${transferBadge(g.project)!.year}`"
+                :title="transferBadge(g.project)!.tone === 'from' ? tr('Перенесён из FY{value0}', { value0: transferBadge(g.project)!.year }) : tr('Перенесён на FY{value0}', { value0: transferBadge(g.project)!.year })"
               >{{ transferBadge(g.project)!.text }}</span>
             </div>
             <div class="bl-cell-dir" :class="{ 'bl-editable': canEditRows }"
@@ -967,9 +972,9 @@ function clearFilters() {
                 class="bl-dir-label"
               >
                 <span class="bl-dir-dot" :style="{ background: directionInfo(g.project)!.color }"></span>
-                <span class="bl-dir-txt">{{ directionInfo(g.project)!.label }}</span>
+                <span class="bl-dir-txt">{{ tr(directionInfo(g.project)!.label) }}</span>
               </span>
-              <span v-else-if="canEditRows" class="bl-cell-add">+ направление</span>
+              <span v-else-if="canEditRows" class="bl-cell-add">{{ tr('+ направление') }}</span>
             </div>
             <div class="bl-cell-cons" :class="{ 'bl-editable': canEditRows }"
                  @click="startEdit($event, 'project', g.project.id, 'consultant', g.project.consultant)">
@@ -986,13 +991,13 @@ function clearFilters() {
                   {{ cb.abbr || cb.name_ru || cb.name }}
                 </span>
               </template>
-              <span v-else-if="canEditRows" class="bl-cell-add">+ консультант</span>
+              <span v-else-if="canEditRows" class="bl-cell-add">{{ tr('+ консультант') }}</span>
             </div>
             <div class="bl-cell-status" :class="{ 'bl-editable': canEditRows }"
                  @click="startEdit($event, 'project', g.project.id, 'status', g.project.status)">
               <span class="bl-status-pill">
                 <span class="bl-status-dot" :style="{ background: statusMeta(g.project.status).dot }"></span>
-                {{ statusMeta(g.project.status).label }}
+                {{ tr(statusMeta(g.project.status).label) }}
                 <span v-if="g.project.status === 'quarterly'" class="bl-qcount"
                       :style="{ color: statusMeta('quarterly').dot }">{{ quartersClosed(g.project) }}/4</span>
               </span>
@@ -1000,7 +1005,7 @@ function clearFilters() {
             <div class="bl-cell-priority bl-center">
               <span v-if="priorityMeta(g.project)" class="bl-prio"
                     :style="{ color: priorityMeta(g.project)!.color, background: priorityMeta(g.project)!.bg }">
-                {{ priorityMeta(g.project)!.label }}
+                {{ tr(priorityMeta(g.project)!.label) }}
               </span>
               <span v-else class="bl-prio-empty">—</span>
             </div>
@@ -1016,19 +1021,19 @@ function clearFilters() {
               <button
                 v-if="hasResult(g.project)"
                 class="bl-result-on"
-                :title="'Результат принят: ' + fmtDate(g.project.result_at)"
+                :title="tr('Результат принят: {value0}', { value0: fmtDate(g.project.result_at) })"
                 @click.stop="onToggleResult('project', g.project.id)"
-              >✓ Принят</button>
+              >{{ tr('✓ Принят') }}</button>
               <button
                 v-else-if="needsResultAlert(g.project)"
                 class="bl-result-alert"
-                title="Завершено без результата — нажмите чтобы отметить"
+                :title="tr('Завершено без результата — нажмите чтобы отметить')"
                 @click.stop="onToggleResult('project', g.project.id)"
-              >⚠ Нужен результат</button>
+              >{{ tr('⚠ Нужен результат') }}</button>
               <button
                 v-else
                 class="bl-result-off"
-                title="Отметить как принятый"
+                :title="tr('Отметить как принятый')"
                 @click.stop="onToggleResult('project', g.project.id)"
               >—</button>
             </div>
@@ -1046,9 +1051,9 @@ function clearFilters() {
                   <span v-if="g.project.start_date" class="bl-arrow">→</span>
                   {{ fmtDate(g.project.due_date) }}
                 </span>
-                <span v-if="overdueDays(g.project)" class="bl-overdue">просрочено {{ overdueDays(g.project) }} дн</span>
+                <span v-if="overdueDays(g.project)" class="bl-overdue">{{ tr('просрочено') }} {{ overdueDays(g.project) }} {{ tr('дн') }}</span>
               </div>
-              <span v-else-if="canEditRows" class="bl-cell-add">+ дедлайн</span>
+              <span v-else-if="canEditRows" class="bl-cell-add">{{ tr('+ дедлайн') }}</span>
             </div>
           </div>
         </div>
@@ -1067,7 +1072,7 @@ function clearFilters() {
           <div
             class="bl-handle"
             :class="{ 'bl-handle-on': canEditRows }"
-            :title="canEditRows ? 'Перетащите, чтобы изменить порядок' : ''"
+            :title="canEditRows ? tr('Перетащите, чтобы изменить порядок') : ''"
             :draggable="canEditRows"
             @click.stop
             @dragstart="onRowDragStart('task', t.id, taskGroupKey(t), $event)"
@@ -1080,14 +1085,14 @@ function clearFilters() {
                 class="bl-title"
                 :class="{ 'bl-title-orphan': !g.project }"
               >{{ t.title }}</span>
-              <span v-if="t.has_unread_comments" class="bl-unread" title="Есть непрочитанный комментарий">
+              <span v-if="t.has_unread_comments" class="bl-unread" :title="tr('Есть непрочитанный комментарий')">
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
               </span>
               <span
                 v-if="transferBadge(t)"
                 class="bl-transfer-badge"
                 :class="`bl-tb-${transferBadge(t)!.tone}`"
-                :title="transferBadge(t)!.tone === 'from' ? `Перенесена из FY${transferBadge(t)!.year}` : `Перенесена на FY${transferBadge(t)!.year}`"
+                :title="transferBadge(t)!.tone === 'from' ? tr('Перенесена из FY{value0}', { value0: transferBadge(t)!.year }) : tr('Перенесена на FY{value0}', { value0: transferBadge(t)!.year })"
               >{{ transferBadge(t)!.text }}</span>
             </div>
             <div class="bl-cell-dir" :class="{ 'bl-editable': canEditRows }"
@@ -1097,9 +1102,9 @@ function clearFilters() {
                 class="bl-dir-label"
               >
                 <span class="bl-dir-dot" :style="{ background: directionInfo(t)!.color }"></span>
-                <span class="bl-dir-txt">{{ directionInfo(t)!.label }}</span>
+                <span class="bl-dir-txt">{{ tr(directionInfo(t)!.label) }}</span>
               </span>
-              <span v-else-if="canEditRows" class="bl-cell-add">+ направление</span>
+              <span v-else-if="canEditRows" class="bl-cell-add">{{ tr('+ направление') }}</span>
             </div>
             <div class="bl-cell-cons" :class="{ 'bl-editable': canEditRows }"
                  @click="startEdit($event, 'task', t.id, 'consultant', t.consultant)">
@@ -1116,13 +1121,13 @@ function clearFilters() {
                   {{ cb.abbr || cb.name_ru || cb.name }}
                 </span>
               </template>
-              <span v-else-if="canEditRows" class="bl-cell-add">+ консультант</span>
+              <span v-else-if="canEditRows" class="bl-cell-add">{{ tr('+ консультант') }}</span>
             </div>
             <div class="bl-cell-status" :class="{ 'bl-editable': canEditRows }"
                  @click="startEdit($event, 'task', t.id, 'status', t.status)">
               <span class="bl-status-pill">
                 <span class="bl-status-dot" :style="{ background: statusMeta(t.status).dot }"></span>
-                {{ statusMeta(t.status).label }}
+                {{ tr(statusMeta(t.status).label) }}
                 <span v-if="t.status === 'quarterly'" class="bl-qcount"
                       :style="{ color: statusMeta('quarterly').dot }">{{ quartersClosed(t) }}/4</span>
               </span>
@@ -1130,7 +1135,7 @@ function clearFilters() {
             <div class="bl-cell-priority bl-center">
               <span v-if="priorityMeta(t)" class="bl-prio"
                     :style="{ color: priorityMeta(t)!.color, background: priorityMeta(t)!.bg }">
-                {{ priorityMeta(t)!.label }}
+                {{ tr(priorityMeta(t)!.label) }}
               </span>
               <span v-else class="bl-prio-empty">—</span>
             </div>
@@ -1146,19 +1151,19 @@ function clearFilters() {
               <button
                 v-if="hasResult(t)"
                 class="bl-result-on"
-                :title="'Результат принят: ' + fmtDate(t.result_at)"
+                :title="tr('Результат принят: {value0}', { value0: fmtDate(t.result_at) })"
                 @click.stop="onToggleResult('task', t.id)"
-              >✓ Принят</button>
+              >{{ tr('✓ Принят') }}</button>
               <button
                 v-else-if="needsResultAlert(t)"
                 class="bl-result-alert"
-                title="Завершено без результата — нажмите чтобы отметить"
+                :title="tr('Завершено без результата — нажмите чтобы отметить')"
                 @click.stop="onToggleResult('task', t.id)"
-              >⚠ Нужен результат</button>
+              >{{ tr('⚠ Нужен результат') }}</button>
               <button
                 v-else
                 class="bl-result-off"
-                title="Отметить как принятый"
+                :title="tr('Отметить как принятый')"
                 @click.stop="onToggleResult('task', t.id)"
               >—</button>
             </div>
@@ -1170,9 +1175,9 @@ function clearFilters() {
                   <span v-if="t.start_date" class="bl-arrow">→</span>
                   {{ fmtDate(t.due_date) }}
                 </span>
-                <span v-if="overdueDays(t)" class="bl-overdue">просрочено {{ overdueDays(t) }} дн</span>
+                <span v-if="overdueDays(t)" class="bl-overdue">{{ tr('просрочено') }} {{ overdueDays(t) }} {{ tr('дн') }}</span>
               </div>
-              <span v-else-if="canEditRows" class="bl-cell-add">+ дедлайн</span>
+              <span v-else-if="canEditRows" class="bl-cell-add">{{ tr('+ дедлайн') }}</span>
             </div>
           </div>
         </div>
@@ -1187,7 +1192,7 @@ function clearFilters() {
 
         <!-- STATUS -->
         <template v-if="pop.field === 'status'">
-          <div class="bl-pop-head">Статус</div>
+          <div class="bl-pop-head">{{ tr('Статус') }}</div>
           <button
             v-for="(m, key) in STATUS_META"
             :key="key"
@@ -1196,18 +1201,18 @@ function clearFilters() {
             @click="saveField('status', key)"
           >
             <span class="bl-status-dot" :style="{ background: m.dot }"></span>
-            <span class="bl-pop-opt-label">{{ m.label }}</span>
+            <span class="bl-pop-opt-label">{{ tr(m.label) }}</span>
             <span v-if="pop.current === key" class="bl-pop-check">✓</span>
           </button>
         </template>
 
         <!-- DIRECTION -->
         <template v-else-if="pop.field === 'direction'">
-          <div class="bl-pop-head">Направление</div>
+          <div class="bl-pop-head">{{ tr('Направление') }}</div>
           <div class="bl-pop-scroll">
             <button class="bl-pop-opt" :class="{ on: !pop.current }" @click="saveField('direction', '')">
               <span class="bl-status-dot" style="background:#CBD5E1"></span>
-              <span class="bl-pop-opt-label">Без направления</span>
+              <span class="bl-pop-opt-label">{{ tr('Без направления') }}</span>
             </button>
             <button
               v-for="d in directionOptions"
@@ -1217,7 +1222,7 @@ function clearFilters() {
               @click="saveField('direction', d.code)"
             >
               <span class="bl-status-dot" :style="{ background: d.color }"></span>
-              <span class="bl-pop-opt-label">{{ d.label }}</span>
+              <span class="bl-pop-opt-label">{{ tr(d.label) }}</span>
               <span v-if="String(pop.current).toLowerCase() === d.code" class="bl-pop-check">✓</span>
             </button>
           </div>
@@ -1226,13 +1231,13 @@ function clearFilters() {
         <!-- CONSULTANT (мультивыбор) -->
         <template v-else-if="pop.field === 'consultant'">
           <div class="bl-pop-head">
-            Консультанты
+            {{ tr('Консультанты') }}
             <span v-if="consultantDraft.length" class="bl-pop-count">{{ consultantDraft.length }}</span>
           </div>
           <div class="bl-pop-scroll">
             <button class="bl-pop-opt" :class="{ on: !consultantDraft.length }" @click="clearConsultantDraft">
               <span class="bl-status-dot" style="background:#CBD5E1"></span>
-              <span class="bl-pop-opt-label">Убрать все</span>
+              <span class="bl-pop-opt-label">{{ tr('Убрать все') }}</span>
             </button>
             <button
               v-for="c in consultantOptions"
@@ -1245,19 +1250,19 @@ function clearFilters() {
                 <svg v-if="isInDraft(c.code)" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
               </span>
               <span class="bl-cons-badge bl-pop-cons" :style="{ background: c.color + '18', color: c.color }">{{ c.abbr }}</span>
-              <span class="bl-pop-opt-label">{{ c.label }}</span>
+              <span class="bl-pop-opt-label">{{ tr(c.label) }}</span>
             </button>
           </div>
           <button class="bl-pop-apply" :disabled="savingCell" @click.stop="applyConsultantDraft">
-            {{ savingCell ? "Сохранение…" : "Готово" }}
+            {{ savingCell ? tr('Сохранение…') : tr('Готово') }}
           </button>
         </template>
 
         <!-- DEADLINE -->
         <template v-else-if="pop.field === 'due'">
-          <div class="bl-pop-head">Дедлайн</div>
+          <div class="bl-pop-head">{{ tr('Дедлайн') }}</div>
           <input type="date" class="bl-pop-date" :value="_dueInputValue(pop.current)" @change="onDueInput" @click.stop />
-          <button v-if="pop.current" class="bl-pop-opt bl-pop-clear" @click="saveField('due', null)">Очистить дату</button>
+          <button v-if="pop.current" class="bl-pop-opt bl-pop-clear" @click="saveField('due', null)">{{ tr('Очистить дату') }}</button>
         </template>
       </div>
     </template>

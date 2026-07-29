@@ -10,6 +10,9 @@ import {
   type ExecutiveDashboardData,
 } from "@/api/executiveDashboard";
 import { useCompaniesStore } from "@/stores/companies";
+import { t } from "@/locale/i18n";
+
+
 
 const LS_KEY = "uz_exec_dash_prefs_v1";
 // Дефолтный год — текущий календарный (а не захардкоженный 2025); при первой
@@ -63,13 +66,13 @@ const loading = reactive({ data: false });
 const error = ref<string | null>(null);
 
 const filteredSectorsLabel = computed(() => {
-  if (!selectedSectors.value.length) return "Все секторы";
-  if (!data.value) return `Секторы: ${selectedSectors.value.length}`;
+  if (!selectedSectors.value.length) return t("Все секторы");
+  if (!data.value) return t('Секторы: {value0}', { value0: selectedSectors.value.length });
   if (selectedSectors.value.length === 1) {
     const s = data.value.available_sectors.find((x) => x.id === selectedSectors.value[0]);
-    return s ? s.label : "Сектор";
+    return s ? s.label : t("Сектор");
   }
-  return `Секторы: ${selectedSectors.value.length}`;
+  return t('Секторы: {value0}', { value0: selectedSectors.value.length });
 });
 
 // ─── Company picker / benchmarking (клиентская агрегация из data.sectors) ───
@@ -151,12 +154,12 @@ const filterCompanyId = computed(() => selectedCompanies.value.length === 1 ? se
 const benchmarkActive = computed(() => selectedCompanies.value.length >= 2);
 const companyFilterLabel = computed(() => {
   const n = selectedCompanies.value.length;
-  if (!n) return "Компании";
+  if (!n) return t("Компании");
   if (n === 1) {
     const c = pickerCompanies.value.find((x) => x.company_id === selectedCompanies.value[0]);
-    return c ? c.name : "1 компания";
+    return c ? c.name : t("1 компания");
   }
-  return `Сравнение: ${n}`;
+  return t('Сравнение: {value0}', { value0: n });
 });
 
 function toggleCompany(id: string): void {
@@ -208,7 +211,7 @@ async function loadData(force = false): Promise<void> {
     if (my !== _reqSeq) return;  // устаревший ответ — игнорируем
     data.value = null;
     _lastKey = "";  // ошибка → разрешить повтор
-    error.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить Executive Dashboard";
+    error.value = e?.response?.data?.detail || e?.message || t('Не удалось загрузить Executive Dashboard');
     console.error("[useExecutiveDashboard.loadData]", e);
   } finally {
     if (my === _reqSeq) loading.data = false;  // флаг гасит только последний запрос

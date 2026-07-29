@@ -110,7 +110,7 @@ onBeforeUnmount(() => {
         <div class="ccard-foot">
           <span class="ccard-active">
             <template v-if="merged.is_active === false">{{ t('● Отключена') }}</template>
-            <template v-else-if="lastActiveLabel">{{ t('Активность:') }} {{ lastActiveLabel }}</template>
+            <template v-else-if="lastActiveLabel">{{ t('Активность:') }} {{ t(lastActiveLabel) }}</template>
             <template v-else-if="state.loading">{{ t('загрузка…') }}</template>
             <template v-else>{{ t('нет активности') }}</template>
           </span>

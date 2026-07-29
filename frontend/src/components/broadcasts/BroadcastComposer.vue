@@ -10,6 +10,8 @@ import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
 import BIcon from "./BIcon.vue";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 const { t } = useI18n();
 
 
@@ -29,7 +31,14 @@ const saving = ref(false);
 const dirty = ref(false);
 const error = ref<string | null>(null);
 
-const WEEKDAYS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
+const WEEKDAYS = [i18nKey("Пн"), i18nKey("Вт"), i18nKey("Ср"), i18nKey("Чт"), i18nKey("Пт"), i18nKey("Сб"), i18nKey("Вс")];
+const TYPE_LABELS: Record<string, string> = {
+  announcement: i18nKey("Объявление"), policy: i18nKey("Политика"), training: i18nKey("Обучение"),
+  survey: i18nKey("Опрос"), reminder: i18nKey("Напоминание"),
+};
+const ACK_LABELS: Record<AckMode, string> = {
+  none: i18nKey("Не требуется"), click: "Click", text: i18nKey("Текст"), select: i18nKey("Список"), yesno: "Yes/No",
+};
 
 async function loadTemplate() {
   error.value = null;
@@ -82,22 +91,22 @@ async function testOnSelf() {
   try {
     if (dirty.value) await save();
     await broadcastsApi.testOnSelf(props.templateId);
-    toast.success("Тестовая рассылка отправлена вам");
+    toast.success(t('Тестовая рассылка отправлена вам'));
   } catch (e: any) { error.value = e?.response?.data?.detail || e?.message; }
 }
 
 async function sendNow() {
-  if (!(await confirmDialog({ message: "Отправить сейчас всем получателям?" }))) return;
+  if (!(await confirmDialog({ message: t("Отправить сейчас всем получателям?") }))) return;
   try {
     if (dirty.value) await save();
     await broadcastsApi.sendNow(props.templateId);
-    toast.success("Рассылка отправлена");
+    toast.success(t('Рассылка отправлена'));
     emit("saved");
   } catch (e: any) { error.value = e?.response?.data?.detail || e?.message; }
 }
 
 async function removeTemplate() {
-  if (!(await confirmDialog({ message: `Удалить рассылку "${draft.value?.name}"?`, danger: true }))) return;
+  if (!(await confirmDialog({ message: t('Удалить рассылку "{value0}"?', { value0: draft.value?.name }), danger: true }))) return;
   try {
     await broadcastsApi.deleteTemplate(props.templateId);
     emit("deleted");
@@ -126,13 +135,13 @@ function toggleWeekday(d: number) {
 function setAckMode(mode: AckMode) {
   draft.value.ack_mode = mode;
   if (mode === "select" && !draft.value.ack_options) {
-    draft.value.ack_options = ["До конца дня", "Завтра", "Нужна помощь"];
+    draft.value.ack_options = [t("До конца дня"), t("Завтра"), t("Нужна помощь")];
   }
   markDirty();
 }
 
 function addAckOption() {
-  draft.value.ack_options = [...(draft.value.ack_options || []), "Новый вариант"];
+  draft.value.ack_options = [...(draft.value.ack_options || []), t("Новый вариант")];
   markDirty();
 }
 function removeAckOption(i: number) {
@@ -177,10 +186,10 @@ const targetCount = computed(() => preview.value?.total ?? 0);
           <div class="bc-field">
             <label>{{ t('Тип') }}</label>
             <div class="bc-chips">
-              <button v-for="t in ['announcement','policy','training','survey','reminder']" :key="t"
-                      class="bc-chip" :class="{ active: draft.type === t }"
-                      @click="(e) => { draft.type = t; markDirty(); }">
-                {{ ({ announcement: "Объявление", policy: "Политика", training: "Обучение", survey: "Опрос", reminder: "Напоминание" } as Record<string, string>)[t] }}
+              <button v-for="kind in ['announcement','policy','training','survey','reminder']" :key="kind"
+                      class="bc-chip" :class="{ active: draft.type === kind }"
+                      @click="() => { draft.type = kind; markDirty(); }">
+                {{ t(TYPE_LABELS[kind]) }}
               </button>
             </div>
           </div>
@@ -294,7 +303,7 @@ const targetCount = computed(() => preview.value?.total ?? 0);
                         class="bc-wd"
                         :class="{ active: (draft.schedule_config?.weekdays || []).includes(i) }"
                         @click="toggleWeekday(i)">
-                  {{ d }}
+                  {{ t(d) }}
                 </button>
               </div>
             </div>
@@ -358,7 +367,7 @@ const targetCount = computed(() => preview.value?.total ?? 0);
                       class="bc-chip"
                       :class="{ active: draft.ack_mode === m }"
                       @click="setAckMode(m)">
-                {{ ({ none: "Не требуется", click: "Click", text: "Текст", select: "Список", yesno: "Yes/No" } as Record<string,string>)[m] }}
+                {{ t(ACK_LABELS[m]) }}
               </button>
             </div>
           </div>
@@ -433,7 +442,7 @@ const targetCount = computed(() => preview.value?.total ?? 0);
         <BIcon name="test-pipe" :size="13" /> {{ t('Test на себя') }}
       </button>
       <button class="bc-btn bc-btn-ghost" @click="save" :disabled="saving || !dirty">
-        {{ saving ? "Сохраняем..." : "Сохранить" }}
+        {{ saving ? t('Сохраняем...') : t('Сохранить') }}
       </button>
       <button v-if="!template.is_active" class="bc-btn bc-btn-primary" @click="activate">
         <BIcon name="power" :size="13" /> {{ t('Активировать') }}

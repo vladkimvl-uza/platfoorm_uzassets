@@ -28,6 +28,7 @@ from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.encryption import decrypt_int, encrypt_int
+from app.core.i18n import normalize_locale
 from app.models.mfa import (
     MfaLoginChallenge,
     MfaMethod,
@@ -100,6 +101,12 @@ async def enqueue_telegram_message(
     payload structure depends on msg_type — see services/telegram_format.py
     (which the bot worker reads to render the actual message).
     """
+    payload = dict(payload or {})
+    if "locale" not in payload:
+        raw_locale = (await db.execute(
+            select(User.ui_locale).where(User.id == user_id),
+        )).scalar_one_or_none()
+        payload["locale"] = normalize_locale(raw_locale)
     row = TelegramOutbox(
         user_id=user_id,
         type=msg_type,
@@ -152,6 +159,7 @@ async def emit_login_challenge(
             "ip": ip,
             "user_agent": (ua or "")[:128],
             "challenge_id": str(challenge.id),
+            "locale": normalize_locale(getattr(user, "ui_locale", None)),
         },
     )
 
@@ -166,6 +174,7 @@ async def emit_login_challenge(
                 code=code,
                 ip=ip,
                 when=now.strftime("%d.%m.%Y %H:%M UTC"),
+                locale=normalize_locale(getattr(user, "ui_locale", None)),
             )
     except Exception:  # noqa: BLE001 — defensive; mail must not break MFA
         logging.getLogger(__name__).warning(

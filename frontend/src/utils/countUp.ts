@@ -79,7 +79,7 @@ export function countUpEl(
   const stripped = orig.replace(/<[^>]+>/g, "").trim();
   if (
     stripped === "\u2014" || stripped === "—" || stripped === "-" ||
-    stripped === "н/д" || stripped === "\u2026" || stripped === "..."
+    stripped === "н/д" || stripped === "\u2026" || stripped === "..." // i18n-exempt: localized non-numeric sentinel parser
   ) {
     orig = "";
     el.innerHTML = "";
@@ -88,7 +88,7 @@ export function countUpEl(
   let suffix = m ? m[2] : "";
   if (suffix && /[\u2014—]/.test(suffix)) {
     suffix = suffix.replace(/[\u2014—]/g, "").trim();
-    if (suffix && !suffix.match(/^[\s%a-zа-яё/]/i)) suffix = " " + suffix;
+  if (suffix && !suffix.match(/^[\s%a-zа-яё/]/i)) suffix = " " + suffix; // i18n-exempt: suffix script classifier
   }
 
   // Initial state setup with cross-render morph support

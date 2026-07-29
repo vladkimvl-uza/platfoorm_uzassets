@@ -1,4 +1,5 @@
 import { mount } from '@vue/test-utils';
+import { createPinia } from 'pinia';
 import { describe, expect, it } from 'vitest';
 import RoleAssignmentPicker from '../RoleAssignmentPicker.vue';
 import type { RbacV3Role } from '@/api/rbacV3';
@@ -26,11 +27,16 @@ const roles: RbacV3Role[] = [
   },
 ];
 
+function mountPicker(props: { roles: RbacV3Role[]; modelValue: string[]; multiple?: boolean }) {
+  return mount(RoleAssignmentPicker, {
+    props,
+    global: { plugins: [createPinia()] },
+  });
+}
+
 describe('RoleAssignmentPicker', () => {
   it('adds a role without dropping existing selections in multiple mode', async () => {
-    const wrapper = mount(RoleAssignmentPicker, {
-      props: { roles, modelValue: ['viewer'] },
-    });
+    const wrapper = mountPicker({ roles, modelValue: ['viewer'] });
 
     await wrapper.get('button[aria-pressed="false"]').trigger('click');
 
@@ -40,9 +46,7 @@ describe('RoleAssignmentPicker', () => {
   });
 
   it('emits only the picked role in single mode', async () => {
-    const wrapper = mount(RoleAssignmentPicker, {
-      props: { roles, modelValue: ['viewer'], multiple: false },
-    });
+    const wrapper = mountPicker({ roles, modelValue: ['viewer'], multiple: false });
 
     await wrapper.get('button[aria-pressed="false"]').trigger('click');
 
@@ -52,9 +56,7 @@ describe('RoleAssignmentPicker', () => {
   });
 
   it('filters roles by their localized name', async () => {
-    const wrapper = mount(RoleAssignmentPicker, {
-      props: { roles, modelValue: [] },
-    });
+    const wrapper = mountPicker({ roles, modelValue: [] });
 
     await wrapper.get('input[type="search"]').setValue('финанс');
 

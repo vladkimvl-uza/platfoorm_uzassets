@@ -57,7 +57,7 @@ async function run() {
       try {
         parsedBody = JSON.parse(bodyJson.value);
       } catch {
-        error.value = "JSON body не парсится — проверьте синтаксис";
+        error.value = t('JSON body не парсится — проверьте синтаксис');
         running.value = false;
         return;
       }
@@ -79,7 +79,7 @@ async function run() {
       confirm_destructive: isDestructive.value,
     });
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || e?.message || "Запрос упал";
+    error.value = e?.response?.data?.detail || e?.message || t('Запрос упал');
   } finally {
     running.value = false;
   }
@@ -157,7 +157,7 @@ function fmtJson(s: string | null): string {
         class="tio-btn tio-btn-primary"
         :disabled="running || !url"
         @click="run"
-      >{{ running ? "Выполняем…" : showConfirm ? "Run (подтвердить)" : "Run" }}</button>
+      >{{ running ? t('Выполняем…') : showConfirm ? t('Run (подтвердить)') : "Run" }}</button>
     </template>
   </ModalShell>
 </template>

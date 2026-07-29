@@ -34,6 +34,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import jwt as app_jwt
 from app.core.access import allowed_company_ids, ensure_company_access
+from app.core.i18n import current_locale, tr
 from app.core.security import get_current_user, require_permission
 from app.database import get_db
 from app.dependencies.company_library import CompanyLibraryServiceDep
@@ -121,7 +122,7 @@ async def write_library_field(
             content={
                 "queued": True, "submission_id": str(result.submission_id),
                 "status": result.status,
-                "message": "Изменение отправлено на модерацию",
+                "message": tr("Изменение отправлено на модерацию", current_locale()),
             },
         )
     return result

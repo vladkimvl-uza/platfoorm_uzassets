@@ -22,6 +22,8 @@
 import { computed } from "vue";
 import { useCompaniesStore } from "@/stores/companies";
 import { canonSectorCode, sectorShortLabel } from "@/utils/displayNames";
+import { i18nKey } from "@/locale/keys";
+
 
 // ─── Канонические 5 секторов в порядке отображения ───
 export const SECTOR_ORDER = ["mining", "oilgas", "energy", "transport", "other"] as const;
@@ -40,11 +42,11 @@ export const SECTOR_COLORS: Record<SectorCode, string> = {
 // hasn't loaded yet or when the sector isn't in DB. Once the store
 // loads, these are overridden by sector.name_ru from the API.
 const FALLBACK_LABELS: Record<SectorCode, string> = {
-  mining:    "Горнодобывающий",
-  oilgas:    "Нефтегазовый",
-  energy:    "Энергетика",
-  transport: "Транспорт и коммуникации",
-  other:     "Другой сектор",
+  mining:    i18nKey("Горнодобывающий"),
+  oilgas:    i18nKey("Нефтегазовый"),
+  energy:    i18nKey("Энергетика"),
+  transport: i18nKey("Транспорт и коммуникации"),
+  other:     i18nKey("Другой сектор"),
 };
 
 export interface SectorMetaEntry {

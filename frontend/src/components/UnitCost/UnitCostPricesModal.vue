@@ -10,6 +10,8 @@ import ModalShell from "@/components/ModalShell.vue";
 import { useToast } from "@/composables/useToast";
 import { unitCostApi, FUELS, type UCPrices, type UCWorld } from "@/api/unitCost";
 import FuelIcon from "@/components/UnitCost/FuelIcon.vue";
+import { i18nKey } from "@/locale/keys";
+
 
 const props = defineProps<{ open: boolean; prices: UCPrices; world: UCWorld | null;
   live: UCWorld | null; fuelLabels: Record<string, string>; year: number; quarter: string }>();
@@ -18,19 +20,19 @@ const toast = useToast();
 const { t } = useI18n();
 
 const FUEL_UNIT: Record<string, string> = {
-  electricity: "сум/кВт·ч", gas: "сум/м³", diesel: "сум/т", mazut: "сум/т", coal: "сум/т", kerosene: "сум/т",
+  electricity: i18nKey("сум/кВт·ч"), gas: i18nKey("сум/м³"), diesel: i18nKey("сум/т"), mazut: i18nKey("сум/т"), coal: i18nKey("сум/т"), kerosene: i18nKey("сум/т"),
 };
 const FUEL_USD_UNIT: Record<string, string> = {
-  electricity: "$/кВт·ч", gas: "$/м³", diesel: "$/т", mazut: "$/т", coal: "$/т", kerosene: "$/т",
+  electricity: i18nKey("$/кВт·ч"), gas: i18nKey("$/м³"), diesel: i18nKey("$/т"), mazut: i18nKey("$/т"), coal: i18nKey("$/т"), kerosene: i18nKey("$/т"),
 };
 const FUEL_COLOR: Record<string, string> = {
   electricity: "#EF9F27", gas: "#378ADD", diesel: "#E24B4A", mazut: "#8B7FFF", coal: "#4B5468", kerosene: "#1D9E75",
 };
 const WORLD = [
-  { key: "usd_rate", label: "Курс USD / сум", unit: "сум за $1" },
-  { key: "brent", label: "Brent", unit: "$ / баррель" },
-  { key: "gold", label: "Золото", unit: "$ / унция" },
-  { key: "copper", label: "Медь", unit: "$ / тонна" },
+  { key: "usd_rate", label: i18nKey("Курс USD / сум"), unit: i18nKey("сум за $1") },
+  { key: "brent", label: "Brent", unit: i18nKey("$ / баррель") },
+  { key: "gold", label: i18nKey("Золото"), unit: i18nKey("$ / унция") },
+  { key: "copper", label: i18nKey("Медь"), unit: i18nKey("$ / тонна") },
 ] as const;
 
 const pdraft = ref<Record<string, { price: string; usd: string }>>({});

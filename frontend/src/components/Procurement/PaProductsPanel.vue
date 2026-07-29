@@ -344,7 +344,7 @@ function companyDot(c: WorkServiceByCompany): string {
                     <span
                       class="pa-chip"
                       :class="'band-' + p.quality_band"
-                      :title="bandLabel(p.quality_band)"
+                      :title="t(bandLabel(p.quality_band))"
                     >
                       {{ p.spread_pct.toFixed(1) }}%
                     </span>

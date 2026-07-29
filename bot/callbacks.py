@@ -23,6 +23,8 @@ from aiogram.types import CallbackQuery
 from aiogram.exceptions import TelegramBadRequest
 
 import config
+import db
+from i18n import locale_from_telegram, msg, normalize_locale
 
 log = logging.getLogger("uza-bot.callbacks")
 
@@ -33,6 +35,23 @@ _PLATFORM_API_URL = (
     or getattr(config, "PLATFORM_URL", "https://localhost").rstrip("/") + "/api"
 )
 _BOT_CALLBACK_SECRET = getattr(config, "BOT_CALLBACK_SECRET", "") or ""
+
+
+async def _callback_locale(cq: CallbackQuery, link_token: str = "") -> str:
+    fallback = locale_from_telegram(
+        getattr(cq.from_user, "language_code", None) if cq.from_user else None
+    )
+    if cq.from_user is None:
+        return fallback
+    try:
+        user = await db.find_user_by_chat_id(cq.from_user.id)
+        if user is None and link_token:
+            user = await db.lookup_user_by_link_token(link_token)
+        if user:
+            return normalize_locale(user.get("ui_locale"))
+    except Exception as exc:
+        log.debug("Could not resolve callback locale: %s", exc)
+    return fallback
 
 
 # =====================================================================
@@ -95,12 +114,13 @@ async def on_moderation_approve(cq: CallbackQuery) -> None:
         await cq.answer()
         return
 
+    locale = await _callback_locale(cq)
     sub_id = cq.data.split(":", 2)[2] if cq.data.count(":") >= 2 else ""
     if not sub_id:
-        await cq.answer("Некорректный ID.", show_alert=True)
+        await cq.answer(msg("invalid_id", locale), show_alert=True)
         return
 
-    await cq.answer("Принимаем…")
+    await cq.answer(msg("accepting", locale))
     chat_id = cq.from_user.id
     code, data = await _signed_post(
         "/bot/moderation/approve",
@@ -108,14 +128,14 @@ async def on_moderation_approve(cq: CallbackQuery) -> None:
     )
 
     if code == 200 and data.get("ok"):
-        await _strip_kbd_and_append(cq, "<b>✓ ПРИНЯТО</b>\n<i>Подтверждено через Telegram.</i>")
+        await _strip_kbd_and_append(cq, msg("accepted_footer", locale))
     elif code == 404:
-        await cq.answer("Telegram аккаунт не привязан или вы не имеете прав.", show_alert=True)
+        await cq.answer(msg("account_or_permission_missing", locale), show_alert=True)
     elif code == 401:
-        await cq.answer("Доступ запрещён. Проверьте настройки бота.", show_alert=True)
+        await cq.answer(msg("bot_access_denied", locale), show_alert=True)
     else:
-        detail = data.get("detail", "ошибка")
-        await cq.answer(f"Не удалось принять: {detail}", show_alert=True)
+        detail = data.get("detail", str(code))
+        await cq.answer(msg("accept_failed", locale, detail=detail), show_alert=True)
 
 
 @router.callback_query(F.data.startswith("mod:reject:"))
@@ -124,12 +144,13 @@ async def on_moderation_reject(cq: CallbackQuery) -> None:
         await cq.answer()
         return
 
+    locale = await _callback_locale(cq)
     sub_id = cq.data.split(":", 2)[2] if cq.data.count(":") >= 2 else ""
     if not sub_id:
-        await cq.answer("Некорректный ID.", show_alert=True)
+        await cq.answer(msg("invalid_id", locale), show_alert=True)
         return
 
-    await cq.answer("Отклоняем…")
+    await cq.answer(msg("rejecting", locale))
     chat_id = cq.from_user.id
     code, data = await _signed_post(
         "/bot/moderation/reject",
@@ -137,14 +158,14 @@ async def on_moderation_reject(cq: CallbackQuery) -> None:
     )
 
     if code == 200 and data.get("ok"):
-        await _strip_kbd_and_append(cq, "<b>✗ ОТКЛОНЕНО</b>\n<i>Отклонено через Telegram.</i>")
+        await _strip_kbd_and_append(cq, msg("rejected_footer", locale))
     elif code == 404:
-        await cq.answer("Telegram аккаунт не привязан или вы не имеете прав.", show_alert=True)
+        await cq.answer(msg("account_or_permission_missing", locale), show_alert=True)
     elif code == 401:
-        await cq.answer("Доступ запрещён. Проверьте настройки бота.", show_alert=True)
+        await cq.answer(msg("bot_access_denied", locale), show_alert=True)
     else:
-        detail = data.get("detail", "ошибка")
-        await cq.answer(f"Не удалось отклонить: {detail}", show_alert=True)
+        detail = data.get("detail", str(code))
+        await cq.answer(msg("reject_failed", locale, detail=detail), show_alert=True)
 
 
 # =====================================================================
@@ -157,11 +178,12 @@ async def on_tglink_confirm(cq: CallbackQuery) -> None:
         return
 
     token = cq.data.split(":", 2)[2] if cq.data.count(":") >= 2 else ""
+    locale = await _callback_locale(cq, token)
     if not token:
-        await cq.answer("Некорректный токен.", show_alert=True)
+        await cq.answer(msg("invalid_link_token", locale), show_alert=True)
         return
 
-    await cq.answer("Привязываем…")
+    await cq.answer(msg("linking", locale))
     chat_id = cq.from_user.id
     code, data = await _signed_post(
         "/bot/tg-link/confirm",
@@ -174,19 +196,14 @@ async def on_tglink_confirm(cq: CallbackQuery) -> None:
 
     if code == 200 and data.get("ok"):
         email = data.get("email", "")
-        await _strip_kbd_and_append(
-            cq,
-            "<b>✓ ПРИВЯЗАНО</b>\n"
-            f"Telegram привязан к аккаунту <code>{email}</code>.\n"
-            "<i>Можно вернуться в браузер.</i>",
-        )
+        await _strip_kbd_and_append(cq, msg("linked_footer", locale, email=email))
     elif code == 410:
-        await cq.answer("Токен истёк. Откройте окно настройки заново.", show_alert=True)
+        await cq.answer(msg("link_token_expired", locale), show_alert=True)
     elif code == 404:
-        await cq.answer("Токен не найден. Возможно, он уже использован.", show_alert=True)
+        await cq.answer(msg("link_token_not_found", locale), show_alert=True)
     else:
-        detail = data.get("detail", "ошибка")
-        await cq.answer(f"Не удалось привязать: {detail}", show_alert=True)
+        detail = data.get("detail", str(code))
+        await cq.answer(msg("link_failed", locale, detail=detail), show_alert=True)
 
 
 @router.callback_query(F.data.startswith("tglink:deny:"))
@@ -196,23 +213,19 @@ async def on_tglink_deny(cq: CallbackQuery) -> None:
         return
 
     token = cq.data.split(":", 2)[2] if cq.data.count(":") >= 2 else ""
+    locale = await _callback_locale(cq, token)
     if not token:
         await cq.answer()
         return
 
-    await cq.answer("Отменяем…")
+    await cq.answer(msg("cancelling", locale))
     chat_id = cq.from_user.id
     await _signed_post(
         "/bot/tg-link/deny",
         {"chat_id": chat_id, "token": token},
     )
 
-    await _strip_kbd_and_append(
-        cq,
-        "<b>⊘ ОТМЕНЕНО</b>\n"
-        "<i>Привязка отменена. Если это были не вы — сообщите администратору, "
-        "что кто-то получил доступ к ссылке привязки.</i>",
-    )
+    await _strip_kbd_and_append(cq, msg("link_cancelled_footer", locale))
 
 
 # =====================================================================
@@ -229,8 +242,9 @@ async def on_mfa_not_me(cq: CallbackQuery) -> None:
         await cq.answer()
         return
 
+    locale = await _callback_locale(cq)
     mfa_token = cq.data.split(":", 1)[1] if ":" in cq.data else ""
-    await cq.answer("Сообщаем…")
+    await cq.answer(msg("reporting", locale))
 
     chat_id = cq.from_user.id
     code, data = await _signed_post(
@@ -239,16 +253,12 @@ async def on_mfa_not_me(cq: CallbackQuery) -> None:
     )
 
     if code == 200 and data.get("ok"):
-        await _strip_kbd_and_append(
-            cq,
-            "<b>⚠ Сообщение отправлено</b>\n"
-            "<i>Безопасность уведомлена. Рекомендуем сменить пароль.</i>",
-        )
+        await _strip_kbd_and_append(cq, msg("security_reported_footer", locale))
     elif code == 404:
-        await cq.answer("Telegram аккаунт не привязан.", show_alert=True)
+        await cq.answer(msg("account_not_linked_short", locale), show_alert=True)
     else:
-        detail = data.get("detail", "ошибка")
-        await cq.answer(f"Не удалось сообщить: {detail}", show_alert=True)
+        detail = data.get("detail", str(code))
+        await cq.answer(msg("report_failed", locale, detail=detail), show_alert=True)
 
 
 # ─── kpi_approve / kpi_reject :<submission_id> ───────────────────────
@@ -280,12 +290,13 @@ async def _module_decision(cq: CallbackQuery, *, module: str, decision: str) -> 
         await cq.answer()
         return
 
+    locale = await _callback_locale(cq)
     sub_id = cq.data.split(":", 1)[1] if ":" in cq.data else ""
     if not sub_id:
-        await cq.answer("Некорректный ID.", show_alert=True)
+        await cq.answer(msg("invalid_id", locale), show_alert=True)
         return
 
-    await cq.answer("Отправляем решение…")
+    await cq.answer(msg("sending_decision", locale))
 
     chat_id = cq.from_user.id
     code, data = await _signed_post(
@@ -293,21 +304,24 @@ async def _module_decision(cq: CallbackQuery, *, module: str, decision: str) -> 
         {"chat_id": chat_id, "decision": decision},
     )
 
-    label_ok = "<b>✓ УТВЕРЖДЕНО</b>" if decision == "approve" else "<b>✗ НА ДОРАБОТКУ</b>"
+    label_ok = msg(
+        "decision_approved" if decision == "approve" else "decision_changes",
+        locale,
+    )
     if code == 200 and data.get("ok"):
         await _strip_kbd_and_append(
-            cq, f"{label_ok}\n<i>Действие выполнено через Telegram.</i>"
+            cq, f"{label_ok}\n<i>{msg('decision_done', locale)}</i>"
         )
     elif code == 404:
-        await cq.answer("Telegram аккаунт не привязан или объект не найден.", show_alert=True)
+        await cq.answer(msg("account_or_entity_missing", locale), show_alert=True)
     elif code == 403:
-        await cq.answer("Нет прав на это действие.", show_alert=True)
+        await cq.answer(msg("action_forbidden", locale), show_alert=True)
     elif code == 409:
-        detail = data.get("detail", "уже обработано")
-        await cq.answer(f"Конфликт: {detail}", show_alert=True)
+        detail = data.get("detail", str(code))
+        await cq.answer(msg("action_conflict", locale, detail=detail), show_alert=True)
     else:
-        detail = data.get("detail", "ошибка")
-        await cq.answer(f"Не удалось: {detail}", show_alert=True)
+        detail = data.get("detail", str(code))
+        await cq.answer(msg("action_failed", locale, detail=detail), show_alert=True)
 
 
 # =====================================================================
@@ -323,9 +337,10 @@ async def on_mention_reply(cq: CallbackQuery) -> None:
     """User clicked «Ответить в чате» — set pending-reply state, ask for next msg."""
     if cq.data is None or cq.message is None or cq.from_user is None:
         await cq.answer(); return
+    locale = await _callback_locale(cq)
     parts = cq.data.split(":", 2)
     if len(parts) != 3:
-        await cq.answer("Некорректный callback", show_alert=True); return
+        await cq.answer(msg("invalid_callback", locale), show_alert=True); return
     _, ent_type, ent_id = parts
 
     _PENDING_REPLIES[cq.from_user.id] = {
@@ -333,14 +348,9 @@ async def on_mention_reply(cq: CallbackQuery) -> None:
         "entity_id": ent_id,
         "expires_at": _time.time() + 600,
     }
-    await cq.answer("Жду ваш ответ — следующее сообщение станет комментарием")
+    await cq.answer(msg("waiting_reply", locale))
     try:
-        await cq.message.reply(
-            "<b>💬 Напишите ответ</b>\n\n"
-            "Следующее ваше сообщение в этом чате будет добавлено как комментарий "
-            "к задаче/проекту на платформе. Можете использовать @-упоминания. "
-            "Чтобы отменить — отправьте /cancel"
-        )
+        await cq.message.reply(msg("reply_prompt", locale))
     except Exception as e:
         log.warning("mention_reply: reply failed: %s", e)
 

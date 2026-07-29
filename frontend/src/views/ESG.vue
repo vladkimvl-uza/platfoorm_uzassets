@@ -40,6 +40,8 @@ import { useAuthStore } from "@/stores/auth";
 import { watch } from "vue";
 import type { ESGMaturityHeatmap, ESGMaturityCompany, ESGSwotResponse, ESGSwotItemBrief } from "@/api/esg";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 const { t } = useI18n();
 
 
@@ -86,7 +88,7 @@ async function loadMaturity() {
     heatmap.value = await esgApi.getMaturityHeatmap(year.value ?? undefined);
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    toast.error("Матрица зрелости: " + (err?.response?.data?.detail || err?.message || "ошибка"));
+    toast.error(t('Матрица зрелости: {value0}', { value0: (err?.response?.data?.detail || err?.message || t("ошибка")) }));
   } finally {
     matLoading.value = false;
   }
@@ -97,7 +99,7 @@ async function loadSwot() {
     swot.value = await esgApi.getSwot();
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    toast.error("Выводы: " + (err?.response?.data?.detail || err?.message || "ошибка"));
+    toast.error(t('Выводы: {value0}', { value0: (err?.response?.data?.detail || err?.message || t("ошибка")) }));
   } finally {
     swotLoading.value = false;
   }
@@ -124,18 +126,18 @@ const swotByCompany = computed(() => {
 const climateStages = computed(() => {
   const f = heatmap.value?.climate_funnel || [0, 0, 0, 0];
   return [
-    { label: "Количественная оценка выбросов ПГ (Охваты 1, 2)", count: f[0] || 0 },
-    { label: "Оценка климат-рисков", count: f[1] || 0 },
-    { label: "Разработка плана декарбонизации", count: f[2] || 0 },
-    { label: "Реализация плана декарбонизации", count: f[3] || 0 },
+    { label: i18nKey("Количественная оценка выбросов ПГ (Охваты 1, 2)"), count: f[0] || 0 },
+    { label: i18nKey("Оценка климат-рисков"), count: f[1] || 0 },
+    { label: i18nKey("Разработка плана декарбонизации"), count: f[2] || 0 },
+    { label: i18nKey("Реализация плана декарбонизации"), count: f[3] || 0 },
   ];
 });
 const riskStages = computed(() => {
   const f = heatmap.value?.risk_funnel || [0, 0, 0];
   return [
     { label: "Double-materiality assessment", count: f[0] || 0 },
-    { label: "Количественная оценка рисков устойчивого развития", count: f[1] || 0 },
-    { label: "Интеграция контроля за рисками в ERM (СУР)", count: f[2] || 0 },
+    { label: i18nKey("Количественная оценка рисков устойчивого развития"), count: f[1] || 0 },
+    { label: i18nKey("Интеграция контроля за рисками в ERM (СУР)"), count: f[2] || 0 },
   ];
 });
 function agencyAbbr(a: string): string {
@@ -167,8 +169,8 @@ const matDonut = computed<DonutEntry[]>(() => {
   const out: DonutEntry[] = [...byAg.entries()]
     .sort((a, b) => b[1] - a[1])
     .map(([ag, n], i) => ({ label: agencyAbbr(ag), color: AG_PALETTE[i % AG_PALETTE.length],
-                            value: n, sub: `${n} из ${total}` }));
-  if (none) out.push({ label: "Без рейтинга", color: "#E2E8F0", value: none, sub: `${none} из ${total}` });
+                            value: n, sub: t("{value} из {total}", { value: n, total }) }));
+  if (none) out.push({ label: i18nKey("Без рейтинга"), color: "#E2E8F0", value: none, sub: t("{value} из {total}", { value: none, total }) });
   return out;
 });
 
@@ -187,17 +189,17 @@ const matAlerts = computed<MatAlert[]>(() => {
   };
   const nr = (c: ESGMaturityCompany, d: string) => (c.dim_not_required || []).includes(d);
   // Порядок «база → результат»: ISO → отчётность → декарбонизация → рейтинг.
-  push("iso", "не внедрены базовые стандарты ISO",
-    "Не внедрены базовые системы менеджмента ISO (14001 / 45001 / 50001).",
+  push("iso", t("не внедрены базовые стандарты ISO"),
+    t("Не внедрены базовые системы менеджмента ISO (14001 / 45001 / 50001)."),
     "#378ADD", (c) => !nr(c, "D1") && (c.dim_stage?.D1 ?? 0) === 0);
-  push("rep", "не внедрена практика ESG-отчётности",
-    "Не внедрена практика подготовки ESG-отчётности (GRI/SASB → IFRS SDS).",
+  push("rep", t("не внедрена практика ESG-отчётности"),
+    t("Не внедрена практика подготовки ESG-отчётности (GRI/SASB → IFRS SDS)."),
     "#D97706", (c) => !nr(c, "D2") && (c.dim_stage?.D2 ?? 0) === 0);
-  push("clm", "нет плана декарбонизации",
-    "Не разработан план декарбонизации в рамках климатической стратегии (D4 < «+план»).",
+  push("clm", t("нет плана декарбонизации"),
+    t("Не разработан план декарбонизации в рамках климатической стратегии (D4 < «+план»)."),
     "#1D9E75", (c) => !nr(c, "D4") && (c.dim_stage?.D4 ?? 0) < 3);
-  push("rt", "без независимого рейтинга",
-    "Нет ни одного независимого ESG-рейтинга (Sustainable Fitch / S&P ESG / CDP). Рекомендуется инициировать присвоение.",
+  push("rt", t("без независимого рейтинга"),
+    t("Нет ни одного независимого ESG-рейтинга (Sustainable Fitch / S&P ESG / CDP). Рекомендуется инициировать присвоение."),
     "#D97706", (c) => !nr(c, "D3") && (c.rating_count || 0) === 0);
   return out;
 });
@@ -205,11 +207,11 @@ const matProfile = ref<ESGMaturityCompany | null>(null);
 
 // ─── Единый premium drill-down (KPI / алерты / воронки) ───────────
 function emsColor(e: number): string { return e >= 70 ? "#1D9E75" : e >= 40 ? "#D97706" : "#E24B4A"; }
-const CLIMATE_STAGE_LBL = ["нет", "Scope 1–2", "+ риски", "+ план", "реализация"];
-const RISK_STAGE_LBL = ["нет", "double-mat.", "оценка", "ERM"];
-const ISO_STAGE_LBL = ["нет", "в процессе", "1 серт.", "2 серт.", "3 серт."];
+const CLIMATE_STAGE_LBL = [i18nKey("нет"), "Scope 1–2", i18nKey("+ риски"), i18nKey("+ план"), i18nKey("реализация")];
+const RISK_STAGE_LBL = [i18nKey("нет"), "double-mat.", i18nKey("оценка"), "ERM"];
+const ISO_STAGE_LBL = [i18nKey("нет"), i18nKey("в процессе"), i18nKey("1 серт."), i18nKey("2 серт."), i18nKey("3 серт.")];
 // D2 отчётность 0..3 (заверение вынесено в отдельное измерение D2A матрицы).
-const REP_STAGE_LBL = ["нет", "разовый", "регулярный", "IFRS SDS"];
+const REP_STAGE_LBL = [i18nKey("нет"), i18nKey("разовый"), i18nKey("регулярный"), "IFRS SDS"];
 // Кол-во компаний с ESG-отчётностью уровня IFRS SDS и выше (D2 ≥ 3).
 const ifrsSdsCount = computed(() => (heatmap.value?.companies || []).filter((c) => !c.not_needed && !(c.dim_not_required || []).includes("D2") && (c.dim_stage?.D2 ?? 0) >= 3).length);
 // Климатические стратегии (D4): разработанные = «+план» и выше (стадия ≥3);
@@ -241,33 +243,33 @@ function openKpiDrill(kind: "ifrssds" | "coverage" | "baskets" | "iso" | "climat
   const nr = (c: ESGMaturityCompany, d: string) => (c.dim_not_required || []).includes(d);
   if (kind === "ifrssds") {
     const list = cs.filter((c) => !nr(c, "D2") && (c.dim_stage?.D2 ?? 0) >= 3).sort((a, b) => (b.dim_stage?.D2 ?? 0) - (a.dim_stage?.D2 ?? 0));
-    drill.value = { title: "Отчётность 2025 · IFRS SDS", subtitle: "ESG-отчётность по IFRS S2 (D2 ≥ IFRS SDS) · подготовка в процессе", accent: "#7C6FF7",
-      rows: list.map((c) => ({ ...baseRow(c), value: REP_STAGE_LBL[c.dim_stage?.D2 ?? 0], valueColor: "#1D9E75" })) };
+    drill.value = { title: i18nKey("Отчётность 2025 · IFRS SDS"), subtitle: i18nKey("ESG-отчётность по IFRS S2 (D2 ≥ IFRS SDS) · подготовка в процессе"), accent: "#7C6FF7",
+      rows: list.map((c) => ({ ...baseRow(c), value: t(REP_STAGE_LBL[c.dim_stage?.D2 ?? 0]), valueColor: "#1D9E75" })) };
   } else if (kind === "coverage") {
     const list = cs.filter((c) => !nr(c, "D3")).sort((a, b) => (b.rating_count || 0) - (a.rating_count || 0));
-    drill.value = { title: "Рейтинги в предприятиях", subtitle: "независимые ESG-рейтинги по компаниям", accent: "#D97706",
+    drill.value = { title: i18nKey("Рейтинги в предприятиях"), subtitle: i18nKey("независимые ESG-рейтинги по компаниям"), accent: "#D97706",
       rows: list.map((c) => ({ ...baseRow(c),
-        value: (c.rating_count || 0) > 0 ? `${c.rating_count} рейт.` : "нет",
+        value: (c.rating_count || 0) > 0 ? t("{count} рейт.", { count: c.rating_count }) : t("нет"),
         valueColor: (c.rating_count || 0) > 0 ? "#1D9E75" : "#E24B4A" })) };
   } else if (kind === "baskets") {
     cs.sort((a, b) => b.ems - a.ems);
-    const basket = (e: number) => e >= 70 ? { t: "зрелая", c: "#1D9E75" } : e >= 40 ? { t: "развив.", c: "#D97706" } : { t: "начальн.", c: "#E24B4A" };
-    drill.value = { title: "Уровни зрелости", subtitle: "зрелые ≥70 · развив. 40–69 · начальные <40", accent: "#378ADD",
-      rows: cs.map((c) => { const b = basket(c.ems); return { ...baseRow(c), value: Math.round(c.ems), valueColor: emsColor(c.ems), badge: b.t, badgeColor: b.c }; }) };
+    const basket = (e: number) => e >= 70 ? { t: i18nKey("зрелая"), c: "#1D9E75" } : e >= 40 ? { t: i18nKey("развив."), c: "#D97706" } : { t: i18nKey("начальн."), c: "#E24B4A" };
+    drill.value = { title: i18nKey("Уровни зрелости"), subtitle: i18nKey("зрелые ≥70 · развив. 40–69 · начальные <40"), accent: "#378ADD",
+      rows: cs.map((c) => { const b = basket(c.ems); return { ...baseRow(c), value: Math.round(c.ems), valueColor: emsColor(c.ems), badge: t(b.t), badgeColor: b.c }; }) };
   } else if (kind === "climate") {
     const list = cs.filter((c) => !nr(c, "D4")).sort((a, b) => _d4(b) - _d4(a));
-    drill.value = { title: "Климатические стратегии", subtitle: "разработанные (D4 ≥ +план) · в процессе (Scope 1–2 / +риски)", accent: "#1D9E75",
-      rows: list.map((c) => { const s = _d4(c); return { ...baseRow(c), value: CLIMATE_STAGE_LBL[s], valueColor: s >= 3 ? "#1D9E75" : s >= 1 ? "#D97706" : "#94A3B8",
-        badge: s >= 3 ? "разраб." : s >= 1 ? "в проц." : "нет", badgeColor: s >= 3 ? "#1D9E75" : s >= 1 ? "#D97706" : "#94A3B8" }; }) };
+    drill.value = { title: i18nKey("Климатические стратегии"), subtitle: i18nKey("разработанные (D4 ≥ +план) · в процессе (Scope 1–2 / +риски)"), accent: "#1D9E75",
+      rows: list.map((c) => { const s = _d4(c); return { ...baseRow(c), value: t(CLIMATE_STAGE_LBL[s]), valueColor: s >= 3 ? "#1D9E75" : s >= 1 ? "#D97706" : "#94A3B8",
+        badge: s >= 3 ? t("разраб.") : s >= 1 ? t("в проц.") : t("нет"), badgeColor: s >= 3 ? "#1D9E75" : s >= 1 ? "#D97706" : "#94A3B8" }; }) };
   } else {
     const list = cs.filter((c) => !nr(c, "D1")).sort((a, b) => (b.dim_stage?.D1 ?? 0) - (a.dim_stage?.D1 ?? 0));
-    drill.value = { title: "ИСО — системы менеджмента", subtitle: "системы менеджмента ISO (D1)", accent: "#378ADD",
-      rows: list.map((c) => { const s = c.dim_stage?.D1 ?? 0; return { ...baseRow(c), value: ISO_STAGE_LBL[s], valueColor: s >= 3 ? "#1D9E75" : s >= 1 ? "#D97706" : "#94A3B8" }; }) };
+    drill.value = { title: i18nKey("ИСО — системы менеджмента"), subtitle: i18nKey("системы менеджмента ISO (D1)"), accent: "#378ADD",
+      rows: list.map((c) => { const s = c.dim_stage?.D1 ?? 0; return { ...baseRow(c), value: t(ISO_STAGE_LBL[s]), valueColor: s >= 3 ? "#1D9E75" : s >= 1 ? "#D97706" : "#94A3B8" }; }) };
   }
 }
 
 function openAlertDrill(a: MatAlert) {
-  drill.value = { title: a.label.charAt(0).toUpperCase() + a.label.slice(1), subtitle: `${a.count} компаний · требует внимания`,
+  drill.value = { title: a.label.charAt(0).toUpperCase() + a.label.slice(1), subtitle: t("{count} компаний · требует внимания", { count: a.count }),
     description: a.description, accent: a.color,
     rows: a.companies.map((c) => ({ ...baseRow(c), value: Math.round(c.ems), valueColor: emsColor(c.ems) })) };
 }
@@ -280,11 +282,12 @@ function openFunnelDrill(scheme: "climate" | "risk", stageIdx: number) {
   const labels = scheme === "climate" ? climateStages.value : riskStages.value;
   const max = scheme === "climate" ? 4 : 3;
   const stageLbl = scheme === "climate" ? CLIMATE_STAGE_LBL : RISK_STAGE_LBL;
+  const schemeLabel = scheme === "climate" ? t("Климат") : t("ESG-риски");
   drill.value = {
-    title: labels[stageIdx]?.label || "Стадия",
-    subtitle: `${scheme === "climate" ? "Климат" : "ESG-риски"} · достигли стадии ≥ ${need}`,
+    title: labels[stageIdx]?.label || i18nKey("Стадия"),
+    subtitle: t("{scheme} · достигли стадии ≥ {stage}", { scheme: schemeLabel, stage: need }),
     accent: scheme === "climate" ? "#1D9E75" : "#6C5CE7",
-    rows: list.map((c) => { const s = c.dim_stage?.[dim] ?? 0; return { ...baseRow(c), value: `${s}/${max}`, valueColor: "#1E2A4A", badge: stageLbl[s], badgeColor: scheme === "climate" ? "#1D9E75" : "#6C5CE7" }; }),
+    rows: list.map((c) => { const s = c.dim_stage?.[dim] ?? 0; return { ...baseRow(c), value: `${s}/${max}`, valueColor: "#1E2A4A", badge: t(stageLbl[s]), badgeColor: scheme === "climate" ? "#1D9E75" : "#6C5CE7" }; }),
   };
 }
 
@@ -311,7 +314,7 @@ async function load() {
     });
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    error.value = err?.response?.data?.detail || err?.message || "Не удалось загрузить дашборд";
+    error.value = err?.response?.data?.detail || err?.message || t('Не удалось загрузить дашборд');
   } finally {
     loading.value = false;
   }
@@ -490,7 +493,7 @@ const tableSections = computed<TableSection[]>(() => {
     });
     return [{
       sector_code: "all",
-      sector_label: "Все",
+      sector_label: i18nKey("Все"),
       sector_color: "#888780",
       total: sorted.length,
       covered: sorted.filter(r => r.has_any_rating).length,
@@ -555,7 +558,7 @@ const donutEntries = computed<DonutEntry[]>(() => {
     label: ag.agency,
     color: ag.color,
     value: ag.count,
-    sub: `${ag.count} из ${total}`,
+    sub: t("{value} из {total}", { value: ag.count, total }),
   }));
   // Запланировано получение рейтинга — отдельный статус (выделяется из «без
   // рейтинга»). Пока бэк может не отдавать planned_count → 0 (слайс скрыт),
@@ -564,20 +567,20 @@ const donutEntries = computed<DonutEntry[]>(() => {
   const planned = (k.value as any)?.planned_count ?? 0;
   if (planned > 0) {
     entries.push({
-      label: "Запланировано",
+      label: i18nKey("Запланировано"),
       color: "#F0C67A",
       value: planned,
-      sub: `${planned} из ${total}`,
+      sub: t("{value} из {total}", { value: planned, total }),
     });
   }
   // Uncovered slice — neutral grey (без полученного и без запланированного)
   const uncovered = total - covered - planned;
   if (uncovered > 0) {
     entries.push({
-      label: "Без рейтинга",
+      label: i18nKey("Без рейтинга"),
       color: "#E2E8F0",
       value: uncovered,
-      sub: `${uncovered} из ${total}`,
+      sub: t("{value} из {total}", { value: uncovered, total }),
     });
   }
   return entries;
@@ -595,10 +598,10 @@ function donutHoverFmt(e: DonutEntry): [string, string] {
 
 const kpiDrillTitle = computed<string>(() => {
   switch (kpiDrill.value) {
-    case "coverage": return "Покрытие портфеля ESG-рейтингами";
-    case "leader":   return "Лидеры портфеля";
-    case "unrated":  return "Компании без ESG-рейтинга";
-    case "updates":  return "Последние обновления рейтингов";
+    case "coverage": return t("Покрытие портфеля ESG-рейтингами");
+    case "leader":   return t("Лидеры портфеля");
+    case "unrated":  return t("Компании без ESG-рейтинга");
+    case "updates":  return t("Последние обновления рейтингов");
     default:         return "";
   }
 });
@@ -625,7 +628,7 @@ const kpiDrillRows = computed<KpiDrillRow[]>(() => {
           r,
           primary: esgRatingValue(c0),
           primaryColor: esgScoreColor(r.composite_esg_score),
-          secondary: c0 ? `${c0.agency}${n > 1 ? ` +${n - 1}` : ""}` : "нет рейтингов",
+          secondary: c0 ? `${c0.agency}${n > 1 ? ` +${n - 1}` : ""}` : t("нет рейтингов"),
         };
       });
     }
@@ -650,7 +653,7 @@ const kpiDrillRows = computed<KpiDrillRow[]>(() => {
         r,
         primary: "—",
         primaryColor: "#E24B4A",
-        secondary: "нужны рейтинги",
+        secondary: t("нужны рейтинги"),
       }));
     }
     case "updates": {
@@ -730,7 +733,7 @@ onMounted(() => { load(); loadMaturity(); loadSwot(); });
 
         <!-- ═══ Вкладка «Зрелость» — ESG Maturity Cockpit ═══ -->
         <div v-if="activeTab === 'maturity'" class="ev-body">
-          <UzaStateBlock v-if="matLoading && !heatmap" state="loading" loadingText="Загрузка матрицы зрелости..." />
+          <UzaStateBlock v-if="matLoading && !heatmap" state="loading" :loadingText="t('Загрузка матрицы зрелости...')" />
           <template v-else-if="heatmap">
             <!-- EMS KPI-rail -->
             <!-- Порядок «от базы к результирующим показателям»:
@@ -783,8 +786,8 @@ onMounted(() => { load(); loadMaturity(); loadSwot(); });
               <span class="ev-alerts-h">{{ t('Требует внимания') }}</span>
               <div v-for="a in matAlerts" :key="a.key" class="ev-alert">
                 <button type="button" class="ev-alert-chip" :style="{ '--ac': a.color }"
-                        :title="`Показать ${a.count} компаний`" @click="openAlertDrill(a)">
-                  <span class="ev-alert-cnt" :style="{ background: a.color }">{{ a.count }}</span>{{ a.label }}
+                        :title="t('Показать {value0} компаний', { value0: a.count })" @click="openAlertDrill(a)">
+                  <span class="ev-alert-cnt" :style="{ background: a.color }">{{ a.count }}</span>{{ t(a.label) }}
                 </button>
               </div>
             </div>
@@ -799,7 +802,7 @@ onMounted(() => { load(); loadMaturity(); loadSwot(); });
                          @stage-click="(i) => openFunnelDrill('risk', i)" />
               <div class="ev-fn-donut">
                 <div class="fn-don-h">{{ t('Покрытие по агентствам') }}</div>
-                <CreditDonut :entries="matDonut" :center-value="coveragePct + '%'" center-label="покрытие" :size="128" />
+                <CreditDonut :entries="matDonut" :center-value="coveragePct + '%'" :center-label="t('покрытие')" :size="128" />
               </div>
             </div>
 
@@ -824,7 +827,7 @@ onMounted(() => { load(); loadMaturity(); loadSwot(); });
           </template>
         </div>
 
-        <UzaStateBlock v-if="activeTab === 'overview' && loading && !overview" state="loading" loadingText="Загрузка..." />
+        <UzaStateBlock v-if="activeTab === 'overview' && loading && !overview" state="loading" :loadingText="t('Загрузка...')" />
         <UzaStateBlock v-else-if="activeTab === 'overview' && error && !overview" state="error" variant="block" :text="error" />
 
         <div v-else-if="activeTab === 'overview' && overview && k" class="ev-body">
@@ -907,7 +910,7 @@ onMounted(() => { load(); loadMaturity(); loadSwot(); });
                 <CreditDonut
                   :entries="donutEntries"
                   :center-value="`${k.coverage_pct}%`"
-                  center-label="покрытие"
+                  :center-label="t('покрытие')"
                   :size="160"
                   :hover-fmt="donutHoverFmt"
                 />
@@ -923,7 +926,7 @@ onMounted(() => { load(); loadMaturity(); loadSwot(); });
           <template #header>
             <div>
               <div class="ev-modal-t">{{ kpiDrillTitle }}</div>
-              <div class="ev-modal-s">{{ kpiDrillRows.length }} {{ kpiDrillRows.length === 1 ? 'запись' : 'записей' }}</div>
+              <div class="ev-modal-s">{{ kpiDrillRows.length }} {{ kpiDrillRows.length === 1 ? t('запись') : t('записей') }}</div>
             </div>
           </template>
               <div class="ev-modal-body">
@@ -940,7 +943,7 @@ onMounted(() => { load(); loadMaturity(); loadSwot(); });
                       <td class="ev-modal-rep">
                         <a v-for="c in reportLinks(row.r)" :key="c.agency"
                            :href="c.report_url!" target="_blank" rel="noopener"
-                           class="ev-rep-link" :title="'Отчёт · ' + c.agency" @click.stop>
+                           class="ev-rep-link" :title="t('Отчёт · {value0}', { value0: c.agency })" @click.stop>
                           {{ agencyShort(c.agency) }}<span class="ev-rep-arr">↗</span>
                         </a>
                       </td>
@@ -979,7 +982,7 @@ onMounted(() => { load(); loadMaturity(); loadSwot(); });
 
         <!-- Единый drill-down: KPI-карточки / алерты / ступени воронок -->
         <ESGDrillModal v-if="drill" :open="!!drill" :title="drill.title" :subtitle="drill.subtitle"
-                       :description="drill.description" :accent="drill.accent" :rows="drill.rows"
+                       :description="drill.description ? t(drill.description) : undefined" :accent="drill.accent" :rows="drill.rows"
                        @close="drill = null" @open-company="onDrillOpenCompany" />
       </div>
 </template>

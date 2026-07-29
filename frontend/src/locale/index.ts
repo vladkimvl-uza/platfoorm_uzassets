@@ -33,11 +33,14 @@ export function fmtNumber(
   if (v == null || !Number.isFinite(v)) return DASH;
   const max = opts.decimals ?? 0;
   const min = opts.minDecimals ?? max;
-  return new Intl.NumberFormat(INTL_LOCALE[locale], {
+  const formatted = new Intl.NumberFormat(INTL_LOCALE[locale], {
     minimumFractionDigits: min,
     maximumFractionDigits: max,
     signDisplay: opts.signed ? "exceptZero" : "auto",
   }).format(v);
+  // ICU builds disagree between NBSP and narrow NBSP for ru/uz grouping.
+  // Normalize it so the UI and exported values are stable across platforms.
+  return locale === "en" ? formatted : formatted.replace(/\u00a0/g, "\u202f");
 }
 
 /** Compact number ("12,3 млрд" / "12.3 B") without currency. */
@@ -125,7 +128,7 @@ export function fmtMoneyCompact(
   }
   // UZS
   const word = CURRENCY_WORD[locale][currency];
-  return locale === "en" ? `${sign}${bare}${suffix} ${word}` : `${sign}${bare} ${suffix} ${word}`;
+  return `${sign}${bare} ${suffix} ${word}`;
 }
 
 // ── Dates ──────────────────────────────────────────────────────────────

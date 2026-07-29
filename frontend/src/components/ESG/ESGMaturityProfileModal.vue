@@ -11,6 +11,8 @@ import ESGReportsTable from "@/components/ESG/ESGReportsTable.vue";
 import type { ESGMaturityCompany } from "@/api/esg";
 import { ratingsApi, type AgencyRatingBrief, type AgencyRatingHistoryItem } from "@/api/ratings";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 const { t } = useI18n();
 
 
@@ -23,7 +25,7 @@ const ratingsLoading = ref(false);
 const histOpen = ref<string | null>(null);            // agency раскрытой истории
 const histItems = ref<AgencyRatingHistoryItem[]>([]);
 const histLoading = ref(false);
-const ACTION_LBL: Record<string, string> = { create: "создан", update: "изменён", delete: "удалён", snapshot: "снимок" };
+const ACTION_LBL: Record<string, string> = { create: i18nKey("создан"), update: i18nKey("изменён"), delete: i18nKey("удалён"), snapshot: i18nKey("снимок") };
 
 async function loadRatings() {
   histOpen.value = null;

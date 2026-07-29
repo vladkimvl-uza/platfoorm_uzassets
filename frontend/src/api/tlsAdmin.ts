@@ -1,5 +1,6 @@
 // TLS admin — API wrapper. Under is_owner||is_admin gate.
 import { api } from "./client";
+import { t } from "@/locale/i18n";
 
 export interface CertInfo {
   present: boolean;
@@ -69,9 +70,9 @@ export const tlsApi = {
 
 export function formatDaysLeft(d: number | undefined): { text: string; tone: "ok" | "warn" | "crit" } {
   if (d === undefined) return { text: "—", tone: "crit" };
-  if (d <= 7) return { text: `${d} дн.`, tone: "crit" };
-  if (d <= 30) return { text: `${d} дн.`, tone: "warn" };
-  return { text: `${d} дн.`, tone: "ok" };
+  if (d <= 7) return { text: t("{days} дн.", { days: d }), tone: "crit" };
+  if (d <= 30) return { text: t("{days} дн.", { days: d }), tone: "warn" };
+  return { text: t("{days} дн.", { days: d }), tone: "ok" };
 }
 
 export function shortDate(iso: string | null | undefined): string {

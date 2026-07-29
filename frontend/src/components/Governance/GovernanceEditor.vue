@@ -24,6 +24,8 @@ import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
 import ModalShell from "@/components/ModalShell.vue";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 const { t } = useI18n();
 
 
@@ -73,28 +75,28 @@ async function requestClose(): Promise<void> {
   const dataChanged = JSON.stringify({ ...form }) !== _initialForm;
   const memberInProgress = showMemberForm.value && !!mForm.full_name.trim();
   if ((dataChanged || memberInProgress) &&
-      !(await confirmDialog({ message: "Есть несохранённые изменения. Закрыть без сохранения?", danger: true }))) {
+      !(await confirmDialog({ message: t("Есть несохранённые изменения. Закрыть без сохранения?"), danger: true }))) {
     return;
   }
   emit("close");
 }
 
 const numFields: { key: keyof typeof form; label: string; max?: number }[] = [
-  { key: "board_size", label: "Размер совета" },
-  { key: "independent_directors_count", label: "Независимых" },
-  { key: "women_directors_count", label: "Женщин" },
-  { key: "foreign_directors_count", label: "Иностранцев" },
-  { key: "avg_age", label: "Средний возраст" },
-  { key: "meetings_per_year", label: "Заседаний в год" },
-  { key: "avg_attendance_pct", label: "Посещаемость, %", max: 100 },
+  { key: "board_size", label: i18nKey("Размер совета") },
+  { key: "independent_directors_count", label: i18nKey("Независимых") },
+  { key: "women_directors_count", label: i18nKey("Женщин") },
+  { key: "foreign_directors_count", label: i18nKey("Иностранцев") },
+  { key: "avg_age", label: i18nKey("Средний возраст") },
+  { key: "meetings_per_year", label: i18nKey("Заседаний в год") },
+  { key: "avg_attendance_pct", label: i18nKey("Посещаемость, %"), max: 100 },
 ];
 // Единый набор «как на дашборде» (Состав НС → Комитеты).
 const committees: { key: keyof typeof form; label: string }[] = [
-  { key: "has_audit_committee", label: "Аудита" },
-  { key: "has_strategy_committee", label: "Стратегии" },
-  { key: "has_nomrem_committee", label: "По назначениям и вознаграждениям" },
-  { key: "has_anticorr_committee", label: "Антикоррупционный" },
-  { key: "has_induction_program", label: "Программа введения" },
+  { key: "has_audit_committee", label: i18nKey("Аудита") },
+  { key: "has_strategy_committee", label: i18nKey("Стратегии") },
+  { key: "has_nomrem_committee", label: i18nKey("По назначениям и вознаграждениям") },
+  { key: "has_anticorr_committee", label: i18nKey("Антикоррупционный") },
+  { key: "has_induction_program", label: i18nKey("Программа введения") },
 ];
 
 function _num(v: unknown): number | null {
@@ -107,18 +109,18 @@ function _num(v: unknown): number | null {
 function validateData(): string | null {
   const size = _num(form.board_size);
   const checks: [number | null, string][] = [
-    [_num(form.independent_directors_count), "Независимых директоров"],
-    [_num(form.women_directors_count), "Женщин"],
-    [_num(form.foreign_directors_count), "Иностранцев"],
+    [_num(form.independent_directors_count), i18nKey("Независимых директоров")],
+    [_num(form.women_directors_count), i18nKey("Женщин")],
+    [_num(form.foreign_directors_count), i18nKey("Иностранцев")],
   ];
   for (const [n, lbl] of checks) {
-    if (n != null && n < 0) return `${lbl}: значение не может быть отрицательным`;
-    if (n != null && size != null && n > size) return `${lbl} (${n}) больше размера совета (${size})`;
+    if (n != null && n < 0) return t("{label}: значение не может быть отрицательным", { label: t(lbl) });
+    if (n != null && size != null && n > size) return t("{label} ({value}) больше размера совета ({size})", { label: t(lbl), value: n, size });
   }
   const att = _num(form.avg_attendance_pct);
-  if (att != null && (att < 0 || att > 100)) return "Посещаемость должна быть в диапазоне 0–100%";
+  if (att != null && (att < 0 || att > 100)) return t("Посещаемость должна быть в диапазоне 0–100%");
   const age = _num(form.avg_age);
-  if (age != null && (age < 18 || age > 100)) return "Средний возраст вне диапазона 18–100";
+  if (age != null && (age < 18 || age > 100)) return t("Средний возраст вне диапазона 18–100");
   return null;
 }
 
@@ -134,7 +136,7 @@ function fillFromBoard(): void {
   form.independent_directors_count = boardAgg.value.independent;
   form.women_directors_count = boardAgg.value.women;
   form.foreign_directors_count = boardAgg.value.foreign;
-  toast.info("Подставлено из состава совета — проверьте и сохраните");
+  toast.info(t('Подставлено из состава совета — проверьте и сохраните'));
 }
 
 async function saveData(): Promise<void> {
@@ -164,10 +166,10 @@ async function saveData(): Promise<void> {
       avg_attendance_pct: _num(form.avg_attendance_pct),
       notes: form.notes.trim() || null,
     });
-    if (isModerationQueued(res)) { queued.value = true; toast.info("Отправлено на модерацию"); setTimeout(() => emit("saved"), 1200); }
-    else { toast.success("Показатели сохранены"); emit("saved"); }
+    if (isModerationQueued(res)) { queued.value = true; toast.info(t('Отправлено на модерацию')); setTimeout(() => emit("saved"), 1200); }
+    else { toast.success(t('Показатели сохранены')); emit("saved"); }
   } catch (e: any) {
-    const msg = e?.response?.data?.detail || e?.message || "Не удалось сохранить";
+    const msg = e?.response?.data?.detail || e?.message || t('Не удалось сохранить');
     err.value = msg; toast.error(msg);
   } finally { saving.value = false; }
 }
@@ -205,9 +207,9 @@ function openEditMember(m: BoardMemberBrief): void {
 }
 
 async function saveMember(): Promise<void> {
-  if (!mForm.full_name.trim()) { err.value = "Укажите ФИО"; toast.error("Укажите ФИО"); return; }
+  if (!mForm.full_name.trim()) { err.value = t('Укажите ФИО'); toast.error(t('Укажите ФИО')); return; }
   if (mForm.appointed_date && mForm.term_end_date && mForm.term_end_date <= mForm.appointed_date) {
-    const m = "«Срок до» должен быть позже даты назначения"; err.value = m; toast.error(m); return;
+    const m = t('«Срок до» должен быть позже даты назначения'); err.value = m; toast.error(m); return;
   }
   saving.value = true; err.value = null; queued.value = false;
   const payload = {
@@ -228,7 +230,7 @@ async function saveMember(): Promise<void> {
       ? await governanceApi.updateMember(editingMember.value.id, payload)
       : await governanceApi.createMember({ company_id: props.companyId, ...payload });
     if (isModerationQueued(res)) {
-      queued.value = true; toast.info("Отправлено на модерацию");
+      queued.value = true; toast.info(t('Отправлено на модерацию'));
       setTimeout(() => { showMemberForm.value = false; emit("saved"); }, 1200);
     } else {
       // Локально обновляем список (редактор остаётся открыт для следующих правок)
@@ -240,25 +242,25 @@ async function saveMember(): Promise<void> {
         localMembers.value.push(saved);
       }
       showMemberForm.value = false;
-      toast.success(editingMember.value ? "Член совета обновлён" : "Член совета добавлен");
+      toast.success(editingMember.value ? t('Член совета обновлён') : t('Член совета добавлен'));
       emit("saved");
     }
   } catch (e: any) {
-    const msg = e?.response?.data?.detail || e?.message || "Не удалось сохранить члена совета";
+    const msg = e?.response?.data?.detail || e?.message || t('Не удалось сохранить члена совета');
     err.value = msg; toast.error(msg);
   } finally { saving.value = false; }
 }
 
 async function removeMember(m: BoardMemberBrief): Promise<void> {
-  if (!(await confirmDialog({ message: `Удалить «${m.full_name}» из совета?`, danger: true }))) return;
+  if (!(await confirmDialog({ message: t('Удалить «{value0}» из совета?', { value0: m.full_name }), danger: true }))) return;
   saving.value = true; err.value = null;
   try {
     await governanceApi.deleteMember(m.id);
     localMembers.value = localMembers.value.filter(x => x.id !== m.id);
-    toast.success("Член совета удалён");
+    toast.success(t('Член совета удалён'));
     emit("saved");
   } catch (e: any) {
-    const msg = e?.response?.data?.detail || e?.message || "Не удалось удалить";
+    const msg = e?.response?.data?.detail || e?.message || t('Не удалось удалить');
     err.value = msg; toast.error(msg);
   } finally { saving.value = false; }
 }
@@ -298,7 +300,7 @@ const ROLE_OPTIONS = computed(() => ROLE_TYPE_META);
           </div>
           <div class="ge-grid">
             <label v-for="f in numFields" :key="f.key" class="ge-field">
-              <span class="ge-label">{{ f.label }}</span>
+              <span class="ge-label">{{ t(f.label) }}</span>
               <input type="number" class="ge-in" v-model="form[f.key as keyof typeof form]"
                      min="0" :max="f.max" :disabled="saving" />
             </label>
@@ -309,7 +311,7 @@ const ROLE_OPTIONS = computed(() => ROLE_TYPE_META);
             <div class="ge-checks">
               <label v-for="c in committees" :key="c.key" class="ge-check">
                 <input type="checkbox" v-model="form[c.key as keyof typeof form]" :disabled="saving" />
-                <span>{{ c.label }}</span>
+                <span>{{ t(c.label) }}</span>
               </label>
             </div>
           </div>
@@ -323,7 +325,7 @@ const ROLE_OPTIONS = computed(() => ROLE_TYPE_META);
           <div class="ge-actions">
             <button class="ge-btn ge-btn-ghost" @click="requestClose" :disabled="saving">{{ t('Отмена') }}</button>
             <button class="ge-btn ge-btn-primary" @click="saveData" :disabled="saving">
-              <span v-if="saving" class="ge-spin"></span>{{ saving ? "" : "Сохранить показатели" }}
+              <span v-if="saving" class="ge-spin"></span>{{ saving ? "" : t('Сохранить показатели') }}
             </button>
           </div>
         </template>
@@ -332,7 +334,7 @@ const ROLE_OPTIONS = computed(() => ROLE_TYPE_META);
         <template v-else>
           <!-- форма члена -->
           <div v-if="showMemberForm" class="ge-member-form">
-            <div class="ge-sub-label">{{ editingMember ? "Редактирование члена" : "Новый член совета" }}</div>
+            <div class="ge-sub-label">{{ editingMember ? t('Редактирование члена') : t('Новый член совета') }}</div>
             <div class="ge-grid">
               <label class="ge-field ge-field-wide">
                 <span class="ge-label">{{ t('ФИО *') }}</span>
@@ -346,7 +348,7 @@ const ROLE_OPTIONS = computed(() => ROLE_TYPE_META);
                 <span class="ge-label">{{ t('Роль') }}</span>
                 <select class="ge-in" v-model="mForm.role_type" :disabled="saving">
                   <option value="">—</option>
-                  <option v-for="r in ROLE_OPTIONS" :key="r.key" :value="r.key">{{ r.label }}</option>
+                  <option v-for="r in ROLE_OPTIONS" :key="r.key" :value="r.key">{{ t(r.label) }}</option>
                 </select>
               </label>
               <label class="ge-field">
@@ -378,7 +380,7 @@ const ROLE_OPTIONS = computed(() => ROLE_TYPE_META);
             <div class="ge-actions">
               <button class="ge-btn ge-btn-ghost" @click="showMemberForm = false" :disabled="saving">{{ t('Отмена') }}</button>
               <button class="ge-btn ge-btn-primary" @click="saveMember" :disabled="saving">
-                <span v-if="saving" class="ge-spin"></span>{{ saving ? "" : "Сохранить" }}
+                <span v-if="saving" class="ge-spin"></span>{{ saving ? "" : t('Сохранить') }}
               </button>
             </div>
           </div>
@@ -394,7 +396,7 @@ const ROLE_OPTIONS = computed(() => ROLE_TYPE_META);
                   <div class="ge-member-sub">
                     <span v-if="m.position">{{ m.position }}</span>
                     <span class="ge-role-pill" :style="{ background: roleMeta(m.role_type).color + '22', color: roleMeta(m.role_type).color }">
-                      {{ roleMeta(m.role_type).label }}
+                      {{ t(roleMeta(m.role_type).label) }}
                     </span>
                     <span v-if="m.is_independent" class="ge-mini-badge">{{ t('Незав.') }}</span>
                     <span v-if="m.is_woman" class="ge-mini-badge">{{ t('Жен.') }}</span>

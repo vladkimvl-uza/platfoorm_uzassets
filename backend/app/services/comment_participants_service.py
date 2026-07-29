@@ -107,8 +107,14 @@ async def notify_comment_participants(
 
     kind_ru = {"task": "задаче", "project": "проекте"}.get(entity_type, "записи")
     entity_title = (getattr(entity, "title", None) or "(без названия)")
+    actor_label = actor_name or "Кто-то"
     company_part = f" · {company_name}" if company_name else ""
-    title = f"{actor_name or 'Кто-то'} оставил комментарий в {kind_ru}: «{entity_title}»{company_part}"
+    title = f"{actor_label} оставил комментарий в {kind_ru}: «{entity_title}»{company_part}"
+    translated_vars = {"kind"}
+    if not actor_name:
+        translated_vars.add("actor")
+    if not getattr(entity, "title", None):
+        translated_vars.add("entity")
 
     notification_ids: list[str] = []
     notified: list[UUID] = []
@@ -120,6 +126,14 @@ async def notify_comment_participants(
                 type="comment.replied",
                 title=title,
                 body=body[:600],
+                title_template="{actor} оставил комментарий в {kind}: «{entity}»{company}",
+                template_vars={
+                    "actor": actor_label,
+                    "kind": kind_ru,
+                    "entity": entity_title,
+                    "company": company_part,
+                },
+                translate_vars=translated_vars,
                 source_module=entity_type,
                 source_entity_id=str(entity.id),
                 source_user_id=actor_id,

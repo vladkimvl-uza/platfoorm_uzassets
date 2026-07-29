@@ -23,6 +23,9 @@ UZ: dict[str, str] = {
     "Слишком много запросов, попробуйте позже": "Soʻrovlar juda koʻp, keyinroq urinib koʻring",
     "Сессия истекла, войдите заново": "Seans muddati tugadi, qaytadan kiring",
     "Неверный логин или пароль": "Login yoki parol notoʻgʻri",
+    "Произошла внутренняя ошибка. Попробуйте позднее.": "Ichki xatolik yuz berdi. Keyinroq urinib koʻring.",
+    "ИИ-движок не настроен": "AI mexanizmi sozlanmagan",
+    "ИИ-ассистент деактивирован владельцем": "AI assistent platforma egasi tomonidan oʻchirilgan",
 
     # ── Уведомления/каналы ──
     "Уведомление": "Bildirishnoma",
@@ -68,6 +71,9 @@ EN: dict[str, str] = {
     "Слишком много запросов, попробуйте позже": "Too many requests, try again later",
     "Сессия истекла, войдите заново": "Session expired, please sign in again",
     "Неверный логин или пароль": "Invalid login or password",
+    "Произошла внутренняя ошибка. Попробуйте позднее.": "An internal error occurred. Please try again later.",
+    "ИИ-движок не настроен": "AI engine is not configured",
+    "ИИ-ассистент деактивирован владельцем": "AI assistant was disabled by the platform owner",
 
     "Уведомление": "Notification",
     "Новое уведомление": "New notification",

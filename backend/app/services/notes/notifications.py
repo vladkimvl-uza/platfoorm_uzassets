@@ -58,13 +58,21 @@ async def notify_note_assignment(
 
     kind_lbl = _KIND_LABELS.get(note.kind, "Запись")
     actor_name = actor.full_name or actor.email
+    note_title = _note_title(note)
+    translated_vars = {"kind"}
+    if not note.title and not (note.body or "").strip():
+        translated_vars.add("title")
     link = await _company_link(db, note.company_id)
     await notify(
         db,
         recipient_id=recipient_id,
         type="assignment",
-        title=f"Вы ответственный: {_note_title(note)}",
+        title=f"Вы ответственный: {note_title}",
         body=f"{actor_name} назначил(а) вас ответственным · {kind_lbl}",
+        title_template="Вы ответственный: {title}",
+        body_template="{actor} назначил(а) вас ответственным · {kind}",
+        template_vars={"title": note_title, "actor": actor_name, "kind": kind_lbl},
+        translate_vars=translated_vars,
         source_module="notes",
         source_entity_id=str(note.id),
         source_user_id=actor.id,
@@ -89,13 +97,21 @@ async def notify_checklist_assignment(
 
     actor_name = actor.full_name or actor.email
     short = (item_text[:80] + "…") if len(item_text) > 80 else item_text
+    note_title = _note_title(note)
+    translated_vars: set[str] = set()
+    if not note.title and not (note.body or "").strip():
+        translated_vars.add("title")
     link = await _company_link(db, note.company_id)
     await notify(
         db,
         recipient_id=recipient_id,
         type="assignment",
         title=f"Пункт назначен на вас: {short}",
-        body=f"{actor_name} · в заметке «{_note_title(note)}»",
+        body=f"{actor_name} · в заметке «{note_title}»",
+        title_template="Пункт назначен на вас: {item}",
+        body_template="{actor} · в заметке «{title}»",
+        template_vars={"item": short, "actor": actor_name, "title": note_title},
+        translate_vars=translated_vars,
         source_module="notes",
         source_entity_id=str(note.id),
         source_user_id=actor.id,

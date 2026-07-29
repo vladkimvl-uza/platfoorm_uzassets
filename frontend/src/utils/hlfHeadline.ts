@@ -1,3 +1,4 @@
+import { i18nKey } from "@/locale/keys";
 /**
  * Компактный экстрактор ключевых финансовых строк из HLF-данных компании
  * (для ИИ-анализа KPI — связь операционных KPI с финансовым результатом даже
@@ -11,6 +12,7 @@ type HlfRow = {
 type HlfSection = { years: number[]; rows: HlfRow[] };
 export type HlfData = { years: number[]; sections: HlfSection[] };
 
+// i18n-exempt-start: multilingual aliases classify imported financial rows; they are never rendered.
 const MATCHERS: Record<string, string[]> = {
   revenue: ["выручка", "revenue", "тушум", "sales revenue"],
   cogs: ["себестоимость", "cost of sales", "cost of goods", "таннарх"],
@@ -22,12 +24,13 @@ const MATCHERS: Record<string, string[]> = {
   total_current_assets: ["total current assets", "жорий активлар"],
   total_current_liabilities: ["total current liabilities", "қисқа муддатли мажб"],
 };
+// i18n-exempt-end
 
 export const HLF_LABELS: Record<string, string> = {
-  revenue: "Выручка", cogs: "Себестоимость", gross_profit: "Валовая прибыль",
-  operating_profit: "Операционная прибыль", net_profit: "Чистая прибыль",
-  total_assets: "Активы (итого)", total_equity: "Капитал (итого)",
-  total_current_assets: "Оборотные активы", total_current_liabilities: "Краткосрочные обязательства",
+  revenue: i18nKey("Выручка"), cogs: i18nKey("Себестоимость"), gross_profit: i18nKey("Валовая прибыль"),
+  operating_profit: i18nKey("Операционная прибыль"), net_profit: i18nKey("Чистая прибыль"),
+  total_assets: i18nKey("Активы (итого)"), total_equity: i18nKey("Капитал (итого)"),
+  total_current_assets: i18nKey("Оборотные активы"), total_current_liabilities: i18nKey("Краткосрочные обязательства"),
 };
 
 function rowValueForYear(r: HlfRow, year: number): number | null {

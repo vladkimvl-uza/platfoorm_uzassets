@@ -868,7 +868,7 @@ async function loadEsg() {
         };
       });
       esgSectorPillars.value = map;
-      esgSectorLabel.value = (sector.value as any)?.name_ru || "сектору";
+      esgSectorLabel.value = (sector.value as any)?.name_ru || t("сектору");
     }
 
     esgLoadedFor.value = key;
@@ -1060,15 +1060,15 @@ const procForensic = ref<any>(null);
 interface FBadge { text: string; bg: string; fg: string }
 function fPlanBadge(plan: string | undefined | null): FBadge {
   if (!plan) return { text: "—", bg: "var(--bg3, #F1F5F9)", fg: "var(--t3, #64748B)" };
-  if (plan === "Утверждён") return { text: t("Утверждён"), bg: "rgba(29,158,117,.12)", fg: "#1D9E75" };
+  if (plan === "Утверждён") return { text: t("Утверждён"), bg: "rgba(29,158,117,.12)", fg: "#1D9E75" }; // i18n-exempt: canonical API value
   return { text: t("Не утверждён"), bg: "rgba(226,75,74,.08)", fg: "#993D3D" };
 }
 function fForensicBadge(f: string | undefined | null): FBadge {
   if (!f) return { text: "—", bg: "var(--bg3, #F1F5F9)", fg: "var(--t3, #64748B)" };
-  if (f === "Завершён") return { text: t("Завершён"), bg: "rgba(29,158,117,.12)", fg: "#1D9E75" };
-  if (f === "В процессе") return { text: t("В процессе"), bg: "rgba(55,138,221,.10)", fg: "#378ADD" };
-  if (f.indexOf("Тендер") >= 0) return { text: f, bg: "rgba(239,159,39,.10)", fg: "#D97706" };
-  return { text: f, bg: "rgba(226,75,74,.08)", fg: "#993D3D" };
+  if (f === "Завершён") return { text: t("Завершён"), bg: "rgba(29,158,117,.12)", fg: "#1D9E75" }; // i18n-exempt: canonical API value
+  if (f === "В процессе") return { text: t("В процессе"), bg: "rgba(55,138,221,.10)", fg: "#378ADD" }; // i18n-exempt: canonical API value
+  if (f.indexOf("Тендер") >= 0) return { text: t(f), bg: "rgba(239,159,39,.10)", fg: "#D97706" }; // i18n-exempt: canonical API value
+  return { text: t(f), bg: "rgba(226,75,74,.08)", fg: "#993D3D" };
 }
 const _AUDITOR_COLORS: Record<string, string> = {
   KPMG: "#378ADD", PwC: "#E24B4A", Deloitte: "#1D9E75", "E&Y": "#EF9F27",
@@ -1278,7 +1278,7 @@ const finKpis = computed<FinKpi[]>(() => {
   // standalone /financials view uses the same convention.
 
   // PL — revenue / EBITDA / NetProfit
-  const rev    = _lineValue(pl, ["revenue", "выручка", "net_revenue"]);
+  const rev    = _lineValue(pl, ["revenue", "выручка", "net_revenue"]); // i18n-exempt: imported row alias
   const ebitda = _lineValue(pl, ["ebitda", "EBITDA"]);
   const np     = _lineValue(pl, ["profit", "net_profit", "profit_for_the_year", "netProfit"]);
 
@@ -2520,7 +2520,7 @@ async function loadTopFinSnapshot() {
       const plFull = fetched[0].status === "fulfilled" ? fetched[0].value : null;
       const bsFull = fetched[1].status === "fulfilled" ? fetched[1].value : null;
 
-      const rev = _lineValue(plFull || undefined, ["revenue", "выручка"]);
+      const rev = _lineValue(plFull || undefined, ["revenue", "выручка"]); // i18n-exempt: imported row alias
       const debt = _lineValue(bsFull || undefined, ["debt", "totalDebt", "total_debt"]);
 
       topFinSnapshot.value = {

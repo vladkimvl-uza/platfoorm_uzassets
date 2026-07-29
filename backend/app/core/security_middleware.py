@@ -12,8 +12,24 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
 from app.config import settings
+from app.core.i18n import pop_locale, push_locale
 
 log = logging.getLogger(__name__)
+
+
+class LocaleContextMiddleware(BaseHTTPMiddleware):
+    """Make X-UI-Locale available to errors, notifications and AI calls."""
+
+    async def dispatch(
+        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        locale = request.headers.get("X-UI-Locale")
+        token = push_locale(locale)
+        request.state.ui_locale = locale
+        try:
+            return await call_next(request)
+        finally:
+            pop_locale(token)
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):

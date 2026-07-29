@@ -5,7 +5,7 @@
       <template v-for="(item, idx) in measureItems" :key="`m-${idx}`">
         <span v-if="item.type === 'separator'" class="tabbar-sep"></span>
         <span v-else class="tabbar-tab tab-off">
-          {{ item.tab.label }}
+          {{ t(item.tab.label) }}
           <span v-if="indicators[item.tab.id]?.badge !== undefined" class="badge-num">
             {{ indicators[item.tab.id]!.badge }}
           </span>
@@ -25,7 +25,7 @@
         :class="['tabbar-tab', activeTab === item.tab.id ? 'tab-on' : 'tab-off']"
         @click="onTabClick(item.tab.id)"
       >
-        {{ item.tab.label }}
+        {{ t(item.tab.label) }}
         <span v-if="indicators[item.tab.id]?.badge !== undefined" class="badge-num">
           {{ indicators[item.tab.id]!.badge }}
         </span>
@@ -53,7 +53,7 @@
         :class="['overflow-menu-item', { active: activeTab === tab.id }]"
         @click="onOverflowSelect(tab.id)"
       >
-        <span class="overflow-menu-label">{{ tab.label }}</span>
+        <span class="overflow-menu-label">{{ t(tab.label) }}</span>
         <span v-if="indicators[tab.id]?.badge !== undefined" class="badge-num">
           {{ indicators[tab.id]!.badge }}
         </span>

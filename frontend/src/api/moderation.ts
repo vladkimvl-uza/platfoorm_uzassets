@@ -1,4 +1,8 @@
 import { api } from "./client";
+import { fmtDate } from "@/locale";
+import { getCurrentLocale, t } from "@/locale/i18n";
+import { i18nKey } from "@/locale/keys";
+
 
 // ─── Types ─────────────────────────────────────────────────────
 
@@ -267,30 +271,30 @@ export const moderationApi = {
 // ─── Display helpers ───────────────────────────────────────────
 
 export const STATUS_LABELS: Record<SubmissionStatus, { label: string; color: string; bg: string }> = {
-  pending:      { label: "Ожидает",       color: "#854F0B", bg: "rgba(239,159,39,.15)" },
-  under_review: { label: "На рассмотрении", color: "#185FA5", bg: "rgba(55,138,221,.15)" },
-  approved:     { label: "Одобрено",      color: "#0F6E56", bg: "rgba(29,158,117,.15)" },
-  rejected:     { label: "Отклонено",     color: "#A32D2D", bg: "rgba(226,75,74,.15)" },
-  withdrawn:    { label: "Отозвано",      color: "#5F5E5A", bg: "rgba(136,135,128,.12)" },
-  expired:      { label: "Истекло",       color: "#5F5E5A", bg: "rgba(136,135,128,.12)" },
+  pending:      { label: i18nKey("Ожидает"),       color: "#854F0B", bg: "rgba(239,159,39,.15)" },
+  under_review: { label: i18nKey("На рассмотрении"), color: "#185FA5", bg: "rgba(55,138,221,.15)" },
+  approved:     { label: i18nKey("Одобрено"),      color: "#0F6E56", bg: "rgba(29,158,117,.15)" },
+  rejected:     { label: i18nKey("Отклонено"),     color: "#A32D2D", bg: "rgba(226,75,74,.15)" },
+  withdrawn:    { label: i18nKey("Отозвано"),      color: "#5F5E5A", bg: "rgba(136,135,128,.12)" },
+  expired:      { label: i18nKey("Истекло"),       color: "#5F5E5A", bg: "rgba(136,135,128,.12)" },
 };
 
 export const ACTION_LABELS: Record<ModAction, string> = {
-  edit:          "изменить",
-  replace:       "заменить",
-  comment:       "комментарий",
-  upload:        "файл",
-  delete:        "удалить",
-  status_change: "статус",
+  edit:          i18nKey("изменить"),
+  replace:       i18nKey("заменить"),
+  comment:       i18nKey("комментарий"),
+  upload:        i18nKey("файл"),
+  delete:        i18nKey("удалить"),
+  status_change: i18nKey("статус"),
 };
 
 export function formatRelativeTime(iso: string): string {
   const then = new Date(iso).getTime();
   const diffSec = Math.floor((Date.now() - then) / 1000);
-  if (diffSec < 30)        return "только что";
-  if (diffSec < 60)        return `${diffSec} с`;
-  if (diffSec < 3600)      return `${Math.floor(diffSec / 60)} мин`;
-  if (diffSec < 86400)     return `${Math.floor(diffSec / 3600)} ч`;
-  if (diffSec < 86400 * 7) return `${Math.floor(diffSec / 86400)} д`;
-  return new Date(iso).toLocaleDateString("ru-RU");
+  if (diffSec < 30)        return t('только что');
+  if (diffSec < 60)        return t('{value0} с', { value0: diffSec });
+  if (diffSec < 3600)      return t('{value0} мин', { value0: Math.floor(diffSec / 60) });
+  if (diffSec < 86400)     return t('{value0} ч', { value0: Math.floor(diffSec / 3600) });
+  if (diffSec < 86400 * 7) return t('{value0} д', { value0: Math.floor(diffSec / 86400) });
+  return fmtDate(iso, getCurrentLocale());
 }

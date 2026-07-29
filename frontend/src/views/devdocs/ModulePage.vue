@@ -39,7 +39,7 @@ const endpoints = computed(() => {
       <div class="mp-eyebrow">{{ t('Модуль') }}</div>
       <h1 class="mp-h1">{{ moduleCode }}</h1>
       <p v-if="moduleMeta" class="mp-sub">
-        {{ t('Группа:') }} <b>{{ moduleMeta.group || "Прочее" }}</b>
+        {{ t('Группа:') }} <b>{{ moduleMeta.group || t('Прочее') }}</b>
         · {{ moduleMeta.endpoints_count }} endpoints
       </p>
     </header>

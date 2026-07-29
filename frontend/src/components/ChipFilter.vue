@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
 const props = defineProps<{
   label: string;
   count?: number;
@@ -33,7 +35,7 @@ const accentBg = props.accentBg || "rgba(127, 119, 221, 0.10)";
     @click="!disabled && emit('click')">
     <span v-if="dotColor" class="chip-dot" :style="{ background: dotColor }"></span>
     <slot name="icon"></slot>
-    <span class="chip-label">{{ label }}</span>
+    <span class="chip-label">{{ t(label) }}</span>
     <span v-if="count != null" class="chip-count" :style="{ opacity: 0.85 }">
       {{ count }}
     </span>

@@ -13,7 +13,7 @@
       ref="taRef"
       v-model="text"
       class="ai-inp-ta"
-      :placeholder="recording ? t('Говорите…') : (placeholder || rotatingPlaceholder)"
+      :placeholder="recording ? t('Говорите…') : (placeholder || t(rotatingPlaceholder))"
       :disabled="disabled"
       rows="1"
       @keydown.enter.exact.prevent="onSubmit"

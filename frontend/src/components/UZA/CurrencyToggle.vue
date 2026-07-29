@@ -70,9 +70,9 @@ const conv = useCurrencyConverter();
     <span
       v-if="showRate && conv.currency.value !== 'UZS'"
       class="ctg-rate"
-      :title="'Среднегодовой курс ЦБ РУ за ' + year + ' год'"
+      :title="t('Среднегодовой курс ЦБ РУ за {value0} год', { value0: year })"
     >
-      {{ t('по курсу') }} {{ conv.getRateLabel(year) }}
+      {{ t('по курсу') }} {{ t(conv.getRateLabel(year)) }}
     </span>
   </div>
 </template>

@@ -9,6 +9,8 @@ import { usePermissions } from "@/composables/usePermissions";
 import type { ProdCompany, ProdLine } from "@/api/production";
 import { execCol as pctCol, execZone as pctZone } from "@/utils/execBand";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 
 const { t } = useI18n();
 
@@ -17,7 +19,7 @@ const emit = defineEmits<{ (e: "close"): void; (e: "edit"): void }>();
 
 const canEdit = usePermissions("bp").canEdit;
 
-const PERIOD_LABEL: Record<string, string> = { h1: "1 полугодие", h2: "2 полугодие", annual: "год" };
+const PERIOD_LABEL: Record<string, string> = { h1: i18nKey("1 полугодие"), h2: i18nKey("2 полугодие"), annual: i18nKey("год") };
 const periodLabel = computed(() => PERIOD_LABEL[props.period] || props.period);
 
 function fmtM(v: number | null | undefined): string {
@@ -68,7 +70,7 @@ const products = computed(() => props.company.lines.filter((l) => !l.total));
           {{ company.growthPct != null ? company.growthPct + '%' : '—' }}</div><div class="pdm-k-u">{{ t("к пред. периоду") }}</div></div>
       <div class="pdm-k"><div class="pdm-k-l">{{ t("Исполнение") }}</div>
         <div class="pdm-k-v" :style="{ color: pctCol(company.execPct) }">{{ company.execPct != null ? company.execPct + '%' : '—' }}</div>
-        <div class="pdm-k-u">{{ t(company.execKind === 'fact' ? 'факт / план' : 'ожид / план') + (company.execBasis === 'natura' ? ' · ' + t('нат') : '') }}</div></div>
+        <div class="pdm-k-u">{{ t(company.execKind === 'fact' ? t('факт / план') : t('ожид / план')) + (company.execBasis === 'natura' ? ' · ' + t('нат') : '') }}</div></div>
     </div>
 
     <!-- Product table -->

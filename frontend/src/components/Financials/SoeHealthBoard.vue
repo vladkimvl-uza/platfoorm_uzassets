@@ -133,7 +133,7 @@ const drillCompany = ref<SoeCompany | null>(null);
             <span class="shb-u">{{ t("из 5") }}</span>
           </div>
           <div class="shb-sub">
-            <span v-if="pf.zone" class="shb-zone-chip" :style="{ color: pf.zone.color, background: pf.zone.color + '1C' }">{{ pf.zone.label }}</span>
+            <span v-if="pf.zone" class="shb-zone-chip" :style="{ color: pf.zone.color, background: pf.zone.color + '1C' }">{{ t(pf.zone.label) }}</span>
             <span v-else>—</span>
           </div>
         </div>
@@ -141,7 +141,7 @@ const drillCompany = ref<SoeCompany | null>(null);
         <div class="shb-kpi" style="--accent:#7F77DD; --d:70ms">
           <div class="shb-lbl">{{ t("Зоны риска") }}</div>
           <div class="shb-zones">
-            <span v-for="z in zones" :key="z.key" class="shb-zcount" :title="z.label"
+            <span v-for="z in zones" :key="z.key" class="shb-zcount" :title="t(z.label)"
                   :style="{ color: z.color, background: z.color + '16' }">
               <i :style="{ background: z.color }" />{{ pf.zone_counts[z.key] ?? 0 }}
             </span>
@@ -175,7 +175,7 @@ const drillCompany = ref<SoeCompany | null>(null);
       <!-- Легенда зон + методика -->
       <div class="shb-legend">
         <span v-for="z in zones" :key="z.key" class="shb-leg-chip" :style="{ color: z.color, background: z.color + '14' }">
-          <i :style="{ background: z.color }" />{{ z.label }}
+          <i :style="{ background: z.color }" />{{ t(z.label) }}
         </span>
         <span class="shb-leg-note">{{ data.methodology }} · {{ data.standard }} · FY {{ data.year }}</span>
       </div>
@@ -186,7 +186,7 @@ const drillCompany = ref<SoeCompany | null>(null);
           <thead>
             <tr>
               <th class="shb-h-co">{{ t("Компания") }}</th>
-              <th v-for="m in ratiosMeta" :key="m.key" class="shb-h" :title="m.formula + '\n' + fmtThr(m as never)">{{ m.label }}</th>
+              <th v-for="m in ratiosMeta" :key="m.key" class="shb-h" :title="m.formula + '\n' + fmtThr(m as never)">{{ t(m.label) }}</th>
               <th class="shb-h shb-h-ov" :title="t('Altman Z-Score (модель развив. рынков): 6.56·WC/TA + 3.26·RE/TA + 6.72·EBIT/TA + 1.05·Кап/Обяз.') + '\n' + t('>2.6 устойчивая · 1.1–2.6 серая · <1.1 зона риска')">Z-Score</th>
               <th class="shb-h shb-h-ov">{{ t("Оценка") }}</th>
             </tr>

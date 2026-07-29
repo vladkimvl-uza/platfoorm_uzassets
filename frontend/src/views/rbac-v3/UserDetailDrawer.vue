@@ -706,7 +706,7 @@ async function onDeletePermanent() {
               <div v-for="rc in detail.role_codes" :key="rc" class="rv3-dr-role-summary-row">
                 <RoleChip :code="rc" />
                 <span>
-                  <b>{{ roleLabel(rc) }}</b>
+                  <b>{{ t(roleLabel(rc)) }}</b>
                   <small v-if="roleByCode[rc]?.description_ru">{{ roleByCode[rc].description_ru }}</small>
                 </span>
               </div>
@@ -781,7 +781,7 @@ async function onDeletePermanent() {
               >
                 <span class="rv3-dr-mem-grp">
                   <b>{{ m.group_name }}</b>
-                  <small>{{ m.role_name || roleLabel(m.role_code) }}</small>
+                  <small>{{ m.role_name || t(roleLabel(m.role_code)) }}</small>
                 </span>
                 <select
                   v-if="canManage && !detail.is_owner"
@@ -979,7 +979,7 @@ async function onDeletePermanent() {
 
             <div v-else class="rv3-act-groups">
               <div v-for="grp in activityGroups" :key="grp.key" class="rv3-act-group">
-                <div class="rv3-act-daylbl">{{ grp.label }}<span class="rv3-act-daycnt">{{ grp.events.length }}</span></div>
+                <div class="rv3-act-daylbl">{{ t(grp.label) }}<span class="rv3-act-daycnt">{{ grp.events.length }}</span></div>
                 <div class="rv3-act-list">
                   <div v-for="ev in grp.events" :key="ev.id" class="rv3-act-item" :class="{ open: expandedId === ev.id }">
                     <button class="rv3-act-row" @click="toggleEvent(ev)">

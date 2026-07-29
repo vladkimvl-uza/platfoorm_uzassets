@@ -13,6 +13,8 @@ import {
   type BpPeriod,
   type BpSummary,
 } from "@/api/bpKpi";
+import { t } from "@/locale/i18n";
+
 
 export type BpViewMode = "summary" | "company";
 
@@ -47,8 +49,7 @@ export function useBusinessPlanData() {
     };
     const msg =
       err?.response?.data?.detail ||
-      err?.message ||
-      "Ошибка загрузки";
+      err?.message || t('Ошибка загрузки');
     error.value = msg;
     console.error(`[BP] ${scope} failed:`, msg, err?.response?.data);
   }

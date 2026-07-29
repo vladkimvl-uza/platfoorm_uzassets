@@ -19,7 +19,7 @@ export const uz: Record<string, string> = {
   "Загрузка данных компании…": "Kompaniya maʼlumotlari yuklanmoqda…",
   "Не удалось загрузить данные": "Maʼlumotlarni yuklab boʻlmadi",
   "Не удалось загрузить данные компании": "Kompaniya maʼlumotlarini yuklab boʻlmadi",
-  "Ошибка загрузки": "Yuklash xatoligi",
+  
 
   // ── CompanyTileDrillModal ──
   "{p} проектов · {t} задач · {pd} проектов завершено · {td} из {tt} задач":
@@ -48,7 +48,7 @@ export const uz: Record<string, string> = {
   "показать ещё {n} задач": "yana {n} vazifani koʻrsatish",
   "показано {a} из {b}": "{b} tadan {a} tasi koʻrsatilgan",
   "Список задач": "Vazifalar roʻyxati",
-  "Открыть карточку компании": "Kompaniya kartochkasini ochish",
+  
   "день": "kun",
   "дня": "kun",
   "дней": "kun",
@@ -83,7 +83,7 @@ export const uz: Record<string, string> = {
   "Задачи перенесено": "Vazifalar koʻchirilgan",
   "Компании · отсортированы по числу проектов": "Kompaniyalar · loyihalar soni boʻyicha saralangan",
   "Компании · отсортированы по числу задач": "Kompaniyalar · vazifalar soni boʻyicha saralangan",
-  "{n} компаний": "{n} kompaniya",
+  
   "Нет компаний с подходящими элементами": "Mos elementlarga ega kompaniyalar yoʻq",
   "Открыть карточку компании «{name}»": "«{name}» kompaniya kartochkasini ochish",
   "Проекты: {n} в выборке из {total}": "Loyihalar: tanlovda {n}, jami {total}",
@@ -126,7 +126,7 @@ export const uz: Record<string, string> = {
     "«Muddati oʻtgan» — barcha holatlar boʻyicha umumiy hisoblagich, halqaning alohida segmenti emas",
   "вне кольца": "halqadan tashqari",
   "Проекты по компаниям": "Kompaniyalar boʻyicha loyihalar",
-  "КОМПАНИЯ": "Kompaniya",
+  
   "ПРОГРЕСС": "Progress",
   "ПРОЕКТЫ": "Loyihalar",
   "ЗАДАЧИ": "Vazifalar",
@@ -256,7 +256,7 @@ export const en: Record<string, string> = {
   "Загрузка данных компании…": "Loading company data…",
   "Не удалось загрузить данные": "Failed to load data",
   "Не удалось загрузить данные компании": "Failed to load company data",
-  "Ошибка загрузки": "Load error",
+  
 
   // ── CompanyTileDrillModal ──
   "{p} проектов · {t} задач · {pd} проектов завершено · {td} из {tt} задач":
@@ -363,7 +363,7 @@ export const en: Record<string, string> = {
     "“Overdue” is a cross-status counter, not a separate ring segment",
   "вне кольца": "outside the ring",
   "Проекты по компаниям": "Projects by company",
-  "КОМПАНИЯ": "Company",
+  
   "ПРОГРЕСС": "Progress",
   "ПРОЕКТЫ": "Projects",
   "ЗАДАЧИ": "Tasks",

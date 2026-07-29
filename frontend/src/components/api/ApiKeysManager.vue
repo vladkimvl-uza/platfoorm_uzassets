@@ -80,7 +80,7 @@ onMounted(loadAll);
 
 async function createServiceAccount() {
   if (!newSa.value.email || !newSa.value.full_name) {
-    error.value = "Заполните email и имя"; return;
+    error.value = t('Заполните email и имя'); return;
   }
   try {
     const created = await apiKeysApi.createServiceAccount({
@@ -97,7 +97,7 @@ async function createServiceAccount() {
 }
 
 async function deactivateSa(sa: ServiceAccount) {
-  if (!(await confirmDialog({ message: `Деактивировать service account "${sa.full_name || sa.email}" и отозвать все его ключи?`, danger: true }))) return;
+  if (!(await confirmDialog({ message: t('Деактивировать service account "{value0}" и отозвать все его ключи?', { value0: sa.full_name || sa.email }), danger: true }))) return;
   try {
     await apiKeysApi.deleteServiceAccount(sa.id);
     if (selectedSa.value?.id === sa.id) selectedSa.value = null;
@@ -107,7 +107,7 @@ async function deactivateSa(sa: ServiceAccount) {
 }
 
 function openKeyCreate() {
-  if (!selectedSa.value) { error.value = "Сначала выберите service account"; return; }
+  if (!selectedSa.value) { error.value = t('Сначала выберите service account'); return; }
   newKey.value = {
     name: "", description: "",
     environment: "sandbox", rate_limit_per_minute: 600,
@@ -126,7 +126,7 @@ function toggleScope(code: string) {
 
 async function submitKeyCreate() {
   if (!selectedSa.value) return;
-  if (!newKey.value.name.trim()) { error.value = "Укажите имя ключа"; return; }
+  if (!newKey.value.name.trim()) { error.value = t('Укажите имя ключа'); return; }
   try {
     const allowlist = newKey.value.ip_allowlist.trim()
       ? newKey.value.ip_allowlist.split(",").map((s) => s.trim()).filter(Boolean)
@@ -168,10 +168,10 @@ async function confirmRevoke() {
 function fmtRel(iso: string | null): string {
   if (!iso) return "—";
   const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-  if (diff < 60) return "только что";
-  if (diff < 3600) return `${Math.floor(diff / 60)} мин назад`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)} ч назад`;
-  return `${Math.floor(diff / 86400)} дн назад`;
+  if (diff < 60) return t('только что');
+  if (diff < 3600) return t('{value0} мин назад', { value0: Math.floor(diff / 60) });
+  if (diff < 86400) return t('{value0} ч назад', { value0: Math.floor(diff / 3600) });
+  return t('{value0} дн назад', { value0: Math.floor(diff / 86400) });
 }
 </script>
 
@@ -191,7 +191,7 @@ function fmtRel(iso: string | null): string {
         </div>
 
         <UzaStateBlock v-if="loading && !sas.length" state="loading" variant="text" />
-        <UzaStateBlock v-else-if="!sas.length" state="empty" :title="t('Нет service accounts')" desc="Создайте первый">
+      <UzaStateBlock v-else-if="!sas.length" state="empty" :title="t('Нет service accounts')" :desc="t('Создайте первый')">
           <template #icon><BIcon name="robot" :size="14" /></template>
         </UzaStateBlock>
 
@@ -218,7 +218,7 @@ function fmtRel(iso: string | null): string {
           <div class="km-col-hd">
             <div>
               <div class="km-col-t">{{ selectedSa.full_name || selectedSa.email }}</div>
-              <div class="km-col-s">{{ selectedSa.email }} · {{ selectedSa.description || "без описания" }}</div>
+              <div class="km-col-s">{{ selectedSa.email }} · {{ selectedSa.description || t('без описания') }}</div>
             </div>
             <div style="display: flex; gap: 6px;">
               <button class="km-add" @click="deactivateSa(selectedSa)" :title="t('Деактивировать SA')"
@@ -231,7 +231,7 @@ function fmtRel(iso: string | null): string {
             </div>
           </div>
 
-          <UzaStateBlock v-if="!keys.length" state="empty" text="Ключей нет">
+          <UzaStateBlock v-if="!keys.length" state="empty" :text="t('Ключей нет')">
             <template #icon><BIcon name="key" :size="14" /></template>
           </UzaStateBlock>
 
@@ -258,7 +258,7 @@ function fmtRel(iso: string | null): string {
                 <td><code class="km-prefix">{{ k.prefix }}…</code></td>
                 <td>
                   <span class="km-pill" :style="{ color: envPill(k.environment).color, background: envPill(k.environment).bg }">
-                    {{ envPill(k.environment).label }}
+                    {{ t(envPill(k.environment).label) }}
                   </span>
                 </td>
                 <td>
@@ -270,7 +270,7 @@ function fmtRel(iso: string | null): string {
                 <td class="km-num">{{ k.total_calls }}<span v-if="k.failed_calls > 0" style="color: #A32D2D;"> · {{ k.failed_calls }} fail</span></td>
                 <td>
                   <span class="km-pill" :style="{ color: keyStatusPill(k).color, background: keyStatusPill(k).bg }">
-                    {{ keyStatusPill(k).label }}
+                    {{ t(keyStatusPill(k).label) }}
                   </span>
                 </td>
                 <td>
@@ -283,7 +283,7 @@ function fmtRel(iso: string | null): string {
           </table>
         </template>
 
-        <UzaStateBlock v-else state="empty" text="Выберите service account слева, чтобы увидеть его ключи">
+        <UzaStateBlock v-else state="empty" :text="t('Выберите service account слева, чтобы увидеть его ключи')">
           <template #icon><BIcon name="arrow-left" :size="14" /></template>
         </UzaStateBlock>
       </div>
@@ -313,7 +313,7 @@ function fmtRel(iso: string | null): string {
 
     <!-- ───── Modal: create key ───── -->
     <ModalShell :open="showKeyCreate" size="lg"
-                :title="'Выпуск API ключа для ' + (selectedSa?.full_name || selectedSa?.email || '')"
+                :title="t('Выпуск API ключа для {value0}', { value0: (selectedSa?.full_name || selectedSa?.email || '') })"
                 @close="showKeyCreate = false">
         <div class="km-modal-body">
           <div class="km-field-grid">

@@ -158,7 +158,7 @@ function fmtInt(v: number | null | undefined): string {
             :style="{ '--i': i + 2 }"
           >
             <div class="pa-mp-row-top">
-              <span class="pa-mp-label" :title="m.label">{{ m.label }}</span>
+              <span class="pa-mp-label" :title="t(m.label)">{{ t(m.label) }}</span>
 
               <!-- Бейдж ставки экономии — главный инсайт -->
               <span

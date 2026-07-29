@@ -3,7 +3,7 @@
     <header v-if="title || $slots.header" class="ap-head">
       <slot name="header">
         <div class="ap-title">{{ title }}</div>
-        <div v-if="hint" class="ap-hint">{{ hint }}</div>
+        <div v-if="hint" class="ap-hint">{{ t(hint) }}</div>
       </slot>
       <div class="ap-head-spacer" />
       <label class="ap-upload-btn" :class="{ 'is-disabled': uploading }">
@@ -26,7 +26,7 @@
     <ul v-else class="ap-list">
       <li v-for="a in items" :key="a.id" class="ap-item">
         <div class="ap-icon" :class="`ap-icon-${fileKind(a.mime_type)}`">
-          {{ kindLabel(a.mime_type) }}
+          {{ t(kindLabel(a.mime_type)) }}
         </div>
         <div class="ap-body">
           <a
@@ -48,8 +48,8 @@
           class="ap-lock"
           :class="{ 'is-locked': (a.denied_user_count || 0) > 0 }"
           :title="(a.denied_user_count || 0) > 0
-            ? `Скрыт от ${a.denied_user_count} польз.`
-            : 'Управление доступом'"
+            ? t('Скрыт от {value0} польз.', { value0: a.denied_user_count })
+            : t('Управление доступом')"
           @click="openDenyModal(a)"
         >
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
@@ -93,6 +93,8 @@ import {
 import { useConfirm } from "@/composables/useConfirm";
 import AttachmentDenyModal from "./AttachmentDenyModal.vue";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 const { t } = useI18n();
 
 
@@ -121,7 +123,7 @@ const props = withDefaults(defineProps<{
 }>(), {
   isResultDoc: false,
   filter: "all",
-  emptyText: "Файлов нет",
+  emptyText: i18nKey("Файлов нет"),
   isAdmin: false,
 });
 
@@ -159,7 +161,7 @@ async function load() {
     if (e?.response?.status === 403) {
       rawItems.value = [];   // no access — silent empty
     } else if (e?.response?.status !== 404) {
-      error.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить файлы";
+      error.value = e?.response?.data?.detail || e?.message || t('Не удалось загрузить файлы');
     }
   } finally {
     loading.value = false;
@@ -175,7 +177,7 @@ async function onFilePicked(e: Event) {
   input.value = "";  // allow re-uploading the same file
   if (!file) return;
   if (file.size > 25 * 1024 * 1024) {
-    error.value = "Файл больше 25 МБ — отклонён";
+    error.value = t('Файл больше 25 МБ — отклонён');
     return;
   }
   uploading.value = true;
@@ -189,7 +191,7 @@ async function onFilePicked(e: Event) {
     rawItems.value = [att, ...rawItems.value];
     emit("changed");
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить файл";
+    error.value = e?.response?.data?.detail || e?.message || t('Не удалось загрузить файл');
   } finally {
     uploading.value = false;
   }
@@ -207,19 +209,19 @@ async function onDownload(a: Attachment) {
     link.click();
     link.remove();
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || "Не удалось получить ссылку";
+    error.value = e?.response?.data?.detail || t('Не удалось получить ссылку');
   }
 }
 
 async function onDelete(a: Attachment) {
-  if (!(await confirmDialog({ message: `Удалить файл «${a.filename}»?`, danger: true }))) return;
+  if (!(await confirmDialog({ message: t('Удалить файл «{value0}»?', { value0: a.filename }), danger: true }))) return;
   deletingId.value = a.id;
   try {
     await attachmentsApi.remove(props.kind, a.id);
     rawItems.value = rawItems.value.filter(x => x.id !== a.id);
     emit("changed");
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || "Не удалось удалить файл";
+    error.value = e?.response?.data?.detail || t('Не удалось удалить файл');
   } finally {
     deletingId.value = null;
   }

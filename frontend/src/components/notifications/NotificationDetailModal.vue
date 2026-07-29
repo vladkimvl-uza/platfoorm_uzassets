@@ -15,6 +15,8 @@ import { api } from "@/api/client";
 import { notificationsApi, type NotificationAuditDetail } from "@/api/notifications";
 import ModalShell from "@/components/ModalShell.vue";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 const { t } = useI18n();
 
 
@@ -55,10 +57,10 @@ const d = computed(() => (n.value ? describeNotification(n.value as any) : null)
 const iconPath = (k?: string) => NOTIF_ICON_PATHS[k || "bell"] || NOTIF_ICON_PATHS.bell;
 
 const MODULE_LABELS: Record<string, string> = {
-  tasks: "Задачи", finance: "Финансы", business_plan: "Бизнес-план", kpi: "KPI",
-  esg: "ESG", governance: "Корп. управление", ratings: "Рейтинги",
-  investment: "Инвест-проекты", procurement: "Закупки", companies: "Компании",
-  moderation: "Модерация", notification: "Уведомления", auth: "Вход и сессии",
+  tasks: i18nKey("Задачи"), finance: i18nKey("Финансы"), business_plan: i18nKey("Бизнес-план"), kpi: "KPI",
+  esg: "ESG", governance: i18nKey("Корп. управление"), ratings: i18nKey("Рейтинги"),
+  investment: i18nKey("Инвест-проекты"), procurement: i18nKey("Закупки"), companies: i18nKey("Компании"),
+  moderation: i18nKey("Модерация"), notification: i18nKey("Уведомления"), auth: i18nKey("Вход и сессии"),
 };
 const moduleLabel = computed(() => {
   const m = n.value?.source_module || "";
@@ -66,8 +68,8 @@ const moduleLabel = computed(() => {
 });
 const actorName = computed(() => {
   const p: any = n.value?.payload || {};
-  if (!n.value?.source_user_id) return p.actor_name || "Система";
-  return actorCard.value?.full_name || p.actor_name || "Пользователь";
+  if (!n.value?.source_user_id) return p.actor_name || t("Система");
+  return actorCard.value?.full_name || p.actor_name || t("Пользователь");
 });
 // Компания и должность автора — рядом с именем: «кто именно изменил».
 // Источник — карточка пользователя, фолбэк — payload уведомления.
@@ -164,7 +166,7 @@ function openSource() {
         <div class="ndm-meta-row">
           <svg class="ndm-meta-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
           <span class="ndm-meta-l">{{ t('Где') }}</span>
-          <span class="ndm-meta-v">{{ moduleLabel }}</span>
+          <span class="ndm-meta-v">{{ t(moduleLabel) }}</span>
         </div>
         <div class="ndm-meta-row">
           <svg class="ndm-meta-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
@@ -186,7 +188,7 @@ function openSource() {
         <!-- Построчный diff: поле · было → стало (или значение) -->
         <div v-if="auditDetail.changes.length" class="ndm-diff">
           <div v-for="(c, i) in auditDetail.changes" :key="i" class="ndm-diff-row">
-            <span class="ndm-diff-f">{{ c.label }}</span>
+            <span class="ndm-diff-f">{{ t(c.label) }}</span>
             <span v-if="c.old != null || c.new != null" class="ndm-diff-v">
               <span class="ndm-pill ndm-pill-old">{{ c.old ?? '—' }}</span>
               <svg class="ndm-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
@@ -208,7 +210,7 @@ function openSource() {
 
     <template v-if="n && d" #footer>
       <button v-if="sourceLink" class="ndm-src" @click="openSource">
-        {{ sourceLink.includes('/projects/') ? 'Открыть проект' : 'Открыть задачу' }}
+        {{ sourceLink.includes('/projects/') ? t('Открыть проект') : t('Открыть задачу') }}
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
       </button>
       <button class="ndm-ok" @click="nd.close()">{{ t('Закрыть') }}</button>

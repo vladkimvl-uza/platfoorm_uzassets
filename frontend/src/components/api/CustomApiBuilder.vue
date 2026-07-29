@@ -36,7 +36,7 @@ async function loadAll() {
   try {
     const [s, e] = await Promise.all([customApi.sources(), customApi.list()]);
     sources.value = s; endpoints.value = e;
-  } catch (e: any) { error.value = e?.response?.data?.detail || "Не удалось загрузить"; }
+  } catch (e: any) { error.value = e?.response?.data?.detail || t('Не удалось загрузить'); }
   finally { loading.value = false; }
 }
 onMounted(loadAll);
@@ -81,16 +81,16 @@ function buildConfig() {
 }
 
 async function runPreview() {
-  if (!form.value.source) { error.value = "Выберите источник"; return; }
+  if (!form.value.source) { error.value = t('Выберите источник'); return; }
   previewing.value = true; error.value = null;
   try { preview.value = await customApi.preview(form.value.source, buildConfig()); }
-  catch (e: any) { error.value = e?.response?.data?.detail || "Ошибка превью"; }
+  catch (e: any) { error.value = e?.response?.data?.detail || t('Ошибка превью'); }
   finally { previewing.value = false; }
 }
 
 async function save() {
-  if (!form.value.source) { error.value = "Выберите источник"; return; }
-  if (!form.value.title.trim()) { error.value = "Введите название"; return; }
+  if (!form.value.source) { error.value = t('Выберите источник'); return; }
+  if (!form.value.title.trim()) { error.value = t('Введите название'); return; }
   saving.value = true; error.value = null;
   try {
     if (editId.value) {
@@ -99,18 +99,18 @@ async function save() {
       await customApi.create({ slug: form.value.slug, title: form.value.title, description: form.value.description || null, source: form.value.source, config: buildConfig(), is_active: true });
     }
     await loadAll(); cancel();
-  } catch (e: any) { error.value = e?.response?.data?.detail || "Не удалось сохранить"; }
+  } catch (e: any) { error.value = e?.response?.data?.detail || t('Не удалось сохранить'); }
   finally { saving.value = false; }
 }
 
 async function toggleActive(ep: CustomEndpoint) {
   try { await customApi.update(ep.id, { is_active: !ep.is_active }); await loadAll(); }
-  catch (e: any) { error.value = e?.response?.data?.detail || "Ошибка"; }
+  catch (e: any) { error.value = e?.response?.data?.detail || t('Ошибка'); }
 }
 async function remove(ep: CustomEndpoint) {
-  if (!(await confirmDialog({ message: `Удалить endpoint «${ep.title}» (${ep.slug})?`, danger: true }))) return;
+  if (!(await confirmDialog({ message: t('Удалить endpoint «{value0}» ({value1})?', { value0: ep.title, value1: ep.slug }), danger: true }))) return;
   try { await customApi.remove(ep.id); await loadAll(); }
-  catch (e: any) { error.value = e?.response?.data?.detail || "Ошибка"; }
+  catch (e: any) { error.value = e?.response?.data?.detail || t('Ошибка'); }
 }
 function copy(text: string, key: string) {
   navigator.clipboard.writeText(text).then(() => { copied.value = key; setTimeout(() => (copied.value = null), 1600); });
@@ -143,7 +143,7 @@ function srcLabel(key: string) { return sources.value.find(s => s.key === key)?.
         <div class="cab-fld">
           <span>{{ t('Источник данных *') }}</span>
           <div class="cab-chips">
-            <button v-for="s in sources" :key="s.key" type="button" class="cab-chip" :class="{ on: form.source === s.key }" :disabled="!!editId" @click="pickSource(s.key)">{{ s.label }}</button>
+            <button v-for="s in sources" :key="s.key" type="button" class="cab-chip" :class="{ on: form.source === s.key }" :disabled="!!editId" @click="pickSource(s.key)">{{ t(s.label) }}</button>
           </div>
         </div>
 
@@ -167,8 +167,8 @@ function srcLabel(key: string) { return sources.value.find(s => s.key === key)?.
         <div class="cab-actions">
           <button class="cab-btn cab-btn-g" @click="cancel">{{ t('Отмена') }}</button>
           <div style="flex:1"></div>
-          <button class="cab-btn cab-btn-g" :disabled="previewing || !form.source" @click="runPreview"><BIcon name="player-play" :size="13" /> {{ previewing ? "…" : "Превью" }}</button>
-          <button class="cab-btn cab-btn-p" :disabled="saving" @click="save">{{ saving ? "…" : (editId ? "Сохранить" : "Создать endpoint") }}</button>
+          <button class="cab-btn cab-btn-g" :disabled="previewing || !form.source" @click="runPreview"><BIcon name="player-play" :size="13" /> {{ previewing ? "…" : t('Превью') }}</button>
+          <button class="cab-btn cab-btn-p" :disabled="saving" @click="save">{{ saving ? "…" : (editId ? t('Сохранить') : t('Создать endpoint')) }}</button>
         </div>
       </div>
 
@@ -202,11 +202,11 @@ function srcLabel(key: string) { return sources.value.find(s => s.key === key)?.
           <div class="cab-card-top">
             <div class="cab-card-titlewrap">
               <span class="cab-card-title">{{ ep.title }}</span>
-              <span class="cab-card-src">{{ srcLabel(ep.source) }}</span>
+              <span class="cab-card-src">{{ t(srcLabel(ep.source)) }}</span>
               <span v-if="!ep.is_active" class="cab-card-off">{{ t('отключён') }}</span>
             </div>
             <div class="cab-card-acts">
-              <button class="cab-ibtn" :title="ep.is_active ? 'Отключить' : 'Включить'" @click="toggleActive(ep)"><BIcon name="power" :size="14" /></button>
+              <button class="cab-ibtn" :title="ep.is_active ? t('Отключить') : t('Включить')" @click="toggleActive(ep)"><BIcon name="power" :size="14" /></button>
               <button class="cab-ibtn" :title="t('Редактировать')" @click="startEdit(ep)"><BIcon name="edit" :size="14" /></button>
               <button class="cab-ibtn cab-ibtn-d" :title="t('Удалить')" @click="remove(ep)"><BIcon name="trash" :size="14" /></button>
             </div>

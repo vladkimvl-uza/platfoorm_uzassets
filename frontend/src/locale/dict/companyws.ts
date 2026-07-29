@@ -10,7 +10,7 @@ export const uz: Record<string, string> = {
   "Не удалось загрузить компанию": "Kompaniyani yuklab boʻlmadi",
   "Не удалось переместить задачу: {err}": "Vazifani koʻchirib boʻlmadi: {err}",
   "ошибка": "xatolik",
-  "Не удалось загрузить KPI": "KPI yuklab boʻlmadi",
+  
   "Не удалось загрузить Бизнес-план": "Biznes-rejani yuklab boʻlmadi",
   "Не удалось загрузить Корп. управление": "Korporativ boshqaruvni yuklab boʻlmadi",
   "Не удалось загрузить ESG": "ESG maʼlumotlarini yuklab boʻlmadi",
@@ -21,7 +21,7 @@ export const uz: Record<string, string> = {
   "Не удалось загрузить закупки": "Xaridlarni yuklab boʻlmadi",
   "Не удалось загрузить отчётность": "Hisobotni yuklab boʻlmadi",
   "Не удалось загрузить отчёт": "Hisobotni yuklab boʻlmadi",
-  "Ошибка загрузки": "Yuklashda xatolik",
+  
   "Ошибка загрузки KPI": "KPI yuklashda xatolik",
   "Ошибка загрузки Бизнес-плана": "Biznes-rejani yuklashda xatolik",
 
@@ -41,10 +41,10 @@ export const uz: Record<string, string> = {
 
   // ── Hero / прогресс ──
   "РЕЙТИНГИ": "REYTINGLAR",
-  "ПРОГРЕСС": "BAJARILISH",
+  
   "План по дедлайнам: {n}%": "Muddatlar boʻyicha reja: {n}%",
-  "задач завершено": "vazifa yakunlandi",
-  "проектов завершено": "loyiha yakunlandi",
+  
+  
   "проектов": "loyiha",
   "Регулярные задачи не учитываются в % прогресса": "Muntazam vazifalar bajarilish foizida hisobga olinmaydi",
   "ежекв.": "chor.",
@@ -64,7 +64,7 @@ export const uz: Record<string, string> = {
   "Инициирование": "Boshlash",
   "В процессе": "Jarayonda",
   "На согласовании": "Kelishuvda",
-  "Перенесено": "Koʻchirilgan",
+  
   "Ежеквартально": "Har chorakda",
   "Ежемесячно": "Har oyda",
   "Постоянно": "Doimiy",
@@ -204,8 +204,8 @@ export const uz: Record<string, string> = {
     "Konsultant qoʻshish uchun loyihadagi vazifani oching va muharrirda konsultantni koʻrsating.",
   "Консультанты компании": "Kompaniya konsultantlari",
   "КОНСУЛЬТАНТ": "KONSULTANT",
-  "ЗАДАЧИ": "VAZIFALAR",
-  "ПРОСРОЧЕНО": "MUDDATI OʻTGAN",
+  
+  
   "Показать задачи": "Vazifalarni koʻrsatish",
   "показаны {shown} из {total} задач": "{total} tadan {shown} ta vazifa koʻrsatildi",
   "Другие консультанты": "Boshqa konsultantlar",
@@ -280,7 +280,7 @@ export const uz: Record<string, string> = {
   "Другие ({n} закр.)": "Boshqalar ({n} yop.)",
   "Остальные ({n} поставщиков)": "Qolganlar ({n} yetkazib beruvchi)",
   "Топ-{n} закупок по отклонению от рынка": "Bozordan ogʻish boʻyicha top-{n} xarid",
-  "Товар": "Mahsulot",
+  
   "Поставщик": "Yetkazib beruvchi",
   "Цена": "Narx",
   "Рынок": "Bozor",
@@ -323,7 +323,7 @@ export const en: Record<string, string> = {
   "Не удалось загрузить компанию": "Failed to load company",
   "Не удалось переместить задачу: {err}": "Failed to move task: {err}",
   "ошибка": "error",
-  "Не удалось загрузить KPI": "Failed to load KPIs",
+  
   "Не удалось загрузить Бизнес-план": "Failed to load business plan",
   "Не удалось загрузить Корп. управление": "Failed to load governance",
   "Не удалось загрузить ESG": "Failed to load ESG",
@@ -334,7 +334,7 @@ export const en: Record<string, string> = {
   "Не удалось загрузить закупки": "Failed to load procurement",
   "Не удалось загрузить отчётность": "Failed to load financials",
   "Не удалось загрузить отчёт": "Failed to load report",
-  "Ошибка загрузки": "Load error",
+  
   "Ошибка загрузки KPI": "Failed to load KPIs",
   "Ошибка загрузки Бизнес-плана": "Failed to load business plan",
 
@@ -349,12 +349,12 @@ export const en: Record<string, string> = {
   "Обзор": "Overview",
   "Сотрудники": "Employees",
   "Работа": "Work",
-  "Фин. отчётность": "Fin. reports",
+  
   "Корп. упр.": "Governance",
 
   // ── Hero / прогресс ──
   "РЕЙТИНГИ": "RATINGS",
-  "ПРОГРЕСС": "PROGRESS",
+  
   "План по дедлайнам: {n}%": "Plan by deadlines: {n}%",
   "задач завершено": "tasks completed",
   "проектов завершено": "projects completed",
@@ -481,8 +481,8 @@ export const en: Record<string, string> = {
   "Независимость": "Independence",
   "Состав и разнообразие совета": "Board composition & diversity",
   "Средний срок в совете:": "Average board tenure:",
-  "года": "yrs",
-  "лет": "yrs",
+  
+  
   "Комитеты совета": "Board committees",
   "Заседаний за {year} год": "Meetings in {year}",
   "Состав совета директоров": "Board of directors",
@@ -514,8 +514,8 @@ export const en: Record<string, string> = {
     "To add a consultant, open a task in a project and set the consultant in the editor.",
   "Консультанты компании": "Company consultants",
   "КОНСУЛЬТАНТ": "CONSULTANT",
-  "ЗАДАЧИ": "TASKS",
-  "ПРОСРОЧЕНО": "OVERDUE",
+  
+  
   "Показать задачи": "Show tasks",
   "показаны {shown} из {total} задач": "showing {shown} of {total} tasks",
   "Другие консультанты": "Other consultants",
@@ -621,7 +621,7 @@ export const en: Record<string, string> = {
   "ПРОЕКТ": "PROJECT",
   "ЗАДАЧА": "TASK",
   "дн": "d",
-  "срок": "due",
+  
   "{label} — проекты и задачи": "{label} — projects and tasks",
   "Нет элементов в этом статусе.": "No items in this status.",
 };

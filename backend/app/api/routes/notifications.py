@@ -453,6 +453,8 @@ async def post_test(
         db, recipient_id=user.id, type="system.announcement",
         title="Тестовое уведомление",
         body="Если вы это видите — система уведомлений работает корректно.",
+        title_template="Тестовое уведомление",
+        body_template="Если вы это видите — система уведомлений работает корректно.",
         priority="normal", source_user_id=user.id,
     )
     return {"sent": bool(n), "id": str(n.id) if n else None}

@@ -10,6 +10,8 @@ import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
 import { productionApi, type ProdCompany, type ProdLine } from "@/api/production";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 
 const { t } = useI18n();
 
@@ -28,7 +30,7 @@ type ELine = {
 };
 
 function blank(total = false): ELine {
-  return { name: total ? props.company.n : "", unit: total ? (props.company.unit || "млрд сум") : "",
+  return { name: total ? props.company.n : "", unit: total ? (props.company.unit || t("млрд сум")) : "",
     total, parent: null, baseN: null, baseM: null, planN: null, planM: null,
     expN: null, expM: null, factN: null, factM: null };
 }
@@ -143,7 +145,7 @@ async function save() {
   }
 }
 
-const periodLabel = computed(() => ({ h1: "1 полугодие", h2: "2 полугодие", annual: "год" }[props.period] || props.period));
+const periodLabel = computed(() => ({ h1: i18nKey("1 полугодие"), h2: i18nKey("2 полугодие"), annual: i18nKey("год") }[props.period] || props.period));
 </script>
 
 <template>

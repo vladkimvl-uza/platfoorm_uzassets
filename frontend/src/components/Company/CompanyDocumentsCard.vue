@@ -4,9 +4,9 @@
       kind="company"
       :parent-id="companyId"
       :title="t('ДОКУМЕНТЫ КОМПАНИИ')"
-      hint="Общая папка — учредительные, отчёты, презентации"
+      :hint="t('Общая папка — учредительные, отчёты, презентации')"
       filter="all"
-      empty-text="Документов нет"
+      :empty-text="t('Документов нет')"
       :current-user-id="currentUserId"
       :is-admin="isAdmin"
     />

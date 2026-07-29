@@ -1,34 +1,30 @@
 <template>
   <article class="dp">
     <h1 class="dp-h1">Rate limits</h1>
-    <p class="dp-lead">Защита от credential-stuffing и API-abuse. При превышении — статус <code>429 Too Many Requests</code>.</p>
+    <p class="dp-lead">{{ t('Защита от credential-stuffing и API-abuse. При превышении — статус') }} <code>429 Too Many Requests</code>.</p>
 
     <table class="dp-table">
       <thead>
-        <tr><th>Zone</th><th>Лимит</th><th>Burst</th><th>Применяется к</th></tr>
+        <tr><th>Zone</th><th>{{ t('Лимит') }}</th><th>Burst</th><th>{{ t('Применяется к') }}</th></tr>
       </thead>
       <tbody>
-        <tr><td><b>auth_zone</b></td><td>10 / мин</td><td>5</td><td><code>/auth/login</code>, <code>/auth/refresh</code>, <code>/auth/login-mfa</code></td></tr>
-        <tr><td><b>api_zone</b></td><td>1200 / мин</td><td>200</td><td>Все остальные <code>/api/*</code></td></tr>
-        <tr><td><b>heavy_zone</b></td><td>60 / мин</td><td>10</td><td>Reports, exports — <code>/api/reports/*</code>, <code>/api/export/*</code></td></tr>
+        <tr><td><b>auth_zone</b></td><td>{{ t('10 / мин') }}</td><td>5</td><td><code>/auth/login</code>, <code>/auth/refresh</code>, <code>/auth/login-mfa</code></td></tr>
+        <tr><td><b>api_zone</b></td><td>{{ t('1200 / мин') }}</td><td>200</td><td>{{ t('Все остальные') }} <code>/api/*</code></td></tr>
+        <tr><td><b>heavy_zone</b></td><td>{{ t('60 / мин') }}</td><td>10</td><td>Reports, exports — <code>/api/reports/*</code>, <code>/api/export/*</code></td></tr>
       </tbody>
     </table>
 
-    <h2 class="dp-h2">Обработка 429</h2>
-    <p>Клиент должен делать exponential back-off: 1s → 2s → 4s → 8s, с max 30s. Header <code>Retry-After</code> (если присутствует) — рекомендованная пауза.</p>
+    <h2 class="dp-h2">{{ t('Обработка 429') }}</h2>
+    <p>{{ t('Клиент должен делать exponential back-off: 1s → 2s → 4s → 8s, с max 30s. Header') }} <code>Retry-After</code> {{ t('(если присутствует) — рекомендованная пауза.') }}</p>
 
-    <pre class="dp-code">// JS пример с back-off
-async function fetchWithRetry(url, init, maxRetries = 5) {
-  for (let i = 0; i &lt; maxRetries; i++) {
-    const r = await fetch(url, init);
-    if (r.status !== 429) return r;
-    const wait = Math.min(30000, 1000 * Math.pow(2, i));
-    await new Promise(res => setTimeout(res, wait));
-  }
-  throw new Error("Rate limited too many times");
-}</pre>
+    <pre class="dp-code">{{ t('// JS пример с back-off async function fetchWithRetry(url, init, maxRetries = 5) { for (let i = 0; i &lt; maxRetries; i++) { const r = await fetch(url, init); if (r.status !== 429) return r; const wait = Math.min(30000, 1000 * Math.pow(2, i)); await new Promise(res => setTimeout(res, wait)); } throw new Error("Rate limited too many times"); }') }}</pre>
   </article>
 </template>
+
+<script setup lang="ts">
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
+</script>
 
 <style scoped>
 .dp { max-width: 720px; }
