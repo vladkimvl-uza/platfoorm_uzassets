@@ -15,6 +15,10 @@
  * ОБНОВЛЕНИЕ: при выходе нового Указа на следующий год -- добавить в
  * UZ_HOLIDAYS соответствующий блок. Праздники меняются раз в год.
  */
+import { fmtDate } from "@/locale";
+import { getCurrentLocale } from "@/locale/i18n";
+import { i18nKey } from "@/locale/keys";
+import { translitLatinToCyrillic } from "@/locale/translit";
 
 export type HolidayKind =
   | "public" // постоянные нерабочие (1 янв, 8 мар, 9 мая...)
@@ -38,6 +42,7 @@ export interface UzHoliday {
   applies_6day?: boolean; // действует для 6-дневки (default true)
 }
 
+// i18n-exempt-start -- multilingual system catalog; not user-entered data.
 // === 2025 (для архивных записей и прошлых дат) ===
 const HOLIDAYS_2025: UzHoliday[] = [
   { date: "2025-01-01", title_ru: "Новый год", title_uz: "Yangi yil", title_en: "New Year", kind: "public", is_dayoff: true },
@@ -87,6 +92,7 @@ const HOLIDAYS_2027: UzHoliday[] = [
   { date: "2027-10-01", title_ru: "День учителя и наставника", title_uz: "O'qituvchi va murabbiylar kuni", title_en: "Teacher's Day", kind: "public", is_dayoff: true },
   { date: "2027-12-08", title_ru: "День Конституции", title_uz: "Konstitutsiya kuni", title_en: "Constitution Day", kind: "public", is_dayoff: true },
 ];
+// i18n-exempt-end
 
 export const UZ_HOLIDAYS: UzHoliday[] = [
   ...HOLIDAYS_2025,
@@ -104,11 +110,11 @@ export const HOLIDAY_KIND_COLORS: Record<HolidayKind, string> = {
 };
 
 export const HOLIDAY_KIND_LABELS: Record<HolidayKind, string> = {
-  public: "Государственный",
-  religious: "Религиозный",
-  memorial: "Памятный",
-  transferred: "Перенос",
-  extra: "Доп. выходной",
+  public: i18nKey("Государственный"),
+  religious: i18nKey("Религиозный"),
+  memorial: i18nKey("Памятный"),
+  transferred: i18nKey("Перенос"),
+  extra: i18nKey("Доп. выходной"),
 };
 
 // ============================================================
@@ -143,6 +149,16 @@ export function getHolidays(date: Date | string): UzHoliday[] {
 export function getHoliday(date: Date | string): UzHoliday | null {
   const list = getHolidays(date);
   return list[0] || null;
+}
+
+/** Localized title from the built-in multilingual holiday catalog. */
+export function holidayTitle(holiday: UzHoliday | null | undefined): string {
+  if (!holiday) return "";
+  const locale = getCurrentLocale();
+  if (locale === "uz-latn") return holiday.title_uz;
+  if (locale === "uz-cyr") return translitLatinToCyrillic(holiday.title_uz);
+  if (locale === "en") return holiday.title_en;
+  return holiday.title_ru;
 }
 
 /** Праздник ли это (любой kind). */
@@ -215,11 +231,7 @@ export function daysUntil(date: Date | string, from: Date = new Date()): number 
 /** Форматирование даты праздника для группировочного заголовка. */
 export function formatHolidayDate(d: Date | string): string {
   const date = typeof d === "string" ? new Date(d) : d;
-  const months = [
-    "янв", "фев", "мар", "апр", "май", "июн",
-    "июл", "авг", "сен", "окт", "ноя", "дек",
-  ];
-  return `${date.getDate()} ${months[date.getMonth()]}`;
+  return fmtDate(date, getCurrentLocale(), { includeYear: false });
 }
 
 /** Проверить попадает ли due_date на нерабочий и предложить альтернативу. */

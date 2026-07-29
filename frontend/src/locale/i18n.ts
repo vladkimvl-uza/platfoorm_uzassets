@@ -30,6 +30,8 @@ import { useLocaleStore } from "@/stores/locale";
 import type { AppLocale } from "./locales";
 import { translitLatinToCyrillic } from "./translit";
 
+export { i18nKey } from "./keys";
+
 export type DictModule = {
   uz?: Record<string, string>;
   en?: Record<string, string>;
@@ -54,7 +56,7 @@ function interpolate(s: string, vars?: Record<string, unknown>): string {
   return s.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m));
 }
 
-function currentLocale(): AppLocale {
+export function getCurrentLocale(): AppLocale {
   try {
     if (getActivePinia()) return useLocaleStore().current;
   } catch {
@@ -65,7 +67,7 @@ function currentLocale(): AppLocale {
 
 /** Перевод строки интерфейса. Ключ — русский текст. */
 export function t(ru: string, vars?: Record<string, unknown>): string {
-  const loc = currentLocale();
+  const loc = getCurrentLocale();
   let out = ru;
   if (loc === "uz-latn") {
     out = UZ[ru] ?? ru;
