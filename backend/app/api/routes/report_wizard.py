@@ -1,7 +1,11 @@
 """Report wizard config routes — сохранённый «Мастер отчёта» по компании+году.
 
-GET  /report-wizard/{code}/{year}   — конфиг (scope-доступ к компании)
-PUT  /report-wizard/{code}/{year}   — сохранить (право tasks.edit)
+GET  /report-wizard/{code}/{year}   — конфиг (право reports.view + scope)
+PUT  /report-wizard/{code}/{year}   — сохранить (reports.view + tasks.edit)
+
+`reports.view` — единственный реальный потребитель этого кода в бэкенде:
+«Мастер отчёта» и есть модуль отчётов. До этой правки право лежало в каталоге
+мёртвым — ни фронт, ни бэк его не проверяли.
 """
 from __future__ import annotations
 
@@ -23,6 +27,15 @@ from app.services.report_wizard.service import ReportWizardService
 router = APIRouter(prefix="/report-wizard", tags=["report-wizard"])
 
 
+async def _require_reports_view(db: AsyncSession, user: User) -> None:
+    """Гейт модуля отчётов. Раньше чтение конфига опиралось только на скоуп по
+    компании, т.е. право reports.view нельзя было ни выдать, ни отобрать."""
+    if not await has_effective_permission(db, user, "reports.view"):
+        raise HTTPException(
+            http_status.HTTP_403_FORBIDDEN, "Permission required: reports.view"
+        )
+
+
 async def _company_id(db: AsyncSession, code: str) -> UUID:
     res = await db.execute(select(Company.id).where(Company.code == code))
     cid = res.scalar_one_or_none()
@@ -38,6 +51,7 @@ async def get_report_wizard(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> ReportWizardResponse:
+    await _require_reports_view(db, user)
     cid = await _company_id(db, code)
     await ensure_company_access(db, user, cid)
     return await ReportWizardService(db).get(cid, year)
@@ -51,6 +65,9 @@ async def save_report_wizard(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> ReportWizardResponse:
+    # Сохранение конфига требует и доступа к модулю отчётов, и права правки:
+    # снятие reports.view должно закрывать модуль целиком, а не только чтение.
+    await _require_reports_view(db, user)
     if not await has_effective_permission(db, user, "tasks.edit"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required: tasks.edit")
     cid = await _company_id(db, code)

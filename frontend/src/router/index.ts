@@ -62,7 +62,10 @@ const router = createRouter({
               // 29.07.2026), поэтому и стартовой страницей быть не может.
               const portfolio =
                 !!a.user?.is_owner || a.user?.scope_unrestricted !== false;
-              return portfolio && a.hasPermission("financials.view")
+              // Право экрана министра теперь собственное (exec_dashboard.view),
+              // а не заимствованное financials.view — иначе стартовой
+              // страницей стал бы экран, куда гейт маршрута не пустит.
+              return portfolio && a.hasPermission("exec_dashboard.view")
                 ? "/executive-dashboard"
                 : "/home";
             } catch {
@@ -81,7 +84,10 @@ const router = createRouter({
           path: "executive-dashboard",
           name: "executive-dashboard",
           component: () => import("@/views/ExecutiveDashboard.vue"),
-          meta: { requiresAuth: true, requiresPermission: "financials.view" },
+          // Собственное право экрана министра. Раньше стояло financials.view —
+          // одно право открывало сразу четыре разных экрана (Финансы, министр,
+          // SOE Health, себестоимость), и админ не мог выдать их по отдельности.
+          meta: { requiresAuth: true, requiresPermission: "exec_dashboard.view" },
           // Портфельный экран: закрыт для пользователей, ограниченных своими
           // компаниями — иначе прямая ссылка обходила бы скрытый пункт меню.
           beforeEnter: (_to, _from, next) => {
@@ -100,7 +106,10 @@ const router = createRouter({
           path: "executive-overview",
           name: "executive-overview",
           component: () => import("@/views/ExecOverview.vue"),
-          meta: { title: "Сводный обзор портфеля", requiresAuth: true, requiresPermission: "projects.view" },
+          // Гейт был на projects.view — права, которого НЕТ в каталоге и нет ни
+          // у одной роли: экран не открывался никому, кроме owner/admin (bypass).
+          // Переведён на существующее собственное право exec_overview.view.
+          meta: { title: "Сводный обзор портфеля", requiresAuth: true, requiresPermission: "exec_overview.view" },
         },
         {
           path: "execution-summary",
@@ -361,13 +370,16 @@ const router = createRouter({
           path: "soe-health",
           name: "soe-health",
           component: () => import("@/views/SoeHealthDashboard.vue"),
-          meta: { title: "SOE Health Check Tool", requiresPermission: "financials.view" },
+          // Собственное право: методика МВФ — отдельный экран, а не часть Финансов.
+          meta: { title: "SOE Health Check Tool", requiresPermission: "soe_health.view" },
         },
         {
           path: "unit-cost",
           name: "unit-cost",
           component: () => import("@/views/UnitCostDashboard.vue"),
-          meta: { title: "Удельная себестоимость", requiresPermission: "financials.view" },
+          // Собственное право: нормы расхода и себестоимость — отдельный доступ
+          // от финансовой отчётности (её могут не давать, а себестоимость — да).
+          meta: { title: "Удельная себестоимость", requiresPermission: "unit_cost.view" },
         },
         {
           path: "financials-edit/nsbu",
@@ -463,7 +475,10 @@ const router = createRouter({
           path: "procurement/analysis",
           name: "procurement-analysis",
           component: () => import("@/views/ProcurementAnalysis.vue"),
-          meta: { requiresPermission: "procurement.view" },
+          // Право procurement_analysis.view существовало в каталоге, но нигде не
+          // проверялось — экран открывался чужим procurement.view (форензик).
+          // Теперь анализ закупок гейтится своим правом.
+          meta: { title: "Анализ закупочной деятельности", requiresPermission: "procurement_analysis.view" },
         },
         // Added with merged bundle: ESG + Corporate Governance modules.
         {

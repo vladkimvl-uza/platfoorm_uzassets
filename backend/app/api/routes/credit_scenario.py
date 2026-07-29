@@ -13,6 +13,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
+from app.core.security import require_permission
 from app.dependencies.credit_scenario import CreditScenarioServiceDep
 from app.models.user import User
 from app.schemas.credit_scenario import (
@@ -48,13 +49,21 @@ from app.services.risk_formula_evaluator import (
 
 router = APIRouter(prefix="/credit-scenario", tags=["credit-scenario"])
 
+# Чтение сценариев отдаёт те же данные, что и кредитный портфель (объём долга,
+# коэффициенты, топ-займы, разрезы по банкам/компаниям). До этого правки здесь
+# стоял только `get_current_user`: право `credit.view` проверял лишь фронт, а
+# прямой вызов API отдавал портфель любому аутентифицированному пользователю.
+# Гейт совпадает с `CreditPortfolioService._require(user, "credit.view")`, чтобы
+# один и тот же набор данных нельзя было получить в обход модульного права.
+_require_credit_view = require_permission("credit.view")
+
 
 # ─── Scenarios CRUD ──────────────────────────────────────────────
 
 @router.get("/scenarios", response_model=list[CreditPortfolioScenarioOut])
 async def list_scenarios(
     service: CreditScenarioServiceDep,
-    _user: User = Depends(get_current_user),
+    _user: User = Depends(_require_credit_view),
 ):
     return await service.list_scenarios()
 
@@ -63,7 +72,7 @@ async def list_scenarios(
 async def get_scenario(
     scenario_id: UUID,
     service: CreditScenarioServiceDep,
-    _user: User = Depends(get_current_user),
+    _user: User = Depends(_require_credit_view),
 ):
     return await service.get_scenario(scenario_id)
 
@@ -106,7 +115,7 @@ async def state_summary(
     scope: str = Query("all_uz"),
     scenario_id: Optional[UUID] = Query(None),
     db: AsyncSession = Depends(get_db),
-    _user: User = Depends(get_current_user),
+    _user: User = Depends(_require_credit_view),
 ):
     return await compute_state_summary(db, scope=scope, scenario_id=scenario_id)
 
@@ -116,7 +125,7 @@ async def debt_ratios(
     scope: str = Query("all_uz"),
     top_n: int = Query(10, ge=1, le=22),
     db: AsyncSession = Depends(get_db),
-    _user: User = Depends(get_current_user),
+    _user: User = Depends(_require_credit_view),
 ):
     return await compute_debt_ratios(db, scope=scope, top_n=top_n)
 
@@ -128,7 +137,7 @@ async def repayment_forecast(
     years_forward: int = Query(5, ge=1, le=15),
     scenario_id: Optional[UUID] = Query(None),
     db: AsyncSession = Depends(get_db),
-    _user: User = Depends(get_current_user),
+    _user: User = Depends(_require_credit_view),
 ):
     return await compute_repayment_forecast(
         db, scope=scope, years_back=years_back,
@@ -142,7 +151,7 @@ async def top_loans(
     top_n: int = Query(10, ge=1, le=50),
     scenario_id: Optional[UUID] = Query(None),
     db: AsyncSession = Depends(get_db),
-    _user: User = Depends(get_current_user),
+    _user: User = Depends(_require_credit_view),
 ):
     return await compute_top_loans(
         db, scope=scope, top_n=top_n, scenario_id=scenario_id,
@@ -155,7 +164,7 @@ async def top_loans(
 async def list_loan_overrides(
     scenario_id: UUID,
     service: CreditScenarioServiceDep,
-    _user: User = Depends(get_current_user),
+    _user: User = Depends(_require_credit_view),
 ):
     return await service.list_overrides(scenario_id)
 
@@ -188,7 +197,7 @@ async def delete_loan_override(
 @router.get("/custom-indicators", response_model=list[CustomIndicatorOut])
 async def list_custom_indicators(
     service: CreditScenarioServiceDep,
-    _user: User = Depends(get_current_user),
+    _user: User = Depends(_require_credit_view),
 ):
     return await service.list_custom_indicators()
 
@@ -229,7 +238,7 @@ async def delete_custom_indicator(
 @router.post("/formula/validate", response_model=FormulaValidateResponse)
 async def formula_validate(
     body: FormulaValidateRequest,
-    _user: User = Depends(get_current_user),
+    _user: User = Depends(_require_credit_view),
 ):
     ok, err, pos, vars_used = validate_formula(body.formula_text)
     return FormulaValidateResponse(
@@ -241,7 +250,7 @@ async def formula_validate(
 async def formula_test(
     body: FormulaTestRequest,
     service: CreditScenarioServiceDep,
-    _user: User = Depends(get_current_user),
+    _user: User = Depends(_require_credit_view),
 ):
     return await service.formula_test(
         body.formula_text, loan_id=body.loan_id,
@@ -249,12 +258,12 @@ async def formula_test(
 
 
 @router.get("/formula/default")
-async def formula_default(_user: User = Depends(get_current_user)):
+async def formula_default(_user: User = Depends(_require_credit_view)):
     return {"formula_text": DEFAULT_FORMULA_TEXT}
 
 
 @router.get("/default-rr-by-lender")
-async def default_rr(_user: User = Depends(get_current_user)):
+async def default_rr(_user: User = Depends(_require_credit_view)):
     return DEFAULT_RR_BY_LENDER
 
 
@@ -264,7 +273,9 @@ async def default_rr(_user: User = Depends(get_current_user)):
 async def get_overview(
     service: CreditScenarioServiceDep,
     cp_scenario_id: Optional[UUID] = Query(None),
-    user: User = Depends(get_current_user),
+    # user нужен сервису (скоуп по компаниям внутри overview), поэтому берём его
+    # из гейта — require_permission возвращает того же User.
+    user: User = Depends(_require_credit_view),
 ):
     return await service.overview(cp_scenario_id=cp_scenario_id, user=user)
 
@@ -278,7 +289,7 @@ async def get_drilldown_loans(
     is_guaranteed: Optional[bool] = Query(None),
     overdue_only: bool = Query(False),
     limit: int = Query(100, le=500),
-    _user: User = Depends(get_current_user),
+    _user: User = Depends(_require_credit_view),
 ):
     return await service.drilldown_loans(
         lender_type=lender_type, currency=currency,
@@ -294,7 +305,7 @@ async def drilldown_by_company(
     currency: Optional[str] = Query(None),
     maturity_bucket: Optional[str] = Query(None),
     top_n: int = Query(12, le=50),
-    _user: User = Depends(get_current_user),
+    _user: User = Depends(_require_credit_view),
 ):
     return await service.drilldown_by_company(
         lender_type=lender_type, currency=currency,
@@ -309,7 +320,7 @@ async def drilldown_by_bank(
     currency: Optional[str] = Query(None),
     maturity_bucket: Optional[str] = Query(None),
     top_n: int = Query(12, le=50),
-    _user: User = Depends(get_current_user),
+    _user: User = Depends(_require_credit_view),
 ):
     return await service.drilldown_by_bank(
         lender_type=lender_type, currency=currency,

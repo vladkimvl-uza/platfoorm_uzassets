@@ -38,12 +38,35 @@ async def _scope(db: AsyncSession, user: User):
     return list(res) if res is not None else []
 
 
+async def _require_exec_overview(db: AsyncSession, user: User) -> None:
+    """Гейт модуля «Сводный обзор портфеля».
+
+    Роут фронта раньше требовал projects.view — кода, которого нет в каталоге,
+    поэтому экран не открывался никому, кроме owner/admin. Бэкенд же не
+    проверял НИЧЕГО: обзор всего портфеля (проекты, дедлайны, выручка/прибыль,
+    ключевые результаты БП) отдавался любому вошедшему прямым вызовом
+    `GET /exec-overview`. Теперь оба конца цепочки спрашивают один и тот же
+    exec_overview.view.
+
+    Дополнительных фолбэков нет намеренно: обзор читают ровно две поверхности —
+    /executive-overview и подвкладка «Сводный обзор» в карточке компании, и обе
+    гейтятся этим же правом. Скоуп по компаниям (_scope) остаётся сверху: право
+    решает «пускать ли в модуль», скоуп — «чьи данные показать».
+    """
+    if not await has_effective_permission(db, user, "exec_overview.view"):
+        raise HTTPException(
+            http_status.HTTP_403_FORBIDDEN,
+            "Permission required: exec_overview.view",
+        )
+
+
 @router.get("", response_model=ExecOverviewResponse)
 async def exec_overview(
     year: Optional[int] = Query(None, description="Портфельный год (по умолчанию все)"),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> ExecOverviewResponse:
+    await _require_exec_overview(db, user)
     scope = await _scope(db, user)
     # Ключевые результаты бизнес-плана за Q1 видны при праве bp.view, рейтинги — при
     # ratings.view (owner/admin — bypass). Проекты/дедлайны/«ход проекта» — всем по scope.
@@ -60,6 +83,9 @@ async def project_tasks(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> list[ExecOverviewTask]:
+    # Раскрытие проекта — часть того же экрана, поэтому право то же: без этой
+    # проверки задачи проекта тянулись бы в обход гейта модуля.
+    await _require_exec_overview(db, user)
     proj = (await db.execute(select(Project).where(Project.id == project_id))).scalar_one_or_none()
     if proj is None:
         raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Проект не найден")

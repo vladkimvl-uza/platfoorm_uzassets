@@ -185,6 +185,16 @@ _MIN_PERMS = [
     ("bp.edit",              "bp",          "edit",   "Edit BP"),
     ("bp.delete",            "bp",          "delete", "Delete BP"),
     ("tasks.view",           "tasks",       "view",   "View tasks"),
+    # Хранилище инвест-проектов теперь требует право модуля (раньше — только
+    # скоуп). Тесты namespace'а проверяют ИМЕННО скоуп, поэтому право должно
+    # быть у роли, под которой они ходят — иначе они падали бы на 403 «нет
+    # права», не дойдя до проверки companies/<code>/. Раздача: view — роли
+    # viewer (чтение), edit — роли organization (запись). Роль viewer НЕ должна
+    # получать ни одного write-кода: это требование владельца к модели ролей, и
+    # фикстура обязана его повторять, иначе тесты перестают ловить регрессию,
+    # при которой наблюдателю выдали право записи.
+    ("investment.view",      "investment",  "view",   "View investments"),
+    ("investment.edit",      "investment",  "edit",   "Edit investments"),
 ]
 
 _MIN_ROLES = [
@@ -371,8 +381,19 @@ async def db(pg_container) -> AsyncGenerator:
         await conn.execute(text("""
             INSERT INTO role_permission (role_id, permission_id)
             SELECT r.id, p.id FROM roles r JOIN permissions p
-                ON p.code IN ('kpi.view', 'bp.view', 'companies.view', 'tasks.view')
+                ON p.code IN ('kpi.view', 'bp.view', 'companies.view', 'tasks.view',
+                              'investment.view')
             WHERE r.code = 'viewer'
+        """))
+        # Роль записи для тестов скоупа. investment.edit живёт здесь, а не у
+        # viewer: наблюдатель по модели ролей read-only, и фикстура это
+        # повторяет. Тест на запись в чужую компанию ходит под этой ролью,
+        # поэтому 403 в нём остаётся про скоуп, а не про отсутствие права.
+        await conn.execute(text("""
+            INSERT INTO role_permission (role_id, permission_id)
+            SELECT r.id, p.id FROM roles r JOIN permissions p
+                ON p.code IN ('investment.view', 'investment.edit')
+            WHERE r.code = 'organization'
         """))
 
     async with Session() as session:

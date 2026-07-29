@@ -8,6 +8,12 @@ Endpoints (URLs preserved):
   DELETE /consultants/{id}                    soft/hard delete
   GET    /consultants/overview                full dashboard payload
   GET    /consultants/by-company/{co_id}      per-company consultants
+
+Права: модульные данные (`/overview`, `/by-company/{id}`) — `consultants.view`;
+справочник (`GET /consultants`) — `consultants.view` ИЛИ `tasks.view`, т.к. он
+подставляется в редакторе задач и в карточке компании, а не только на экране
+модуля; CRUD справочника — `consultants.edit` (или прежние companies.edit /
+tasks.manage).
 """
 from __future__ import annotations
 
@@ -58,16 +64,34 @@ class ConsultantPatch(BaseModel):
 async def _admin_gate(db: AsyncSession, user: User) -> None:
     """CRUD-гейт справочника консультантов. has_effective_permission учитывает
     GroupPermissionGrant (синхронный _has_permission — нет), поэтому право,
-    выданное через группу, теперь тоже работает."""
+    выданное через группу, теперь тоже работает.
+
+    `consultants.edit` добавлено в список: в каталоге право есть и в сетке
+    «Доступ к модулям» его видно, но до этой правки оно не проверялось нигде —
+    администратор выдавал его и не получал никакого эффекта. Прежние
+    companies.edit / tasks.manage сохранены, чтобы не отобрать доступ у тех,
+    кто правит справочник сегодня."""
     if user.is_owner:
         return
-    if (await has_effective_permission(db, user, "companies.edit")
+    if (await has_effective_permission(db, user, "consultants.edit")
+            or await has_effective_permission(db, user, "companies.edit")
             or await has_effective_permission(db, user, "tasks.manage")):
         return
     raise HTTPException(
         http_status.HTTP_403_FORBIDDEN,
-        "Permission required: companies.edit or tasks.manage",
+        "Permission required: consultants.edit or companies.edit",
     )
+
+
+async def _require_consultants_view(db: AsyncSession, user: User) -> None:
+    """Гейт данных модуля «Консультанты». Раньше здесь стоял `tasks.view`:
+    право `consultants.view` проверял только роут фронта, и прямой вызов API
+    отдавал сводку любому, кто видит задачи."""
+    if not await has_effective_permission(db, user, "consultants.view"):
+        raise HTTPException(
+            http_status.HTTP_403_FORBIDDEN,
+            "Permission required: consultants.view",
+        )
 
 
 # ─── list / CRUD ──────────────────────────────────────────────────
@@ -79,8 +103,16 @@ async def list_consultants(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
-    if not await has_effective_permission(db, user, "tasks.view"):
-        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "tasks.view required")
+    # Справочник, а не данные модуля: список подставляется в редакторе задач,
+    # в карточке компании и в каталогах. Поэтому tasks.view остаётся достаточным,
+    # но и собственное право модуля тоже открывает справочник — иначе владелец
+    # только consultants.view не смог бы прочитать даже названия фирм.
+    if not (await has_effective_permission(db, user, "consultants.view")
+            or await has_effective_permission(db, user, "tasks.view")):
+        raise HTTPException(
+            http_status.HTTP_403_FORBIDDEN,
+            "Permission required: consultants.view or tasks.view",
+        )
     return await service.list_consultants(include_inactive=include_inactive)
 
 
@@ -139,8 +171,7 @@ async def consultants_overview(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
-    if not await has_effective_permission(db, user, "tasks.view"):
-        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "tasks.view required")
+    await _require_consultants_view(db, user)
     # per-company scope (P0): company-scoped юзер видит только свои компании.
     scope = await allowed_company_ids(db, user)  # None=все, []=нет, [ids]=фильтр
     return await service.overview(year=year, allowed_company_ids=scope)
@@ -156,7 +187,8 @@ async def consultants_by_company(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
-    if not await has_effective_permission(db, user, "tasks.view"):
-        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "tasks.view required")
+    await _require_consultants_view(db, user)
+    # Скоуп по компании не трогаем: право открывает модуль, скоуп — конкретную
+    # компанию.
     await ensure_company_access(db, user, company_id)
     return await service.by_company(company_id, year=year)

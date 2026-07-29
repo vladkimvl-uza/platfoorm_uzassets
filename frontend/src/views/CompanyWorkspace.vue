@@ -76,6 +76,7 @@ import CompanyOverviewExtras from "@/components/CompanyOverviewExtras.vue";
 import CompanyDocumentsCard from "@/components/Company/CompanyDocumentsCard.vue";
 import CompanyBoardList from "@/components/CompanyBoardList.vue";
 import CompanyTabBar from "@/components/Company/CompanyTabBar.vue";
+import { COMPANY_TABS } from "@/components/Company/companyNavConfig";
 import HighLevelFinancials from "@/components/Financials/HighLevelFinancials.vue";
 import FinReportUpload from "@/components/Financials/FinReportUpload.vue";
 import CompanyDrilldown from "@/components/Financials/CompanyDrilldown.vue";
@@ -151,6 +152,20 @@ const activeKpiMgrIdx = ref(0);
 const kpiEditorOpen = ref(false);
 const kpiPerm = usePermissions("kpi");
 const pmoPerm = usePermissions("pmo");
+// Сводный обзор внутри вкладки «Отчёт» — тот же экран, что /executive-overview,
+// поэтому и право одно (exec_overview.view); иначе подвкладка была бы обходом.
+const execOverviewPerm = usePermissions("exec_overview");
+// Гейт вкладок воркспейса по правам. CompanyTabBar уже скрывает вкладки с
+// `gated`, но адрес вида ?tab=unitcost открывал бы скрытую вкладку напрямую —
+// поэтому проверяем те же права и здесь, при разборе URL.
+const _tabGatePerms: Record<string, ReturnType<typeof usePermissions>> = {};
+for (const g of [...new Set(COMPANY_TABS.filter(x => x.gated).map(x => x.gated as string))]) {
+  _tabGatePerms[g] = usePermissions(g);
+}
+function tabAllowed(key: string): boolean {
+  const gate = COMPANY_TABS.find(x => x.id === key)?.gated;
+  return !gate || !!_tabGatePerms[gate]?.canView.value;
+}
 const companiesPerm = usePermissions("companies");  // для загрузки файлов отчётности (бэкенд требует companies.edit)
 const pmoRefreshTick = ref(0);   // бамп после сохранения в редакторе → PmoTab перезагружает расписание
 function openKpiEditor() { kpiEditorOpen.value = true; }
@@ -271,7 +286,11 @@ const activeTab = computed<TabKey>({
     let t = String(route.query.tab || "");
     // Канбан/Список объединены в «Работа» — старые ссылки ?tab=kanban|list ведут на work.
     if (t === "kanban" || t === "list") t = "work";
-    return (VALID_TABS as readonly string[]).includes(t) ? (t as TabKey) : "overview";
+    // Вкладка без права (?tab=… из ссылки) схлопывается в «Обзор» — так прямая
+    // ссылка не обходит гейт, который CompanyTabBar применяет к списку вкладок.
+    return (VALID_TABS as readonly string[]).includes(t) && tabAllowed(t)
+      ? (t as TabKey)
+      : "overview";
   },
   set: (val: TabKey) => {
     const newQuery = { ...route.query };
@@ -3384,7 +3403,8 @@ function onEditorClose() {
           <div style="display:inline-flex; gap:4px; background:var(--bg2,#fafafc); border:1px solid var(--border,rgba(99,102,180,.14)); border-radius:11px; padding:3px; margin-bottom:18px;">
             <button @click="repSub = 'wizard'" :style="repSubBtn(repSub === 'wizard')">{{ t("Мастер отчёта") }}</button>
             <button @click="repSub = 'projreport'" :style="repSubBtn(repSub === 'projreport')">{{ t("Отчёт по проектам") }}</button>
-            <button @click="repSub = 'overview'" :style="repSubBtn(repSub === 'overview')">{{ t("Сводный обзор") }}</button>
+            <!-- Сводный обзор = встроенный /executive-overview → то же право -->
+            <button v-if="execOverviewPerm.canView.value" @click="repSub = 'overview'" :style="repSubBtn(repSub === 'overview')">{{ t("Сводный обзор") }}</button>
           </div>
           <ReportingWizard
             v-if="repSub === 'wizard'"
@@ -3406,7 +3426,9 @@ function onEditorClose() {
             :credit="credit"
             :esg="esg"
           />
-          <ExecOverview v-else :embed-company-id="company?.id" />
+          <!-- v-else-if, а не v-else: без права подвкладка не рисуется даже
+               если repSub успел остаться 'overview' (сохранённое состояние) -->
+          <ExecOverview v-else-if="execOverviewPerm.canView.value" :embed-company-id="company?.id" />
         </div>
         <!-- ═══ KPI TAB — real implementation ═══ -->
         <div v-else-if="activeTab === 'kpi'" :key="'kpi'" class="cw-kpi-scroll">

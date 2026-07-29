@@ -97,7 +97,11 @@ async def test_scoped_put_to_other_company_blocked(
     _, acme_grp = await make_company_group(code="acme", name="ACME")
     # wayne_enterprises has no group bound to user
     await make_company_group(code="wayne_enterprises", name="Wayne")
-    u = await make_user(role_codes=["viewer"], groups=[(acme_grp.id, "viewer")])
+    # Роль organization, а не viewer: писать в хранилище теперь можно только с
+    # investment.edit, а наблюдателю write-права не выдаются. Под ролью без
+    # права тест всё равно вернул бы 403 — но уже про право, и перестал бы
+    # проверять то, ради чего написан: отказ по чужой компании.
+    u = await make_user(role_codes=["organization"], groups=[(acme_grp.id, "viewer")])
     r = await app_client.put(
         "/invest-projects-storage/root/companies/wayne_enterprises/x.json",
         json={"a": 1},

@@ -181,8 +181,9 @@ export function usePermissions(moduleCode: string) {
  * каталоге прав (сверено с каталогом прода). Это не украшение: бэкенд молча
  * отбрасывает несуществующие коды (`desired = {c for c in payload if c in valid}`),
  * поэтому выбор уровня, за которым нет кода, не сохранялся бы вообще. Модули
- * без hasEdit/hasImport (ai, reports) не могут получить уровень «Редактировать»
- * — в сетке он для них недоступен.
+ * без hasEdit/hasImport (ai, reports, exec_dashboard, exec_overview) не могут
+ * получить уровень «Редактировать» — в сетке он для них недоступен: за этими
+ * экранами нет ни одного пишущего эндпоинта, и уровень был бы обманом.
  *
  * Модуль «Администрирование» намеренно ОТСУТСТВУЕТ: это управление платформой
  * (admin.users даёт создание пользователей, смену ролей, сброс пароля), оно
@@ -201,9 +202,24 @@ export interface ModuleDef {
 
 export const MODULE_REGISTRY = [
   { code: 'dashboard',    label: 'Дашборд',                     hasExport: true,  hasEdit: true,  hasImport: false },
+  // Экран министра: только чтение — на /executive-dashboard нет ни одного
+  // пишущего действия, поэтому уровень «Редактировать» ему недоступен.
+  { code: 'exec_dashboard', label: 'Экран министра (Executive Dashboard)', hasExport: false, hasEdit: false, hasImport: false },
+  // Сводный обзор портфеля: чтение данных обзора. Заполнение печатной формы
+  // («Заполнить отчёт») живёт в отдельном модуле «Задачи» (/overview-matrix
+  // под tasks.edit), поэтому .edit у обзора нет — иначе сетка выдавала бы
+  // право, которого не спрашивает ни один эндпоинт.
+  { code: 'exec_overview', label: 'Сводный обзор портфеля',      hasExport: false, hasEdit: false, hasImport: false },
   { code: 'bp',           label: 'Бизнес-план',                 hasExport: false, hasEdit: true,  hasImport: true  },
   { code: 'kpi',          label: 'KPI',                         hasExport: false, hasEdit: true,  hasImport: true  },
   { code: 'financials',   label: 'Финансы (МСФО/НСБУ)',         hasExport: true,  hasEdit: true,  hasImport: true  },
+  // SOE Health Check: чтение светофорной оценки + правка глобальных порогов
+  // методики (PUT /financials/soe-health/params) — отсюда hasEdit.
+  { code: 'soe_health',   label: 'SOE Health Check Tool',       hasExport: false, hasEdit: true,  hasImport: false },
+  // Удельная себестоимость: чтение обзора + правка цен энергоносителей и
+  // данных компании (PUT /unit-cost/prices, /unit-cost/companies/{code}).
+  // Импорта нет: нормы заводятся через редактор, отдельного .import-кода нет.
+  { code: 'unit_cost',    label: 'Удельная себестоимость',      hasExport: false, hasEdit: true,  hasImport: false },
   { code: 'credit',       label: 'Кредитный портфель',          hasExport: false, hasEdit: true,  hasImport: true  },
   { code: 'invest',       label: 'Инвест-проекты',              hasExport: true,  hasEdit: true,  hasImport: false },
   { code: 'procurement',  label: 'Закупки',                     hasExport: false, hasEdit: true,  hasImport: false },
@@ -231,9 +247,9 @@ export function moduleDef(moduleCode: string): ModuleDef | undefined {
 }
 
 /**
- * Можно ли выдать модулю уровень «Редактировать». Для ai и reports в каталоге
- * нет ни .edit, ни .import — выбор «Редактировать» не изменил бы ничего,
- * поэтому в сетке он заблокирован.
+ * Можно ли выдать модулю уровень «Редактировать». Для ai, reports,
+ * exec_dashboard и exec_overview в каталоге нет ни .edit, ни .import — выбор
+ * «Редактировать» не изменил бы ничего, поэтому в сетке он заблокирован.
  */
 export function moduleSupportsWrite(moduleCode: string): boolean {
   const def = moduleDef(moduleCode);

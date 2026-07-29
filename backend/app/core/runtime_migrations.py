@@ -197,6 +197,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_progress_snapshots(conn)
             await _patch_user_permission_grant(conn)
             await _patch_rbac_module_permissions(conn)
+            await _patch_rbac_screen_permissions(conn)
             await _patch_custom_api_endpoint(conn)
             await _patch_org_role_tasks_write(conn)
             await _patch_org_role_company_create(conn)
@@ -1824,6 +1825,89 @@ async def _patch_rbac_module_permissions(conn) -> None:
               )
             """
         ))
+
+
+async def _patch_rbac_screen_permissions(conn) -> None:
+    """Собственные права экранов, которые сидели на чужих (см. 9b4 alembic).
+
+    Деплой alembic не запускает — каталог прав доводит именно этот self-heal,
+    поэтому список кодов и раздача ролям обязаны совпадать с миграцией
+    9b4_rbac_screen_permissions один в один.
+
+    Что чиним:
+      * /executive-dashboard, /soe-health, /unit-cost гейтились одним
+        financials.view — выдача «Финансов» открывала все три экрана разом;
+      * /executive-overview требовал projects.view, которого нет в каталоге:
+        экран не открывался никому, кроме владельца и super-admin;
+      * tasks.manage спрашивают три бэкенд-гейта, а кода в каталоге не было —
+        делегировать его роли было невозможно.
+    """
+    rows = (
+        ("exec_dashboard.view", "exec_dashboard", "view", "View executive dashboard"),
+        ("exec_overview.view", "exec_overview", "view", "View portfolio executive overview"),
+        ("soe_health.view", "soe_health", "view", "View SOE health check"),
+        ("soe_health.edit", "soe_health", "edit", "Edit SOE health check thresholds"),
+        ("unit_cost.view", "unit_cost", "view", "View unit cost"),
+        ("unit_cost.edit", "unit_cost", "edit", "Edit unit cost data"),
+        ("tasks.manage", "tasks", "manage", "Manage task directions and storage"),
+    )
+    # Роли, которым код выдаётся при ПЕРВОМ появлении в каталоге. Права
+    # просмотра идут ровно тем ролям, у которых уже есть право, на котором
+    # экран гейтился сегодня (financials.view / financials.edit), — фактический
+    # доступ не меняется, меняется только управляемость. Исключение
+    # exec_overview.view: сегодня экран закрыт для всех ролей, это и есть
+    # чинимая поломка, поэтому право идёт держателям tasks.view (обзор
+    # показывает проекты и дедлайны, скоуп режется в сервисе).
+    grants: dict[str, tuple[str, ...]] = {
+        "exec_dashboard.view": ("admin", "company_admin", "organization", "viewer"),
+        "soe_health.view": ("admin", "company_admin", "organization", "viewer"),
+        "unit_cost.view": ("admin", "company_admin", "organization", "viewer"),
+        "soe_health.edit": ("admin", "company_admin", "organization"),
+        "unit_cost.edit": ("admin", "company_admin", "organization"),
+        "exec_overview.view": ("admin", "company_admin", "organization", "viewer"),
+        "tasks.manage": ("admin",),
+    }
+    # Снимок каталога ДО вставки: раздаём права только за коды, которых раньше
+    # не было. Без этого self-heal при каждом рестарте бэкенда возвращал бы
+    # права, которые администратор осознанно снял в редакторе ролей, и отзыв
+    # доступа не жил бы дольше одного перезапуска.
+    known = set(
+        (await conn.execute(text("SELECT code FROM permissions"))).scalars().all()
+    )
+    created_codes = [code for code, *_ in rows if code not in known]
+
+    for code, module, action, name in rows:
+        await conn.execute(
+            text(
+                """
+                INSERT INTO permissions (id, code, name, module, action, created_at, updated_at)
+                VALUES (gen_random_uuid(), :code, :name, :module, :action, now(), now())
+                ON CONFLICT (code) DO UPDATE
+                SET module = EXCLUDED.module,
+                    action = EXCLUDED.action,
+                    updated_at = now()
+                """
+            ),
+            {"code": code, "name": name, "module": module, "action": action},
+        )
+
+    for code in created_codes:
+        for role_code in grants.get(code, ("admin",)):
+            await conn.execute(
+                text(
+                    """
+                    INSERT INTO role_permission (role_id, permission_id)
+                    SELECT r.id, p.id
+                    FROM roles r, permissions p
+                    WHERE r.code = :role AND p.code = :code
+                      AND NOT EXISTS (
+                          SELECT 1 FROM role_permission rp
+                          WHERE rp.role_id = r.id AND rp.permission_id = p.id
+                      )
+                    """
+                ),
+                {"role": role_code, "code": code},
+            )
 
 
 async def _patch_direction_color(conn) -> None:

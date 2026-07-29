@@ -21,6 +21,29 @@ from app.models.user import User
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
 
+async def _require_dashboard_view(db: AsyncSession, user: User) -> None:
+    """Гейт данных дашборда акционера.
+
+    `dashboard.view` до этой правки не проверялось нигде — ни на фронте, ни на
+    бэке; выдача права ничего не меняла. Теперь право открывает дашборд само по
+    себе (пользователь только с dashboard.view получает сводку, раньше — нет).
+
+    `tasks.view` оставлен вторым допустимым правом сознательно: /dashboard —
+    целевая страница мягкого отказа, на неё редиректит guard при нехватке прав
+    на другие экраны. Жёсткий 403 здесь превратил бы её в тупик для всех, у кого
+    доступ настроен персональными грантами, а не ролью. Как только dashboard.view
+    будет роздано ролям (company_admin/organization/viewer), фолбэк можно
+    убрать — тогда снятие права будет закрывать сводку полностью."""
+    if await has_effective_permission(db, user, "dashboard.view"):
+        return
+    if await has_effective_permission(db, user, "tasks.view"):
+        return
+    raise HTTPException(
+        http_status.HTTP_403_FORBIDDEN,
+        "Permission required: dashboard.view",
+    )
+
+
 @router.get("/shareholder")
 async def shareholder_dashboard(
     service: DashboardServiceDep,
@@ -31,8 +54,7 @@ async def shareholder_dashboard(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> dict:
-    if not await has_effective_permission(db, user, "tasks.view"):
-        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "tasks.view required")
+    await _require_dashboard_view(db, user)
     # RBAC scope: ограниченный пользователь видит счётчики только своих компаний.
     scope = None if has_unrestricted_view(user) else (await allowed_company_ids(db, user) or [])
     return await service.shareholder_dashboard(
@@ -55,8 +77,7 @@ async def kpi_tile_drill(
     user: User = Depends(get_current_user),
 ) -> dict:
     """KPI-tile drill-down (Pack 7.46): nested response grouped by company."""
-    if not await has_effective_permission(db, user, "tasks.view"):
-        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "tasks.view required")
+    await _require_dashboard_view(db, user)
     scope = None if has_unrestricted_view(user) else (await allowed_company_ids(db, user) or [])
     return await service.kpi_drill(
         bucket=bucket, entity=entity, year=year,
@@ -76,8 +97,7 @@ async def company_tile_drill(
     user: User = Depends(get_current_user),
 ) -> dict:
     """Single-company drill (Pack 7.47): flat projects + tasks list."""
-    if not await has_effective_permission(db, user, "tasks.view"):
-        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "tasks.view required")
+    await _require_dashboard_view(db, user)
     scope = None if has_unrestricted_view(user) else (await allowed_company_ids(db, user) or [])
     return await service.company_drill(
         company_code=company_code, year=year, scope_company_ids=scope,

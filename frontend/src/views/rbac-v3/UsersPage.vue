@@ -16,7 +16,7 @@ import { useConfirm } from '@/composables/useConfirm';
 import { presenceStatus } from '@/composables/usePresence';
 import UserDetailDrawer from './UserDetailDrawer.vue';
 
-type Filter = 'all' | 'active' | 'inactive' | 'pwd_change';
+type Filter = 'all' | 'active' | 'inactive' | 'pwd_change' | 'without_roles';
 type SortMode = 'activity' | 'name' | 'created';
 type ViewMode = 'list' | 'company';
 
@@ -186,11 +186,21 @@ const filterOptions = computed(() => [
     label: 'Требуют внимания',
     count: loadedCounts.value.pwd_change,
   },
+  {
+    // Вкладка нужна, чтобы клик по карточке «Без назначенных ролей» имел
+    // видимое состояние в переключателе и его можно было снять обратно.
+    id: 'without_roles' as const,
+    label: 'Без ролей',
+    count: overview.value?.users_without_roles ?? loadedCounts.value.without_roles,
+  },
 ]);
 
+// Каждая карточка сводки — кнопка: клик включает соответствующий фильтр списка.
+// target — значение фильтра, которое карточка представляет.
 const summaryMetrics = computed(() => [
   {
     key: 'total',
+    target: 'all' as Filter,
     label: 'Всего пользователей',
     value: overview.value?.users_total ?? total.value,
     icon: 'user-check',
@@ -198,6 +208,7 @@ const summaryMetrics = computed(() => [
   },
   {
     key: 'active',
+    target: 'active' as Filter,
     label: 'Активные',
     value: overview.value?.users_active ?? loadedCounts.value.active,
     icon: 'shield-check',
@@ -205,6 +216,7 @@ const summaryMetrics = computed(() => [
   },
   {
     key: 'inactive',
+    target: 'inactive' as Filter,
     label: 'Заблокированные',
     value: overview.value?.users_inactive ?? loadedCounts.value.inactive,
     icon: 'lock',
@@ -212,6 +224,7 @@ const summaryMetrics = computed(() => [
   },
   {
     key: 'without_roles',
+    target: 'without_roles' as Filter,
     label: 'Без назначенных ролей',
     value: overview.value?.users_without_roles ?? loadedCounts.value.without_roles,
     icon: 'user-exclamation',
@@ -224,6 +237,7 @@ const visibleUsers = computed(() => {
     if (filter.value === 'active') return user.is_active;
     if (filter.value === 'inactive') return !user.is_active;
     if (filter.value === 'pwd_change') return pwdNeedsAttention(user);
+    if (filter.value === 'without_roles') return user.role_codes.length === 0;
     return true;
   });
 
@@ -533,18 +547,22 @@ async function bulkDeactivate() {
           <p>Учётные записи, роли и состояние безопасности</p>
         </div>
         <div class="summary-metrics">
-          <div
+          <button
             v-for="(metric, index) in summaryMetrics"
             :key="metric.key"
-            :class="['summary-metric', `tone-${metric.tone}`]"
+            type="button"
+            :class="['summary-metric', `tone-${metric.tone}`, { on: filter === metric.target }]"
             :style="{ animationDelay: `${80 + index * 55}ms` }"
+            :aria-pressed="filter === metric.target"
+            :title="`Показать: ${metric.label}`"
+            @click="onFilterChange(metric.target)"
           >
             <span class="metric-icon"><BIcon :name="metric.icon" :size="16" /></span>
             <span class="metric-copy">
               <strong>{{ metric.value.toLocaleString('ru-RU') }}</strong>
               <small>{{ metric.label }}</small>
             </span>
-          </div>
+          </button>
         </div>
       </section>
 
@@ -924,9 +942,20 @@ async function bulkDeactivate() {
   gap: 10px;
   padding: 14px 18px;
   border-left: 1px solid #eceef2;
+  /* Карточка сводки — кнопка-фильтр: сбрасываем стили кнопки и добавляем
+     отклик на наведение/фокус, чтобы кликабельность читалась. */
+  background: transparent;
+  border-top: none; border-right: none; border-bottom: none;
+  font: inherit; color: inherit; text-align: left; cursor: pointer;
+  transition: background .16s ease, box-shadow .16s ease;
   opacity: 0;
   animation: metricReveal .38s cubic-bezier(.22, 1, .36, 1) forwards;
 }
+.summary-metric:hover { background: #f5f6f9; }
+.summary-metric:focus-visible { outline: 2px solid #7C6FF7; outline-offset: -2px; }
+/* Активный фильтр: подсветка карточки и её иконки */
+.summary-metric.on { background: #f2f1fd; box-shadow: inset 0 -2px 0 #7C6FF7; }
+.summary-metric.on .metric-icon { background: #e6e3fb; color: #5B4FD6; }
 .metric-icon {
   width: 32px;
   height: 32px;

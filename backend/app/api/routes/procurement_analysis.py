@@ -39,6 +39,21 @@ from app.services.procurement.import_service import PaImportSummary
 router = APIRouter(prefix="/procurement", tags=["procurement-analysis"])
 
 
+async def _require_pa_edit(db: AsyncSession, user: User) -> None:
+    """Гейт правки данных анализа закупок.
+
+    `procurement_analysis.edit` есть в каталоге и видно в сетке «Доступ к
+    модулям», но не проверялось нигде — выдача права не давала эффекта. Прежнее
+    `procurement.edit` оставлено рядом, чтобы не отобрать правку у ролей,
+    которые редактируют закрытия сегодня."""
+    if not (await _has_permission(db, user, "procurement_analysis.edit")
+            or await _has_permission(db, user, "procurement.edit")):
+        raise HTTPException(
+            http_status.HTTP_403_FORBIDDEN,
+            "procurement_analysis.edit required",
+        )
+
+
 # ─── DTOs локального уровня ──────────────────────────────────────
 
 class PaClosurePatch(BaseModel):
@@ -73,9 +88,15 @@ async def get_aggregate(
     overpay/savings, product-level price clustering, supplier audit signals,
     and ranked closure list. RBAC-scoped. Filter by year/sector_code/company_id."""
     # H-6: право на модуль (раньше отсутствовало → чувствительная аналитика
-    # отдавалась без procurement.view, обход router-гейта прямым API-вызовом).
-    if not await _has_permission(db, user, "procurement.view"):
-        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "procurement.view required")
+    # отдавалась без гейта, обход router-гейта прямым API-вызовом).
+    # Право модуля здесь — `procurement_analysis.view`, а не `procurement.view`:
+    # /procurement/aggregate обслуживает экран «Анализ закупок», у которого в
+    # каталоге есть собственный код. Раньше экран гейтился чужим правом закупок,
+    # и админ, снимая procurement_analysis.view, ничего не менял.
+    if not await _has_permission(db, user, "procurement_analysis.view"):
+        raise HTTPException(
+            http_status.HTTP_403_FORBIDDEN, "procurement_analysis.view required"
+        )
     # Scope filter
     if company_id is not None:
         await ensure_company_access(db, user, company_id)
@@ -102,8 +123,7 @@ async def import_closures_excel(
     user: User = Depends(get_current_user),
 ) -> PaImportSummary:
     """Bulk-import procurement_closures from xarid 22-sheet xlsx."""
-    if not await _has_permission(db, user, "procurement.edit"):
-        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "procurement.edit required")
+    await _require_pa_edit(db, user)
     if not has_unrestricted_view(user):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Admin scope required")
     if not file.filename or not file.filename.lower().endswith((".xlsx", ".xls")):
@@ -124,8 +144,7 @@ async def update_closure(
     user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Update one closure + recompute median for affected product_codes."""
-    if not await _has_permission(db, user, "procurement.edit"):
-        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "procurement.edit required")
+    await _require_pa_edit(db, user)
 
     # Scope-check готовится здесь т.к. требует БД-lookup'а перед service call.
     # Service получает уже отфильтрованный allowed_company_ids list (или None для admin).
@@ -159,8 +178,7 @@ async def clear_closures(
     user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Bulk-delete closures filtered by year/source (admin only)."""
-    if not await _has_permission(db, user, "procurement.edit"):
-        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "procurement.edit required")
+    await _require_pa_edit(db, user)
     if not has_unrestricted_view(user):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Admin scope required")
     return await service.clear_closures(year=year, source=source)

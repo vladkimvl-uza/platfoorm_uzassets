@@ -1,4 +1,12 @@
-"""Удельная себестоимость — API (тонкий слой над UnitCostService)."""
+"""Удельная себестоимость — API (тонкий слой над UnitCostService).
+
+Права: `unit_cost.view` — чтение обзора, `unit_cost.edit` — правка цен
+энергоносителей и данных компании. Раньше здесь стояли financials.view /
+financials.edit: экран не имел собственного права, и «Финансы» открывали его
+заодно. Теперь гейт совпадает с маршрутом фронта (`/unit-cost`) и вкладкой
+«Себестоимость» в карточке компании — иначе право было бы только на фронте,
+а прямой вызов API обходил бы его.
+"""
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -23,8 +31,8 @@ async def unit_cost_overview(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not await has_effective_permission(db, user, "financials.view"):
-        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "financials.view required")
+    if not await has_effective_permission(db, user, "unit_cost.view"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "unit_cost.view required")
     scope_ids = await allowed_company_ids(db, user)
     return await UnitCostService().overview(db, year=year, quarter=quarter, scope_ids=scope_ids)
 
@@ -42,8 +50,8 @@ async def unit_cost_save_prices(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not await has_effective_permission(db, user, "financials.edit"):
-        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "financials.edit required")
+    if not await has_effective_permission(db, user, "unit_cost.edit"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "unit_cost.edit required")
     # цены — глобальные: менять может только полный доступ к портфелю
     if await allowed_company_ids(db, user) is not None:
         raise HTTPException(http_status.HTTP_403_FORBIDDEN,
@@ -69,8 +77,8 @@ async def unit_cost_save_company(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not await has_effective_permission(db, user, "financials.edit"):
-        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "financials.edit required")
+    if not await has_effective_permission(db, user, "unit_cost.edit"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "unit_cost.edit required")
     scope_ids = await allowed_company_ids(db, user)
     in_scope = True
     if scope_ids is not None:

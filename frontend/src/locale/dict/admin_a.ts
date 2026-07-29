@@ -36,7 +36,11 @@ export const uz: Record<string, string> = {
   "владелец платформы": "platforma egasi",
 
   // ── Названия модулей, которых нет в общем словаре ──
+  // «Удельная себестоимость» и «Сводный обзор портфеля» уже переведены в
+  // shell.ts / controltower.ts — здесь не дублируем (ключи перетёрлись бы).
   "Финансы (МСФО/НСБУ)": "Moliya (MHXS/BHMS)",
+  "Экран министра (Executive Dashboard)": "Vazir ekrani (Executive Dashboard)",
+  "SOE Health Check Tool": "SOE Health Check Tool",
   "Корпуправление": "Korporativ boshqaruv",
   "Анализ закупок": "Xaridlar tahlili",
   "PMO (расписание/Гантт)": "PMO (jadval/Gantt)",
@@ -69,6 +73,8 @@ export const en: Record<string, string> = {
   "владелец платформы": "platform owner",
 
   "Финансы (МСФО/НСБУ)": "Financials (IFRS/NAS)",
+  "Экран министра (Executive Dashboard)": "Executive Dashboard",
+  "SOE Health Check Tool": "SOE Health Check Tool",
   "Корпуправление": "Governance",
   "Анализ закупок": "Procurement analysis",
   "PMO (расписание/Гантт)": "PMO (schedule/Gantt)",

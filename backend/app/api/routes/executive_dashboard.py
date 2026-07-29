@@ -10,11 +10,13 @@ from __future__ import annotations
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import status as http_status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
 from app.core.access import allowed_company_ids, has_unrestricted_view
+from app.core.security import has_effective_permission
 from app.core.ttl_cache import TTLCache
 from app.dependencies.exec_dashboard import ExecDashboardServiceDep
 from app.models.user import User
@@ -45,6 +47,39 @@ async def _scope(db: AsyncSession, user: User):
     return list(res) if res is not None else []
 
 
+async def _require_any(db: AsyncSession, user: User, codes: tuple[str, ...]) -> None:
+    for code in codes:
+        if await has_effective_permission(db, user, code):
+            return
+    raise HTTPException(
+        http_status.HTTP_403_FORBIDDEN,
+        f"Permission required: {codes[0]}",
+    )
+
+
+# Гейт payload'а экрана министра. До этой правки здесь стоял только
+# `get_current_user`: право экрана жило исключительно в meta роута фронта, и
+# прямой вызов `GET /dashboard/executive/{year}` отдавал портфельный агрегат
+# (KPI, БП, рейтинги, кредиты, закупки, ESG, governance) любому, кто вошёл.
+#
+# Почему не один exec_dashboard.view. Тот же payload читает /dashboard —
+# страница мягкого отказа, которую по ТЗ гейтить нельзя: три её блока
+# (ExecDashRatings / ExecDashExecutionChart / ExecDashDirectionsBlock) берут
+# данные отсюда, отдельного эндпоинта под них нет. Поэтому дашборд открывает
+# payload СВОИМ правом dashboard.view (плюс переходный tasks.view — ровно тот
+# же набор, что и у /dashboard/shareholder, иначе страница отказа грузилась бы
+# наполовину). Экран министра при этом гейтится своим exec_dashboard.view:
+# снятие «Финансов» больше его не открывает и не закрывает.
+_EXEC_PAYLOAD_CODES = ("exec_dashboard.view", "dashboard.view", "tasks.view")
+
+# Дрилл направления — общая модалка (DirectionDrillModal): её открывают не
+# только с экрана министра, но и с /dashboard (KpiTileDrillModal,
+# CompanyTileDrillModal) и с /financials (FinKpiDrillModal). Поэтому к набору
+# добавлено financials.view — иначе дрилл с экрана Финансов молча ломался бы у
+# пользователя без прав дашборда.
+_DIRECTION_DRILL_CODES = _EXEC_PAYLOAD_CODES + ("financials.view",)
+
+
 # must register BEFORE /{year} so path param doesn't shadow it
 @router.get(
     "/directions/{direction_code}",
@@ -61,6 +96,7 @@ async def direction_drill(
 
     Returns per-company task/project rollup + KPI completion within that
     direction. Used by the Executive Dashboard direction-tile click-through."""
+    await _require_any(db, user, _DIRECTION_DRILL_CODES)
     return await service.direction_drill(
         direction_code, year=year,
         scope_company_ids=await _scope(db, user),
@@ -97,6 +133,7 @@ async def executive_dashboard(
     Кешируется на 60с по (year, sectors, bp_metric, scope) — owner/admin
     (unrestricted) делят одну запись, поэтому повторные открытия/обновления
     лендинга не пересчитывают 12 стадий заново."""
+    await _require_any(db, user, _EXEC_PAYLOAD_CODES)
     # Валидируем период BP-трекера: невалидное значение → annual (legacy).
     bp_period_norm = (bp_period or "annual").lower()
     if bp_period_norm not in ("annual", "q1", "q2", "q3", "q4"):

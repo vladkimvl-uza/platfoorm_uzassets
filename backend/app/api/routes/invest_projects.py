@@ -9,6 +9,10 @@ Routes:
 
 Scope (C3b): scoped users see only `companies/<own_code>/...`; owner +
 `companies.view_all` — unrestricted. Root-DELETE refused as safety.
+
+Права: `investment.view` — чтение, `investment.edit` — запись. Скоуп по
+компаниям (_enforce_path_scope) остаётся нетронутым: право отвечает на вопрос
+«пускать ли в модуль», скоуп — «к чьим данным».
 """
 from typing import Any
 
@@ -16,7 +20,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi import status as http_status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user
+from app.core.security import require_permission
 from app.database import get_db
 from app.dependencies.invest_projects import InvestProjectsServiceDep
 from app.models.user import User
@@ -24,6 +28,14 @@ from app.models.user import User
 router = APIRouter(
     prefix="/invest-projects-storage", tags=["invest-projects-storage"]
 )
+
+# До этой правки хранилище инвест-проектов проверяло только аутентификацию и
+# скоуп по компании: право `investment.view` жило лишь в meta роута фронта, а
+# запись мог выполнить любой пользователь со скоупом — включая роль viewer,
+# у которой есть только `investment.view`. Теперь право модуля проверяется на
+# сервере, и чтение отделено от записи.
+_require_investment_view = require_permission("investment.view")
+_require_investment_edit = require_permission("investment.edit")
 
 
 async def _parse_body(request: Request) -> Any:
@@ -40,7 +52,7 @@ async def get_path(
     rest: str,
     service: InvestProjectsServiceDep,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(_require_investment_view),
 ) -> Any:
     return await service.get_path(rest, db, user)
 
@@ -51,7 +63,7 @@ async def put_path(
     request: Request,
     service: InvestProjectsServiceDep,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(_require_investment_edit),
 ) -> Any:
     body = await _parse_body(request)
     return await service.put_path(rest, body, db, user)
@@ -63,7 +75,7 @@ async def patch_path(
     request: Request,
     service: InvestProjectsServiceDep,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(_require_investment_edit),
 ) -> Any:
     body = await _parse_body(request)
     return await service.patch_path(rest, body, db, user)
@@ -74,6 +86,6 @@ async def delete_path(
     rest: str,
     service: InvestProjectsServiceDep,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(_require_investment_edit),
 ) -> Any:
     return await service.delete_path(rest, db, user)

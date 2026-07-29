@@ -97,9 +97,20 @@ log = logging.getLogger(__name__)
 # только для единообразия чтения.
 _GRID_MODULE_ACTIONS: dict[str, frozenset[str]] = {
     "dashboard":            frozenset({"view", "export", "edit"}),
+    # Экран министра и сводный обзор портфеля — read-only поверхности: за ними
+    # нет ни одного пишущего эндпоинта, поэтому уровень «Редактировать» в сетке
+    # для них заблокирован и write-коды сюда не попадают.
+    "exec_dashboard":       frozenset({"view"}),
+    "exec_overview":        frozenset({"view"}),
     "bp":                   frozenset({"view", "edit", "import"}),
     "kpi":                  frozenset({"view", "edit", "import"}),
     "financials":           frozenset({"view", "export", "edit", "import"}),
+    # SOE Health Check: правка глобальных порогов методики (PUT
+    # /financials/soe-health/params). Удельная себестоимость: правка цен
+    # энергоносителей и данных компании (PUT /unit-cost/*). Экспорта и импорта
+    # у обоих экранов нет — таких кодов в каталоге тоже нет.
+    "soe_health":           frozenset({"view", "edit"}),
+    "unit_cost":            frozenset({"view", "edit"}),
     "credit":               frozenset({"view", "edit", "import"}),
     # Сетка показывает модуль как 'invest', права живут на 'investment'
     # (MODULE_CODE_ALIASES на фронте) — здесь всегда канонический код.
@@ -112,9 +123,9 @@ _GRID_MODULE_ACTIONS: dict[str, frozenset[str]] = {
     "consultants":          frozenset({"view", "export", "edit"}),
     "tasks":                frozenset({"view", "edit"}),
     "pmo":                  frozenset({"view", "export", "edit"}),
-    # У reports и ai в каталоге нет ни .edit, ни .import — уровень
-    # «Редактировать» для них в сетке заблокирован, поэтому write-коды сюда
-    # не попадают и денайниться не могут.
+    # У reports и ai (как и у exec_dashboard/exec_overview выше) в каталоге нет
+    # ни .edit, ни .import — уровень «Редактировать» для них в сетке
+    # заблокирован, поэтому write-коды сюда не попадают и денайниться не могут.
     "reports":              frozenset({"view", "export"}),
     "monitoring":           frozenset({"view", "export", "edit"}),
     "ai":                   frozenset({"view"}),

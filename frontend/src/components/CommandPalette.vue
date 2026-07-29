@@ -14,11 +14,15 @@ import { companiesApi } from "@/api/companies";
 import { api } from "@/api/client";
 import { useEntityEditor } from "@/composables/useEntityEditor";
 import { useI18n } from "@/composables/useI18n";
+// Экран министра — портфельный: scope-ограниченному юзеру роутер его не отдаёт,
+// значит и в палитре команда должна быть скрыта (иначе ведёт в отказ).
+import { useCompanyScope } from "@/composables/useCompanyScope";
 
 const { t } = useI18n();
 const router = useRouter();
 const auth = useAuthStore();
 const entityEditor = useEntityEditor();
+const scope = useCompanyScope();
 
 const open = ref(false);
 const query = ref("");
@@ -79,7 +83,7 @@ function logout() { close(); auth.clear(); router.push({ name: "login" }); }
 const navCommands = computed<Cmd[]>(() => {
   // [показывать?, заголовок, подзаголовок, путь, иконка, ключевые слова]
   const defs: Array<[boolean, string, string, string, string, string]> = [
-    [can("financials.view"), "Executive Dashboard", t("Обзор портфеля"), "/executive-dashboard", "chart", "дашборд executive обзор"],
+    [can("exec_dashboard.view") && scope.showPortfolioViews.value, "Executive Dashboard", t("Обзор портфеля"), "/executive-dashboard", "chart", "дашборд executive обзор"],
     [isAdmin.value, "Execution Summary", t("Мониторинг прогрессов"), "/execution-summary", "activity", "control tower live мониторинг"],
     [can("projects.view") || can("tasks.view"), t("Проекты трансформации"), t("Портфель проектов и задач"), "/dashboard", "grid", "проекты задачи доска kanban"],
     [can("tasks.view"), t("Отслеживаемое"), t("Подписки на изменения"), "/followed", "eye", "watch подписки отслеживание"],
@@ -87,13 +91,17 @@ const navCommands = computed<Cmd[]>(() => {
     [can("bp.view"), t("Бизнес-план"), "", "/business-plan", "file", "бизнес план bp"],
     [can("kpi.view"), "KPI", t("Ключевые показатели"), "/kpi", "target", "kpi показатели цели"],
     [can("financials.view"), t("Финансы · Обзор портфеля"), "", "/financials", "bars", "финансы отчётность портфель"],
+    // Оба экрана раньше открывались правом Финансов и в палитре отсутствовали —
+    // добавлены со своими правами, чтобы палитра совпадала с гейтами маршрутов.
+    [can("unit_cost.view"), t("Удельная себестоимость"), "", "/unit-cost", "bars", "себестоимость нормы расхода топливо"],
+    [can("soe_health.view"), "SOE Health Check Tool", "", "/soe-health", "bars", "soe health устойчивость риски"],
     [can("finmodel.view"), t("Финансовая модель"), t("Внешний модуль"), "/finmodel", "bars", "finmodel финмодель модель"],
     [can("credit.view"), t("Кредитный портфель"), t("Внешний модуль"), "/credit-portfolio", "bars", "кредиты займы covenant"],
     [can("investment.view"), t("Инвест-проекты"), t("CAPEX-объекты"), "/invest-projects", "bars", "инвестиции capex проекты"],
     [can("governance.view"), t("Корпоративное управление"), "", "/governance", "building", "governance совет директоров"],
     [can("esg.view"), "ESG", t("Экология, общество, управление"), "/esg", "leaf", "esg экология устойчивость"],
     [can("procurement.view"), t("Закупки и форензик-аудит"), "", "/procurement/forensic", "cart", "закупки форензик аудит"],
-    [can("procurement.view"), t("Анализ закупочной деятельности"), "", "/procurement/analysis", "cart", "анализ закупки supplier"],
+    [can("procurement_analysis.view"), t("Анализ закупочной деятельности"), "", "/procurement/analysis", "cart", "анализ закупки supplier"],
     [can("consultants.view"), t("Консультанты"), "", "/consultants", "users", "консультанты советники"],
     [can("ratings.view"), t("Рейтинги"), "", "/ratings", "star", "рейтинги оценки"],
     [can("companies.view"), t("Библиотека · Компании"), t("MDM-карточки"), "/library/companies", "book", "библиотека mdm справочник"],

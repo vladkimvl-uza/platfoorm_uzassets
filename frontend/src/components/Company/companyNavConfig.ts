@@ -51,10 +51,15 @@ export const COMPANY_TABS: TabConfig[] = [
   { id: 'nsbu',        label: 'НСБУ',           groupId: 'finance' },
   { id: 'hlf',         label: 'Фин. отчётность', groupId: 'finance' },
   { id: 'bp',          label: 'Бизнес-план',    groupId: 'finance' },
-  { id: 'unitcost',    label: 'Себестоимость',  groupId: 'finance' },
+  // Себестоимость — тот же бэкенд, что и полноэкранный /unit-cost, поэтому и
+  // право то же (unit_cost.view). Без гейта вкладка осталась бы окном в модуль
+  // в обход его собственного права.
+  { id: 'unitcost',    label: 'Себестоимость',  groupId: 'finance', gated: 'unit_cost' },
 
   { id: 'kpi',         label: 'KPI',            groupId: 'performance' },
-  { id: 'procurement', label: 'Закупки',        groupId: 'performance' },
+  // Закупки во вкладке читают procurementAnalysisApi — то же право, что у
+  // полноэкранного /procurement/analysis, а не форензик-право procurement.view.
+  { id: 'procurement', label: 'Закупки',        groupId: 'performance', gated: 'procurement_analysis' },
 
   { id: 'governance',  label: 'Корп. упр.',     groupId: 'governance' },
   { id: 'consultants', label: 'Консультанты',   groupId: 'governance' },

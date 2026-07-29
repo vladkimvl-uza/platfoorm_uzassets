@@ -61,10 +61,12 @@ export const useAuthStore = defineStore("auth", () => {
 
   // Default landing route after login (call AFTER setUser).
   // Per user request 2026-05-23: всех у кого есть доступ к
-  // executive-dashboard (он требует financials.view) кидаем туда;
-  // остальные — на корень (тот разрулит роутер).
+  // executive-dashboard кидаем туда; остальные — на корень (тот разрулит роутер).
+  // Право проверяем то же, что гейт маршрута (exec_dashboard.view): иначе
+  // носитель одних только Финансов улетал бы на экран, откуда гейт сразу
+  // выбрасывает на /dashboard с ?denied=.
   function defaultLanding(): string {
-    return hasPermission("financials.view") ? "/executive-dashboard" : "/";
+    return hasPermission("exec_dashboard.view") ? "/executive-dashboard" : "/";
   }
 
   return {

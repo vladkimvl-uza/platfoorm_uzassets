@@ -129,8 +129,11 @@ async def financials_soe_health(
     from app.core.security import has_effective_permission
     from app.services.soe_health import SoeHealthService
 
-    if not await has_effective_permission(db, user, "financials.view"):
-        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "financials.view required")
+    # Собственное право экрана: маршрут фронта /soe-health гейтится
+    # soe_health.view, и бэкенд обязан спрашивать то же самое — иначе право
+    # живёт только в интерфейсе, а прямой вызов API его обходит.
+    if not await has_effective_permission(db, user, "soe_health.view"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "soe_health.view required")
     scope_ids = await allowed_company_ids(db, user)
     return await SoeHealthService().build(
         db, year=year, standard=standard, scope_ids=scope_ids,
@@ -152,8 +155,9 @@ async def financials_soe_health_company(
     from app.core.security import has_effective_permission
     from app.services.soe_health import SoeHealthService
 
-    if not await has_effective_permission(db, user, "financials.view"):
-        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "financials.view required")
+    # Дрилл того же экрана — то же право (см. /soe-health выше).
+    if not await has_effective_permission(db, user, "soe_health.view"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "soe_health.view required")
     scope_ids = await allowed_company_ids(db, user)
     return await SoeHealthService().company_statement(
         db, code=code, year=year, standard=standard, scope_ids=scope_ids,
@@ -177,8 +181,11 @@ async def save_soe_health_params(
     from app.core.security import has_effective_permission
     from app.services.soe_health import SoeHealthService
 
-    if not await has_effective_permission(db, user, "financials.edit"):
-        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "financials.edit required")
+    # Правка порогов методики — собственное право модуля. Без него код
+    # soe_health.edit был бы виден в сетке «Доступ к модулям», но не спрашивался
+    # ни одним эндпоинтом, то есть выдавался бы вхолостую.
+    if not await has_effective_permission(db, user, "soe_health.edit"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "soe_health.edit required")
     # Пороги ГЛОБАЛЬНЫЕ (одни на весь портфель) — company-scoped пользователь
     # не должен менять методику для чужих компаний.
     if await allowed_company_ids(db, user) is not None:

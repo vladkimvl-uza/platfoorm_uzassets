@@ -220,11 +220,18 @@ function isAdmin(): boolean {
 const can = (code: string) => auth.hasPermission(code);
 // Group visibility: show the collapsible header iff at least one sub-link
 // is visible to this user.
+// Себестоимость и SOE Health переехали на собственные права — без них носитель
+// только unit_cost.view / soe_health.view не увидел бы заголовок группы, хотя
+// его пункт внутри доступен.
 const showFinanceGroup = computed(() =>
   can("financials.view") || can("finmodel.view")
+    || can("unit_cost.view") || can("soe_health.view")
     || can("credit.view") || can("investment.view"),
 );
-const showProcurementGroup = computed(() => can("procurement.view"));
+// Аналогично для закупок: форензик и анализ закупок — два разных права.
+const showProcurementGroup = computed(() =>
+  can("procurement.view") || can("forensic.view") || can("procurement_analysis.view"),
+);
 function logout(): void {
   auth.clear();
   void router.push({ name: "login" });
@@ -462,13 +469,17 @@ function exitImpersonate() {
         <div v-if="can('ai.view')" class="ai-pcard-divider"></div>
 
         <!-- ── Группа: Обзор ── -->
-        <div v-if="can('financials.view') || can('monitoring.view') || isAdmin()" class="sb-group-label first">{{ t("Обзор") }}</div>
+        <!-- Заголовок группы повторяет условия своих пунктов (включая область
+             портфеля у экрана министра), иначе у scope-ограниченного юзера
+             остался бы заголовок без единой ссылки под ним. -->
+        <div v-if="(can('exec_dashboard.view') && scope.showPortfolioViews.value) || can('monitoring.view') || isAdmin()" class="sb-group-label first">{{ t("Обзор") }}</div>
 
-        <!-- 1. Executive Dashboard (AMBER) — same gate as the route.
+        <!-- 1. Executive Dashboard (AMBER) — same gate as the route
+             (собственное право exec_dashboard.view, не заимствованное у Финансов).
              Плюс область: портфельный экран не показываем пользователю,
              ограниченному своими компаниями (решение владельца 29.07.2026). -->
         <RouterLink
-          v-if="can('financials.view') && scope.showPortfolioViews.value"
+          v-if="can('exec_dashboard.view') && scope.showPortfolioViews.value"
           to="/executive-dashboard"
           class="sb-item sb-exec-dash"
           active-class="active"
@@ -583,13 +594,13 @@ function exitImpersonate() {
             </RouterLink>
 
             <!-- Удельная себестоимость — энергоёмкость + статьи по продуктам -->
-            <RouterLink v-if="can('financials.view')" to="/unit-cost" class="sb-item sb-sub" active-class="active">
+            <RouterLink v-if="can('unit_cost.view')" to="/unit-cost" class="sb-item sb-sub" active-class="active">
               <span class="sb-sub-dot"></span>
               <span class="sb-name">{{ t("Удельная себестоимость") }}</span>
             </RouterLink>
 
             <!-- SOE Health Check — светофорная оценка устойчивости портфеля -->
-            <RouterLink v-if="can('financials.view')" to="/soe-health" class="sb-item sb-sub" active-class="active">
+            <RouterLink v-if="can('soe_health.view')" to="/soe-health" class="sb-item sb-sub" active-class="active">
               <span class="sb-sub-dot"></span>
               <span class="sb-name">SOE Health Check Tool</span>
             </RouterLink>
@@ -739,7 +750,10 @@ function exitImpersonate() {
               <span class="sb-name">{{ t("Закупки и форензик-аудит") }}</span>
               <span v-if="secBadge(SB.procurement)" class="sb-badge">{{ secBadge(SB.procurement) }}</span>
             </RouterLink>
-            <RouterLink v-if="can('procurement_analysis.view') || can('procurement.view')"
+            <!-- Только собственное право: раньше пункт открывался и по
+                 procurement.view (форензик), из-за чего выдача форензика молча
+                 давала и анализ закупок. -->
+            <RouterLink v-if="can('procurement_analysis.view')"
                         to="/procurement/analysis" class="sb-item sb-sub" active-class="active">
               <span class="sb-sub-dot"></span>
               <span class="sb-name">{{ t("Анализ закупочной деятельности государственных компаний") }}</span>
