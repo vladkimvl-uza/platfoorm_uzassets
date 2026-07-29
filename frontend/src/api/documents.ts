@@ -7,6 +7,8 @@
  * entity_id, а не в отдельное хранилище вложений.
  */
 import { api } from "@/api/client";
+import { t } from "@/locale/i18n";
+
 
 export type DocKind = "pdf" | "doc" | "sheet" | "slide" | "image" | "archive" | "other";
 
@@ -39,9 +41,45 @@ export interface DocFolder {
   id: string;
   parent_id: string | null;
   name: string;
+  /** #RRGGBB из палитры FOLDER_COLORS; null = цвет по умолчанию */
+  color: string | null;
   system_key: string | null;
   is_system: boolean;
   file_count?: number;
+}
+
+/**
+ * Палитра папок — 10 пастельных корпоративных тонов.
+ *
+ * Правила набора: низкая насыщенность и высокая светлота (пастель), близкий
+ * между собой контраст, чтобы ряд папок читался как единая система, а не
+ * «радуга»; первый тон — брендовый пурпур платформы. Красный/зелёный
+ * «светофорных» оттенков в наборе НЕТ: в интерфейсе они означают статус, и
+ * папка такого цвета читалась бы как тревога.
+ */
+export const FOLDER_COLORS: { hex: string; name: string }[] = [
+  { hex: "#C7C3F0", name: "Лаванда" },
+  { hex: "#B9C7EE", name: "Барвинок" },
+  { hex: "#AFD3E8", name: "Незабудка" },
+  { hex: "#B3DCD2", name: "Мята" },
+  { hex: "#C2D6BC", name: "Шалфей" },
+  { hex: "#E4D9B4", name: "Пшеница" },
+  { hex: "#E6CDB2", name: "Песок" },
+  { hex: "#E4BFB4", name: "Терракота" },
+  { hex: "#E8C4CE", name: "Пудра" },
+  { hex: "#CBCDD6", name: "Графит" },
+];
+
+/**
+ * Цвет папки по умолчанию — классический «виндовый» жёлтый (решение владельца):
+ * папка без выбранного цвета должна выглядеть привычно, как в проводнике.
+ * Оттенок приглушён до корпоративного, чтобы не спорить с пастельной палитрой.
+ */
+export const FOLDER_COLOR_DEFAULT = "#F2C25C";
+
+/** Цвет папки для отображения (с дефолтом). */
+export function folderColor(f: { color?: string | null } | null | undefined): string {
+  return (f?.color || FOLDER_COLOR_DEFAULT);
 }
 
 export interface DocTree {
@@ -120,8 +158,14 @@ export const documentsApi = {
     const { data } = await api.get(`/documents/${code}/items/${id}/url`);
     return data;
   },
-  async createFolder(code: string, name: string, parentId?: string | null): Promise<DocFolder> {
-    const { data } = await api.post(`/documents/${code}/folders`, { name, parent_id: parentId ?? null });
+  async createFolder(code: string, name: string, parentId?: string | null, color?: string | null): Promise<DocFolder> {
+    const { data } = await api.post(`/documents/${code}/folders`, {
+      name, parent_id: parentId ?? null, color: color ?? null,
+    });
+    return data;
+  },
+  async patchFolder(code: string, id: string, body: { name?: string; color?: string | null }): Promise<DocFolder> {
+    const { data } = await api.patch(`/documents/${code}/folders/${id}`, body);
     return data;
   },
   async renameFolder(code: string, id: string, name: string): Promise<DocFolder> {
@@ -145,10 +189,10 @@ export const documentsApi = {
 export function fmtBytes(n: number | null | undefined): string {
   const b = Number(n || 0);
   if (!b) return "—";
-  if (b < 1024) return `${b} Б`;
-  if (b < 1024 * 1024) return `${(b / 1024).toFixed(0)} КБ`;
-  if (b < 1024 * 1024 * 1024) return `${(b / 1024 / 1024).toFixed(1)} МБ`;
-  return `${(b / 1024 / 1024 / 1024).toFixed(2)} ГБ`;
+  if (b < 1024) return t('{value0} Б', { value0: b });
+  if (b < 1024 * 1024) return t('{value0} КБ', { value0: (b / 1024).toFixed(0) });
+  if (b < 1024 * 1024 * 1024) return t('{value0} МБ', { value0: (b / 1024 / 1024).toFixed(1) });
+  return t('{value0} ГБ', { value0: (b / 1024 / 1024 / 1024).toFixed(2) });
 }
 
 /** Подпись и цвет типа документа — единый язык иконок библиотеки. */

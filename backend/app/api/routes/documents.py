@@ -86,14 +86,32 @@ def _kind_of(name: str) -> str:
     return "other"
 
 
+_HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
+
+
+def _clean_color(value: Optional[str]) -> Optional[str]:
+    """Только #RRGGBB — цвет приходит из фиксированной палитры фронта, но
+    проверяем на сервере: поле уходит в style, произвольная строка там не нужна."""
+    v = (value or "").strip()
+    if not v:
+        return None
+    if not _HEX.match(v):
+        raise HTTPException(
+            http_status.HTTP_422_UNPROCESSABLE_ENTITY, "Цвет должен быть в формате #RRGGBB",
+        )
+    return v.upper()
+
+
 class FolderIn(BaseModel):
     name: str = Field(min_length=1, max_length=255)
     parent_id: Optional[UUID] = None
+    color: Optional[str] = Field(default=None, max_length=9)
 
 
 class FolderPatch(BaseModel):
     name: Optional[str] = Field(default=None, min_length=1, max_length=255)
     parent_id: Optional[UUID] = None
+    color: Optional[str] = Field(default=None, max_length=9)
 
 
 class ItemPatch(BaseModel):
@@ -134,6 +152,7 @@ def _folder_out(f: DocumentFolder) -> dict:
         "id": str(f.id),
         "parent_id": str(f.parent_id) if f.parent_id else None,
         "name": f.name,
+        "color": f.color,
         "system_key": f.system_key,
         "is_system": f.is_system,
     }
@@ -250,7 +269,7 @@ async def create_folder(
         raise HTTPException(http_status.HTTP_409_CONFLICT, "Папка с таким именем уже есть")
     f = DocumentFolder(
         company_id=co.id, parent_id=payload.parent_id, name=name,
-        is_system=False, created_by=user.id,
+        color=_clean_color(payload.color), is_system=False, created_by=user.id,
     )
     db.add(f)
     await db.commit()
@@ -285,6 +304,9 @@ async def patch_folder(
         if payload.parent_id == f.id:
             raise HTTPException(http_status.HTTP_400_BAD_REQUEST, "Папка не может быть вложена в себя")
         f.parent_id = payload.parent_id
+    if payload.color is not None:
+        # Цвет меняется и у системных папок: это оформление, а не структура.
+        f.color = _clean_color(payload.color)
     await db.commit()
     await db.refresh(f)
     return _folder_out(f)

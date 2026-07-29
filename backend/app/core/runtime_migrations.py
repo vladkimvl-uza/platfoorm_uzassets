@@ -1963,6 +1963,9 @@ async def _patch_documents_library(conn) -> None:
             updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
         )
     """))
+    await conn.execute(text(
+        "ALTER TABLE document_folders ADD COLUMN IF NOT EXISTS color VARCHAR(9)"
+    ))
     for ddl in (
         "CREATE UNIQUE INDEX IF NOT EXISTS uq_docfolder_name "
         "ON document_folders (company_id, COALESCE(parent_id, '00000000-0000-0000-0000-000000000000'::uuid), name)",

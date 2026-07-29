@@ -56,6 +56,9 @@ class DocumentFolder(Base, UUIDMixin, TimestampMixin):
         nullable=True,
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
+    # Цвет папки (#RRGGBB) — визуальная навигация по библиотеке. Палитра
+    # пастельная и корпоративная, задаётся на фронте; NULL = цвет по умолчанию.
+    color: Mapped[Optional[str]] = mapped_column(String(9), nullable=True)
     # Системный ключ источника: 'tasks' | 'financials' | 'esg' | … — по нему
     # загрузка из карточки находит свою папку, не создавая дублей.
     system_key: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, index=True)

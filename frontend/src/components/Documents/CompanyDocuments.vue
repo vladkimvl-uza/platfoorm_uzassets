@@ -14,13 +14,19 @@
  */
 import { computed, onMounted, ref, watch } from "vue";
 import {
-  documentsApi, fmtBytes, KIND_META,
+  documentsApi, fmtBytes, folderColor, KIND_META,
+  FOLDER_COLORS, FOLDER_COLOR_DEFAULT,
   type DocFolder, type DocItem,
 } from "@/api/documents";
 import { useFormatters } from "@/composables/useFormatters";
 import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
 import ModalShell from "@/components/ModalShell.vue";
+import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
+const { t: tr } = useI18n();
+
 
 const props = defineProps<{ companyCode: string; canEdit?: boolean }>();
 
@@ -49,6 +55,10 @@ const renaming = ref<DocItem | null>(null);
 const renameValue = ref("");
 const newFolderOpen = ref(false);
 const newFolderName = ref("");
+// Цвет новой папки: по умолчанию — классический жёлтый, как в проводнике.
+const newFolderColor = ref<string>(FOLDER_COLOR_DEFAULT);
+// Перекраска существующей папки (палитра открывается из строки в левой колонке).
+const colorEditing = ref<DocFolder | null>(null);
 
 let searchTimer: number | undefined;
 
@@ -196,7 +206,7 @@ async function moveTo(it: DocItem, folderId: string | null) {
 async function removeItem(it: DocItem) {
   const hard = inTrash.value;
   const ok = await confirmDialog({
-    title: hard ? "Удалить безвозвратно?" : "Переместить в корзину?",
+    title: hard ? i18nKey("Удалить безвозвратно?") : i18nKey("Переместить в корзину?"),
     message: hard
       ? `«${it.name}» будет удалён вместе с файлом. Действие необратимо.`
       : `«${it.name}» уйдёт в корзину — его можно будет восстановить.`,
@@ -224,13 +234,28 @@ async function createFolder() {
   const name = newFolderName.value.trim();
   if (!name) return;
   try {
-    const f = await documentsApi.createFolder(props.companyCode, name, null);
+    const f = await documentsApi.createFolder(
+      props.companyCode, name, null,
+      newFolderColor.value === FOLDER_COLOR_DEFAULT ? null : newFolderColor.value,
+    );
     toast.success(`Папка «${f.name}» создана`);
     newFolderOpen.value = false; newFolderName.value = "";
+    newFolderColor.value = FOLDER_COLOR_DEFAULT;
     await loadTree();
     pickFolder(f.id);
   } catch (e: any) {
     toast.error(e?.response?.data?.detail || "Не удалось создать папку");
+  }
+}
+
+async function setFolderColor(f: DocFolder, hex: string | null) {
+  try {
+    await documentsApi.patchFolder(props.companyCode, f.id, { color: hex });
+    f.color = hex;
+    colorEditing.value = null;
+    toast.success("Цвет папки обновлён");
+  } catch (e: any) {
+    toast.error(e?.response?.data?.detail || "Не удалось изменить цвет");
   }
 }
 
@@ -242,10 +267,10 @@ const kindList = computed(() =>
 function linkHint(it: DocItem): string {
   if (!it.links.length) return "";
   const first = it.links[0];
-  const kindRu = first.entity_type === "task" ? "Задача"
-    : first.entity_type === "project" ? "Проект"
-    : first.entity_type === "financial_report" ? "Отчётность"
-    : "Компания";
+  const kindRu = first.entity_type === "task" ? i18nKey("Задача")
+    : first.entity_type === "project" ? i18nKey("Проект")
+    : first.entity_type === "financial_report" ? i18nKey("Отчётность")
+    : i18nKey("Компания");
   return first.label ? `${kindRu}: ${first.label}` : kindRu;
 }
 </script>
@@ -262,16 +287,16 @@ function linkHint(it: DocItem): string {
     <header class="doc-head">
       <div class="doc-head-main">
         <div class="doc-crumb">
-          <span class="doc-crumb-root">Документы</span>
+          <span class="doc-crumb-root">{{ tr('Документы') }}</span>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
           <span class="doc-crumb-cur">{{ breadcrumb }}</span>
           <span class="doc-crumb-count">{{ total }}</span>
         </div>
         <div v-if="stats" class="doc-stats">
-          {{ stats.files }} файл(ов) · {{ fmtBytes(stats.size_bytes) }}
+          {{ stats.files }} {{ tr('файл(ов) ·') }} {{ fmtBytes(stats.size_bytes) }}
           <template v-if="stats.last_upload_at">
-            · последняя загрузка {{ fmt.fmtRelativeTime(stats.last_upload_at) }}
+            {{ tr('· последняя загрузка') }} {{ fmt.fmtRelativeTime(stats.last_upload_at) }}
           </template>
         </div>
       </div>
@@ -279,19 +304,19 @@ function linkHint(it: DocItem): string {
         <label class="doc-search">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
-          <input v-model="search" type="search" placeholder="Поиск по названию" />
+          <input v-model="search" type="search" :placeholder="tr('Поиск по названию')" />
         </label>
-        <div class="doc-viewsw" role="group" aria-label="Вид">
-          <button :class="{ on: view === 'list' }" title="Список" @click="view = 'list'">
+        <div class="doc-viewsw" role="group" :aria-label="tr('Вид')">
+          <button :class="{ on: view === 'list' }" :title="tr('Список')" @click="view = 'list'">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
           </button>
-          <button :class="{ on: view === 'grid' }" title="Плитка" @click="view = 'grid'">
+          <button :class="{ on: view === 'grid' }" :title="tr('Плитка')" @click="view = 'grid'">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
           </button>
         </div>
-        <button v-if="canEdit" class="doc-btn ghost" @click="newFolderOpen = true">Новая папка</button>
+        <button v-if="canEdit" class="doc-btn ghost" @click="newFolderOpen = true">{{ tr('Новая папка') }}</button>
         <label v-if="canEdit" class="doc-btn primary">
-          Загрузить
+          {{ tr('Загрузить') }}
           <input type="file" multiple hidden @change="onFilePick" />
         </label>
       </div>
@@ -300,27 +325,54 @@ function linkHint(it: DocItem): string {
     <div class="doc-body">
       <!-- Левая колонка: две структуры — папки и типы -->
       <aside class="doc-rail">
-        <div class="doc-rail-lbl">Папки</div>
+        <div class="doc-rail-lbl">{{ tr('Папки') }}</div>
         <button class="doc-rail-item" :class="{ on: !activeFolder && !activeKind && !inTrash }" @click="pickFolder(null)">
-          <span class="doc-rail-name">Все файлы</span>
+          <span class="doc-rail-name">{{ tr('Все файлы') }}</span>
           <span class="doc-rail-num">{{ totalFiles }}</span>
         </button>
-        <button
-          v-for="f in folders"
-          :key="f.id"
-          class="doc-rail-item"
-          :class="{ on: activeFolder === f.id }"
-          @click="pickFolder(f.id)"
-        >
-          <svg class="doc-rail-ic" width="14" height="14" viewBox="0 0 24 24" fill="none"
-               stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-          </svg>
-          <span class="doc-rail-name">{{ f.name }}</span>
-          <span class="doc-rail-num">{{ f.file_count ?? 0 }}</span>
-        </button>
+        <div v-for="f in folders" :key="f.id" class="doc-rail-wrap">
+          <button
+            class="doc-rail-item"
+            :class="{ on: activeFolder === f.id }"
+            @click="pickFolder(f.id)"
+          >
+            <!-- Заливка иконки = цвет папки (по умолчанию классический жёлтый) -->
+            <svg class="doc-rail-ic doc-folder-ic" width="15" height="15" viewBox="0 0 24 24"
+                 :style="{ color: folderColor(f) }" fill="currentColor">
+              <path d="M3 7a2 2 0 0 1 2-2h4.2l1.8 2H19a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+            </svg>
+            <span class="doc-rail-name">{{ f.name }}</span>
+            <span class="doc-rail-num">{{ f.file_count ?? 0 }}</span>
+          </button>
+          <button
+            v-if="canEdit"
+            class="doc-rail-color"
+            :title="tr('Цвет папки')"
+            @click.stop="colorEditing = (colorEditing?.id === f.id ? null : f)"
+          >
+            <span class="doc-color-dot" :style="{ background: folderColor(f) }"></span>
+          </button>
+          <div v-if="colorEditing?.id === f.id" class="doc-palette">
+            <button
+              class="doc-sw doc-sw-default"
+              :class="{ on: !f.color }"
+              :style="{ background: FOLDER_COLOR_DEFAULT }"
+              :title="tr('Классический (по умолчанию)')"
+              @click.stop="setFolderColor(f, null)"
+            ></button>
+            <button
+              v-for="c in FOLDER_COLORS"
+              :key="c.hex"
+              class="doc-sw"
+              :class="{ on: f.color === c.hex }"
+              :style="{ background: c.hex }"
+              :title="c.name"
+              @click.stop="setFolderColor(f, c.hex)"
+            ></button>
+          </div>
+        </div>
 
-        <div v-if="kindList.length" class="doc-rail-lbl">По типу</div>
+        <div v-if="kindList.length" class="doc-rail-lbl">{{ tr('По типу') }}</div>
         <button
           v-for="k in kindList"
           :key="k.key"
@@ -329,14 +381,14 @@ function linkHint(it: DocItem): string {
           @click="pickKind(k.key)"
         >
           <span class="doc-kind-dot" :style="{ background: k.color }"></span>
-          <span class="doc-rail-name">{{ k.label }}</span>
+          <span class="doc-rail-name">{{ tr(k.label) }}</span>
           <span class="doc-rail-num">{{ k.count }}</span>
         </button>
 
         <button class="doc-rail-item doc-rail-trash" :class="{ on: inTrash }" @click="openTrash">
           <svg class="doc-rail-ic" width="14" height="14" viewBox="0 0 24 24" fill="none"
                stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>
-          <span class="doc-rail-name">Корзина</span>
+          <span class="doc-rail-name">{{ tr('Корзина') }}</span>
           <span class="doc-rail-num">{{ trashCount }}</span>
         </button>
       </aside>
@@ -360,17 +412,17 @@ function linkHint(it: DocItem): string {
                stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>
           </svg>
-          <div class="doc-empty-t">{{ inTrash ? 'Корзина пуста' : 'Здесь пока нет документов' }}</div>
-          <div v-if="canEdit && !inTrash" class="doc-empty-s">Перетащите файлы сюда или нажмите «Загрузить»</div>
+          <div class="doc-empty-t">{{ inTrash ? tr('Корзина пуста') : tr('Здесь пока нет документов') }}</div>
+          <div v-if="canEdit && !inTrash" class="doc-empty-s">{{ tr('Перетащите файлы сюда или нажмите «Загрузить»') }}</div>
         </div>
 
         <!-- Список -->
         <div v-else-if="view === 'list'" class="doc-table">
           <div class="doc-tr doc-th">
-            <span>Название</span>
-            <span>Кто загрузил</span>
-            <span>Когда</span>
-            <span>Размер</span>
+            <span>{{ tr('Название') }}</span>
+            <span>{{ tr('Кто загрузил') }}</span>
+            <span>{{ tr('Когда') }}</span>
+            <span>{{ tr('Размер') }}</span>
             <span></span>
           </div>
           <div
@@ -385,7 +437,7 @@ function linkHint(it: DocItem): string {
                 {{ it.ext ? it.ext.toUpperCase().slice(0, 4) : 'FILE' }}
               </span>
               <button class="doc-name" :title="it.name" @click="openItem(it)">{{ it.name }}</button>
-              <span v-if="linkHint(it)" class="doc-linkchip" :title="linkHint(it)">{{ linkHint(it) }}</span>
+              <span v-if="linkHint(it)" class="doc-linkchip" :title="tr(linkHint(it))">{{ tr(linkHint(it)) }}</span>
             </span>
             <span class="doc-cell-who">{{ it.uploader_name || '—' }}</span>
             <span class="doc-cell-when" :title="it.created_at ? fmt.fmtDateTime(it.created_at) : ''">
@@ -393,16 +445,16 @@ function linkHint(it: DocItem): string {
             </span>
             <span class="doc-cell-size">{{ fmtBytes(it.size_bytes) }}</span>
             <span class="doc-cell-act">
-              <button class="doc-act" title="Скачать" @click.stop="download(it)">
+              <button class="doc-act" :title="tr('Скачать')" @click.stop="download(it)">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 11l5 5 5-5M4 21h16"/></svg>
               </button>
-              <button v-if="canEdit && !inTrash" class="doc-act" title="Переименовать" @click.stop="startRename(it)">
+              <button v-if="canEdit && !inTrash" class="doc-act" :title="tr('Переименовать')" @click.stop="startRename(it)">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
               </button>
-              <button v-if="canEdit && inTrash" class="doc-act" title="Восстановить" @click.stop="restoreItem(it)">
+              <button v-if="canEdit && inTrash" class="doc-act" :title="tr('Восстановить')" @click.stop="restoreItem(it)">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
               </button>
-              <button v-if="canEdit" class="doc-act danger" :title="inTrash ? 'Удалить безвозвратно' : 'В корзину'" @click.stop="removeItem(it)">
+              <button v-if="canEdit" class="doc-act danger" :title="inTrash ? tr('Удалить безвозвратно') : tr('В корзину')" @click.stop="removeItem(it)">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>
               </button>
             </span>
@@ -438,12 +490,12 @@ function linkHint(it: DocItem): string {
              stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
           <path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 20h16"/>
         </svg>
-        <div>Отпустите файлы — они попадут в «{{ breadcrumb }}»</div>
+        <div>{{ tr('Отпустите файлы — они попадут в «') }}{{ breadcrumb }}»</div>
       </div>
     </div>
 
     <!-- Просмотр -->
-    <ModalShell :open="!!preview" size="lg" :title="preview?.name || 'Просмотр'" @close="preview = null">
+    <ModalShell :open="!!preview" size="lg" :title="preview?.name || tr('Просмотр')" @close="preview = null">
       <div v-if="preview" class="doc-prev">
         <img v-if="/^image\//.test(preview.mime || '')" :src="preview.url" :alt="preview.name" />
         <iframe v-else :src="preview.url" :title="preview.name"></iframe>
@@ -451,20 +503,47 @@ function linkHint(it: DocItem): string {
     </ModalShell>
 
     <!-- Переименование -->
-    <ModalShell :open="!!renaming" size="sm" title="Переименовать" @close="renaming = null">
+    <ModalShell :open="!!renaming" size="sm" :title="tr('Переименовать')" @close="renaming = null">
       <input v-model="renameValue" class="doc-input" @keyup.enter="saveRename" />
       <template #footer>
-        <button class="doc-btn ghost" @click="renaming = null">Отмена</button>
-        <button class="doc-btn primary" @click="saveRename">Сохранить</button>
+        <button class="doc-btn ghost" @click="renaming = null">{{ tr('Отмена') }}</button>
+        <button class="doc-btn primary" @click="saveRename">{{ tr('Сохранить') }}</button>
       </template>
     </ModalShell>
 
     <!-- Новая папка -->
-    <ModalShell :open="newFolderOpen" size="sm" title="Новая папка" @close="newFolderOpen = false">
-      <input v-model="newFolderName" class="doc-input" placeholder="Название папки" @keyup.enter="createFolder" />
+    <ModalShell :open="newFolderOpen" size="sm" :title="tr('Новая папка')" @close="newFolderOpen = false">
+      <input v-model="newFolderName" class="doc-input" :placeholder="tr('Название папки')" @keyup.enter="createFolder" />
+      <div class="doc-nf-color">
+        <div class="doc-nf-lbl">{{ tr('Цвет папки') }}</div>
+        <div class="doc-palette doc-palette-inline">
+          <button
+            class="doc-sw doc-sw-default"
+            :class="{ on: newFolderColor === FOLDER_COLOR_DEFAULT }"
+            :style="{ background: FOLDER_COLOR_DEFAULT }"
+            :title="tr('Классический (по умолчанию)')"
+            @click="newFolderColor = FOLDER_COLOR_DEFAULT"
+          ></button>
+          <button
+            v-for="c in FOLDER_COLORS"
+            :key="c.hex"
+            class="doc-sw"
+            :class="{ on: newFolderColor === c.hex }"
+            :style="{ background: c.hex }"
+            :title="c.name"
+            @click="newFolderColor = c.hex"
+          ></button>
+        </div>
+        <div class="doc-nf-preview">
+          <svg width="17" height="17" viewBox="0 0 24 24" :style="{ color: newFolderColor }" fill="currentColor">
+            <path d="M3 7a2 2 0 0 1 2-2h4.2l1.8 2H19a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          </svg>
+          <span>{{ newFolderName.trim() || tr('Новая папка') }}</span>
+        </div>
+      </div>
       <template #footer>
-        <button class="doc-btn ghost" @click="newFolderOpen = false">Отмена</button>
-        <button class="doc-btn primary" @click="createFolder">Создать</button>
+        <button class="doc-btn ghost" @click="newFolderOpen = false">{{ tr('Отмена') }}</button>
+        <button class="doc-btn primary" @click="createFolder">{{ tr('Создать') }}</button>
       </template>
     </ModalShell>
   </div>
@@ -546,6 +625,48 @@ function linkHint(it: DocItem): string {
 .doc-rail-ic { color: currentColor; opacity: .75; flex-shrink: 0; }
 .doc-rail-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .doc-rail-num { font-size: 10.5px; color: var(--t3, #94A3B8); font-variant-numeric: tabular-nums; }
+.doc-rail-wrap { position: relative; display: flex; align-items: center; }
+.doc-rail-wrap .doc-rail-item { flex: 1; min-width: 0; }
+.doc-folder-ic { opacity: 1; filter: drop-shadow(0 1px 1px rgba(15,23,60,.10)); transition: transform .16s; }
+.doc-rail-item:hover .doc-folder-ic { transform: scale(1.08); }
+.doc-rail-color {
+  border: 0; background: transparent; cursor: pointer; padding: 4px;
+  border-radius: 7px; line-height: 0; opacity: 0; transition: opacity .15s, background .15s;
+}
+.doc-rail-wrap:hover .doc-rail-color { opacity: 1; }
+.doc-rail-color:hover { background: rgba(124,111,247,.10); }
+.doc-color-dot {
+  display: block; width: 11px; height: 11px; border-radius: 50%;
+  box-shadow: 0 0 0 1.5px #fff, 0 0 0 2.5px rgba(15,23,60,.10);
+}
+.doc-palette {
+  position: absolute; top: calc(100% + 5px); right: 0; z-index: 5;
+  display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px;
+  background: #fff; border: 1px solid var(--border, #EEF0F5); border-radius: 12px;
+  padding: 9px; box-shadow: 0 10px 28px rgba(15,23,60,.14);
+  animation: docPop .16s var(--ease-standard, cubic-bezier(.34,1.4,.64,1)) both;
+}
+.doc-palette-inline {
+  position: static; box-shadow: none; border: 0; padding: 0;
+  grid-template-columns: repeat(11, 1fr); gap: 7px; animation: none; background: transparent;
+}
+.doc-sw {
+  width: 20px; height: 20px; border-radius: 7px; border: 1px solid rgba(15,23,60,.10);
+  cursor: pointer; padding: 0; transition: transform .14s, box-shadow .14s;
+}
+.doc-sw:hover { transform: scale(1.14); }
+.doc-sw.on { box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px var(--p-deep, #6C5CE7); }
+.doc-nf-color { margin-top: 16px; }
+.doc-nf-lbl {
+  font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+  color: var(--t3, #94A3B8); margin-bottom: 8px;
+}
+.doc-nf-preview {
+  display: flex; align-items: center; gap: 8px; margin-top: 13px;
+  font-size: 12.5px; color: var(--t1, #1E2A4A);
+  background: var(--bg2, #F8F9FC); border: 1px solid var(--border, #EEF0F5);
+  border-radius: 10px; padding: 9px 12px;
+}
 .doc-kind-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-left: 3px; }
 .doc-rail-trash { margin-top: 12px; }
 
