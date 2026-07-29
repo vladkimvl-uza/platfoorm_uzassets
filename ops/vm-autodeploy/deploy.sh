@@ -48,9 +48,13 @@ dc() { docker compose --project-directory . -f "$COMPOSE_FILE" --profile "$PROFI
 
 log "rebuilding nginx (frontend) ..."
 dc build nginx
+log "rebuilding Telegram bot ..."
+dc build bot
 log "recreating nginx ..."
 dc up -d --force-recreate nginx
 log "restarting backend (runtime migrations + seeds) ..."
 dc restart backend
+log "recreating Telegram bot ..."
+dc up -d --force-recreate bot
 
 log "deployed ${REMOTE:0:9} OK"

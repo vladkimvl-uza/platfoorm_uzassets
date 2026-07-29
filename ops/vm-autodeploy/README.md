@@ -40,8 +40,10 @@ console), run:
 Just `git push` to **master**. Within ~2 minutes the VM pulls and runs:
 
 1. `git reset --hard origin/master` (preserving `backend/jwt_public.pem`)
-2. rebuild + recreate the **nginx** container (frontend)
-3. restart the **backend** container (runs runtime migrations + seeds)
+2. rebuild the **nginx** and **bot** images
+3. recreate the **nginx** container (frontend)
+4. restart the **backend** container (runs runtime migrations + seeds)
+5. recreate the **bot** container (Telegram linking and notifications)
 
 Idempotent — when there's nothing new, it's a no-op.
 

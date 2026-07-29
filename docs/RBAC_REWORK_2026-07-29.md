@@ -1234,4 +1234,17 @@ frontend/src/api/rbacV3.ts
 git show --name-status --format=fuller HEAD
 ~~~
 
-Production VM использует pull-based deployment ветки `origin/master`: после push служба автообновления получает новый commit, пересобирает frontend/nginx и перезапускает backend с runtime-миграциями и seed-операциями. Секреты и production-данные в Git не включаются.
+Production VM использует pull-based deployment ветки `origin/master`: после push служба автообновления получает новый commit, пересобирает frontend/nginx и Telegram bot, перезапускает backend с runtime-миграциями и seed-операциями и пересоздаёт контейнер bot. Секреты и production-данные в Git не включаются.
+
+## 32. Привязка Telegram для новых пользователей
+
+Этап первичной привязки Telegram локализован целиком:
+
+- мастер `frontend/src/views/MfaOnboarding.vue`: приветствие, QR-код, таймер, открытие бота, ожидание подтверждения, тестовый код, recovery codes, ошибки и завершение;
+- повторная привязка и управление в `frontend/src/views/SecuritySettings.vue`;
+- backend-ответы и ошибки маршрутов `/mfa/link-telegram`, `/mfa/status`, `/mfa/test-notification` и включения 2FA;
+- карточка подтверждения в Telegram, кнопки «Это я» и «Это не я», успешная привязка, истёкший токен, отмена, повторная привязка, справка и команды бота.
+
+Поддерживаются `ru`, `uz-latn`, `uz-cyr` и `en`. При переходе нового пользователя по deep-link бот получает его `ui_locale` по токену и показывает карточку на языке платформы. Для обычного `/start` без токена язык берётся из настроек клиента Telegram, неизвестная локаль использует русский fallback. Узбекская кириллица формируется штатной транслитерацией системных строк. Имена, email, названия ролей и другие данные пользователя выводятся без перевода.
+
+Обнаруженный deployment-разрыв также устранён: `ops/vm-autodeploy/deploy.sh` теперь не только разворачивает frontend и backend, но и пересобирает и пересоздаёт отдельный контейнер `uza-tg-bot`. Благодаря этому изменения `bot/i18n.py`, handlers, callbacks и formatter фактически попадают в production при каждом обновлении `master`.
