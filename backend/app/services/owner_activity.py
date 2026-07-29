@@ -144,9 +144,33 @@ _PATH_LABELS: list[tuple[str, str, str]] = [
 ]
 
 
+# Технические POST/PUT, которые НИЧЕГО не меняют в данных: выдача тикета для
+# веб-сокета, отметка «прочитано», клиентские превью разбора файла. Они попадали
+# в ленту как «Компании: добавление» — 361 ложное уведомление на проде от одного
+# только /companies/ws-ticket. Уведомление должно означать изменение, иначе
+# читатель перестаёт им верить.
+_NON_CONTENT_PATHS: frozenset[str] = frozenset({
+    "/companies/ws-ticket",
+    "/comments/mark-read",
+    "/financials/detailed/parse-preview",
+})
+_NON_CONTENT_SUFFIXES: tuple[str, ...] = (
+    "/ws-ticket", "/ticket", "/heartbeat", "/mark-read", "/preview",
+    "/parse-preview", "/export", "/download", "/ping",
+)
+
+
+def _is_non_content(path: str) -> bool:
+    """True — запрос технический (ничего в данных не изменил)."""
+    p = path.split("?", 1)[0].rstrip("/")
+    return p in _NON_CONTENT_PATHS or p.endswith(_NON_CONTENT_SUFFIXES)
+
+
 def _classify(path: str) -> Optional[tuple[str, str]]:
     """→ (label, slug) либо None."""
     p = path.split("?", 1)[0]
+    if _is_non_content(p):
+        return None
     for pre, label, slug in _PATH_LABELS:
         if p == pre or p.startswith(pre + "/"):
             return label, slug
