@@ -341,6 +341,10 @@ class UnitCostService:
         )
         rows = (await db.execute(q)).all()
         scope = {str(i) for i in scope_ids} if scope_ids is not None else None
+        # Флаг режет только ПОРТФЕЛЬНЫЙ запрос. Если область задана явно, компании
+        # уже осознанно выбраны вызывающим — иначе пользователь, чья область
+        # состоит из непрофильной компании, увидит нулевые итоги модуля.
+        rollup_filter = scope is None
 
         companies: list[dict[str, Any]] = []
         pf_total = 0.0
@@ -354,14 +358,16 @@ class UnitCostService:
                 continue
             block = (per.get("companies", {}) or {}).get(code, {})
             prods = [self._calc_product(p, pm) for p in (block.get("products") or [])]
-            if in_rollups:
+            # Вклад компании в итоги: она в своде ИЛИ запрос не портфельный.
+            counted = bool(in_rollups) or not rollup_filter
+            if counted:
                 prod_count += len(prods)
             c_total = sum(p["total_cost"] for p in prods if p["total_cost"] is not None)
             c_energy = sum(p["energy_cost"] * p["output"] for p in prods if p["output"])
             c_overrun = sum(p["overrun_cost"] for p in prods if p["overrun_cost"] is not None)
             c_has_overrun = any(p["overrun_cost"] is not None for p in prods)
             for p in prods:  # энергомикс по видам топлива (для донат-чарта)
-                if p["output"] > 0 and in_rollups:
+                if p["output"] > 0 and counted:
                     for eb in p["energy_breakdown"]:
                         mix[eb["fuel"]] += eb["cost"] * p["output"]
             # импорт (сырьё/комплектующие для производства), цена в USD → сум по курсу
@@ -374,7 +380,7 @@ class UnitCostService:
                 imp_cost += c
                 imports_out.append({"name": it.get("name", ""), "unit": it.get("unit", ""),
                                     "usd": round(u, 4), "qty": round(q, 2), "cost": round(c, 1)})
-            if in_rollups:
+            if counted:
                 pf_total += c_total
                 pf_energy += c_energy
                 pf_import += imp_cost
@@ -422,9 +428,14 @@ class UnitCostService:
                 "import_cost": round(pf_import, 1) if pf_import else None,
                 "overrun_cost": round(pf_overrun, 1) if pf_has_overrun else None,
                 # Счётчики портфеля — по тем же компаниям, что и суммы выше.
-                "company_count": sum(1 for c in companies if c["in_rollups"]),
+                "company_count": sum(
+                    1 for c in companies if c["in_rollups"] or not rollup_filter
+                ),
                 "product_count": prod_count,
-                "priced_count": sum(c["priced_count"] for c in companies if c["in_rollups"]),
+                "priced_count": sum(
+                    c["priced_count"] for c in companies
+                    if c["in_rollups"] or not rollup_filter
+                ),
             },
             "generated_at": datetime.now(UTC).isoformat(),
         }

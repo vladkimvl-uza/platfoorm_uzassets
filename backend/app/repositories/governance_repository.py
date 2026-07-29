@@ -27,8 +27,13 @@ class GovernanceRepository:
         scope_company_ids: Optional[Sequence[UUID]],
     ):
         q = select(Company).options(selectinload(Company.sector))
-        # include_in_rollups: демо и непрофильные компании не должны искажать сводные показатели КУ (рейтинги, средние по портфелю, счётчики комитетов).
-        q = q.where(Company.is_active.is_(True), Company.include_in_rollups.is_(True))
+        q = q.where(Company.is_active.is_(True))
+        if scope_company_ids is None:
+            # Флаг include_in_rollups исключает демо и непрофильные компании только
+            # из ПОРТФЕЛЬНЫХ показателей КУ (средние, счётчики комитетов, ранжирование).
+            # При явной области выборка уже сужена вызывающим — иначе пользователь,
+            # чья область состоит из такой компании, не увидит собственных данных.
+            q = q.where(Company.include_in_rollups.is_(True))
         if sector_code:
             q = q.join(Sector, Sector.id == Company.sector_id).where(Sector.code == sector_code)
         if scope_company_ids is not None:

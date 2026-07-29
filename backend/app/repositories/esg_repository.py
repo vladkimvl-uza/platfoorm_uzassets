@@ -28,10 +28,14 @@ class EsgRepository:
         scope_company_ids: Optional[Sequence[UUID]],
     ):
         # Деактивированные компании исключаем из портфельного ESG-overview.
-        # include_in_rollups: демо и непрофильные компании не должны искажать портфельные средние и пиллары.
         q = (select(ESGMetric)
              .join(Company, Company.id == ESGMetric.company_id)
-             .where(Company.is_active.is_(True), Company.include_in_rollups.is_(True)))
+             .where(Company.is_active.is_(True)))
+        if scope_company_ids is None:
+            # Флаг исключает компанию только из ПОРТФЕЛЬНЫХ средних и пилларов.
+            # При явной области выборка уже сужена вызывающим — иначе пользователь,
+            # чья область состоит из такой компании, не увидит собственных данных.
+            q = q.where(Company.include_in_rollups.is_(True))
         if year:
             q = q.where(ESGMetric.year == year)
         if sector_code:
@@ -89,10 +93,14 @@ class EsgRepository:
         sector_code: Optional[str],
         scope_company_ids: Optional[Sequence[UUID]],
     ):
-        # include_in_rollups: демо и непрофильные компании не должны искажать сводные счётчики инцидентов.
         q = (select(ESGIssue)
              .join(Company, Company.id == ESGIssue.company_id)
-             .where(Company.is_active.is_(True), Company.include_in_rollups.is_(True)))
+             .where(Company.is_active.is_(True)))
+        if scope_company_ids is None:
+            # Флаг исключает компанию только из ПОРТФЕЛЬНЫХ счётчиков инцидентов.
+            # При явной области выборка уже сужена вызывающим — иначе пользователь,
+            # чья область состоит из такой компании, не увидит собственных данных.
+            q = q.where(Company.include_in_rollups.is_(True))
         if sector_code:
             q = (q.join(Sector, Sector.id == Company.sector_id)
                   .where(Sector.code == sector_code))
@@ -166,10 +174,14 @@ class EsgRepository:
         sector_code: Optional[str],
         scope_company_ids: Optional[Sequence[UUID]],
     ):
-        # Это не пикер компаний, здесь строятся строки ESG-обзора (rankings плюс знаменатель «X из N»):
-        # include_in_rollups отсекает демо и непрофильные компании, чтобы не искажать портфельное покрытие.
+        # Это не пикер компаний, здесь строятся строки ESG-обзора (rankings плюс знаменатель «X из N»).
         q = select(Company).options(selectinload(Company.sector))
-        q = q.where(Company.is_active.is_(True), Company.include_in_rollups.is_(True))
+        q = q.where(Company.is_active.is_(True))
+        if scope_company_ids is None:
+            # Флаг отсекает демо и непрофильные компании только из ПОРТФЕЛЬНОГО покрытия.
+            # При явной области выборка уже сужена вызывающим — иначе пользователь,
+            # чья область состоит из такой компании, получит пустой обзор.
+            q = q.where(Company.include_in_rollups.is_(True))
         if sector_code:
             q = q.join(Sector, Sector.id == Company.sector_id).where(Sector.code == sector_code)
         if scope_company_ids is not None:
@@ -206,15 +218,28 @@ class EsgRepository:
         )
         return {c.id: c for c in res.scalars().all()}
 
-    async def sectors_with_counts(self):
-        # Фасет-счётчики того же ESG-обзора: условие обязано повторять list_companies,
-        # иначе демо и непрофильные компании раздуют цифру на чипе относительно числа строк.
-        res = await self.session.execute(
+    async def sectors_with_counts(
+        self,
+        *,
+        scope_company_ids: Optional[Sequence[UUID]] = None,
+    ):
+        # Фасет-счётчики того же ESG-обзора: условия обязаны повторять list_companies,
+        # иначе цифра на чипе разойдётся с числом строк обзора.
+        q = (
             select(Sector.code, func.count(Company.id))
             .join(Company, Company.sector_id == Sector.id)
-            .where(Company.is_active.is_(True), Company.include_in_rollups.is_(True))
-            .group_by(Sector.code)
+            .where(Company.is_active.is_(True))
         )
+        if scope_company_ids is None:
+            # Флаг исключает компанию только из ПОРТФЕЛЬНОГО счёта по секторам.
+            # При явной области выборка уже сужена вызывающим — иначе у пользователя,
+            # чья область состоит из такой компании, чип сектора покажет ноль.
+            q = q.where(Company.include_in_rollups.is_(True))
+        else:
+            if not scope_company_ids:
+                return []
+            q = q.where(Company.id.in_(scope_company_ids))
+        res = await self.session.execute(q.group_by(Sector.code))
         return [{"code": r[0], "count": r[1]} for r in res.all()]
 
     # ─── ESG agency ratings ───────────────────────────────────────
@@ -225,13 +250,18 @@ class EsgRepository:
         scope_company_ids: Optional[Sequence[UUID]],
     ):
         # Деактивированные компании исключаем; рейтинги-сироты (company_id NULL) — оставляем.
-        # include_in_rollups: демо и непрофильные компании не должны искажать портфельное покрытие агентствами.
+        # include_in_rollups: демо и непрофильные компании не искажают портфельное покрытие
+        # агентствами, но при явной области выборка уже сужена вызывающим — иначе пользователь,
+        # чья область состоит из такой компании, не увидит собственных ESG-рейтингов.
+        company_ok = (
+            and_(Company.is_active.is_(True), Company.include_in_rollups.is_(True))
+            if scope_company_ids is None
+            else Company.is_active.is_(True)
+        )
         q = (select(AgencyRating)
              .outerjoin(Company, Company.id == AgencyRating.company_id)
              .where(AgencyRating.is_esg == True,  # noqa: E712
-                    or_(and_(Company.is_active.is_(True),
-                             Company.include_in_rollups.is_(True)),
-                        AgencyRating.company_id.is_(None))))
+                    or_(company_ok, AgencyRating.company_id.is_(None))))
         if scope_company_ids is not None:
             if not scope_company_ids:
                 return []

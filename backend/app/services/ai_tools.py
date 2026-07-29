@@ -1515,12 +1515,14 @@ async def _tool_get_kpi_summary(args: dict, db: AsyncSession) -> dict:
 
     # Companies: total in DB (no year filter — companies aren't year-scoped)
     # Демо/непрофильные компании (include_in_rollups=false) не входят в свод — иначе N портфеля у ассистента разойдётся с дашбордами.
+    _co_stmt = select(func.count()).select_from(Company)
+    if _ids is None:
+        # Флаг исключает компанию только из ПОРТФЕЛЬНЫХ итогов. При явной
+        # области выборка уже сужена доступом актора — иначе пользователь, чья
+        # область состоит из такой компании, получил бы «Компаний: 0».
+        _co_stmt = _co_stmt.where(Company.include_in_rollups.is_(True))
     co_count = (await db.execute(
-        _scoped(
-            select(func.count()).select_from(Company)
-            .where(Company.include_in_rollups.is_(True)),
-            Company.id, _ids,
-        )
+        _scoped(_co_stmt, Company.id, _ids)
     )).scalar_one() or 0
 
     # Projects: split into 3 groups for honest reporting
@@ -1552,7 +1554,13 @@ async def _tool_get_kpi_summary(args: dict, db: AsyncSession) -> dict:
     cos = list(co_res.scalars().all())
     co_map = {co.id: _company_name(co) for co in cos}
     # Топ по просрочке — портфельный рейтинг, демо/непрофильные компании (include_in_rollups=false) не должны в нём фигурировать; справочник имён при этом полный.
-    rollup_ids = {co.id for co in cos if getattr(co, "include_in_rollups", True)}
+    # При явной области (_ids) отсев не делаем: компании выбраны осознанно
+    # доступом актора, иначе топ был бы пуст у пользователя, чья область
+    # состоит именно из такой компании.
+    rollup_ids = {
+        co.id for co in cos
+        if _ids is not None or getattr(co, "include_in_rollups", True)
+    }
 
     for t in tasks:
         cid = getattr(t, "company_id", None)

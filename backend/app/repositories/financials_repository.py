@@ -144,13 +144,15 @@ class FinancialsRepository:
         self, *, allowed_company_ids: Optional[set[UUID]] = None
     ) -> int:
         from sqlalchemy import func
-        q = select(func.count(Company.id)).where(
-            Company.is_active.is_(True),
-            # Демо/непрофильные компании не искажают знаменатель «X из N компаний».
-            Company.include_in_rollups.is_(True),
-        )
+        q = select(func.count(Company.id)).where(Company.is_active.is_(True))
         if allowed_company_ids is not None:
             q = q.where(Company.id.in_(list(allowed_company_ids)))
+        else:
+            # Флаг исключает компанию только из ПОРТФЕЛЬНЫХ итогов: демо/непрофильные
+            # не искажают знаменатель «X из N компаний». При явной области выборка уже
+            # сужена вызывающим — иначе пользователь, чья область состоит из такой
+            # компании, увидит N = 0.
+            q = q.where(Company.include_in_rollups.is_(True))
         return int((await self._session.execute(q)).scalar() or 0)
 
     async def list_hlf_blobs(
@@ -164,13 +166,16 @@ class FinancialsRepository:
         """
         q = select(Company.code, Company.extra).where(
             Company.is_active.is_(True),
-            # Демо/непрофильные компании не должны искажать портфельные цифры (вкладка CF).
-            Company.include_in_rollups.is_(True),
             Company.extra.isnot(None),
             Company.extra.has_key("hlf"),  # noqa: W601 (JSONB ? operator)
         )
         if allowed_company_ids is not None:
             q = q.where(Company.id.in_(list(allowed_company_ids)))
+        else:
+            # Флаг исключает компанию только из ПОРТФЕЛЬНЫХ итогов (вкладка CF).
+            # При явной области выборка уже сужена вызывающим — иначе пользователь,
+            # чья область состоит из такой компании, не увидит собственный CF.
+            q = q.where(Company.include_in_rollups.is_(True))
         out: dict[str, dict] = {}
         for code, extra in (await self._session.execute(q)).all():
             if not code or not isinstance(extra, dict):
@@ -246,12 +251,16 @@ class FinancialsRepository:
                 FinancialReport.quarter.is_(None),
                 # Деактивированные компании не показываем в портфельной сводке.
                 Company.is_active.is_(True),
-                # Демо/непрофильные компании не должны искажать портфельные цифры.
-                Company.include_in_rollups.is_(True),
             )
         )
         if allowed_company_ids is not None:
             base = base.where(Company.id.in_(allowed_company_ids))
+        else:
+            # Флаг исключает компанию только из ПОРТФЕЛЬНЫХ итогов: демо/непрофильные
+            # не искажают сводные цифры. При явной области выборка уже сужена
+            # вызывающим — иначе пользователь, чья область состоит из такой компании,
+            # получит пустой экран Финансов.
+            base = base.where(Company.include_in_rollups.is_(True))
         if currency == "__case_insensitive__":
             # Caller already used canonical filter; retry case-insensitively
             raise ValueError("use currency='upper:X' instead")

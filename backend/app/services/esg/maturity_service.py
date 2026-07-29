@@ -215,7 +215,11 @@ class ESGMaturityService:
         climate_funnel = [0, 0, 0, 0]   # passed stage>=1..4
         risk_funnel = [0, 0, 0]         # passed stage>=1..3
         iso_full = 0
-        # Компании вне портфельных сводных (include_in_rollups=false) — исключаются из агрегатов ниже.
+        # Компании вне портфельных сводных (include_in_rollups=false) — исключаются из агрегатов ниже,
+        # но только когда область не задана, то есть матрица действительно портфельная. При явной
+        # области выборка уже сужена вызывающим — иначе у пользователя, чья область состоит из такой
+        # компании, все сводные показатели матрицы окажутся нулевыми.
+        apply_rollup_filter = scope_company_ids is None
         rollup_skip: set[UUID] = set()
 
         for co in companies:
@@ -287,7 +291,7 @@ class ESGMaturityService:
             if not_needed:
                 continue
             # include_in_rollups=false → строка в матрице остаётся, но демо/непрофильные компании не искажают портфельные средние и счётчики.
-            if not getattr(co, "include_in_rollups", True):
+            if apply_rollup_filter and not getattr(co, "include_in_rollups", True):
                 rollup_skip.add(co.id)
                 continue
             ems_list.append(ems)

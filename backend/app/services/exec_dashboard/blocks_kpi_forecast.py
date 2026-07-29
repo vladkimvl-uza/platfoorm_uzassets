@@ -45,18 +45,22 @@ async def build_kpi_forecast_block(
     q = (
         select(KpiManager)
         .join(Company, KpiManager.company_id == Company.id)
-        # include_in_rollups: демо и непрофильные компании не должны искажать портфельный прогноз
         .where(
             KpiManager.year.in_(years),
             Company.is_active.is_(True),
-            Company.include_in_rollups.is_(True),
         )
         .options(
             selectinload(KpiManager.indicators),
             selectinload(KpiManager.company).selectinload(Company.sector),
         )
     )
-    if scope_ids is not None:
+    if scope_ids is None:
+        # include_in_rollups: демо и непрофильные компании не должны искажать
+        # ПОРТФЕЛЬНЫЙ прогноз. При явной области выборка уже сужена вызывающим —
+        # иначе пользователь, чья область состоит из такой компании, остался бы
+        # без собственного прогноза.
+        q = q.where(Company.include_in_rollups.is_(True))
+    else:
         if not scope_ids:
             return _empty(year)
         q = q.where(KpiManager.company_id.in_(list(scope_ids)))

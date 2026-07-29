@@ -96,17 +96,18 @@ class ConsultantsRepository:
             q = q.where(Task.company_id.in_(list(company_ids)))
         return list((await self.session.execute(q)).all())
 
-    async def inactive_company_ids(self) -> set:
+    async def inactive_company_ids(self, scope_company_ids=None) -> set:
         """ID деактивированных компаний (is_active=false) — их задачи не считаем
         в портфельном overview консультантов."""
-        # Плюс компании с include_in_rollups=false: демо/непрофильные не должны искажать портфельные цифры (карточка компании их по-прежнему показывает).
+        cond = [Company.is_active.is_(False)]
+        if scope_company_ids is None:
+            # Флаг include_in_rollups исключает компанию только из ПОРТФЕЛЬНЫХ
+            # итогов: демо/непрофильные не должны их искажать. При явной области
+            # выборка уже сужена вызывающим — иначе пользователь, чья область
+            # состоит из такой компании, не увидит собственных задач.
+            cond.append(Company.include_in_rollups.is_(False))
         rows = (await self.session.execute(
-            select(Company.id).where(
-                or_(
-                    Company.is_active.is_(False),
-                    Company.include_in_rollups.is_(False),
-                )
-            )
+            select(Company.id).where(or_(*cond))
         )).all()
         return {cid for (cid,) in rows}
 

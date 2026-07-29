@@ -168,8 +168,11 @@ class BpService:
                     by_company=[], by_sector=[], by_quarter=[],
                 )
             cos_full = await self.uow.bp.list_companies_with_sector(co_ids)
-            # Портфельная сводка БП: демо/непрофильные компании (include_in_rollups=false) не должны искажать портфельные цифры, оставаясь видимыми в пикере и в своей карточке.
-            cos_full = [co for co in cos_full if co.include_in_rollups]
+            if scope_company_ids is None:
+                # Флаг исключает компанию только из ПОРТФЕЛЬНОЙ сводки БП. При явной
+                # области выборка уже сужена вызывающим — иначе пользователь, чья
+                # область состоит из такой компании, не увидит собственных данных.
+                cos_full = [co for co in cos_full if co.include_in_rollups]
 
             metrics_for_summary = [
                 "revenue", "cogs", "grossProfit", "opExpenses", "otherOpInc",

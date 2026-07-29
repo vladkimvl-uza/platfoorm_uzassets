@@ -15,8 +15,12 @@ import { useCurrencyConverter } from "@/composables/useCurrencyConverter";
 import { useFormatters } from "@/composables/useFormatters";
 import UzaYearStepper from "@/components/UZA/UzaYearStepper.vue";
 import { useI18n } from "@/composables/useI18n";
+import { useCompanyScope } from "@/composables/useCompanyScope";
 const fmt = useFormatters();
 const { t } = useI18n();
+// Область доступа: селектор секторов не нужен пользователю, ограниченному
+// одной компанией (и разделитель перед ним тоже).
+const scope = useCompanyScope();
 
 // Pack 7.58.5: sidebar toggle injected from AppShell — burger renders inside topbar
 const toggleSidebar = inject<() => void>("toggleSidebar", () => {});
@@ -132,10 +136,11 @@ function currencyTooltip(c: "UZS" | "USD" | "EUR"): string {
         </div>
       </div>
 
-      <div class="ft-div" aria-hidden="true"></div>
+      <div v-if="scope.showSectorPicker.value" class="ft-div" aria-hidden="true"></div>
 
       <!-- Sector dropdown -->
-      <select :value="sectorCode"
+      <select v-if="scope.showSectorPicker.value"
+              :value="sectorCode"
               class="ft-select"
               @change="emit('update:sectorCode', ($event.target as HTMLSelectElement).value)">
         <option value="">{{ t("Все секторы") }}</option>

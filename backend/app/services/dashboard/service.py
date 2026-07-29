@@ -85,11 +85,15 @@ class DashboardService:
             co_meta = await r.companies_meta()
             dir_to_code = await r.direction_id_to_code()
             rating_rows = await r.list_agency_ratings_for_dashboard()
-            inactive_ids = await r.inactive_company_ids()
+            # Область передаём внутрь: при явной области (RBAC scope) флаг
+            # include_in_rollups не должен вычищать выборку — иначе пользователь,
+            # чья область = непрофильная/демо-компания, увидит пустой дашборд.
+            inactive_ids = await r.inactive_company_ids(scope_company_ids)
 
         # Из ВСЕХ портфельных агрегатов исключаем деактивированные компании
-        # (is_active=false) и помеченные include_in_rollups=false: демо и непрофильные
-        # компании не должны искажать портфельные цифры, оставаясь видимыми в списках,
+        # (is_active=false) и — только для портфельного запроса — помеченные
+        # include_in_rollups=false: демо и непрофильные компании не должны искажать
+        # портфельные цифры, оставаясь видимыми в списках,
         # пикерах и в своей карточке. Исключение действует и на счётчики/статусы
         # (фильтр строк), и на разбивку по компаниям (co_meta).
         # Компанию строки резолвим как доска→компания ЛИБО прямой company_id.
@@ -510,11 +514,13 @@ class DashboardService:
             )
             board_to_company = await r.board_to_company_map()
             co_meta_raw = await r.companies_meta()
-            inactive_ids = await r.inactive_company_ids()
+            # Тот же набор исключений, что и в overview, включая условность флага
+            # по области: drill обязан сходиться с плиткой, из которой он открыт.
+            inactive_ids = await r.inactive_company_ids(scope_company_ids)
 
         # Из drill-разбивки исключаем тот же набор, что и в overview (is_active=false +
-        # include_in_rollups=false): drill — разрез той же портфельной цифры, иначе клик
-        # по плитке даст число, не сходящееся с плиткой.
+        # include_in_rollups=false только для портфельного запроса): drill — разрез той
+        # же портфельной цифры, иначе клик по плитке даст число, не сходящееся с плиткой.
         if inactive_ids:
             def _co_of(row):
                 return board_to_company.get(row.board_id) or getattr(row, "company_id", None)

@@ -1350,6 +1350,17 @@ async def build_ai_context(
         else ""
     )
 
+    # Счётчик компаний для totals-блока. Флаг include_in_rollups исключает
+    # компанию только из ПОРТФЕЛЬНЫХ итогов (scope is None). Если область задана
+    # явно, выборка уже сужена доступом пользователя — второй раз отсеивать
+    # нельзя, иначе тот, чья область состоит именно из такой компании, увидит
+    # «Компаний: 0» при непустых данных.
+    co_count = (
+        sum(1 for c in companies if getattr(c, "include_in_rollups", True))
+        if scope is None
+        else len(companies)
+    )
+
     # lite — radical slim of system prompt:
     # ─ macro / IFRS / ESG static literature → moved to tools (на запрос)
     # ─ company stats, ratings, governance, ESG metrics, task list dumps →
@@ -1372,8 +1383,8 @@ async def build_ai_context(
         f"{MACRO_CONTEXT_2026}\n"
         f"{custom}\n"
         # Счётчик портфеля — без компаний вне свода (include_in_rollups=false),
-        # чтобы «Компаний: N» у ассистента сходилось с дашбордами.
-        f"{_build_totals_block(projects, tasks, sum(1 for c in companies if getattr(c, 'include_in_rollups', True)))}\n"
+        # чтобы «Компаний: N» у ассистента сходилось с дашбордами (см. co_count).
+        f"{_build_totals_block(projects, tasks, co_count)}\n"
         f"ВАЖНО: подробные данные по компаниям/рейтингам/governance/ESG/задачам "
         f"— ВСЕГДА через tools (см. TOOL_DECISION_TREE). В системном промпте "
         f"их нет, не выдумывай.\n"

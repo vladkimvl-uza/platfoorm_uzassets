@@ -251,7 +251,10 @@ class BpForecastService:
             if company_id is not None:
                 co_ids: list[UUID] = [company_id]
             else:
-                # Портфельный режим: репозиторий уже отсекает include_in_rollups=false — демо/непрофильные компании не должны искажать сводные цифры (в своей карточке они остаются).
+                # Портфельный режим: репозиторий сам отсекает include_in_rollups=false,
+                # но ТОЛЬКО когда область не задана — при явной области компании уже
+                # выбраны вызывающим, иначе пользователь с областью из одной такой
+                # компании не увидит собственного прогноза.
                 co_ids = list(await self.uow.bp.distinct_companies_with_bp(
                     scope_company_ids=scope_company_ids,
                 ))

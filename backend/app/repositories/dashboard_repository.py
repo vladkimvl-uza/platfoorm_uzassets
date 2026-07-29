@@ -160,17 +160,22 @@ class DashboardRepository:
         )).all()
         return {bid: cid for bid, cid in rows}
 
-    async def inactive_company_ids(self) -> set:
+    async def inactive_company_ids(self, scope_company_ids=None) -> set:
         """ID компаний, исключаемых из портфельных расчётов дашборда акционера:
         деактивированные (is_active=false) — деактивация = скрыть везде, и
         помеченные include_in_rollups=false — демо/непрофильные компании не должны
         искажать портфельные цифры (KPI, разбивка по секторам, покрытие рейтингов,
-        completion), при этом остаются доступны в списках и в своей карточке."""
+        completion), при этом остаются доступны в списках и в своей карточке.
+
+        include_in_rollups учитывается ТОЛЬКО при портфельном запросе
+        (scope_company_ids is None). Если область задана явно, вызывающий уже
+        сузил выборку до осознанно выбранных компаний — иначе пользователь, чья
+        область состоит из непрофильной/демо-компании, получит пустой дашборд."""
+        conds = [Company.is_active.is_(False)]
+        if scope_company_ids is None:
+            conds.append(Company.include_in_rollups.is_(False))
         rows = (await self.session.execute(
-            select(Company.id).where(or_(
-                Company.is_active.is_(False),
-                Company.include_in_rollups.is_(False),
-            ))
+            select(Company.id).where(or_(*conds))
         )).all()
         return {cid for (cid,) in rows}
 

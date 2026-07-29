@@ -66,8 +66,13 @@ async def build_exec_brief_context(
         cq = cq.where(Company.id.in_(allowed))
     if company_id is not None:
         cq = cq.where(Company.id == company_id)
-    else:
-        # Сводный бриф: демо и непрофильные компании (include_in_rollups=false) не должны искажать портфельные и секторные цифры; для брифа по одной компании фильтр не применяем.
+    elif allowed is None:
+        # Сводный бриф по всему портфелю: демо и непрофильные компании
+        # (include_in_rollups=false) не должны искажать портфельные и секторные
+        # цифры. Фильтр только для портфельного запроса: при брифе по одной
+        # компании и при явной области доступа (`allowed`) выборка уже сужена
+        # вызывающим — иначе пользователь, чья область состоит именно из такой
+        # компании, получил бы «Нет компаний в зоне доступа».
         cq = cq.where(Company.include_in_rollups.is_(True))
     if sectors:
         cq = cq.where(or_(Sector.code.in_(sectors), Sector.name_ru.in_(sectors)))

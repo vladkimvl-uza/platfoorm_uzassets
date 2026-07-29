@@ -111,8 +111,13 @@ class SubsidiesService:
         rows = await self._fetch(
             year=year, sector_code=sector_code, company_id=None, scope_ids=scope_ids,
         )
-        # Демо/непрофильные компании (include_in_rollups=false) не должны искажать портфельные суммы (в реестре list_rows они остаются видимыми).
-        rows = [(s, c, sec) for (s, c, sec) in rows if c is None or c.include_in_rollups]
+        if scope_ids is None:
+            # Флаг include_in_rollups исключает компанию только из ПОРТФЕЛЬНЫХ
+            # сумм: демо/непрофильные не должны их искажать (в реестре list_rows
+            # они остаются видимыми). При явной области выборка уже сужена
+            # вызывающим — иначе пользователь, чья область состоит из такой
+            # компании, увидел бы нулевую сводку по собственным субсидиям.
+            rows = [(s, c, sec) for (s, c, sec) in rows if c is None or c.include_in_rollups]
         total = Decimal(0)
         by_co: dict[UUID, SubsidyCompanyAgg] = {}
         by_sec: dict[str, SubsidySectorAgg] = {}

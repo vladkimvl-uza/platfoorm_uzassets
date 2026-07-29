@@ -142,8 +142,13 @@ class CreditPortfolioRepository:
             q = q.where(CreditPortfolioLoan.rate.is_not(None))
         if company_id is not None:
             q = q.where(CreditPortfolioLoan.company_id == company_id)
-        else:
-            # Только сводные срезы портфеля (aggregate/risk/bubble/sankey/overview): демо и непрофильные компании (include_in_rollups=false) не должны искажать портфельные цифры; при запросе одной компании фильтр не применяется, чтобы её карточка не опустела.
+        elif allowed_company_ids is None:
+            # Флаг include_in_rollups исключает компанию только из ПОРТФЕЛЬНЫХ
+            # итогов (aggregate/risk/bubble/sankey/overview), чтобы демо и
+            # непрофильные компании их не искажали. Если запрошена конкретная
+            # компания или вызывающий уже сузил выборку своей областью, эти
+            # компании выбраны осознанно — иначе пользователь, чья область
+            # состоит из такой компании, не увидит собственных кредитов.
             q = q.where(
                 CreditPortfolioLoan.company_id.in_(
                     select(Company.id).where(Company.include_in_rollups.is_(True))

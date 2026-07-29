@@ -56,15 +56,18 @@ class BpRepository:
         *,
         scope_company_ids: Optional[Sequence[UUID]] = None,
     ) -> list[UUID]:
-        # Вход только в СВОДНЫЕ расчёты БП: демо/непрофильные компании (include_in_rollups=false) не должны искажать портфельные цифры, оставаясь видимыми в пикере и в своей карточке.
         q = (
             select(BpRecord.company_id)
             .join(Company, BpRecord.company_id == Company.id)
-            .where(Company.include_in_rollups.is_(True))
             .distinct()
         )
         if scope_company_ids is not None:
             q = q.where(BpRecord.company_id.in_(scope_company_ids))
+        else:
+            # Флаг исключает компанию только из ПОРТФЕЛЬНЫХ итогов БП. При явной
+            # области выборка уже сужена вызывающим — иначе пользователь, чья
+            # область состоит из такой компании, не увидит собственных данных.
+            q = q.where(Company.include_in_rollups.is_(True))
         return [r[0] for r in (await self.session.execute(q)).all()]
 
     async def years_for_company(self, company_id: UUID) -> list[int]:

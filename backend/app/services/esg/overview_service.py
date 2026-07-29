@@ -56,7 +56,10 @@ class ESGOverviewService:
         scope_company_ids: Optional[Sequence[UUID]],
     ) -> ESGOverviewResponse:
         async with self.uow:
-            # Источники ниже уже сужены репозиторием по include_in_rollups: демо и непрофильные компании не искажают портфельные цифры обзора.
+            # Репозиторий отсекает демо и непрофильные компании (include_in_rollups)
+            # только когда область не задана, то есть запрос действительно портфельный.
+            # При явной области фильтр не применяется — иначе пользователь, чья область
+            # состоит из такой компании, получит пустой обзор.
             metrics = await self.uow.esg.list_metrics(
                 year=year, sector_code=sector_code,
                 scope_company_ids=scope_company_ids,
@@ -71,7 +74,9 @@ class ESGOverviewService:
                 scope_company_ids=scope_company_ids,
             )
             yrs = await self.uow.esg.all_metric_years()
-            sectors = await self.uow.esg.sectors_with_counts()
+            sectors = await self.uow.esg.sectors_with_counts(
+                scope_company_ids=scope_company_ids,
+            )
             planned_ids = await self.uow.esg.planned_rating_company_ids(
                 scope_company_ids=scope_company_ids,
             )

@@ -111,14 +111,16 @@ async def build_direction_drill(
     task_res = await db.execute(task_q)
     all_tasks: list[Task] = list(task_res.scalars().all())
 
-    # Вне портфельных сводных: демо/непрофильные компании (include_in_rollups=false) не должны искажать цифры дрилла — это разрез той же плитки направления, которая их уже исключает (в своей карточке компания остаётся видимой).
-    excl_res = await db.execute(
-        select(Company.id).where(Company.include_in_rollups.is_(False))
-    )
-    excluded_co_ids: set = {cid for (cid,) in excl_res.all()}
-    if excluded_co_ids:
-        all_projects = [p for p in all_projects if p.company_id not in excluded_co_ids]
-        all_tasks = [t for t in all_tasks if t.company_id not in excluded_co_ids]
+    # Вне ПОРТФЕЛЬНЫХ сводных: демо/непрофильные компании (include_in_rollups=false) не должны искажать цифры дрилла — это разрез той же плитки направления, которая их уже исключает (в своей карточке компания остаётся видимой).
+    # При явной области (scope_company_ids) фильтр не применяем: выборка уже сужена вызывающим, иначе пользователь, чья область состоит из такой компании, увидит пустой дрилл.
+    if scope_company_ids is None:
+        excl_res = await db.execute(
+            select(Company.id).where(Company.include_in_rollups.is_(False))
+        )
+        excluded_co_ids: set = {cid for (cid,) in excl_res.all()}
+        if excluded_co_ids:
+            all_projects = [p for p in all_projects if p.company_id not in excluded_co_ids]
+            all_tasks = [t for t in all_tasks if t.company_id not in excluded_co_ids]
 
     # Scope filter: оставляем только сущности из разрешённых компаний.
     # Сущности без company_id (никем не привязанные) скрываем для scoped users.

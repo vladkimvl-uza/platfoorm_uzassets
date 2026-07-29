@@ -113,8 +113,6 @@ class KpiRepository:
             .join(Company, KpiManager.company_id == Company.id)
             # Деактивированные компании не участвуют в портфельной сводке KPI.
             .where(KpiManager.year == year, Company.is_active.is_(True))
-            # Демо/непрофильные компании исключены из сводных цифр, чтобы не искажать портфель.
-            .where(Company.include_in_rollups.is_(True))
             .options(
                 selectinload(KpiManager.indicators),
                 selectinload(KpiManager.company).selectinload(Company.sector),
@@ -123,6 +121,11 @@ class KpiRepository:
         )
         if scope_company_ids is not None:
             q = q.where(KpiManager.company_id.in_(scope_company_ids))
+        else:
+            # Флаг исключает компанию только из ПОРТФЕЛЬНЫХ итогов KPI. При явной
+            # области выборка уже сужена вызывающим — иначе пользователь, чья
+            # область состоит из такой компании, не увидит собственных данных.
+            q = q.where(Company.include_in_rollups.is_(True))
         res = await self.session.execute(q)
         return list(res.scalars().all())
 

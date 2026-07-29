@@ -149,9 +149,12 @@ class ConsultantsService:
                 for bid, bname, co_id in b_rows
             }
             dir_rows = await r.list_directions()
-            # Набор исключений из сводных цифр: is_active=false ЛИБО
-            # include_in_rollups=false (см. ConsultantsRepository).
-            inactive_co = await r.inactive_company_ids()
+            # Набор исключений из сводных цифр: is_active=false ЛИБО (только для
+            # ПОРТФЕЛЬНОГО запроса, т.е. без явной области) include_in_rollups=false.
+            # При заданной области выборка уже сужена вызывающим — иначе
+            # пользователь, чья область состоит из непрофильной/демо-компании,
+            # увидел бы пустой overview (см. ConsultantsRepository).
+            inactive_co = await r.inactive_company_ids(allowed_company_ids)
 
         # Деактивированные и исключённые из сводных (include_in_rollups=false)
         # компании убираем из портфельного overview: их задачи (компания =

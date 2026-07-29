@@ -56,13 +56,17 @@ class ProcurementRepository:
         if company_id is not None:
             # Разрез одной компании (её карточка/воркспейс) — показываем закупки всегда, без rollup-фильтра.
             q = q.where(ProcurementClosure.company_id == company_id)
+        elif scope_company_ids is not None:
+            # Область задана явно: компании уже осознанно выбраны вызывающим.
+            # Флаг include_in_rollups исключает компанию только из ПОРТФЕЛЬНЫХ
+            # итогов — иначе пользователь, чья область состоит из такой компании,
+            # не увидит собственных закупок вообще.
+            q = q.where(ProcurementClosure.company_id.in_(list(scope_company_ids)))
         else:
             # Сводная выборка по портфелю: демо/непрофильные компании не должны искажать портфельные цифры (рейтинг, KPI, средние по секторам).
             q = q.join(Company, Company.id == ProcurementClosure.company_id).where(
                 Company.include_in_rollups.is_(True)
             )
-            if scope_company_ids is not None:
-                q = q.where(ProcurementClosure.company_id.in_(list(scope_company_ids)))
         res = await self.session.execute(q)
         return list(res.scalars().all())
 

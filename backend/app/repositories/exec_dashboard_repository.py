@@ -25,14 +25,20 @@ class ExecDashboardRepository:
         scope_company_ids: Optional[Sequence[UUID]],
         hidden_for_year: Optional[int] = None,
     ) -> list[Company]:
-        cos_q = await self.session.execute(
+        cos_stmt = (
             select(Company)
-            # include_in_rollups: демо/непрофильные компании не должны искажать
-            # портфельные цифры экрана министра (карточка компании им доступна).
-            .where(Company.is_active.is_(True), Company.include_in_rollups.is_(True))
+            .where(Company.is_active.is_(True))
             .options(selectinload(Company.sector))
             .where(Company.is_archived.is_(False) if hasattr(Company, "is_archived") else True)
         )
+        if scope_company_ids is None:
+            # include_in_rollups: демо/непрофильные компании не должны искажать
+            # портфельные цифры экрана министра (карточка компании им доступна).
+            # Фильтр только для ПОРТФЕЛЬНОГО запроса: при явной области выборка уже
+            # сужена вызывающим, иначе пользователь, чья область состоит из такой
+            # компании, не увидит собственных данных.
+            cos_stmt = cos_stmt.where(Company.include_in_rollups.is_(True))
+        cos_q = await self.session.execute(cos_stmt)
         all_companies = list(cos_q.scalars().all())
         if scope_company_ids is not None:
             if not scope_company_ids:
@@ -47,17 +53,22 @@ class ExecDashboardRepository:
             ]
         return all_companies
 
-    async def inactive_company_ids(self) -> set[UUID]:
+    async def inactive_company_ids(
+        self, *, scope_company_ids: Optional[Sequence[UUID]] = None,
+    ) -> set[UUID]:
         """ID компаний, исключённых из портфельных счётчиков — деактивированных
         (is_active=false) и непрофильных/демо (include_in_rollups=false):
         list_tasks/projects_for_year тянут ВЕСЬ год без фильтра по компании,
         поэтому bottom-metrics/направления считали их строки (напр. «Тест»)."""
-        rows = await self.session.execute(
+        conds = [Company.is_active.is_(False)]
+        if scope_company_ids is None:
             # include_in_rollups=false — компания видима как отдельная карточка, но
-            # её задачи/проекты не должны искажать портфельные цифры министра.
-            select(Company.id).where(
-                or_(Company.is_active.is_(False), Company.include_in_rollups.is_(False))
-            )
+            # её задачи/проекты не должны искажать ПОРТФЕЛЬНЫЕ цифры министра.
+            # При явной области вычитать её нельзя: у пользователя, чья область
+            # состоит из такой компании, экран остался бы пустым.
+            conds.append(Company.include_in_rollups.is_(False))
+        rows = await self.session.execute(
+            select(Company.id).where(or_(*conds))
         )
         return {cid for (cid,) in rows.all()}
 

@@ -162,7 +162,10 @@ class KpiQueryService:
                 for cid in linked_cids:
                     bp_resolved[cid] = await bp_compute(session, cid, year, bp_period)
 
-        return _aggregate(managers, year, period, bp_resolved)
+        return _aggregate(
+            managers, year, period, bp_resolved,
+            scope_company_ids=scope_company_ids,
+        )
 
     # ─── Attention + comments ─────────────────────────────────────
 
@@ -199,6 +202,7 @@ def _empty_summary(year: int, period: str) -> KpiSummary:
 
 def _aggregate(
     managers: list[KpiManager], year: int, period: str, bp_resolved: dict | None = None,
+    *, scope_company_ids: Optional[set[UUID]] = None,
 ) -> KpiSummary:
     """Pure aggregation — не делает I/O. Берёт preloaded managers/inds/companies
     и считает портфельную сводку по правилам легасиа `_kpiComputeSummary`.
@@ -209,8 +213,10 @@ def _aggregate(
     # Group by company
     by_co: dict[UUID, dict] = {}
     for m in managers:
-        # Демо/непрофильные компании (include_in_rollups=false) не должны искажать портфельные цифры KPI, оставаясь видимыми в пикере и в своей карточке.
-        if not getattr(m.company, "include_in_rollups", True):
+        # Флаг исключает компанию только из ПОРТФЕЛЬНЫХ итогов KPI. При явной
+        # области выборка уже сужена вызывающим — иначе пользователь, чья
+        # область состоит из такой компании, не увидит собственных данных.
+        if scope_company_ids is None and not getattr(m.company, "include_in_rollups", True):
             continue
         if m.company_id not in by_co:
             by_co[m.company_id] = {"company": m.company, "managers": []}

@@ -112,6 +112,10 @@ class ForensicService:
             (ac.get("k") or "").strip().lower()
             for ac in active if not ac.get("rollup", True)
         }
+        # Флаг режет только ПОРТФЕЛЬНЫЙ запрос. Если область задана явно
+        # (allowed_codes), компании уже выбраны вызывающим — иначе пользователь,
+        # чья область состоит из непрофильной компании, увидит нулевые KPI.
+        rollup_filter = allowed_codes is None
 
         if not merged:
             return {
@@ -151,12 +155,14 @@ class ForensicService:
             # с фронтом (planBadge/planFilter) — один предикат, без противоречия.
             in_rollups = code_lc not in no_rollup_codes
             enriched["in_rollups"] = in_rollups
-            if _plan_approved(raw) and in_rollups:
+            # Учитываем строку в KPI, если она в своде ИЛИ запрос не портфельный.
+            counted = in_rollups or not rollup_filter
+            if _plan_approved(raw) and counted:
                 plan_approved += 1
             # H-3: форензик «завершён» только с аудитором и годами.
-            if _forensic_really_done(raw) and in_rollups:
+            if _forensic_really_done(raw) and counted:
                 forensic_done += 1
-            if (raw.get("auditor") or "").strip() and in_rollups:
+            if (raw.get("auditor") or "").strip() and counted:
                 with_auditor += 1
             companies.append(enriched)
 
@@ -169,7 +175,10 @@ class ForensicService:
             "companies": companies,
             "kpis": {
                 # Знаменатель — по тем же компаниям, что и числители выше.
-                "total_companies": sum(1 for c in companies if c.get("in_rollups", True)),
+                "total_companies": sum(
+                    1 for c in companies
+                    if c.get("in_rollups", True) or not rollup_filter
+                ),
                 "plan_approved": plan_approved,
                 "forensic_done": forensic_done,
                 "with_auditor": with_auditor,

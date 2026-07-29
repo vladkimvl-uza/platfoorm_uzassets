@@ -97,10 +97,14 @@ async def build_exec_overview(
         select(Direction).order_by(Direction.sort_order, Direction.name_ru)
     )).scalars().all()
     directions = {d.id: d.name_ru for d in direction_rows}
-    # include_in_rollups: демо/непрофильные компании не должны искажать портфельные цифры обзора
-    companies = (await db.execute(select(Company).where(
-        Company.is_active.is_(True), Company.include_in_rollups.is_(True),
-    ))).scalars().all()
+    co_q = select(Company).where(Company.is_active.is_(True))
+    if scope is None:
+        # include_in_rollups: демо/непрофильные компании не должны искажать
+        # ПОРТФЕЛЬНЫЕ цифры обзора. При явной области выборка уже сужена
+        # вызывающим — иначе пользователь, чья область состоит из такой
+        # компании, не увидит собственных проектов.
+        co_q = co_q.where(Company.include_in_rollups.is_(True))
+    companies = (await db.execute(co_q)).scalars().all()
     if scope is not None:
         allowed = set(scope)
         companies = [c for c in companies if c.id in allowed]

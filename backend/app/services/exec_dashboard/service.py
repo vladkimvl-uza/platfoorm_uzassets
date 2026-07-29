@@ -89,7 +89,11 @@ class ExecDashboardService:
             # считали строки отключённых компаний (напр. «Тест»). Отсекаем их ВЕЗДЕ, до
             # всех блоков: демо/непрофильные компании (include_in_rollups=false) не
             # должны искажать портфельные цифры, оставаясь видимыми в своей карточке.
-            _inactive_ids = await self.uow.exec_dashboard.inactive_company_ids()
+            # Область передаём внутрь: при явной области непрофильные НЕ вычитаются —
+            # иначе пользователь, чья область состоит из такой компании, видит пусто.
+            _inactive_ids = await self.uow.exec_dashboard.inactive_company_ids(
+                scope_company_ids=scope_company_ids,
+            )
             if _inactive_ids:
                 tasks = [t for t in tasks if t.company_id not in _inactive_ids]
                 projects = [p for p in projects if getattr(p, "company_id", None) not in _inactive_ids]
@@ -456,9 +460,10 @@ class ExecDashboardService:
                 co_id = getattr(r, "company_id", None)
                 if not co_id:
                     continue
-                # co_name содержит только портфельные компании (list_companies фильтрует
-                # is_active + include_in_rollups) — рейтинги деактивированных и демо/
-                # непрофильных компаний не идут ни в строки, ни в кольца «X из N».
+                # co_name = набор компаний из list_companies: для портфельного запроса
+                # это is_active + include_in_rollups (рейтинги деактивированных и демо/
+                # непрофильных не идут ни в строки, ни в кольца «X из N»), а при явной
+                # области — компании этой области (иначе у их пользователя пусто).
                 if co_id not in co_name:
                     continue
                 agency_raw = getattr(r, "agency", None) or getattr(r, "agency_name", None) or ""

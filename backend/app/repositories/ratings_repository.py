@@ -73,10 +73,16 @@ class RatingsRepository:
         # Портфельный список (без явного фильтра по компании) не показывает
         # рейтинги деактивированных компаний; рейтинги-сироты (company_id NULL)
         # сохраняем. При явном фильтре по company_id/code — показываем как есть.
-        # include_in_rollups: демо и непрофильные компании не должны искажать портфельные цифры.
         if not company_id and not company_code:
+            co_ok = [Company.is_active.is_(True)]
+            if scope_company_ids is None:
+                # include_in_rollups исключает демо и непрофильные компании только из
+                # ПОРТФЕЛЬНОГО списка. При явной области выборка уже сужена вызывающим —
+                # иначе пользователь, чья область состоит из такой компании, не увидит
+                # ни одного собственного рейтинга.
+                co_ok.append(Company.include_in_rollups.is_(True))
             q = q.where(or_(
-                and_(Company.is_active.is_(True), Company.include_in_rollups.is_(True)),
+                and_(*co_ok),
                 AgencyRating.company_id.is_(None),
             ))
         if scope_company_ids is not None:
@@ -127,10 +133,16 @@ class RatingsRepository:
                     AgencyRating.company_id, Company.code)
              .outerjoin(Company, AgencyRating.company_id == Company.id))
         # Сводные счётчики фасетов фильтруем синхронно с list_ratings, иначе фасеты
-        # разойдутся с таблицей; демо и непрофильные компании не искажают портфельные цифры.
+        # разойдутся с таблицей.
         if not company_id and not company_code:
+            co_ok = [Company.is_active.is_(True)]
+            if scope_company_ids is None:
+                # Портфельный запрос: демо и непрофильные компании не искажают счётчики.
+                # При явной области фильтр не применяем — фасеты обязаны совпадать
+                # со списком, где компании области видны.
+                co_ok.append(Company.include_in_rollups.is_(True))
             q = q.where(or_(
-                and_(Company.is_active.is_(True), Company.include_in_rollups.is_(True)),
+                and_(*co_ok),
                 AgencyRating.company_id.is_(None),
             ))
         if scope_company_ids is not None:
