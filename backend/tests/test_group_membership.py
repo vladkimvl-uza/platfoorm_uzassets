@@ -185,6 +185,39 @@ async def test_user_detail_returns_group_memberships(
     assert by_group_code["m-b"]["company_id"] == str(co_b.id)
 
 
+async def test_user_list_returns_company_memberships_and_keeps_roleless_count_correct(
+    make_user, app_client, auth_header, make_company_group,
+):
+    owner = await make_user(role_codes=["admin"], is_owner=True)
+    before = await app_client.get("/rbac/v3/overview", headers=auth_header(owner))
+    assert before.status_code == 200, before.text
+
+    co_a, grp_a = await make_company_group(code="list-company-a")
+    co_b, grp_b = await make_company_group(code="list-company-b")
+    user = await make_user(
+        email="list-company-memberships@example.com",
+        role_codes=[],
+        groups=[(grp_a.id, "viewer"), (grp_b.id, "financier")],
+    )
+
+    response = await app_client.get(
+        "/rbac/v3/users?limit=500",
+        headers=auth_header(owner),
+    )
+    assert response.status_code == 200, response.text
+    listed = next(item for item in response.json()["items"] if item["id"] == str(user.id))
+    by_company_id = {item["company_id"]: item for item in listed["company_memberships"]}
+
+    assert by_company_id[str(co_a.id)]["role_code"] == "viewer"
+    assert by_company_id[str(co_b.id)]["role_code"] == "financier"
+    assert by_company_id[str(co_a.id)]["company_name"]
+    assert by_company_id[str(co_b.id)]["company_name"]
+
+    after = await app_client.get("/rbac/v3/overview", headers=auth_header(owner))
+    assert after.status_code == 200, after.text
+    assert after.json()["users_without_roles"] == before.json()["users_without_roles"]
+
+
 async def test_create_user_with_group_membership_is_atomic(
     db, make_user, app_client, auth_header, make_company_group,
 ):

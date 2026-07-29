@@ -40,7 +40,16 @@ bootstrap_canonical_cert()
 # ─── auth ─────────────────────────────────────────────────────────
 
 def _require_db_admin(user: User) -> None:
-    if user.is_owner or bool(getattr(user, "is_admin", False)):
+    """Владелец или платформенный администратор (роль admin).
+
+    Раньше проверялось поле `user.is_admin`, КОТОРОГО НЕ СУЩЕСТВУЕТ ни в модели
+    User, ни в таблице users — getattr всегда давал False, и управлять
+    TLS-сертификатом мог ИСКЛЮЧИТЕЛЬНО владелец. Отказ был тихим: ни ошибки,
+    ни записи в лог. Сверяемся с единой точкой is_super_admin, как весь
+    остальной бэкенд.
+    """
+    from app.core.security import is_super_admin
+    if is_super_admin(user):
         return
     raise HTTPException(status.HTTP_403_FORBIDDEN, "Доступ только для owner/admin")
 

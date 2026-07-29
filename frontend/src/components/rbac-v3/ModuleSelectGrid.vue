@@ -2,7 +2,10 @@
 import { ref, computed } from 'vue';
 import { MODULE_REGISTRY } from '@/composables/usePermissions';
 import type { AccessLevel } from '@/composables/usePermissions';
+import { useI18n } from '@/composables/useI18n';
 import AccessCard from './AccessCard.vue';
+
+const { t } = useI18n();
 
 const props = defineProps<{
   /** Map of moduleCode -> level. Modules not in map default to 'none'. */
@@ -16,11 +19,15 @@ const props = defineProps<{
 defineEmits<{ (e: 'update:modelValue', value: Record<string, AccessLevel>): void }>();
 
 const q = ref('');
+// Поиск идёт и по переведённой подписи, и по русскому оригиналу: администратор
+// с любой локалью найдёт модуль по привычному названию.
 const filtered = computed(() => {
   const s = q.value.trim().toLowerCase();
   if (!s) return MODULE_REGISTRY;
   return MODULE_REGISTRY.filter(
-    (m) => m.label.toLowerCase().includes(s) || m.code.toLowerCase().includes(s),
+    (m) => m.label.toLowerCase().includes(s)
+        || t(m.label).toLowerCase().includes(s)
+        || m.code.toLowerCase().includes(s),
   );
 });
 const grantedCount = computed(
@@ -35,9 +42,9 @@ const grantedCount = computed(
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
           <circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" />
         </svg>
-        <input v-model="q" placeholder="Поиск модуля…" />
+        <input v-model="q" :placeholder="t('Поиск модуля…')" />
       </div>
-      <span class="rv3-grid-count">{{ grantedCount }} из {{ MODULE_REGISTRY.length }} с доступом</span>
+      <span class="rv3-grid-count">{{ t("{n} из {total} с доступом", { n: grantedCount, total: MODULE_REGISTRY.length }) }}</span>
     </div>
     <div class="rv3-grid" :style="{ gridTemplateColumns: `repeat(${columns || 2}, 1fr)` }">
       <AccessCard
@@ -46,13 +53,13 @@ const grantedCount = computed(
         class="rv3-grid-item"
         :style="{ '--gi': Math.min(i, 24) * 18 + 'ms' }"
         :module-code="m.code"
-        :module-label="m.label"
+        :module-label="t(m.label)"
         :level="modelValue[m.code] || 'none'"
-        :explain="sources?.[m.code] || (modelValue[m.code] && modelValue[m.code] !== 'none' ? 'via permissions' : 'нет в роли')"
+        :explain="sources?.[m.code] || (modelValue[m.code] && modelValue[m.code] !== 'none' ? t('персональный доступ') : t('нет доступа'))"
         :editable="editable"
         @change="(lvl) => $emit('update:modelValue', { ...modelValue, [m.code]: lvl })"
       />
-      <div v-if="!filtered.length" class="rv3-grid-empty">Модули не найдены</div>
+      <div v-if="!filtered.length" class="rv3-grid-empty">{{ t("Модули не найдены") }}</div>
     </div>
   </div>
 </template>

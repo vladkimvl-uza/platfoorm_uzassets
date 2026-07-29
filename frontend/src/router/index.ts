@@ -185,7 +185,10 @@ const router = createRouter({
           path: "admin/email-settings",
           name: "email-settings",
           component: () => import("@/views/EmailSettings.vue"),
-          meta: { title: "Настройка почты (SMTP)" },
+          // Настройки SMTP — платформенное администрирование: маршрут был
+          // открыт любому авторизованному (бэкенд отказывал, но экран
+          // администратора показывался). Гейт как у DB-консоли и TLS.
+          meta: { title: "Настройка почты (SMTP)", requiresOwnerOrAdmin: true },
         },
         // DB-консоль (owner/admin only)
         {
@@ -612,7 +615,10 @@ router.beforeEach(async (to) => {
       // harder gate — DB-консоль для owner/admin
       if (match.meta?.requiresOwnerOrAdmin) {
         const u: any = auth.user;
-        const allowed = !!(u && (u.is_owner === true || u.is_admin === true || auth.hasRole("admin")));
+        // NB: поля `is_admin` у пользователя НЕ существует (ни в API, ни в БД) —
+        // проверка на него всегда ложна и держалась только на hasRole("admin").
+        // Убрано, чтобы условие не выглядело шире, чем работает на деле.
+        const allowed = !!(u && (u.is_owner === true || auth.hasRole("admin")));
         if (!allowed) {
           return { name: "dashboard", query: { denied: "owner_or_admin" } };
         }

@@ -15,14 +15,20 @@
  *     <button v-if="perm.canExport">Export</button>
  *   </template>
  *
- * The "level" property gives a coarse 4-value (none / read / write / admin)
- * derived from the most permissive action available. Used by Access-карта
- * to show one chip per module.
+ * The "level" property gives a coarse 3-value (none / read / write) derived
+ * from the most permissive action available. Used by Access-карта, чтобы
+ * показать один чип на модуль.
+ *
+ * Почему уровней три, а не четыре: уровень «admin» (право {module}.manage)
+ * — это профиль РОЛИ, а не персональная надстройка. Через него шла
+ * эскалация (выбор «admin» в сетке выдавал manage-права), поэтому из
+ * пользовательского выбора он убран. Право manage, выданное ролью,
+ * по-прежнему читается ниже как canManage и подразумевает edit/view.
  */
 import { computed } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 
-export type AccessLevel = 'none' | 'read' | 'write' | 'admin';
+export type AccessLevel = 'none' | 'read' | 'write';
 
 export interface PermissionResult {
   level: AccessLevel;
@@ -62,8 +68,10 @@ function _hasCode(codes: string[], moduleCode: string, action: string): boolean 
          codes.includes('*');
 }
 
-function _computeLevel(r: { canView: boolean; canEdit: boolean; canManage: boolean }): AccessLevel {
-  if (r.canManage) return 'admin';
+// Уровень «admin» из шкалы убран: manage-право уже подразумевает edit
+// (см. _hasCode), поэтому носитель manage получает 'write' — самый высокий
+// уровень, который умеет выдавать сетка доступа.
+function _computeLevel(r: { canView: boolean; canEdit: boolean }): AccessLevel {
   if (r.canEdit) return 'write';
   if (r.canView) return 'read';
   return 'none';
@@ -84,7 +92,7 @@ export function usePermissions(moduleCode: string) {
     // Owner bypass — full access everywhere
     if (user.is_owner) {
       return {
-        level: 'admin', canView: true, canEdit: true, canApprove: true,
+        level: 'write', canView: true, canEdit: true, canApprove: true,
         canExport: true, canDelete: true, canManage: true,
         explain: 'владелец платформы',
       };
@@ -132,7 +140,7 @@ export function usePermissions(moduleCode: string) {
     );
     if (roleCodes.includes('admin')) {
       return {
-        level: 'admin', canView: true, canEdit: true, canApprove: true,
+        level: 'write', canView: true, canEdit: true, canApprove: true,
         canExport: true, canDelete: true, canManage: true,
         explain: 'via role: admin',
       };
@@ -146,7 +154,7 @@ export function usePermissions(moduleCode: string) {
     const canExport  = !isDenied('export') && _hasCode(grantedCodes, moduleCode, 'export');
     const canDelete  = !isDenied('delete') && _hasCode(grantedCodes, moduleCode, 'delete');
     const canManage  = !isDenied('manage') && _hasCode(grantedCodes, moduleCode, 'manage');
-    const level = _computeLevel({ canView, canEdit, canManage });
+    const level = _computeLevel({ canView, canEdit });
     return {
       level, canView, canEdit, canApprove, canExport, canDelete, canManage,
       explain: level === 'none' ? 'нет в роли' : `via permissions`,
@@ -168,26 +176,66 @@ export function usePermissions(moduleCode: string) {
 /**
  * MODULE_REGISTRY — single source of truth for modules used
  * across RBAC v3 Access-карта and Roles editor.
+ *
+ * Флаги hasExport / hasEdit / hasImport описывают, какие коды РЕАЛЬНО есть в
+ * каталоге прав (сверено с каталогом прода). Это не украшение: бэкенд молча
+ * отбрасывает несуществующие коды (`desired = {c for c in payload if c in valid}`),
+ * поэтому выбор уровня, за которым нет кода, не сохранялся бы вообще. Модули
+ * без hasEdit/hasImport (ai, reports) не могут получить уровень «Редактировать»
+ * — в сетке он для них недоступен.
+ *
+ * Модуль «Администрирование» намеренно ОТСУТСТВУЕТ: это управление платформой
+ * (admin.users даёт создание пользователей, смену ролей, сброс пароля), оно
+ * выдаётся ролью, а не персональной надстройкой к доступу к данным.
  */
+export interface ModuleDef {
+  code: string;
+  label: string;
+  /** есть {code}.export — выдаётся уже на уровне «Наблюдать» */
+  hasExport: boolean;
+  /** есть {code}.edit — без него уровень «Редактировать» бессмысленен */
+  hasEdit: boolean;
+  /** есть {code}.import — идёт в комплекте с edit */
+  hasImport: boolean;
+}
+
 export const MODULE_REGISTRY = [
-  { code: 'dashboard',    label: 'Дашборд'           },
-  { code: 'bp',           label: 'Бизнес-план'       },
-  { code: 'kpi',          label: 'KPI'               },
-  { code: 'financials',   label: 'Финансы (МСФО/НСБУ)' },
-  { code: 'credit',       label: 'Кредитный портфель' },
-  { code: 'invest',       label: 'Инвест-проекты'    },
-  { code: 'procurement',  label: 'Закупки'           },
-  { code: 'esg',          label: 'ESG'               },
-  { code: 'governance',   label: 'Корпуправление'    },
-  { code: 'ratings',      label: 'Рейтинги'          },
-  { code: 'procurement_analysis', label: 'Анализ закупок' },
-  { code: 'consultants',  label: 'Консультанты'      },
-  { code: 'tasks',        label: 'Задачи'            },
-  { code: 'pmo',          label: 'PMO (расписание/Гантт)' },
-  { code: 'reports',      label: 'Отчёты'            },
-  { code: 'monitoring',   label: 'Мониторинг (Execution Summary)' },
-  { code: 'ai',           label: 'AI-чат'            },
-  { code: 'admin',        label: 'Администрирование' },
-] as const;
+  { code: 'dashboard',    label: 'Дашборд',                     hasExport: true,  hasEdit: true,  hasImport: false },
+  { code: 'bp',           label: 'Бизнес-план',                 hasExport: false, hasEdit: true,  hasImport: true  },
+  { code: 'kpi',          label: 'KPI',                         hasExport: false, hasEdit: true,  hasImport: true  },
+  { code: 'financials',   label: 'Финансы (МСФО/НСБУ)',         hasExport: true,  hasEdit: true,  hasImport: true  },
+  { code: 'credit',       label: 'Кредитный портфель',          hasExport: false, hasEdit: true,  hasImport: true  },
+  { code: 'invest',       label: 'Инвест-проекты',              hasExport: true,  hasEdit: true,  hasImport: false },
+  { code: 'procurement',  label: 'Закупки',                     hasExport: false, hasEdit: true,  hasImport: false },
+  { code: 'esg',          label: 'ESG',                         hasExport: false, hasEdit: true,  hasImport: true  },
+  { code: 'governance',   label: 'Корпуправление',              hasExport: false, hasEdit: true,  hasImport: false },
+  { code: 'ratings',      label: 'Рейтинги',                    hasExport: false, hasEdit: true,  hasImport: true  },
+  { code: 'procurement_analysis', label: 'Анализ закупок',      hasExport: true,  hasEdit: true,  hasImport: false },
+  { code: 'consultants',  label: 'Консультанты',                hasExport: true,  hasEdit: true,  hasImport: false },
+  { code: 'tasks',        label: 'Задачи',                      hasExport: false, hasEdit: true,  hasImport: false },
+  { code: 'pmo',          label: 'PMO (расписание/Гантт)',      hasExport: true,  hasEdit: true,  hasImport: false },
+  { code: 'reports',      label: 'Отчёты',                      hasExport: true,  hasEdit: false, hasImport: false },
+  { code: 'monitoring',   label: 'Мониторинг (Execution Summary)', hasExport: true, hasEdit: true, hasImport: false },
+  { code: 'ai',           label: 'AI-чат',                      hasExport: false, hasEdit: false, hasImport: false },
+] as const satisfies readonly ModuleDef[];
 
 export type ModuleCode = typeof MODULE_REGISTRY[number]['code'];
+
+/** Канонический код прав модуля: сетка показывает invest, права живут на investment. */
+export function canonicalModuleCode(moduleCode: string): string {
+  return MODULE_CODE_ALIASES[moduleCode] || moduleCode;
+}
+
+export function moduleDef(moduleCode: string): ModuleDef | undefined {
+  return MODULE_REGISTRY.find(m => m.code === moduleCode);
+}
+
+/**
+ * Можно ли выдать модулю уровень «Редактировать». Для ai и reports в каталоге
+ * нет ни .edit, ни .import — выбор «Редактировать» не изменил бы ничего,
+ * поэтому в сетке он заблокирован.
+ */
+export function moduleSupportsWrite(moduleCode: string): boolean {
+  const def = moduleDef(moduleCode);
+  return !!def && (def.hasEdit || def.hasImport);
+}

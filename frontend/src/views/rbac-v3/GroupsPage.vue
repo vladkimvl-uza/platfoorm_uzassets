@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
 import ModalShell from '@/components/ModalShell.vue';
-import { groupsApi, rbacV3Api, rolesApi, permissionsApi, permissionsToLevels, levelsToPermissions } from '@/api/rbacV3';
+import { groupsApi, rbacV3Api, rolesApi, permissionsApi, permissionsToLevels, levelsToPermissions, isGridManagedPermission } from '@/api/rbacV3';
 import type { RbacV3Group, RbacV3GroupDetail, RbacV3UserBrief, RbacV3Role, RbacV3GroupGrant, RbacV3Permission } from '@/api/rbacV3';
 import type { AccessLevel } from '@/composables/usePermissions';
 import { companiesApi } from '@/api/companies';
@@ -125,7 +125,15 @@ async function save() {
     // Собираем итоговые гранты: базовые (из grid, исключая коды точечных правил) +
     // точечные правила (deny/срок/scope). Точечное правило приоритетнее базового.
     const advCodes = new Set(advGrants.value.map(g => g.permission_code));
-    const baseGrants: RbacV3GroupGrant[] = levelsToPermissions(levels.value)
+    // Права вне сетки (tasks.create, bp.approve, admin.*, procurement.request.*)
+    // сетка не показывает и выдать не может — переносим их как есть, иначе
+    // сохранение сетки молча отберёт у группы то, чего в ней не было видно.
+    const kept = (detail.value?.permissions || [])
+      .map(p => p.code)
+      .filter(c => !isGridManagedPermission(c) && !advCodes.has(c));
+    const baseGrants: RbacV3GroupGrant[] = Array.from(
+      new Set([...levelsToPermissions(levels.value), ...kept]),
+    )
       .filter(c => !advCodes.has(c))
       .map(c => ({ permission_code: c, grant_type: 'grant' as const }));
     const adv: RbacV3GroupGrant[] = advGrants.value

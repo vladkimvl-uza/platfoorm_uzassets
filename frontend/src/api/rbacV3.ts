@@ -1,5 +1,14 @@
 import { api } from './client';
 
+export interface RbacV3UserCompanyMembership {
+  company_id: string;
+  company_name: string;
+  group_id: string;
+  group_name: string;
+  role_code: string;
+  role_name: string;
+}
+
 export interface RbacV3UserBrief {
   id: string;
   email: string;
@@ -10,6 +19,7 @@ export interface RbacV3UserBrief {
   is_active: boolean;
   is_owner: boolean;
   must_change_password: boolean;
+  password_changed_at?: string | null;
   last_login_at: string | null;
   last_seen_at: string | null;
   locked_until: string | null;
@@ -17,7 +27,9 @@ export interface RbacV3UserBrief {
   role_codes: string[];
   role_names: string[];
   organization_id: string | null;
+  company?: string | null;
   allowed_companies: string[] | null;
+  company_memberships?: RbacV3UserCompanyMembership[];
 }
 
 export interface RbacV3UserGroupMembership {
@@ -48,7 +60,21 @@ export interface RbacV3UserListResponse {
   total: number;
 }
 
+export interface RbacV3Overview {
+  users_total: number;
+  users_active: number;
+  users_inactive: number;
+  roles_total: number;
+  permissions_total: number;
+  users_without_roles: number;
+  most_assigned_roles: Array<Record<string, unknown>>;
+}
+
 export const rbacV3Api = {
+  async overview(): Promise<RbacV3Overview> {
+    const { data } = await api.get<RbacV3Overview>('/rbac/v3/overview');
+    return data;
+  },
   async listUsers(opts?: { search?: string; is_active?: boolean; limit?: number; offset?: number }): Promise<RbacV3UserListResponse> {
     const { data } = await api.get<RbacV3UserListResponse>('/rbac/v3/users', { params: opts });
     return data;
@@ -157,81 +183,64 @@ export const adminMfaApi = {
 };
 
 /**
- * Convert effective_permissions array into the format AccessCard expects:
- * { moduleCode -> AccessLevel } + { moduleCode -> source string }.
+ * Сетка «Доступ к модулям»: две ступени доступа + «нет доступа».
  *
- * Heuristic for level:
- *   - has *.manage or *.admin -> 'admin'
- *   - has *.edit or *.create or *.update or *.delete -> 'write'
- *   - has *.view -> 'read'
- *   - else -> 'none'
+ *   read  -> {module}.view  (+ {module}.export, если такой код есть)
+ *   write -> всё из read + {module}.edit (+ {module}.import, если есть)
  *
- * Owner / admin role gets 'admin' on all 16 modules unconditionally.
- * (Mirror backend `app/core/security.is_super_admin` — никаких других ролей
- *  в bypass, иначе UI показывает кнопки, а бэк возвращает 403.)
+ * Код {module}.manage сетка НЕ выдаёт НИКОГДА: manage — это профиль роли
+ * (полное администрирование модуля), и через него шла эскалация прав из
+ * персональной надстройки. Модуль «Администрирование» в сетке отсутствует
+ * вовсе — см. MODULE_REGISTRY.
+ *
+ * Набор выдаваемых кодов должен ТОЧНО совпадать с _GRID_MANAGEABLE_CODES на
+ * бэкенде: бэк снимает (deny) только коды из этого набора, поэтому код,
+ * который сетка показывает, но не умеет выдавать, «залипнет» на пользователе.
+ *
+ * Owner / роль admin — полный доступ везде (зеркало backend is_super_admin;
+ * никаких других ролей в bypass, иначе UI показывает кнопки, а бэк даёт 403).
  */
-import { MODULE_REGISTRY } from '@/composables/usePermissions';
+import { MODULE_REGISTRY, canonicalModuleCode, moduleDef } from '@/composables/usePermissions';
 import type { AccessLevel } from '@/composables/usePermissions';
+import { t } from '@/locale/i18n';
 
-type ModuleAction = 'view' | 'edit' | 'export' | 'manage';
+type ModuleAction = 'view' | 'edit' | 'export' | 'import';
 
-const MODULE_CODE_ALIASES: Record<string, string> = {
-  invest: 'investment',
+// Алиасы ЧТЕНИЯ: старые роли несут ai.chat вместо ai.view — уровень по такому
+// праву обязан распознаваться, иначе сетка покажет «нет доступа» при живом ИИ.
+const READ_ALIASES: Record<string, string[]> = {
+  'ai.view': ['ai.chat'],
 };
 
-const MODULE_ACTION_CODES: Record<string, Partial<Record<ModuleAction, string[]>>> = {
-  admin: {
-    view: ['admin.users'],
-    edit: ['admin.users'],
-    export: ['admin.users'],
-    manage: ['admin.users'],
-  },
-  ai: {
-    view: ['ai.view', 'ai.chat'],
-    edit: ['ai.view'],
-    export: ['ai.view'],
-    manage: ['ai.manage', 'ai.admin'],
-  },
-};
-
+/** Коды, по которым распознаётся действие модуля (канонический + алиасы). */
 function moduleActionCodes(moduleCode: string, action: ModuleAction): string[] {
-  const canonicalCode = MODULE_CODE_ALIASES[moduleCode] || moduleCode;
-  return MODULE_ACTION_CODES[canonicalCode]?.[action] || [`${canonicalCode}.${action}`];
+  const code = `${canonicalModuleCode(moduleCode)}.${action}`;
+  return [code, ...(READ_ALIASES[code] || [])];
 }
 
-// Коды, которые сетка «Доступ к модулям» ВЫДАЁТ (запись), могут отличаться от тех,
-// которые она РАСПОЗНАЁТ (чтение). Для модуля «Администрирование» это критично:
-// admin.users — это полный доступ к RBAC (создание пользователей, смена ролей,
-// сброс пароля, деактивация), и backend-гейт _require_admin пропускает по нему.
-// Выдавать его на уровнях «Просмотр»/«Изменение» нельзя: подпись в интерфейсе
-// обещает просмотр, а фактически выдаётся полное администрирование платформы.
-// Поэтому admin.users пишется только на уровне «Полный доступ» (manage).
-const MODULE_ACTION_WRITE_CODES: Record<string, Partial<Record<ModuleAction, string>>> = {
-  admin: {
-    view: 'admin.view',
-    edit: 'admin.edit',
-    export: 'admin.export',
-  },
-};
-
+/** Код, который сетка ВЫДАЁТ для действия (всегда канонический, без алиасов). */
 function primaryModulePermission(moduleCode: string, action: ModuleAction): string {
-  const canonicalCode = MODULE_CODE_ALIASES[moduleCode] || moduleCode;
-  const writeOverride = MODULE_ACTION_WRITE_CODES[canonicalCode]?.[action];
-  if (writeOverride) return writeOverride;
-  return moduleActionCodes(moduleCode, action)[0] || `${canonicalCode}.${action}`;
+  return `${canonicalModuleCode(moduleCode)}.${action}`;
 }
 
 function hasModulePermission(codes: string[], moduleCode: string, action: ModuleAction): boolean {
   return moduleActionCodes(moduleCode, action).some(c => codes.includes(c));
 }
 
+/**
+ * Обратный маппинг: права -> уровень сетки.
+ * Зеркалит levelsToPermissions, иначе сохранённый выбор отобразится не тем
+ * уровнем, каким его выставили.
+ */
 function moduleLevelFromPermissions(codes: string[], moduleCode: string): AccessLevel {
-  if (hasModulePermission(codes, moduleCode, 'manage')) return 'admin';
   if (
     hasModulePermission(codes, moduleCode, 'edit') ||
-    hasModulePermission(codes, moduleCode, 'export')
+    hasModulePermission(codes, moduleCode, 'import')
   ) return 'write';
-  if (hasModulePermission(codes, moduleCode, 'view')) return 'read';
+  if (
+    hasModulePermission(codes, moduleCode, 'view') ||
+    hasModulePermission(codes, moduleCode, 'export')
+  ) return 'read';
   return 'none';
 }
 
@@ -243,11 +252,11 @@ export function deriveAccessMap(user: RbacV3UserDetail | null): {
   const sources: Record<string, string> = {};
   if (!user) return { levels, sources };
 
-  // Owner / admin bypass — admin everywhere. Mirrors backend is_super_admin.
+  // Owner / admin bypass — максимальный уровень везде. Mirrors is_super_admin.
   if (user.is_owner || user.role_codes.includes('admin')) {
-    const reason = user.is_owner ? 'владелец платформы' : 'via role: admin';
+    const reason = user.is_owner ? t('владелец платформы') : t('полный доступ по роли');
     for (const m of MODULE_REGISTRY) {
-      levels[m.code] = 'admin';
+      levels[m.code] = 'write';
       sources[m.code] = reason;
     }
     return { levels, sources };
@@ -255,25 +264,14 @@ export function deriveAccessMap(user: RbacV3UserDetail | null): {
 
   const perms = user.effective_permissions || [];
   for (const m of MODULE_REGISTRY) {
-    let level = moduleLevelFromPermissions(perms, m.code);
-    const codes = perms.filter(p =>
-      moduleActionCodes(m.code, 'view').includes(p) ||
-      moduleActionCodes(m.code, 'edit').includes(p) ||
-      moduleActionCodes(m.code, 'export').includes(p) ||
-      moduleActionCodes(m.code, 'manage').includes(p)
-    );
-    if (codes.length === 0) { levels[m.code] = 'none'; sources[m.code] = 'нет в роли'; continue; }
-
-    level = moduleLevelFromPermissions(perms, m.code);
-    if (codes.some(c => c.endsWith('.manage') || c.endsWith('.admin'))) level = 'admin';
-    else if (codes.some(c => /\.(edit|create|update|delete|write|approve)$/.test(c))) level = 'write';
-    else if (codes.some(c => c.endsWith('.view') || c.endsWith('.read'))) level = 'read';
-
+    const level = moduleLevelFromPermissions(perms, m.code);
     levels[m.code] = level;
-    // Best-effort source — first non-empty role
+    if (level === 'none') { sources[m.code] = t('нет доступа'); continue; }
+    // Источник — best-effort: effective_permissions приходят плоским списком
+    // без происхождения, поэтому при наличии роли называем первую.
     sources[m.code] = user.role_codes.length > 0
-      ? `via role: ${user.role_codes[0]}`
-      : 'via permissions';
+      ? t('по роли: {role}', { role: user.role_codes[0] })
+      : t('персональный доступ');
   }
   return { levels, sources };
 }
@@ -419,27 +417,24 @@ export const groupsApi = {
 
 // ─── Helper: permissions <-> level on module conversion ──────────
 
-import { MODULE_REGISTRY as _MODS } from '@/composables/usePermissions';
-
 /**
- * Convert flat permission_codes back into per-module level map.
- * Inverse of deriveAccessMap on permissions only.
+ * Плоский список прав -> уровень по каждому модулю сетки.
+ * Обратная операция к levelsToPermissions.
  */
 export function permissionsToLevels(codes: string[]): Record<string, AccessLevel> {
   const out: Record<string, AccessLevel> = {};
-  for (const m of _MODS) {
+  for (const m of MODULE_REGISTRY) {
     out[m.code] = moduleLevelFromPermissions(codes, m.code);
   }
   return out;
 }
 
 /**
- * Convert per-module level map back into flat permission_codes.
- * Used when saving role.permissions or group.permissions.
- * Strategy: produce canonical codes per level
- *   read  -> {module}.view
- *   write -> {module}.view + {module}.edit + {module}.export
- *   admin -> {module}.view + {module}.edit + {module}.export + {module}.manage
+ * Уровень по каждому модулю -> плоский список прав.
+ *   read  -> {module}.view  (+ .export, если код есть в каталоге)
+ *   write -> read + {module}.edit (+ .import, если код есть)
+ * Несуществующие коды не выдаются: бэкенд их отбрасывает, и выбор уровня
+ * молча не сохранялся бы (так было с ai.edit / reports.edit / admin.view).
  */
 export function levelsToPermissions(levels: Record<string, AccessLevel>): string[] {
   const codes: string[] = [];
@@ -448,25 +443,45 @@ export function levelsToPermissions(levels: Record<string, AccessLevel>): string
   };
   for (const [code, level] of Object.entries(levels)) {
     if (level === 'none') continue;
-    // Модуль «Администрирование» не имеет градаций в каталоге: единственный
-    // существующий код — admin.users, и он даёт ПОЛНЫЙ доступ к RBAC
-    // (создание/удаление пользователей, роли, группы) через _require_admin.
-    // Поэтому уровни «Чтение»/«Запись» не должны его выдавать — иначе выбор
-    // «Чтение» молча делает носителя роли/группы администратором платформы.
-    if ((MODULE_CODE_ALIASES[code] || code) === 'admin') {
-      if (level === 'admin') add(primaryModulePermission(code, 'manage'));
-      continue;
-    }
+    const def = moduleDef(code);
+    // Модуль вне сетки (например, снятый 'admin' из старого черновика) прав
+    // не получает: сетка управляет только собственным набором модулей.
+    if (!def) continue;
     add(primaryModulePermission(code, 'view'));
-    if (level === 'write' || level === 'admin') {
-      add(primaryModulePermission(code, 'edit'));
-      add(primaryModulePermission(code, 'export'));
-    }
-    if (level === 'admin') {
-      add(primaryModulePermission(code, 'manage'));
+    if (def.hasExport) add(primaryModulePermission(code, 'export'));
+    if (level === 'write') {
+      // Для модулей без .edit/.import уровень «Редактировать» в сетке
+      // заблокирован; сюда попасть можно только из устаревшего черновика —
+      // тогда выдаём то, что реально существует (по факту уровень read).
+      if (def.hasEdit) add(primaryModulePermission(code, 'edit'));
+      if (def.hasImport) add(primaryModulePermission(code, 'import'));
     }
   }
   return codes;
+}
+
+/**
+ * Полный набор кодов, которыми управляет сетка. Нужен вызывающим (роли,
+ * группы), чтобы при сохранении сетки НЕ потерять права вне её набора —
+ * admin.users, tasks.create, bp.approve, procurement.request.* и т.п.
+ * PUT прав заменяет список целиком, поэтому всё, чего сетка не показывает,
+ * приходится переносить вручную.
+ */
+export const GRID_MANAGED_CODES: ReadonlySet<string> = new Set(
+  MODULE_REGISTRY.flatMap(m => {
+    const base = [primaryModulePermission(m.code, 'view')];
+    if (m.hasExport) base.push(primaryModulePermission(m.code, 'export'));
+    if (m.hasEdit) base.push(primaryModulePermission(m.code, 'edit'));
+    if (m.hasImport) base.push(primaryModulePermission(m.code, 'import'));
+    // Алиасы чтения (ai.chat) тоже управляются сеткой: иначе старое право
+    // останется рядом с новым и уровень «нет доступа» не сработает.
+    return base.flatMap(c => [c, ...(READ_ALIASES[c] || [])]);
+  }),
+);
+
+/** Право не относится к сетке — при сохранении его нужно сохранить как есть. */
+export function isGridManagedPermission(code: string): boolean {
+  return GRID_MANAGED_CODES.has(code);
 }
 // ─── User creation (invite / clone) ──────────────────────────────
 

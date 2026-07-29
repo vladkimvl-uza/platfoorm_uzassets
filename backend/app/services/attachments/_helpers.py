@@ -57,7 +57,14 @@ _TEXT_MIMES = {"text/plain", "text/csv"}
 
 
 def is_admin(user: User) -> bool:
-    return bool(getattr(user, "is_owner", False) or getattr(user, "is_admin", False))
+    """Владелец или платформенный администратор (роль admin).
+
+    Поля `user.is_admin` в модели НЕТ — getattr всегда возвращал False, поэтому
+    условие сводилось к «только владелец», и администратор молча получал отказ.
+    Сверяемся с единой точкой is_super_admin, как остальной бэкенд.
+    """
+    from app.core.security import is_super_admin
+    return bool(user is not None and is_super_admin(user))
 
 
 def _content_matches(mime: str, data: bytes) -> bool:

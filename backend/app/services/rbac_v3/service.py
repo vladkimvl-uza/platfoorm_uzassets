@@ -54,6 +54,7 @@ from app.schemas.rbac_v3 import (
     RolePermissionsUpdate,
     RoleUpdatePayload,
     UserBrief,
+    UserCompanyMembership,
     UserCreatePayload,
     UserDetail,
     UserGroupMembership,
@@ -65,22 +66,114 @@ from app.services.auth_service import revoke_all_sessions
 
 log = logging.getLogger(__name__)
 
-# Сетка «Доступ к модулям» (frontend MODULE_REGISTRY, 16 модулей) умеет
-# представлять ТОЛЬКО коды вида {module}.{view|edit|export|manage}. Любое
-# право вне этого множества (companies.view, sectors.view, users.view,
-# ai.chat, investment.view, procurement.request.view, tasks.create/assign,
+# Сетка «Доступ к модулям» (frontend MODULE_REGISTRY) с 07.2026 предлагает два
+# уровня доступа — «Наблюдать» и «Редактировать» (плюс «Нет доступа») — и
+# испускает ТОЛЬКО коды вида:
+#   read  → {module}.view   (+ {module}.export, если такой код есть в каталоге)
+#   write → read + {module}.edit (+ {module}.import, если код есть в каталоге)
+# Любое право вне этого множества (companies.view, sectors.view, users.view,
+# investment.manage, procurement.request.view, tasks.create/assign,
 # treasury.view, finmodel.view, announcements.view, …) сетка не видит, поэтому
 # set_user_permissions НЕ имеет права автоматически денайнить такие права —
 # иначе сохранение сетки молча отбирает у пользователя доступ роли.
-_GRID_MODULE_CODES = (
-    "dashboard", "bp", "kpi", "financials", "credit", "investment", "procurement",
-    "esg", "governance", "ratings", "procurement_analysis", "consultants",
-    "tasks", "pmo", "reports", "monitoring", "ai", "admin",
+#
+# Модуль 'admin' из сетки исключён: администрирование платформы — не модуль
+# компании, оно выдаётся ролью. В каталоге у него вообще нет пары view/edit
+# (только admin.users / admin.role_edit / admin.audit), и выдача admin.users
+# из сетки была бы скрытой эскалацией до администратора RBAC.
+#
+# Действия каждого модуля сетки — ТОЧНОЕ зеркало флагов hasExport / hasEdit /
+# hasImport в MODULE_REGISTRY фронта (frontend/src/composables/usePermissions.ts),
+# сверенное с каталогом прав прода. Держать таблицу здесь, а не перемножать
+# модули на все суффиксы, обязательно: множество кодов, которое денайнит бэк,
+# должно СОВПАДАТЬ с тем, что испускает levelsToPermissions. Перемножение
+# «все модули × все суффиксы» давало 22 лишних кода (reports.edit, ai.edit,
+# bp.export, tasks.import, …). Сегодня они инертны — их нет в каталоге, значит
+# нет и в baseline, — но стоит завести любой из них ролью, и сохранение сетки
+# молча отобрало бы это право, хотя сетка его даже не показывает (для reports
+# и ai уровень «Редактировать» в UI заблокирован).
+#
+# {m}.view есть у каждого модуля сетки, поэтому в таблице он присутствует явно
+# только для единообразия чтения.
+_GRID_MODULE_ACTIONS: dict[str, frozenset[str]] = {
+    "dashboard":            frozenset({"view", "export", "edit"}),
+    "bp":                   frozenset({"view", "edit", "import"}),
+    "kpi":                  frozenset({"view", "edit", "import"}),
+    "financials":           frozenset({"view", "export", "edit", "import"}),
+    "credit":               frozenset({"view", "edit", "import"}),
+    # Сетка показывает модуль как 'invest', права живут на 'investment'
+    # (MODULE_CODE_ALIASES на фронте) — здесь всегда канонический код.
+    "investment":           frozenset({"view", "export", "edit"}),
+    "procurement":          frozenset({"view", "edit"}),
+    "esg":                  frozenset({"view", "edit", "import"}),
+    "governance":           frozenset({"view", "edit"}),
+    "ratings":              frozenset({"view", "edit", "import"}),
+    "procurement_analysis": frozenset({"view", "export", "edit"}),
+    "consultants":          frozenset({"view", "export", "edit"}),
+    "tasks":                frozenset({"view", "edit"}),
+    "pmo":                  frozenset({"view", "export", "edit"}),
+    # У reports и ai в каталоге нет ни .edit, ни .import — уровень
+    # «Редактировать» для них в сетке заблокирован, поэтому write-коды сюда
+    # не попадают и денайниться не могут.
+    "reports":              frozenset({"view", "export"}),
+    "monitoring":           frozenset({"view", "export", "edit"}),
+    "ai":                   frozenset({"view"}),
+}
+_GRID_MODULE_CODES = tuple(_GRID_MODULE_ACTIONS)
+
+# Суффиксы по уровням сетки: первый в паре — «якорный» код уровня, который
+# сетка испускает всегда, второй — необязательный (испускается, только если
+# такой код есть в каталоге прав, см. _GRID_MODULE_ACTIONS). Суффикс 'manage'
+# сетка НЕ выдаёт НИКОГДА (это уровень роли, а раньше именно через него
+# проходила эскалация с уровня «Полный доступ»), поэтому его нет и в списке
+# управляемых: денайнить право, которого сетка не показывает, значит отбирать
+# доступ, выданный ролью.
+_GRID_LEVEL_SUFFIXES: dict[str, tuple[str, ...]] = {
+    "read": ("view", "export"),
+    "write": ("edit", "import"),
+}
+_GRID_PERMISSION_SUFFIXES = tuple(
+    s for suffixes in _GRID_LEVEL_SUFFIXES.values() for s in suffixes
 )
-_GRID_PERMISSION_SUFFIXES = ("view", "edit", "export", "manage")
-_GRID_MANAGEABLE_CODES = frozenset(
-    f"{m}.{s}" for m in _GRID_MODULE_CODES for s in _GRID_PERMISSION_SUFFIXES
-)
+
+
+def _build_grid_code_level_anchor() -> dict[str, str]:
+    """Код → код, наличие которого в выбранном уровне ЗАЩИЩАЕТ его от deny.
+
+    Для якорных кодов (view/edit) это он сам. Для производных — якорь своего
+    уровня: {m}.export живёт на уровне «Наблюдать» ({m}.view), {m}.import — на
+    уровне «Редактировать» ({m}.edit). Так выбранный уровень сохраняет все свои
+    коды целиком, а снятый — уходит в deny целиком.
+
+    Берём только те действия, которые реально есть у модуля: набор ключей этой
+    карты и есть множество денайнимых кодов, и оно обязано совпадать с набором
+    levelsToPermissions на фронте.
+    """
+    anchors: dict[str, str] = {}
+    for module, actions in _GRID_MODULE_ACTIONS.items():
+        for suffixes in _GRID_LEVEL_SUFFIXES.values():
+            anchor_suffix = suffixes[0]
+            # Нет якоря уровня (reports/ai без .edit) — уровень модулю
+            # недоступен, его производные коды тоже не наши.
+            if anchor_suffix not in actions:
+                continue
+            anchor = f"{module}.{anchor_suffix}"
+            for suffix in suffixes:
+                if suffix in actions:
+                    anchors[f"{module}.{suffix}"] = anchor
+    # Легаси-алиас: старые роли несут ai.chat, а сетка испускает канонический
+    # ai.view (гейт has_effective_permission считает их равными). Без явной
+    # привязки уровень «Нет доступа» по модулю ИИ «залипал» бы: deny на ai.view
+    # не ставился (его нет в базе роли), а ai.chat оставался и возвращал доступ.
+    # Якорь именно ai.view: при выбранном уровне read/write алиас НЕ денайним —
+    # активный deny на ai.chat в effective_permission_codes гасит и ai.view.
+    anchors["ai.chat"] = "ai.view"
+    return anchors
+
+
+_GRID_CODE_LEVEL_ANCHOR: dict[str, str] = _build_grid_code_level_anchor()
+
+_GRID_MANAGEABLE_CODES = frozenset(_GRID_CODE_LEVEL_ANCHOR)
 
 
 async def _scope_users_query(db: AsyncSession, actor: User, q):
@@ -188,7 +281,11 @@ class RbacV3Service:
         return RbacV3Repository(db)
 
     async def _hydrate_user(
-        self, db: AsyncSession, u: User, company_names: Optional[dict] = None,
+        self,
+        db: AsyncSession,
+        u: User,
+        company_names: Optional[dict] = None,
+        company_memberships: Optional[list[UserCompanyMembership]] = None,
     ) -> UserBrief:
         repo = self._repo(db)
         rows = await repo.list_user_role_brief(u.id)
@@ -202,6 +299,7 @@ class RbacV3Service:
             is_active=u.is_active,
             is_owner=u.is_owner,
             must_change_password=u.must_change_password,
+            password_changed_at=getattr(u, "password_changed_at", None),
             last_login_at=u.last_login_at,
             last_seen_at=getattr(u, "last_seen_at", None),
             locked_until=u.locked_until,
@@ -211,6 +309,7 @@ class RbacV3Service:
             organization_id=u.organization_id,
             company=(company_names or {}).get(u.organization_id),
             allowed_companies=None,  # Pack 147: per-group memberships
+            company_memberships=company_memberships or [],
         )
 
     async def _group_to_brief(self, db: AsyncSession, g: Group) -> GroupBrief:
@@ -699,7 +798,28 @@ class RbacV3Service:
                 .where(Company.id.in_(_org_ids))
             )).all()
             _company_names = {r[0]: (r[1] or r[2]) for r in _rows}
-        items = [await self._hydrate_user(db, u, _company_names) for u in users]
+        _membership_rows = await repo.list_user_company_memberships([u.id for u in users])
+        _memberships_by_user: dict[UUID, list[UserCompanyMembership]] = {}
+        for row in _membership_rows:
+            _memberships_by_user.setdefault(row.user_id, []).append(
+                UserCompanyMembership(
+                    company_id=row.company_id,
+                    company_name=row.company_name_short or row.company_name_ru,
+                    group_id=row.group_id,
+                    group_name=row.group_name,
+                    role_code=row.role_code,
+                    role_name=row.role_name,
+                )
+            )
+        items = [
+            await self._hydrate_user(
+                db,
+                u,
+                _company_names,
+                _memberships_by_user.get(u.id, []),
+            )
+            for u in users
+        ]
         return UserListResponse(items=items, total=total)
 
     async def get_user(
@@ -755,18 +875,40 @@ class RbacV3Service:
 
         valid = await repo.all_permission_codes()
         desired = {c for c in payload.permission_codes if c in valid}
+        # Несуществующие коды отбрасываются молча — и именно так сетка годами
+        # «не сохраняла» уровни по модулям, у которых нужного кода нет в
+        # каталоге (reports.edit, ai.edit, admin.view). Пишем в лог, чтобы
+        # рассинхрон фронта и каталога был виден, а не выглядел как «не
+        # сохранилось без причины».
+        unknown = sorted(set(payload.permission_codes) - valid)
+        if unknown:
+            log.warning(
+                "rbac.set_user_permissions: коды вне каталога прав отброшены "
+                "(user_id=%s, codes=%s)", user_id, unknown,
+            )
         baseline = await repo.base_permission_codes(user_id)
 
-        # КРИТИЧНО: сетка «Доступ к модулям» оперирует только 16 модулями и
-        # испускает коды вида {module}.{view|edit|export|manage}. Права роли,
-        # которые сетка не способна представить (companies.view, sectors.view,
-        # users.view, ai.chat, investment.view, procurement.request.view,
+        # КРИТИЧНО: сетка «Доступ к модулям» оперирует только своими модулями и
+        # уровнями «Наблюдать»/«Редактировать», то есть кодами
+        # {module}.{view|export|edit|import}. Права роли, которые сетка не
+        # способна представить (companies.view, sectors.view, users.view,
+        # admin.users, {module}.manage, procurement.request.view,
         # tasks.create/assign, treasury.view, …), НЕ должны автоматически
         # уходить в deny — иначе сохранение сетки молча отбирает у пользователя
         # доступ, который даёт роль (например, список компаний → 403).
         # Поэтому deny ограничиваем grid-представимыми кодами; всё вне сетки
         # остаётся за ролью нетронутым.
-        denies = sorted((baseline - desired) & _GRID_MANAGEABLE_CODES)
+        #
+        # Deny ставим по ЯКОРЮ УРОВНЯ, а не по прямому вхождению кода в payload:
+        # производные коды ({m}.export на уровне «Наблюдать», {m}.import на
+        # уровне «Редактировать», легаси-алиас ai.chat) есть в каталоге не у
+        # каждого модуля, и фронт испускает их условно. Если бы deny считался
+        # «нет в payload → запретить», то модуль с выбранным уровнем терял бы
+        # export/import, которые этому уровню принадлежат.
+        denies = sorted(
+            code for code in (baseline & _GRID_MANAGEABLE_CODES)
+            if code not in desired and _GRID_CODE_LEVEL_ANCHOR[code] not in desired
+        )
         grants = sorted(desired - baseline)
         # P0 ceiling: не-owner не может выдать права СВЕРХ собственных эффективных;
         # admin / admin.* — только owner. Иначе admin.users-актор self-эскалируется.

@@ -83,6 +83,17 @@ class RolePermissionsUpdate(BaseModel):
 # Users
 # =====================================================================
 
+class UserCompanyMembership(BaseModel):
+    """Compact company-scoped assignment exposed in the users registry."""
+
+    company_id: UUID
+    company_name: str
+    group_id: UUID
+    group_name: str
+    role_code: str
+    role_name: str
+
+
 class UserBrief(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -107,6 +118,7 @@ class UserBrief(BaseModel):
     organization_id: Optional[UUID] = None
     company: Optional[str] = None          # название компании (организации) пользователя
     allowed_companies: Optional[list[str]] = None
+    company_memberships: list[UserCompanyMembership] = Field(default_factory=list)
 
 
 class UserGroupMembership(BaseModel):

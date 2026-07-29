@@ -1,15 +1,18 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
-import { rolesApi, permissionsToLevels, levelsToPermissions } from '@/api/rbacV3';
+import { rolesApi, permissionsToLevels, levelsToPermissions, isGridManagedPermission } from '@/api/rbacV3';
 import type { RbacV3Role, RbacV3RoleDetail } from '@/api/rbacV3';
 import type { AccessLevel } from '@/composables/usePermissions';
+import { MODULE_REGISTRY, moduleSupportsWrite } from '@/composables/usePermissions';
 import RoleChip from '@/components/rbac-v3/RoleChip.vue';
 import ModuleSelectGrid from '@/components/rbac-v3/ModuleSelectGrid.vue';
 import CreateRoleModal from '@/components/rbac-v3/CreateRoleModal.vue';
 import { rolesApiExt } from '@/api/rbacV3';
 import { useToast } from '@/composables/useToast';
 import { useConfirm } from '@/composables/useConfirm';
+import { useI18n } from '@/composables/useI18n';
 
+const { t } = useI18n();
 const toast = useToast();
 const { confirmDialog, promptDialog } = useConfirm();
 
@@ -63,7 +66,11 @@ function onLevelChange(newLevels: Record<string, AccessLevel>) {
 
 function setAllLevels(level: AccessLevel) {
   const next: Record<string, AccessLevel> = {};
-  for (const code of Object.keys(levels.value)) next[code] = level;
+  // Модулям без права .edit/.import (ИИ, отчёты) массовая выдача «Редактировать»
+  // не положена: такого кода нет в каталоге, уровень бы не сохранился.
+  for (const m of MODULE_REGISTRY) {
+    next[m.code] = level === 'write' && !moduleSupportsWrite(m.code) ? 'read' : level;
+  }
   levels.value = next;
   dirty.value = true;
 }
@@ -123,7 +130,14 @@ async function save() {
   if (!detail.value || !selectedCode.value) return;
   saving.value = true; error.value = null;
   try {
-    const codes = levelsToPermissions(levels.value);
+    // PUT заменяет список прав роли целиком, а сетка показывает лишь часть
+    // каталога (view/export/edit/import по 17 модулям). Права вне сетки —
+    // admin.users, tasks.create, bp.approve, procurement.request.* и прочие —
+    // переносим как есть, иначе сохранение сетки молча их обнулит.
+    const kept = detail.value.permissions
+      .map(p => p.code)
+      .filter(c => !isGridManagedPermission(c));
+    const codes = Array.from(new Set([...levelsToPermissions(levels.value), ...kept]));
     detail.value = await rolesApi.updatePermissions(selectedCode.value, codes);
     levels.value = permissionsToLevels(detail.value.permissions.map(p => p.code));
     dirty.value = false;
@@ -236,9 +250,9 @@ const customRoles = computed(() => roles.value.filter(r => !r.is_system));
           <div class="rv3-edit-label rv3-edit-label-row">
             <span>Доступ к модулям</span>
             <div class="rv3-quick">
-              <button class="rv3-quick-btn rv3-quick-admin" @click="setAllLevels('admin')">ВСЕ ADMIN</button>
-              <button class="rv3-quick-btn" @click="setAllLevels('read')">ВСЕ READ</button>
-              <button class="rv3-quick-btn" @click="setAllLevels('none')">СБРОС</button>
+              <button class="rv3-quick-btn rv3-quick-admin" @click="setAllLevels('write')">{{ t("ВСЕМ РЕДАКТИРОВАТЬ") }}</button>
+              <button class="rv3-quick-btn" @click="setAllLevels('read')">{{ t("ВСЕМ НАБЛЮДАТЬ") }}</button>
+              <button class="rv3-quick-btn" @click="setAllLevels('none')">{{ t("СБРОС") }}</button>
             </div>
           </div>
           <ModuleSelectGrid

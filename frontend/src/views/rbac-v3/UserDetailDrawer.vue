@@ -16,9 +16,11 @@ import { useAuthStore } from '@/stores/auth';
 import { useFormatters } from '@/composables/useFormatters';
 import { presenceStatus, presenceLabel } from '@/composables/usePresence';
 import { useToast } from '@/composables/useToast';
+import { useI18n } from '@/composables/useI18n';
 import { useConfirm } from '@/composables/useConfirm';
 
 const toast = useToast();
+const { t } = useI18n();
 const { confirmDialog, promptDialog } = useConfirm();
 
 const fmt = useFormatters();
@@ -100,9 +102,13 @@ async function saveAccess() {
       detail.value.id, levelsToPermissions(draftLevels.value),
     );
     editingAccess.value = false;
+    // Явный фидбэк: сохранение прав — не то место, где можно молчать.
+    toast.success(t('Доступ к модулям сохранён'));
     emit('changed');
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || 'Не удалось сохранить доступ к модулям';
+    const msg = e?.response?.data?.detail || t('Не удалось сохранить доступ к модулям');
+    error.value = msg;
+    toast.error(msg);
   } finally {
     savingAccess.value = false;
   }
@@ -147,6 +153,41 @@ const sectorMap = computed<Record<string, SectorBrief>>(() => {
 });
 function sectorLabel(code: string): string { return sectorMap.value[code]?.name_ru || code; }
 function sectorColor(code: string): string { return sectorMap.value[code]?.color_hex || '#7F77DD'; }
+// ─── Редактирование области доступа «По секторам» ─────────────────
+// Блок был только для чтения: администратор видел выданные секторы, но не мог
+// их изменить — приходилось пересоздавать пользователя. Бэкенд приём умеет
+// (UserUpdatePayload.allowed_sectors) и проверяет потолок области актора.
+const editingScope = ref(false);
+const savingScope = ref(false);
+const draftSectors = ref<string[]>([]);
+
+function openScopeEditor(): void {
+  draftSectors.value = [...(detail.value?.allowed_sectors || [])];
+  editingScope.value = true;
+}
+function toggleSector(code: string): void {
+  const i = draftSectors.value.indexOf(code);
+  if (i >= 0) draftSectors.value.splice(i, 1);
+  else draftSectors.value.push(code);
+}
+async function saveScope(): Promise<void> {
+  if (!detail.value) return;
+  savingScope.value = true;
+  try {
+    // Пустой список шлём как [] — бэкенд трактует его как «секторов нет»
+    // (new_sectors = payload.allowed_sectors or None), то есть снятие области.
+    detail.value = await rbacV3Api.update(detail.value.id, {
+      allowed_sectors: draftSectors.value,
+    });
+    editingScope.value = false;
+    emit('changed');
+  } catch (e: any) {
+    error.value = e?.response?.data?.detail || 'Не удалось сохранить область доступа';
+  } finally {
+    savingScope.value = false;
+  }
+}
+
 const hasDataScope = computed(() =>
   !!(detail.value?.allowed_sectors?.length || detail.value?.allowed_companies?.length));
 const allCompanies = ref<{ id: string; name: string }[]>([]);
@@ -301,7 +342,7 @@ async function loadMfaStatus() {
 
 // Refresh MFA when the user changes or when the Security tab is opened.
 watch(() => detail.value?.id, () => { mfaRow.value = null; });
-watch(tab, (t) => { if (t === 'security') loadMfaStatus(); });
+watch(tab, (v) => { if (v === 'security') loadMfaStatus(); });
 
 // ─── Activity tab: аудит-история действий пользователя ───────────
 const activityEvents = ref<AuditEventRead[]>([]);
@@ -329,7 +370,7 @@ watch(() => detail.value?.id, () => {
   activityEvents.value = []; activityLoaded.value = false; activityDenied.value = false;
   expandedId.value = null; detailCache.value = {};
 });
-watch(tab, (t) => { if (t === 'activity') loadActivity(); });
+watch(tab, (v) => { if (v === 'activity') loadActivity(); });
 
 function evMeta(action: string) { return actionMeta(action); }
 
@@ -753,10 +794,45 @@ async function onDeletePermanent() {
                 >×</button>
               </div>
             </div>
-            <!-- Область доступа к данным: секторы / прямые компании -->
-            <div v-if="hasDataScope" class="rv3-dr-scope">
-              <div class="rv3-dr-scope-h">Доступ к данным компаний</div>
-              <div class="rv3-dr-scope-chips">
+            <!-- Область доступа к данным: секторы / прямые компании.
+                 Показываем блок и когда область ПУСТА, если есть право
+                 управлять — иначе секторы нельзя выдать впервые. -->
+            <div v-if="hasDataScope || (canManage && !detail.is_owner)" class="rv3-dr-scope">
+              <div class="rv3-dr-scope-h rv3-dr-scope-h-row">
+                <span>Доступ к данным компаний</span>
+                <button
+                  v-if="canManage && !detail.is_owner && !editingScope"
+                  class="rv3-dr-edit-link"
+                  @click="openScopeEditor"
+                >Изменить</button>
+              </div>
+
+              <!-- Режим правки: чекбоксы секторов -->
+              <div v-if="editingScope" class="rv3-dr-scope-edit">
+                <label v-for="sec in allSectors" :key="'edit-' + sec.code" class="rv3-dr-scope-opt">
+                  <input type="checkbox"
+                         :checked="draftSectors.includes(sec.code)"
+                         @change="toggleSector(sec.code)" />
+                  <span class="rv3-dr-scope-dot" :style="{ background: sec.color_hex || '#7F77DD' }"></span>
+                  <span>{{ sec.name_ru || sec.code }}</span>
+                </label>
+                <div v-if="!allSectors.length" class="rv3-dr-scope-note">Справочник секторов не загружен.</div>
+                <div class="rv3-dr-scope-actions">
+                  <button class="rv3-btn rv3-btn-ghost" :disabled="savingScope"
+                          @click="editingScope = false">Отмена</button>
+                  <button class="rv3-btn rv3-btn-purple" :disabled="savingScope" @click="saveScope">
+                    {{ savingScope ? 'Сохранение…' : 'Сохранить' }}
+                  </button>
+                </div>
+                <div class="rv3-dr-scope-note">
+                  Пусто — доступ по секторам снят; компании из групп при этом остаются.
+                </div>
+              </div>
+
+              <div v-else-if="!hasDataScope" class="rv3-dr-scope-note">
+                Область по секторам не задана — доступ определяется группами компаний.
+              </div>
+              <div v-else class="rv3-dr-scope-chips">
                 <span v-for="s in (detail.allowed_sectors || [])" :key="'sec-' + s"
                       class="rv3-dr-scope-chip"
                       :style="{ color: sectorColor(s), background: sectorColor(s) + '14', borderColor: sectorColor(s) + '33' }"
@@ -802,6 +878,7 @@ async function onDeletePermanent() {
               <div class="rv3-dr-acc-hint">
                 Изменения сохраняются как персональные права поверх ролей: повышение —
                 grant, понижение — deny. Влияет только на этого пользователя.
+                Администрирование платформы здесь не выдаётся — оно даётся ролью.
               </div>
               <div class="rv3-dr-role-foot">
                 <div style="flex:1"></div>
@@ -811,11 +888,11 @@ async function onDeletePermanent() {
                 </button>
               </div>
             </template>
+            <!-- Две ступени доступа: цвета совпадают с полосой карточки модуля. -->
             <div v-if="!editingAccess" class="rv3-legend">
-              <span><span class="rv3-sw" style="background:#1D9E75"></span>admin</span>
-              <span><span class="rv3-sw" style="background:#7F77DD"></span>write</span>
-              <span><span class="rv3-sw" style="background:#378ADD"></span>read</span>
-              <span><span class="rv3-sw" style="background:#D1D5DB"></span>нет доступа</span>
+              <span><span class="rv3-sw" style="background:#7C6FF7"></span>{{ t("Редактировать") }}</span>
+              <span><span class="rv3-sw" style="background:#0891B2"></span>{{ t("Наблюдать") }}</span>
+              <span><span class="rv3-sw" style="background:#D1D5DB"></span>{{ t("Нет доступа") }}</span>
             </div>
           </div>
         </div>
@@ -1338,6 +1415,17 @@ async function onDeletePermanent() {
 .rv3-dr-scope-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 .rv3-dr-scope-chip-co { color: var(--t2, #475569); background: var(--bg2, #FAFAFC); }
 .rv3-dr-scope-note { margin-top: 8px; font-size: 10.5px; color: var(--t3, var(--t-muted)); }
+/* Редактор области доступа по секторам (чекбоксы + действия) */
+.rv3-dr-scope-h-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.rv3-dr-scope-edit { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.rv3-dr-scope-opt {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; color: var(--t1, #1e2a4a);
+  padding: 5px 7px; border-radius: 7px; cursor: pointer;
+}
+.rv3-dr-scope-opt:hover { background: rgba(127, 119, 221, .07); }
+.rv3-dr-scope-opt input { cursor: pointer; }
+.rv3-dr-scope-actions { display: flex; gap: 8px; margin-top: 4px; }
 .rv3-legend {
   margin-top: 12px;
   display: flex; gap: 14px; flex-wrap: wrap;

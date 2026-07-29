@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useI18n } from '@/composables/useI18n';
+import { moduleSupportsWrite } from '@/composables/usePermissions';
 import type { AccessLevel } from '@/composables/usePermissions';
 
 const { t } = useI18n();
@@ -16,18 +17,36 @@ const props = defineProps<{
 }>();
 defineEmits<{ (e: 'change', level: AccessLevel): void; (e: 'click'): void }>();
 
-const LEVEL_META: Record<AccessLevel, { color: string; bg: string; label: string }> = {
-  admin: { color: '#1D9E75', bg: 'rgba(29,158,117,.12)', label: 'ADMIN' },
-  write: { color: '#7C6FF7', bg: 'rgba(124,111,247,.13)', label: 'WRITE' },
-  read:  { color: '#0891B2', bg: 'rgba(8,145,178,.12)',  label: 'READ' },
-  none:  { color: '#94A3B8', bg: '#F1F0FB',              label: 'NONE' },
+// Две ступени доступа: «Наблюдать» и «Редактировать». Уровень «admin»
+// (право {module}.manage) из выбора убран — это профиль роли, а не
+// персональная надстройка, и через него шла эскалация прав.
+const LEVEL_COLORS: Record<AccessLevel, { color: string; bg: string }> = {
+  write: { color: '#7C6FF7', bg: 'rgba(124,111,247,.13)' },
+  read:  { color: '#0891B2', bg: 'rgba(8,145,178,.12)'  },
+  none:  { color: '#94A3B8', bg: '#F1F0FB'              },
 };
+const LEVEL_LABEL: Record<AccessLevel, string> = {
+  write: 'Редактировать',
+  read:  'Наблюдать',
+  none:  'Нет доступа',
+};
+
+// Для модулей без права {module}.edit / {module}.import (ИИ, отчёты) выбор
+// «Редактировать» ничего бы не изменил — бэкенд отбросил бы несуществующий
+// код, и уровень молча не сохранился бы. Поэтому вариант заблокирован.
+const writeAvailable = computed(() => moduleSupportsWrite(props.moduleCode));
+const writeHint = computed(() =>
+  writeAvailable.value ? '' : t('Для этого модуля доступен только просмотр'),
+);
 
 const stripeColor = computed(() => {
   if (props.manualGrant) return '#D97706';
-  return props.level === 'none' ? '#E2E0F0' : LEVEL_META[props.level].color;
+  return props.level === 'none' ? '#E2E0F0' : LEVEL_COLORS[props.level].color;
 });
-const meta = computed(() => LEVEL_META[props.level]);
+const meta = computed(() => ({
+  ...LEVEL_COLORS[props.level],
+  label: t(LEVEL_LABEL[props.level]),
+}));
 const dim  = computed(() => props.level === 'none' && !props.editable);
 </script>
 
@@ -45,13 +64,13 @@ const dim  = computed(() => props.level === 'none' && !props.editable);
         :value="level"
         class="rv3-card-pill"
         :style="{ color: meta.color, background: meta.bg }"
+        :title="writeHint || undefined"
         @change="$emit('change', ($event.target as HTMLSelectElement).value as AccessLevel)"
         @click.stop
       >
-        <option value="admin">ADMIN</option>
-        <option value="write">WRITE</option>
-        <option value="read">READ</option>
-        <option value="none">NONE</option>
+        <option value="write" :disabled="!writeAvailable">{{ t("Редактировать") }}</option>
+        <option value="read">{{ t("Наблюдать") }}</option>
+        <option value="none">{{ t("Нет доступа") }}</option>
       </select>
       <span
         v-else
@@ -63,6 +82,8 @@ const dim  = computed(() => props.level === 'none' && !props.editable);
       <template v-if="manualGrant">{{ t("+ персональный grant") }}</template>
       <template v-else>{{ explain }}{{ scope ? ' · scope: ' + scope : '' }}</template>
     </div>
+    <!-- Явное объяснение, почему у модуля нет варианта «Редактировать». -->
+    <div v-if="editable && !writeAvailable" class="rv3-card-hint">{{ writeHint }}</div>
   </div>
 </template>
 
@@ -101,19 +122,22 @@ const dim  = computed(() => props.level === 'none' && !props.editable);
   font-size: 12.5px; font-weight: 500; color: var(--t1, #0F172A);
   min-width: 0; line-height: 1.3;
 }
+/* Подписи уровней — слова («Наблюдать»/«Редактировать»), а не аббревиатуры,
+   поэтому кегль чуть крупнее и без разрядки. */
 .rv3-card-pill {
   padding: 2px 8px; border-radius: 999px;
-  font-size: 9.5px; font-weight: 600;
-  letter-spacing: .04em;
+  font-size: 10.5px; font-weight: 600;
+  letter-spacing: .01em;
   border: none; outline: none;
   cursor: inherit;
   font-family: inherit;
 }
-/* editable <select>: не сжимать длинным названием модуля и не обрезать значение */
+/* editable <select>: не сжимать длинным названием модуля и не обрезать значение.
+   Ширина рассчитана на самую длинную подпись уровня («Редактировать»). */
 select.rv3-card-pill {
   flex-shrink: 0;
-  min-width: 66px;
-  max-width: 84px;
+  min-width: 118px;
+  max-width: 148px;
   box-sizing: border-box;
   padding: 2px 4px 2px 7px;
   cursor: pointer;
@@ -121,6 +145,9 @@ select.rv3-card-pill {
 }
 .rv3-card-sub {
   font-size: 10px; color: var(--t3, #94A3B8);
+}
+.rv3-card-hint {
+  font-size: 9.5px; color: #94A3B8; margin-top: 3px; line-height: 1.35;
 }
 .rv3-card-sub.warn { color: #D97706; font-weight: 500; }
 </style>

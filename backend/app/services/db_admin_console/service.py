@@ -154,9 +154,16 @@ def _serialize_dict(d: dict) -> dict:
 
 
 def _require_db_admin(user: User) -> None:
-    if user.is_owner:
-        return
-    if bool(getattr(user, "is_admin", False)):
+    """Владелец или платформенный администратор (роль admin).
+
+    Раньше проверялось поле `user.is_admin`, КОТОРОГО НЕ СУЩЕСТВУЕТ ни в модели
+    User, ни в таблице users — getattr всегда возвращал False, и консоль базы
+    данных была доступна ИСКЛЮЧИТЕЛЬНО владельцу. Отказ был тихим: ни ошибки,
+    ни записи в лог, просто 403 у администратора. Сверяемся с единой точкой
+    is_super_admin (owner ИЛИ роль admin), как весь остальной бэкенд.
+    """
+    from app.core.security import is_super_admin
+    if is_super_admin(user):
         return
     raise HTTPException(
         http_status.HTTP_403_FORBIDDEN,

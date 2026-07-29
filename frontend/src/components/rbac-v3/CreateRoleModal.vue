@@ -2,8 +2,12 @@
 import { ref } from 'vue';
 import { rolesApiExt, levelsToPermissions } from '@/api/rbacV3';
 import type { AccessLevel } from '@/composables/usePermissions';
+import { MODULE_REGISTRY, moduleSupportsWrite } from '@/composables/usePermissions';
 import ModuleSelectGrid from './ModuleSelectGrid.vue';
 import ModalShell from '@/components/ModalShell.vue';
+import { useI18n } from '@/composables/useI18n';
+
+const { t } = useI18n();
 
 const props = defineProps<{
   prefillFromCode?: string; // when "duplicate" — copy permissions from this role
@@ -25,11 +29,13 @@ const error = ref<string | null>(null);
 
 function setAll(level: AccessLevel) {
   const next: Record<string, AccessLevel> = {};
-  // Use MODULE_REGISTRY to ensure all keys exist
-  import('@/composables/usePermissions').then(m => {
-    for (const mod of m.MODULE_REGISTRY) next[mod.code] = level;
-    levels.value = next;
-  });
+  // Ключи по MODULE_REGISTRY, чтобы существовали все модули сетки. Модулям без
+  // права .edit/.import (ИИ, отчёты) «Редактировать» не выдаём — такого кода
+  // нет в каталоге, уровень бы не сохранился.
+  for (const mod of MODULE_REGISTRY) {
+    next[mod.code] = level === 'write' && !moduleSupportsWrite(mod.code) ? 'read' : level;
+  }
+  levels.value = next;
 }
 
 async function submit() {
@@ -85,9 +91,9 @@ async function submit() {
     <div class="rv3-edit-label" style="margin-top:14px;display:flex;align-items:center;justify-content:space-between">
       <span>Доступ к модулям</span>
       <div style="display:flex;gap:4px;">
-        <button class="rv3-quick-btn rv3-quick-admin" type="button" @click="setAll('admin')">ВСЕ ADMIN</button>
-        <button class="rv3-quick-btn" type="button" @click="setAll('read')">ВСЕ READ</button>
-        <button class="rv3-quick-btn" type="button" @click="setAll('none')">СБРОС</button>
+        <button class="rv3-quick-btn rv3-quick-admin" type="button" @click="setAll('write')">{{ t("ВСЕМ РЕДАКТИРОВАТЬ") }}</button>
+        <button class="rv3-quick-btn" type="button" @click="setAll('read')">{{ t("ВСЕМ НАБЛЮДАТЬ") }}</button>
+        <button class="rv3-quick-btn" type="button" @click="setAll('none')">{{ t("СБРОС") }}</button>
       </div>
     </div>
     <ModuleSelectGrid

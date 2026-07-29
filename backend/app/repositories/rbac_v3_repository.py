@@ -15,6 +15,7 @@ from sqlalchemy import delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.models.company import Company
 from app.models.rbac_v3 import GroupPermissionGrant, UserPermissionGrant
 from app.models.user import (
     Group,
@@ -66,7 +67,12 @@ class RbacV3Repository:
         users_without_roles = (await self._session.execute(
             select(func.count(User.id.distinct()))
             .outerjoin(user_role, user_role.c.user_id == User.id)
-            .where(User.is_active.is_(True), user_role.c.role_id.is_(None))
+            .outerjoin(UserGroupRole, UserGroupRole.user_id == User.id)
+            .where(
+                User.is_active.is_(True),
+                user_role.c.role_id.is_(None),
+                UserGroupRole.role_id.is_(None),
+            )
         )).scalar_one()
         top_rows = (await self._session.execute(
             select(Role.code, Role.name_ru, func.count(user_role.c.user_id).label("cnt"))
@@ -382,6 +388,31 @@ class RbacV3Repository:
             .join(Role, Role.id == UserGroupRole.role_id)
             .where(UserGroupRole.user_id == user_id)
             .order_by(Group.name)
+        )).all()
+
+    async def list_user_company_memberships(self, user_ids: Sequence[UUID]) -> Sequence[Any]:
+        """Load company-scoped role assignments for a registry page in one query."""
+        if not user_ids:
+            return []
+        return (await self._session.execute(
+            select(
+                UserGroupRole.user_id.label("user_id"),
+                Group.id.label("group_id"),
+                Group.name.label("group_name"),
+                Group.company_id.label("company_id"),
+                Company.name_short.label("company_name_short"),
+                Company.name_ru.label("company_name_ru"),
+                Role.code.label("role_code"),
+                Role.name_ru.label("role_name"),
+            )
+            .join(Group, Group.id == UserGroupRole.group_id)
+            .join(Role, Role.id == UserGroupRole.role_id)
+            .join(Company, Company.id == Group.company_id)
+            .where(
+                UserGroupRole.user_id.in_(list(user_ids)),
+                Group.company_id.is_not(None),
+            )
+            .order_by(Company.name_short, Company.name_ru, Group.name)
         )).all()
 
     async def clear_user_roles(self, user_id: UUID) -> None:
