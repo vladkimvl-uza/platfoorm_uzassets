@@ -35,9 +35,30 @@ export interface PermissionResult {
   explain: string;
 }
 
+const PERMISSION_ALIASES: Record<string, string[]> = {
+  'ai.view': ['ai.chat'],
+  'ai.edit': ['ai.view'],
+  'ai.export': ['ai.view'],
+  'ai.manage': ['ai.manage', 'ai.admin'],
+  'admin.view': ['admin.users'],
+  'admin.edit': ['admin.users'],
+  'admin.export': ['admin.users'],
+  'admin.manage': ['admin.users'],
+};
+
+const MODULE_CODE_ALIASES: Record<string, string> = {
+  invest: 'investment',
+};
+
+function _candidateCodes(moduleCode: string, action: string): string[] {
+  const canonicalCode = MODULE_CODE_ALIASES[moduleCode] || moduleCode;
+  const code = `${canonicalCode}.${action}`;
+  return [code, ...(PERMISSION_ALIASES[code] || [])];
+}
+
 function _hasCode(codes: string[], moduleCode: string, action: string): boolean {
-  return codes.includes(`${moduleCode}.${action}`) ||
-         codes.includes(`${moduleCode}.manage`) ||
+  return _candidateCodes(moduleCode, action).some(c => codes.includes(c)) ||
+         _candidateCodes(moduleCode, 'manage').some(c => codes.includes(c)) ||
          codes.includes('*');
 }
 
@@ -105,26 +126,26 @@ export function usePermissions(moduleCode: string) {
         explain: 'модуль скрыт администратором',
       };
     }
-    // Role-based bypass: admin / ceo roles get admin level on everything
+    // Role-based bypass: mirrors backend is_super_admin.
     const roleCodes = (user.roles || []).map((r: any) =>
       typeof r === 'string' ? r : r.code
     );
-    if (roleCodes.includes('admin') || roleCodes.includes('ceo')) {
+    if (roleCodes.includes('admin')) {
       return {
         level: 'admin', canView: true, canEdit: true, canApprove: true,
         canExport: true, canDelete: true, canManage: true,
-        explain: `via role: ${roleCodes.includes('admin') ? 'admin' : 'ceo'}`,
+        explain: 'via role: admin',
       };
     }
     // Compute per-action booleans
     const isDenied = (action: string) =>
-      deniedCodes.includes(`${moduleCode}.${action}`);
+      _candidateCodes(moduleCode, action).some(c => deniedCodes.includes(c));
     const canView    = !isDenied('view')   && _hasCode(grantedCodes, moduleCode, 'view');
     const canEdit    = !isDenied('edit')   && _hasCode(grantedCodes, moduleCode, 'edit');
     const canApprove = !isDenied('approve')&& _hasCode(grantedCodes, moduleCode, 'approve');
     const canExport  = !isDenied('export') && _hasCode(grantedCodes, moduleCode, 'export');
     const canDelete  = !isDenied('delete') && _hasCode(grantedCodes, moduleCode, 'delete');
-    const canManage  = !isDenied('manage') && grantedCodes.includes(`${moduleCode}.manage`);
+    const canManage  = !isDenied('manage') && _hasCode(grantedCodes, moduleCode, 'manage');
     const level = _computeLevel({ canView, canEdit, canManage });
     return {
       level, canView, canEdit, canApprove, canExport, canDelete, canManage,
@@ -145,7 +166,7 @@ export function usePermissions(moduleCode: string) {
 }
 
 /**
- * MODULE_REGISTRY — single source of truth for the 16 modules used
+ * MODULE_REGISTRY — single source of truth for modules used
  * across RBAC v3 Access-карта and Roles editor.
  */
 export const MODULE_REGISTRY = [

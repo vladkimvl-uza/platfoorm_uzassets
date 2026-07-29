@@ -17,11 +17,11 @@ from app.dependencies.auth_user import AuthUserServiceDep
 from app.models.user import User
 from app.schemas.auth import (
     ChangePasswordRequest,
-    UpdateMeRequest,
     LoginRequest,
     LogoutRequest,
     RefreshRequest,
     TokenPair,
+    UpdateMeRequest,
     UserPublic,
 )
 from app.services.auth_user.service import TwaLoginIn
@@ -102,7 +102,7 @@ async def me(
     """Return profile for the currently authenticated user (id, email, roles, flags).
 
     Used by the frontend on app load to hydrate the auth store."""
-    return await _enrich_org(service.me(user), user, db)
+    return await _enrich_org(await service.me(user, db), user, db)
 
 
 @router.patch("/me", response_model=UserPublic)
@@ -176,7 +176,7 @@ async def update_me(
             await db.commit()
         except Exception:  # noqa: BLE001 — аудит не должен ломать сам профиль-апдейт
             pass
-    return await _enrich_org(service.me(u), u, db)
+    return await _enrich_org(await service.me(u, db), u, db)
 
 
 @router.post("/me/welcome-seen", status_code=status.HTTP_204_NO_CONTENT)

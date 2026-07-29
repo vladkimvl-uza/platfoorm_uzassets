@@ -37,9 +37,9 @@ from app.schemas.rbac_v3 import (
     GroupBrief,
     GroupCreatePayload,
     GroupDetail,
+    GroupGrantItem,
     GroupMember,
     GroupMembersUpdate,
-    GroupGrantItem,
     GroupPermission,
     GroupPermissionsUpdate,
     GroupUpdatePayload,
@@ -72,9 +72,9 @@ log = logging.getLogger(__name__)
 # set_user_permissions НЕ имеет права автоматически денайнить такие права —
 # иначе сохранение сетки молча отбирает у пользователя доступ роли.
 _GRID_MODULE_CODES = (
-    "dashboard", "bp", "kpi", "financials", "credit", "invest", "procurement",
+    "dashboard", "bp", "kpi", "financials", "credit", "investment", "procurement",
     "esg", "governance", "ratings", "procurement_analysis", "consultants",
-    "tasks", "reports", "monitoring", "ai", "admin",
+    "tasks", "pmo", "reports", "monitoring", "ai", "admin",
 )
 _GRID_PERMISSION_SUFFIXES = ("view", "edit", "export", "manage")
 _GRID_MANAGEABLE_CODES = frozenset(
@@ -264,6 +264,94 @@ class RbacV3Service:
                 )
 
     # ─── Overview ─────────────────────────────────────────────────
+
+    async def _resolve_create_group_memberships(
+        self,
+        db: AsyncSession,
+        repo: RbacV3Repository,
+        payload: UserCreatePayload,
+        actor: User,
+    ) -> list[tuple[Group, Role]]:
+        """Validate group-scoped role assignments supplied during user creation."""
+        requested: list[tuple[UUID, str]] = [
+            (m.group_id, m.role_code) for m in (payload.group_memberships or [])
+        ]
+
+        # Back-compat for older clients that sent allowed_companies without
+        # group_memberships. A single role_code is treated as the scoped role;
+        # otherwise viewer is the least-privileged default.
+        if not requested and payload.allowed_companies:
+            # lookup_company_groups_by_refs ключует результат ОБРЕЗАННОЙ ссылкой и
+            # выбрасывает пустые. Сравнивать с сырым payload нельзя: ' alpha' или ''
+            # в списке дали бы 400 «Unknown company/group refs» на существующей
+            # компании. Нормализуем один раз и работаем только с нормализованным.
+            raw_refs = [str(r).strip() for r in payload.allowed_companies if str(r).strip()]
+            groups_by_ref = await repo.lookup_company_groups_by_refs(raw_refs)
+            missing_refs = [ref for ref in raw_refs if ref not in groups_by_ref]
+            if missing_refs:
+                raise HTTPException(
+                    http_status.HTTP_400_BAD_REQUEST,
+                    f"Unknown company/group refs: {sorted(missing_refs)}",
+                )
+            scoped_role = payload.role_codes[0] if len(payload.role_codes) == 1 else "viewer"
+            requested = [(groups_by_ref[ref].id, scoped_role) for ref in raw_refs]
+
+        if not requested:
+            return []
+
+        deduped: dict[UUID, str] = {}
+        for group_id, role_code in requested:
+            existing = deduped.get(group_id)
+            if existing is not None and existing != role_code:
+                raise HTTPException(
+                    http_status.HTTP_400_BAD_REQUEST,
+                    f"Group {group_id} is assigned more than one role",
+                )
+            deduped[group_id] = role_code
+
+        groups_by_id = await repo.lookup_groups_by_ids(list(deduped.keys()))
+        missing_groups = [str(gid) for gid in deduped if gid not in groups_by_id]
+        if missing_groups:
+            raise HTTPException(
+                http_status.HTTP_400_BAD_REQUEST,
+                f"Unknown group ids: {sorted(missing_groups)}",
+            )
+
+        roles = list(await repo.lookup_roles(list(set(deduped.values()))))
+        roles_by_code = {r.code: r for r in roles}
+        missing_roles = [rc for rc in set(deduped.values()) if rc not in roles_by_code]
+        if missing_roles:
+            raise HTTPException(
+                http_status.HTTP_400_BAD_REQUEST,
+                f"Unknown role codes: {sorted(missing_roles)}",
+            )
+
+        actor_codes: set[str] | None = None
+        out: list[tuple[Group, Role]] = []
+        for group_id, role_code in deduped.items():
+            group = groups_by_id[group_id]
+            role = roles_by_code[role_code]
+            if role.code == "admin" and not actor.is_owner:
+                raise HTTPException(
+                    http_status.HTTP_403_FORBIDDEN,
+                    "Only an owner can assign the 'admin' role.",
+                )
+            if not actor.is_owner and not is_super_admin(actor):
+                if actor_codes is None:
+                    actor_codes = set(await repo.effective_permission_codes(actor.id))
+                role_perms = set(await repo.role_permission_codes(role.id))
+                excess = [
+                    c for c in sorted(role_perms)
+                    if c == "admin" or c.startswith("admin.") or c not in actor_codes
+                ]
+                if excess:
+                    raise HTTPException(
+                        http_status.HTTP_403_FORBIDDEN,
+                        f"Role '{role.code}' grants permissions above yours: " + ", ".join(excess),
+                    )
+            await self._ensure_group_membership_within_ceiling(db, repo, actor, group)
+            out.append((group, role))
+        return out
 
     async def overview(self, db: AsyncSession, user: User) -> RBACOverview:
         await _require_admin(db, user)
@@ -648,6 +736,11 @@ class RbacV3Service:
                 )
             # P0 ceiling: не-owner не создаёт пользователя с ролью 'admin' или с
             # правами сверх собственных эффективных.
+            if "admin" in payload.role_codes and not user.is_owner:
+                raise HTTPException(
+                    http_status.HTTP_403_FORBIDDEN,
+                    "Only an owner can create a user with the 'admin' role.",
+                )
             if not user.is_owner and not is_super_admin(user):
                 if "admin" in payload.role_codes:
                     raise HTTPException(
@@ -671,6 +764,9 @@ class RbacV3Service:
             organization_id=payload.organization_id,
             allowed_sectors=payload.allowed_sectors,
         )
+        scoped_memberships = await self._resolve_create_group_memberships(
+            db, repo, payload, user,
+        )
         new_user = User(
             email=payload.email.lower(),
             full_name=payload.full_name,
@@ -686,13 +782,27 @@ class RbacV3Service:
         await repo.flush()
         for r in roles:
             await repo.assign_user_role(new_user.id, r.id)
+        for group, role in scoped_memberships:
+            repo.add(UserGroupRole(
+                user_id=new_user.id,
+                group_id=group.id,
+                role_id=role.id,
+            ))
         await db.commit()
 
         await append_audit_entry(
             db, actor_id=str(user.id), actor_email=user.email,
             action="rbac.user.create",
             entity_type="user", entity_id=str(new_user.id),
-            notes=f"email={payload.email}, roles={payload.role_codes}",
+            notes=(
+                f"email={payload.email}, roles={payload.role_codes}, "
+                # Голое количество не даёт проследить, ДОСТУП К КАКИМ компаниям выдан
+                # при создании (rbac.user.membership.upsert пишет group+role) —
+                # пишем состав, иначе выдача доступа к 20 компаниям в аудите = «20».
+                f"group_memberships=["
+                + ", ".join(f"{g.code}:{r.code}" for g, r in scoped_memberships)
+                + "]"
+            ),
         )
         await db.commit()
 
@@ -873,6 +983,11 @@ class RbacV3Service:
         # своих) → получает admin.* в обход упрочнённых update_user/create_user.
         # Зеркалим ceiling из update_user.
         _ensure_can_manage_target(user, u)   # не-owner не трогает OWNER-аккаунт
+        if role.code == "admin" and not user.is_owner:
+            raise HTTPException(
+                http_status.HTTP_403_FORBIDDEN,
+                "Only an owner can assign the 'admin' role.",
+            )
         if not user.is_owner and not is_super_admin(user):
             # роль 'admin' = супер-админ (глобальный bypass) — назначает только owner
             if role.code == "admin":
@@ -1303,6 +1418,11 @@ class RbacV3Service:
             raise HTTPException(
                 http_status.HTTP_400_BAD_REQUEST,
                 f"Unknown role codes: {sorted(unknown_roles)}",
+            )
+        if "admin" in role_codes and not user.is_owner:
+            raise HTTPException(
+                http_status.HTTP_403_FORBIDDEN,
+                "Only an owner can assign the 'admin' role.",
             )
 
         # P0 (аудит RBAC): та же дыра, что в upsert_user_membership — set_group_members

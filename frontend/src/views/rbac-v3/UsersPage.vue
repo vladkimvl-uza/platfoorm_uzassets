@@ -218,7 +218,7 @@ async function bulkDeactivate() {
       <div v-if="selectedIds.size > 0" class="rv3-bulk">
         <div class="rv3-bulk-text">Выбрано: {{ selectedIds.size }}</div>
         <div style="flex:1;"></div>
-        <button class="rv3-bulk-btn" @click="showBulk = true">Назначить роль</button>
+        <button class="rv3-bulk-btn" @click="showBulk = true">Изменить роли</button>
         <button class="rv3-bulk-btn rv3-bulk-danger" :disabled="bulkBusy" @click="bulkDeactivate">
           <BIcon name="trash" :size="13" /> {{ bulkBusy ? 'Деактивация…' : 'Деактивировать' }}
         </button>

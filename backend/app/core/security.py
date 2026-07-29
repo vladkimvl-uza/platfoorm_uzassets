@@ -37,6 +37,11 @@ from app.models.user import Role, User
 # Bearer scheme — auto_error=False so we can return 401 with our own message
 _bearer = HTTPBearer(auto_error=False, bearerFormat="JWT")
 
+_PERMISSION_ALIASES: dict[str, tuple[str, ...]] = {
+    # Historical catalog used ai.chat; current routes and UI use ai.view.
+    "ai.view": ("ai.chat",),
+}
+
 
 # =====================================================================
 # Core: extract current user from Authorization: Bearer <jwt>
@@ -236,6 +241,8 @@ async def has_effective_permission(
     if is_super_admin(user):
         return True
 
+    candidate_codes = tuple(dict.fromkeys((code, *_PERMISSION_ALIASES.get(code, ()))))
+
     from app.models.rbac_v3 import GroupPermissionGrant, UserPermissionGrant
     from app.models.user import Permission, Role, UserGroupRole
 
@@ -249,7 +256,7 @@ async def has_effective_permission(
             select(UserPermissionGrant.grant_type, UserPermissionGrant.expires_at)
             .where(
                 UserPermissionGrant.user_id == user.id,
-                UserPermissionGrant.permission_code == code,
+                UserPermissionGrant.permission_code.in_(candidate_codes),
             )
         )
         for grant_type, expires_at in ug_q.all():
@@ -269,7 +276,7 @@ async def has_effective_permission(
         .join(UserGroupRole, UserGroupRole.group_id == GroupPermissionGrant.group_id)
         .where(
             UserGroupRole.user_id == user.id,
-            GroupPermissionGrant.permission_code == code,
+            GroupPermissionGrant.permission_code.in_(candidate_codes),
         )
     )
     grants = list(grants_q.all())
@@ -291,14 +298,14 @@ async def has_effective_permission(
         select(Permission.id)
         .join(Role.permissions)
         .join(UserGroupRole, UserGroupRole.role_id == Role.id)
-        .where(UserGroupRole.user_id == user.id, Permission.code == code)
+        .where(UserGroupRole.user_id == user.id, Permission.code.in_(candidate_codes))
         .limit(1)
     )
     if ugr_perm_exists.first() is not None:
         return True
 
     # --- (3b) Global User.roles permissions.
-    if code in _user_permission_codes(user):
+    if any(candidate in _user_permission_codes(user) for candidate in candidate_codes):
         return True
     return False
 

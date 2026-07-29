@@ -185,6 +185,88 @@ async def test_user_detail_returns_group_memberships(
     assert by_group_code["m-b"]["company_id"] == str(co_b.id)
 
 
+async def test_create_user_with_group_membership_is_atomic(
+    db, make_user, app_client, auth_header, make_company_group,
+):
+    from types import SimpleNamespace
+    from uuid import UUID
+
+    from app.models.user import UserGroupRole
+
+    owner = await make_user(role_codes=["admin"], is_owner=True)
+    co, grp = await make_company_group(code="create-membership")
+
+    r = await app_client.post(
+        "/rbac/v3/users",
+        json={
+            "email": "create-membership@example.com",
+            "full_name": "Create Membership",
+            "password": "CreatePa$$word!12345",
+            "must_change_password": True,
+            "role_codes": [],
+            "group_memberships": [
+                {"group_id": str(grp.id), "role_code": "financier"},
+            ],
+        },
+        headers=auth_header(owner),
+    )
+    assert r.status_code == 201, r.text
+    body = r.json()
+
+    by_group_code = {m["group_code"]: m for m in body["group_memberships"]}
+    assert by_group_code[co.code]["role_code"] == "financier"
+    assert "kpi.view" in body["effective_permissions"]
+
+    membership = (await db.execute(
+        select(UserGroupRole).where(
+            UserGroupRole.user_id == UUID(body["id"]),
+            UserGroupRole.group_id == grp.id,
+        )
+    )).scalar_one_or_none()
+    assert membership is not None
+
+    token_user = SimpleNamespace(
+        id=UUID(body["id"]),
+        email=body["email"],
+        is_owner=False,
+        roles=[],
+    )
+    me = await app_client.get("/auth/me", headers=auth_header(token_user))
+    assert me.status_code == 200, me.text
+    assert "kpi.view" in me.json()["permissions"]
+
+
+async def test_create_user_unknown_group_role_does_not_create_user(
+    db, make_user, app_client, auth_header, make_company_group,
+):
+    from app.models.user import User
+
+    owner = await make_user(role_codes=["admin"], is_owner=True)
+    _, grp = await make_company_group(code="create-bad-role")
+
+    r = await app_client.post(
+        "/rbac/v3/users",
+        json={
+            "email": "bad-group-role@example.com",
+            "full_name": "Bad Group Role",
+            "password": "CreatePa$$word!12345",
+            "must_change_password": True,
+            "role_codes": [],
+            "group_memberships": [
+                {"group_id": str(grp.id), "role_code": "made_up_role"},
+            ],
+        },
+        headers=auth_header(owner),
+    )
+    assert r.status_code == 400, r.text
+    assert "made_up_role" in r.text
+
+    existing = (await db.execute(
+        select(User).where(User.email == "bad-group-role@example.com")
+    )).scalar_one_or_none()
+    assert existing is None
+
+
 async def test_post_companies_auto_creates_group(
     db, make_user, app_client, auth_header,
 ):

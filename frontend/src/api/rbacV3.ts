@@ -73,7 +73,7 @@ export const rbacV3Api = {
     const { data } = await api.post<RbacV3UserDetail>(`/rbac/v3/users/${id}/owner`, { is_owner: isOwner });
     return data;
   },
-  async update(id: string, payload: { full_name?: string; department?: string; job_title?: string; organization_id?: string; is_active?: boolean; role_codes?: string[]; allowed_companies?: string[] | null }) {
+  async update(id: string, payload: { full_name?: string; department?: string; job_title?: string; organization_id?: string; is_active?: boolean; role_codes?: string[]; allowed_companies?: string[] | null; allowed_sectors?: string[] | null }) {
     const { data } = await api.patch<RbacV3UserDetail>(`/rbac/v3/users/${id}`, payload);
     return data;
   },
@@ -173,6 +173,68 @@ export const adminMfaApi = {
 import { MODULE_REGISTRY } from '@/composables/usePermissions';
 import type { AccessLevel } from '@/composables/usePermissions';
 
+type ModuleAction = 'view' | 'edit' | 'export' | 'manage';
+
+const MODULE_CODE_ALIASES: Record<string, string> = {
+  invest: 'investment',
+};
+
+const MODULE_ACTION_CODES: Record<string, Partial<Record<ModuleAction, string[]>>> = {
+  admin: {
+    view: ['admin.users'],
+    edit: ['admin.users'],
+    export: ['admin.users'],
+    manage: ['admin.users'],
+  },
+  ai: {
+    view: ['ai.view', 'ai.chat'],
+    edit: ['ai.view'],
+    export: ['ai.view'],
+    manage: ['ai.manage', 'ai.admin'],
+  },
+};
+
+function moduleActionCodes(moduleCode: string, action: ModuleAction): string[] {
+  const canonicalCode = MODULE_CODE_ALIASES[moduleCode] || moduleCode;
+  return MODULE_ACTION_CODES[canonicalCode]?.[action] || [`${canonicalCode}.${action}`];
+}
+
+// Коды, которые сетка «Доступ к модулям» ВЫДАЁТ (запись), могут отличаться от тех,
+// которые она РАСПОЗНАЁТ (чтение). Для модуля «Администрирование» это критично:
+// admin.users — это полный доступ к RBAC (создание пользователей, смена ролей,
+// сброс пароля, деактивация), и backend-гейт _require_admin пропускает по нему.
+// Выдавать его на уровнях «Просмотр»/«Изменение» нельзя: подпись в интерфейсе
+// обещает просмотр, а фактически выдаётся полное администрирование платформы.
+// Поэтому admin.users пишется только на уровне «Полный доступ» (manage).
+const MODULE_ACTION_WRITE_CODES: Record<string, Partial<Record<ModuleAction, string>>> = {
+  admin: {
+    view: 'admin.view',
+    edit: 'admin.edit',
+    export: 'admin.export',
+  },
+};
+
+function primaryModulePermission(moduleCode: string, action: ModuleAction): string {
+  const canonicalCode = MODULE_CODE_ALIASES[moduleCode] || moduleCode;
+  const writeOverride = MODULE_ACTION_WRITE_CODES[canonicalCode]?.[action];
+  if (writeOverride) return writeOverride;
+  return moduleActionCodes(moduleCode, action)[0] || `${canonicalCode}.${action}`;
+}
+
+function hasModulePermission(codes: string[], moduleCode: string, action: ModuleAction): boolean {
+  return moduleActionCodes(moduleCode, action).some(c => codes.includes(c));
+}
+
+function moduleLevelFromPermissions(codes: string[], moduleCode: string): AccessLevel {
+  if (hasModulePermission(codes, moduleCode, 'manage')) return 'admin';
+  if (
+    hasModulePermission(codes, moduleCode, 'edit') ||
+    hasModulePermission(codes, moduleCode, 'export')
+  ) return 'write';
+  if (hasModulePermission(codes, moduleCode, 'view')) return 'read';
+  return 'none';
+}
+
 export function deriveAccessMap(user: RbacV3UserDetail | null): {
   levels: Record<string, AccessLevel>;
   sources: Record<string, string>;
@@ -193,11 +255,16 @@ export function deriveAccessMap(user: RbacV3UserDetail | null): {
 
   const perms = user.effective_permissions || [];
   for (const m of MODULE_REGISTRY) {
-    const prefix = m.code + '.';
-    const codes = perms.filter(p => p.startsWith(prefix));
+    let level = moduleLevelFromPermissions(perms, m.code);
+    const codes = perms.filter(p =>
+      moduleActionCodes(m.code, 'view').includes(p) ||
+      moduleActionCodes(m.code, 'edit').includes(p) ||
+      moduleActionCodes(m.code, 'export').includes(p) ||
+      moduleActionCodes(m.code, 'manage').includes(p)
+    );
     if (codes.length === 0) { levels[m.code] = 'none'; sources[m.code] = 'нет в роли'; continue; }
 
-    let level: AccessLevel = 'none';
+    level = moduleLevelFromPermissions(perms, m.code);
     if (codes.some(c => c.endsWith('.manage') || c.endsWith('.admin'))) level = 'admin';
     else if (codes.some(c => /\.(edit|create|update|delete|write|approve)$/.test(c))) level = 'write';
     else if (codes.some(c => c.endsWith('.view') || c.endsWith('.read'))) level = 'read';
@@ -361,13 +428,7 @@ import { MODULE_REGISTRY as _MODS } from '@/composables/usePermissions';
 export function permissionsToLevels(codes: string[]): Record<string, AccessLevel> {
   const out: Record<string, AccessLevel> = {};
   for (const m of _MODS) {
-    const prefix = m.code + '.';
-    const owned = codes.filter(c => c.startsWith(prefix));
-    if (owned.length === 0) { out[m.code] = 'none'; continue; }
-    if (owned.some(c => c.endsWith('.manage') || c.endsWith('.admin'))) out[m.code] = 'admin';
-    else if (owned.some(c => /\.(edit|create|update|delete|write|approve)$/.test(c))) out[m.code] = 'write';
-    else if (owned.some(c => c.endsWith('.view') || c.endsWith('.read'))) out[m.code] = 'read';
-    else out[m.code] = 'none';
+    out[m.code] = moduleLevelFromPermissions(codes, m.code);
   }
   return out;
 }
@@ -382,14 +443,27 @@ export function permissionsToLevels(codes: string[]): Record<string, AccessLevel
  */
 export function levelsToPermissions(levels: Record<string, AccessLevel>): string[] {
   const codes: string[] = [];
+  const add = (permissionCode: string) => {
+    if (!codes.includes(permissionCode)) codes.push(permissionCode);
+  };
   for (const [code, level] of Object.entries(levels)) {
     if (level === 'none') continue;
-    codes.push(`${code}.view`);
+    // Модуль «Администрирование» не имеет градаций в каталоге: единственный
+    // существующий код — admin.users, и он даёт ПОЛНЫЙ доступ к RBAC
+    // (создание/удаление пользователей, роли, группы) через _require_admin.
+    // Поэтому уровни «Чтение»/«Запись» не должны его выдавать — иначе выбор
+    // «Чтение» молча делает носителя роли/группы администратором платформы.
+    if ((MODULE_CODE_ALIASES[code] || code) === 'admin') {
+      if (level === 'admin') add(primaryModulePermission(code, 'manage'));
+      continue;
+    }
+    add(primaryModulePermission(code, 'view'));
     if (level === 'write' || level === 'admin') {
-      codes.push(`${code}.edit`, `${code}.export`);
+      add(primaryModulePermission(code, 'edit'));
+      add(primaryModulePermission(code, 'export'));
     }
     if (level === 'admin') {
-      codes.push(`${code}.manage`);
+      add(primaryModulePermission(code, 'manage'));
     }
   }
   return codes;
@@ -406,6 +480,7 @@ export interface RbacV3CreateUserPayload {
   must_change_password?: boolean;
   role_codes: string[];
   allowed_companies?: string[];
+  group_memberships?: Array<{ group_id: string; role_code: string }>;
   allowed_sectors?: string[];   // Область доступа «По секторам»
 }
 

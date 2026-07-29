@@ -123,6 +123,12 @@ class UserGroupMembership(BaseModel):
     role_name: str
 
 
+class UserCreateGroupMembership(BaseModel):
+    """A group-scoped role assignment to create together with the user."""
+    group_id: UUID
+    role_code: str = Field(..., min_length=1, max_length=64)
+
+
 class UserDetail(UserBrief):
     effective_permissions: list[str] = Field(default_factory=list)
     # per-(user, group) role assignments.
@@ -148,6 +154,7 @@ class UserCreatePayload(BaseModel):
     organization_id: Optional[UUID] = None
     allowed_companies: Optional[list[str]] = None
     allowed_sectors: Optional[list[str]] = None    # Область доступа «По секторам»
+    group_memberships: list[UserCreateGroupMembership] = Field(default_factory=list)
 
 
 class UserUpdatePayload(BaseModel):

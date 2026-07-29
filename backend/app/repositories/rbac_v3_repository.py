@@ -7,10 +7,11 @@ owns audit-chain timing.
 from __future__ import annotations
 
 from collections.abc import Sequence
+from datetime import UTC, datetime
 from typing import Any, Optional
 from uuid import UUID
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -210,13 +211,22 @@ class RbacV3Repository:
         ))
         role_perms.update(ugr_perms_q.scalars().all())
 
+        now = datetime.now(UTC)
         grants_rows = list((await self._session.execute(
-            select(GroupPermissionGrant.permission_code, GroupPermissionGrant.grant_type)
+            select(
+                GroupPermissionGrant.permission_code,
+                GroupPermissionGrant.grant_type,
+                GroupPermissionGrant.expires_at,
+            )
             .join(UserGroupRole, UserGroupRole.group_id == GroupPermissionGrant.group_id)
             .where(UserGroupRole.user_id == user_id)
         )).all())
-        granted = {c for c, t in grants_rows if t == "grant"}
-        denied = {c for c, t in grants_rows if t == "deny"}
+        active_grants = [
+            (c, t) for c, t, expires_at in grants_rows
+            if expires_at is None or expires_at >= now
+        ]
+        granted = {c for c, t in active_grants if t == "grant"}
+        denied = {c for c, t in active_grants if t == "deny"}
         return (role_perms | granted) - denied
 
     async def role_permission_codes(self, role_id: UUID) -> set[str]:
@@ -234,19 +244,66 @@ class RbacV3Repository:
         """Прямые user-гранты: [(permission_code, grant_type)]."""
         try:
             rows = (await self._session.execute(
-                select(UserPermissionGrant.permission_code, UserPermissionGrant.grant_type)
+                select(
+                    UserPermissionGrant.permission_code,
+                    UserPermissionGrant.grant_type,
+                    UserPermissionGrant.expires_at,
+                )
                 .where(UserPermissionGrant.user_id == user_id)
             )).all()
-            return [(c, t) for c, t in rows]
+            now = datetime.now(UTC)
+            return [
+                (c, t) for c, t, expires_at in rows
+                if expires_at is None or expires_at >= now
+            ]
         except Exception:
             return []
+
+    async def active_group_deny_codes(self, user_id: UUID) -> set[str]:
+        try:
+            rows = (await self._session.execute(
+                select(
+                    GroupPermissionGrant.permission_code,
+                    GroupPermissionGrant.expires_at,
+                )
+                .join(UserGroupRole, UserGroupRole.group_id == GroupPermissionGrant.group_id)
+                .where(
+                    UserGroupRole.user_id == user_id,
+                    GroupPermissionGrant.grant_type == "deny",
+                )
+            )).all()
+            now = datetime.now(UTC)
+            return {
+                c for c, expires_at in rows
+                if expires_at is None or expires_at >= now
+            }
+        except Exception:
+            return set()
 
     async def effective_permission_codes(self, user_id: UUID) -> list[str]:
         base = await self.base_permission_codes(user_id)
         ug = await self.user_grant_rows(user_id)
         ug_grant = {c for c, t in ug if t == "grant"}
         ug_deny = {c for c, t in ug if t == "deny"}
-        return sorted((base | ug_grant) - ug_deny)
+        group_deny = await self.active_group_deny_codes(user_id)
+        denied = ug_deny | group_deny
+        effective = (base | ug_grant) - denied
+        # Гейт core/security.has_effective_permission проверяет ai.view вместе с
+        # алиасом ai.chat: активный deny на ai.chat закрывает и ai.view. Зеркалим
+        # это здесь, иначе /auth/me отдаст ai.view (право из роли), интерфейс
+        # покажет модуль ИИ, а каждый запрос к нему вернёт 403.
+        if "ai.chat" in denied:
+            effective.discard("ai.view")
+        elif "ai.chat" in effective and "ai.view" not in denied:
+            effective.add("ai.view")
+        # Зеркальный случай: сетка «Доступ к модулям» пишет deny именно на
+        # ai.view (ai.chat не grid-представим), а гейт закрывает доступ по
+        # любому из двух кодов. Оставлять ai.chat в витрине нельзя: карточка
+        # доступа админки (deriveAccessMap читает ai.view|ai.chat) покажет
+        # «Просмотр» у модуля ИИ, который бэкенд уже запретил.
+        if "ai.view" in denied:
+            effective.discard("ai.chat")
+        return sorted(effective)
 
     async def all_permission_codes(self) -> set[str]:
         """Все существующие коды прав (для фильтрации мусорных грантов)."""
@@ -336,6 +393,46 @@ class RbacV3Repository:
             select(Role.id, Role.code).where(Role.code.in_(codes))
         )).all()
         return {r.code: r.id for r in rows}
+
+    async def lookup_groups_by_ids(self, group_ids: Sequence[UUID]) -> dict[UUID, Group]:
+        if not group_ids:
+            return {}
+        rows = (await self._session.execute(
+            select(Group).where(Group.id.in_(group_ids))
+        )).scalars().all()
+        return {g.id: g for g in rows}
+
+    async def lookup_company_groups_by_refs(self, refs: Sequence[str]) -> dict[str, Group]:
+        """Resolve legacy company/group refs into company-bound groups."""
+        if not refs:
+            return {}
+        from app.models.company import Company
+
+        clean_refs = [str(r).strip() for r in refs if str(r).strip()]
+        uuid_refs: list[UUID] = []
+        for ref in clean_refs:
+            try:
+                uuid_refs.append(UUID(ref))
+            except (TypeError, ValueError):
+                pass
+
+        conditions = [Group.code.in_(clean_refs), Company.code.in_(clean_refs)]
+        if uuid_refs:
+            conditions.extend([Group.id.in_(uuid_refs), Group.company_id.in_(uuid_refs)])
+
+        rows = (await self._session.execute(
+            select(Group, Company.code)
+            .outerjoin(Company, Company.id == Group.company_id)
+            .where(Group.company_id.is_not(None), or_(*conditions))
+        )).all()
+
+        resolved: dict[str, Group] = {}
+        for ref in clean_refs:
+            for group, company_code in rows:
+                if ref in {str(group.id), str(group.company_id), group.code, company_code}:
+                    resolved[ref] = group
+                    break
+        return resolved
 
     async def role_codes_exist(self, codes: Sequence[str]) -> set[str]:
         if not codes:

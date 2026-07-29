@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue';
 import { rbacV3Api, deriveAccessMap, rolesApi, groupsApi, adminMfaApi, generatePassword, levelsToPermissions } from '@/api/rbacV3';
-import type { AccessLevel } from '@/composables/usePermissions';
+import { MODULE_REGISTRY, type AccessLevel } from '@/composables/usePermissions';
 import type { RbacV3UserDetail, RbacV3UserBrief, RbacV3Role, RbacV3Group, AdminMfaRow } from '@/api/rbacV3';
 import { moderationApi } from '@/api/moderation';
 import { companiesApi, type SectorBrief } from '@/api/companies';
 import { auditApi, actionMeta, type AuditEventRead, type AuditEventDetail } from '@/api/audit';
 import UserAvatar from '@/components/rbac-v3/UserAvatar.vue';
 import RoleChip from '@/components/rbac-v3/RoleChip.vue';
+import RoleAssignmentPicker from '@/components/rbac-v3/RoleAssignmentPicker.vue';
 import ModuleSelectGrid from '@/components/rbac-v3/ModuleSelectGrid.vue';
 import InviteUserModal from '@/components/rbac-v3/InviteUserModal.vue';
 import { createPreviewToken } from '@/api/rbacV3';
@@ -112,6 +113,18 @@ watch(() => detail.value?.id, () => { editingAccess.value = false; });
 // ─── Roles + groups catalog (loaded once for the pickers) ────────
 const allRoles = ref<RbacV3Role[]>([]);
 const allGroups = ref<RbacV3Group[]>([]);
+const roleByCode = computed<Record<string, RbacV3Role>>(() => {
+  const result: Record<string, RbacV3Role> = {};
+  for (const role of allRoles.value) result[role.code] = role;
+  return result;
+});
+
+function roleLabel(code: string): string {
+  const roleIndex = detail.value?.role_codes.indexOf(code) ?? -1;
+  return roleByCode.value[code]?.name_ru
+    || (roleIndex >= 0 ? detail.value?.role_names[roleIndex] : undefined)
+    || code;
+}
 
 async function loadCatalogs() {
   if (!canManage.value) return;
@@ -197,12 +210,6 @@ function openRoleEditor() {
   if (!detail.value) return;
   draftRoleCodes.value = [...detail.value.role_codes];
   editingRoles.value = true;
-}
-
-function toggleDraftRole(code: string) {
-  const i = draftRoleCodes.value.indexOf(code);
-  if (i >= 0) draftRoleCodes.value.splice(i, 1);
-  else draftRoleCodes.value.push(code);
 }
 
 async function saveRoles() {
@@ -640,7 +647,7 @@ async function onDeletePermanent() {
         <div v-if="tab === 'access'">
           <div class="rv3-dr-section">
             <div class="rv3-dr-section-title rv3-dr-section-title-row">
-              <span>Системные роли</span>
+              <span>Роли на платформе</span>
               <button
                 v-if="canManage && !detail.is_owner && !editingRoles"
                 class="rv3-dr-edit-link"
@@ -648,31 +655,26 @@ async function onDeletePermanent() {
               >Изменить</button>
             </div>
             <!-- Read-only chips -->
-            <div v-if="!editingRoles" class="rv3-dr-chips">
-              <RoleChip v-for="rc in detail.role_codes" :key="rc" :code="rc" />
+            <div v-if="!editingRoles" class="rv3-dr-role-summary">
+              <div v-for="rc in detail.role_codes" :key="rc" class="rv3-dr-role-summary-row">
+                <RoleChip :code="rc" />
+                <span>
+                  <b>{{ roleLabel(rc) }}</b>
+                  <small v-if="roleByCode[rc]?.description_ru">{{ roleByCode[rc].description_ru }}</small>
+                </span>
+              </div>
               <span v-if="detail.role_codes.length === 0" class="rv3-empty">нет ролей</span>
             </div>
             <!-- Editor -->
             <div v-else class="rv3-dr-role-editor">
-              <div class="rv3-dr-role-grid">
-                <label
-                  v-for="r in allRoles"
-                  :key="r.code"
-                  class="rv3-dr-role-opt"
-                  :class="{ on: draftRoleCodes.includes(r.code) }"
-                >
-                  <input
-                    type="checkbox"
-                    :checked="draftRoleCodes.includes(r.code)"
-                    @change="toggleDraftRole(r.code)"
-                  />
-                  <span class="rv3-dr-role-opt-name">{{ r.name_ru }}</span>
-                  <code class="rv3-dr-role-opt-code">{{ r.code }}</code>
-                </label>
-              </div>
+              <RoleAssignmentPicker v-model="draftRoleCodes" :roles="allRoles" compact />
               <div class="rv3-dr-role-foot">
                 <span class="rv3-dr-role-warn" v-if="draftRoleCodes.includes('admin')">
-                  ⚠ Роль <b>admin</b> обходит все scope-проверки — пользователь будет видеть все компании.
+                  <!-- Бэкенд отклоняет назначение 'admin' не-владельцем (403), поэтому
+                       предупреждение должно называть это до сохранения — как в модалке
+                       создания пользователя. -->
+                  <b>Полный доступ:</b> роль admin снимает ограничения по компаниям
+                  и назначается только владельцем платформы.
                 </span>
                 <button class="rv3-btn rv3-btn-ghost" @click="editingRoles = false" :disabled="savingRoles">Отмена</button>
                 <button class="rv3-btn rv3-btn-purple" @click="saveRoles" :disabled="savingRoles">
@@ -684,34 +686,44 @@ async function onDeletePermanent() {
 
           <div class="rv3-dr-section">
             <div class="rv3-dr-section-title rv3-dr-section-title-row">
-              <span>Членство в группах ({{ (detail.group_memberships || []).length }})</span>
+              <span>Доступ по компаниям и группам ({{ (detail.group_memberships || []).length }})</span>
               <button
                 v-if="canManage && !detail.is_owner && !showAddMembership && availableGroupsForAdd.length"
                 class="rv3-dr-edit-link"
                 @click="showAddMembership = true"
-              >+ Добавить</button>
+              >Добавить</button>
             </div>
 
             <!-- Add-membership inline form -->
             <div v-if="showAddMembership" class="rv3-dr-mem-add">
-              <select v-model="draftAddGroupId" class="rv3-dr-mem-sel">
-                <option value="">— выбрать группу —</option>
-                <option v-for="g in availableGroupsForAdd" :key="g.id" :value="g.id">
-                  {{ g.name }}{{ g.company_id ? ' · co' : '' }}
-                </option>
-              </select>
-              <select v-model="draftAddRoleCode" class="rv3-dr-mem-sel">
-                <option v-for="r in allRoles" :key="r.code" :value="r.code">{{ r.name_ru }}</option>
-              </select>
-              <button class="rv3-btn rv3-btn-ghost" @click="showAddMembership = false" :disabled="savingMembership">Отмена</button>
-              <button class="rv3-btn rv3-btn-purple" @click="addMembership"
-                      :disabled="!draftAddGroupId || savingMembership">
-                {{ savingMembership ? '…' : 'Добавить' }}
-              </button>
+              <div class="rv3-dr-mem-fields">
+                <label>
+                  <span>Компания или группа</span>
+                  <select v-model="draftAddGroupId" class="rv3-dr-mem-sel">
+                    <option value="">Выберите область доступа</option>
+                    <option v-for="g in availableGroupsForAdd" :key="g.id" :value="g.id">
+                      {{ g.name }}
+                    </option>
+                  </select>
+                </label>
+                <label>
+                  <span>Роль в этой области</span>
+                  <select v-model="draftAddRoleCode" class="rv3-dr-mem-sel">
+                    <option v-for="r in allRoles" :key="r.code" :value="r.code">{{ r.name_ru }}</option>
+                  </select>
+                </label>
+              </div>
+              <div class="rv3-dr-mem-actions">
+                <button class="rv3-btn rv3-btn-ghost" @click="showAddMembership = false" :disabled="savingMembership">Отмена</button>
+                <button class="rv3-btn rv3-btn-purple" @click="addMembership"
+                        :disabled="!draftAddGroupId || savingMembership">
+                  {{ savingMembership ? 'Добавление…' : 'Добавить доступ' }}
+                </button>
+              </div>
             </div>
 
             <div v-if="(detail.group_memberships || []).length === 0 && !showAddMembership && !hasDataScope" class="rv3-empty">
-              нет членства в группах — доступа к данным компаний нет
+              доступ по компаниям и группам не назначен
             </div>
             <div v-else-if="(detail.group_memberships || []).length" class="rv3-dr-memberships">
               <div
@@ -720,8 +732,8 @@ async function onDeletePermanent() {
                 class="rv3-dr-mem-row"
               >
                 <span class="rv3-dr-mem-grp">
-                  {{ m.group_name }}
-                  <span v-if="m.company_id" class="rv3-dr-mem-co-badge" title="привязана к компании">co</span>
+                  <b>{{ m.group_name }}</b>
+                  <small>{{ m.role_name || roleLabel(m.role_code) }}</small>
                 </span>
                 <select
                   v-if="canManage && !detail.is_owner"
@@ -767,7 +779,7 @@ async function onDeletePermanent() {
 
           <div class="rv3-dr-section">
             <div class="rv3-dr-section-title rv3-dr-section-title-row">
-              <span>Доступ к модулям · {{ accessCount }} из 16</span>
+              <span>Доступ к модулям · {{ accessCount }} из {{ MODULE_REGISTRY.length }}</span>
               <button
                 v-if="canManage && !detail.is_owner && !editingAccess"
                 class="rv3-dr-edit-link"
@@ -1244,6 +1256,38 @@ async function onDeletePermanent() {
   display: flex; align-items: center; justify-content: space-between;
 }
 .rv3-dr-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.rv3-dr-role-summary {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--border-hard, #E5E7EB);
+}
+.rv3-dr-role-summary-row {
+  min-height: 48px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 7px 2px;
+  border-bottom: 1px solid var(--border-hard, #E5E7EB);
+}
+.rv3-dr-role-summary-row > span:last-child {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.rv3-dr-role-summary-row b {
+  color: var(--t1, #1E2A4A);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+.rv3-dr-role-summary-row small {
+  overflow: hidden;
+  color: var(--t3, var(--t-muted));
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .rv3-dr-scope {
   background: var(--bg2, #FAFAFC); border: 0.5px solid var(--border-hard); border-radius: 8px;
   padding: 10px 12px; font-size: 11.5px; color: var(--t1, #1E2A4A);
@@ -1259,14 +1303,16 @@ async function onDeletePermanent() {
 }
 .rv3-dr-mem-row {
   display: flex; align-items: center; gap: 10px;
-  padding: 4px 0; font-size: 12px; color: var(--t1, #1E2A4A);
+  min-height: 42px; padding: 5px 0; font-size: 12px; color: var(--t1, #1E2A4A);
 }
 .rv3-dr-mem-row:not(:last-child) {
   border-bottom: 0.5px solid #F0F0F4;
 }
 .rv3-dr-mem-grp {
-  flex: 1; display: flex; align-items: center; gap: 6px;
+  min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px;
 }
+.rv3-dr-mem-grp b { overflow: hidden; font-size: 11.5px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.rv3-dr-mem-grp small { color: var(--t3, var(--t-muted)); font-size: 9.5px; }
 .rv3-dr-mem-co-badge {
   font-size: 8.5px; color: var(--green);
   background: rgba(29,158,117,.1);
@@ -1369,29 +1415,14 @@ async function onDeletePermanent() {
 .rv3-dr-edit-link:hover { text-decoration: underline; }
 
 .rv3-dr-role-editor {
-  background: var(--bg2, #FAFAFC); border: 0.5px solid var(--border-hard); border-radius: 8px;
-  padding: 10px;
+  padding-top: 2px;
 }
-.rv3-dr-role-grid {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
-}
-.rv3-dr-role-opt {
-  display: flex; align-items: center; gap: 6px;
-  padding: 5px 8px; border-radius: 5px;
-  font-size: 11.5px; color: var(--t1, #1E2A4A); cursor: pointer;
-  transition: background .12s;
-}
-.rv3-dr-role-opt:hover { background: rgba(127,119,221,.06); }
-.rv3-dr-role-opt.on { background: rgba(127,119,221,.12); }
-.rv3-dr-role-opt input { margin: 0; }
-.rv3-dr-role-opt-name { flex: 1; }
-.rv3-dr-role-opt-code { font-family: monospace; font-size: 10px; color: var(--t3, var(--t-muted)); }
 .rv3-dr-role-foot {
-  margin-top: 10px; display: flex; align-items: center; gap: 6px;
+  margin-top: 10px; display: flex; align-items: center; justify-content: flex-end; gap: 6px; flex-wrap: wrap;
 }
 .rv3-dr-role-warn {
-  flex: 1; font-size: 10px; color: #A36500;
-  background: rgba(239,159,39,.08); padding: 5px 8px; border-radius: 5px;
+  min-width: 220px; flex: 1; font-size: 10px; color: #A36500;
+  background: rgba(239,159,39,.08); border: 1px solid rgba(239,159,39,.2); padding: 6px 8px; border-radius: 6px;
 }
 .rv3-dr-role-warn b { color: #7C5300; }
 
@@ -1464,22 +1495,24 @@ async function onDeletePermanent() {
 .rv3-act-diff-new { color: var(--green, #1D9E75); font-weight: 500; word-break: break-word; }
 
 .rv3-dr-mem-add {
-  display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+  display: flex; flex-direction: column; gap: 10px;
   background: rgba(127,119,221,.06); border: 0.5px solid rgba(127,119,221,.25);
-  border-radius: 8px; padding: 8px; margin-bottom: 8px;
+  border-radius: 8px; padding: 10px; margin-bottom: 8px;
 }
-.rv3-dr-mem-add .rv3-dr-mem-sel { flex: 1 1 calc(50% - 3px); min-width: 0; }
-.rv3-dr-mem-add .rv3-btn { flex: 0 0 auto; margin-left: auto; }
-.rv3-dr-mem-add .rv3-btn + .rv3-btn { margin-left: 0; }
+.rv3-dr-mem-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+.rv3-dr-mem-fields label { min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.rv3-dr-mem-fields label > span { color: var(--t3, var(--t-muted)); font-size: 9.5px; font-weight: 600; }
+.rv3-dr-mem-actions { display: flex; justify-content: flex-end; gap: 6px; }
 .rv3-dr-mem-sel {
-  padding: 6px 8px; border: 0.5px solid #D5D5DC; border-radius: 5px;
-  font-size: 11.5px; background: var(--bg1, #fff); font-family: inherit; color: var(--t1, #1E2A4A);
-  max-width: 100%;
+  width: 100%; height: 34px; padding: 0 8px; border: 0.5px solid #D5D5DC; border-radius: 6px;
+  font-size: 10.5px; background: var(--bg1, #fff); font-family: inherit; color: var(--t1, #1E2A4A);
+  max-width: 100%; outline: 0;
 }
+.rv3-dr-mem-sel:focus { border-color: #8A82DC; box-shadow: 0 0 0 3px rgba(98,87,200,.1); }
 .rv3-dr-mem-rolesel {
-  padding: 3px 6px; border: 0.5px solid #D5D5DC; border-radius: 5px;
-  font-size: 11px; background: var(--bg1, #fff); font-family: inherit; color: var(--t1, #1E2A4A);
-  max-width: 130px;
+  width: 150px; height: 30px; padding: 0 6px; border: 0.5px solid #D5D5DC; border-radius: 5px;
+  font-size: 10.5px; background: var(--bg1, #fff); font-family: inherit; color: var(--t1, #1E2A4A);
+  max-width: 150px;
 }
 .rv3-dr-mem-x {
   background: transparent; border: none; cursor: pointer;

@@ -10,6 +10,7 @@ Core auth_service NOT touched. Endpoints encapsulated:
 """
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import Optional
 
@@ -20,6 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.core.security import _user_permission_codes
 from app.models.user import User
+from app.repositories.rbac_v3_repository import RbacV3Repository
 from app.schemas.auth import (
     ChangePasswordRequest,
     LoginRequest,
@@ -29,6 +31,8 @@ from app.schemas.auth import (
     UserPublic,
 )
 from app.services import auth_service, twa_auth_service
+
+log = logging.getLogger(__name__)
 
 
 class TwaLoginIn(BaseModel):
@@ -48,7 +52,7 @@ def _is_privileged(user: User) -> bool:
     return any((getattr(r, "code", "") or "").lower() == "admin" for r in (user.roles or []))
 
 
-def _user_to_public(user: User) -> UserPublic:
+def _user_to_public(user: User, permissions: list[str] | None = None) -> UserPublic:
     return UserPublic(
         id=user.id,
         email=user.email,
@@ -69,7 +73,7 @@ def _user_to_public(user: User) -> UserPublic:
         last_login_at=user.last_login_at,
         welcome_seen=getattr(user, "welcome_seen", False),
         roles=[r.code for r in user.roles],
-        permissions=sorted(_user_permission_codes(user)),
+        permissions=sorted(permissions if permissions is not None else _user_permission_codes(user)),
     )
 
 
@@ -137,8 +141,28 @@ class AuthUserService:
             ip=ip, user_agent=ua,
         )
 
-    def me(self, user: User) -> UserPublic:
-        return _user_to_public(user)
+    async def me(self, user: User, db: AsyncSession) -> UserPublic:
+        try:
+            # SAVEPOINT, а НЕ голый try: любая ошибка SQL переводит транзакцию в
+            # aborted-состояние, и следующий SELECT в этом же HTTP-запросе
+            # (_enrich_org в /auth/me и PATCH /me) падает с InFailedSqlTransaction.
+            # Полный db.rollback() тут не годится: он экспарит ВСЕ ORM-объекты
+            # сессии (в т.ч. загруженный get_current_user `user`), и первое же
+            # обращение к user.id / user.roles / user.organization_id в async-коде
+            # даёт MissingGreenlet — то есть fallback снова не срабатывает.
+            # Откат до savepoint чинит транзакцию и не трогает identity map.
+            async with db.begin_nested():
+                permissions = await RbacV3Repository(db).effective_permission_codes(user.id)
+        except Exception:
+            # Fallback заведомо УЖЕ, чем эффективный набор: он не знает ни ролей в
+            # группах, ни грантов, и ШИРЕ по deny (не вычитает deny). Молча отдавать
+            # его нельзя — иначе «доступ пропал/вернулся» без следа в логах.
+            log.warning(
+                "effective_permission_codes failed for user %s — /auth/me отдаёт "
+                "урезанный набор прав из ролей", user.id, exc_info=True,
+            )
+            permissions = sorted(_user_permission_codes(user))
+        return _user_to_public(user, permissions)
 
     async def change_password(
         self,

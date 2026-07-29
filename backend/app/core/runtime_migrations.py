@@ -196,6 +196,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_tasks_projects_sort_order(conn)
             await _patch_progress_snapshots(conn)
             await _patch_user_permission_grant(conn)
+            await _patch_rbac_module_permissions(conn)
             await _patch_custom_api_endpoint(conn)
             await _patch_org_role_tasks_write(conn)
             await _patch_org_role_company_create(conn)
@@ -1719,6 +1720,110 @@ async def _patch_user_permission_grant(conn) -> None:
         "CREATE INDEX IF NOT EXISTS ix_user_perm_grant_user "
         "ON user_permission_grant (user_id)",
     ))
+
+
+async def _patch_rbac_module_permissions(conn) -> None:
+    """Align the RBAC catalog with route/UI permission codes."""
+    rows = (
+        ("dashboard.view", "dashboard", "view", "View dashboard"),
+        ("dashboard.edit", "dashboard", "edit", "Edit dashboard"),
+        ("dashboard.export", "dashboard", "export", "Export dashboard"),
+        ("dashboard.manage", "dashboard", "manage", "Manage dashboard"),
+        ("investment.export", "investment", "export", "Export investments"),
+        ("investment.manage", "investment", "manage", "Manage investments"),
+        ("procurement_analysis.view", "procurement_analysis", "view", "View procurement analysis"),
+        ("procurement_analysis.edit", "procurement_analysis", "edit", "Edit procurement analysis"),
+        ("procurement_analysis.export", "procurement_analysis", "export", "Export procurement analysis"),
+        ("procurement_analysis.manage", "procurement_analysis", "manage", "Manage procurement analysis"),
+        ("consultants.view", "consultants", "view", "View consultants"),
+        ("consultants.edit", "consultants", "edit", "Edit consultants"),
+        ("consultants.export", "consultants", "export", "Export consultants"),
+        ("consultants.manage", "consultants", "manage", "Manage consultants"),
+        ("pmo.view", "pmo", "view", "View PMO"),
+        ("pmo.edit", "pmo", "edit", "Edit PMO"),
+        ("pmo.export", "pmo", "export", "Export PMO"),
+        ("pmo.manage", "pmo", "manage", "Manage PMO"),
+        ("monitoring.view", "monitoring", "view", "View monitoring"),
+        ("monitoring.edit", "monitoring", "edit", "Edit monitoring"),
+        ("monitoring.export", "monitoring", "export", "Export monitoring"),
+        ("monitoring.manage", "monitoring", "manage", "Manage monitoring"),
+        ("ai.view", "ai", "view", "Use AI assistant"),
+        ("ai.manage", "ai", "manage", "Manage AI assistant"),
+    )
+    # Коды, которых в каталоге ещё нет, фиксируем ДО вставки: раздавать права
+    # ролям можно только за них. Иначе self-heal при каждом рестарте бэкенда
+    # заново выдавал бы права, которые администратор осознанно снял через
+    # редактор ролей (PUT /rbac/v3/roles/{code}/permissions), и отзыв доступа
+    # не держался бы дольше одного перезапуска.
+    known = set(
+        (await conn.execute(text("SELECT code FROM permissions"))).scalars().all()
+    )
+    created_codes = [code for code, *_ in rows if code not in known]
+
+    for code, module, action, name in rows:
+        await conn.execute(
+            text(
+                """
+                INSERT INTO permissions (id, code, name, module, action, created_at, updated_at)
+                VALUES (gen_random_uuid(), :code, :name, :module, :action, now(), now())
+                ON CONFLICT (code) DO UPDATE
+                SET module = EXCLUDED.module,
+                    action = EXCLUDED.action,
+                    updated_at = now()
+                """
+            ),
+            {"code": code, "name": name, "module": module, "action": action},
+        )
+
+    if not created_codes:
+        return
+
+    for code in created_codes:
+        await conn.execute(
+            text(
+                """
+                INSERT INTO role_permission (role_id, permission_id)
+                SELECT r.id, p.id
+                FROM roles r, permissions p
+                WHERE r.code = 'admin' AND p.code = :code
+                  AND NOT EXISTS (
+                      SELECT 1 FROM role_permission rp
+                      WHERE rp.role_id = r.id AND rp.permission_id = p.id
+                  )
+                """
+            ),
+            {"code": code},
+        )
+
+    if "ai.view" in created_codes:
+        await conn.execute(text(
+            """
+            INSERT INTO role_permission (role_id, permission_id)
+            SELECT rp.role_id, p_view.id
+            FROM role_permission rp
+            JOIN permissions p_chat ON p_chat.id = rp.permission_id
+            JOIN permissions p_view ON p_view.code = 'ai.view'
+            WHERE p_chat.code = 'ai.chat'
+              AND NOT EXISTS (
+                  SELECT 1 FROM role_permission existing
+                  WHERE existing.role_id = rp.role_id
+                    AND existing.permission_id = p_view.id
+              )
+            """
+        ))
+    if "monitoring.view" in created_codes:
+        await conn.execute(text(
+            """
+            INSERT INTO role_permission (role_id, permission_id)
+            SELECT r.id, p.id
+            FROM roles r, permissions p
+            WHERE r.code = 'monitoring' AND p.code = 'monitoring.view'
+              AND NOT EXISTS (
+                  SELECT 1 FROM role_permission rp
+                  WHERE rp.role_id = r.id AND rp.permission_id = p.id
+              )
+            """
+        ))
 
 
 async def _patch_direction_color(conn) -> None:
