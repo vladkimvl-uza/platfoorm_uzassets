@@ -6,11 +6,13 @@
  * поэтому оборачиваем в светлый chip — brand-цвета 1:1, контраст ok.
  */
 import { inject, computed, ref, onMounted, onBeforeUnmount } from "vue";
+import { useI18n } from "@/composables/useI18n";
 import { useExecutiveDashboard } from "@/composables/useExecutiveDashboard";
 import { useCompaniesStore } from "@/stores/companies";
 import UzaYearStepper from "@/components/UZA/UzaYearStepper.vue";
 import minfinLogoUrl from "@/assets/minfin-logo.png";
 
+const { t } = useI18n();
 const exec = useExecutiveDashboard();
 const companiesStore = useCompaniesStore();
 const toggleSidebar = inject<() => void>("toggleSidebar", () => {});
@@ -45,7 +47,7 @@ function resetFilters() {
   companyMenuOpen.value = false;
 }
 
-const mainTitle = computed(() => exec.data.value?.title_main || "Программа трансформации государственных предприятий");
+const mainTitle = computed(() => exec.data.value?.title_main || t("Программа трансформации государственных предприятий"));
 const subTitle = computed(() => exec.data.value?.title_sub || `FY ${exec.year.value} · REVIEW`);
 
 function isSectorSelected(id: string): boolean {
@@ -84,7 +86,7 @@ onBeforeUnmount(() => {
 <template>
   <div class="edt-tb">
     <!-- Sidebar toggle -->
-    <button class="edt-burger" @click="onBurger()" title="Меню / свернуть сайдбар">
+    <button class="edt-burger" @click="onBurger()" :title="t('Меню / свернуть сайдбар')">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
         <line x1="3" y1="6" x2="21" y2="6"/>
         <line x1="3" y1="12" x2="21" y2="12"/>
@@ -114,9 +116,9 @@ onBeforeUnmount(() => {
     <!-- Right: filters -->
     <div class="edt-r">
       <!-- Reset filters -->
-      <button v-if="hasActiveFilters" class="edt-reset" @click.stop="resetFilters" title="Сбросить все фильтры">
+      <button v-if="hasActiveFilters" class="edt-reset" @click.stop="resetFilters" :title="t('Сбросить все фильтры')">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
-        <span>Сбросить</span>
+        <span>{{ t("Сбросить") }}</span>
       </button>
 
       <!-- Sector filter -->
@@ -127,7 +129,7 @@ onBeforeUnmount(() => {
             <path d="M2 4l3 3 3-3" />
           </svg>
         </button>
-        <div v-if="sectorMenuOpen" class="edt-dropdown" role="listbox" aria-label="Фильтр по секторам">
+        <div v-if="sectorMenuOpen" class="edt-dropdown" role="listbox" :aria-label="t('Фильтр по секторам')">
           <div
             class="edt-opt"
             role="option"
@@ -139,7 +141,7 @@ onBeforeUnmount(() => {
             @keydown.space.prevent="exec.clearSectors(); sectorMenuOpen = false"
           >
             <span class="edt-check">{{ !exec.selectedSectors.value.length ? '✓' : '' }}</span>
-            <span>Все секторы</span>
+            <span>{{ t("Все секторы") }}</span>
           </div>
           <div class="edt-divider" />
           <div
@@ -178,12 +180,12 @@ onBeforeUnmount(() => {
         <div v-if="companyMenuOpen" class="edt-dropdown edt-dropdown-co" @click.stop>
           <div class="edt-co-search">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-            <input v-model="companySearch" placeholder="Поиск компании…" />
+            <input v-model="companySearch" :placeholder="t('Поиск компании…')" />
           </div>
           <div class="edt-co-hint">
-            Выберите 1 — фокус, 2+ — сравнение (бенчмарк)
+            {{ t("Выберите 1 — фокус, 2+ — сравнение (бенчмарк)") }}
           </div>
-          <div class="edt-co-list" role="listbox" aria-multiselectable="true" aria-label="Выбор компаний">
+          <div class="edt-co-list" role="listbox" aria-multiselectable="true" :aria-label="t('Выбор компаний')">
             <div
               v-for="c in filteredCompanyOptions"
               :key="c.company_id"
@@ -203,11 +205,11 @@ onBeforeUnmount(() => {
               <span class="edt-co-name">{{ c.name }}</span>
               <span class="edt-co-pct">{{ Math.round(c.pct) }}%</span>
             </div>
-            <div v-if="!filteredCompanyOptions.length" class="edt-co-empty">Ничего не найдено</div>
+            <div v-if="!filteredCompanyOptions.length" class="edt-co-empty">{{ t("Ничего не найдено") }}</div>
           </div>
           <div v-if="exec.selectedCompanies.value.length" class="edt-co-foot">
-            <span class="edt-co-count">Выбрано: {{ exec.selectedCompanies.value.length }}</span>
-            <button class="edt-co-clear" @click="exec.clearCompanies()">Сбросить</button>
+            <span class="edt-co-count">{{ t("Выбрано: {n}", { n: exec.selectedCompanies.value.length }) }}</span>
+            <button class="edt-co-clear" @click="exec.clearCompanies()">{{ t("Сбросить") }}</button>
           </div>
         </div>
       </div>

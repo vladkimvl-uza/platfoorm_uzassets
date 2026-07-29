@@ -31,6 +31,8 @@ import { safeEvalExpression, type CellMatrix } from "@/composables/useNsbuCalcul
 import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
 import { usePermissions } from "@/composables/usePermissions";
+import { useI18n } from "@/composables/useI18n";
+const { t } = useI18n();
 const _perm = usePermissions("financials");
 
 const emit = defineEmits<{ close: [] }>();
@@ -244,7 +246,7 @@ function onCellInput(field: FieldDef, year: number, raw: string) {
   // positive-only enforcement
   if (v != null && field.positiveOnly && v < 0) {
     v = Math.abs(v);
-    toast.info(`«${getFieldLabel(field)}» — вводите положительное число (взяли модуль)`);
+    toast.info(t("«{label}» — вводите положительное число (взяли модуль)", { label: getFieldLabel(field) }));
   }
   if (!state.values[field.id]) state.values[field.id] = {};
   state.values[field.id][year] = v;
@@ -336,7 +338,7 @@ function addCustomField() {
   const state = currentState.value;
   if (!state) return;
   const label = newFieldDraft.value.label.trim();
-  if (!label) { toast.info("Введи название показателя"); return; }
+  if (!label) { toast.info(t("Введи название показателя")); return; }
   const id = `__custom_${newFieldDraft.value.section}_${Date.now()}`;
   const formula = newFieldDraft.value.formula.trim();
   const canonical = newFieldDraft.value.canonical.trim();
@@ -356,7 +358,7 @@ function addCustomField() {
   newFieldDraft.value = { label: "", section: "pnl", formula: "", canonical: "" };
   recomputeAutoFields();
   scheduleBackup();
-  toast.success(`Добавлен показатель «${label}»`);
+  toast.success(t("Добавлен показатель «{label}»", { label }));
 }
 
 function startEditCanonical(field: FieldDef) {
@@ -377,7 +379,7 @@ function commitCanonical() {
     }
     state.dirty = true;
     scheduleBackup();
-    toast.success(newCanonical ? `Маппинг → ${newCanonical}` : "Маппинг снят");
+    toast.success(newCanonical ? t("Маппинг → {code}", { code: newCanonical }) : t("Маппинг снят"));
   }
   editingCanonicalFieldId.value = null;
   canonicalDraft.value = "";
@@ -441,7 +443,7 @@ function commitFormula() {
   scheduleBackup();
   editingFormulaFieldId.value = null;
   formulaDraft.value = "";
-  toast.success("Формула обновлена");
+  toast.success(t("Формула обновлена"));
 }
 
 function cancelEditFormula() {
@@ -452,7 +454,7 @@ function cancelEditFormula() {
 async function removeCustomField(field: FieldDef) {
   const state = currentState.value;
   if (!state || !field.isCustom) return;
-  if (!(await confirmDialog({ message: `Удалить показатель «${getFieldLabel(field)}»?`, danger: true }))) return;
+  if (!(await confirmDialog({ message: t("Удалить показатель «{label}»?", { label: getFieldLabel(field) }), danger: true }))) return;
   state.customFields = state.customFields.filter((f) => f.id !== field.id);
   delete state.values[field.id];
   delete state.renames[field.id];
@@ -581,7 +583,7 @@ async function loadPortfolio(): Promise<PortfolioSummaryResponse | null> {
     return sumResp;
   } catch (e) {
     console.error("[NsbuEditor] portfolio load failed:", e);
-    toast.error("Не удалось загрузить данные портфеля из БД");
+    toast.error(t("Не удалось загрузить данные портфеля из БД"));
     return null;
   }
 }
@@ -627,7 +629,7 @@ async function loadCompanies() {
     }
   } catch (e) {
     console.error("[NsbuEditor] load companies failed:", e);
-    toast.error("Не удалось загрузить список компаний");
+    toast.error(t("Не удалось загрузить список компаний"));
   } finally {
     loadingList.value = false;
   }
@@ -744,7 +746,9 @@ async function saveCurrent() {
     } catch { /* verify is best-effort */ }
     const d = resp.data as { reports_created: number; reports_updated: number; lines_upserted: number; lines_deleted: number };
     toast.success(
-      `Сохранено · отчётов: ${d.reports_created + d.reports_updated} · строк: ${d.lines_upserted}${d.lines_deleted ? ` · удалено: ${d.lines_deleted}` : ""}`,
+      d.lines_deleted
+        ? t("Сохранено · отчётов: {r} · строк: {n} · удалено: {d}", { r: d.reports_created + d.reports_updated, n: d.lines_upserted, d: d.lines_deleted })
+        : t("Сохранено · отчётов: {r} · строк: {n}", { r: d.reports_created + d.reports_updated, n: d.lines_upserted }),
     );
     // Invalidate portfolio cache so dashboards reflect saved changes next load
     portfolioCache.value = null;
@@ -753,12 +757,12 @@ async function saveCurrent() {
     // Optimistic-lock conflict: keep dirty + localStorage backup (never wiped on
     // this path) so the user's edits survive; ask them to reload the editor.
     if (err?.response?.status === 409) {
-      toast.error("Конфликт: данные изменились, пока вы редактировали. Перезагрузите редактор, чтобы не затереть чужие правки.");
+      toast.error(t("Конфликт: данные изменились, пока вы редактировали. Перезагрузите редактор, чтобы не затереть чужие правки."));
       console.warn("[NsbuEditor] save conflict (409):", e);
       return;
     }
-    const msg = err?.response?.data?.detail || err?.message || "Не удалось сохранить";
-    toast.error(`Ошибка сохранения: ${msg}`);
+    const msg = err?.response?.data?.detail || err?.message || t("Не удалось сохранить");
+    toast.error(t("Ошибка сохранения: {msg}", { msg }));
     console.error("[NsbuEditor] save failed:", e);
   } finally {
     saving.value = false;
@@ -767,7 +771,7 @@ async function saveCurrent() {
 
 async function revertCurrent() {
   if (!selectedCode.value) return;
-  if (!(await confirmDialog({ message: "Откатить несохранённые изменения?", danger: true }))) return;
+  if (!(await confirmDialog({ message: t("Откатить несохранённые изменения?"), danger: true }))) return;
   restoreBackup(selectedCode.value);
   recomputeAutoFields({ preserveExisting: true });
 }
@@ -833,7 +837,7 @@ function onKeyDown(e: KeyboardEvent) {
 async function close() {
   // Check for unsaved changes
   const anyDirty = Object.values(companyStates).some((s) => s.dirty);
-  if (anyDirty && !(await confirmDialog({ message: "Есть несохранённые изменения. Закрыть всё равно?", danger: true }))) return;
+  if (anyDirty && !(await confirmDialog({ message: t("Есть несохранённые изменения. Закрыть всё равно?"), danger: true }))) return;
   emit("close");
   // Если открыт как отдельная страница-роут — возвращаемся ТУДА, откуда пришли
   // (воркспейс компании / financials), а не жёстко на /financials.
@@ -858,7 +862,7 @@ const fileInputRef = ref<HTMLInputElement | null>(null);
 
 async function downloadTemplate() {
   if (!selectedCode.value) {
-    toast.error("Выбери компанию");
+    toast.error(t("Выбери компанию"));
     return;
   }
   try {
@@ -877,16 +881,16 @@ async function downloadTemplate() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    toast.success("Шаблон скачан");
+    toast.success(t("Шаблон скачан"));
   } catch (e) {
     console.error("[NsbuEditor] template download failed:", e);
-    toast.error("Не удалось скачать шаблон");
+    toast.error(t("Не удалось скачать шаблон"));
   }
 }
 
 function pickFile() {
   if (!selectedCode.value) {
-    toast.error("Выбери компанию");
+    toast.error(t("Выбери компанию"));
     return;
   }
   fileInputRef.value?.click();
@@ -910,12 +914,12 @@ async function onFileChange(evt: Event) {
     );
     importPreview.value = resp.data;
     if ((resp.data.cells_count || 0) === 0) {
-      toast.error("В файле не распознано ни одного значения. Используй скачанный шаблон.");
+      toast.error(t("В файле не распознано ни одного значения. Используй скачанный шаблон."));
     }
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    const msg = err?.response?.data?.detail || err?.message || "Ошибка парсинга";
-    toast.error(`Импорт не удался: ${msg}`);
+    const msg = err?.response?.data?.detail || err?.message || t("Ошибка парсинга");
+    toast.error(t("Импорт не удался: {msg}", { msg }));
     console.error("[NsbuEditor] import failed:", e);
   } finally {
     importing.value = false;
@@ -949,7 +953,7 @@ function applyImportPreview() {
   recomputeAutoFields();
   scheduleBackup();
   importPreview.value = null;
-  toast.success(`Применено ${applied} значений. Нажми «Сохранить» для записи в БД.`);
+  toast.success(t("Применено {n} значений. Нажми «Сохранить» для записи в БД.", { n: applied }));
 }
 
 function cancelImportPreview() {
@@ -979,8 +983,8 @@ function companyYearSummary(c: CompanyListItem): string {
   for (const y of years.value) {
     if (Object.values(state.values).some((fv) => fv[y] != null)) yearCount++;
   }
-  if (yearCount === 0) return "нет данных";
-  return `${yearCount} ${yearCount === 1 ? "год" : yearCount < 5 ? "года" : "лет"}`;
+  if (yearCount === 0) return t("нет данных");
+  return `${yearCount} ${yearCount === 1 ? t("год") : yearCount < 5 ? t("года") : t("лет")}`;
 }
 
 const dirtyCount = computed(() =>
@@ -1033,7 +1037,7 @@ async function openHistory() {
     historyEntries.value = resp.data?.entries || [];
   } catch (e) {
     console.error("[NsbuEditor] history load failed:", e);
-    toast.error("Не удалось загрузить историю");
+    toast.error(t("Не удалось загрузить историю"));
   } finally {
     historyLoading.value = false;
   }
@@ -1062,17 +1066,17 @@ function formatHistoryDate(iso: string | null): string {
         <!-- Header -->
         <div class="ne-hdr">
           <div>
-            <div class="ne-eyebrow">РЕДАКТОР ФИНАНСОВ · НСБУ</div>
-            <div class="ne-title">Редактирование показателей НСБУ</div>
+            <div class="ne-eyebrow">{{ t("РЕДАКТОР ФИНАНСОВ · НСБУ") }}</div>
+            <div class="ne-title">{{ t("Редактирование показателей НСБУ") }}</div>
             <div class="ne-sub">
-              млрд сум · до 3 знаков · поля <strong>(+)</strong> — без минуса ·
-              <span v-if="dirtyCount > 0" style="color:#EF9F27">{{ dirtyCount }} компаний с несохранёнными правками</span>
-              <span v-else style="color:#1D9E75">все изменения сохранены</span>
+              {{ t("млрд сум · до 3 знаков · поля") }} <strong>(+)</strong> {{ t("— без минуса") }} ·
+              <span v-if="dirtyCount > 0" style="color:#EF9F27">{{ t("{n} компаний с несохранёнными правками", { n: dirtyCount }) }}</span>
+              <span v-else style="color:#1D9E75">{{ t("все изменения сохранены") }}</span>
             </div>
           </div>
           <div class="ne-hdr-actions">
             <div class="ne-menu-wrap">
-              <button class="ne-btn-kebab" :class="{ on: menuOpen }" @click.stop="toggleMenu" :disabled="!selectedCode" title="Действия">
+              <button class="ne-btn-kebab" :class="{ on: menuOpen }" @click.stop="toggleMenu" :disabled="!selectedCode" :title="t('Действия')">
                 <svg viewBox="0 0 14 14" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
                   <circle cx="7" cy="3" r="0.8" fill="currentColor" stroke="none"/>
                   <circle cx="7" cy="7" r="0.8" fill="currentColor" stroke="none"/>
@@ -1083,16 +1087,16 @@ function formatHistoryDate(iso: string | null): string {
               <div v-if="menuOpen" class="ne-menu">
                 <button class="ne-menu-item" @click="onMenuAction(openHistory)">
                   <svg viewBox="0 0 14 14" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7" cy="7" r="5.5"/><path d="M7 4v3l2 2"/></svg>
-                  История правок
+                  {{ t("История правок") }}
                 </button>
                 <button class="ne-menu-item" @click="onMenuAction(downloadTemplate)">
                   <svg viewBox="0 0 14 14" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 12h10M7 2v8M3 7l4 3 4-3"/></svg>
-                  Скачать шаблон XLSX
+                  {{ t("Скачать шаблон XLSX") }}
                 </button>
                 <button class="ne-menu-item" @click="onMenuAction(pickFile)" :disabled="importing">
                   <svg viewBox="0 0 14 14" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M7 1v9M3 6l4 4 4-4M2 12h10"/></svg>
-                  <template v-if="importing">Парсинг…</template>
-                  <template v-else>Импорт Excel</template>
+                  <template v-if="importing">{{ t("Парсинг…") }}</template>
+                  <template v-else>{{ t("Импорт Excel") }}</template>
                 </button>
               </div>
             </div>
@@ -1107,11 +1111,11 @@ function formatHistoryDate(iso: string | null): string {
           <!-- LEFT: company list (collapsible) -->
           <div class="ne-co-pane" :class="{ collapsed: coPaneCollapsed }">
             <div class="ne-co-search">
-              <input v-model="searchQuery" placeholder="Поиск компании…" />
+              <input v-model="searchQuery" :placeholder="t('Поиск компании…')" />
             </div>
             <div class="ne-co-list">
-              <div v-if="loadingList" class="ne-empty">Загрузка…</div>
-              <div v-else-if="!filteredCompanies.length" class="ne-empty">Не найдено</div>
+              <div v-if="loadingList" class="ne-empty">{{ t("Загрузка…") }}</div>
+              <div v-else-if="!filteredCompanies.length" class="ne-empty">{{ t("Не найдено") }}</div>
               <div
                 v-for="c in filteredCompanies"
                 :key="c.code"
@@ -1137,7 +1141,7 @@ function formatHistoryDate(iso: string | null): string {
             class="ne-sb-toggle"
             :class="{ collapsed: coPaneCollapsed }"
             @click="toggleCoPane"
-            :title="coPaneCollapsed ? 'Развернуть список' : 'Свернуть список'"
+            :title="coPaneCollapsed ? t('Развернуть список') : t('Свернуть список')"
           >
             <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
               <path d="M10 4 L6 8 L10 12"/>
@@ -1146,7 +1150,7 @@ function formatHistoryDate(iso: string | null): string {
 
           <!-- CENTER: editor -->
           <div class="ne-edit-pane">
-            <div v-if="!currentCompany" class="ne-empty">Выбери компанию слева</div>
+            <div v-if="!currentCompany" class="ne-empty">{{ t("Выбери компанию слева") }}</div>
             <template v-else>
               <!-- Company header -->
               <div class="ne-co-hdr">
@@ -1156,73 +1160,72 @@ function formatHistoryDate(iso: string | null): string {
                   <div class="ne-co-hdr-meta">
                     {{ currentCompany.sector_code || "—" }} · {{ currentCompany.code }}
                     <span v-if="companyStates[selectedCode]?.savedAt">
-                      · сохранено {{ new Date(companyStates[selectedCode]!.savedAt!).toLocaleString("ru") }}
+                      · {{ t("сохранено") }} {{ new Date(companyStates[selectedCode]!.savedAt!).toLocaleString("ru") }}
                     </span>
                   </div>
                 </div>
-                <span class="ne-pill">НСБУ</span>
+                <span class="ne-pill">{{ t("НСБУ") }}</span>
               </div>
 
               <!-- Section tabs + actions -->
               <div class="ne-tabs-row">
                 <button
-                  v-for="t in sectionTabs"
-                  :key="t.id"
+                  v-for="tab in sectionTabs"
+                  :key="tab.id"
                   class="ne-tab"
-                  :class="{ on: t.id === selectedSection }"
-                  @click="selectedSection = t.id"
-                >{{ t.label }}</button>
+                  :class="{ on: tab.id === selectedSection }"
+                  @click="selectedSection = tab.id"
+                >{{ t(tab.label) }}</button>
                 <div class="ne-spc"></div>
-                <button class="ne-btn-ghost" @click="addYear">+ Год</button>
-                <button class="ne-btn-ghost" @click="showAddFieldDialog = true; newFieldDraft.section = selectedSection">+ Показатель</button>
+                <button class="ne-btn-ghost" @click="addYear">{{ t("+ Год") }}</button>
+                <button class="ne-btn-ghost" @click="showAddFieldDialog = true; newFieldDraft.section = selectedSection">{{ t("+ Показатель") }}</button>
               </div>
 
               <!-- Add field dialog -->
               <div v-if="showAddFieldDialog" class="ne-dlg-bg" @click.self="showAddFieldDialog = false">
                 <div class="ne-dlg">
-                  <div class="ne-dlg-hdr">Новый показатель</div>
+                  <div class="ne-dlg-hdr">{{ t("Новый показатель") }}</div>
                   <div class="ne-dlg-row">
-                    <label>Название</label>
-                    <input v-model="newFieldDraft.label" placeholder="Например, «Дивидендная доходность»" />
+                    <label>{{ t("Название") }}</label>
+                    <input v-model="newFieldDraft.label" :placeholder="t('Например, «Дивидендная доходность»')" />
                   </div>
                   <div class="ne-dlg-row">
-                    <label>Секция</label>
+                    <label>{{ t("Секция") }}</label>
                     <select v-model="newFieldDraft.section">
-                      <option value="pnl">ОФР</option>
-                      <option value="sofp">Баланс</option>
+                      <option value="pnl">{{ t("ОФР") }}</option>
+                      <option value="sofp">{{ t("Баланс") }}</option>
                     </select>
                   </div>
                   <div class="ne-dlg-row">
-                    <label>Формула (опционально)</label>
-                    <input v-model="newFieldDraft.formula" placeholder="например: profit / revenue * 100" />
+                    <label>{{ t("Формула (опционально)") }}</label>
+                    <input v-model="newFieldDraft.formula" :placeholder="t('например: profit / revenue * 100')" />
                     <div class="ne-dlg-hint">
-                      Можно ссылаться на ячейки как <code>field.year</code> или использовать функции
-                      <code>GROWTH/CAGR/MARGIN/AVG</code>. Если пусто — поле будет ручным.
+                      {{ t("Можно ссылаться на ячейки как") }} <code>field.year</code> {{ t("или использовать функции") }}
+                      <code>GROWTH/CAGR/MARGIN/AVG</code>. {{ t("Если пусто — поле будет ручным.") }}
                     </div>
                   </div>
                   <div class="ne-dlg-row">
-                    <label>Маппинг к портфельному KPI (опционально)</label>
+                    <label>{{ t("Маппинг к портфельному KPI (опционально)") }}</label>
                     <select v-model="newFieldDraft.canonical">
-                      <option value="">— не учитывать в портфельных KPI —</option>
-                      <optgroup label="ОФР">
+                      <option value="">{{ t("— не учитывать в портфельных KPI —") }}</option>
+                      <optgroup :label="t('ОФР')">
                         <option v-for="m in CANONICAL_METRICS.filter(c => c.section === 'pnl')" :key="m.code" :value="m.code">
-                          {{ m.label }} · {{ m.code }}
+                          {{ t(m.label) }} · {{ m.code }}
                         </option>
                       </optgroup>
-                      <optgroup label="Баланс">
+                      <optgroup :label="t('Баланс')">
                         <option v-for="m in CANONICAL_METRICS.filter(c => c.section === 'sofp')" :key="m.code" :value="m.code">
-                          {{ m.label }} · {{ m.code }}
+                          {{ t(m.label) }} · {{ m.code }}
                         </option>
                       </optgroup>
                     </select>
                     <div class="ne-dlg-hint">
-                      Если выбрать — значения поля будут учитываться в портфельных
-                      агрегациях (Дашборд, Financials KPI карточки) как указанная метрика.
+                      {{ t("Если выбрать — значения поля будут учитываться в портфельных агрегациях (Дашборд, Financials KPI карточки) как указанная метрика.") }}
                     </div>
                   </div>
                   <div class="ne-dlg-ftr">
-                    <button class="ne-btn-g" @click="showAddFieldDialog = false">Отмена</button>
-                    <button class="ne-btn-p" @click="addCustomField">Добавить</button>
+                    <button class="ne-btn-g" @click="showAddFieldDialog = false">{{ t("Отмена") }}</button>
+                    <button class="ne-btn-p" @click="addCustomField">{{ t("Добавить") }}</button>
                   </div>
                 </div>
               </div>
@@ -1230,22 +1233,22 @@ function formatHistoryDate(iso: string | null): string {
               <!-- Pack 7.53: Import preview modal -->
               <div v-if="importPreview" class="ne-dlg-bg" @click.self="cancelImportPreview">
                 <div class="ne-dlg ne-dlg-wide">
-                  <div class="ne-dlg-hdr">Предпросмотр импорта · {{ importPreview.filename }}</div>
+                  <div class="ne-dlg-hdr">{{ t("Предпросмотр импорта") }} · {{ importPreview.filename }}</div>
                   <div class="ne-imp-summary">
                     <div class="ne-imp-stat">
                       <div class="ne-imp-stat-val">{{ importPreview.fields_count }}</div>
-                      <div class="ne-imp-stat-lbl">показателей</div>
+                      <div class="ne-imp-stat-lbl">{{ t("показателей") }}</div>
                     </div>
                     <div class="ne-imp-stat">
                       <div class="ne-imp-stat-val">{{ importPreview.cells_count }}</div>
-                      <div class="ne-imp-stat-lbl">значений</div>
+                      <div class="ne-imp-stat-lbl">{{ t("значений") }}</div>
                     </div>
                   </div>
                   <div v-if="importPreview.cells_count > 0" class="ne-imp-table-wrap">
                     <table class="ne-imp-table">
                       <thead>
                         <tr>
-                          <th>Показатель</th>
+                          <th>{{ t("Показатель") }}</th>
                           <th v-for="y in years" :key="y">{{ y }}</th>
                         </tr>
                       </thead>
@@ -1261,17 +1264,16 @@ function formatHistoryDate(iso: string | null): string {
                     </table>
                   </div>
                   <div v-if="importPreview.log?.length" class="ne-imp-log">
-                    <div class="ne-imp-log-hdr">Лог парсинга</div>
+                    <div class="ne-imp-log-hdr">{{ t("Лог парсинга") }}</div>
                     <div v-for="(line, i) in importPreview.log" :key="i" class="ne-imp-log-line">{{ line }}</div>
                   </div>
                   <div class="ne-dlg-hint">
-                    Значения попадут в редактор в текущем состоянии (не сохраняются в БД до клика «Сохранить»).
-                    Существующие значения для тех же ячеек будут перезаписаны.
+                    {{ t("Значения попадут в редактор в текущем состоянии (не сохраняются в БД до клика «Сохранить»). Существующие значения для тех же ячеек будут перезаписаны.") }}
                   </div>
                   <div class="ne-dlg-ftr">
-                    <button class="ne-btn-g" @click="cancelImportPreview">Отмена</button>
+                    <button class="ne-btn-g" @click="cancelImportPreview">{{ t("Отмена") }}</button>
                     <button class="ne-btn-p" :disabled="importPreview.cells_count === 0" @click="applyImportPreview">
-                      Применить ({{ importPreview.cells_count }})
+                      {{ t("Применить") }} ({{ importPreview.cells_count }})
                     </button>
                   </div>
                 </div>
@@ -1282,7 +1284,7 @@ function formatHistoryDate(iso: string | null): string {
                 <table class="ne-grid">
                   <thead>
                     <tr>
-                      <th style="width:260px">Показатель</th>
+                      <th style="width:260px">{{ t("Показатель") }}</th>
                       <th v-for="y in years" :key="y" :class="{ 'cur-year': y === 2024 }">{{ y }}</th>
                       <th style="width:34px"></th>
                     </tr>
@@ -1290,7 +1292,7 @@ function formatHistoryDate(iso: string | null): string {
                   <tbody>
                     <template v-for="field in currentSectionDef.fields" :key="field.id">
                       <tr v-if="field.groupHeader">
-                        <td :colspan="years.length + 2" class="ne-group-hdr">{{ field.groupHeader }}</td>
+                        <td :colspan="years.length + 2" class="ne-group-hdr">{{ t(field.groupHeader) }}</td>
                       </tr>
                       <tr :class="{ 'ne-row-auto': isAutoField(field), 'ne-row-sub': field.isSubtotal && !isAutoField(field) }">
                         <td class="ne-row-label">
@@ -1299,23 +1301,23 @@ function formatHistoryDate(iso: string | null): string {
                           </template>
                           <template v-else>
                             <span v-if="field.nsbuCode" class="ne-nsbu-code">{{ field.nsbuCode }}</span>
-                            <span v-if="isAutoField(field)" class="ne-auto-badge" :title="getFieldFormula(field)">авто</span>
+                            <span v-if="isAutoField(field)" class="ne-auto-badge" :title="getFieldFormula(field)">{{ t("авто") }}</span>
                             <span v-if="field.isCustom" class="ne-custom-badge">custom</span>
                             <span
                               v-if="field.isCustom && getFieldCanonical(field)"
                               class="ne-canon-badge"
-                              :title="`Учитывается в портфельных KPI как «${getFieldCanonical(field)}». Кликни — изменить.`"
+                              :title="t('Учитывается в портфельных KPI как «{code}». Кликни — изменить.', { code: getFieldCanonical(field) })"
                               @click="startEditCanonical(field)"
                             >→ {{ getFieldCanonical(field) }}</span>
-                            <span class="ne-row-name" @dblclick="startRename(field)" :title="'Двойной клик — переименовать'">{{ getFieldLabel(field) }}</span>
+                            <span class="ne-row-name" @dblclick="startRename(field)" :title="t('Двойной клик — переименовать')">{{ t(getFieldLabel(field)) }}</span>
                             <span v-if="field.positiveOnly" class="ne-pos-hint">(+)</span>
-                            <span v-if="getFieldFormula(field)" class="ne-formula-hint" @click="startEditFormula(field)" :title="'Кликни — редактировать формулу'">= {{ getFieldFormula(field) }}</span>
+                            <span v-if="getFieldFormula(field)" class="ne-formula-hint" @click="startEditFormula(field)" :title="t('Кликни — редактировать формулу')">= {{ getFieldFormula(field) }}</span>
                             <button
                               v-if="field.isCustom && !getFieldCanonical(field)"
                               class="ne-map-btn"
                               @click="startEditCanonical(field)"
-                              title="Маппинг к портфельному KPI"
-                            >+ маппинг</button>
+                              :title="t('Маппинг к портфельному KPI')"
+                            >{{ t("+ маппинг") }}</button>
                           </template>
                         </td>
                         <td v-for="y in years" :key="y" class="ne-cell">
@@ -1336,37 +1338,37 @@ function formatHistoryDate(iso: string | null): string {
                               'ne-cell-manual': isManualOverride(field, y),
                               'ne-cell-sub': field.isSubtotal,
                             }"
-                            :title="isManualOverride(field, y) ? 'Ручное переопределение — клик правой кнопкой → вернуть авто' : (isAutoField(field) ? 'Авто-расчёт — введите значение, чтобы переопределить' : '')"
+                            :title="isManualOverride(field, y) ? t('Ручное переопределение — клик правой кнопкой → вернуть авто') : (isAutoField(field) ? t('Авто-расчёт — введите значение, чтобы переопределить') : '')"
                             @contextmenu.prevent="isAutoField(field) && isManualOverride(field, y) ? clearManualFlag(field, y) : null"
                             placeholder="—"
                           />
                         </td>
                         <td class="ne-row-actions">
-                          <button v-if="field.isCustom" class="ne-row-x" @click="removeCustomField(field)" title="Удалить кастомное поле">×</button>
+                          <button v-if="field.isCustom" class="ne-row-x" @click="removeCustomField(field)" :title="t('Удалить кастомное поле')">×</button>
                         </td>
                       </tr>
                       <tr v-if="editingFormulaFieldId === field.id">
                         <td :colspan="years.length + 2" class="ne-formula-editor">
-                          <div class="ne-formula-lbl">Формула для «{{ getFieldLabel(field) }}»:</div>
-                          <input v-model="formulaDraft" placeholder="например: opProfit + |depreciation|" class="ne-formula-inp" />
-                          <button class="ne-btn-g" @click="cancelEditFormula">Отмена</button>
-                          <button class="ne-btn-p" @click="commitFormula">Применить</button>
+                          <div class="ne-formula-lbl">{{ t("Формула для «{label}»:", { label: t(getFieldLabel(field)) }) }}</div>
+                          <input v-model="formulaDraft" :placeholder="t('например: opProfit + |depreciation|')" class="ne-formula-inp" />
+                          <button class="ne-btn-g" @click="cancelEditFormula">{{ t("Отмена") }}</button>
+                          <button class="ne-btn-p" @click="commitFormula">{{ t("Применить") }}</button>
                         </td>
                       </tr>
                       <tr v-if="editingCanonicalFieldId === field.id">
                         <td :colspan="years.length + 2" class="ne-canon-editor">
-                          <div class="ne-canon-lbl">Маппинг «{{ getFieldLabel(field) }}» → портфельная метрика:</div>
+                          <div class="ne-canon-lbl">{{ t("Маппинг «{label}» → портфельная метрика:", { label: t(getFieldLabel(field)) }) }}</div>
                           <select v-model="canonicalDraft" class="ne-canon-sel">
-                            <option value="">— не учитывать в портфельных KPI —</option>
-                            <optgroup label="ОФР">
-                              <option v-for="m in CANONICAL_METRICS.filter(c => c.section === 'pnl')" :key="m.code" :value="m.code">{{ m.label }} · {{ m.code }}</option>
+                            <option value="">{{ t("— не учитывать в портфельных KPI —") }}</option>
+                            <optgroup :label="t('ОФР')">
+                              <option v-for="m in CANONICAL_METRICS.filter(c => c.section === 'pnl')" :key="m.code" :value="m.code">{{ t(m.label) }} · {{ m.code }}</option>
                             </optgroup>
-                            <optgroup label="Баланс">
-                              <option v-for="m in CANONICAL_METRICS.filter(c => c.section === 'sofp')" :key="m.code" :value="m.code">{{ m.label }} · {{ m.code }}</option>
+                            <optgroup :label="t('Баланс')">
+                              <option v-for="m in CANONICAL_METRICS.filter(c => c.section === 'sofp')" :key="m.code" :value="m.code">{{ t(m.label) }} · {{ m.code }}</option>
                             </optgroup>
                           </select>
-                          <button class="ne-btn-g" @click="cancelEditCanonical">Отмена</button>
-                          <button class="ne-btn-p" @click="commitCanonical">Применить</button>
+                          <button class="ne-btn-g" @click="cancelEditCanonical">{{ t("Отмена") }}</button>
+                          <button class="ne-btn-p" @click="commitCanonical">{{ t("Применить") }}</button>
                         </td>
                       </tr>
                     </template>

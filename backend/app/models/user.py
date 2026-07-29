@@ -130,6 +130,13 @@ class User(Base, UUIDMixin, TimestampMixin):
     linkedin_url: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
     website_url:  Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
 
+    # Язык интерфейса (ru | uz-latn | uz-cyr | en) — синхронизируется с
+    # переключателем фронта; офлайн-каналы (email/Telegram/дайджесты) берут
+    # язык отсюда, онлайн-ответы — из заголовка X-UI-Locale (app.core.i18n).
+    ui_locale: Mapped[str] = mapped_column(
+        String(8), nullable=False, server_default=text("'ru'"),
+    )
+
     # Sector access scope (optional — narrows what sectors the user can see).
     # NOTE: per-company access has moved from User.allowed_companies (dropped
     # in migration 9aD) to UserGroupRole — see Group(company_id=...).

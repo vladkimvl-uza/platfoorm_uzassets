@@ -5,6 +5,7 @@
  * Данные приходят из heatmap (climate_funnel / risk_funnel) — без бэкенда.
  */
 import { computed } from "vue";
+import { useI18n } from "@/composables/useI18n";
 
 const props = defineProps<{
   title: string;
@@ -14,6 +15,7 @@ const props = defineProps<{
   scheme: "climate" | "risk";
 }>();
 const emit = defineEmits<{ (e: "stage-click", index: number): void }>();
+const { t } = useI18n();
 
 const SCHEMES: Record<string, string[]> = {
   climate: ["#C7E9FF", "#7FC8E8", "#4FB89A", "#5DC093"],
@@ -31,7 +33,7 @@ function pct(n: number): number { return props.total ? Math.round((n / props.tot
     </div>
     <div class="fn-body">
       <div v-for="(s, i) in stages" :key="i" class="fn-row" role="button" tabindex="0"
-           :title="`Показать компании на стадии: ${s.label}`"
+           :title="t('Показать компании на стадии: {label}', { label: s.label })"
            @click="emit('stage-click', i)" @keydown.enter="emit('stage-click', i)">
         <div class="fn-lbl"><span class="fn-no" :style="{ background: colors[i] || colors[colors.length - 1] }">{{ i + 1 }}</span>{{ s.label }}</div>
         <div class="fn-track">
@@ -42,7 +44,7 @@ function pct(n: number): number { return props.total ? Math.round((n / props.tot
         <div class="fn-pct">{{ pct(s.count) }}%</div>
       </div>
     </div>
-    <div class="fn-foot">из {{ total }} компаний</div>
+    <div class="fn-foot">{{ t("из {n} компаний", { n: total }) }}</div>
   </div>
 </template>
 

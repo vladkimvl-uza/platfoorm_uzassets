@@ -13,6 +13,9 @@ import { useFocusTrap } from "@/composables/useFocusTrap";
 import AiMessage from "@/components/Ai/AiMessage.vue";
 import { useAuthStore } from "@/stores/auth";
 import { useAiActivation } from "@/composables/useAiActivation";
+import { useI18n } from "@/composables/useI18n";
+
+const { t } = useI18n();
 
 const props = defineProps<{
   year: number;
@@ -76,14 +79,14 @@ async function run(focus: string) {
       company_id: props.companyId || null,
       focus: focus === "overview" ? null : focus,
     }, { timeout: 210000 });  // Opus по большому контексту: 20-60с, бэк ждёт 190с
-    brief.value = (data && data.analysis) || "ИИ вернул пустой ответ.";
+    brief.value = (data && data.analysis) || t("ИИ вернул пустой ответ.");
     generatedAt.value = (data && data.generated_at) || "";
   } catch (e: any) {
     const code = e?.response?.status;
     error.value =
-      code === 403 ? "ИИ-аналитик исполнения доступен только владельцу (или ассистент выключен)."
-      : code === 503 ? "ИИ-ассистент не сконфигурирован."
-      : e?.response?.data?.detail || e?.message || "Не удалось получить сводку.";
+      code === 403 ? t("ИИ-аналитик исполнения доступен только владельцу (или ассистент выключен).")
+      : code === 503 ? t("ИИ-ассистент не сконфигурирован.")
+      : e?.response?.data?.detail || e?.message || t("Не удалось получить сводку.");
   } finally {
     loading.value = false;
   }
@@ -108,25 +111,25 @@ function openPanel() {
 
 <template>
   <button v-if="enabled" class="ec-trigger" :class="{ 'ec-off': aiOff }" :disabled="aiOff"
-          type="button" :title="aiOff ? 'ИИ-ассистент выключен владельцем' : 'ИИ-аналитик исполнения'"
+          type="button" :title="aiOff ? t('ИИ-ассистент выключен владельцем') : t('ИИ-аналитик исполнения')"
           @click="openPanel">
     <span class="ec-spark" aria-hidden="true">AI</span>
-    {{ aiOff ? 'ИИ выключен' : 'ИИ аналитик' }}
+    {{ aiOff ? t('ИИ выключен') : t('ИИ аналитик') }}
   </button>
 
   <Teleport to="body">
     <Transition name="ec-slide">
       <aside v-if="open" ref="panelEl" tabindex="-1" class="ec-panel" role="dialog" aria-modal="true"
-             aria-label="ИИ-аналитик исполнения" @keydown.esc.stop.prevent="open = false">
+             :aria-label="t('ИИ-аналитик исполнения')" @keydown.esc.stop.prevent="open = false">
         <header class="ec-head">
           <div class="ec-head-l">
             <span class="ec-ai-badge">AI</span>
             <div>
-              <div class="ec-title">ИИ-аналитик · Исполнение по секторам</div>
-              <div class="ec-sub">Opus · проекты, задачи, комментарии и ход — причины, связи, советы</div>
+              <div class="ec-title">{{ t("ИИ-аналитик · Исполнение по секторам") }}</div>
+              <div class="ec-sub">{{ t("Opus · проекты, задачи, комментарии и ход — причины, связи, советы") }}</div>
             </div>
           </div>
-          <button class="ec-x" type="button" @click="open = false" aria-label="Закрыть">
+          <button class="ec-x" type="button" @click="open = false" :aria-label="t('Закрыть')">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                  stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
@@ -134,27 +137,27 @@ function openPanel() {
 
         <div class="ec-tabs">
           <div class="uza-seg">
-            <button :class="['uza-seg-btn', { on: activeFocus === 'overview' }]" :disabled="loading" @click="show('overview')">Сводка</button>
-            <button :class="['uza-seg-btn', { on: activeFocus === 'risks' }]" :disabled="loading" @click="show('risks')">Риски</button>
-            <button :class="['uza-seg-btn', { on: activeFocus === 'delays' }]" :disabled="loading" @click="show('delays')">Причины задержек</button>
+            <button :class="['uza-seg-btn', { on: activeFocus === 'overview' }]" :disabled="loading" @click="show('overview')">{{ t("Сводка") }}</button>
+            <button :class="['uza-seg-btn', { on: activeFocus === 'risks' }]" :disabled="loading" @click="show('risks')">{{ t("Риски") }}</button>
+            <button :class="['uza-seg-btn', { on: activeFocus === 'delays' }]" :disabled="loading" @click="show('delays')">{{ t("Причины задержек") }}</button>
           </div>
-          <button v-if="brief && !loading" class="ec-refresh" type="button" @click="run(activeFocus)" title="Сгенерировать заново">↻ Обновить</button>
+          <button v-if="brief && !loading" class="ec-refresh" type="button" @click="run(activeFocus)" :title="t('Сгенерировать заново')">↻ {{ t("Обновить") }}</button>
         </div>
 
         <div class="ec-body">
           <div v-if="loading" class="ec-load">
             <span class="ec-dots"><i></i><i></i><i></i></span>
-            ИИ анализирует проекты, задачи и комментарии…
+            {{ t("ИИ анализирует проекты, задачи и комментарии…") }}
           </div>
           <div v-else-if="error" class="ec-err">{{ error }}</div>
           <template v-else-if="brief">
-            <div v-if="generatedAt" class="ec-ts">Сгенерировано {{ fmtTs(generatedAt) }}</div>
+            <div v-if="generatedAt" class="ec-ts">{{ t("Сгенерировано {ts}", { ts: fmtTs(generatedAt) }) }}</div>
             <AiMessage role="assistant" :content="brief" />
           </template>
-          <div v-else class="ec-empty">Нажми «Сводка» — ИИ соберёт причины, взаимосвязи и советы по исполнению.</div>
+          <div v-else class="ec-empty">{{ t("Нажми «Сводка» — ИИ соберёт причины, взаимосвязи и советы по исполнению.") }}</div>
         </div>
 
-        <footer class="ec-foot">Сводка опирается на реальные данные карточек. Проверяйте критичные выводы.</footer>
+        <footer class="ec-foot">{{ t("Сводка опирается на реальные данные карточек. Проверяйте критичные выводы.") }}</footer>
       </aside>
     </Transition>
   </Teleport>

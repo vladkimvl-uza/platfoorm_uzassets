@@ -31,6 +31,9 @@ import {
   type WorkServiceByCompany,
 } from "@/api/procurement_analysis";
 import PaWorksServicesChart from "./PaWorksServicesChart.vue";
+import { useI18n } from "@/composables/useI18n";
+
+const { t } = useI18n();
 
 const props = defineProps<{ data: ProcurementAggregate }>();
 
@@ -67,8 +70,8 @@ const totalSegSpend = computed<number>(
 );
 
 function spendShare(v: number): number {
-  const t = totalSegSpend.value;
-  return t > 0 ? (v / t) * 100 : 0;
+  const total = totalSegSpend.value;
+  return total > 0 ? (v / total) * 100 : 0;
 }
 
 function setSeg(s: SegType): void {
@@ -102,9 +105,9 @@ const totalPotential = computed<number>(() =>
 );
 
 function bandLabel(band: ProductAgg["quality_band"]): string {
-  if (band === "clean") return "сопоставимо";
-  if (band === "wide") return "широкий разброс";
-  return "несопоставимо";
+  if (band === "clean") return t("сопоставимо");
+  if (band === "wide") return t("широкий разброс");
+  return t("несопоставимо");
 }
 
 /** Положение медианы (avg_price) на шкале min..max, % 0..100. */
@@ -181,7 +184,7 @@ function companyDot(c: WorkServiceByCompany): string {
   <div class="pa-prod-host">
     <!-- ── Сводка спенда + сегмент-переключатель ───────────────── -->
     <div class="pa-prod-head">
-      <div class="pa-prod-eyebrow">Товары · услуги · работы</div>
+      <div class="pa-prod-eyebrow">{{ t("Товары") }} · {{ t("Услуги") }} · {{ t("Работы") }}</div>
 
       <div class="pa-prod-summary">
         <button
@@ -192,7 +195,7 @@ function companyDot(c: WorkServiceByCompany): string {
         >
           <span class="pa-seg-dot dot-goods"></span>
           <span class="pa-seg-body">
-            <span class="pa-seg-name">Товары</span>
+            <span class="pa-seg-name">{{ t("Товары") }}</span>
             <span class="pa-seg-val">{{ paFmtMoneyShort(goodsSpend) }}</span>
             <span class="pa-seg-meta">{{ spendShare(goodsSpend).toFixed(1) }}%</span>
           </span>
@@ -206,7 +209,7 @@ function companyDot(c: WorkServiceByCompany): string {
         >
           <span class="pa-seg-dot dot-services"></span>
           <span class="pa-seg-body">
-            <span class="pa-seg-name">Услуги</span>
+            <span class="pa-seg-name">{{ t("Услуги") }}</span>
             <span class="pa-seg-val">{{ paFmtMoneyShort(servicesSpend) }}</span>
             <span class="pa-seg-meta">{{ (data.kpis?.services_pct ?? spendShare(servicesSpend)).toFixed(1) }}%</span>
           </span>
@@ -220,7 +223,7 @@ function companyDot(c: WorkServiceByCompany): string {
         >
           <span class="pa-seg-dot dot-works"></span>
           <span class="pa-seg-body">
-            <span class="pa-seg-name">Работы</span>
+            <span class="pa-seg-name">{{ t("Работы") }}</span>
             <span class="pa-seg-val">{{ paFmtMoneyShort(worksSpend) }}</span>
             <span class="pa-seg-meta">{{ (data.kpis?.works_pct ?? spendShare(worksSpend)).toFixed(1) }}%</span>
           </span>
@@ -231,8 +234,9 @@ function companyDot(c: WorkServiceByCompany): string {
     <!-- ── Предупреждение для услуг/работ ──────────────────────── -->
     <transition name="pa-fade">
       <div v-if="isServices || isWorks" class="pa-warn">
-        {{ isWorks ? 'Работы' : 'Услуги' }} (условная единица / разовые контракты)
-        несравнимы по цене за единицу — показаны как расход по компаниям.
+        {{ isWorks
+          ? t("Работы (условная единица / разовые контракты) несравнимы по цене за единицу — показаны как расход по компаниям.")
+          : t("Услуги (условная единица / разовые контракты) несравнимы по цене за единицу — показаны как расход по компаниям.") }}
       </div>
     </transition>
 
@@ -250,7 +254,7 @@ function companyDot(c: WorkServiceByCompany): string {
             :style="{ '--i': i }"
             role="button"
             tabindex="0"
-            :title="'Открыть детализацию · ' + p.name"
+            :title="t('Открыть детализацию') + ' · ' + p.name"
             @click="emit('drill-product', p.code)"
             @keydown.enter="emit('drill-product', p.code)"
           >
@@ -258,10 +262,10 @@ function companyDot(c: WorkServiceByCompany): string {
             <div class="pa-pain-nm" :title="p.name">{{ p.name }}</div>
             <div class="pa-pain-code">{{ p.code }}</div>
             <div class="pa-pain-save">+{{ paFmtMoneyShort(p.potential_saving) }}</div>
-            <div class="pa-pain-lbl">потенц. экономия</div>
+            <div class="pa-pain-lbl">{{ t("потенц. экономия") }}</div>
             <div class="pa-pain-foot">
               <span class="pa-chip" :class="'band-' + p.quality_band">{{ p.spread_pct.toFixed(1) }}%</span>
-              <span class="pa-pain-buyers">{{ p.unique_buyers }} покуп.</span>
+              <span class="pa-pain-buyers">{{ p.unique_buyers }} {{ t("покуп.") }}</span>
             </div>
           </div>
         </div>
@@ -270,30 +274,30 @@ function companyDot(c: WorkServiceByCompany): string {
         <div class="pa-table-card">
           <div class="pa-table-bar">
             <div class="pa-table-title">
-              Бенчмарк товаров
+              {{ t("Бенчмарк товаров") }}
               <span class="pa-table-count">{{ rows.length }}</span>
             </div>
             <div class="pa-table-right">
               <div class="pa-table-total">
-                Σ потенциал
+                Σ {{ t("потенциал") }}
                 <span class="pa-table-total-v">{{ paFmtMoneyShort(totalPotential) }}</span>
               </div>
               <label class="pa-toggle">
                 <input v-model="showAll" type="checkbox" />
                 <span class="pa-toggle-track"><span class="pa-toggle-knob"></span></span>
-                <span class="pa-toggle-text">показать все</span>
+                <span class="pa-toggle-text">{{ t("показать все") }}</span>
               </label>
             </div>
           </div>
 
           <div v-if="!showAll && hiddenCount > 0" class="pa-hint">
-            Скрыто {{ hiddenCount }} позиций с одним покупателем (нет базы для сравнения цен).
+            {{ t("Скрыто {n} позиций с одним покупателем (нет базы для сравнения цен).", { n: hiddenCount }) }}
           </div>
 
           <div v-if="!rows.length" class="pa-empty">
-            <div class="pa-empty-title">Нет данных</div>
+            <div class="pa-empty-title">{{ t("Нет данных") }}</div>
             <div class="pa-empty-sub">
-              По товарам нет позиций{{ !showAll ? ' с двумя и более покупателями' : '' }}.
+              {{ !showAll ? t("По товарам нет позиций с двумя и более покупателями.") : t("По товарам нет позиций.") }}
             </div>
           </div>
 
@@ -301,15 +305,15 @@ function companyDot(c: WorkServiceByCompany): string {
             <table class="pa-table">
               <thead>
                 <tr>
-                  <th class="al">Товар</th>
-                  <th class="ac">Ед.</th>
-                  <th class="ac">Покуп.</th>
-                  <th class="ar">Мин. цена</th>
-                  <th class="ac sc">Цена-позиция</th>
-                  <th class="ar">Медиана</th>
-                  <th class="ar">Макс. цена</th>
-                  <th class="ac">Разброс</th>
-                  <th class="ar main">Потенц. экономия</th>
+                  <th class="al">{{ t("Товар") }}</th>
+                  <th class="ac">{{ t("Ед.") }}</th>
+                  <th class="ac">{{ t("Покуп.") }}</th>
+                  <th class="ar">{{ t("Мин. цена") }}</th>
+                  <th class="ac sc">{{ t("Цена-позиция") }}</th>
+                  <th class="ar">{{ t("Медиана") }}</th>
+                  <th class="ar">{{ t("Макс. цена") }}</th>
+                  <th class="ac">{{ t("Разброс") }}</th>
+                  <th class="ar main">{{ t("Потенц. экономия") }}</th>
                 </tr>
               </thead>
               <tbody>
@@ -318,7 +322,7 @@ function companyDot(c: WorkServiceByCompany): string {
                   :key="p.code"
                   class="pa-row"
                   :style="{ '--i': i }"
-                  :title="'Открыть детализацию · ' + p.name"
+                  :title="t('Открыть детализацию') + ' · ' + p.name"
                   @click="emit('drill-product', p.code)"
                 >
                   <td class="al">
@@ -329,7 +333,7 @@ function companyDot(c: WorkServiceByCompany): string {
                   <td class="ac pa-buyers">{{ p.unique_buyers }}</td>
                   <td class="ar pa-num pa-min">{{ paFmtMoney(p.min_price) }}</td>
                   <td class="ac sc">
-                    <div class="pa-scale" :title="'Медиана между мин. и макс.'">
+                    <div class="pa-scale" :title="t('Медиана между мин. и макс.')">
                       <span class="pa-scale-track"></span>
                       <span class="pa-scale-marker" :style="{ left: medianPos(p) + '%' }"></span>
                     </div>
@@ -359,7 +363,7 @@ function companyDot(c: WorkServiceByCompany): string {
         <div class="pa-table-card">
           <div class="pa-table-bar">
             <div class="pa-table-title">
-              {{ isWorks ? 'Расход на работы по компаниям' : 'Расход на услуги по компаниям' }}
+              {{ isWorks ? t('Расход на работы по компаниям') : t('Расход на услуги по компаниям') }}
             </div>
           </div>
           <PaWorksServicesChart
@@ -372,21 +376,21 @@ function companyDot(c: WorkServiceByCompany): string {
         <div class="pa-table-card">
           <div class="pa-table-bar">
             <div class="pa-table-title">
-              {{ isWorks ? 'Работы по компаниям' : 'Услуги по компаниям' }}
+              {{ isWorks ? t('Работы по компаниям') : t('Услуги по компаниям') }}
               <span class="pa-table-count">{{ companyRows.length }}</span>
             </div>
             <div class="pa-table-right">
               <div class="pa-table-total">
-                Σ расход
+                Σ {{ t("расход") }}
                 <span class="pa-table-total-v pa-total-spend">{{ paFmtMoneyShort(companyTotalSpend) }}</span>
               </div>
             </div>
           </div>
 
           <div v-if="!companyRows.length" class="pa-empty">
-            <div class="pa-empty-title">Нет данных</div>
+            <div class="pa-empty-title">{{ t("Нет данных") }}</div>
             <div class="pa-empty-sub">
-              По {{ isWorks ? 'работам' : 'услугам' }} нет расходов в выбранном периоде.
+              {{ isWorks ? t("По работам нет расходов в выбранном периоде.") : t("По услугам нет расходов в выбранном периоде.") }}
             </div>
           </div>
 
@@ -394,10 +398,10 @@ function companyDot(c: WorkServiceByCompany): string {
             <table class="pa-table">
               <thead>
                 <tr>
-                  <th class="al">Компания</th>
-                  <th class="ar">{{ isWorks ? 'Сумма работ' : 'Сумма услуг' }}</th>
-                  <th class="ac">Лотов</th>
-                  <th class="al bc">Доля</th>
+                  <th class="al">{{ t("Компания") }}</th>
+                  <th class="ar">{{ isWorks ? t('Сумма работ') : t('Сумма услуг') }}</th>
+                  <th class="ac">{{ t("Лотов") }}</th>
+                  <th class="al bc">{{ t("Доля") }}</th>
                 </tr>
               </thead>
               <tbody>

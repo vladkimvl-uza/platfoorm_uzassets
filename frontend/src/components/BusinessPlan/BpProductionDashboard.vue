@@ -16,6 +16,9 @@ import { useCountUpScan } from "@/composables/useCountUp";
 import { useProductionData } from "@/composables/useProductionData";
 import type { ProdCompany } from "@/api/production";
 import { execCol as pctCol, execZone as pctZone } from "@/utils/execBand";
+import { useI18n } from "@/composables/useI18n";
+
+const { t } = useI18n();
 
 defineProps<{ canImport?: boolean }>();
 const emit = defineEmits<{
@@ -35,19 +38,21 @@ function prodImportResult(data: unknown): string {
   const d = (data || {}) as {
     matched?: number; with_data?: number; lines_total?: number; unmatched?: string[];
   };
-  const un = d.unmatched?.length ? ` · не распознано листов: ${d.unmatched.length}` : "";
-  return `Загружено: ${d.matched ?? 0} компаний · ${d.with_data ?? 0} с данными · ${d.lines_total ?? 0} строк${un}`;
+  const un = d.unmatched?.length ? ` · ${t("не распознано листов: {n}", { n: d.unmatched.length })}` : "";
+  return t("Загружено: {a} компаний · {b} с данными · {c} строк", {
+    a: d.matched ?? 0, b: d.with_data ?? 0, c: d.lines_total ?? 0,
+  }) + un;
 }
 async function onImported() {
   await st.loadAvailable();
   await st.load();
 }
 
-const PERIOD_OPTS = [
-  { value: "h1", label: "1 полугодие" },
-  { value: "h2", label: "2 полугодие" },
-  { value: "annual", label: "Год" },
-];
+const PERIOD_OPTS = computed(() => [
+  { value: "h1", label: t("1 полугодие") },
+  { value: "h2", label: t("2 полугодие") },
+  { value: "annual", label: t("Год") },
+]);
 const SECTOR_META: Record<string, { label: string; color: string }> = {
   mining: { label: "Горнодоб.", color: "#9B8EC4" },
   oilgas: { label: "Нефтегаз", color: "#1D9E75" },
@@ -197,114 +202,114 @@ watch([() => st.data.value, filtered], async () => { await nextTick(); rescan();
     <!-- ═══ Control row ═══ -->
     <div class="pd-ctrl">
       <UzaSegment :options="PERIOD_OPTS" :model-value="st.period.value"
-                  @update:model-value="(v) => st.setPeriod(v as string)" label="Период" />
+                  @update:model-value="(v) => st.setPeriod(v as string)" :label="t('Период')" />
       <UzaYearStepper :years="st.availableYears.value" :model-value="st.year.value"
-                      @update:model-value="(v) => st.setYear(v)" prefix="FY " label="Год" />
-      <button v-if="canImport" class="pd-import" @click="uploadOpen = true" title="Импорт «Свода» из Excel">
+                      @update:model-value="(v) => st.setYear(v)" prefix="FY " :label="t('Год')" />
+      <button v-if="canImport" class="pd-import" @click="uploadOpen = true" :title="t('Импорт «Свода» из Excel')">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-        Импорт
+        {{ t("Импорт") }}
       </button>
     </div>
 
     <ForensicUploadModal
       v-if="uploadOpen"
       :endpoint="importEndpoint"
-      title="Импорт производственного «Свода» · Excel"
-      :description="`Файл с листом на компанию (натура + деньги: база → план → ожидаемое). Загрузится в период FY ${st.year.value} · ${st.period.value.toUpperCase()}.`"
+      :title="t('Импорт производственного «Свода» · Excel')"
+      :description="t('Файл с листом на компанию (натура + деньги: база → план → ожидаемое). Загрузится в период FY {y} · {p}.', { y: st.year.value, p: st.period.value.toUpperCase() })"
       :sheet-match="null"
       :format-result="prodImportResult"
       @uploaded="onImported"
       @close="uploadOpen = false"
     />
 
-    <UzaStateBlock v-if="st.loading.value && !st.data.value" state="loading" variant="text" loadingText="Загрузка…" />
+    <UzaStateBlock v-if="st.loading.value && !st.data.value" state="loading" variant="text" :loadingText="t('Загрузка…')" />
     <UzaStateBlock v-else-if="st.error.value" state="error" variant="block" :text="st.error.value" />
     <UzaStateBlock v-else-if="st.data.value && !companies.length" state="empty" variant="block"
-                   text="Нет производственных данных за выбранный период." />
+                   :text="t('Нет производственных данных за выбранный период.')" />
 
     <div v-else-if="st.data.value" ref="scanRoot" class="pd-body">
       <!-- ═══ Filter chips ═══ -->
       <div class="pd-filters">
-        <span class="pd-fl-l">Сектор:</span>
-        <button class="pd-chip" :class="{ on: !sectorFilter }" @click="setSector(null)">Все <b>{{ companies.length }}</b></button>
+        <span class="pd-fl-l">{{ t("Сектор") }}:</span>
+        <button class="pd-chip" :class="{ on: !sectorFilter }" @click="setSector(null)">{{ t("Все") }} <b>{{ companies.length }}</b></button>
         <button v-for="s in sectorChips" :key="s.key" class="pd-chip" :class="{ on: sectorFilter === s.key }"
                 :style="sectorFilter === s.key ? { background: s.color + '18', borderColor: s.color, color: s.color } : {}"
                 @click="setSector(s.key)">
-          <span class="pd-chip-dot" :style="{ background: s.color }" />{{ s.label }} <b>{{ s.count }}</b>
+          <span class="pd-chip-dot" :style="{ background: s.color }" />{{ t(s.label) }} <b>{{ s.count }}</b>
         </button>
         <span class="pd-fl-sp" />
         <select class="pd-co-select" :value="companyFilter || ''" @change="companyFilter = ($event.target as HTMLSelectElement).value || null">
-          <option value="">Все компании</option>
+          <option value="">{{ t("Все компании") }}</option>
           <option v-for="o in companyOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
         </select>
-        <button v-if="hasFilter" class="pd-clear" @click="clearFilters">× сбросить</button>
+        <button v-if="hasFilter" class="pd-clear" @click="clearFilters">× {{ t("сбросить") }}</button>
       </div>
 
       <!-- ═══ Fact-only notice (базовый год без плана) ═══ -->
       <div v-if="factOnly" class="pd-note">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-        <span>За <b>{{ st.year.value }}</b> заведены только <b>фактические объёмы</b> выпуска — плановый год ещё не открыт. План, ожидаемое и исполнение появятся для планового периода (2026).</span>
+        <span>{{ t("За {y} заведены только фактические объёмы выпуска — плановый год ещё не открыт. План, ожидаемое и исполнение появятся для планового периода (2026).", { y: st.year.value }) }}</span>
       </div>
 
       <!-- ═══ KPI strip — факт-режим (только объём) ═══ -->
       <div v-if="factOnly" class="pd-kpi-rail kpi-rail">
-        <div class="kpi2 fin-shimmer pd-kpi-click" :class="{ act: true }" style="--kpi2-accent:#1D9E75; --kpi2-d:0ms" title="Совокупный фактический выпуск">
-          <div class="kpi2-lbl">Фактический выпуск</div>
+        <div class="kpi2 fin-shimmer pd-kpi-click" :class="{ act: true }" style="--kpi2-accent:#1D9E75; --kpi2-d:0ms" :title="t('Совокупный фактический выпуск')">
+          <div class="kpi2-lbl">{{ t("Фактический выпуск") }}</div>
           <div class="kpi2-val"><span :data-countup="fmtTrln(fKpis.expect_total)">{{ fmtTrln(fKpis.expect_total) }}</span></div>
-          <div class="kpi2-sub">трлн сум · {{ st.year.value }}</div>
+          <div class="kpi2-sub">{{ t("трлн сум") }} · {{ st.year.value }}</div>
         </div>
         <div class="kpi2 fin-shimmer" style="--kpi2-accent:#378ADD; --kpi2-d:80ms">
-          <div class="kpi2-lbl">Компаний с фактом</div>
+          <div class="kpi2-lbl">{{ t("Компаний с фактом") }}</div>
           <div class="kpi2-val"><span :data-countup="fKpis.with_data">{{ fKpis.with_data }}</span><span class="pd-of"> / {{ fKpis.present }}</span></div>
-          <div class="kpi2-sub">заполнено в периметре</div>
+          <div class="kpi2-sub">{{ t("заполнено в периметре") }}</div>
         </div>
         <div class="kpi2 fin-shimmer" style="--kpi2-accent:#9B8EC4; --kpi2-d:160ms">
-          <div class="kpi2-lbl">Секторов</div>
+          <div class="kpi2-lbl">{{ t("Секторов") }}</div>
           <div class="kpi2-val"><span :data-countup="sectorChips.length">{{ sectorChips.length }}</span></div>
-          <div class="kpi2-sub">в периметре</div>
+          <div class="kpi2-sub">{{ t("в периметре") }}</div>
         </div>
         <div v-if="factRows.length" class="kpi2 fin-shimmer" style="--kpi2-accent:#EF9F27; --kpi2-d:240ms">
-          <div class="kpi2-lbl">Крупнейший выпуск</div>
+          <div class="kpi2-lbl">{{ t("Крупнейший выпуск") }}</div>
           <div class="kpi2-val pd-lead-name" :title="factRows[0].n">{{ factRows[0].n }}</div>
-          <div class="kpi2-sub">{{ shareOf(factRows[0].expM) }}% портфеля</div>
+          <div class="kpi2-sub">{{ t("{n}% портфеля", { n: shareOf(factRows[0].expM) }) }}</div>
         </div>
       </div>
 
       <!-- ═══ KPI strip (clickable) ═══ -->
       <div v-else class="pd-kpi-rail kpi-rail">
         <div class="kpi2 fin-shimmer pd-kpi-click" :style="{ '--kpi2-accent': pctCol(fKpis.exec_pct), '--kpi2-d': '0ms' }"
-             @click="sortKey = 'exec'" :class="{ act: sortKey === 'exec' }" title="Сортировать по исполнению">
-          <div class="kpi2-lbl">Сводное исполнение</div>
+             @click="sortKey = 'exec'" :class="{ act: sortKey === 'exec' }" :title="t('Сортировать по исполнению')">
+          <div class="kpi2-lbl">{{ t("Сводное исполнение") }}</div>
           <div class="kpi2-val" :style="{ color: pctCol(fKpis.exec_pct) }">
             <span :data-countup="fKpis.exec_pct ?? 0">{{ fKpis.exec_pct ?? 0 }}</span><span class="pd-pct">%</span>
           </div>
-          <div class="kpi2-sub">{{ pctZone(fKpis.exec_pct) || 'ожид / план' }}</div>
+          <div class="kpi2-sub">{{ t(pctZone(fKpis.exec_pct)) || t('ожид / план') }}</div>
         </div>
         <div class="kpi2 fin-shimmer pd-kpi-click" style="--kpi2-accent:#7F77DD; --kpi2-d:80ms"
-             @click="sortKey = 'plan'" :class="{ act: sortKey === 'plan' }" title="Сортировать по плану">
-          <div class="kpi2-lbl">План выпуска</div>
+             @click="sortKey = 'plan'" :class="{ act: sortKey === 'plan' }" :title="t('Сортировать по плану')">
+          <div class="kpi2-lbl">{{ t("План выпуска") }}</div>
           <div class="kpi2-val"><span :data-countup="fmtTrln(fKpis.plan_total)">{{ fmtTrln(fKpis.plan_total) }}</span></div>
-          <div class="kpi2-sub">трлн сум</div>
+          <div class="kpi2-sub">{{ t("трлн сум") }}</div>
         </div>
         <div class="kpi2 fin-shimmer pd-kpi-click" style="--kpi2-accent:#1D9E75; --kpi2-d:160ms"
-             @click="sortKey = 'exp'" :class="{ act: sortKey === 'exp' }" title="Сортировать по ожидаемому">
-          <div class="kpi2-lbl">Ожидаемое</div>
+             @click="sortKey = 'exp'" :class="{ act: sortKey === 'exp' }" :title="t('Сортировать по ожидаемому')">
+          <div class="kpi2-lbl">{{ t("Ожидаемое") }}</div>
           <div class="kpi2-val"><span :data-countup="fmtTrln(fKpis.expect_total)">{{ fmtTrln(fKpis.expect_total) }}</span></div>
-          <div class="kpi2-sub">трлн сум
+          <div class="kpi2-sub">{{ t("трлн сум") }}
             <span v-if="fKpis.yoy != null" class="pd-yoy" :style="{ color: growthCol(fKpis.yoy) }">
-              · {{ fKpis.yoy >= 100 ? '↑' : '↓' }} {{ fKpis.yoy }}% к 2025</span>
+              · {{ fKpis.yoy >= 100 ? '↑' : '↓' }} {{ t("{n}% к 2025", { n: fKpis.yoy }) }}</span>
           </div>
         </div>
         <div class="kpi2 fin-shimmer" :class="{ 'pd-kpi-click': fKpis.overpar > 0, act: overparOnly }"
              style="--kpi2-accent:#378ADD; --kpi2-d:240ms"
              @click="fKpis.overpar > 0 && (overparOnly = !overparOnly)"
-             :title="fKpis.overpar > 0 ? 'Показать переисполнение' : ''">
-          <div class="kpi2-lbl">Покрытие данными</div>
+             :title="fKpis.overpar > 0 ? t('Показать переисполнение') : ''">
+          <div class="kpi2-lbl">{{ t("Покрытие данными") }}</div>
           <div class="kpi2-val">
             <span :data-countup="fKpis.with_data">{{ fKpis.with_data }}</span><span class="pd-of"> / {{ fKpis.present }}</span>
           </div>
-          <div class="kpi2-sub" v-if="fKpis.overpar" :style="{ color: overparOnly ? '#7C3AED' : '' }">⚑ переисполнение: {{ fKpis.overpar }}</div>
-          <div class="kpi2-sub" v-else>компаний с данными</div>
+          <div class="kpi2-sub" v-if="fKpis.overpar" :style="{ color: overparOnly ? '#7C3AED' : '' }">⚑ {{ t("переисполнение: {n}", { n: fKpis.overpar }) }}</div>
+          <div class="kpi2-sub" v-else>{{ t("компаний с данными") }}</div>
         </div>
       </div>
 
@@ -313,19 +318,19 @@ watch([() => st.data.value, filtered], async () => { await nextTick(); rescan();
         <!-- Company table -->
         <div class="pd-card">
           <div class="pd-card-h">
-            <span class="pd-card-t">Свод по компаниям</span>
-            <span class="pd-card-meta">{{ factOnly ? factRows.length : filtered.length }} · млрд UZS</span>
+            <span class="pd-card-t">{{ t("Свод по компаниям") }}</span>
+            <span class="pd-card-meta">{{ factOnly ? factRows.length : filtered.length }} · {{ t("млрд UZS") }}</span>
           </div>
           <div class="pd-tbl-wrap">
             <!-- Плановый год: план / ожид / темп / исполнение -->
             <table v-if="!factOnly" class="pd-tbl">
               <thead>
                 <tr>
-                  <th class="lt">Компания</th>
-                  <th class="rt srt" :class="{ on: sortKey === 'plan' }" @click="sortKey = 'plan'">План</th>
-                  <th class="rt srt" :class="{ on: sortKey === 'exp' }" @click="sortKey = 'exp'">Ожид.</th>
-                  <th class="rt srt" :class="{ on: sortKey === 'growth' }" @click="sortKey = 'growth'">Темп</th>
-                  <th class="rt srt" :class="{ on: sortKey === 'exec' }" @click="sortKey = 'exec'">Исполнение</th>
+                  <th class="lt">{{ t("Компания") }}</th>
+                  <th class="rt srt" :class="{ on: sortKey === 'plan' }" @click="sortKey = 'plan'">{{ t("План") }}</th>
+                  <th class="rt srt" :class="{ on: sortKey === 'exp' }" @click="sortKey = 'exp'">{{ t("Ожид.") }}</th>
+                  <th class="rt srt" :class="{ on: sortKey === 'growth' }" @click="sortKey = 'growth'">{{ t("Темп") }}</th>
+                  <th class="rt srt" :class="{ on: sortKey === 'exec' }" @click="sortKey = 'exec'">{{ t("Исполнение") }}</th>
                 </tr>
               </thead>
               <tbody>
@@ -333,7 +338,7 @@ watch([() => st.data.value, filtered], async () => { await nextTick(); rescan();
                     class="pd-row" :class="{ 'no-data': !c.has_data }"
                     :style="{ animationDelay: (Math.min(i, 24) * 22) + 'ms' }"
                     @click="c.has_data ? emit('drill', ctx(c)) : emit('edit', ctx(c))"
-                    :title="c.has_data ? 'Открыть детализацию' : 'Заполнить данные'">
+                    :title="c.has_data ? t('Открыть детализацию') : t('Заполнить данные')">
                   <td class="lt">
                     <CompanyAvatar :name="c.n" :color="c.sector_color || '#888780'" :size="20" />
                     <span class="pd-co-name">{{ c.n }}</span>
@@ -343,15 +348,15 @@ watch([() => st.data.value, filtered], async () => { await nextTick(); rescan();
                   <td class="rt num" :style="{ color: growthCol(c.growthPct) }">
                     {{ c.growthPct != null ? c.growthPct + '%' : '—' }}
                   </td>
-                  <td class="rt num" :style="{ color: pctCol(c.execPct), fontWeight: 600 }" :title="pctZone(c.execPct)">
+                  <td class="rt num" :style="{ color: pctCol(c.execPct), fontWeight: 600 }" :title="t(pctZone(c.execPct))">
                     <template v-if="c.execState === 'pct'">
-                      {{ c.execPct }}%<span v-if="c.execBasis === 'natura'" class="pd-basis" title="по натуральному объёму">н</span>
+                      {{ c.execPct }}%<span v-if="c.execBasis === 'natura'" class="pd-basis" :title="t('по натуральному объёму')">{{ t("н") }}</span>
                     </template>
-                    <span v-else-if="c.execState === 'nofact'" class="pd-nd">факт —</span>
-                    <span v-else class="pd-nd">нет данных</span>
+                    <span v-else-if="c.execState === 'nofact'" class="pd-nd">{{ t("факт —") }}</span>
+                    <span v-else class="pd-nd">{{ t("нет данных") }}</span>
                   </td>
                 </tr>
-                <tr v-if="!sortedRows.length"><td colspan="5"><UzaStateBlock state="empty" variant="inline" text="Нет компаний по фильтру" /></td></tr>
+                <tr v-if="!sortedRows.length"><td colspan="5"><UzaStateBlock state="empty" variant="inline" :text="t('Нет компаний по фильтру')" /></td></tr>
               </tbody>
             </table>
 
@@ -359,15 +364,15 @@ watch([() => st.data.value, filtered], async () => { await nextTick(); rescan();
             <table v-else class="pd-tbl">
               <thead>
                 <tr>
-                  <th class="lt">Компания</th>
-                  <th class="rt">Факт выпуска</th>
-                  <th class="rt pd-share-h">Доля портфеля</th>
+                  <th class="lt">{{ t("Компания") }}</th>
+                  <th class="rt">{{ t("Факт выпуска") }}</th>
+                  <th class="rt pd-share-h">{{ t("Доля портфеля") }}</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-for="(c, i) in factRows" :key="c.k" class="pd-row"
                     :style="{ animationDelay: (Math.min(i, 24) * 22) + 'ms' }"
-                    @click="emit('drill', ctx(c))" title="Открыть детализацию">
+                    @click="emit('drill', ctx(c))" :title="t('Открыть детализацию')">
                   <td class="lt">
                     <CompanyAvatar :name="c.n" :color="c.sector_color || '#888780'" :size="20" />
                     <span class="pd-co-name">{{ c.n }}</span>
@@ -380,7 +385,7 @@ watch([() => st.data.value, filtered], async () => { await nextTick(); rescan();
                     </div>
                   </td>
                 </tr>
-                <tr v-if="!factRows.length"><td colspan="3"><UzaStateBlock state="empty" variant="inline" text="Нет компаний по фильтру" /></td></tr>
+                <tr v-if="!factRows.length"><td colspan="3"><UzaStateBlock state="empty" variant="inline" :text="t('Нет компаний по фильтру')" /></td></tr>
               </tbody>
             </table>
           </div>
@@ -389,23 +394,23 @@ watch([() => st.data.value, filtered], async () => { await nextTick(); rescan();
         <!-- Comparison chart -->
         <div class="pd-card">
           <div class="pd-card-h">
-            <span class="pd-card-t">{{ factOnly ? 'Структура выпуска' : 'Сравнение' }}</span>
+            <span class="pd-card-t">{{ factOnly ? t('Структура выпуска') : t('Сравнение') }}</span>
             <div v-if="!factOnly" class="uza-seg is-sm">
               <button v-for="(m, i) in CHART_MODES" :key="m.value" type="button" class="uza-seg-btn" :class="{ on: chartMode === m.value }"
-                      :style="{ '--i': i }" @click="chartMode = m.value as 'yoy' | 'plan'">{{ m.label }}</button>
+                      :style="{ '--i': i }" @click="chartMode = m.value as 'yoy' | 'plan'">{{ t(m.label) }}</button>
             </div>
           </div>
 
           <!-- Плановый год: два бара (база/план vs ожид.) -->
           <template v-if="!factOnly">
             <div class="pd-chart-legend">
-              <span class="pd-lg"><i :style="{ background: chartMode === 'yoy' ? '#B8C0D9' : '#C7C2F0' }" /> {{ chartMode === 'yoy' ? '2025 факт' : 'план' }}</span>
-              <span class="pd-lg"><i style="background:#7F77DD" /> {{ chartMode === 'yoy' ? '2026 ожид.' : 'ожид.' }}</span>
-              <span class="pd-lg pd-lg-txt">% {{ chartMode === 'yoy' ? 'темп роста' : 'исполнение' }}</span>
+              <span class="pd-lg"><i :style="{ background: chartMode === 'yoy' ? '#B8C0D9' : '#C7C2F0' }" /> {{ chartMode === 'yoy' ? t('2025 факт') : t('план') }}</span>
+              <span class="pd-lg"><i style="background:#7F77DD" /> {{ chartMode === 'yoy' ? t('2026 ожид.') : t('ожид.') }}</span>
+              <span class="pd-lg pd-lg-txt">% {{ chartMode === 'yoy' ? t('темп роста') : t('исполнение') }}</span>
             </div>
             <div class="pd-chart">
               <div v-for="(r, i) in chartRows" :key="r.c.k" class="pd-bar-row"
-                   :style="{ animationDelay: (i * 40) + 'ms' }" @click="emit('drill', ctx(r.c))" title="Открыть детализацию">
+                   :style="{ animationDelay: (i * 40) + 'ms' }" @click="emit('drill', ctx(r.c))" :title="t('Открыть детализацию')">
                 <span class="pd-bar-name">{{ r.c.n }}</span>
                 <div class="pd-bar-track">
                   <div class="pd-bar b1" :style="{ width: (chartMode === 'yoy' ? r.baseW : r.planW) + '%', background: chartMode === 'yoy' ? '#B8C0D9' : '#C7C2F0' }" />
@@ -413,28 +418,28 @@ watch([() => st.data.value, filtered], async () => { await nextTick(); rescan();
                 </div>
                 <div class="pd-readout">
                   <span class="pd-readout-pct" :style="{ color: rowPctCol(r.c) }">{{ rowPct(r.c) != null ? rowPct(r.c) + '%' : '—' }}</span>
-                  <span class="pd-readout-vals" :title="chartMode === 'yoy' ? 'факт 2025 → ожид. 2026' : 'план → ожид., млрд UZS'">
+                  <span class="pd-readout-vals" :title="chartMode === 'yoy' ? t('факт 2025 → ожид. 2026') : t('план → ожид., млрд UZS')">
                     {{ fmtMlrd(rowBaseM(r.c)) }}<b>→</b>{{ fmtMlrd(r.c.expM) }}
                   </span>
                 </div>
               </div>
-              <div v-if="!chartRows.length" class="pd-chart-empty">Нет числовых данных для графика</div>
+              <div v-if="!chartRows.length" class="pd-chart-empty">{{ t("Нет числовых данных для графика") }}</div>
             </div>
           </template>
 
           <!-- Базовый год: один бар (доля фактического выпуска) -->
           <template v-else>
-            <div class="pd-chart-legend"><span class="pd-lg"><i style="background:#7F77DD" /> факт выпуска · доля в портфеле</span></div>
+            <div class="pd-chart-legend"><span class="pd-lg"><i style="background:#7F77DD" /> {{ t("факт выпуска · доля в портфеле") }}</span></div>
             <div class="pd-chart">
               <div v-for="(r, i) in factChartRows" :key="r.c.k" class="pd-bar-row pd-bar-row-1"
-                   :style="{ animationDelay: (i * 40) + 'ms' }" @click="emit('drill', ctx(r.c))" title="Открыть детализацию">
+                   :style="{ animationDelay: (i * 40) + 'ms' }" @click="emit('drill', ctx(r.c))" :title="t('Открыть детализацию')">
                 <span class="pd-bar-name">{{ r.c.n }}</span>
                 <div class="pd-bar-track pd-track-1">
                   <div class="pd-bar single" :style="{ width: r.w + '%', background: r.c.sector_color || '#7F77DD' }" />
                 </div>
                 <span class="pd-bar-pct">{{ r.share != null ? r.share + '%' : '—' }}</span>
               </div>
-              <div v-if="!factChartRows.length" class="pd-chart-empty">Нет числовых данных для графика</div>
+              <div v-if="!factChartRows.length" class="pd-chart-empty">{{ t("Нет числовых данных для графика") }}</div>
             </div>
           </template>
         </div>

@@ -14,9 +14,11 @@
 import {  inject, computed, ref, onMounted, onBeforeUnmount } from "vue";
 import { useRoute } from "vue-router";
 import { usePortfolioYearStore } from "@/stores/portfolioYear";
+import { useI18n } from "@/composables/useI18n";
 
 const route = useRoute();
 const yearStore = usePortfolioYearStore();
+const { t } = useI18n();
 const toggleSidebar = inject<() => void>("toggleSidebar", () => {});
 const openMobileSidebar = inject<() => void>("openMobileSidebar", () => {});
 // На планшете/мобильном (≤1023px, где сайдбар off-canvas) бургер открывает
@@ -52,7 +54,7 @@ const yearButtons = computed(() => {
 <template>
   <!-- ═══ MODE: DASHBOARD (full version) ═══ -->
   <header v-if="isDashboard" class="apt-bar apt-bar--dashboard">
-    <button class="apt-burger" @click="onBurger()" title="Меню / свернуть сайдбар">
+    <button class="apt-burger" @click="onBurger()" :title="t('Меню / свернуть сайдбар')">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
         <line x1="3" y1="6" x2="21" y2="6"/>
         <line x1="3" y1="12" x2="21" y2="12"/>
@@ -63,7 +65,8 @@ const yearButtons = computed(() => {
     <!-- Page title (из route.meta.title или teleport-таргет) -->
     <div class="apt-title">
       <div id="page-title-target" class="apt-title-slot"></div>
-      <span class="apt-title-fallback">{{ route.meta.title || '' }}</span>
+      <!-- route.meta.title хранится по-русски; переводится в точке рендера -->
+      <span class="apt-title-fallback">{{ route.meta.title ? t(String(route.meta.title)) : '' }}</span>
     </div>
 
     <!-- Flex spacer — прижимает фильтры/год к правому краю -->

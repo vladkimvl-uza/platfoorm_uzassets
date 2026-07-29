@@ -11,6 +11,9 @@
 // ============================================================================
 
 import type { MetricDef } from "./financialsHelpers";
+import { useI18n } from "@/composables/useI18n";
+
+const { t } = useI18n();
 
 defineProps<{
   metrics: MetricDef[];
@@ -30,7 +33,7 @@ const emit = defineEmits<{
             :class="{ on: active === m.id }"
             :style="{ '--i': i }"
             @click="emit('update:active', m.id)">
-      <span class="fmt-pill-txt">{{ m.label }}</span>
+      <span class="fmt-pill-txt">{{ t(m.label) }}</span>
     </button>
   </div>
 </template>

@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { useI18n } from '@/composables/useI18n';
 import type { AccessLevel } from '@/composables/usePermissions';
+
+const { t } = useI18n();
 
 const props = defineProps<{
   moduleCode: string;
@@ -57,7 +60,7 @@ const dim  = computed(() => props.level === 'none' && !props.editable);
       >{{ meta.label }}</span>
     </div>
     <div class="rv3-card-sub" :class="{ warn: manualGrant }">
-      <template v-if="manualGrant">+ персональный grant</template>
+      <template v-if="manualGrant">{{ t("+ персональный grant") }}</template>
       <template v-else>{{ explain }}{{ scope ? ' · scope: ' + scope : '' }}</template>
     </div>
   </div>

@@ -8,7 +8,7 @@
     <div class="bp-topbar">
       <SidebarBurger />
       <div class="bp-tb-left">
-        <div class="bp-tb-eyebrow">UzAssets · Бизнес-план</div>
+        <div class="bp-tb-eyebrow">UzAssets · {{ t("Бизнес-план") }}</div>
         <div class="bp-tb-title">{{ headerTitle }}</div>
         <div class="bp-tb-sub">{{ headerSub }}</div>
       </div>
@@ -31,11 +31,11 @@
           <div v-if="menuOpen" class="bp-menu" @click="menuOpen = false">
             <button v-if="canEdit" @click="openEditor">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
-              Редактировать
+              {{ t("Редактировать") }}
             </button>
             <button v-if="canDelete" @click="confirmDelete">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
-              Удалить год
+              {{ t("Удалить год") }}
             </button>
           </div>
         </div>
@@ -54,7 +54,7 @@
         @change="onCompanyChange"
         class="bp-co-select"
       >
-        <option value="">— выберите компанию —</option>
+        <option value="">{{ t("— выберите компанию —") }}</option>
         <option
           v-for="co in state.companies.value"
           :key="co.company_id"
@@ -63,9 +63,9 @@
           {{ co.company_name_ru }}
         </option>
       </select>
-      <button v-if="canCreateCompany" class="bp-co-add" @click="addCompanyOpen = true" title="Добавить новую компанию">
+      <button v-if="canCreateCompany" class="bp-co-add" @click="addCompanyOpen = true" :title="t('Добавить новую компанию')">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        Компания
+        {{ t("Компания") }}
       </button>
     </div>
 
@@ -96,7 +96,7 @@
         </div>
       </div>
       <div v-else-if="state.viewMode.value === 'summary' && state.summary.value && state.summary.value.co_count === 0" class="bp-empty uza-empty">
-        Нет данных бизнес-плана. Перейдите в режим «По компании» и заведите данные.
+        {{ t("Нет данных бизнес-плана. Перейдите в режим «По компании» и заведите данные.") }}
       </div>
 
       <!-- Company mode -->
@@ -113,7 +113,7 @@
         @comment-saved="onCommentSaved"
       />
       <div v-else-if="state.viewMode.value === 'company' && !state.selectedCompany.value" class="bp-empty uza-empty">
-        Выберите компанию для просмотра деталей.
+        {{ t("Выберите компанию для просмотра деталей.") }}
       </div>
     </div>
 
@@ -198,6 +198,7 @@ import BpAiAnalysis from "@/components/BusinessPlan/BpAiAnalysis.vue";
 import type { ProdCompany } from "@/api/production";
 import { usePermissions } from "@/composables/usePermissions";
 import { useAuthStore } from "@/stores/auth";
+import { useI18n } from "@/composables/useI18n";
 import type { CompanyDetail } from "@/api/companies";
 
 const perm = usePermissions("bp");
@@ -208,6 +209,7 @@ const auth = useAuthStore();
 const canCreateCompany = computed(() => auth.hasPermission("companies.create"));
 
 const { confirmDialog } = useConfirm();
+const { t } = useI18n();
 
 const state = useBusinessPlanData();
 const menuOpen = ref(false);
@@ -217,10 +219,11 @@ const addCompanyOpen = ref(false);
 // ─── Верхний таб: Финансовые | Производственные показатели ───
 const route = useRoute();
 const topTab = ref<"financial" | "production">(route.query.tab === "production" ? "production" : "financial");
-const TOPTAB_OPTS = [
-  { value: "financial", label: "Финансовые" },
-  { value: "production", label: "Производственные" },
-];
+// computed, а не константа — labels через t() должны обновляться при смене языка
+const TOPTAB_OPTS = computed(() => [
+  { value: "financial", label: t("Финансовые") },
+  { value: "production", label: t("Производственные") },
+]);
 const prodDrill = ref<{ company: ProdCompany; year: number; period: string } | null>(null);
 const prodEdit = ref<{ company: ProdCompany; year: number; period: string } | null>(null);
 const prodReloadKey = ref(0);
@@ -237,28 +240,28 @@ async function onCompanyCreated(co: CompanyDetail) {
 const lens = useSavedFilter<"all" | "income" | "expenses">("bp.lens", "income");
 if (lens.value === "all") lens.value = "income";
 
-// Опции единых чипов/дропдауна (UzaSegment/UzaSelect)
-const VIEW_OPTS = [{ value: "summary", label: "Сводка" }, { value: "company", label: "По компании" }];
-const LENS_OPTS = [
-  { value: "income", label: "Доходы", dot: "#1D9E75" },
-  { value: "expenses", label: "Расходы", dot: "#EF9F27" },
-];
-const periodOpts = computed(() => BP_PERIODS.map((p) => ({ value: p.key, label: p.label })));
+// Опции единых чипов/дропдауна (UzaSegment/UzaSelect) — computed ради реактивной смены языка
+const VIEW_OPTS = computed(() => [{ value: "summary", label: t("Сводка") }, { value: "company", label: t("По компании") }]);
+const LENS_OPTS = computed(() => [
+  { value: "income", label: t("Доходы"), dot: "#1D9E75" },
+  { value: "expenses", label: t("Расходы"), dot: "#EF9F27" },
+]);
+const periodOpts = computed(() => BP_PERIODS.map((p) => ({ value: p.key, label: t(p.label) })));
 const yearOpts = computed(() => state.availableYears.value.map((y) => ({ value: y, label: String(y) })));
 
 // Pack 7.9e: AI Bubble context
 useAiPageContext({
   key: "business-plan",
-  label: "Бизнес-план",
+  label: t("Бизнес-план"),
   describeState: () => `Линза: ${lens.value === "all" ? "все статьи" : lens.value === "income" ? "только доходы" : "только расходы"}`,
   quickActions: [
-    { label: "План vs Факт по портфелю",
+    { label: t("План vs Факт по портфелю"),
       prompt: "Сравни план и факт BP по портфелю за текущий год. Где наибольшие отклонения? Используй get_business_plan для топ-3 компаний." },
-    { label: "Где провал?",
+    { label: t("Где провал?"),
       prompt: "Найди компании где выполнение BP сильно отстаёт от плана (< 80%). Объясни причины через комментарии. search_comments для контекста." },
-    { label: "Сравни 2025 vs 2026",
+    { label: t("Сравни 2025 vs 2026"),
       prompt: "Сравни BP по revenue 2025 vs 2026 — используй compare_companies(metric=task_completion_2026) + get_business_plan для деталей." },
-    { label: "Сводка расходов",
+    { label: t("Сводка расходов"),
       prompt: "Дай сводку портфельных расходов: топ статьи opExpenses/COGS/finCost по году. Где экономия, где перерасход?" },
   ],
 });
@@ -293,18 +296,18 @@ const drill = ref<DrillSpec | null>(null);
 
 const headerTitle = computed(() =>
   state.viewMode.value === "summary"
-    ? "Сводка по портфелю"
-    : state.selectedCompany.value?.company_name_ru ?? "Выберите компанию",
+    ? t("Сводка по портфелю")
+    : state.selectedCompany.value?.company_name_ru ?? t("Выберите компанию"),
 );
 
 const headerSub = computed(() => {
   const p = BP_PERIODS.find((x) => x.key === state.selectedPeriod.value);
   // Квартальный срез показывает величины ЗА квартал (дельты YTD-хранения).
-  const lbl = p?.key === "annual" ? "годовой итог" : `за квартал ${p?.label}`;
+  const lbl = p?.key === "annual" ? t("годовой итог") : t("за квартал {q}", { q: p?.label });
   if (state.viewMode.value === "summary" && state.summary.value) {
-    return `FY ${state.selectedYear.value} · ${lbl} · ${state.summary.value.co_count} компаний · млрд сум`;
+    return t("FY {year} · {period} · {n} компаний · млрд сум", { year: state.selectedYear.value, period: lbl, n: state.summary.value.co_count });
   }
-  return `FY ${state.selectedYear.value} · ${lbl} · млрд сум`;
+  return t("FY {year} · {period} · млрд сум", { year: state.selectedYear.value, period: lbl });
 });
 
 function onCompanyChange(e: Event) {
@@ -313,7 +316,7 @@ function onCompanyChange(e: Event) {
 
 function openEditor() {
   if (!state.selectedCompany.value) {
-    useToast().info("Сначала выберите компанию в режиме «По компании»");
+    useToast().info(t("Сначала выберите компанию в режиме «По компании»"));
     return;
   }
   editorOpen.value = true;
@@ -328,10 +331,10 @@ async function onEditorSaved() {
 
 async function confirmDelete() {
   if (!state.selectedCompany.value) {
-    useToast().info("Выберите компанию");
+    useToast().info(t("Выберите компанию"));
     return;
   }
-  if (!(await confirmDialog({ message: `Удалить весь бизнес-план ${state.selectedCompany.value.company_name_ru} за ${state.selectedYear.value}?`, danger: true }))) return;
+  if (!(await confirmDialog({ message: t("Удалить весь бизнес-план {name} за {year}?", { name: state.selectedCompany.value.company_name_ru, year: state.selectedYear.value }), danger: true }))) return;
   try {
     await bpApi.deleteYear(state.selectedCompany.value.company_id, state.selectedYear.value);
     await state.loadCompanies();
@@ -339,7 +342,7 @@ async function confirmDelete() {
     else await state.loadCompanyData();
   } catch (e) {
     console.error("[BP] delete failed:", e);
-    useToast().error("Не удалось удалить");
+    useToast().error(t("Не удалось удалить"));
   }
 }
 

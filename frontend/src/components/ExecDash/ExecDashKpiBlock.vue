@@ -13,6 +13,7 @@
  */
 import { computed, ref, watch, onMounted, onBeforeUnmount } from "vue";
 import { useRouter } from "vue-router";
+import { useI18n } from "@/composables/useI18n";
 import { useExecutiveDashboard } from "@/composables/useExecutiveDashboard";
 import { usePermissions } from "@/composables/usePermissions";
 import { useFormatters } from "@/composables/useFormatters";
@@ -20,6 +21,7 @@ import { kpiApi, kpiStatusColor, type KpiSummary, type KpiStatus } from "@/api/b
 import Odometer from "@/components/Odometer.vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 
+const { t } = useI18n();
 const exec = useExecutiveDashboard();
 const perm = usePermissions("kpi");
 const fmt = useFormatters();
@@ -142,24 +144,24 @@ const periodLabel = computed(() => period.value.toUpperCase());
 // Управленческий статус (1:1 c KpiSummaryDashboard)
 const execStatus = computed(() => {
   const s = summary.value;
-  if (!s || s.overall == null || s.total_count === 0) return { label: "Нет данных", cls: "is-na" };
+  if (!s || s.overall == null || s.total_count === 0) return { label: t("Нет данных"), cls: "is-na" };
   const o = s.overall;
   const critFail = s.crit_count + s.fail_count;
   const critShare = s.total_count > 0 ? critFail / s.total_count : 0;
-  if (o < 75 || critShare >= 0.35) return { label: "Критично", cls: "is-crit" };
-  if (o < 90 || critShare >= 0.2) return { label: "Риск", cls: "is-risk" };
-  if (o < 100 || critFail > 0) return { label: "Зона внимания", cls: "is-warn" };
-  return { label: "На цели", cls: "is-ok" };
+  if (o < 75 || critShare >= 0.35) return { label: t("Критично"), cls: "is-crit" };
+  if (o < 90 || critShare >= 0.2) return { label: t("Риск"), cls: "is-risk" };
+  if (o < 100 || critFail > 0) return { label: t("Зона внимания"), cls: "is-warn" };
+  return { label: t("На цели"), cls: "is-ok" };
 });
 
 const distSegments = computed<{ key: KpiStatus; label: string; color: string; count: number }[]>(() => {
   const s = summary.value;
   return [
-    { key: "over", label: "Превышено", color: "#5DC093", count: s?.over_count ?? 0 },
-    { key: "hit", label: "На цели", color: "#93D3B0", count: s?.hit_count ?? 0 },
-    { key: "risk", label: "В риске", color: "#EFB373", count: s?.risk_count ?? 0 },
-    { key: "crit", label: "Критично", color: "#E2807F", count: s?.crit_count ?? 0 },
-    { key: "fail", label: "Провал", color: "#C76A68", count: s?.fail_count ?? 0 },
+    { key: "over", label: t("Превышено"), color: "#5DC093", count: s?.over_count ?? 0 },
+    { key: "hit", label: t("На цели"), color: "#93D3B0", count: s?.hit_count ?? 0 },
+    { key: "risk", label: t("В риске"), color: "#EFB373", count: s?.risk_count ?? 0 },
+    { key: "crit", label: t("Критично"), color: "#E2807F", count: s?.crit_count ?? 0 },
+    { key: "fail", label: t("Провал"), color: "#C76A68", count: s?.fail_count ?? 0 },
   ];
 });
 
@@ -189,16 +191,16 @@ function openKpi(): void {
     <!-- ═══ HEADER ═══ -->
     <div class="ed-kpi-head">
       <div class="ed-kpi-head-l">
-        <div class="ed-kpi-head-t">Общее выполнение KPI<span
+        <div class="ed-kpi-head-t">{{ t("Общее выполнение KPI") }}<span
             v-if="yearBadge"
             class="ed-kpi-badge"
-            title="За выбранный FY данных по KPI нет — показан последний год с данными"
-          >данные за FY {{ yearBadge }}</span></div>
+            :title="t('За выбранный FY данных по KPI нет — показан последний год с данными')"
+          >{{ t("данные за FY {y}", { y: yearBadge }) }}</span></div>
         <div class="ed-kpi-head-s">
-          FY {{ resolvedYear }} · {{ periodLabel }}<template v-if="summary"> · {{ summary.co_count }} компаний</template>
+          FY {{ resolvedYear }} · {{ periodLabel }}<template v-if="summary"> · {{ summary.co_count }} {{ t("компаний") }}</template>
         </div>
       </div>
-      <div class="ed-kpi-tabs" role="tablist" aria-label="Квартал">
+      <div class="ed-kpi-tabs" role="tablist" :aria-label="t('Квартал')">
         <button
           v-for="q in QUARTERS"
           :key="q"
@@ -225,17 +227,17 @@ function openKpi(): void {
       v-else-if="errored"
       state="error"
       variant="block"
-      title="Не удалось загрузить KPI"
-      text="Произошёл сбой при загрузке сводки KPI. Проверьте подключение и повторите."
+      :title="t('Не удалось загрузить KPI')"
+      :text="t('Произошёл сбой при загрузке сводки KPI. Проверьте подключение и повторите.')"
       retry
       @retry="resolveAndRetry()"
     />
 
     <!-- ═══ EMPTY (реально нет данных) ═══ -->
     <div v-else-if="!hasData" class="ed-kpi-empty">
-      <div class="ed-kpi-empty-t">Нет данных KPI</div>
+      <div class="ed-kpi-empty-t">{{ t("Нет данных KPI") }}</div>
       <div class="ed-kpi-empty-s">
-        За {{ periodLabel }} FY {{ resolvedYear }} индикаторы с весом не заполнены.
+        {{ t("За {p} FY {y} индикаторы с весом не заполнены.", { p: periodLabel, y: resolvedYear }) }}
       </div>
     </div>
 
@@ -245,8 +247,8 @@ function openKpi(): void {
         class="ed-kpi-hero ed-kpi-hero-btn"
         role="button"
         tabindex="0"
-        aria-label="Открыть модуль KPI"
-        title="Открыть модуль KPI"
+        :aria-label="t('Открыть модуль KPI')"
+        :title="t('Открыть модуль KPI')"
         @click="openKpi"
         @keydown.enter.prevent="openKpi"
         @keydown.space.prevent="openKpi"
@@ -258,16 +260,16 @@ function openKpi(): void {
           <span class="ed-kpi-status" :class="execStatus.cls">{{ execStatus.label }}</span>
         </div>
         <div class="ed-kpi-meta">
-          {{ summary!.total_count }} индикаторов с весом ·
-          <span style="color:#2F9E6E">{{ summary!.over_count }} превышено</span> ·
-          <span style="color:#4E9E78">{{ summary!.hit_count }} на цели</span> ·
-          <span style="color:#B5803A">{{ summary!.risk_count }} в риске</span> ·
-          <span style="color:#CC615E">{{ summary!.crit_count }} критично</span> ·
-          <span style="color:#B14B49">{{ summary!.fail_count }} провалено</span>
+          {{ summary!.total_count }} {{ t("индикаторов с весом") }} ·
+          <span style="color:#2F9E6E">{{ summary!.over_count }} {{ t("превышено") }}</span> ·
+          <span style="color:#4E9E78">{{ summary!.hit_count }} {{ t("на цели") }}</span> ·
+          <span style="color:#B5803A">{{ summary!.risk_count }} {{ t("в риске") }}</span> ·
+          <span style="color:#CC615E">{{ summary!.crit_count }} {{ t("критично") }}</span> ·
+          <span style="color:#B14B49">{{ summary!.fail_count }} {{ t("провалено") }}</span>
         </div>
         <div v-if="drivers.length || risks.length" class="ed-kpi-drivers">
-          <span v-if="drivers.length" class="ed-kpi-drv up">▲ Драйверы: {{ drivers.join(" · ") }}</span>
-          <span v-if="risks.length" class="ed-kpi-drv dn">▼ Зоны риска: {{ risks.join(" · ") }}</span>
+          <span v-if="drivers.length" class="ed-kpi-drv up">▲ {{ t("Драйверы:") }} {{ drivers.join(" · ") }}</span>
+          <span v-if="risks.length" class="ed-kpi-drv dn">▼ {{ t("Зоны риска:") }} {{ risks.join(" · ") }}</span>
         </div>
       </div>
 

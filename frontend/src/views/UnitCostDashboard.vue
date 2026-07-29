@@ -6,6 +6,7 @@
  * компаний со сводкой, дрилл-редактор продуктов. Премиум UX.
  */
 import { computed, inject, onMounted, ref, watch } from "vue";
+import { useI18n } from "@/composables/useI18n";
 import { usePermissions } from "@/composables/usePermissions";
 import { useSavedFilter } from "@/composables/useSavedFilter";
 import { ensureFinancialsCss } from "@/components/Financials/financialsHelpers";
@@ -18,6 +19,7 @@ import { unitCostApi, type UCOverview, type UCCompany } from "@/api/unitCost";
 import UnitCostCompanyModal from "@/components/UnitCost/UnitCostCompanyModal.vue";
 import UnitCostPricesModal from "@/components/UnitCost/UnitCostPricesModal.vue";
 
+const { t } = useI18n();
 const finPerm = usePermissions("financials");
 const toggleSidebar = inject<() => void>("toggleSidebar", () => {});
 const openMobileSidebar = inject<() => void>("openMobileSidebar", () => {});
@@ -38,6 +40,8 @@ const QUARTERS = [
   { value: "annual", label: "Год" }, { value: "q1", label: "I кв" },
   { value: "q2", label: "II кв" }, { value: "q3", label: "III кв" }, { value: "q4", label: "IV кв" },
 ] as const;
+// реактивные подписи для UzaSegment (лейблы переводятся при смене языка)
+const quarterOptions = computed(() => QUARTERS.map((q) => ({ value: q.value, label: t(q.label) })));
 const year = useSavedFilter<number>("unitCost.year", 2025);
 const quarter = useSavedFilter<string>("unitCost.quarter", "annual");
 
@@ -56,7 +60,7 @@ async function load() {
   } catch (e: unknown) {
     if (my !== seq) return;
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    error.value = err?.response?.data?.detail || err?.message || "Не удалось загрузить";
+    error.value = err?.response?.data?.detail || err?.message || t("Не удалось загрузить");
   } finally { if (my === seq) loading.value = false; }
 }
 onMounted(() => { ensureFinancialsCss(); load(); });
@@ -71,10 +75,10 @@ function onKpiClick() { if (finPerm.canEdit.value) pricesOpen.value = true; }
 // компактное представление суммы в СУМАХ (сырьё уже в сумах)
 function scaleSum(v: number): string {
   const a = Math.abs(v);
-  if (a >= 1e12) return (v / 1e12).toLocaleString("ru", { maximumFractionDigits: 2 }) + " трлн";
-  if (a >= 1e9) return (v / 1e9).toLocaleString("ru", { maximumFractionDigits: 1 }) + " млрд";
-  if (a >= 1e6) return (v / 1e6).toLocaleString("ru", { maximumFractionDigits: 1 }) + " млн";
-  if (a >= 1e3) return (v / 1e3).toLocaleString("ru", { maximumFractionDigits: 1 }) + " тыс";
+  if (a >= 1e12) return (v / 1e12).toLocaleString("ru", { maximumFractionDigits: 2 }) + " " + t("трлн");
+  if (a >= 1e9) return (v / 1e9).toLocaleString("ru", { maximumFractionDigits: 1 }) + " " + t("млрд");
+  if (a >= 1e6) return (v / 1e6).toLocaleString("ru", { maximumFractionDigits: 1 }) + " " + t("млн");
+  if (a >= 1e3) return (v / 1e3).toLocaleString("ru", { maximumFractionDigits: 1 }) + " " + t("тыс");
   return v.toLocaleString("ru", { maximumFractionDigits: 0 });
 }
 function fmtSum(v: number | null): string { return v == null ? "—" : scaleSum(v); }
@@ -121,7 +125,7 @@ const tickerItems = computed(() => {
     { key: "brent", label: "Brent", val: "$" + fmtNum(w.brent, 1) },
     { key: "gold", label: "Gold", val: "$" + fmtNum(w.gold) },
     { key: "copper", label: "Cu", val: "$" + fmtNum(w.copper) },
-  ].map((t) => ({ ...t, live: lf.includes(t.key), src: LIVE_SRC[t.key] || "ориентир" }));
+  ].map((it) => ({ ...it, live: lf.includes(it.key), src: LIVE_SRC[it.key] || "ориентир" }));
 });
 
 // фильтр по секторам (для списка компаний)
@@ -149,8 +153,8 @@ const mixTotal = computed(() => (data.value?.energy_mix || []).reduce((a, m) => 
 const structDonut = computed<DonutEntry[]>(() => {
   const p = pf.value; if (!p) return [];
   const out: DonutEntry[] = [];
-  if (p.energy_cost) out.push({ label: "Энергозатраты", color: "#EF9F27", value: p.energy_cost, sub: fmtSum(p.energy_cost) });
-  if (p.components_cost && p.components_cost > 0) out.push({ label: "Прочие статьи", color: "#7F77DD", value: p.components_cost, sub: fmtSum(p.components_cost) });
+  if (p.energy_cost) out.push({ label: t("Энергозатраты"), color: "#EF9F27", value: p.energy_cost, sub: fmtSum(p.energy_cost) });
+  if (p.components_cost && p.components_cost > 0) out.push({ label: t("Прочие статьи"), color: "#7F77DD", value: p.components_cost, sub: fmtSum(p.components_cost) });
   return out;
 });
 // себестоимость по секторам
@@ -171,39 +175,39 @@ function donutHover(e: DonutEntry, total: number): [string, string] {
   <div class="uc-page">
     <!-- Топбар в стиле financials -->
     <header class="uc-bar">
-      <button class="uc-burger" @click="onBurger()" title="Меню / свернуть сайдбар">
+      <button class="uc-burger" @click="onBurger()" :title="t('Меню / свернуть сайдбар')">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
           <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
         </svg>
       </button>
       <div class="uc-head">
-        <div class="uc-eyebrow">ФИНАНСЫ · СЕБЕСТОИМОСТЬ</div>
+        <div class="uc-eyebrow">{{ t("ФИНАНСЫ · СЕБЕСТОИМОСТЬ") }}</div>
         <div class="uc-title-row">
-          <span class="uc-title">Удельная себестоимость</span>
-          <span class="uc-sub">энергозатраты + статьи на единицу продукции · FY 2025</span>
+          <span class="uc-title">{{ t("Удельная себестоимость") }}</span>
+          <span class="uc-sub">{{ t("энергозатраты + статьи на единицу продукции · FY 2025") }}</span>
         </div>
       </div>
       <div class="uc-cluster">
         <div v-if="worldLive" class="uc-ticker"
-             :title="'Зелёная точка — живой источник; остальное — ориентир, правится в «Цены и курсы»' + (liveFresh ? '. Обновлено ' + liveFresh : '')">
-          <span v-for="t in tickerItems" :key="t.key" class="uc-tk" :class="t.live ? 'uc-tk-live' : 'uc-tk-off'"
-                :title="t.live ? ('Живой источник: ' + t.src + (liveFresh ? ', ' + liveFresh : '')) : 'Ориентир: нет живого источника — задаётся вручную в «Цены и курсы»'">
-            <span v-if="t.live" class="uc-live"><i /></span>
+             :title="t('Зелёная точка — живой источник; остальное — ориентир, правится в «Цены и курсы»') + (liveFresh ? '. ' + t('Обновлено') + ' ' + liveFresh : '')">
+          <span v-for="tk in tickerItems" :key="tk.key" class="uc-tk" :class="tk.live ? 'uc-tk-live' : 'uc-tk-off'"
+                :title="tk.live ? (t('Живой источник: {src}', { src: t(tk.src) }) + (liveFresh ? ', ' + liveFresh : '')) : t('Ориентир: нет живого источника — задаётся вручную в «Цены и курсы»')">
+            <span v-if="tk.live" class="uc-live"><i /></span>
             <span v-else class="uc-offdot" aria-hidden="true"></span>
-            <b>{{ t.label }}</b>{{ t.val }}
-            <span v-if="t.live" class="uc-tag uc-tag-live">live</span>
-            <span v-else class="uc-tag uc-tag-off">ориентир</span>
+            <b>{{ tk.label }}</b>{{ tk.val }}
+            <span v-if="tk.live" class="uc-tag uc-tag-live">live</span>
+            <span v-else class="uc-tag uc-tag-off">{{ t("ориентир") }}</span>
           </span>
         </div>
         <div class="uc-div" aria-hidden="true"></div>
-        <UzaSegment :model-value="quarter" :options="QUARTERS as never" size="sm" tone="dark"
+        <UzaSegment :model-value="quarter" :options="quarterOptions as never" size="sm" tone="dark"
                     @update:model-value="quarter = $event as string" />
         <UzaYearStepper tone="dark" :model-value="year" :years="YEARS" prefix="FY "
                         @update:model-value="year = ($event as number) ?? year" />
         <button v-if="finPerm.canEdit.value" class="uc-prices-btn" type="button" @click="pricesOpen = true"
-                title="Цены энергоносителей и мировые ориентиры">
+                :title="t('Цены энергоносителей и мировые ориентиры')">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-          Цены и курсы
+          {{ t("Цены и курсы") }}
         </button>
       </div>
     </header>
@@ -212,7 +216,7 @@ function donutHover(e: DonutEntry, total: number): [string, string] {
       <div class="uc-skel" v-for="i in 3" :key="i" :style="{ '--d': (i * 90) + 'ms' }" />
     </div>
     <div v-else-if="error && !data" class="uc-state uc-err">
-      {{ error }} <button class="uc-retry" type="button" @click="load">Повторить</button>
+      {{ error }} <button class="uc-retry" type="button" @click="load">{{ t("Повторить") }}</button>
     </div>
 
     <template v-else-if="data && pf">
@@ -220,32 +224,32 @@ function donutHover(e: DonutEntry, total: number): [string, string] {
       <section class="uc-section">
         <div class="uc-kpi-band kpi-rail">
           <div class="uc-kpi uc-kpi-clk" role="button" tabindex="0" @click="onKpiClick" style="--accent:#7F77DD; --d:0ms;">
-            <div class="uc-kpi-l">Совокупная себестоимость</div>
+            <div class="uc-kpi-l">{{ t("Совокупная себестоимость") }}</div>
             <div class="uc-kpi-v">{{ fmtSum(pf.total_cost) }}</div>
-            <div class="uc-kpi-s">по заполненному выпуску</div>
+            <div class="uc-kpi-s">{{ t("по заполненному выпуску") }}</div>
           </div>
           <div class="uc-kpi uc-kpi-clk" role="button" tabindex="0" @click="onKpiClick" style="--accent:#EF9F27; --d:80ms;">
-            <div class="uc-kpi-l">Энергозатраты</div>
+            <div class="uc-kpi-l">{{ t("Энергозатраты") }}</div>
             <div class="uc-kpi-v">{{ fmtSum(pf.energy_cost) }}</div>
-            <div class="uc-kpi-s">из совокупной</div>
+            <div class="uc-kpi-s">{{ t("из совокупной") }}</div>
           </div>
           <div class="uc-kpi uc-kpi-clk" role="button" tabindex="0" @click="onKpiClick" style="--accent:#E24B4A; --d:160ms;">
-            <div class="uc-kpi-l">Доля энергии</div>
+            <div class="uc-kpi-l">{{ t("Доля энергии") }}</div>
             <div class="uc-kpi-v">
               <span v-if="pf.energy_share != null"><Odometer :value="pf.energy_share.toFixed(1)" /><span class="uc-kpi-u">%</span></span>
               <span v-else>—</span>
             </div>
-            <div class="uc-kpi-s">энергоёмкость портфеля</div>
+            <div class="uc-kpi-s">{{ t("энергоёмкость портфеля") }}</div>
           </div>
           <div class="uc-kpi uc-kpi-clk" role="button" tabindex="0" @click="onKpiClick" style="--accent:#1D9E75; --d:240ms;">
-            <div class="uc-kpi-l">Заполнено продуктов</div>
+            <div class="uc-kpi-l">{{ t("Заполнено продуктов") }}</div>
             <div class="uc-kpi-v">{{ pf.priced_count }}<span class="uc-kpi-u">/ {{ pf.product_count }}</span></div>
-            <div class="uc-kpi-s">{{ pf.company_count }} компаний</div>
+            <div class="uc-kpi-s">{{ t("{n} компаний", { n: pf.company_count }) }}</div>
           </div>
           <div class="uc-kpi"
                :style="{ '--accent': overrunColor, '--d': '320ms' }"
-               title="Отклонение фактического удельного расхода от нормы, в деньгах">
-            <div class="uc-kpi-l">Перерасход / Экономия</div>
+               :title="t('Отклонение фактического удельного расхода от нормы, в деньгах')">
+            <div class="uc-kpi-l">{{ t("Перерасход / Экономия") }}</div>
             <div class="uc-kpi-v" :style="{ color: overrunColor }">
               <template v-if="overrun != null">
                 <span class="uc-ov-sign">{{ overrunState === 'over' ? '+' : '−' }}</span>{{ fmtSum(Math.abs(overrun)) }}
@@ -253,9 +257,9 @@ function donutHover(e: DonutEntry, total: number): [string, string] {
               <span v-else>—</span>
             </div>
             <div class="uc-kpi-s">
-              <template v-if="overrunState === 'over'">перерасход к норме расхода</template>
-              <template v-else-if="overrunState === 'save'">экономия против нормы</template>
-              <template v-else>заполните выпуск и нормы</template>
+              <template v-if="overrunState === 'over'">{{ t("перерасход к норме расхода") }}</template>
+              <template v-else-if="overrunState === 'save'">{{ t("экономия против нормы") }}</template>
+              <template v-else>{{ t("заполните выпуск и нормы") }}</template>
             </div>
           </div>
         </div>
@@ -265,30 +269,30 @@ function donutHover(e: DonutEntry, total: number): [string, string] {
       <section class="uc-section uc-3col">
         <div class="uc-card">
           <div class="uc-card-hd"><div>
-            <div class="uc-card-t">Энергомикс портфеля</div>
-            <div class="uc-card-s">доля видов топлива в энергозатратах</div>
+            <div class="uc-card-t">{{ t("Энергомикс портфеля") }}</div>
+            <div class="uc-card-s">{{ t("доля видов топлива в энергозатратах") }}</div>
           </div></div>
           <CreditDonut v-if="mixDonut.length" :entries="mixDonut" :center-value="fmtSum(mixTotal)"
-            center-label="энергия" :hover-fmt="donutHover" :size="150" />
-          <div v-else class="uc-chart-empty">заполните выпуск продуктов</div>
+            :center-label="t('энергия')" :hover-fmt="donutHover" :size="150" />
+          <div v-else class="uc-chart-empty">{{ t("заполните выпуск продуктов") }}</div>
         </div>
         <div class="uc-card">
           <div class="uc-card-hd"><div>
-            <div class="uc-card-t">Структура себестоимости</div>
-            <div class="uc-card-s">энергозатраты и прочие статьи</div>
+            <div class="uc-card-t">{{ t("Структура себестоимости") }}</div>
+            <div class="uc-card-s">{{ t("энергозатраты и прочие статьи") }}</div>
           </div></div>
           <CreditDonut v-if="structDonut.length" :entries="structDonut" :center-value="fmtSum(pf!.total_cost)"
-            center-label="итого" :hover-fmt="donutHover" :size="150" />
-          <div v-else class="uc-chart-empty">заполните статьи себестоимости</div>
+            :center-label="t('итого')" :hover-fmt="donutHover" :size="150" />
+          <div v-else class="uc-chart-empty">{{ t("заполните статьи себестоимости") }}</div>
         </div>
         <div class="uc-card">
           <div class="uc-card-hd"><div>
-            <div class="uc-card-t">Себестоимость по секторам</div>
-            <div class="uc-card-s">распределение по отраслям</div>
+            <div class="uc-card-t">{{ t("Себестоимость по секторам") }}</div>
+            <div class="uc-card-s">{{ t("распределение по отраслям") }}</div>
           </div></div>
           <CreditDonut v-if="sectorDonut.length" :entries="sectorDonut" :center-value="fmtSum(sectorTotal)"
-            center-label="итого" :hover-fmt="donutHover" :size="150" />
-          <div v-else class="uc-chart-empty">нет данных по себестоимости</div>
+            :center-label="t('итого')" :hover-fmt="donutHover" :size="150" />
+          <div v-else class="uc-chart-empty">{{ t("нет данных по себестоимости") }}</div>
         </div>
       </section>
 
@@ -297,8 +301,8 @@ function donutHover(e: DonutEntry, total: number): [string, string] {
         <div class="uc-card">
           <div class="uc-card-hd">
             <div>
-              <div class="uc-card-t">Цены энергоносителей</div>
-              <div class="uc-card-s">применяются ко всем компаниям · клик «Цены…» для правки</div>
+              <div class="uc-card-t">{{ t("Цены энергоносителей") }}</div>
+              <div class="uc-card-s">{{ t("применяются ко всем компаниям · клик «Цены…» для правки") }}</div>
             </div>
           </div>
           <div class="uc-prices">
@@ -316,12 +320,12 @@ function donutHover(e: DonutEntry, total: number): [string, string] {
         <div class="uc-card">
           <div class="uc-card-hd uc-card-hd-row">
             <div>
-              <div class="uc-card-t">Себестоимость по компаниям</div>
-              <div class="uc-card-s">клик по компании — продукты и статьи · доля энергии в цвете</div>
+              <div class="uc-card-t">{{ t("Себестоимость по компаниям") }}</div>
+              <div class="uc-card-s">{{ t("клик по компании — продукты и статьи · доля энергии в цвете") }}</div>
             </div>
             <div v-if="sectors.length > 1" class="uc-secfilter">
               <button type="button" class="uc-sec" :class="{ on: sectorFilter === '' }" @click="sectorFilter = ''">
-                Все<span class="uc-sec-n">{{ companies.length }}</span>
+                {{ t("Все") }}<span class="uc-sec-n">{{ companies.length }}</span>
               </button>
               <button v-for="s in sectors" :key="s.name" type="button" class="uc-sec"
                       :class="{ on: sectorFilter === s.name }" @click="sectorFilter = s.name">
@@ -331,12 +335,12 @@ function donutHover(e: DonutEntry, total: number): [string, string] {
           </div>
           <div class="uc-cos">
             <div class="uc-cos-head">
-              <span>Компания</span><span>Продуктов</span><span>Себестоимость</span>
-              <span>Энергозатраты</span><span>Доля энергии</span>
+              <span>{{ t("Компания") }}</span><span>{{ t("Продуктов") }}</span><span>{{ t("Себестоимость") }}</span>
+              <span>{{ t("Энергозатраты") }}</span><span>{{ t("Доля энергии") }}</span>
             </div>
             <button v-for="(c, i) in visibleCompanies" :key="c.code" type="button" class="uc-co"
                     :style="{ '--d': Math.min(i * 24, 400) + 'ms' }"
-                    :title="'Редактировать: ' + c.name" @click="editCompany = c">
+                    :title="t('Редактировать: {name}', { name: c.name })" @click="editCompany = c">
               <span class="uc-co-name"><i :style="{ background: c.color }" />{{ c.name }}</span>
               <span class="uc-co-n">{{ c.priced_count }}<span class="uc-co-nn">/{{ c.product_count }}</span></span>
               <span class="uc-co-cost">{{ fmtSum(c.total_cost) }}</span>
@@ -346,10 +350,10 @@ function donutHover(e: DonutEntry, total: number): [string, string] {
                       :style="{ color: shareColor(c.energy_share), background: shareColor(c.energy_share) + '16' }">
                   {{ c.energy_share.toFixed(0) }}%
                 </span>
-                <span v-else class="uc-dash">н/д</span>
+                <span v-else class="uc-dash">{{ t("н/д") }}</span>
               </span>
             </button>
-            <div v-if="!visibleCompanies.length" class="uc-chart-empty">в секторе «{{ sectorFilter }}» нет компаний</div>
+            <div v-if="!visibleCompanies.length" class="uc-chart-empty">{{ t("в секторе «{name}» нет компаний", { name: sectorFilter }) }}</div>
           </div>
         </div>
       </section>

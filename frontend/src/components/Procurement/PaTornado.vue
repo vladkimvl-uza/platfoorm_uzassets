@@ -27,6 +27,9 @@ import {
   type ProcurementAggregate,
 } from "@/api/procurement_analysis";
 import { useFormatters } from "@/composables/useFormatters";
+import { useI18n } from "@/composables/useI18n";
+
+const { t } = useI18n();
 
 // Pack 7.9r: renamed from `fmt` → `fmtUtil` to avoid shadowing by the
 // local `const fmt = props.fmt || "pct"` inside build() — shadowing made
@@ -165,14 +168,14 @@ function build() {
               const dev = Number(r.company_deviation) || 0;
               const sumDev = Number(r.sum_dev) || 0;
               const devTxt = fmtUtil.fmtPercent(dev, { decimals: 1, signed: true });
-              const sumTxt = (sumDev >= 0 ? "+" : "−") + paFmtMoneyShort(Math.abs(sumDev)) + " сум";
+              const sumTxt = (sumDev >= 0 ? "+" : "−") + paFmtMoneyShort(Math.abs(sumDev)) + " " + t("сум");
               const lines = [
-                "Средневзвеш. отклонение: " + devTxt,
-                "Сумма откл.: " + sumTxt,
-                "Красных закупок: " + (r.above_count || 0) + " из " + (r.total_count || 0),
+                t("Средневзвеш. отклонение") + ": " + devTxt,
+                t("Сумма откл.") + ": " + sumTxt,
+                t("Красных закупок: {n} из {total}", { n: r.above_count || 0, total: r.total_count || 0 }),
               ];
-              if (lowCoverage(r)) lines.push("⚠ мало сопоставимых данных — % ненадёжен");
-              lines.push("Кликни — открыть профиль компании");
+              if (lowCoverage(r)) lines.push(t("⚠ мало сопоставимых данных — % ненадёжен"));
+              lines.push(t("Кликни — открыть профиль компании"));
               return lines;
             },
           },
@@ -184,7 +187,7 @@ function build() {
           ticks: {
             color: "rgba(15,23,60,.55)",
             font: { size: 10 },
-            callback: (v: number) => fmt === "rub" ? (v + " млрд") : ((v > 0 ? "+" : "") + v + "%"),
+            callback: (v: number) => fmt === "rub" ? (v + " " + t("млрд")) : ((v > 0 ? "+" : "") + v + "%"),
           },
           border: { display: false },
         },

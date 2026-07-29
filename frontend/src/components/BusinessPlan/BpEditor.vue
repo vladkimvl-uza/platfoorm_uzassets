@@ -3,10 +3,10 @@
     <div class="bpe-modal">
       <div class="bpe-header">
         <div class="bpe-title">
-          <h2>Редактор бизнес-плана</h2>
+          <h2>{{ t("Редактор бизнес-плана") }}</h2>
           <div class="bpe-subtitle">
             <span v-if="companies && companies.length > 1" class="bpe-co-switch">
-              <select class="bpe-co-select" :value="companyId" @change="onSwitchCompany" title="Переключить компанию">
+              <select class="bpe-co-select" :value="companyId" @change="onSwitchCompany" :title="t('Переключить компанию')">
                 <option v-for="c in companies" :key="c.company_id" :value="c.company_id">{{ c.company_name_ru }}</option>
               </select>
               <svg class="bpe-co-caret" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
@@ -15,7 +15,7 @@
             <span class="bpe-fy"> · FY {{ year }}</span>
           </div>
         </div>
-        <button class="bpe-close" @click="$emit('close')" title="Закрыть">×</button>
+        <button class="bpe-close" @click="$emit('close')" :title="t('Закрыть')">×</button>
       </div>
 
       <!-- Period tabs + view-mode toggle (all / expenses-only) -->
@@ -28,7 +28,7 @@
             :class="{ on: activePeriod === p.key }"
             @click="activePeriod = p.key"
           >
-            {{ p.label }}
+            {{ t(p.label) }}
           </button>
         </div>
         <div class="bpe-view-toggle">
@@ -36,25 +36,25 @@
             class="bpe-view-btn bpe-view-btn-inc"
             :class="{ on: viewMode === 'income' }"
             @click="viewMode = 'income'"
-            title="Только доходные статьи (revenue, finIncome + subs)"
+            :title="t('Только доходные статьи (revenue, finIncome + subs)')"
           >
-            Доходы
+            {{ t("Доходы") }}
             <span class="bpe-view-cnt">{{ incomeCount }}</span>
           </button>
           <button
             class="bpe-view-btn bpe-view-btn-exp"
             :class="{ on: viewMode === 'expenses' }"
             @click="viewMode = 'expenses'"
-            title="Только расходные статьи (cogs, opExpenses, finCost, tax + sub-items)"
+            :title="t('Только расходные статьи (cogs, opExpenses, finCost, tax + sub-items)')"
           >
-            Расходы
+            {{ t("Расходы") }}
             <span class="bpe-view-cnt">{{ expensesCount }}</span>
           </button>
         </div>
         <button v-if="perm.canEdit" class="bpe-draft-btn" :disabled="draftLoading" @click="openDraft"
-                title="Черновик плана из истории фактов (CAGR/OLS + историческая сезонность). Заполняет только пустые ячейки плана; ничего не сохраняет сам.">
+                :title="t('Черновик плана из истории фактов (CAGR/OLS + историческая сезонность). Заполняет только пустые ячейки плана; ничего не сохраняет сам.')">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l3-3 3 3 5-6"/></svg>
-          {{ draftLoading ? "Расчёт…" : "Рассчитать план" }}
+          {{ draftLoading ? t("Расчёт…") : t("Рассчитать план") }}
         </button>
       </div>
 
@@ -62,21 +62,21 @@
       <div v-if="viewMode !== 'all'" class="bpe-summary" :class="`bpe-summary-${viewMode}`">
         <div class="bpe-summary-row">
           <div class="bpe-summary-cell">
-            <div class="bpe-summary-l">Сумма (план)</div>
+            <div class="bpe-summary-l">{{ t("Сумма (план)") }}</div>
             <div class="bpe-summary-v">{{ fmtSummary(subsetTotals.plan) }}</div>
           </div>
           <div class="bpe-summary-cell">
-            <div class="bpe-summary-l">Сумма (факт)</div>
+            <div class="bpe-summary-l">{{ t("Сумма (факт)") }}</div>
             <div class="bpe-summary-v">{{ fmtSummary(subsetTotals.fact) }}</div>
           </div>
           <div class="bpe-summary-cell">
-            <div class="bpe-summary-l">Δ план→факт</div>
+            <div class="bpe-summary-l">{{ t("Δ план→факт") }}</div>
             <div class="bpe-summary-v" :class="deltaClass(subsetTotals.delta)">
               {{ subsetTotals.delta != null ? (subsetTotals.delta >= 0 ? '+' : '') + fmtSummary(subsetTotals.delta) : '—' }}
             </div>
           </div>
           <div class="bpe-summary-cell">
-            <div class="bpe-summary-l">% выручки</div>
+            <div class="bpe-summary-l">{{ t("% выручки") }}</div>
             <div class="bpe-summary-v">
               {{ subsetTotals.pctOfRevenue != null ? subsetTotals.pctOfRevenue.toFixed(1) + '%' : '—' }}
             </div>
@@ -87,17 +87,17 @@
       <div v-if="error" class="bpe-error">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
         <span>{{ error }}</span>
-        <button v-if="loadFailed" class="bpe-error-retry" @click="load">Повторить</button>
+        <button v-if="loadFailed" class="bpe-error-retry" @click="load">{{ t("Повторить") }}</button>
       </div>
 
       <div class="bpe-body" :data-readonly="!perm.canEdit">
         <table class="bpe-tbl">
           <thead>
             <tr>
-              <th class="lbl">Показатель</th>
-              <th>План</th>
-              <th>Прогноз</th>
-              <th>Факт</th>
+              <th class="lbl">{{ t("Показатель") }}</th>
+              <th>{{ t("План") }}</th>
+              <th>{{ t("Прогноз") }}</th>
+              <th>{{ t("Факт") }}</th>
             </tr>
           </thead>
           <tbody>
@@ -107,9 +107,9 @@
               :class="{ 'is-sub': f.sub, 'is-auto': f.auto && !f.overridable, 'is-final': f.overridable, 'is-key': isKeyMetric(f.key), 'is-expense': f.positive }"
             >
               <td class="lbl">
-                <span v-if="f.auto && !f.overridable" class="bpe-auto-tag" :title="`Рассчитывается автоматически: ${f.formula || ''}`">∑ расчёт</span>
-                <span v-else-if="f.overridable" class="bpe-final-tag" :title="`Итог по формуле (${f.formula || ''}), но можно переопределить вручную по компании. Факт — автоподстановка из НСБУ.`">итог · правится</span>
-                {{ f.label }}
+                <span v-if="f.auto && !f.overridable" class="bpe-auto-tag" :title="t('Рассчитывается автоматически: {formula}', { formula: f.formula || '' })">{{ t("∑ расчёт") }}</span>
+                <span v-else-if="f.overridable" class="bpe-final-tag" :title="t('Итог по формуле ({formula}), но можно переопределить вручную по компании. Факт — автоподстановка из НСБУ.', { formula: f.formula || '' })">{{ t("итог · правится") }}</span>
+                {{ t(f.label) }}
               </td>
               <td :class="{ 'bpe-pe-cell': canEditRow(f) }">
                 <input
@@ -121,11 +121,11 @@
                   class="bpe-in"
                   :class="{ 'bpe-in-ghost': isOverridable(f.key) && peSuggestion(f.key, 'plan') != null }"
                   :placeholder="isOverridable(f.key) ? peGhost(f.key, 'plan') : '—'"
-                  :title="isOverridable(f.key) && peSuggestion(f.key, 'plan') != null ? `Расчёт по формуле (${f.formula}): ${peGhost(f.key, 'plan')}. Введите своё значение, чтобы переопределить.` : ''"
+                  :title="isOverridable(f.key) && peSuggestion(f.key, 'plan') != null ? t('Расчёт по формуле ({formula}): {value}. Введите своё значение, чтобы переопределить.', { formula: f.formula, value: peGhost(f.key, 'plan') }) : ''"
                   @input="markDirty"
                 />
                 <span v-else class="bpe-auto-val">{{ formatComputed(f.key, "plan") }}</span>
-                <button v-if="isOverridable(f.key) && peSuggestion(f.key, 'plan') != null" class="bpe-badge bpe-badge-calc" :title="`Подставить расчёт: ${peGhost(f.key, 'plan')}`" @click="applyComputedCol(f.key, 'plan')">∑ расчёт</button>
+                <button v-if="isOverridable(f.key) && peSuggestion(f.key, 'plan') != null" class="bpe-badge bpe-badge-calc" :title="t('Подставить расчёт: {value}', { value: peGhost(f.key, 'plan') })" @click="applyComputedCol(f.key, 'plan')">{{ t("∑ расчёт") }}</button>
               </td>
               <td :class="{ 'bpe-pe-cell': canEditRow(f) }">
                 <input
@@ -137,11 +137,11 @@
                   class="bpe-in"
                   :class="{ 'bpe-in-ghost': isOverridable(f.key) && peSuggestion(f.key, 'expect') != null }"
                   :placeholder="isOverridable(f.key) ? peGhost(f.key, 'expect') : '—'"
-                  :title="isOverridable(f.key) && peSuggestion(f.key, 'expect') != null ? `Расчёт по формуле (${f.formula}): ${peGhost(f.key, 'expect')}. Введите своё значение, чтобы переопределить.` : ''"
+                  :title="isOverridable(f.key) && peSuggestion(f.key, 'expect') != null ? t('Расчёт по формуле ({formula}): {value}. Введите своё значение, чтобы переопределить.', { formula: f.formula, value: peGhost(f.key, 'expect') }) : ''"
                   @input="markDirty"
                 />
                 <span v-else class="bpe-auto-val">{{ formatComputed(f.key, "expect") }}</span>
-                <button v-if="isOverridable(f.key) && peSuggestion(f.key, 'expect') != null" class="bpe-badge bpe-badge-calc" :title="`Подставить расчёт: ${peGhost(f.key, 'expect')}`" @click="applyComputedCol(f.key, 'expect')">∑ расчёт</button>
+                <button v-if="isOverridable(f.key) && peSuggestion(f.key, 'expect') != null" class="bpe-badge bpe-badge-calc" :title="t('Подставить расчёт: {value}', { value: peGhost(f.key, 'expect') })" @click="applyComputedCol(f.key, 'expect')">{{ t("∑ расчёт") }}</button>
               </td>
               <td class="bpe-fact-cell">
                 <input
@@ -153,17 +153,17 @@
                   class="bpe-in"
                   :class="{ 'bpe-in-auto': isAutoFact(f.key), 'bpe-in-manual': isManualFact(f.key), 'bpe-in-updated': sourceUpdated(f.key) }"
                   :placeholder="'—'"
-                  :title="isAutoFact(f.key) ? `Автоподстановка (${sourceLabel(f.key)}): ${autoFact(f.key)}. Введите своё значение, чтобы переопределить.` : (sourceUpdated(f.key) ? `Источник обновился: ${autoFact(f.key)} (${sourceLabel(f.key)}). Введено вручную: ${data[activePeriod][f.key].fact}.` : '')"
+                  :title="isAutoFact(f.key) ? t('Автоподстановка ({src}): {value}. Введите своё значение, чтобы переопределить.', { src: sourceLabel(f.key), value: autoFact(f.key) }) : (sourceUpdated(f.key) ? t('Источник обновился: {value} ({src}). Введено вручную: {manual}.', { value: autoFact(f.key), src: sourceLabel(f.key), manual: data[activePeriod][f.key].fact }) : '')"
                   @input="onFactInput(f.key, $event)"
                 />
                 <span v-else class="bpe-auto-val">{{ formatComputed(f.key, "fact") }}</span>
                 <!-- per-cell метка источника/ручного ввода + кнопка применить обновление -->
-                <span v-if="canEditRow(f) && isAutoFact(f.key)" class="bpe-badge bpe-badge-auto" :title="`Автоподстановка из ${sourceLabel(f.key)}`">
+                <span v-if="canEditRow(f) && isAutoFact(f.key)" class="bpe-badge bpe-badge-auto" :title="t('Автоподстановка из {src}', { src: sourceLabel(f.key) })">
                   <svg width="7" height="7" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 5l2.5 2.5L8.5 2.5"/></svg>
-                  авто · {{ sourceLabel(f.key) }}
+                  {{ t("авто") }} · {{ sourceLabel(f.key) }}
                 </span>
-                <span v-else-if="canEditRow(f) && isManualFact(f.key)" class="bpe-badge bpe-badge-manual" title="Введено вручную">✎ вручную</span>
-                <button v-if="canEditRow(f) && sourceUpdated(f.key)" class="bpe-badge bpe-badge-upd" :title="`Применить значение источника (${sourceLabel(f.key)}): ${autoFact(f.key)}`" @click="applyAuto(f.key)">↻ обновить</button>
+                <span v-else-if="canEditRow(f) && isManualFact(f.key)" class="bpe-badge bpe-badge-manual" :title="t('Введено вручную')">{{ t("✎ вручную") }}</span>
+                <button v-if="canEditRow(f) && sourceUpdated(f.key)" class="bpe-badge bpe-badge-upd" :title="t('Применить значение источника ({src}): {value}', { src: sourceLabel(f.key), value: autoFact(f.key) })" @click="applyAuto(f.key)">{{ t("↻ обновить") }}</button>
               </td>
             </tr>
           </tbody>
@@ -175,24 +175,24 @@
         <div class="bpe-draft">
           <div class="bpe-draft-hd">
             <div>
-              <h3>Черновик плана · FY {{ year }}</h3>
+              <h3>{{ t("Черновик плана") }} · FY {{ year }}</h3>
               <div class="bpe-draft-sub">
-                Из истории {{ draft.base_years.join(", ") }} · движок CAGR/OLS + историческая сезонность ·
-                применяется только в <b>пустые</b> ячейки плана · ничего не сохраняется до «Сохранить все периоды»
+                {{ t("Из истории {years} · движок CAGR/OLS + историческая сезонность · применяется только в", { years: draft.base_years.join(", ") }) }}
+                <b>{{ t("пустые") }}</b> {{ t("ячейки плана · ничего не сохраняется до «Сохранить все периоды»") }}
               </div>
             </div>
-            <button class="bpe-close" @click="draftOpen = false" title="Закрыть">×</button>
+            <button class="bpe-close" @click="draftOpen = false" :title="t('Закрыть')">×</button>
           </div>
           <div class="bpe-draft-body">
             <table class="bpe-draft-tbl">
               <thead>
-                <tr><th class="lbl">Показатель</th><th>Год (план)</th><th>Коридор</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th><th>Метод</th></tr>
+                <tr><th class="lbl">{{ t("Показатель") }}</th><th>{{ t("Год (план)") }}</th><th>{{ t("Коридор") }}</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th><th>{{ t("Метод") }}</th></tr>
               </thead>
               <tbody>
                 <tr v-for="m in draft.metrics" :key="m.key" :class="{ 'is-empty': m.annual == null }">
                   <td class="lbl">
-                    {{ m.label }}
-                    <span v-if="m.annual != null && draftBusy(m)" class="bpe-badge bpe-badge-manual" title="Годовой план уже введён — черновик его не тронет">занято</span>
+                    {{ t(m.label) }}
+                    <span v-if="m.annual != null && draftBusy(m)" class="bpe-badge bpe-badge-manual" :title="t('Годовой план уже введён — черновик его не тронет')">{{ t("занято") }}</span>
                   </td>
                   <template v-if="m.annual != null">
                     <td class="num"><b>{{ m.annual.toLocaleString("ru-RU") }}</b></td>
@@ -200,11 +200,11 @@
                     <template v-if="m.quarters_ytd">
                       <td v-for="(v, i) in m.quarters_ytd" :key="i" class="num">{{ v != null ? v.toLocaleString("ru-RU") : "—" }}</td>
                     </template>
-                    <td v-else colspan="4" class="bpe-draft-noq">сезонности нет — только год</td>
-                    <td class="bpe-draft-m" :title="m.note">{{ DRAFT_METHOD_RU[m.method] || m.method }} · {{ DRAFT_CONF_RU[m.confidence] || m.confidence }}</td>
+                    <td v-else colspan="4" class="bpe-draft-noq">{{ t("сезонности нет — только год") }}</td>
+                    <td class="bpe-draft-m" :title="m.note">{{ t(DRAFT_METHOD_RU[m.method] || m.method) }} · {{ t(DRAFT_CONF_RU[m.confidence] || m.confidence) }}</td>
                   </template>
                   <template v-else>
-                    <td colspan="7" class="bpe-draft-noq">{{ m.note || "нет данных" }}</td>
+                    <td colspan="7" class="bpe-draft-noq">{{ m.note || t("нет данных") }}</td>
                   </template>
                 </tr>
               </tbody>
@@ -212,11 +212,11 @@
           </div>
           <div class="bpe-draft-ft">
             <span class="bpe-draft-cnt">
-              {{ draftFillCount > 0 ? `Заполнит ${draftFillCount} пустых ячеек плана` : "Пустых ячеек плана нет — всё уже введено" }}
+              {{ draftFillCount > 0 ? t("Заполнит {n} пустых ячеек плана", { n: draftFillCount }) : t("Пустых ячеек плана нет — всё уже введено") }}
             </span>
             <div class="bpe-actions">
-              <button class="bpe-btn bpe-btn-ghost" @click="draftOpen = false">Отмена</button>
-              <button class="bpe-btn bpe-btn-primary" :disabled="!draftFillCount" @click="applyDraft">Заполнить пустые планы</button>
+              <button class="bpe-btn bpe-btn-ghost" @click="draftOpen = false">{{ t("Отмена") }}</button>
+              <button class="bpe-btn bpe-btn-primary" :disabled="!draftFillCount" @click="applyDraft">{{ t("Заполнить пустые планы") }}</button>
             </div>
           </div>
         </div>
@@ -224,26 +224,26 @@
 
       <div class="bpe-footer">
         <div class="bpe-status">
-          <span v-if="dirty" class="bpe-status-d">Несохранённые изменения</span>
-          <span v-else-if="lastSaved" class="bpe-status-s">Сохранено · {{ lastSaved }}</span>
+          <span v-if="dirty" class="bpe-status-d">{{ t("Несохранённые изменения") }}</span>
+          <span v-else-if="lastSaved" class="bpe-status-s">{{ t("Сохранено") }} · {{ lastSaved }}</span>
           <span v-else-if="activePeriod === 'annual' && updatedCount > 0" class="bpe-status-upd">
-            ↻ Отличается от источника: <strong>{{ updatedCount }}</strong> {{ updatedCount === 1 ? 'ячейка' : 'ячеек' }} — «обновить» в ячейке возьмёт значение источника (НСБУ/кварталы)
+            ↻ {{ t("Отличается от источника:") }} <strong>{{ updatedCount }}</strong> {{ updatedCount === 1 ? t('ячейка') : t('ячеек') }} — {{ t("«обновить» в ячейке возьмёт значение источника (НСБУ/кварталы)") }}
           </span>
           <span v-else-if="activePeriod === 'annual' && nsbuCount > 0" class="bpe-status-nsbu">
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="5"/><path d="M4 6l1.5 1.5L8.5 4.5"/></svg>
-            Автоподставлено фактов: <strong>{{ nsbuCount }}</strong> · пустой «Факт» берётся из источника, можно переопределить вручную
+            {{ t("Автоподставлено фактов:") }} <strong>{{ nsbuCount }}</strong> · {{ t("пустой «Факт» берётся из источника, можно переопределить вручную") }}
           </span>
           <span v-else-if="activePeriod === 'annual'" class="bpe-status-h">
-            Данных источника (НСБУ / закрытые кварталы) за {{ year }} пока нет — ручной ввод
+            {{ t("Данных источника (НСБУ / закрытые кварталы) за {year} пока нет — ручной ввод", { year }) }}
           </span>
-          <span v-else class="bpe-status-h">Квартальный период — значения НАРАСТАЮЩИМ ИТОГОМ с начала года (Q1 = 1 кв, Q2 = полугодие, Q3 = 9 мес, Q4 = год)</span>
+          <span v-else class="bpe-status-h">{{ t("Квартальный период — значения НАРАСТАЮЩИМ ИТОГОМ с начала года (Q1 = 1 кв, Q2 = полугодие, Q3 = 9 мес, Q4 = год)") }}</span>
         </div>
         <div class="bpe-actions">
-          <button class="bpe-btn bpe-btn-ghost" @click="$emit('close')">{{ perm.canEdit ? "Отмена" : "Закрыть" }}</button>
+          <button class="bpe-btn bpe-btn-ghost" @click="$emit('close')">{{ perm.canEdit ? t("Отмена") : t("Закрыть") }}</button>
           <button v-if="perm.canEdit" class="bpe-btn bpe-btn-primary" @click="save" :disabled="saving || !dirty || loadFailed">
-            {{ saving ? "Сохранение..." : "Сохранить все периоды" }}
+            {{ saving ? t("Сохранение...") : t("Сохранить все периоды") }}
           </button>
-          <span v-else class="bpe-status-h">Только просмотр · нет прав на редактирование</span>
+          <span v-else class="bpe-status-h">{{ t("Только просмотр · нет прав на редактирование") }}</span>
         </div>
       </div>
     </div>
@@ -254,9 +254,11 @@
 import { computed, onMounted, ref, watch } from "vue";
 import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
+import { useI18n } from "@/composables/useI18n";
 
 const toast = useToast();
 const { confirmDialog } = useConfirm();
+const { t } = useI18n();
 import {
   BP_FIELDS,
   BP_PERIODS,
@@ -293,7 +295,7 @@ async function onSwitchCompany(e: Event) {
   if (!id || id === props.companyId) return;
   if (dirty.value) {
     const ok = await confirmDialog({
-      message: "Есть несохранённые изменения. Переключить компанию и потерять их?",
+      message: t("Есть несохранённые изменения. Переключить компанию и потерять их?"),
       danger: true,
     });
     if (!ok) { sel.value = props.companyId; return; }   // откат селекта
@@ -383,7 +385,7 @@ const nsbuCount = computed(() =>
 );
 // 'ytd' = годовой факт из значения Q4 (кварталы хранятся нарастающим итогом,
 // q4 = весь год) — НЕ сумма кварталов.
-function sourceLabel(k: string): string { return nsbuSource.value[k] === "ytd" ? "нараст. итог (Q4)" : "НСБУ"; }
+function sourceLabel(k: string): string { return nsbuSource.value[k] === "ytd" ? t("нараст. итог (Q4)") : t("НСБУ"); }
 function autoFact(k: string): number | null {
   return activePeriod.value === "annual" ? (nsbuFacts.value[k] ?? null) : null;
 }
@@ -445,8 +447,8 @@ async function openDraft() {
     draft.value = await bpApi.getPlanDraft(props.companyId, props.year);
     draftOpen.value = true;
   } catch (e: any) {
-    const reason = e?.response?.data?.detail || e?.message || "неизвестная ошибка";
-    toast.error(`Не удалось построить черновик плана: ${reason}`);
+    const reason = e?.response?.data?.detail || e?.message || t("неизвестная ошибка");
+    toast.error(t("Не удалось построить черновик плана: {reason}", { reason }));
   } finally {
     draftLoading.value = false;
   }
@@ -484,8 +486,8 @@ function applyDraft() {
   if (n > 0) markDirty();
   draftOpen.value = false;
   toast.info(n > 0
-    ? `Черновик применён: заполнено ${n} ячеек плана — проверьте и сохраните`
-    : "Пустых ячеек плана нет — черновик ничего не менял");
+    ? t("Черновик применён: заполнено {n} ячеек плана — проверьте и сохраните", { n })
+    : t("Пустых ячеек плана нет — черновик ничего не менял"));
 }
 
 function makeBlank(): Record<Period, Record<string, Cell>> {
@@ -622,7 +624,7 @@ async function load() {
     }
   } catch (e) {
     console.error("[BP editor] load failed:", e);
-    error.value = "Не удалось загрузить сохранённые данные. Не сохраняйте, чтобы не затереть существующие значения — нажмите «Повторить».";
+    error.value = t("Не удалось загрузить сохранённые данные. Не сохраняйте, чтобы не затереть существующие значения — нажмите «Повторить».");
     loadFailed.value = true;
   }
 }
@@ -654,7 +656,7 @@ async function save() {
       }
     }
     if (!records.length) {
-      toast.info("Нет данных для сохранения");
+      toast.info(t("Нет данных для сохранения"));
       saving.value = false;
       return;
     }
@@ -669,21 +671,21 @@ async function save() {
       editorToken.value = (resp as any)?.editorToken ?? null;   // перевыдан — работаем дальше
       lastSaved.value = new Date().toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
       const n = (resp as any)?.upserted;
-      toast.success(typeof n === "number" ? `Сохранено · ${n} ячеек записано` : "Бизнес-план сохранён");
+      toast.success(typeof n === "number" ? t("Сохранено · {n} ячеек записано", { n }) : t("Бизнес-план сохранён"));
       emit("saved");
     }
   } catch (e: any) {
     console.error("[BP editor] save failed:", e);
     // 409 EditorConflict — кто-то сохранил параллельно; данные устарели.
     if (e?.response?.status === 409) {
-      error.value = "Кто-то сохранил изменения, пока вы редактировали. Перезагрузите редактор.";
-      toast.error("Конфликт: данные изменились. Перезагрузите редактор, чтобы не затереть чужие правки.");
+      error.value = t("Кто-то сохранил изменения, пока вы редактировали. Перезагрузите редактор.");
+      toast.error(t("Конфликт: данные изменились. Перезагрузите редактор, чтобы не затереть чужие правки."));
       return;
     }
     // Показываем РЕАЛЬНУЮ причину, а не общий текст.
-    const reason = e?.response?.data?.detail || e?.message || "неизвестная ошибка";
-    error.value = `Не сохранено: ${reason}`;
-    toast.error(`Бизнес-план не сохранён: ${reason}`);
+    const reason = e?.response?.data?.detail || e?.message || t("неизвестная ошибка");
+    error.value = t("Не сохранено: {reason}", { reason });
+    toast.error(t("Бизнес-план не сохранён: {reason}", { reason }));
   } finally {
     saving.value = false;
   }

@@ -25,6 +25,17 @@ export const useAuthStore = defineStore("auth", () => {
   function setUser(u: User) {
     user.value = u;
     localStorage.setItem("uza_user", JSON.stringify(u));
+    // Язык из профиля применяем, только если на устройстве язык ещё не
+    // выбирали (локальный выбор сильнее профиля); sync=false — без эха.
+    try {
+      const uiLoc = (u as unknown as { ui_locale?: string }).ui_locale;
+      if (uiLoc && !localStorage.getItem("uza-locale-v1")) {
+        void import("@/stores/locale").then(({ useLocaleStore }) => {
+          const st = useLocaleStore();
+          st.set(uiLoc as never, { sync: false });
+        });
+      }
+    } catch { /* приватный режим */ }
   }
 
   function clear() {

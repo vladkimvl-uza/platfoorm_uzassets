@@ -1,0 +1,320 @@
+/**
+ * Словарь модуля «Уведомления + Календарь» (колокольчик, тосты, инбокс,
+ * настройки каналов, карточка деталей, календарь дедлайнов).
+ *
+ * Ключи = русские строки как в коде. Общие термины («Закрыть», «Настройки»,
+ * «Все», «Открыть»…) живут в common.ts и здесь НЕ дублируются.
+ */
+
+export const uz: Record<string, string> = {
+  // ── Глаголы действий (useNotificationMeta) ──
+  "Сменил статус": "Holatni oʻzgartirdi",
+  "Изменил срок": "Muddatni oʻzgartirdi",
+  "Обновил ход": "Jarayonni yangiladi",
+  "Отметил результат": "Natijani qayd etdi",
+  "Загрузил файл": "Fayl yukladi",
+  "Оставил комментарий": "Izoh qoldirdi",
+  "Ответил на комментарий": "Izohga javob berdi",
+  "Упомянул вас": "Sizni tilga oldi",
+  "Отправил на согласование": "Kelishuvga yubordi",
+  "Согласовал": "Tasdiqladi",
+  "Отклонил": "Rad etdi",
+  "Вернул на доработку": "Qayta ishlashga qaytardi",
+  "Приближается срок": "Muddat yaqinlashmoqda",
+  "Срок пропущен": "Muddat oʻtkazib yuborildi",
+  "Назначил вам задачу": "Sizga vazifa tayinladi",
+  "Назначил вам проект": "Sizga loyiha tayinladi",
+  "Объявление": "Eʼlon",
+  "Прокомментировал": "Izoh bildirdi",
+  "Добавил": "Qoʻshdi",
+  "Добавил запись": "Yozuv qoʻshdi",
+  "Удалил": "Oʻchirdi",
+  "Изменил": "Oʻzgartirdi",
+  "Уведомление": "Bildirishnoma",
+  "Новый статус: {s}": "Yangi holat: {s}",
+  "Изменено: {fields}": "Oʻzgartirildi: {fields}",
+
+  // ── Статусы задач/проектов (STATUS_RU) ──
+  "Не начато": "Boshlanmagan",
+  "Инициирование": "Boshlash",
+  "В процессе": "Jarayonda",
+  "На согласовании": "Kelishuvda",
+  "Ежеквартально": "Har chorakda",
+  "Ежемесячно": "Har oyda",
+  "Постоянно": "Doimiy",
+  "Перенесено": "Keyinga qoldirilgan",
+  "Заблокировано": "Bloklangan",
+  "Отменено": "Bekor qilingan",
+
+  // ── Лейблы изменённых полей (owner.activity, нижний регистр) ──
+  "название": "nomi",
+  "описание": "tavsif",
+  "статус": "holat",
+  "срок": "muddat",
+  "исполнитель": "ijrochi",
+  "приоритет": "ustuvorlik",
+  "направление": "yoʻnalish",
+  "теги": "teglar",
+  "прогресс": "jarayon",
+  "результат": "natija",
+
+  // ── Краткие месяцы (нижний регистр, shortDate) ──
+  "янв": "yan", "фев": "fev", "мар": "mar", "апр": "apr",
+  "май": "may", "июн": "iyun", "июл": "iyul", "авг": "avg",
+  "сен": "sen", "окт": "okt", "ноя": "noy", "дек": "dek",
+
+  // ── Относительное время (api/notifications.ts) ──
+  "только что": "hozirgina",
+  "{n} с": "{n} s",
+  "{n} мин": "{n} daq",
+  "{n} ч": "{n} soat",
+  "{n} д": "{n} kun",
+
+  // ── Приоритеты (PRIORITY_LABELS) ──
+  "Низкий": "Past",
+  "Обычный": "Oddiy",
+  "Высокий": "Yuqori",
+  "Critical": "Kritik",
+
+  // ── Колокольчик (NotificationBell) ──
+  "{n} непрочитанных": "{n} oʻqilmagan",
+  "Подключение к live...": "Jonli ulanish...",
+  "{n} новых": "{n} yangi",
+  "Прочитать всё": "Barchasini oʻqish",
+  "Модерация": "Moderatsiya",
+  "Упоминания": "Tilga olishlar",
+  "Дедлайны": "Muddatlar",
+  "Все уведомления прочитаны": "Barcha bildirishnomalar oʻqilgan",
+  "Принять": "Qabul qilish",
+  "Отклонить": "Rad etish",
+  "Все уведомления": "Barcha bildirishnomalar",
+
+  // ── Тосты (NotificationToast) ──
+  "Система": "Tizim",
+  "Пользователь": "Foydalanuvchi",
+  "Кто-то": "Kimdir",
+  "{name} и ещё {n}": "{name} va yana {n}",
+  "Прочитано": "Oʻqildi",
+
+  // ── Карточка деталей (NotificationDetailModal) ──
+  "Корп. управление": "Korp. boshqaruv",
+  "Инвест-проекты": "Invest-loyihalar",
+  "Вход и сессии": "Kirish va sessiyalar",
+  "Кто": "Kim",
+  "Где": "Qayerda",
+  "Когда": "Qachon",
+  "Загрузка деталей изменения…": "Oʻzgarish tafsilotlari yuklanmoqda…",
+  "Что изменилось": "Nima oʻzgardi",
+  "Открыть проект": "Loyihani ochish",
+  "Открыть задачу": "Vazifani ochish",
+
+  // ── Инбокс (NotificationsView) ──
+  "Личный кабинет · уведомления": "Shaxsiy kabinet · bildirishnomalar",
+  "всего": "jami",
+  "непрочитанных": "oʻqilmagan",
+  "Поиск...": "Qidiruv...",
+  "только непрочитанные": "faqat oʻqilmaganlar",
+  "показать архив": "arxivni koʻrsatish",
+  "приоритет:": "ustuvorlik:",
+  "Прочитать выбранные": "Tanlanganlarni oʻqish",
+  "Архивировать": "Arxivlash",
+  "Снять выделение": "Tanlovni bekor qilish",
+  "в архиве": "arxivda",
+  "Вперёд": "Oldinga",
+  "Стр. {a} из {b}": "Sahifa {a} / {b}",
+
+  // ── Настройки уведомлений (NotificationSettings) ──
+  "Настройки · уведомления": "Sozlamalar · bildirishnomalar",
+  "Каналы и предпочтения": "Kanallar va afzalliklar",
+  "Управление тем, какие уведомления вы получаете и где":
+    "Qaysi bildirishnomalarni qayerda olishingizni boshqarish",
+  "Отправить тест": "Test yuborish",
+  "Сохраняем...": "Saqlanmoqda...",
+  "{n} типов": "{n} tur",
+  "Тип уведомления": "Bildirishnoma turi",
+  "Включить": "Yoqish",
+  "Настройки сохранены": "Sozlamalar saqlandi",
+  "Тестовое уведомление отправлено — проверьте колокольчик":
+    "Test bildirishnomasi yuborildi — qoʻngʻiroqchani tekshiring",
+
+  // ── Календарь дедлайнов (CalendarView) ──
+  "Не удалось загрузить список компаний": "Kompaniyalar roʻyxatini yuklab boʻlmadi",
+  "Не удалось получить ссылку подписки": "Obuna havolasini olib boʻlmadi",
+  "Скопируйте ссылку вручную (выделена)": "Havolani qoʻlda nusxalang (belgilangan)",
+  "UzAssets · Планирование": "UzAssets · Rejalashtirish",
+  "Календарь дедлайнов": "Muddatlar taqvimi",
+  "Сроки проектов и задач по всему портфелю — синхронно с платформой":
+    "Butun portfel boʻyicha loyiha va vazifalar muddatlari — platforma bilan sinxron",
+  "Фильтр по компании": "Kompaniya boʻyicha filtr",
+  "Подписаться": "Obuna boʻlish",
+  "Подписка в календаре": "Taqvimga obuna",
+  "Добавьте эту ссылку как <b>подписку на календарь</b> в Outlook / Google Calendar / Apple Calendar — дедлайны будут появляться и обновляться автоматически.":
+    "Ushbu havolani Outlook / Google Calendar / Apple Calendar ilovasiga <b>taqvim obunasi</b> sifatida qoʻshing — muddatlar avtomatik paydo boʻladi va yangilanadi.",
+  "Не удалось получить ссылку подписки.": "Obuna havolasini olib boʻlmadi.",
+  "Повторить": "Qayta urinish",
+  "Загрузка ссылки…": "Havola yuklanmoqda…",
+  "Ссылка подписки iCal": "iCal obuna havolasi",
+  "Google: «Другие календари → Добавить по URL». Outlook: «Добавить календарь → Подписаться из интернета».":
+    "Google: «Boshqa taqvimlar → URL orqali qoʻshish». Outlook: «Taqvim qoʻshish → Internetdan obuna boʻlish».",
+};
+
+export const en: Record<string, string> = {
+  // ── Глаголы действий ──
+  "Сменил статус": "Changed status",
+  "Изменил срок": "Changed due date",
+  "Обновил ход": "Updated progress",
+  "Отметил результат": "Marked result",
+  "Загрузил файл": "Uploaded a file",
+  "Оставил комментарий": "Left a comment",
+  "Ответил на комментарий": "Replied to a comment",
+  "Упомянул вас": "Mentioned you",
+  "Отправил на согласование": "Sent for approval",
+  "Согласовал": "Approved",
+  "Отклонил": "Rejected",
+  "Вернул на доработку": "Returned for revision",
+  "Приближается срок": "Deadline approaching",
+  "Срок пропущен": "Deadline missed",
+  "Назначил вам задачу": "Assigned you a task",
+  "Назначил вам проект": "Assigned you a project",
+  "Объявление": "Announcement",
+  "Прокомментировал": "Commented",
+  "Добавил": "Added",
+  "Добавил запись": "Added a record",
+  "Удалил": "Deleted",
+  "Изменил": "Modified",
+  "Уведомление": "Notification",
+  "Новый статус: {s}": "New status: {s}",
+  "Изменено: {fields}": "Changed: {fields}",
+
+  // ── Статусы задач/проектов ──
+  "Не начато": "Not started",
+  "Инициирование": "Initiation",
+  "В процессе": "In progress",
+  "На согласовании": "In approval",
+  "Ежеквартально": "Quarterly",
+  "Ежемесячно": "Monthly",
+  "Постоянно": "Ongoing",
+  "Перенесено": "Deferred",
+  "Заблокировано": "Blocked",
+  "Отменено": "Cancelled",
+
+  // ── Лейблы изменённых полей ──
+  "название": "name",
+  "описание": "description",
+  "статус": "status",
+  "срок": "due date",
+  "исполнитель": "assignee",
+  "приоритет": "priority",
+  "направление": "direction",
+  "теги": "tags",
+  "прогресс": "progress",
+  "результат": "result",
+
+  // ── Краткие месяцы ──
+  "янв": "Jan", "фев": "Feb", "мар": "Mar", "апр": "Apr",
+  "май": "May", "июн": "Jun", "июл": "Jul", "авг": "Aug",
+  "сен": "Sep", "окт": "Oct", "ноя": "Nov", "дек": "Dec",
+
+  // ── Относительное время ──
+  "только что": "just now",
+  "{n} с": "{n} s",
+  "{n} мин": "{n} min",
+  "{n} ч": "{n} h",
+  "{n} д": "{n} d",
+
+  // ── Приоритеты ──
+  "Низкий": "Low",
+  "Обычный": "Normal",
+  "Высокий": "High",
+  "Critical": "Critical",
+
+  // ── Колокольчик ──
+  "{n} непрочитанных": "{n} unread",
+  "Подключение к live...": "Connecting to live...",
+  "{n} новых": "{n} new",
+  "Прочитать всё": "Mark all read",
+  "Модерация": "Moderation",
+  "Упоминания": "Mentions",
+  "Дедлайны": "Deadlines",
+  "Все уведомления прочитаны": "All notifications read",
+  "Принять": "Approve",
+  "Отклонить": "Reject",
+  "Все уведомления": "All notifications",
+
+  // ── Тосты ──
+  "Система": "System",
+  "Пользователь": "User",
+  "Кто-то": "Someone",
+  "{name} и ещё {n}": "{name} and {n} more",
+  "Прочитано": "Read",
+
+  // ── Карточка деталей ──
+  "Корп. управление": "Corp. governance",
+  "Инвест-проекты": "Investment projects",
+  "Вход и сессии": "Sign-in & sessions",
+  "Кто": "Who",
+  "Где": "Where",
+  "Когда": "When",
+  "Загрузка деталей изменения…": "Loading change details…",
+  "Что изменилось": "What changed",
+  "Открыть проект": "Open project",
+  "Открыть задачу": "Open task",
+
+  // ── Инбокс ──
+  "Личный кабинет · уведомления": "Personal area · notifications",
+  "всего": "total",
+  "непрочитанных": "unread",
+  "Поиск...": "Search...",
+  "только непрочитанные": "unread only",
+  "показать архив": "show archive",
+  "приоритет:": "priority:",
+  "Прочитать выбранные": "Mark selected read",
+  "Архивировать": "Archive",
+  "Снять выделение": "Clear selection",
+  "в архиве": "archived",
+  "Вперёд": "Next",
+  "Стр. {a} из {b}": "Page {a} of {b}",
+
+  // ── Настройки уведомлений ──
+  "Настройки · уведомления": "Settings · notifications",
+  "Каналы и предпочтения": "Channels & preferences",
+  "Управление тем, какие уведомления вы получаете и где":
+    "Control which notifications you receive and where",
+  "Отправить тест": "Send test",
+  "Сохраняем...": "Saving...",
+  "{n} типов": "{n} types",
+  "Тип уведомления": "Notification type",
+  "Включить": "Unmute",
+  "Настройки сохранены": "Settings saved",
+  "Тестовое уведомление отправлено — проверьте колокольчик":
+    "Test notification sent — check the bell",
+
+  // ── Календарь дедлайнов ──
+  "Не удалось загрузить список компаний": "Failed to load companies list",
+  "Не удалось получить ссылку подписки": "Failed to get subscription link",
+  "Скопируйте ссылку вручную (выделена)": "Copy the link manually (selected)",
+  "UzAssets · Планирование": "UzAssets · Planning",
+  "Календарь дедлайнов": "Deadline calendar",
+  "Сроки проектов и задач по всему портфелю — синхронно с платформой":
+    "Project and task deadlines across the portfolio — in sync with the platform",
+  "Фильтр по компании": "Filter by company",
+  "Подписаться": "Subscribe",
+  "Подписка в календаре": "Calendar subscription",
+  "Добавьте эту ссылку как <b>подписку на календарь</b> в Outlook / Google Calendar / Apple Calendar — дедлайны будут появляться и обновляться автоматически.":
+    "Add this link as a <b>calendar subscription</b> in Outlook / Google Calendar / Apple Calendar — deadlines will appear and update automatically.",
+  "Не удалось получить ссылку подписки.": "Failed to get the subscription link.",
+  "Повторить": "Retry",
+  "Загрузка ссылки…": "Loading link…",
+  "Ссылка подписки iCal": "iCal subscription link",
+  "Google: «Другие календари → Добавить по URL». Outlook: «Добавить календарь → Подписаться из интернета».":
+    "Google: “Other calendars → From URL”. Outlook: “Add calendar → Subscribe from web”.",
+};
+
+/**
+ * Исключения кириллицы — только там, где транслит латиницы даёт неверную форму
+ * («ь» в заимствованиях и т.п.).
+ */
+export const cyr: Record<string, string> = {
+  "ноя": "ноя",                                   // noy → «ной» без исключения
+  "Фильтр по компании": "Компания бўйича фильтр", // filtr → «филтр» без исключения
+};

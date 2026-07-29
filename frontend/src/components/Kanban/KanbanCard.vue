@@ -16,6 +16,9 @@
 import { computed } from "vue";
 import type { TaskBrief } from "@/api/tasks";
 import { useFormatters } from "@/composables/useFormatters";
+import { useI18n } from "@/composables/useI18n";
+
+const { t } = useI18n();
 
 const props = withDefaults(defineProps<{
   task: TaskBrief;
@@ -122,10 +125,10 @@ const prioColor = computed(() => {
 });
 const prioLabel = computed(() => {
   switch (props.task.priority) {
-    case "high":   return "Высокий приоритет";
-    case "medium": return "Средний приоритет";
-    case "low":    return "Низкий приоритет";
-    default:       return "Без приоритета";
+    case "high":   return t("Высокий приоритет");
+    case "medium": return t("Средний приоритет");
+    case "low":    return t("Низкий приоритет");
+    default:       return t("Без приоритета");
   }
 });
 
@@ -172,36 +175,36 @@ function onDragStart(ev: DragEvent) {
         <span
           v-if="transferFromLabel"
           class="kc-transfer-pill kc-transfer-from"
-          :title="`Перенесена из FY${(task as any).linked_year}`"
+          :title="t('Перенесена из FY{year}', { year: (task as any).linked_year })"
         >{{ transferFromLabel }}</span>
         <span
           v-else-if="hasLinkedTask"
           class="kc-transfer-pill kc-transfer-to"
-          title="Перенесена на следующий год"
+          :title="t('Перенесена на следующий год')"
         >↗</span>
 
         <!-- Recurring/quarterly status pill (visible label) -->
         <span
           v-if="isMonthly"
           class="kc-status-pill kc-status-monthly"
-          title="Ежемесячная задача — вне процентного учёта"
-        >Ежемесячная</span>
+          :title="t('Ежемесячная задача — вне процентного учёта')"
+        >{{ t("Ежемесячная") }}</span>
         <span
           v-else-if="isOngoing"
           class="kc-status-pill kc-status-ongoing"
-          title="Постоянная задача — вне процентного учёта"
-        >Постоянная</span>
+          :title="t('Постоянная задача — вне процентного учёта')"
+        >{{ t("Постоянная") }}</span>
         <span
           v-else-if="isQuarterly"
           class="kc-status-pill"
           :class="isAllQuartersDone ? 'kc-status-q-done' : 'kc-status-quarterly'"
-          :title="`Кварталы: ${quarterDoneCount}/4`"
-        >{{ isAllQuartersDone ? '✓ Все кв.' : `Кв ${quarterDoneCount}/4` }}</span>
+          :title="t('Кварталы: {n}/4', { n: quarterDoneCount })"
+        >{{ isAllQuartersDone ? "✓ " + t("Все кв.") : t("Кв {n}/4", { n: quarterDoneCount }) }}</span>
       </div>
 
       <!-- meta row: direction · consultant · quarterly-dots · date · avatar -->
       <div class="kc-row-meta">
-        <span v-if="dir" class="kc-dir" :title="dir.label">
+        <span v-if="dir" class="kc-dir" :title="t(dir.label)">
           <span class="kc-dir-bullet" :style="{ background: dir.color }"></span>
           {{ dir.short }}
         </span>
@@ -212,7 +215,7 @@ function onDragStart(ev: DragEvent) {
           :title="consultantCodes.join(', ')"
         >{{ consultantCodes[0] }}{{ consultantCodes.length > 1 ? ` +${consultantCodes.length - 1}` : '' }}</span>
 
-        <span v-if="isQuarterly" class="kc-qdots" :title="`${quarterDoneCount}/4 кварталов`">
+        <span v-if="isQuarterly" class="kc-qdots" :title="t('{n}/4 кварталов', { n: quarterDoneCount })">
           <span
             v-for="(on, i) in quarterDots"
             :key="i"

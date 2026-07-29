@@ -5,8 +5,10 @@
  */
 import { ref, watch, nextTick } from "vue";
 import { useStepUp } from "@/composables/useStepUp";
+import { useI18n } from "@/composables/useI18n";
 import ModalShell from "@/components/ModalShell.vue";
 
+const { t } = useI18n();
 const { state, submit, cancel } = useStepUp();
 const password = ref("");
 const input = ref<HTMLInputElement | null>(null);
@@ -32,8 +34,8 @@ function onSubmit() {
           <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
         </svg>
       </div>
-      <h3 class="su-title">Подтвердите личность</h3>
-      <p class="su-sub">Это действие защищено. Введите пароль ещё раз, чтобы продолжить.</p>
+      <h3 class="su-title">{{ t("Подтвердите личность") }}</h3>
+      <p class="su-sub">{{ t("Это действие защищено. Введите пароль ещё раз, чтобы продолжить.") }}</p>
 
       <form @submit.prevent="onSubmit">
         <input
@@ -42,15 +44,15 @@ function onSubmit() {
           type="password"
           class="su-in"
           :class="{ 'su-in-err': state.error }"
-          placeholder="Текущий пароль"
+          :placeholder="t('Текущий пароль')"
           autocomplete="current-password"
           :disabled="state.busy"
         />
         <p v-if="state.error" class="su-err">{{ state.error }}</p>
         <div class="su-actions">
-          <button type="button" class="su-btn su-ghost" :disabled="state.busy" @click="cancel">Отмена</button>
+          <button type="button" class="su-btn su-ghost" :disabled="state.busy" @click="cancel">{{ t("Отмена") }}</button>
           <button type="submit" class="su-btn su-primary" :disabled="state.busy || !password">
-            {{ state.busy ? 'Проверка…' : 'Подтвердить' }}
+            {{ state.busy ? t("Проверка…") : t("Подтвердить") }}
           </button>
         </div>
       </form>

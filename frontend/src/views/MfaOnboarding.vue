@@ -28,7 +28,9 @@ import { mfaApi } from "@/api/mfa";
 import { authApi } from "@/api/auth";
 import { useAuthStore } from "@/stores/auth";
 import { useFormatters } from "@/composables/useFormatters";
+import { useI18n } from "@/composables/useI18n";
 
+const { t } = useI18n();
 const fmt = useFormatters();
 
 const router = useRouter();
@@ -62,13 +64,13 @@ const firstName = computed(() => {
   const full = auth.user?.full_name || "";
   if (full) return full.split(" ")[0];
   const email = auth.user?.email || "";
-  return email.split("@")[0] || "коллега";
+  return email.split("@")[0] || t("коллега");
 });
 
 const userFullName = computed(() => auth.user?.full_name || auth.user?.email || "");
 const userEmail = computed(() => auth.user?.email || "");
 const userRoleLabel = computed(() => {
-  if (auth.user?.is_owner) return "Администратор платформы";
+  if (auth.user?.is_owner) return t("Администратор платформы");
   const roles = auth.user?.roles || [];
   const map: Record<string, string> = {
     admin: "Администратор",
@@ -80,9 +82,9 @@ const userRoleLabel = computed(() => {
   };
   for (const r of roles) {
     const lower = r.toLowerCase();
-    if (map[lower]) return map[lower];
+    if (map[lower]) return t(map[lower]);
   }
-  return roles[0] || "Пользователь";
+  return roles[0] || t("Пользователь");
 });
 
 const remainingMmSs = computed(() => {
@@ -115,7 +117,7 @@ async function initLinkStep() {
     startTicker();
     startPolling();
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || "Не удалось получить QR-код";
+    error.value = e?.response?.data?.detail || t("Не удалось получить QR-код");
   } finally {
     busy.value = false;
   }
@@ -180,7 +182,7 @@ async function proceedToTestCode() {
     const resp = await mfaApi.onboardingSendCode();
     challengeId.value = resp.challenge_id;
   } catch (e: any) {
-    codeError.value = e?.response?.data?.detail || "Не удалось отправить код. Попробуйте «Отправить заново».";
+    codeError.value = e?.response?.data?.detail || t("Не удалось отправить код. Попробуйте «Отправить заново».");
   }
   await nextTick();
   codeInputs.value[0]?.focus();
@@ -223,18 +225,18 @@ async function resendTestCode() {
     const resp = await mfaApi.onboardingSendCode();
     challengeId.value = resp.challenge_id;
   } catch (e: any) {
-    codeError.value = e?.response?.data?.detail || "Не удалось переотправить код";
+    codeError.value = e?.response?.data?.detail || t("Не удалось переотправить код");
   }
 }
 
 async function verifyTestCode() {
   const code = codeDigits.value.join("");
   if (code.length !== 6) {
-    codeError.value = "Введите 6 цифр кода";
+    codeError.value = t("Введите 6 цифр кода");
     return;
   }
   if (!challengeId.value) {
-    codeError.value = "Сессия истекла. Нажмите «Отправить заново».";
+    codeError.value = t("Сессия истекла. Нажмите «Отправить заново».");
     return;
   }
   busy.value = true;
@@ -249,7 +251,7 @@ async function verifyTestCode() {
     } catch {}
     step.value = 4;
   } catch (e: any) {
-    codeError.value = e?.response?.data?.detail || "Неверный код";
+    codeError.value = e?.response?.data?.detail || t("Неверный код");
   } finally {
     busy.value = false;
   }
@@ -259,17 +261,17 @@ async function verifyTestCode() {
 function downloadRecoveryTxt() {
   const today = new Date().toISOString().slice(0, 10);
   const lines = [
-    "UzAssets — резервные коды двухфакторной аутентификации",
+    t("UzAssets — резервные коды двухфакторной аутентификации"),
     "",
-    `Аккаунт: ${userFullName.value}`,
+    t("Аккаунт: {name}", { name: userFullName.value }),
     `Email:   ${userEmail.value}`,
-    `Дата:    ${fmt.fmtDateTime(new Date())}`,
+    t("Дата: {date}", { date: fmt.fmtDateTime(new Date()) }),
     "",
-    "Каждый код используется один раз. Храните в надёжном месте.",
+    t("Каждый код используется один раз. Храните в надёжном месте."),
     "",
     ...recoveryCodes.value.map((c, i) => `${(i + 1).toString().padStart(2, "0")}.  ${c}`),
     "",
-    "Никогда не отправляйте эти коды в чаты, email или Telegram.",
+    t("Никогда не отправляйте эти коды в чаты, email или Telegram."),
   ];
   const blob = new Blob([lines.join("\r\n")], { type: "text/plain;charset=utf-8" });
   const url = URL.createObjectURL(blob);
@@ -308,7 +310,7 @@ async function completeOnboarding() {
 const showSkipWarning = ref(false);
 const deferUntilLabel = computed(() => {
   const d = new Date(Date.now() + 7 * 24 * 3600 * 1000);
-  return d.toLocaleDateString("ru", { day: "numeric", month: "long", year: "numeric" });
+  return fmt.fmtDate(d, { long: true });
 });
 
 async function confirmSkipOnboarding() {
@@ -360,7 +362,7 @@ onBeforeUnmount(() => {
         <span class="mfa-ob-step-counter">{{ step }} / 4</span>
       </div>
       <button v-if="step < 4" class="mfa-ob-skip-link" :disabled="busy" @click="showSkipWarning = true">
-        Привязать через 7 дней
+        {{ t("Привязать через 7 дней") }}
       </button>
       <span v-else></span>
     </div>
@@ -372,32 +374,31 @@ onBeforeUnmount(() => {
         <div class="mfa-ob-left">
           <div class="mfa-ob-badge">
             <UzaLogo :size="14" />
-            <span>ВКЛЮЧИТЕ 2FA · ШАГ 1 / 4</span>
+            <span>{{ t("ВКЛЮЧИТЕ 2FA · ШАГ 1 / 4") }}</span>
           </div>
-          <h1 class="mfa-ob-h1">Здравствуйте,<br/>{{ firstName }}!</h1>
+          <h1 class="mfa-ob-h1">{{ t("Здравствуйте,") }}<br/>{{ firstName }}!</h1>
           <p class="mfa-ob-lead">
-            Рекомендуем добавить второй фактор входа через Telegram.
-            Это займёт две минуты и серьёзно повысит безопасность вашего аккаунта.
+            {{ t("Рекомендуем добавить второй фактор входа через Telegram. Это займёт две минуты и серьёзно повысит безопасность вашего аккаунта.") }}
           </p>
 
           <div class="mfa-ob-bullets">
             <div class="mfa-ob-bullet">
               <div class="mfa-ob-bullet-icon"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
-              <div><strong>Мгновенно.</strong> Коды приходят в Telegram за секунду — не ждёте SMS.</div>
+              <div><strong>{{ t("Мгновенно.") }}</strong> {{ t("Коды приходят в Telegram за секунду — не ждёте SMS.") }}</div>
             </div>
             <div class="mfa-ob-bullet">
               <div class="mfa-ob-bullet-icon"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
-              <div><strong>Безопасно.</strong> Даже если пароль утечёт, без вашего телефона войти невозможно.</div>
+              <div><strong>{{ t("Безопасно.") }}</strong> {{ t("Даже если пароль утечёт, без вашего телефона войти невозможно.") }}</div>
             </div>
             <div class="mfa-ob-bullet">
               <div class="mfa-ob-bullet-icon"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
-              <div><strong>Бесплатно.</strong> Никаких SMS-операторов и платных сервисов.</div>
+              <div><strong>{{ t("Бесплатно.") }}</strong> {{ t("Никаких SMS-операторов и платных сервисов.") }}</div>
             </div>
           </div>
 
           <div class="mfa-ob-actions">
             <button class="mfa-ob-btn-primary" :disabled="busy" @click="startSetup">
-              Настроить сейчас
+              {{ t("Настроить сейчас") }}
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
             </button>
           </div>
@@ -421,7 +422,7 @@ onBeforeUnmount(() => {
                 </div>
                 <div class="mfa-ob-phone-bot-name">UzAssets Bot</div>
                 <div class="mfa-ob-phone-bot-handle">@UzAssets_bot</div>
-                <button class="mfa-ob-phone-cta">Запустить</button>
+                <button class="mfa-ob-phone-cta">{{ t("Запустить") }}</button>
               </div>
             </div>
           </div>
@@ -433,27 +434,26 @@ onBeforeUnmount(() => {
         <div class="mfa-ob-left">
           <div class="mfa-ob-badge mfa-ob-badge-purple">
             <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-            <span>ПРИВЯЗКА · ШАГ 2 / 4</span>
+            <span>{{ t("ПРИВЯЗКА · ШАГ 2 / 4") }}</span>
           </div>
-          <h1 class="mfa-ob-h1">Привяжите Telegram</h1>
+          <h1 class="mfa-ob-h1">{{ t("Привяжите Telegram") }}</h1>
           <p class="mfa-ob-lead">
-            Бот <strong class="mfa-ob-mono">@UzAssets_bot</strong> станет вашим каналом получения кодов.
-            Привяжите его к вашему телефону один раз.
+            {{ t("Бот {bot} станет вашим каналом получения кодов. Привяжите его к вашему телефону один раз.", { bot: "@UzAssets_bot" }) }}
           </p>
 
           <div class="mfa-ob-steps">
             <div class="mfa-ob-step-row">
               <div class="mfa-ob-step-num">1</div>
               <div>
-                <div class="mfa-ob-step-title">Сканируйте QR-код</div>
-                <div class="mfa-ob-step-desc">камерой телефона или в Telegram → меню → «Сканировать QR»</div>
+                <div class="mfa-ob-step-title">{{ t("Сканируйте QR-код") }}</div>
+                <div class="mfa-ob-step-desc">{{ t("камерой телефона или в Telegram → меню → «Сканировать QR»") }}</div>
               </div>
             </div>
             <div class="mfa-ob-step-row">
               <div class="mfa-ob-step-num">2</div>
               <div>
-                <div class="mfa-ob-step-title">В боте нажмите «Это я, {{ userFullName }}»</div>
-                <div class="mfa-ob-step-desc">бот покажет ваше имя и email для подтверждения</div>
+                <div class="mfa-ob-step-title">{{ t("В боте нажмите «Это я, {name}»", { name: userFullName }) }}</div>
+                <div class="mfa-ob-step-desc">{{ t("бот покажет ваше имя и email для подтверждения") }}</div>
               </div>
             </div>
             <div class="mfa-ob-step-row">
@@ -461,7 +461,7 @@ onBeforeUnmount(() => {
                 <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
               </div>
               <div>
-                <div class="mfa-ob-step-title">Готово — перейдём дальше автоматически</div>
+                <div class="mfa-ob-step-title">{{ t("Готово — перейдём дальше автоматически") }}</div>
               </div>
             </div>
           </div>
@@ -475,15 +475,15 @@ onBeforeUnmount(() => {
               </div>
             </div>
             <div class="mfa-ob-qr-info">
-              <div class="mfa-ob-qr-title">QR-код для сканирования</div>
+              <div class="mfa-ob-qr-title">{{ t("QR-код для сканирования") }}</div>
               <div class="mfa-ob-qr-status">
                 <span class="mfa-ob-status-dot"></span>
-                <span v-if="qrDataUrl">Ждём сканирования · истекает {{ remainingMmSs }}</span>
-                <span v-else>Загрузка…</span>
+                <span v-if="qrDataUrl">{{ t("Ждём сканирования · истекает {time}", { time: remainingMmSs }) }}</span>
+                <span v-else>{{ t("Загрузка…") }}</span>
               </div>
             </div>
             <button class="mfa-ob-btn-dark" :disabled="!deepLink" @click="openBotDirect">
-              Открыть бота
+              {{ t("Открыть бота") }}
             </button>
           </div>
 
@@ -504,25 +504,25 @@ onBeforeUnmount(() => {
                 <div class="mfa-ob-phone-avatar"><UzaLogo :size="20" /></div>
                 <div>
                   <div class="mfa-ob-phone-hdr-name">UzAssets Bot</div>
-                  <div class="mfa-ob-phone-hdr-sub">бот</div>
+                  <div class="mfa-ob-phone-hdr-sub">{{ t("бот") }}</div>
                 </div>
               </div>
               <div class="mfa-ob-phone-msgs">
                 <div class="mfa-ob-phone-msg">
-                  Здравствуйте! Подтвердите привязку этого Telegram к вашему аккаунту:
+                  {{ t("Здравствуйте! Подтвердите привязку этого Telegram к вашему аккаунту:") }}
                   <div class="mfa-ob-phone-card">
-                    <div class="mfa-ob-pc-label">Имя</div>
+                    <div class="mfa-ob-pc-label">{{ t("Имя") }}</div>
                     <div class="mfa-ob-pc-value">{{ userFullName }}</div>
                     <div class="mfa-ob-pc-label">Email</div>
                     <div class="mfa-ob-pc-value mfa-ob-mono">{{ userEmail }}</div>
-                    <div class="mfa-ob-pc-label">Роль</div>
+                    <div class="mfa-ob-pc-label">{{ t("Роль") }}</div>
                     <div class="mfa-ob-pc-value">{{ userRoleLabel }}</div>
                   </div>
                   <div class="mfa-ob-phone-time">9:41</div>
                 </div>
                 <div class="mfa-ob-phone-kbd">
-                  <button class="mfa-ob-phone-kbd-btn pulse">✓ Это я, {{ userFullName }}</button>
-                  <button class="mfa-ob-phone-kbd-btn dim">Это не я</button>
+                  <button class="mfa-ob-phone-kbd-btn pulse">{{ t("✓ Это я, {name}", { name: userFullName }) }}</button>
+                  <button class="mfa-ob-phone-kbd-btn dim">{{ t("Это не я") }}</button>
                 </div>
               </div>
             </div>
@@ -535,13 +535,11 @@ onBeforeUnmount(() => {
         <div class="mfa-ob-left">
           <div class="mfa-ob-badge mfa-ob-badge-green">
             <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-            <span>TELEGRAM ПРИВЯЗАН · ШАГ 3 / 4</span>
+            <span>{{ t("TELEGRAM ПРИВЯЗАН · ШАГ 3 / 4") }}</span>
           </div>
-          <h1 class="mfa-ob-h1">Проверим канал —<br/>введите код из Telegram</h1>
+          <h1 class="mfa-ob-h1">{{ t("Проверим канал — введите код из Telegram") }}</h1>
           <p class="mfa-ob-lead">
-            Мы только что отправили тестовый 6-значный код в чат с
-            <strong class="mfa-ob-mono">@UzAssets_bot</strong>. Это нужно один раз,
-            чтобы убедиться что доставка работает.
+            {{ t("Мы только что отправили тестовый 6-значный код в чат с {bot}. Это нужно один раз, чтобы убедиться что доставка работает.", { bot: "@UzAssets_bot" }) }}
           </p>
 
           <div class="mfa-ob-code-input">
@@ -559,7 +557,7 @@ onBeforeUnmount(() => {
           </div>
 
           <div class="mfa-ob-code-meta">
-            <a href="#" @click.prevent="resendTestCode">Отправить заново</a>
+            <a href="#" @click.prevent="resendTestCode">{{ t("Отправить заново") }}</a>
           </div>
 
           <div v-if="codeError" class="mfa-ob-error">{{ codeError }}</div>
@@ -569,7 +567,7 @@ onBeforeUnmount(() => {
             :disabled="busy || codeDigits.join('').length !== 6"
             @click="verifyTestCode"
           >
-            Подтвердить и продолжить
+            {{ t("Подтвердить и продолжить") }}
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
           </button>
         </div>
@@ -593,13 +591,13 @@ onBeforeUnmount(() => {
               </div>
               <div class="mfa-ob-phone-msgs">
                 <div class="mfa-ob-phone-msg">
-                  <span style="color:#4FCC9A;">✓</span> Telegram привязан к аккаунту {{ userFullName }}.
+                  <span style="color:#4FCC9A;">✓</span> {{ t("Telegram привязан к аккаунту {name}.", { name: userFullName }) }}
                   <div class="mfa-ob-phone-time">9:41</div>
                 </div>
                 <div class="mfa-ob-phone-msg mfa-ob-phone-msg-code">
-                  <div class="mfa-ob-pc-label" style="margin-bottom:5px">Тестовый код</div>
+                  <div class="mfa-ob-pc-label" style="margin-bottom:5px">{{ t("Тестовый код") }}</div>
                   <div class="mfa-ob-phone-code mfa-ob-phone-code-blur">••• •••</div>
-                  <div class="mfa-ob-phone-code-hint">Откройте чат с @UzAssets_bot — код пришёл туда.</div>
+                  <div class="mfa-ob-phone-code-hint">{{ t("Откройте чат с @UzAssets_bot — код пришёл туда.") }}</div>
                   <div class="mfa-ob-phone-time">9:41</div>
                 </div>
               </div>
@@ -613,13 +611,12 @@ onBeforeUnmount(() => {
         <div class="mfa-ob-left">
           <div class="mfa-ob-badge mfa-ob-badge-amber">
             <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-            <span>ВАЖНО · ШАГ 4 / 4</span>
+            <span>{{ t("ВАЖНО · ШАГ 4 / 4") }}</span>
           </div>
-          <h1 class="mfa-ob-h1">Сохраните резервные<br/>коды на случай ЧП</h1>
+          <h1 class="mfa-ob-h1">{{ t("Сохраните резервные коды на случай ЧП") }}</h1>
           <p class="mfa-ob-lead">
-            Если потеряете телефон или Telegram станет недоступен, эти 10 одноразовых
-            кодов помогут войти. Каждый используется один раз.
-            <strong>Покажем их только сейчас.</strong>
+            {{ t("Если потеряете телефон или Telegram станет недоступен, эти 10 одноразовых кодов помогут войти. Каждый используется один раз.") }}
+            <strong>{{ t("Покажем их только сейчас.") }}</strong>
           </p>
 
           <div class="mfa-ob-codes-grid">
@@ -636,22 +633,22 @@ onBeforeUnmount(() => {
           <div class="mfa-ob-code-actions">
             <button class="mfa-ob-btn-dark" @click="downloadRecoveryTxt">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              Скачать .txt
+              {{ t("Скачать .txt") }}
             </button>
             <button class="mfa-ob-btn-light" @click="copyAllCodes">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-              {{ copiedToast ? "Скопировано ✓" : "Скопировать всё" }}
+              {{ copiedToast ? t("Скопировано ✓") : t("Скопировать всё") }}
             </button>
           </div>
 
           <div class="mfa-ob-warn">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            <div>Распечатайте или сохраните в менеджер паролей. Никогда не отправляйте в чаты/email/Telegram — это эквивалент пароля.</div>
+            <div>{{ t("Распечатайте или сохраните в менеджер паролей. Никогда не отправляйте в чаты/email/Telegram — это эквивалент пароля.") }}</div>
           </div>
 
           <label class="mfa-ob-ack">
             <input type="checkbox" v-model="recoveryAcknowledged"/>
-            <span>Я сохранил коды в надёжном месте</span>
+            <span>{{ t("Я сохранил коды в надёжном месте") }}</span>
           </label>
 
           <button
@@ -660,7 +657,7 @@ onBeforeUnmount(() => {
             @click="completeOnboarding"
           >
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-            Завершить настройку
+            {{ t("Завершить настройку") }}
           </button>
         </div>
 
@@ -678,9 +675,9 @@ onBeforeUnmount(() => {
                 <div class="mfa-ob-celebrate-circle">
                   <svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
                 </div>
-                <div class="mfa-ob-celebrate-title">2FA активирована</div>
+                <div class="mfa-ob-celebrate-title">{{ t("2FA активирована") }}</div>
                 <div class="mfa-ob-celebrate-sub">
-                  Теперь при каждом входе мы будем присылать одноразовый код в этот чат.
+                  {{ t("Теперь при каждом входе мы будем присылать одноразовый код в этот чат.") }}
                 </div>
                 <div class="mfa-ob-celebrate-footer">
                   <UzaLogo :size="14" />
@@ -703,21 +700,20 @@ onBeforeUnmount(() => {
               <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
             </svg>
           </div>
-          <div class="mfa-warn-title">Отложить привязку на 7 дней?</div>
+          <div class="mfa-warn-title">{{ t("Отложить привязку на 7 дней?") }}</div>
           <div class="mfa-warn-text">
-            Двухфакторная аутентификация защищает ваш аккаунт. Вы можете отложить
-            её настройку, но не позднее <b>{{ deferUntilLabel }}</b>.
+            {{ t("Двухфакторная аутентификация защищает ваш аккаунт. Вы можете отложить её настройку, но не позднее {date}.", { date: deferUntilLabel }) }}
           </div>
           <div class="mfa-warn-callout">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            <span>Через 7 дней привязка станет <b>обязательной</b> — без неё доступ к платформе будет заблокирован до настройки MFA.</span>
+            <span>{{ t("Через 7 дней привязка станет обязательной — без неё доступ к платформе будет заблокирован до настройки MFA.") }}</span>
           </div>
           <div class="mfa-warn-actions">
             <button class="mfa-warn-btn-ghost" :disabled="busy" @click="showSkipWarning = false">
-              Привязать сейчас
+              {{ t("Привязать сейчас") }}
             </button>
             <button class="mfa-warn-btn-amber" :disabled="busy" @click="confirmSkipOnboarding">
-              {{ busy ? "…" : "Отложить на 7 дней" }}
+              {{ busy ? "…" : t("Отложить на 7 дней") }}
             </button>
           </div>
         </div>

@@ -21,11 +21,13 @@ import {
 } from "@/api/procurement_analysis";
 import { paGenerateCompanyRecommendation } from "@/composables/usePaRecommendation";
 import { useFormatters } from "@/composables/useFormatters";
+import { useI18n } from "@/composables/useI18n";
 import PaModalShell from "./PaModalShell.vue";
 import PaCategoryDeviationBars from "./PaCategoryDeviationBars.vue";
 import PaSpendBreakdown from "./PaSpendBreakdown.vue";
 
 const fmt = useFormatters();
+const { t } = useI18n();
 
 const props = defineProps<{
   company: CompanyRatingRow | null;
@@ -165,7 +167,7 @@ function devComparable(p: ClosureRow): boolean {
 <template>
   <PaModalShell
     v-if="company"
-    kind="Компания"
+    :kind="t('Компания')"
     :title="company.company_name"
     :accent="accentColor"
     max-width="1100px"
@@ -174,46 +176,46 @@ function devComparable(p: ClosureRow): boolean {
     <!-- ─── Stats strip ─── -->
     <template #stats>
       <div class="pms-stat">
-        <div class="pms-stat-lbl">Ранг</div>
-        <div class="pms-stat-val">#{{ rank }}<small>из {{ totalCompanies }}</small></div>
+        <div class="pms-stat-lbl">{{ t("Ранг") }}</div>
+        <div class="pms-stat-val">#{{ rank }}<small>{{ t("из") }} {{ totalCompanies }}</small></div>
       </div>
       <div class="pms-stat">
-        <div class="pms-stat-lbl">Средн. отклонение</div>
+        <div class="pms-stat-lbl">{{ t("Средн. отклонение") }}</div>
         <div class="pms-stat-val" :class="(company.company_deviation ?? 0) >= 0 ? 'neg' : 'pos'">
           {{ fmt.fmtNumber(company.company_deviation, { decimals: 1, signed: true }) }}<small>%</small>
         </div>
       </div>
       <div class="pms-stat">
-        <div class="pms-stat-lbl">{{ overpay > 0 ? 'Переплата' : 'Экономия' }}</div>
+        <div class="pms-stat-lbl">{{ overpay > 0 ? t('Переплата') : t('Экономия') }}</div>
         <div class="pms-stat-val" :class="overpay > 0 ? 'neg' : 'pos'">
-          {{ paFmtMoneyShort(overpay > 0 ? overpay : savings) }}<small>сум</small>
+          {{ paFmtMoneyShort(overpay > 0 ? overpay : savings) }}<small>{{ t("сум") }}</small>
         </div>
       </div>
       <div class="pms-stat">
-        <div class="pms-stat-lbl">Объём</div>
-        <div class="pms-stat-val">{{ paFmtMoneyShort(totalVol) }}<small>сум</small></div>
+        <div class="pms-stat-lbl">{{ t("Объём") }}</div>
+        <div class="pms-stat-val">{{ paFmtMoneyShort(totalVol) }}<small>{{ t("сум") }}</small></div>
       </div>
       <div class="pms-stat">
-        <div class="pms-stat-lbl">Категорий</div>
+        <div class="pms-stat-lbl">{{ t("Категорий") }}</div>
         <div class="pms-stat-val">{{ categoryStats.length }}</div>
       </div>
       <div class="pms-stat">
-        <div class="pms-stat-lbl">Закупок</div>
+        <div class="pms-stat-lbl">{{ t("Закупок") }}</div>
         <div class="pms-stat-val">{{ purchases.length }}</div>
       </div>
     </template>
 
     <!-- ─── Tabs ─── -->
     <template #tabs>
-      <button class="pms-tab" :class="{ active: activeTab === 'overview' }" @click="activeTab = 'overview'">Обзор</button>
+      <button class="pms-tab" :class="{ active: activeTab === 'overview' }" @click="activeTab = 'overview'">{{ t("Обзор") }}</button>
       <button class="pms-tab" :class="{ active: activeTab === 'categories' }" @click="activeTab = 'categories'">
-        Категории<span class="pms-tab-count">{{ categoryStats.length }}</span>
+        {{ t("Категории") }}<span class="pms-tab-count">{{ categoryStats.length }}</span>
       </button>
       <button class="pms-tab" :class="{ active: activeTab === 'suppliers' }" @click="activeTab = 'suppliers'">
-        Поставщики<span class="pms-tab-count">{{ supplierStats.length }}</span>
+        {{ t("Поставщики") }}<span class="pms-tab-count">{{ supplierStats.length }}</span>
       </button>
       <button class="pms-tab" :class="{ active: activeTab === 'purchases' }" @click="activeTab = 'purchases'">
-        Закупки<span class="pms-tab-count">{{ purchases.length }}</span>
+        {{ t("Закупки") }}<span class="pms-tab-count">{{ purchases.length }}</span>
       </button>
     </template>
 
@@ -237,8 +239,8 @@ function devComparable(p: ClosureRow): boolean {
       <!-- Отклонение по категориям — дивержентные бары (заменили radar) -->
       <div class="cp2-dev-section">
         <div class="cp2-sec-h">
-          Отклонение цен по категориям
-          <span class="cp2-sec-note">по сопоставимым товарам · база {{ paFmtMoneyShort(comparableRef) }} сум</span>
+          {{ t("Отклонение цен по категориям") }}
+          <span class="cp2-sec-note">{{ t("по сопоставимым товарам · база {sum} сум", { sum: paFmtMoneyShort(comparableRef) }) }}</span>
         </div>
         <PaCategoryDeviationBars :cats="company.cat_dev" />
       </div>
@@ -250,11 +252,11 @@ function devComparable(p: ClosureRow): boolean {
         <thead>
           <tr>
             <th class="left">№</th>
-            <th class="left">Категория</th>
-            <th class="right">Закупок</th>
-            <th class="right">Объём (сум)</th>
-            <th class="right">Median рынка</th>
-            <th class="right">{{ 'Δ сумма' }}</th>
+            <th class="left">{{ t("Категория") }}</th>
+            <th class="right">{{ t("Закупок") }}</th>
+            <th class="right">{{ t("Объём (сум)") }}</th>
+            <th class="right">{{ t("Median рынка") }}</th>
+            <th class="right">{{ t('Δ сумма') }}</th>
             <th class="right">{{ 'Δ %' }}</th>
           </tr>
         </thead>
@@ -272,7 +274,7 @@ function devComparable(p: ClosureRow): boolean {
               {{ fmt.fmtPercent(c.devPct, { decimals: 1, signed: true }) }}
             </td>
           </tr>
-          <tr v-if="!categoryStats.length"><td colspan="7" class="pms-empty">Нет данных</td></tr>
+          <tr v-if="!categoryStats.length"><td colspan="7" class="pms-empty">{{ t("Нет данных") }}</td></tr>
         </tbody>
       </table>
     </div>
@@ -282,12 +284,12 @@ function devComparable(p: ClosureRow): boolean {
       <table class="cp2-tbl pa-stagger">
         <thead>
           <tr>
-            <th class="left">Поставщик</th>
-            <th class="right">Закупок</th>
-            <th class="right">Категорий</th>
-            <th class="right">Объём</th>
-            <th class="right">Median рынка</th>
-            <th class="right">{{ 'Δ сумма' }}</th>
+            <th class="left">{{ t("Поставщик") }}</th>
+            <th class="right">{{ t("Закупок") }}</th>
+            <th class="right">{{ t("Категорий") }}</th>
+            <th class="right">{{ t("Объём") }}</th>
+            <th class="right">{{ t("Median рынка") }}</th>
+            <th class="right">{{ t('Δ сумма') }}</th>
             <th class="right">{{ 'Δ %' }}</th>
           </tr>
         </thead>
@@ -305,7 +307,7 @@ function devComparable(p: ClosureRow): boolean {
               {{ fmt.fmtPercent(s.devPct, { decimals: 1, signed: true }) }}
             </td>
           </tr>
-          <tr v-if="!supplierStats.length"><td colspan="7" class="pms-empty">Нет поставщиков</td></tr>
+          <tr v-if="!supplierStats.length"><td colspan="7" class="pms-empty">{{ t("Нет поставщиков") }}</td></tr>
         </tbody>
       </table>
     </div>
@@ -316,11 +318,11 @@ function devComparable(p: ClosureRow): boolean {
         <thead>
           <tr>
             <th class="left">№</th>
-            <th class="left">Категория</th>
-            <th class="left">Поставщик</th>
-            <th class="right">Цена / ед.</th>
+            <th class="left">{{ t("Категория") }}</th>
+            <th class="left">{{ t("Поставщик") }}</th>
+            <th class="right">{{ t("Цена / ед.") }}</th>
             <th class="right">Median</th>
-            <th class="right">Объём</th>
+            <th class="right">{{ t("Объём") }}</th>
             <th class="right">{{ 'Δ %' }}</th>
           </tr>
         </thead>
@@ -328,20 +330,20 @@ function devComparable(p: ClosureRow): boolean {
           <tr v-for="p in sortedPurchases" :key="p.id"
               class="cp2-row-clickable"
               @click="emit('drill-closure', p)"
-              title="Подробнее о закупке">
+              :title="t('Подробнее о закупке')">
             <td class="left cp2-num">{{ padCat(p.category_id) }}</td>
             <td class="left">{{ p.category_name }}</td>
             <td class="left cp2-supplier">{{ p.supplier || '—' }}</td>
-            <td class="right">{{ paFmtMoney(p.unit_price) }}<span class="cp2-unit"> / {{ p.category_unit || 'ед' }}</span></td>
+            <td class="right">{{ paFmtMoney(p.unit_price) }}<span class="cp2-unit"> / {{ p.category_unit || t('ед') }}</span></td>
             <td class="right neu">{{ paFmtMoney(p.market_avg) }}</td>
             <td class="right">{{ fmt.fmtNumber(Number(p.volume)) }}</td>
             <td class="right" :class="devComparable(p) ? (p.deviation_pct >= 0 ? 'neg' : 'pos') : 'neu'"
-                :title="devComparable(p) ? '' : 'Услуга/работа или несопоставимый код — отклонение по цене за единицу неинформативно'">
+                :title="devComparable(p) ? '' : t('Услуга/работа или несопоставимый код — отклонение по цене за единицу неинформативно')">
               <template v-if="devComparable(p)">{{ fmt.fmtPercent(p.deviation_pct, { decimals: 1, signed: true }) }}</template>
               <template v-else>—</template>
             </td>
           </tr>
-          <tr v-if="!sortedPurchases.length"><td colspan="7" class="pms-empty">Нет закупок</td></tr>
+          <tr v-if="!sortedPurchases.length"><td colspan="7" class="pms-empty">{{ t("Нет закупок") }}</td></tr>
         </tbody>
       </table>
     </div>

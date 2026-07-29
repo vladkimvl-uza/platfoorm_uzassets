@@ -9,6 +9,9 @@ import ModalShell from "@/components/ModalShell.vue";
 import Odometer from "@/components/Odometer.vue";
 import { api } from "@/api/client";
 import type { SoeCompany, SoeRatio } from "@/components/Financials/SoeHealthBoard.vue";
+import { useI18n } from "@/composables/useI18n";
+
+const { t } = useI18n();
 
 const props = defineProps<{
   open: boolean;
@@ -43,7 +46,7 @@ async function loadStatement() {
   } catch (e: unknown) {
     if (my !== stmtSeq) return;
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    stmtError.value = err?.response?.data?.detail || err?.message || "Не удалось загрузить";
+    stmtError.value = err?.response?.data?.detail || err?.message || t("Не удалось загрузить");
   } finally {
     if (my === stmtSeq) stmtLoading.value = false;
   }
@@ -52,8 +55,8 @@ watch(() => [props.open, props.company?.code, props.year, props.standard], loadS
 
 function fmtMoney(v: number | null): string {
   if (v == null) return "—";
-  if (Math.abs(v) >= 1000) return (v / 1000).toLocaleString("ru", { maximumFractionDigits: 1 }) + " трлн";
-  return v.toLocaleString("ru", { maximumFractionDigits: 0 }) + " млрд";
+  if (Math.abs(v) >= 1000) return (v / 1000).toLocaleString("ru", { maximumFractionDigits: 1 }) + " " + t("трлн");
+  return v.toLocaleString("ru", { maximumFractionDigits: 0 }) + " " + t("млрд");
 }
 function varColor(v: number | null): string {
   if (v == null) return "#9AA0AE";
@@ -71,13 +74,13 @@ function zoneColor(band: number | null): string {
   return props.zones[Math.min(band, 5) - 1]?.color || "#94A3B8";
 }
 function zoneLabel(band: number | null): string {
-  if (band == null) return "н/д";
-  return props.zones[Math.min(band, 5) - 1]?.label || "н/д";
+  if (band == null) return t("н/д");
+  return props.zones[Math.min(band, 5) - 1]?.label || t("н/д");
 }
 function fmtVal(r: SoeRatio): string {
-  if (r.value == null) return r.note || "нет данных";
+  if (r.value == null) return r.note || t("нет данных");
   if (r.fmt === "pct") return (r.value * 100).toFixed(1) + "%";
-  if (r.fmt === "days") return Math.round(r.value) + " дн";
+  if (r.fmt === "days") return t("{n} дн", { n: Math.round(r.value) });
   return r.value.toFixed(2) + "×";
 }
 function fmtThrVal(r: SoeRatio, t: number): string {
@@ -108,10 +111,10 @@ const best = computed(() =>
             <span class="shd-dot" :style="{ background: company.sector_color || '#94A3B8' }" />
             {{ company.name || company.code }}
           </h2>
-          <div class="shd-meta">{{ company.sector_name || '—' }} · оценено коэффициентов: {{ company.available }} из {{ company.ratios.length }}</div>
+          <div class="shd-meta">{{ company.sector_name || '—' }} · {{ t("оценено коэффициентов: {a} из {b}", { a: company.available, b: company.ratios.length }) }}</div>
         </div>
         <div class="shd-badges">
-          <div v-if="company.z_score" class="shd-zbadge" :title="'Altman Z-Score (модель развив. рынков). ' + company.z_score.zone.label"
+          <div v-if="company.z_score" class="shd-zbadge" :title="t('Altman Z-Score (модель развив. рынков).') + ' ' + company.z_score.zone.label"
                :style="{ borderColor: company.z_score.zone.color + '55', color: company.z_score.zone.color }">
             <div class="shd-zbadge-k">Z-Score</div>
             <div class="shd-zbadge-v">{{ company.z_score.z.toFixed(2) }}</div>
@@ -129,15 +132,15 @@ const best = computed(() =>
       <!-- Сильные/слабые — стиль KPI-панелей good/bad -->
       <div v-if="worst.length || best.length" class="shd-grid2">
         <div class="shd-w">
-          <div class="shd-w-t" style="color:#E24B4A">↓ Тянут вниз</div>
+          <div class="shd-w-t" style="color:#E24B4A">↓ {{ t("Тянут вниз") }}</div>
           <div v-for="r in worst" :key="r.key" class="shd-ind bad">
             <span class="shd-ind-name">{{ r.label }}</span>
             <b :style="{ color: zoneColor(r.band) }">{{ fmtVal(r) }}</b>
           </div>
-          <div v-if="!worst.length" class="shd-none">нет критичных зон</div>
+          <div v-if="!worst.length" class="shd-none">{{ t("нет критичных зон") }}</div>
         </div>
         <div class="shd-w">
-          <div class="shd-w-t" style="color:#1D9E75">↑ Сильные стороны</div>
+          <div class="shd-w-t" style="color:#1D9E75">↑ {{ t("Сильные стороны") }}</div>
           <div v-for="r in best" :key="r.key" class="shd-ind good">
             <span class="shd-ind-name">{{ r.label }}</span>
             <b :style="{ color: zoneColor(r.band) }">{{ fmtVal(r) }}</b>
@@ -157,7 +160,7 @@ const best = computed(() =>
           </div>
           <div class="shd-scale">
             <div v-for="(z, zi) in zones" :key="z.key" class="shd-seg" :style="{ background: z.color }"
-                 :title="z.label + (zi < 4 ? ' · порог ' + fmtThrVal(r, r.thresholds[zi]) : '')" />
+                 :title="z.label + (zi < 4 ? ' · ' + t('порог') + ' ' + fmtThrVal(r, r.thresholds[zi]) : '')" />
             <div v-if="markerPos(r) != null" class="shd-marker" :style="{ left: markerPos(r) + '%' }" />
           </div>
           <div class="shd-thr">
@@ -168,12 +171,12 @@ const best = computed(() =>
 
       <!-- Финансовая выписка: ОФР + Баланс с Var(%) -->
       <div class="shd-stmt">
-        <div v-if="stmtLoading" class="shd-stmt-state">Загрузка выписки…</div>
+        <div v-if="stmtLoading" class="shd-stmt-state">{{ t("Загрузка выписки…") }}</div>
         <div v-else-if="stmtError" class="shd-stmt-state shd-stmt-err">{{ stmtError }}</div>
         <template v-else-if="stmt && stmt.has_data">
           <div class="shd-stmt-grid">
             <div v-if="stmt.income_statement.length" class="shd-stmt-col">
-              <div class="shd-stmt-t">Отчёт о фин. результатах <span>млрд сум</span></div>
+              <div class="shd-stmt-t">{{ t("Отчёт о фин. результатах") }} <span>{{ t("млрд сум") }}</span></div>
               <div class="shd-stmt-head">
                 <span></span>
                 <span>FY {{ stmt.year }}</span>
@@ -189,7 +192,7 @@ const best = computed(() =>
               </div>
             </div>
             <div v-if="stmt.balance_sheet.length" class="shd-stmt-col">
-              <div class="shd-stmt-t">Баланс <span>млрд сум</span></div>
+              <div class="shd-stmt-t">{{ t("Баланс") }} <span>{{ t("млрд сум") }}</span></div>
               <div class="shd-stmt-head">
                 <span></span>
                 <span>FY {{ stmt.year }}</span>
@@ -206,13 +209,13 @@ const best = computed(() =>
             </div>
           </div>
         </template>
-        <div v-else-if="stmt" class="shd-stmt-state">Выписка за FY {{ year }} ({{ standard }}) недоступна</div>
+        <div v-else-if="stmt" class="shd-stmt-state">{{ t("Выписка за FY {y} ({std}) недоступна", { y: year, std: standard }) }}</div>
       </div>
     </div>
 
     <template #footer>
-      <span class="shd-note">RAG-оценка финансовой устойчивости · пороги настраиваемые · ниже балл = устойчивее</span>
-      <button class="shd-ok" type="button" @click="emit('close')">Закрыть</button>
+      <span class="shd-note">{{ t("RAG-оценка финансовой устойчивости · пороги настраиваемые · ниже балл = устойчивее") }}</span>
+      <button class="shd-ok" type="button" @click="emit('close')">{{ t("Закрыть") }}</button>
     </template>
   </ModalShell>
 </template>

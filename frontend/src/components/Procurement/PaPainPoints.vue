@@ -12,6 +12,9 @@
  */
 import { computed } from "vue";
 import { paFmtMoneyShort, type ProductAgg } from "@/api/procurement_analysis";
+import { useI18n } from "@/composables/useI18n";
+
+const { t } = useI18n();
 
 const props = defineProps<{
   productsByCode: Record<string, ProductAgg>;
@@ -49,7 +52,7 @@ function rowNum(i: number): string {
 
 <template>
   <div class="pa-pain-host">
-    <div v-if="!products.length" class="pa-empty-block">Нет товаров с потенциалом экономии</div>
+    <div v-if="!products.length" class="pa-empty-block">{{ t("Нет товаров с потенциалом экономии") }}</div>
     <div
       v-for="(p, i) in products"
       :key="p.code"
@@ -62,13 +65,15 @@ function rowNum(i: number): string {
       <div class="pa-pain-mid">
         <div class="pa-pain-nm">{{ p.name }}</div>
         <div class="pa-pain-meta">
-          {{ p.code }} · max {{ paFmtMoneyShort(p.max_price) }} при median {{ paFmtMoneyShort(p.avg_price) }}
-          · {{ p.unique_buyers }} SOE × {{ p.contract_count }} закупок
+          {{ t("{code} · max {mx} при median {med} · {n} SOE × {k} закупок", {
+            code: p.code, mx: paFmtMoneyShort(p.max_price), med: paFmtMoneyShort(p.avg_price),
+            n: p.unique_buyers, k: p.contract_count,
+          }) }}
         </div>
       </div>
       <div class="pa-pain-pot">
         <div class="pa-pain-pot-v">+{{ paFmtMoneyShort(p.potential_saving) }}</div>
-        <div class="pa-pain-pot-l">потенциал</div>
+        <div class="pa-pain-pot-l">{{ t("потенциал") }}</div>
       </div>
       <div class="pa-pain-dev">
         <div class="pa-pain-dev-v">+{{ devPct(p).toFixed(0) }}%</div>

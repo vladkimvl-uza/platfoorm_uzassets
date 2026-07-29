@@ -15,6 +15,9 @@ import { useCountUpScan } from "@/composables/useCountUp";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import ProductionEditModal from "@/components/BusinessPlan/ProductionEditModal.vue";
 import { execCol as pctCol, execZone as pctZone } from "@/utils/execBand";
+import { useI18n } from "@/composables/useI18n";
+
+const { t } = useI18n();
 
 const props = defineProps<{
   companyCode: string;
@@ -40,7 +43,7 @@ const products = computed(() => (company.value?.lines || []).filter((l) => !l.to
 const periodOpts = computed(() => {
   const ps = combos.value.filter((c) => c.year === props.year).map((c) => c.period);
   const uniq = Array.from(new Set(ps));
-  return uniq.map((p) => ({ value: p, label: PERIOD_LABEL[p] || p }));
+  return uniq.map((p) => ({ value: p, label: t(PERIOD_LABEL[p] || p) }));
 });
 
 async function load() {
@@ -59,7 +62,7 @@ async function load() {
     }
   } catch (e: any) {
     if (my !== seq) return;
-    error.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить производственные показатели";
+    error.value = e?.response?.data?.detail || e?.message || t("Не удалось загрузить производственные показатели");
     company.value = null;
   } finally {
     if (my === seq) loading.value = false;
@@ -84,7 +87,7 @@ function fmtN(v: number | null | undefined): string {
 // pctCol/pctZone. Раньше инлайн 90/75 с врущим комментарием «mirror forensic».
 function execText(l: ProdLine): string {
   if (l.execState === "pct") return (l.execPct ?? 0) + "%";
-  if (l.execState === "nofact") return "факт —";
+  if (l.execState === "nofact") return t("факт —");
   return "—";
 }
 
@@ -102,8 +105,8 @@ function onSaved() { editorOpen.value = false; load(); }
     <!-- Divider header -->
     <div class="cwp-head">
       <div class="cwp-head-l">
-        <span class="cwp-eyebrow">Бизнес-план · натуральные показатели</span>
-        <h3 class="cwp-title">Производственные показатели</h3>
+        <span class="cwp-eyebrow">{{ t("Бизнес-план · натуральные показатели") }}</span>
+        <h3 class="cwp-title">{{ t("Производственные показатели") }}</h3>
       </div>
       <div class="cwp-head-r">
         <div v-if="periodOpts.length > 1" class="uza-seg is-sm">
@@ -112,15 +115,15 @@ function onSaved() { editorOpen.value = false; load(); }
         </div>
         <span v-if="hasData && company && company.execPct != null" class="cwp-badge"
               :style="{ color: pctCol(company.execPct), background: pctCol(company.execPct) + '18' }"
-              :title="pctZone(company.execPct)">{{ company.execPct }}%</span>
-        <button v-if="canEdit && hasData" class="cwp-edit" type="button" @click="openEditor" title="Редактировать данные">
+              :title="t(pctZone(company.execPct))">{{ company.execPct }}%</span>
+        <button v-if="canEdit && hasData" class="cwp-edit" type="button" @click="openEditor" :title="t('Редактировать данные')">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
-          Редактировать
+          {{ t("Редактировать") }}
         </button>
       </div>
     </div>
 
-    <UzaStateBlock v-if="loading && !company" state="loading" variant="text" loadingText="Загрузка производственных показателей…" />
+    <UzaStateBlock v-if="loading && !company" state="loading" variant="text" :loadingText="t('Загрузка производственных показателей…')" />
     <UzaStateBlock v-else-if="error" state="error" variant="block" :text="error" retry @retry="load" />
 
     <!-- Empty: у компании нет производственных данных за период -->
@@ -128,11 +131,11 @@ function onSaved() { editorOpen.value = false; load(); }
       <div class="cwp-empty-ic">
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="5" width="3" height="13"/></svg>
       </div>
-      <div class="cwp-empty-t">Производственные показатели за {{ year }} не заведены</div>
-      <div class="cwp-empty-s">Данные по выпуску продукции (натура + деньги, план → ожидаемое) для «{{ companyName }}» пока не заполнены.</div>
+      <div class="cwp-empty-t">{{ t("Производственные показатели за {y} не заведены", { y: year }) }}</div>
+      <div class="cwp-empty-s">{{ t("Данные по выпуску продукции (натура + деньги, план → ожидаемое) для «{name}» пока не заполнены.", { name: companyName }) }}</div>
       <button v-if="canEdit" class="cwp-empty-cta" type="button" @click="openEditor">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        Заполнить показатели
+        {{ t("Заполнить показатели") }}
       </button>
     </div>
 
@@ -140,23 +143,23 @@ function onSaved() { editorOpen.value = false; load(); }
     <div v-else ref="scanRoot" class="cwp-body">
       <!-- KPI cards -->
       <div class="cwp-kpis">
-        <div class="cwp-k"><div class="cwp-k-l">План выпуска</div>
+        <div class="cwp-k"><div class="cwp-k-l">{{ t("План выпуска") }}</div>
           <div class="cwp-k-v"><span :data-countup="Math.round(company!.planM || 0)">{{ fmtM(company!.planM) }}</span></div>
-          <div class="cwp-k-u">млрд сум</div></div>
-        <div class="cwp-k"><div class="cwp-k-l">Ожидаемое</div>
+          <div class="cwp-k-u">{{ t("млрд сум") }}</div></div>
+        <div class="cwp-k"><div class="cwp-k-l">{{ t("Ожидаемое") }}</div>
           <div class="cwp-k-v"><span :data-countup="Math.round(company!.expM || 0)">{{ fmtM(company!.expM) }}</span></div>
-          <div class="cwp-k-u">млрд сум</div></div>
-        <div class="cwp-k cwp-k-fact"><div class="cwp-k-l">Факт</div>
+          <div class="cwp-k-u">{{ t("млрд сум") }}</div></div>
+        <div class="cwp-k cwp-k-fact"><div class="cwp-k-l">{{ t("Факт") }}</div>
           <div class="cwp-k-v"><span :data-countup="Math.round(company!.factM || 0)">{{ fmtM(company!.factM) }}</span></div>
-          <div class="cwp-k-u">{{ company!.factM != null ? 'млрд сум' : 'не введён' }}</div></div>
-        <div class="cwp-k"><div class="cwp-k-l">Темп роста</div>
+          <div class="cwp-k-u">{{ company!.factM != null ? t('млрд сум') : t('не введён') }}</div></div>
+        <div class="cwp-k"><div class="cwp-k-l">{{ t("Темп роста") }}</div>
           <div class="cwp-k-v" :style="{ color: company!.growthPct != null && company!.growthPct >= 100 ? '#1D9E75' : 'var(--t1, #1E2A4A)' }">
             {{ company!.growthPct != null ? company!.growthPct + '%' : '—' }}</div>
-          <div class="cwp-k-u">к пред. периоду</div></div>
+          <div class="cwp-k-u">{{ t("к пред. периоду") }}</div></div>
         <div class="cwp-k cwp-k-exec" :style="{ '--exec': pctCol(company!.execPct) }">
-          <div class="cwp-k-l">Исполнение</div>
+          <div class="cwp-k-l">{{ t("Исполнение") }}</div>
           <div class="cwp-k-v" :style="{ color: pctCol(company!.execPct) }">{{ company!.execPct != null ? company!.execPct + '%' : '—' }}</div>
-          <div class="cwp-k-u">{{ (company!.execKind === 'fact' ? 'факт' : 'ожид') + ' / план' + (company!.execBasis === 'natura' ? ' · нат' : '') }}</div></div>
+          <div class="cwp-k-u">{{ t(company!.execKind === 'fact' ? 'факт / план' : 'ожид / план') + (company!.execBasis === 'natura' ? ' · ' + t('нат') : '') }}</div></div>
       </div>
 
       <!-- Product tree -->
@@ -164,10 +167,10 @@ function onSaved() { editorOpen.value = false; load(); }
         <table class="cwp-tbl">
           <thead>
             <tr>
-              <th class="lt">Продукция</th><th class="rt">Ед.</th>
-              <th class="rt">План (нат.)</th><th class="rt">Ожид. (нат.)</th><th class="rt cwp-fact-h">Факт (нат.)</th>
-              <th class="rt">План (млрд)</th><th class="rt">Ожид. (млрд)</th><th class="rt cwp-fact-h">Факт (млрд)</th>
-              <th class="rt">Темп</th><th class="rt">Исп.</th>
+              <th class="lt">{{ t("Продукция") }}</th><th class="rt">{{ t("Ед.") }}</th>
+              <th class="rt">{{ t("План (нат.)") }}</th><th class="rt">{{ t("Ожид. (нат.)") }}</th><th class="rt cwp-fact-h">{{ t("Факт (нат.)") }}</th>
+              <th class="rt">{{ t("План (млрд)") }}</th><th class="rt">{{ t("Ожид. (млрд)") }}</th><th class="rt cwp-fact-h">{{ t("Факт (млрд)") }}</th>
+              <th class="rt">{{ t("Темп") }}</th><th class="rt">{{ t("Исп.") }}</th>
             </tr>
           </thead>
           <tbody>
@@ -183,9 +186,9 @@ function onSaved() { editorOpen.value = false; load(); }
               <td class="rt num cwp-fact">{{ fmtM(l.factM) }}</td>
               <td class="rt num" :style="{ color: l.growthPct != null && l.growthPct >= 100 ? '#1D9E75' : 'var(--t3,#94A3B8)' }">
                 {{ l.growthPct != null ? l.growthPct + '%' : '—' }}</td>
-              <td class="rt num" :style="{ color: pctCol(l.execPct), fontWeight: 600 }" :title="pctZone(l.execPct)">{{ execText(l) }}</td>
+              <td class="rt num" :style="{ color: pctCol(l.execPct), fontWeight: 600 }" :title="t(pctZone(l.execPct))">{{ execText(l) }}</td>
             </tr>
-            <tr v-if="!products.length"><td colspan="10" class="cwp-tbl-empty">Итоговые показатели без детализации по продукции</td></tr>
+            <tr v-if="!products.length"><td colspan="10" class="cwp-tbl-empty">{{ t("Итоговые показатели без детализации по продукции") }}</td></tr>
           </tbody>
         </table>
       </div>

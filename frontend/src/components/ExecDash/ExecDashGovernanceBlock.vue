@@ -14,7 +14,9 @@ import Odometer from "@/components/Odometer.vue";
 import { SECTOR_COLORS } from "@/utils/sectorMeta";
 import { pctColor as pctColorBase } from "@/utils/pctColor";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
+import { useI18n } from "@/composables/useI18n";
 
+const { t } = useI18n();
 const exec = useExecutiveDashboard();
 
 const block = computed(() => exec.data.value?.governance || null);
@@ -44,9 +46,9 @@ function medalColor(rank: number): string {
   <div class="ed-card edg-card">
     <!-- Header -->
     <div class="edg-hdr">
-      <span class="edg-eyebrow">Рейтинг корпуправления</span>
+      <span class="edg-eyebrow">{{ t("Рейтинг корпуправления") }}</span>
       <span v-if="block && block.total_companies" class="edg-count">
-        <span v-count-up="block.total_companies">0</span> компаний
+        <span v-count-up="block.total_companies">0</span> {{ t("компаний") }}
       </span>
     </div>
 
@@ -55,8 +57,8 @@ function medalColor(rank: number): string {
       v-if="!block || block.total_companies === 0"
       state="empty"
       variant="block"
-      title="Нет данных о корпуправлении"
-      :desc="`Для FY ${exec.year.value} нет рейтингов корпоративного управления`"
+      :title="t('Нет данных о корпуправлении')"
+      :desc="t('Для FY {year} нет рейтингов корпоративного управления', { year: exec.year.value })"
     />
 
     <template v-else>
@@ -64,23 +66,23 @@ function medalColor(rank: number): string {
       <div class="edg-strip kpi-rail">
         <div class="edg-kpi">
           <div class="edg-kpi-val"><Odometer :value="block.avg_score" /></div>
-          <div class="edg-kpi-lbl">Средний</div>
+          <div class="edg-kpi-lbl">{{ t("Средний") }}</div>
         </div>
         <div class="edg-kpi">
           <div class="edg-kpi-val edg-kpi-green"><Odometer :value="block.top_score" /></div>
-          <div class="edg-kpi-lbl">Лучший</div>
+          <div class="edg-kpi-lbl">{{ t("Лучший") }}</div>
         </div>
         <div class="edg-kpi">
           <div class="edg-kpi-val edg-kpi-purple">
             <Odometer :value="block.avg_indep_pct" /><span class="edg-kpi-u">%</span>
           </div>
-          <div class="edg-kpi-lbl">Независ.</div>
+          <div class="edg-kpi-lbl">{{ t("Независ.") }}</div>
         </div>
         <div class="edg-kpi edg-kpi-last">
           <div class="edg-kpi-val edg-kpi-rose">
             <Odometer :value="block.avg_women_pct" /><span class="edg-kpi-u">%</span>
           </div>
-          <div class="edg-kpi-lbl">Женщин</div>
+          <div class="edg-kpi-lbl">{{ t("Женщин") }}</div>
         </div>
       </div>
 
@@ -88,8 +90,8 @@ function medalColor(rank: number): string {
       <div class="edg-thead">
         <div class="edg-th-bar" />
         <div class="edg-th-rank">#</div>
-        <div class="edg-th-name">Компания</div>
-        <div class="edg-th-score">Балл / 1200</div>
+        <div class="edg-th-name">{{ t("Компания") }}</div>
+        <div class="edg-th-score">{{ t("Балл / 1200") }}</div>
       </div>
 
       <!-- Top-7 list -->
@@ -99,7 +101,9 @@ function medalColor(rank: number): string {
           :key="co.company_id"
           class="edg-row"
           :style="{ '--rd': `${i * 60}ms` }"
-          :title="`${co.name} · НС ${co.board_size}ч · независ. ${co.independent_count} · женщин ${co.women_count}`"
+          :title="t('{name} · НС {size}ч · независ. {ind} · женщин {women}', {
+            name: co.name, size: co.board_size, ind: co.independent_count, women: co.women_count,
+          })"
         >
           <div
             class="edg-row-bar"

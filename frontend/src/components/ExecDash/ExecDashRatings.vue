@@ -5,6 +5,7 @@
  * Pure SVG-кольца без внешних библиотек.
  */
 import { computed, onMounted } from "vue";
+import { useI18n } from "@/composables/useI18n";
 import { useExecutiveDashboard } from "@/composables/useExecutiveDashboard";
 import { useNumberTween } from "@/composables/useNumberTween";
 import type { ExecRingCard, ExecRatingCell } from "@/api/executiveDashboard";
@@ -13,6 +14,7 @@ import ExecDashRingCard from "./ExecDashRingCard.vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 
 // Pack 7.13: unified naming via store
+const { t } = useI18n();
 const companies = useCompaniesStore();
 onMounted(() => { void companies.ensureLoaded(); });
 
@@ -26,8 +28,8 @@ const tableRows = computed(() => ratings.value?.rows || []);
 const tOverallTotal = useNumberTween(() => Number(ratings.value?.overall_total) || 0, { duration: 900 });
 const subTitle = computed(() => {
   const r = ratings.value;
-  if (!r) return "Кредитный и ESG";
-  return `Кредитный и ESG · ${Math.round(tOverallTotal.value)} компаний`;
+  if (!r) return t("Кредитный и ESG");
+  return t("Кредитный и ESG · {n} компаний", { n: Math.round(tOverallTotal.value) });
 });
 
 const COLUMN_HEADERS = ["FITCH", "S&P", "MOODY'S", "SUST.F", "S&P ESG", "CDP"];
@@ -84,7 +86,7 @@ function isEmpty(cell: ExecRatingCell | null | undefined): boolean {
   <div class="ed-card">
     <!-- Header -->
     <div class="ed-card-ttl">
-      <span>Рейтинги компаний</span>
+      <span>{{ t("Рейтинги компаний") }}</span>
       <span class="sub">{{ subTitle }}</span>
     </div>
 
@@ -98,12 +100,13 @@ function isEmpty(cell: ExecRatingCell | null | undefined): boolean {
       />
     </div>
 
-    <UzaStateBlock v-else state="empty" variant="inline" text="Рейтинги пока не загружены в систему" />
+    <UzaStateBlock v-else state="empty" variant="inline" :text="t('Рейтинги пока не загружены в систему')" />
 
     <!-- Таблица -->
     <div v-if="tableRows.length" class="rt-table">
       <div class="rt-hdr">
-        <span class="rt-hdr-co">КОМПАНИЯ</span>
+        <!-- CSS uppercases the header, поэтому используем общий ключ «Компания» -->
+        <span class="rt-hdr-co">{{ t("Компания") }}</span>
         <span v-for="h in COLUMN_HEADERS" :key="h" class="rt-hdr-cell">{{ h }}</span>
       </div>
 
@@ -126,11 +129,11 @@ function isEmpty(cell: ExecRatingCell | null | undefined): boolean {
               class="rt-cell-link"
               :class="{ 'rt-cell-link--clickable': !!row[col.key]?.report_url }"
               :title="row[col.key]?.report_url
-                ? `Открыть отчёт по рейтингу: ${row[col.key]?.rating || row[col.key]?.score}`
+                ? t('Открыть отчёт по рейтингу: {v}', { v: row[col.key]?.rating || row[col.key]?.score })
                 : ''"
             >
               <span class="rt-val-row">
-                <span v-if="col.kind === 'score' && row[col.key]?.prev" class="rt-prev" :title="'было: ' + row[col.key]?.prev">{{ row[col.key]?.prev }}<span class="rt-arrow">→</span></span>
+                <span v-if="col.kind === 'score' && row[col.key]?.prev" class="rt-prev" :title="t('было: {v}', { v: row[col.key]?.prev })">{{ row[col.key]?.prev }}<span class="rt-arrow">→</span></span>
                 <span
                   class="rt-badge"
                   :style="{ background: col.bg(row[col.key]?.rating) }"
@@ -163,7 +166,7 @@ function isEmpty(cell: ExecRatingCell | null | undefined): boolean {
       </div>
     </div>
 
-    <UzaStateBlock v-else state="empty" variant="inline" text="Нет табличных рейтингов компаний" />
+    <UzaStateBlock v-else state="empty" variant="inline" :text="t('Нет табличных рейтингов компаний')" />
   </div>
 </template>
 

@@ -25,6 +25,9 @@ import { useSectorMeta, SECTOR_COLORS } from "@/utils/sectorMeta";
 import { useFormatters } from "@/composables/useFormatters";
 import { useNumberTween } from "@/composables/useNumberTween";
 import BusinessPlanDrillModal, { type BpKind } from "@/components/UZA/BusinessPlanDrillModal.vue";
+import { useI18n } from "@/composables/useI18n";
+
+const { t } = useI18n();
 
 const fmt = useFormatters();
 const exec = useExecutiveDashboard();
@@ -126,9 +129,9 @@ function onCardClick(e: MouseEvent) {
 // должен дописывать « млрд» (иначе для больших сумм выходит «475 трлн млрд»).
 function fmtNum(v: number | null | undefined): string {
   if (v == null || isNaN(v)) return "—";
-  if (Math.abs(v) >= 1000) return fmt.fmtNumber(v / 1000, { decimals: 1 }) + " трлн";
-  if (Math.abs(v) >= 100) return fmt.fmtNumber(Math.round(v)) + " млрд";
-  return fmt.fmtNumber(v, { decimals: 1, minDecimals: 1 }) + " млрд";
+  if (Math.abs(v) >= 1000) return fmt.fmtNumber(v / 1000, { decimals: 1 }) + " " + t("трлн");
+  if (Math.abs(v) >= 100) return fmt.fmtNumber(Math.round(v)) + " " + t("млрд");
+  return fmt.fmtNumber(v, { decimals: 1, minDecimals: 1 }) + " " + t("млрд");
 }
 
 // ─── Hero number computed ─────────────────────────────────────
@@ -170,11 +173,11 @@ const hero = computed<Hero | null>(() => {
   }
 
   if (b.overall_label) {
-    bigSub = `${b.overall_label} · ${mLabel}`;
+    bigSub = `${t(b.overall_label)} · ${t(mLabel)}`;
   } else if (b.mode === "plan-fact") {
-    bigSub = `выполнение плана ${mLabel} по портфелю`;
+    bigSub = t("выполнение плана {metric} по портфелю", { metric: t(mLabel) });
   } else if (b.mode === "yoy") {
-    bigSub = `динамика ${mLabel} к ${b.prev_year} году`;
+    bigSub = t("динамика {metric} к {year} году", { metric: t(mLabel), year: b.prev_year });
   } else {
     bigSub = "";
   }
@@ -188,16 +191,16 @@ const hero = computed<Hero | null>(() => {
   let llkLabels;
   if (b.mode === "plan-fact") {
     llkLabels = {
-      l1: "План (сравнимые)",
+      l1: t("План (сравнимые)"),
       v1: fmtNum(b.sum_plan_ll),
-      l2: "Факт (сравнимые)",
+      l2: t("Факт (сравнимые)"),
       v2: fmtNum(b.sum_fact_plan_ll),
     };
   } else {
     llkLabels = {
-      l1: `${b.prev_year} (сравнимые)`,
+      l1: t("{year} (сравнимые)", { year: b.prev_year }),
       v1: fmtNum(b.sum_prev_ll),
-      l2: `${b.year} (сравнимые)`,
+      l2: t("{year} (сравнимые)", { year: b.year }),
       v2: fmtNum(b.sum_fact_ll),
     };
   }
@@ -365,22 +368,22 @@ const distrib = computed(() => {
 
   let onTargetL: string, attentionL: string, behindL: string;
   if (b.is_signed_metric) {
-    onTargetL = "В росте/восстановление";
-    attentionL = "Лёгкое снижение";
-    behindL = "Снижение/убыток";
+    onTargetL = t("В росте/восстановление");
+    attentionL = t("Лёгкое снижение");
+    behindL = t("Снижение/убыток");
   } else if (b.mode === "plan-fact") {
-    onTargetL = "На цели (≥95%)";
-    attentionL = "Внимание (80–94%)";
-    behindL = "Отстают (<80%)";
+    onTargetL = t("На цели (≥95%)");
+    attentionL = t("Внимание (80–94%)");
+    behindL = t("Отстают (<80%)");
   } else {
-    onTargetL = "В росте (≥100%)";
-    attentionL = "Лёгкое снижение (95–99%)";
-    behindL = "Снижение (<95%)";
+    onTargetL = t("В росте (≥100%)");
+    attentionL = t("Лёгкое снижение (95–99%)");
+    behindL = t("Снижение (<95%)");
   }
 
   const srcL = b.mode === "plan-fact"
-    ? "Источник: БП + НСБУ"
-    : "Источник: НСБУ · режим YoY (план не заполнен)";
+    ? t("Источник: БП + НСБУ")
+    : t("Источник: НСБУ · режим YoY (план не заполнен)");
 
   return { w1, w2, w3, onTargetL, attentionL, behindL, srcL };
 });
@@ -403,15 +406,15 @@ function tooltipFor(b: RenderBar): string {
   <section
     class="ed-bp-card"
     @click="onCardClick"
-    title="Подробнее: бизнес-план портфеля"
+    :title="t('Подробнее: бизнес-план портфеля')"
   >
     <!-- ═══ HEADER ═══ -->
     <div class="ed-bp-head">
       <div class="ed-bp-head-l">
-        <div class="ed-bp-head-t">Бизнес-план портфеля · годовое исполнение
-          <span v-if="isFallback" class="ed-bp-fallback">данные за FY {{ block?.year }}</span>
+        <div class="ed-bp-head-t">{{ t("Бизнес-план портфеля · годовое исполнение") }}
+          <span v-if="isFallback" class="ed-bp-fallback">{{ t("данные за FY {year}", { year: block?.year }) }}</span>
         </div>
-        <div class="ed-bp-head-s">{{ block?.head_sub || "Загрузка…" }}</div>
+        <div class="ed-bp-head-s">{{ block?.head_sub || t("Загрузка…") }}</div>
       </div>
       <div class="ed-bp-head-controls">
         <div class="ed-bp-tabs ed-bp-tabs--period">
@@ -422,7 +425,7 @@ function tooltipFor(b: RenderBar): string {
             :class="{ on: activePeriod === p.key }"
             @click="setPeriod(p.key)"
           >
-            {{ p.label }}
+            {{ t(p.label) }}
           </button>
         </div>
         <div class="ed-bp-tabs">
@@ -433,7 +436,7 @@ function tooltipFor(b: RenderBar): string {
             :class="{ on: activeMetric === m }"
             @click="setMetric(m)"
           >
-            {{ METRIC_TITLES[m] }}
+            {{ t(METRIC_TITLES[m]) }}
           </button>
         </div>
       </div>
@@ -441,11 +444,12 @@ function tooltipFor(b: RenderBar): string {
 
     <!-- ═══ EMPTY STATE ═══ -->
     <div v-if="!block || block.mode === 'empty'" class="ed-bp-empty">
-      <div class="ed-bp-empty-t">Нет данных для сравнения</div>
+      <div class="ed-bp-empty-t">{{ t("Нет данных для сравнения") }}</div>
       <div class="ed-bp-empty-s">
-        Для года {{ block?.year || exec.year.value }} не заполнен план в бизнес-плане,
-        а факта прошлого года ({{ block?.prev_year || (exec.year.value - 1) }})
-        недостаточно для расчёта YoY.
+        {{ t("Для года {year} не заполнен план в бизнес-плане, а факта прошлого года ({prev}) недостаточно для расчёта YoY.", {
+          year: block?.year || exec.year.value,
+          prev: block?.prev_year || (exec.year.value - 1),
+        }) }}
       </div>
     </div>
 
@@ -456,7 +460,7 @@ function tooltipFor(b: RenderBar): string {
           class="ed-bp-spine-hero-l ed-bp-hero-btn"
           role="button"
           tabindex="0"
-          aria-label="Подробнее: бизнес-план портфеля"
+          :aria-label="t('Подробнее: бизнес-план портфеля')"
           @click.stop="openDrill('overall', $event)"
           @keydown.enter.prevent="openDrill('overall')"
           @keydown.space.prevent="openDrill('overall')"
@@ -475,7 +479,7 @@ function tooltipFor(b: RenderBar): string {
               <svg v-else width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
                 <path d="M5 2v6M2.5 5.5L5 8l2.5-2.5" />
               </svg>
-              {{ fmt.fmtNumber(hero.deltaPP, { decimals: 1, minDecimals: 1, signed: true }) }} п.п.
+              {{ fmt.fmtNumber(hero.deltaPP, { decimals: 1, minDecimals: 1, signed: true }) }} {{ t("п.п.") }}
             </span>
           </div>
           <div class="ed-bp-big-sub">{{ hero.bigSub }}</div>
@@ -494,7 +498,7 @@ function tooltipFor(b: RenderBar): string {
 
       <!-- ═══ PERFORMANCE SPINE ═══ -->
       <div v-if="renderBars.length === 0" class="ed-bp-empty-mini">
-        Недостаточно данных для построения performance-шкалы
+        {{ t("Недостаточно данных для построения performance-шкалы") }}
       </div>
       <div v-else class="ed-bp-spine-wrap">
         <svg
@@ -502,7 +506,7 @@ function tooltipFor(b: RenderBar): string {
           :viewBox="`0 0 ${SVG_W} ${SVG_H}`"
           preserveAspectRatio="xMidYMid meet"
           role="img"
-          aria-label="Performance spine — выполнение плана по компаниям"
+          :aria-label="t('Performance spine — выполнение плана по компаниям')"
         >
           <!-- Белый «глянец» сверху бара — как в «Рейтинг компаний по исполнению» -->
           <defs>
@@ -593,8 +597,8 @@ function tooltipFor(b: RenderBar): string {
         </svg>
 
         <div class="ed-bp-spine-sides">
-          <span class="l">↑ опережают</span>
-          <span class="r">отстают ↓</span>
+          <span class="l">↑ {{ t("опережают") }}</span>
+          <span class="r">{{ t("отстают") }} ↓</span>
         </div>
       </div>
 
@@ -603,7 +607,7 @@ function tooltipFor(b: RenderBar): string {
         <div class="ed-bp-distrib-bar">
           <div v-if="distrib.w1 > 0" class="ed-bp-distrib-fill ed-bp-distrib-seg"
                :style="{ '--bpw': distrib.w1 + '%', width: distrib.w1 + '%', background: '#5DC093' }"
-               :title="`Подробнее: ${distrib.onTargetL} (${block.on_target})`"
+               :title="t('Подробнее: {label} ({n})', { label: distrib.onTargetL, n: block.on_target })"
                role="button"
                tabindex="0"
                @click="openDrill('leaders', $event)"
@@ -611,7 +615,7 @@ function tooltipFor(b: RenderBar): string {
                @keydown.space.prevent="openDrill('leaders')" />
           <div v-if="distrib.w2 > 0" class="ed-bp-distrib-fill ed-bp-distrib-seg"
                :style="{ '--bpw': distrib.w2 + '%', width: distrib.w2 + '%', background: '#EFB373', 'animation-delay': '80ms' }"
-               :title="`Подробнее: ${distrib.attentionL} (${block.attention})`"
+               :title="t('Подробнее: {label} ({n})', { label: distrib.attentionL, n: block.attention })"
                role="button"
                tabindex="0"
                @click="openDrill('tracking', $event)"
@@ -619,7 +623,7 @@ function tooltipFor(b: RenderBar): string {
                @keydown.space.prevent="openDrill('tracking')" />
           <div v-if="distrib.w3 > 0" class="ed-bp-distrib-fill ed-bp-distrib-seg"
                :style="{ '--bpw': distrib.w3 + '%', width: distrib.w3 + '%', background: '#E2807F', 'animation-delay': '160ms' }"
-               :title="`Подробнее: ${distrib.behindL} (${block.behind})`"
+               :title="t('Подробнее: {label} ({n})', { label: distrib.behindL, n: block.behind })"
                role="button"
                tabindex="0"
                @click="openDrill('behind', $event)"

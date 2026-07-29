@@ -5,6 +5,9 @@
  */
 import { computed } from "vue";
 import { getHoliday, HOLIDAY_KIND_COLORS, HOLIDAY_KIND_LABELS, type UzHoliday } from "@/api/holidays";
+import { useI18n } from "@/composables/useI18n";
+
+const { t } = useI18n();
 
 interface UpcomingHit { holiday: UzHoliday; date: Date; daysOffset: number; }
 
@@ -22,12 +25,12 @@ const upcoming = computed<UpcomingHit | null>(() => {
 });
 
 function whenLabel(offset: number, d: Date): string {
-  if (offset === 0) return "Сегодня";
-  if (offset === 1) return "Завтра";
-  if (offset === 2) return "Послезавтра";
+  if (offset === 0) return t("Сегодня");
+  if (offset === 1) return t("Завтра");
+  if (offset === 2) return t("Послезавтра");
   // 3 days → "Через 3 дня · day month"
   const fmt = new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long" });
-  return `Через ${offset} дн. · ${fmt.format(d)}`;
+  return t("Через {n} дн. · {date}", { n: offset, date: fmt.format(d) });
 }
 
 const whenText = computed(() => {
@@ -53,10 +56,10 @@ const fullDate = computed(() => {
     </div>
     <div class="th-body">
       <div class="th-tag" :title="fullDate">{{ whenText }}</div>
-      <div class="th-title">{{ upcoming.holiday.title_ru }}</div>
+      <div class="th-title">{{ t(upcoming.holiday.title_ru) }}</div>
       <div class="th-meta">
-        <span class="th-kind">{{ HOLIDAY_KIND_LABELS[upcoming.holiday.kind] }}</span>
-        <span v-if="upcoming.holiday.is_dayoff" class="th-dayoff">нерабочий день</span>
+        <span class="th-kind">{{ t(HOLIDAY_KIND_LABELS[upcoming.holiday.kind]) }}</span>
+        <span v-if="upcoming.holiday.is_dayoff" class="th-dayoff">{{ t("нерабочий день") }}</span>
       </div>
     </div>
   </div>

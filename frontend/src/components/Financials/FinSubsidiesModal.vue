@@ -18,6 +18,9 @@ import {
   subsidyStatusLabel,
   type SubsidyRow,
 } from "@/api/subsidies";
+import { useI18n } from "@/composables/useI18n";
+
+const { t } = useI18n();
 
 const props = defineProps<{
   year: number;
@@ -52,7 +55,7 @@ async function load() {
     rows.value = await subsidiesApi.list();
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    loadError.value = err?.response?.data?.detail || err?.message || "Не удалось загрузить реестр";
+    loadError.value = err?.response?.data?.detail || err?.message || t("Не удалось загрузить реестр");
   } finally {
     loading.value = false;
   }
@@ -94,7 +97,7 @@ const topSector = computed(() => {
   const m = new Map<string, { name: string; color: string; total: number }>();
   for (const r of filtered.value) {
     const k = r.sector_code || "—";
-    const e = m.get(k) || { name: r.sector_name || "Без сектора", color: r.sector_color || "#94A3B8", total: 0 };
+    const e = m.get(k) || { name: r.sector_name || t("Без сектора"), color: r.sector_color || "#94A3B8", total: 0 };
     e.total += Number(r.amount || 0);
     m.set(k, e);
   }
@@ -105,10 +108,10 @@ const topSector = computed(() => {
 
 interface SummaryStat { key: string; label: string; value: string; unit?: string; accent: string; animate: boolean; }
 const summaryStats = computed<SummaryStat[]>(() => [
-  { key: "total", label: "Сумма субсидий", value: totalFmt.value.value, unit: totalFmt.value.unit, accent: "#1D9E75", animate: true },
-  { key: "count", label: "Записей", value: String(filtered.value.length), accent: "#7F77DD", animate: true },
-  { key: "co", label: "Компаний", value: String(distinctCompanies.value), accent: "#378ADD", animate: true },
-  { key: "sector", label: "Топ-сектор", value: topSector.value ? topSector.value.name : "—", accent: topSector.value?.color || "#EF9F27", animate: false },
+  { key: "total", label: t("Сумма субсидий"), value: totalFmt.value.value, unit: t(totalFmt.value.unit), accent: "#1D9E75", animate: true },
+  { key: "count", label: t("Записей"), value: String(filtered.value.length), accent: "#7F77DD", animate: true },
+  { key: "co", label: t("Компаний"), value: String(distinctCompanies.value), accent: "#378ADD", animate: true },
+  { key: "sector", label: t("Топ-сектор"), value: topSector.value ? topSector.value.name : "—", accent: topSector.value?.color || "#EF9F27", animate: false },
 ]);
 
 function resetFilters() {
@@ -121,7 +124,7 @@ function resetFilters() {
 
 function fmtAmount(v: number | null): string {
   const f = fmtSubsidySum(v);
-  return f.value === "—" ? "—" : `${f.value} ${f.unit}`;
+  return f.value === "—" ? "—" : `${f.value} ${t(f.unit)}`;
 }
 function fmtDate(d: string | null): string {
   if (!d) return "—";
@@ -190,7 +193,7 @@ function cancelForm() {
 async function saveForm() {
   if (saving.value) return;
   if (!form.value.company_id) {
-    toast.error("Выберите компанию");
+    toast.error(t("Выберите компанию"));
     return;
   }
   saving.value = true;
@@ -219,18 +222,18 @@ async function saveForm() {
       });
       const i = rows.value.findIndex(r => r.id === editingId.value);
       if (i >= 0) rows.value[i] = updated;
-      toast.success("Субсидия обновлена");
+      toast.success(t("Субсидия обновлена"));
     } else {
       const created = await subsidiesApi.create(payload);
       rows.value.unshift(created);
-      toast.success("Субсидия добавлена");
+      toast.success(t("Субсидия добавлена"));
     }
     formOpen.value = false;
     editingId.value = null;
     emit("changed");
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    toast.error("Не удалось сохранить: " + (err?.response?.data?.detail || err?.message || "ошибка"));
+    toast.error(t("Не удалось сохранить: {err}", { err: err?.response?.data?.detail || err?.message || t("ошибка") }));
   } finally {
     saving.value = false;
   }
@@ -245,11 +248,11 @@ async function doDelete(r: SubsidyRow) {
     await subsidiesApi.remove(r.id);
     rows.value = rows.value.filter(x => x.id !== r.id);
     confirmDeleteId.value = null;
-    toast.success("Субсидия удалена");
+    toast.success(t("Субсидия удалена"));
     emit("changed");
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    toast.error("Не удалось удалить: " + (err?.response?.data?.detail || err?.message || "ошибка"));
+    toast.error(t("Не удалось удалить: {err}", { err: err?.response?.data?.detail || err?.message || t("ошибка") }));
   } finally {
     deleting.value = false;
   }
@@ -264,10 +267,10 @@ const sortedCompanies = computed(() =>
   <ModalShell :open="true" size="full" @close="emit('close')">
     <template #header>
       <div class="sub-head">
-        <div class="sub-head-t">Реестр субсидий</div>
+        <div class="sub-head-t">{{ t("Реестр субсидий") }}</div>
         <div class="sub-head-s">
-          {{ filtered.length }} из {{ rows.length }} записей · итог
-          <b>{{ totalFmt.value }}</b> <span v-if="totalFmt.unit">{{ totalFmt.unit }}</span>
+          {{ t("{n} из {m} записей · итог", { n: filtered.length, m: rows.length }) }}
+          <b>{{ totalFmt.value }}</b> <span v-if="totalFmt.unit">{{ t(totalFmt.unit) }}</span>
         </div>
       </div>
     </template>
@@ -292,82 +295,82 @@ const sortedCompanies = computed(() =>
       <div class="sub-tools">
         <div class="sub-filters">
           <select v-model="fYear" class="sub-sel">
-            <option value="">Все годы</option>
+            <option value="">{{ t("Все годы") }}</option>
             <option v-for="y in years" :key="y" :value="y">{{ y }}</option>
           </select>
           <select v-model="fSector" class="sub-sel">
-            <option value="">Все секторы</option>
+            <option value="">{{ t("Все секторы") }}</option>
             <option v-for="s in sortedSectors" :key="s.code" :value="String(s.code).toLowerCase()">{{ s.name_ru }}</option>
           </select>
           <select v-model="fCompany" class="sub-sel">
-            <option value="">Все компании</option>
+            <option value="">{{ t("Все компании") }}</option>
             <option v-for="c in sortedCompanies" :key="c.id" :value="c.id">{{ c.name_ru }}</option>
           </select>
           <select v-model="fStatus" class="sub-sel">
-            <option value="">Все статусы</option>
-            <option v-for="s in SUBSIDY_STATUSES" :key="s.key" :value="s.key">{{ s.label }}</option>
+            <option value="">{{ t("Все статусы") }}</option>
+            <option v-for="s in SUBSIDY_STATUSES" :key="s.key" :value="s.key">{{ t(s.label) }}</option>
           </select>
-          <input v-model="fSearch" class="sub-search" type="text" placeholder="Поиск по назначению, источнику…" />
-          <button class="sub-reset" type="button" @click="resetFilters">Сбросить</button>
+          <input v-model="fSearch" class="sub-search" type="text" :placeholder="t('Поиск по назначению, источнику…')" />
+          <button class="sub-reset" type="button" @click="resetFilters">{{ t("Сбросить") }}</button>
         </div>
         <button v-if="canEdit" class="sub-add" type="button" @click="openCreate">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-          Добавить субсидию
+          {{ t("Добавить субсидию") }}
         </button>
       </div>
 
       <!-- Форма создания/редактирования -->
       <Transition name="sub-form-fade">
         <div v-if="formOpen" class="sub-form">
-          <div class="sub-form-h">{{ editingId ? 'Редактирование субсидии' : 'Новая субсидия' }}</div>
+          <div class="sub-form-h">{{ editingId ? t('Редактирование субсидии') : t('Новая субсидия') }}</div>
           <div class="sub-form-grid">
             <label class="sub-fld">
-              <span class="sub-fld-l">Компания *</span>
+              <span class="sub-fld-l">{{ t("Компания") }} *</span>
               <select v-model="form.company_id" class="sub-inp">
-                <option value="">— выберите —</option>
+                <option value="">{{ t("— выберите —") }}</option>
                 <option v-for="c in sortedCompanies" :key="c.id" :value="c.id">{{ c.name_ru }}</option>
               </select>
             </label>
             <label class="sub-fld sub-fld-sm">
-              <span class="sub-fld-l">Год</span>
+              <span class="sub-fld-l">{{ t("Год") }}</span>
               <input v-model.number="form.year" class="sub-inp" type="number" min="2000" max="2100" />
             </label>
             <label class="sub-fld sub-fld-sm">
-              <span class="sub-fld-l">Сумма, млн сум</span>
+              <span class="sub-fld-l">{{ t("Сумма, млн сум") }}</span>
               <input v-model.number="form.amountMln" class="sub-inp" type="number" min="0" step="0.01" />
             </label>
             <label class="sub-fld">
-              <span class="sub-fld-l">Назначение / программа</span>
-              <input v-model="form.program" class="sub-inp" type="text" placeholder="Напр. субсидирование процентной ставки" />
+              <span class="sub-fld-l">{{ t("Назначение / программа") }}</span>
+              <input v-model="form.program" class="sub-inp" type="text" :placeholder="t('Напр. субсидирование процентной ставки')" />
             </label>
             <label class="sub-fld">
-              <span class="sub-fld-l">Источник</span>
-              <input v-model="form.source" class="sub-inp" type="text" placeholder="Республиканский бюджет / Фонд…" />
+              <span class="sub-fld-l">{{ t("Источник") }}</span>
+              <input v-model="form.source" class="sub-inp" type="text" :placeholder="t('Республиканский бюджет / Фонд…')" />
             </label>
             <label class="sub-fld">
-              <span class="sub-fld-l">Вид</span>
-              <input v-model="form.kind" class="sub-inp" type="text" placeholder="Прямая / % ставка / грант…" />
+              <span class="sub-fld-l">{{ t("Вид") }}</span>
+              <input v-model="form.kind" class="sub-inp" type="text" :placeholder="t('Прямая / % ставка / грант…')" />
             </label>
             <label class="sub-fld sub-fld-sm">
-              <span class="sub-fld-l">Статус</span>
+              <span class="sub-fld-l">{{ t("Статус") }}</span>
               <select v-model="form.status" class="sub-inp">
                 <option value="">—</option>
-                <option v-for="s in SUBSIDY_STATUSES" :key="s.key" :value="s.key">{{ s.label }}</option>
+                <option v-for="s in SUBSIDY_STATUSES" :key="s.key" :value="s.key">{{ t(s.label) }}</option>
               </select>
             </label>
             <label class="sub-fld sub-fld-sm">
-              <span class="sub-fld-l">Дата выделения</span>
+              <span class="sub-fld-l">{{ t("Дата выделения") }}</span>
               <input v-model="form.allocation_date" class="sub-inp" type="date" />
             </label>
             <label class="sub-fld sub-fld-wide">
-              <span class="sub-fld-l">Примечание</span>
+              <span class="sub-fld-l">{{ t("Примечание") }}</span>
               <textarea v-model="form.note" class="sub-inp sub-ta" rows="2"></textarea>
             </label>
           </div>
           <div class="sub-form-btns">
-            <button class="sub-btn-cancel" type="button" :disabled="saving" @click="cancelForm">Отмена</button>
+            <button class="sub-btn-cancel" type="button" :disabled="saving" @click="cancelForm">{{ t("Отмена") }}</button>
             <button class="sub-btn-save" type="button" :disabled="saving" @click="saveForm">
-              {{ saving ? 'Сохранение…' : (editingId ? 'Сохранить' : 'Добавить') }}
+              {{ saving ? t('Сохранение…') : (editingId ? t('Сохранить') : t('Добавить')) }}
             </button>
           </div>
         </div>
@@ -379,24 +382,24 @@ const sortedCompanies = computed(() =>
       </div>
       <div v-else-if="loadError" class="sub-state sub-state-err">{{ loadError }}</div>
       <div v-else-if="!rows.length" class="sub-state">
-        Реестр субсидий пуст.<template v-if="canEdit"> Нажмите «Добавить субсидию», чтобы внести первую запись.</template>
+        {{ t("Реестр субсидий пуст.") }}<template v-if="canEdit"> {{ t("Нажмите «Добавить субсидию», чтобы внести первую запись.") }}</template>
       </div>
-      <div v-else-if="!filtered.length" class="sub-state">Нет записей под текущие фильтры.</div>
+      <div v-else-if="!filtered.length" class="sub-state">{{ t("Нет записей под текущие фильтры.") }}</div>
 
       <!-- Таблица -->
       <div v-else class="sub-tbl-wrap">
         <table class="sub-tbl">
           <thead>
             <tr>
-              <th class="l">Компания</th>
-              <th class="l">Сектор</th>
-              <th class="c">Год</th>
-              <th class="l">Назначение</th>
-              <th class="l">Источник</th>
-              <th class="l">Вид</th>
-              <th class="r">Сумма</th>
-              <th class="c">Дата</th>
-              <th class="l">Статус</th>
+              <th class="l">{{ t("Компания") }}</th>
+              <th class="l">{{ t("Сектор") }}</th>
+              <th class="c">{{ t("Год") }}</th>
+              <th class="l">{{ t("Назначение") }}</th>
+              <th class="l">{{ t("Источник") }}</th>
+              <th class="l">{{ t("Вид") }}</th>
+              <th class="r">{{ t("Сумма") }}</th>
+              <th class="c">{{ t("Дата") }}</th>
+              <th class="l">{{ t("Статус") }}</th>
               <th v-if="canEdit" class="c"></th>
             </tr>
           </thead>
@@ -414,24 +417,24 @@ const sortedCompanies = computed(() =>
               <td class="r sub-amt">{{ fmtAmount(r.amount) }}</td>
               <td class="c sub-muted">{{ fmtDate(r.allocation_date) }}</td>
               <td class="l">
-                <span v-if="r.status" class="sub-badge" :class="'st-' + r.status">{{ subsidyStatusLabel(r.status) }}</span>
+                <span v-if="r.status" class="sub-badge" :class="'st-' + r.status">{{ t(subsidyStatusLabel(r.status)) }}</span>
                 <span v-else class="sub-muted">—</span>
               </td>
               <td v-if="canEdit" class="c sub-actions">
                 <template v-if="confirmDeleteId === r.id">
-                  <span class="sub-confirm">Удалить?</span>
-                  <button class="sub-ic sub-ic-yes" :disabled="deleting" title="Подтвердить" @click="doDelete(r)">
+                  <span class="sub-confirm">{{ t("Удалить?") }}</span>
+                  <button class="sub-ic sub-ic-yes" :disabled="deleting" :title="t('Подтвердить')" @click="doDelete(r)">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
                   </button>
-                  <button class="sub-ic" title="Отмена" @click="confirmDeleteId = null">
+                  <button class="sub-ic" :title="t('Отмена')" @click="confirmDeleteId = null">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
                   </button>
                 </template>
                 <template v-else>
-                  <button class="sub-ic" title="Редактировать" @click="openEdit(r)">
+                  <button class="sub-ic" :title="t('Редактировать')" @click="openEdit(r)">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
                   </button>
-                  <button class="sub-ic sub-ic-del" title="Удалить" @click="confirmDeleteId = r.id">
+                  <button class="sub-ic sub-ic-del" :title="t('Удалить')" @click="confirmDeleteId = r.id">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
                   </button>
                 </template>
@@ -440,8 +443,8 @@ const sortedCompanies = computed(() =>
           </transition-group>
           <tfoot>
             <tr>
-              <td :colspan="6" class="r sub-foot-l">Итого по фильтру</td>
-              <td class="r sub-foot-v">{{ totalFmt.value }}<span class="sub-foot-u"> {{ totalFmt.unit }}</span></td>
+              <td :colspan="6" class="r sub-foot-l">{{ t("Итого по фильтру") }}</td>
+              <td class="r sub-foot-v">{{ totalFmt.value }}<span class="sub-foot-u"> {{ t(totalFmt.unit) }}</span></td>
               <td :colspan="canEdit ? 3 : 2"></td>
             </tr>
           </tfoot>

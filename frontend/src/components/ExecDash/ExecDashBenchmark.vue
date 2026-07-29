@@ -8,7 +8,9 @@
  */
 import { computed, ref } from "vue";
 import { useExecutiveDashboard, type ExecCompanyOption } from "@/composables/useExecutiveDashboard";
+import { useI18n } from "@/composables/useI18n";
 
+const { t } = useI18n();
 const exec = useExecutiveDashboard();
 
 type MetricKey = "pct" | "done_ratio" | "task_done" | "task_total";
@@ -59,7 +61,7 @@ function delta(v: number): number {
     <div class="edb-hd">
       <div class="edb-hd-l">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M3 7l9-4 9 4M5 21h14"/></svg>
-        <span class="edb-title">{{ rows.length === 1 ? 'Фокус на компании' : `Бенчмаркинг · ${rows.length} компаний` }}</span>
+        <span class="edb-title">{{ rows.length === 1 ? t('Фокус на компании') : t('Бенчмаркинг · {n} компаний', { n: rows.length }) }}</span>
       </div>
       <div class="edb-hd-r">
         <div class="edb-metrics">
@@ -67,14 +69,14 @@ function delta(v: number): number {
             v-for="m in METRICS" :key="m.key"
             class="edb-mbtn" :class="{ on: metric === m.key }"
             @click="metric = m.key"
-          >{{ m.label }}</button>
+          >{{ t(m.label) }}</button>
         </div>
-        <button class="edb-close" title="Закрыть сравнение" @click="exec.clearCompanies()">✕</button>
+        <button class="edb-close" :title="t('Закрыть сравнение')" @click="exec.clearCompanies()">✕</button>
       </div>
     </div>
 
     <div class="edb-baseline">
-      Среднее по портфелю: <b>{{ fmt(baselineValue) }}</b>
+      {{ t("Среднее по портфелю:") }} <b>{{ fmt(baselineValue) }}</b>
     </div>
 
     <div class="edb-bars">
@@ -83,7 +85,7 @@ function delta(v: number): number {
         <span class="edb-name" :title="r.company.name">{{ r.company.name }}</span>
         <div class="edb-track">
           <div class="edb-fill" :style="{ width: (r.value / maxValue * 100) + '%', background: r.company.sector_color }"></div>
-          <div class="edb-baseline-mark" :style="{ left: (baselineValue / maxValue * 100) + '%' }" title="Среднее по портфелю"></div>
+          <div class="edb-baseline-mark" :style="{ left: (baselineValue / maxValue * 100) + '%' }" :title="t('Среднее по портфелю')"></div>
         </div>
         <span class="edb-val">{{ fmt(r.value) }}</span>
         <span class="edb-delta" :class="delta(r.value) >= 0 ? 'pos' : 'neg'">

@@ -1,0 +1,278 @@
+/**
+ * СЛОВАРЬ «shell» — оболочка приложения: сайдбар (AppShell), командная
+ * палитра (CommandPalette), нижняя навигация (BottomNav), баннер срока
+ * пароля, приветственная модалка, секция «Компании» сайдбара.
+ *
+ * Общеплатформенные термины НЕ дублируем — они в dict/common.ts.
+ */
+
+export const uz: Record<string, string> = {
+  // ── AppShell: бренд / служебное ──
+  "UzAssets · Единая платформа трансформации": "UzAssets · Yagona transformatsiya platformasi",
+  "Открыть меню": "Menyuni ochish",
+  "Свернуть меню": "Menyuni yigʻish",
+  "Поиск и команды ({k})": "Qidiruv va buyruqlar ({k})",
+  "другой пользователь": "boshqa foydalanuvchi",
+
+  // ── AppShell: группы и пункты сайдбара ──
+  "Обзор": "Sharh",
+  "Проекты и сроки": "Loyihalar va muddatlar",
+  "Аналитика и модули": "Analitika va modullar",
+  "Портфель компаний": "Kompaniyalar portfeli",
+  "Проекты трансформации": "Transformatsiya loyihalari",
+  "Отслеживаемое": "Kuzatilayotgan",
+  "Удельная себестоимость": "Solishtirma tannarx",
+  "Финансовая модель": "Moliyaviy model",
+  "Инвест-проекты": "Invest-loyihalar",
+  "Закупки и форензик-аудит": "Xaridlar va forenzik-audit",
+  "Анализ закупочной деятельности государственных компаний": "Davlat kompaniyalari xarid faoliyati tahlili",
+  "Анализ закупочной деятельности": "Xarid faoliyati tahlili",
+  "Откроется в новой вкладке": "Yangi varaqda ochiladi",
+  "E-kengash — открыть в новой вкладке": "E-kengash — yangi varaqda ochish",
+  "ИИ-ассистент": "AI-assistent",
+  "ИИ-ассистент выключен": "AI-assistent oʻchirilgan",
+  "ИИ": "AI",
+
+  // ── AppShell: админ-раздел ──
+  "Доступы": "Ruxsatlar",
+  "Модерация": "Moderatsiya",
+  "Компании и сектора": "Kompaniyalar va tarmoqlar",
+  "Кастомные рассылки": "Maxsus xabarnomalar",
+  "Каталоги · направления и консультанты": "Kataloglar · yoʻnalishlar va konsultantlar",
+  "Конструктор задач и проектов": "Vazifa va loyihalar konstruktori",
+  "Хранилище файлов (S3)": "Fayl ombori (S3)",
+  "База данных": "Maʼlumotlar bazasi",
+  "TLS сертификат": "TLS sertifikati",
+  "Почта и уведомления (SMTP)": "Pochta va bildirishnomalar (SMTP)",
+  "Каталог API": "API katalogi",
+  "Документация API": "API hujjatlari",
+  "Библиотека · Компании": "Kutubxona · Kompaniyalar",
+
+  // ── Командная палитра ──
+  "Командная палитра": "Buyruqlar palitrasi",
+  "Куда перейти или что сделать…": "Qayerga oʻtish yoki nima qilish…",
+  "Недавнее": "Yaqinda",
+  "Быстрый переход": "Tezkor oʻtish",
+  "Результаты": "Natijalar",
+  "Переход": "Oʻtish",
+  "Действия": "Amallar",
+  "Компания · раздел": "Kompaniya · boʻlim",
+  "Раздел": "Boʻlim",
+  "Раздел компании": "Kompaniya boʻlimi",
+  "Мониторинг прогрессов": "Progress monitoringi",
+  "Портфель проектов и задач": "Loyihalar va vazifalar portfeli",
+  "Подписки на изменения": "Oʻzgarishlarga obunalar",
+  "Дедлайны проектов и задач": "Loyiha va vazifalar muddatlari",
+  "Ключевые показатели": "Asosiy koʻrsatkichlar",
+  "Финансы · Обзор портфеля": "Moliya · Portfel sharhi",
+  "Внешний модуль": "Tashqi modul",
+  "CAPEX-объекты": "CAPEX obyektlari",
+  "Экология, общество, управление": "Ekologiya, jamiyat, boshqaruv",
+  "MDM-карточки": "MDM-kartochkalar",
+  "RAG по корпоративным данным": "Korporativ maʼlumotlar boʻyicha RAG",
+  "Входящие": "Kiruvchi",
+  "Доступы (RBAC)": "Ruxsatlar (RBAC)",
+  "Безопасность и пароль": "Xavfsizlik va parol",
+  "Настройки профиля": "Profil sozlamalari",
+  "Массовое заведение": "Ommaviy kiritish",
+  "Создать задачу или проект": "Vazifa yoki loyiha yaratish",
+  "Конструктор": "Konstruktor",
+  "Настройки уведомлений": "Bildirishnoma sozlamalari",
+  "Выйти из системы": "Tizimdan chiqish",
+  "Спросить ИИ: «{q}»": "AIdan soʻrash: «{q}»",
+  "Ничего не найдено по «{q}»": "«{q}» boʻyicha hech narsa topilmadi",
+  "навигация": "navigatsiya",
+  "выбрать": "tanlash",
+  "закрыть": "yopish",
+  "Канбан": "Kanban",
+  "Список задач": "Vazifalar roʻyxati",
+  "Фин. отчётность": "Mol. hisobot",
+  "Корп. управление": "Korp. boshqaruv",
+  "Консультант": "Konsultant",
+  "Пользователь": "Foydalanuvchi",
+  "Заметка": "Qayd",
+
+  // ── Баннер срока пароля ──
+  "Срок пароля истёк {n} дн. назад — смените сейчас, иначе доступ к API будет закрыт.":
+    "Parol muddati {n} kun oldin tugagan — hozir almashtiring, aks holda API kirish yopiladi.",
+  "Срок пароля истекает сегодня — смените прямо сейчас.": "Parol muddati bugun tugaydi — hoziroq almashtiring.",
+  "Срок пароля истекает завтра — смените сейчас.": "Parol muddati ertaga tugaydi — hozir almashtiring.",
+  "Срок пароля истекает через {n} дн. — рекомендуем сменить заранее.":
+    "Parol muddati {n} kundan soʻng tugaydi — oldindan almashtirishni tavsiya qilamiz.",
+  "Сменить пароль →": "Parolni almashtirish →",
+  "Скрыть до завтра": "Ertagacha yashirish",
+
+  // ── Сайдбар: секция «Компании» ──
+  "Список компаний по секторам": "Tarmoqlar boʻyicha kompaniyalar roʻyxati",
+  "Ошибка загрузки": "Yuklash xatosi",
+
+  // ── Приветственная модалка ──
+  "коллега": "hamkasb",
+  "Добро пожаловать, {name}": "Xush kelibsiz, {name}",
+  "Рады видеть вас на платформе. Давайте заполним профиль — это займёт меньше минуты и поможет коллегам узнавать вас.":
+    "Platformada koʻrganimizdan xursandmiz. Keling, profilni toʻldiramiz — bu bir daqiqadan kam vaqt oladi va hamkasblarga sizni tanishga yordam beradi.",
+  "ФИО": "F.I.Sh.",
+  "Фамилия Имя Отчество": "Familiya Ism Sharif",
+  "Должность": "Lavozim",
+  "Отдел": "Boʻlim",
+  "Телефон": "Telefon",
+  "напр. Финансовый аналитик": "mas., moliyaviy tahlilchi",
+  "напр. Финансовый блок": "mas., moliya boʻlimi",
+  "Заполнить позже": "Keyinroq toʻldirish",
+  "Сохраняю…": "Saqlanmoqda…",
+  "Сохранить и продолжить": "Saqlash va davom etish",
+  "Не удалось сохранить профиль": "Profil saqlanmadi",
+};
+
+export const en: Record<string, string> = {
+  // ── AppShell: бренд / служебное ──
+  "UzAssets · Единая платформа трансформации": "UzAssets · Unified Transformation Platform",
+  "Открыть меню": "Open menu",
+  "Свернуть меню": "Collapse menu",
+  "Поиск и команды ({k})": "Search & commands ({k})",
+  "другой пользователь": "another user",
+
+  // ── AppShell: группы и пункты сайдбара ──
+  "Обзор": "Overview",
+  "Проекты и сроки": "Projects & deadlines",
+  "Аналитика и модули": "Analytics & modules",
+  "Портфель компаний": "Company portfolio",
+  "Проекты трансформации": "Transformation projects",
+  "Отслеживаемое": "Followed",
+  "Удельная себестоимость": "Unit cost",
+  "Финансовая модель": "Financial model",
+  "Инвест-проекты": "Investment projects",
+  "Закупки и форензик-аудит": "Procurement & forensic audit",
+  "Анализ закупочной деятельности государственных компаний": "SOE procurement analysis",
+  "Анализ закупочной деятельности": "Procurement analysis",
+  "Откроется в новой вкладке": "Opens in a new tab",
+  "E-kengash — открыть в новой вкладке": "E-kengash — open in a new tab",
+  "ИИ-ассистент": "AI Assistant",
+  "ИИ-ассистент выключен": "AI assistant is off",
+  "ИИ": "AI",
+
+  // ── AppShell: админ-раздел ──
+  "Доступы": "Access",
+  "Модерация": "Moderation",
+  "Компании и сектора": "Companies & sectors",
+  "Кастомные рассылки": "Custom broadcasts",
+  "Каталоги · направления и консультанты": "Catalogs · directions & consultants",
+  "Конструктор задач и проектов": "Task & project builder",
+  "Хранилище файлов (S3)": "File storage (S3)",
+  "База данных": "Database",
+  "TLS сертификат": "TLS certificate",
+  "Почта и уведомления (SMTP)": "Email & notifications (SMTP)",
+  "Каталог API": "API catalog",
+  "Документация API": "API docs",
+  "Библиотека · Компании": "Library · Companies",
+
+  // ── Командная палитра ──
+  "Командная палитра": "Command palette",
+  "Куда перейти или что сделать…": "Where to go or what to do…",
+  "Недавнее": "Recent",
+  "Быстрый переход": "Quick jump",
+  "Результаты": "Results",
+  "Переход": "Go to",
+  "Действия": "Actions",
+  "Компания · раздел": "Company · section",
+  "Раздел": "Section",
+  "Раздел компании": "Company section",
+  "Мониторинг прогрессов": "Progress monitoring",
+  "Портфель проектов и задач": "Project & task portfolio",
+  "Подписки на изменения": "Change subscriptions",
+  "Дедлайны проектов и задач": "Project & task deadlines",
+  "Ключевые показатели": "Key indicators",
+  "Финансы · Обзор портфеля": "Finance · Portfolio overview",
+  "Внешний модуль": "External module",
+  "CAPEX-объекты": "CAPEX projects",
+  "Экология, общество, управление": "Environment, social, governance",
+  "MDM-карточки": "MDM cards",
+  "RAG по корпоративным данным": "RAG over corporate data",
+  "Входящие": "Inbox",
+  "Доступы (RBAC)": "Access (RBAC)",
+  "Безопасность и пароль": "Security & password",
+  "Настройки профиля": "Profile settings",
+  "Массовое заведение": "Bulk creation",
+  "Создать задачу или проект": "Create task or project",
+  "Конструктор": "Builder",
+  "Настройки уведомлений": "Notification settings",
+  "Выйти из системы": "Sign out",
+  "Спросить ИИ: «{q}»": "Ask AI: «{q}»",
+  "Ничего не найдено по «{q}»": "Nothing found for «{q}»",
+  "навигация": "navigate",
+  "выбрать": "select",
+  "закрыть": "close",
+  "Канбан": "Kanban",
+  "Список задач": "Task list",
+  "Фин. отчётность": "Fin. statements",
+  "Корп. управление": "Corp. governance",
+  "Консультант": "Consultant",
+  "Пользователь": "User",
+  "Заметка": "Note",
+
+  // ── Баннер срока пароля ──
+  "Срок пароля истёк {n} дн. назад — смените сейчас, иначе доступ к API будет закрыт.":
+    "Password expired {n} days ago — change it now, otherwise API access will be blocked.",
+  "Срок пароля истекает сегодня — смените прямо сейчас.": "Password expires today — change it right now.",
+  "Срок пароля истекает завтра — смените сейчас.": "Password expires tomorrow — change it now.",
+  "Срок пароля истекает через {n} дн. — рекомендуем сменить заранее.":
+    "Password expires in {n} days — we recommend changing it in advance.",
+  "Сменить пароль →": "Change password →",
+  "Скрыть до завтра": "Hide until tomorrow",
+
+  // ── Сайдбар: секция «Компании» ──
+  "Список компаний по секторам": "Companies by sector",
+  "Ошибка загрузки": "Load error",
+
+  // ── Приветственная модалка ──
+  "коллега": "colleague",
+  "Добро пожаловать, {name}": "Welcome, {name}",
+  "Рады видеть вас на платформе. Давайте заполним профиль — это займёт меньше минуты и поможет коллегам узнавать вас.":
+    "Glad to see you on the platform. Let's fill in your profile — it takes under a minute and helps colleagues recognize you.",
+  "ФИО": "Full name",
+  "Фамилия Имя Отчество": "Last name, first name",
+  "Должность": "Job title",
+  "Отдел": "Department",
+  "Телефон": "Phone",
+  "напр. Финансовый аналитик": "e.g. Financial analyst",
+  "напр. Финансовый блок": "e.g. Finance department",
+  "Заполнить позже": "Fill in later",
+  "Сохраняю…": "Saving…",
+  "Сохранить и продолжить": "Save & continue",
+  "Не удалось сохранить профиль": "Failed to save profile",
+};
+
+/**
+ * Исключения узбекской кириллицы: латинские аббревиатуры (AI/API/RBAC/TLS/
+ * SMTP/S3/RAG/MDM/CAPEX/E-kengash) должны остаться латиницей, заимствования
+ * с «ь»/«ц» (модуль, модель, консультант, модерация, навигация, портфель,
+ * трансформация) транслитом дают неверную форму.
+ */
+export const cyr: Record<string, string> = {
+  "UzAssets · Единая платформа трансформации": "UzAssets · Ягона трансформация платформаси",
+  "ИИ-ассистент": "AI-ассистент",
+  "ИИ-ассистент выключен": "AI-ассистент ўчирилган",
+  "ИИ": "AI",
+  "Проекты трансформации": "Трансформация лойиҳалари",
+  "Аналитика и модули": "Аналитика ва модуллар",
+  "Финансовая модель": "Молиявий модель",
+  "Внешний модуль": "Ташқи модуль",
+  "Модерация": "Модерация",
+  "навигация": "навигация",
+  "Каталоги · направления и консультанты": "Каталоглар · йўналишлар ва консультантлар",
+  "Консультант": "Консультант",
+  "Финансы · Обзор портфеля": "Молия · Портфель шарҳи",
+  "CAPEX-объекты": "CAPEX объектлари",
+  "MDM-карточки": "MDM-карточкалар",
+  "RAG по корпоративным данным": "Корпоратив маълумотлар бўйича RAG",
+  "Доступы (RBAC)": "Рухсатлар (RBAC)",
+  "Спросить ИИ: «{q}»": "AIдан сўраш: «{q}»",
+  "TLS сертификат": "TLS сертификати",
+  "Почта и уведомления (SMTP)": "Почта ва билдиришномалар (SMTP)",
+  "Каталог API": "API каталоги",
+  "Документация API": "API ҳужжатлари",
+  "Хранилище файлов (S3)": "Файл омбори (S3)",
+  "E-kengash — открыть в новой вкладке": "E-kengash — янги варақда очиш",
+  "Срок пароля истёк {n} дн. назад — смените сейчас, иначе доступ к API будет закрыт.":
+    "Парол муддати {n} кун олдин тугаган — ҳозир алмаштиринг, акс ҳолда API кириш ёпилади.",
+};

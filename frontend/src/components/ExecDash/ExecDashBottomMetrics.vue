@@ -23,6 +23,9 @@
 import { computed, onMounted, ref, watch, type Ref } from "vue";
 import { useExecutiveDashboard } from "@/composables/useExecutiveDashboard";
 import KpiDrillModal, { type KpiKind } from "@/components/UZA/KpiDrillModal.vue";
+import { useI18n } from "@/composables/useI18n";
+
+const { t } = useI18n();
 
 const exec = useExecutiveDashboard();
 const m = computed(() => exec.data.value?.bottom_metrics);
@@ -112,20 +115,20 @@ watch(m, runCountUp);
 <template>
   <div v-if="m" class="va-bot">
     <!-- 1. Проектов всего -->
-    <div class="va-cell va-cell-work" :style="{ '--si': 0 }" :title="`${m.proj_count} проектов · ${m.task_count} задач · ≈${avgTasksPerProj} задач на проект`">
-      <div class="va-lbl">Портфель работ · проекты содержат задачи</div>
+    <div class="va-cell va-cell-work" :style="{ '--si': 0 }" :title="t('{p} проектов · {n} задач · ≈{avg} задач на проект', { p: m.proj_count, n: m.task_count, avg: avgTasksPerProj })">
+      <div class="va-lbl">{{ t("Портфель работ · проекты содержат задачи") }}</div>
       <div class="va-work-row">
         <button type="button" class="va-work-node va-work-btn" @click="openDrill('projects')">
           <span class="va-work-num">{{ av.proj }}</span>
-          <span class="va-work-u">проектов</span>
+          <span class="va-work-u">{{ t("проектов") }}</span>
         </button>
         <span class="va-work-link">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-          <span class="va-work-ratio">≈{{ avgTasksPerProj }}/проект</span>
+          <span class="va-work-ratio">{{ t("≈{n}/проект", { n: avgTasksPerProj }) }}</span>
         </span>
         <button type="button" class="va-work-node va-work-btn" @click="openDrill('tasks')">
           <span class="va-work-num">{{ av.tasks }}</span>
-          <span class="va-work-u">задач</span>
+          <span class="va-work-u">{{ t("задач") }}</span>
         </button>
       </div>
       <!-- Воронка: проекты (уже) → задачи (полная ширина) -->
@@ -136,8 +139,8 @@ watch(m, runCountUp);
     </div>
 
     <!-- 3. Завершено · проекты -->
-    <button type="button" class="va-cell va-cell-btn" :style="{ '--si': 1 }" @click="openDrill('done_projects')" :title="'Подробнее: Завершённые проекты'">
-      <div class="va-lbl">Завершено · проекты</div>
+    <button type="button" class="va-cell va-cell-btn" :style="{ '--si': 1 }" @click="openDrill('done_projects')" :title="t('Подробнее: Завершённые проекты')">
+      <div class="va-lbl">{{ t("Завершено · проекты") }}</div>
       <div class="va-num-row">
         <span class="va-num va-num-green">{{ av.doneProj }}</span>
         <span class="va-pct">{{ av.projDonePct }}%</span>
@@ -148,8 +151,8 @@ watch(m, runCountUp);
     </button>
 
     <!-- 4. Завершено · задачи -->
-    <button type="button" class="va-cell va-cell-btn" :style="{ '--si': 2 }" @click="openDrill('done_tasks')" :title="'Подробнее: Завершённые задачи'">
-      <div class="va-lbl">Завершено · задачи</div>
+    <button type="button" class="va-cell va-cell-btn" :style="{ '--si': 2 }" @click="openDrill('done_tasks')" :title="t('Подробнее: Завершённые задачи')">
+      <div class="va-lbl">{{ t("Завершено · задачи") }}</div>
       <div class="va-num-row">
         <span class="va-num va-num-green">{{ av.doneTasks }}</span>
         <span class="va-pct">{{ av.taskDonePct }}%</span>
@@ -160,10 +163,10 @@ watch(m, runCountUp);
     </button>
 
     <!-- 5. Перенесено · задачи (скрыто при 0; suffix proj если > 0) -->
-    <button v-if="deferredVisible" type="button" class="va-cell va-cell-btn" :style="{ '--si': 3 }" @click="openDrill('deferred_tasks')" :title="'Подробнее: Перенесённые задачи'">
+    <button v-if="deferredVisible" type="button" class="va-cell va-cell-btn" :style="{ '--si': 3 }" @click="openDrill('deferred_tasks')" :title="t('Подробнее: Перенесённые задачи')">
       <div class="va-lbl">
-        Перенесено · задачи
-        <span v-if="deferredProjVisible" class="va-lbl-extra">+ {{ m.deferred_proj }} пр.</span>
+        {{ t("Перенесено · задачи") }}
+        <span v-if="deferredProjVisible" class="va-lbl-extra">{{ t("+ {n} пр.", { n: m.deferred_proj }) }}</span>
       </div>
       <div class="va-num-row">
         <span class="va-num va-num-purple">{{ av.deferred }}</span>
@@ -175,8 +178,8 @@ watch(m, runCountUp);
     </button>
 
     <!-- 6. Средний прогресс -->
-    <button type="button" class="va-cell va-cell-btn" :style="{ '--si': deferredVisible ? 4 : 3 }" @click="openDrill('avg_progress')" :title="'Подробнее: Средний прогресс'">
-      <div class="va-lbl">Средний прогресс</div>
+    <button type="button" class="va-cell va-cell-btn" :style="{ '--si': deferredVisible ? 4 : 3 }" @click="openDrill('avg_progress')" :title="t('Подробнее: Средний прогресс')">
+      <div class="va-lbl">{{ t("Средний прогресс") }}</div>
       <div class="va-num-row">
         <span class="va-num va-num-amber">{{ av.avg }}%</span>
       </div>

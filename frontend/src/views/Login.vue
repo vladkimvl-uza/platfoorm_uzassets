@@ -6,9 +6,12 @@ import { authApi } from "@/api/auth";
 import { mfaApi } from "@/api/mfa";
 import { AxiosError } from "axios";
 import EptLogo from "@/components/EptLogo.vue";
+import LangSwitcher from "@/components/LangSwitcher.vue";
+import { useI18n } from "@/composables/useI18n";
 import minfinLogoUrl from "@/assets/minfin-logo-eng.png";
 import uzassetsLogoUrl from "@/assets/uzassets-logo-wide.png";
 
+const { t } = useI18n();
 const router = useRouter();
 const route = useRoute();
 const auth = useAuthStore();
@@ -79,14 +82,14 @@ async function handleLogin() {
     if (e instanceof AxiosError) {
       const status = e.response?.status;
       const detail = e.response?.data?.detail;
-      if (status === 401) error.value = detail ?? "Неверный логин или пароль";
-      else if (status === 423) error.value = detail ?? "Аккаунт временно заблокирован";
-      else if (status === 429) error.value = "Слишком много попыток. Подождите минуту.";
-      else if (status === 403) error.value = detail ?? "Аккаунт отключён";
-      else if (status === 500) error.value = detail ?? "Внутренняя ошибка сервера";
-      else error.value = `Ошибка: ${detail ?? e.message}`;
+      if (status === 401) error.value = detail ?? t("Неверный логин или пароль");
+      else if (status === 423) error.value = detail ?? t("Аккаунт временно заблокирован");
+      else if (status === 429) error.value = t("Слишком много попыток. Подождите минуту.");
+      else if (status === 403) error.value = detail ?? t("Аккаунт отключён");
+      else if (status === 500) error.value = detail ?? t("Внутренняя ошибка сервера");
+      else error.value = t("Ошибка: {msg}", { msg: detail ?? e.message });
     } else {
-      error.value = "Не удалось подключиться к серверу";
+      error.value = t("Не удалось подключиться к серверу");
     }
     auth.clear();
   } finally {
@@ -128,12 +131,12 @@ async function handleLogin() {
       <div class="lg-card">
         <div class="lg-card-head">
           <EptLogo ref="logoRef" :size="44" />
-          <h1 class="lg-card-title">Единая платформа<br/>трансформации</h1>
+          <h1 class="lg-card-title">{{ t("Единая платформа трансформации") }}</h1>
         </div>
 
         <form @submit.prevent="handleLogin" class="lg-form">
           <div class="lg-field">
-            <label class="lg-label">Логин или email</label>
+            <label class="lg-label">{{ t("Логин или email") }}</label>
             <input
               v-model="login"
               type="text"
@@ -148,7 +151,7 @@ async function handleLogin() {
           </div>
 
           <div class="lg-field">
-            <label class="lg-label">Пароль</label>
+            <label class="lg-label">{{ t("Пароль") }}</label>
             <div class="lg-input-wrap">
               <input
                 v-model="password"
@@ -162,7 +165,7 @@ async function handleLogin() {
                 @keyup="onPwdKey"
                 @keydown="onPwdKey"
               />
-              <button type="button" class="lg-eye" :aria-label="showPwd ? 'Скрыть пароль' : 'Показать пароль'" @click="showPwd = !showPwd">
+              <button type="button" class="lg-eye" :aria-label="showPwd ? t('Скрыть пароль') : t('Показать пароль')" @click="showPwd = !showPwd">
                 <svg v-if="!showPwd" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
                 </svg>
@@ -174,7 +177,7 @@ async function handleLogin() {
             <transition name="uza-fade">
               <div v-if="capsOn" class="lg-warn">
                 <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/><path d="M4 21h16"/></svg>
-                Включён Caps Lock
+                {{ t("Включён Caps Lock") }}
               </div>
             </transition>
           </div>
@@ -182,7 +185,7 @@ async function handleLogin() {
           <transition name="uza-fade">
             <div v-if="layoutWarn" class="lg-warn lg-warn-layout">
               <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
-              Похоже, включена русская раскладка — переключите на латиницу (EN)
+              {{ t("Похоже, включена русская раскладка — переключите на латиницу (EN)") }}
             </div>
           </transition>
 
@@ -192,15 +195,19 @@ async function handleLogin() {
             class="lg-btn"
           >
             <span v-if="loading" class="lg-spinner"></span>
-            {{ loading ? "Вход…" : "Войти" }}
+            {{ loading ? t("Вход…") : t("Войти") }}
           </button>
 
-          <RouterLink class="lg-forgot" to="/forgot-password">Забыли пароль?</RouterLink>
+          <RouterLink class="lg-forgot" to="/forgot-password">{{ t("Забыли пароль?") }}</RouterLink>
         </form>
 
         <transition name="uza-fade">
           <div v-if="error" class="lg-err">{{ error }}</div>
         </transition>
+
+        <div class="lg-lang">
+          <LangSwitcher variant="light" />
+        </div>
       </div>
     </div>
 
@@ -566,6 +573,14 @@ async function handleLogin() {
   transition: color 0.15s;
 }
 .lg-forgot:hover { color: #7F77DD; text-decoration: underline; }
+
+/* Переключатель языка — прижат к низу карточки */
+.lg-lang {
+  margin-top: auto;
+  padding-top: 20px;
+  display: flex;
+  justify-content: center;
+}
 
 .lg-err {
   margin-top: 16px;

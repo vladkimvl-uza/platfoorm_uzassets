@@ -3,19 +3,18 @@
     <!-- Filter strip -->
     <div class="pa-compare-h">
       <div>
-        <div class="pa-compare-eyebrow">Сравнение компаний</div>
-        <h3 class="pa-compare-title">Рейтинг по среднему отклонению</h3>
+        <div class="pa-compare-eyebrow">{{ t("Сравнение компаний") }}</div>
+        <h3 class="pa-compare-title">{{ t("Рейтинг по среднему отклонению") }}</h3>
         <div class="pa-compare-sub">
-          1 строка на компанию · sparkline = отклонения по 15 категориям ·
-          высота столбика = модуль отклонения, цвет = знак
+          {{ t("1 строка на компанию · sparkline = отклонения по 15 категориям · высота столбика = модуль отклонения, цвет = знак") }}
         </div>
       </div>
 
       <div class="pa-compare-controls">
         <div class="pa-pill">
-          <span class="pa-pill-l">Топ:</span>
+          <span class="pa-pill-l">{{ t("Топ:") }}</span>
           <button v-for="n in topNOptions" :key="n" :class="{ on: topN === n }" @click="topN = n">
-            {{ n === 'all' ? 'Все' : n }}
+            {{ n === 'all' ? t('Все') : n }}
           </button>
         </div>
       </div>
@@ -36,22 +35,22 @@
         <thead>
           <tr>
             <th class="center">№</th>
-            <th>Компания</th>
+            <th>{{ t("Компания") }}</th>
             <th class="right" :class="sortClass('deviation')" @click="setSort('deviation')">
-              Откл. ср.
+              {{ t("Откл. ср.") }}
               <span class="pa-sort-arrow" v-if="sortKey === 'deviation'">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
             </th>
             <th class="right" :class="sortClass('overpay')" @click="setSort('overpay')">
-              Переплата
+              {{ t("Переплата") }}
               <span class="pa-sort-arrow" v-if="sortKey === 'overpay'">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
             </th>
-            <th class="center">Откл. по 15 категориям</th>
+            <th class="center">{{ t("Откл. по 15 категориям") }}</th>
             <th class="center" :class="sortClass('red')" @click="setSort('red')">
-              Красных
+              {{ t("Красных") }}
               <span class="pa-sort-arrow" v-if="sortKey === 'red'">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
             </th>
             <th class="right" :class="sortClass('volume')" @click="setSort('volume')">
-              Объём
+              {{ t("Объём") }}
               <span class="pa-sort-arrow" v-if="sortKey === 'volume'">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
             </th>
           </tr>
@@ -76,7 +75,7 @@
             </td>
             <td class="right neu">
               <template v-if="Math.max(0, c.sum_dev) > 0">
-                {{ paFmtMoneyShort(Math.max(0, c.sum_dev)) }} сум
+                {{ paFmtMoneyShort(Math.max(0, c.sum_dev)) }} {{ t("сум") }}
               </template>
               <template v-else>—</template>
             </td>
@@ -93,17 +92,17 @@
             <td class="center">
               <span :class="redBadgeClass(c.above_count)">{{ c.above_count }}</span>
             </td>
-            <td class="right neu">{{ paFmtMoneyShort(c.sum_ref) }} сум</td>
+            <td class="right neu">{{ paFmtMoneyShort(c.sum_ref) }} {{ t("сум") }}</td>
           </tr>
           <tr v-if="!visibleRating.length">
-            <td colspan="7" class="pa-empty">Нет компаний для сравнения</td>
+            <td colspan="7" class="pa-empty">{{ t("Нет компаний для сравнения") }}</td>
           </tr>
         </tbody>
       </table>
     </div>
 
     <div class="pa-compare-foot">
-      <span>Показано <b>{{ visibleRating.length }}</b> из {{ sortedRating.length }} компаний · клик по строке — профиль компании</span>
+      <span>{{ t("Показано {shown} из {total} компаний · клик по строке — профиль компании", { shown: visibleRating.length, total: sortedRating.length }) }}</span>
     </div>
   </div>
 </template>
@@ -124,6 +123,9 @@ import {
   type CompanyRatingRow,
 } from "@/api/procurement_analysis";
 import { useSavedFilter } from "@/composables/useSavedFilter";
+import { useI18n } from "@/composables/useI18n";
+
+const { t } = useI18n();
 
 const props = defineProps<{
   rating: CompanyRatingRow[];
@@ -185,7 +187,7 @@ function sparkBarStyle(c: CompanyRatingRow, catId: number) {
 
 function sparkBarTitle(c: CompanyRatingRow, cat: CategoryMeta): string {
   const d = c.cat_dev.find((x) => paSameCat(x.category_id, cat.id));
-  if (!d || !d.sum_ref) return `${cat.short}: нет данных`;
+  if (!d || !d.sum_ref) return `${cat.short}: ${t("нет данных")}`;
   const dev = (d.sum_dev / d.sum_ref) * 100;
   return `${cat.short}: ${dev >= 0 ? "+" : ""}${dev.toFixed(1)}%`;
 }

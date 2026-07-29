@@ -31,6 +31,15 @@ api.interceptors.request.use((config) => {
   if (auth.accessToken) {
     config.headers.Authorization = `Bearer ${auth.accessToken}`;
   }
+  // Язык интерфейса — бэкенд локализует свои сообщения (ошибки, тексты
+  // уведомлений). Читаем localStorage напрямую: интерсептор не должен
+  // зависеть от порядка инициализации pinia.
+  try {
+    const loc = localStorage.getItem("uza-locale-v1");
+    if (loc) config.headers["X-UI-Locale"] = loc;
+  } catch {
+    /* приватный режим/SSR — без заголовка */
+  }
   return config;
 });
 

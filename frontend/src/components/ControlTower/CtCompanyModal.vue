@@ -8,6 +8,9 @@
 import { computed } from "vue";
 import ModalShell from "@/components/ModalShell.vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
+import { useI18n } from "@/composables/useI18n";
+
+const { t } = useI18n();
 
 interface TrailItem { ts: string; actor: string; action: string; field: string | null; old_value?: string | null; new_value?: string | null; title: string; is_critical: boolean }
 
@@ -44,7 +47,7 @@ function trailTime(ts: string): string {
   return new Date(ts).toLocaleString("ru-RU", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 function actionRu(a: string): string {
-  return ({ status_changed: "сменил статус", field_updated: "обновил", created: "создал", archived: "архивировал" } as any)[a] || a;
+  return ({ status_changed: t("сменил статус"), field_updated: t("обновил"), created: t("создал"), archived: t("архивировал") } as any)[a] || a;
 }
 </script>
 
@@ -55,41 +58,41 @@ function actionRu(a: string): string {
     </template>
     <div v-if="co" class="ph-mod-inner">
       <div v-if="co.delta != null" class="ph-mod-ab">
-        <div class="ph-ab-c"><div class="ph-ab-l">Было</div><div class="ph-ab-v" :style="{ color: progColor(co.from) }">{{ co.from }}%</div></div>
-        <div class="ph-ab-d" :class="co.delta > 0 ? 'up' : co.delta < 0 ? 'dn' : 'fl'"><div>{{ co.delta > 0 ? '+' : '' }}{{ co.delta }}</div><small>пп</small></div>
-        <div class="ph-ab-c"><div class="ph-ab-l">Стало</div><div class="ph-ab-v" :style="{ color: progColor(co.to) }">{{ co.to }}%</div></div>
+        <div class="ph-ab-c"><div class="ph-ab-l">{{ t("Было") }}</div><div class="ph-ab-v" :style="{ color: progColor(co.from) }">{{ co.from }}%</div></div>
+        <div class="ph-ab-d" :class="co.delta > 0 ? 'up' : co.delta < 0 ? 'dn' : 'fl'"><div>{{ co.delta > 0 ? '+' : '' }}{{ co.delta }}</div><small>{{ t("пп") }}</small></div>
+        <div class="ph-ab-c"><div class="ph-ab-l">{{ t("Стало") }}</div><div class="ph-ab-v" :style="{ color: progColor(co.to) }">{{ co.to }}%</div></div>
       </div>
       <div v-else class="ph-mod-ab single">
-        <div class="ph-ab-c"><div class="ph-ab-l">Взвешенный прогресс</div><div class="ph-ab-v" :style="{ color: progColor(co.score) }">{{ co.score ?? '—' }}<template v-if="co.score!=null">%</template></div></div>
+        <div class="ph-ab-c"><div class="ph-ab-l">{{ t("Взвешенный прогресс") }}</div><div class="ph-ab-v" :style="{ color: progColor(co.score) }">{{ co.score ?? '—' }}<template v-if="co.score!=null">%</template></div></div>
       </div>
 
       <!-- конкретные цифры: завершено на момент среза vs сейчас -->
       <div v-if="modalNums" class="ph-mod-nums">
         <div class="ph-mn">
-          <span class="ph-mn-l">Задачи завершено</span>
-          <div class="ph-mn-v"><b>{{ modalNums.tasks_now }}</b><em>из {{ modalNums.tasks_total }}</em>
-            <i v-if="hasSnap && modalNums.tasks_snap != null">было {{ modalNums.tasks_snap }}<u v-if="modalNums.tasks_now - modalNums.tasks_snap > 0"> +{{ modalNums.tasks_now - modalNums.tasks_snap }}</u></i>
+          <span class="ph-mn-l">{{ t("Задачи завершено") }}</span>
+          <div class="ph-mn-v"><b>{{ modalNums.tasks_now }}</b><em>{{ t("из") }} {{ modalNums.tasks_total }}</em>
+            <i v-if="hasSnap && modalNums.tasks_snap != null">{{ t("было") }} {{ modalNums.tasks_snap }}<u v-if="modalNums.tasks_now - modalNums.tasks_snap > 0"> +{{ modalNums.tasks_now - modalNums.tasks_snap }}</u></i>
           </div>
         </div>
         <div class="ph-mn">
-          <span class="ph-mn-l">Проекты завершено</span>
-          <div class="ph-mn-v"><b>{{ modalNums.projects_now }}</b><em>из {{ modalNums.projects_total }}</em>
-            <i v-if="hasSnap && modalNums.projects_snap != null">было {{ modalNums.projects_snap }}<u v-if="modalNums.projects_now - modalNums.projects_snap > 0"> +{{ modalNums.projects_now - modalNums.projects_snap }}</u></i>
+          <span class="ph-mn-l">{{ t("Проекты завершено") }}</span>
+          <div class="ph-mn-v"><b>{{ modalNums.projects_now }}</b><em>{{ t("из") }} {{ modalNums.projects_total }}</em>
+            <i v-if="hasSnap && modalNums.projects_snap != null">{{ t("было") }} {{ modalNums.projects_snap }}<u v-if="modalNums.projects_now - modalNums.projects_snap > 0"> +{{ modalNums.projects_now - modalNums.projects_snap }}</u></i>
           </div>
         </div>
         <div class="ph-mn">
-          <span class="ph-mn-l">Комментарии</span>
+          <span class="ph-mn-l">{{ t("Комментарии") }}</span>
           <div class="ph-mn-v"><b>{{ modalNums.comments_now || 0 }}</b>
-            <i v-if="hasSnap && modalNums.comments_snap != null">было {{ modalNums.comments_snap }}<u v-if="(modalNums.comments_now||0) - modalNums.comments_snap > 0"> +{{ (modalNums.comments_now||0) - modalNums.comments_snap }}</u></i>
+            <i v-if="hasSnap && modalNums.comments_snap != null">{{ t("было") }} {{ modalNums.comments_snap }}<u v-if="(modalNums.comments_now||0) - modalNums.comments_snap > 0"> +{{ (modalNums.comments_now||0) - modalNums.comments_snap }}</u></i>
           </div>
         </div>
       </div>
 
-      <div class="ph-trail-head">Лента изменений<span>последние 120 дней</span></div>
+      <div class="ph-trail-head">{{ t("Лента изменений") }}<span>{{ t("последние 120 дней") }}</span></div>
       <div class="ph-trail">
         <UzaStateBlock v-if="loading" state="loading" variant="text" />
         <UzaStateBlock v-else-if="error" state="error" variant="block" :text="error" />
-        <UzaStateBlock v-else-if="!trail.length" state="empty" variant="inline" text="Изменений нет." />
+        <UzaStateBlock v-else-if="!trail.length" state="empty" variant="inline" :text="t('Изменений нет.')" />
         <div v-for="(it,i) in trail" :key="i" class="ph-tr">
           <div class="ph-tr-rail"><div class="ph-tr-dot" :style="{ background: it.is_critical ? '#E24B4A' : '#7C6FF7' }" /></div>
           <div class="ph-tr-b">

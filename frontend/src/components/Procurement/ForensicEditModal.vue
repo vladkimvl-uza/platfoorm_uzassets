@@ -14,6 +14,7 @@
 import { ref, computed, watch } from "vue";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
+import { useI18n } from "@/composables/useI18n";
 import { execCol } from "@/utils/execBand";
 
 interface YearRow {
@@ -57,6 +58,7 @@ const emit = defineEmits<{
 
 const { confirmDialog } = useConfirm();
 const toast = useToast();
+const { t } = useI18n();
 
 // Local working copy (deep clone)
 const working = ref<ProcCompany[]>(JSON.parse(JSON.stringify(props.companies)));
@@ -81,7 +83,7 @@ watch(() => props.companies, (next) => {
 async function requestClose() {
   if (dirty.value) {
     const ok = await confirmDialog({
-      message: "Есть несохранённые изменения. Закрыть без сохранения?",
+      message: t("Есть несохранённые изменения. Закрыть без сохранения?"),
       danger: true,
     });
     if (!ok) return;
@@ -178,7 +180,7 @@ function validate(): string | null {
     for (const f of _NUM_FIELDS) {
       const v = yr[f];
       if (v != null && (!Number.isFinite(v as number) || (v as number) < 0)) {
-        return `${c.n}: недопустимое значение в поле «${f}» (год ${props.year}) — суммы не бывают отрицательными.`;
+        return t("{co}: недопустимое значение в поле «{field}» (год {year}) — суммы не бывают отрицательными.", { co: c.n, field: f, year: props.year });
       }
     }
   }
@@ -188,7 +190,7 @@ function validate(): string | null {
 async function save() {
   // Anti-wipe: не эмитим сохранение поверх непрогруженного списка.
   if (!props.companies.length) {
-    toast.error("Список компаний не загружен — сохранение отменено.");
+    toast.error(t("Список компаний не загружен — сохранение отменено."));
     return;
   }
   const err = validate();
@@ -206,12 +208,12 @@ async function save() {
     if (!qs.every(x => x != null)) return;
     const sum = qs.reduce((s: number, x) => s + (x || 0), 0);
     if (Math.abs(sum - yr.plan) / yr.plan > 0.05) {
-      offenders.push(`${c.n}: кварталы ${Math.round(sum)} ≠ год ${Math.round(yr.plan)}`);
+      offenders.push(t("{co}: кварталы {sum} ≠ год {plan}", { co: c.n, sum: Math.round(sum), plan: Math.round(yr.plan) }));
     }
   });
   if (offenders.length) {
     const ok = await confirmDialog({
-      message: `Сумма квартальных планов ≠ годовому плану (>5%):\n\n${offenders.join("\n")}\n\nСохранить всё равно?`,
+      message: t("Сумма квартальных планов ≠ годовому плану (>5%):\n\n{list}\n\nСохранить всё равно?", { list: offenders.join("\n") }),
       danger: true,
     });
     if (!ok) return;
@@ -230,13 +232,13 @@ async function save() {
       <div class="pe-card">
         <div class="pe-h">
           <div>
-            <h3>Редактирование данных закупок</h3>
+            <h3>{{ t("Редактирование данных закупок") }}</h3>
             <div class="pe-h-sub">
-              {{ companies.length }} компаний · год {{ year }} · все суммы в млрд сум
-              <span v-if="totalChanges > 0" class="pe-h-changes"> · <b>{{ totalChanges }}</b> изменений</span>
+              {{ t("{n} компаний · год {year} · все суммы в млрд сум", { n: companies.length, year }) }}
+              <span v-if="totalChanges > 0" class="pe-h-changes"> · <b>{{ totalChanges }}</b> {{ t("изменений") }}</span>
             </div>
           </div>
-          <button class="pe-x" @click="requestClose" title="Закрыть">
+          <button class="pe-x" @click="requestClose" :title="t('Закрыть')">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
               <path d="M3 3l10 10M13 3L3 13"/>
             </svg>
@@ -256,11 +258,11 @@ async function save() {
               </svg>
               <span class="pe-sec-strip" :style="{ background: c.sector_color || '#888' }"></span>
               <span class="pe-co-name">{{ c.n }}</span>
-              <span class="pe-co-sec">{{ SECTOR_LABELS_RU[c.s] || c.s }}</span>
-              <span v-if="changedCount(i) > 0" class="pe-co-changed">{{ changedCount(i) }} изм.</span>
+              <span class="pe-co-sec">{{ t(SECTOR_LABELS_RU[c.s] || c.s) }}</span>
+              <span v-if="changedCount(i) > 0" class="pe-co-changed">{{ t("{n} изм.", { n: changedCount(i) }) }}</span>
               <span class="pe-co-pct" :style="{ color: execCol(executionPct(c)) }">
                 <template v-if="execState(c) === 'pct'">{{ executionPct(c) }}%</template>
-                <span v-else-if="execState(c) === 'nofact'" title="План есть, факт не заведён">факт —</span>
+                <span v-else-if="execState(c) === 'nofact'" :title="t('План есть, факт не заведён')">{{ t("факт —") }}</span>
                 <span v-else style="color:var(--t3)">—</span>
               </span>
             </div>
@@ -268,45 +270,45 @@ async function save() {
             <div v-if="expandedIdx === i" class="pe-body">
               <!-- Year fields -->
               <div class="pe-tab-cnt">
-                <div class="pe-section-t">Год {{ year }}</div>
+                <div class="pe-section-t">{{ t("Год {year}", { year }) }}</div>
                 <div class="pe-grid cols-2">
                   <div class="pe-fld">
-                    <div class="pe-fld-l">План год</div>
+                    <div class="pe-fld-l">{{ t("План год") }}</div>
                     <input class="pe-fld-i num" type="number" step="0.01" min="0"
                       :value="numInput(getYr(c, year), 'plan')"
                       @input="setNum(getYr(c, year), 'plan', ($event.target as HTMLInputElement).value)" />
                   </div>
                   <div class="pe-fld">
-                    <div class="pe-fld-l">Факт год</div>
+                    <div class="pe-fld-l">{{ t("Факт год") }}</div>
                     <input class="pe-fld-i num" type="number" step="0.01" min="0"
                       :value="numInput(getYr(c, year), 'fact')"
                       @input="setNum(getYr(c, year), 'fact', ($event.target as HTMLInputElement).value)" />
                   </div>
                   <div class="pe-fld">
-                    <div class="pe-fld-l">План 9 мес</div>
+                    <div class="pe-fld-l">{{ t("План 9 мес") }}</div>
                     <input class="pe-fld-i num" type="number" step="0.01" min="0"
                       :value="numInput(getYr(c, year), 'n9p')"
                       @input="setNum(getYr(c, year), 'n9p', ($event.target as HTMLInputElement).value)" />
                   </div>
                   <div class="pe-fld">
-                    <div class="pe-fld-l">Факт 9 мес</div>
+                    <div class="pe-fld-l">{{ t("Факт 9 мес") }}</div>
                     <input class="pe-fld-i num" type="number" step="0.01" min="0"
                       :value="numInput(getYr(c, year), 'n9f')"
                       @input="setNum(getYr(c, year), 'n9f', ($event.target as HTMLInputElement).value)" />
                   </div>
                 </div>
 
-                <div class="pe-section-t" style="margin-top:14px">Поквартально</div>
+                <div class="pe-section-t" style="margin-top:14px">{{ t("Поквартально") }}</div>
                 <div class="pe-grid cols-4">
                   <template v-for="q in (['q1','q2','q3','q4'] as const)" :key="q">
                     <div class="pe-fld">
-                      <div class="pe-fld-l">{{ q.toUpperCase() }} план</div>
+                      <div class="pe-fld-l">{{ t("{q} план", { q: q.toUpperCase() }) }}</div>
                       <input class="pe-fld-i num" type="number" step="0.01" min="0"
                         :value="numInput(getYr(c, year), `${q}p` as keyof YearRow)"
                         @input="setNum(getYr(c, year), `${q}p` as keyof YearRow, ($event.target as HTMLInputElement).value)" />
                     </div>
                     <div class="pe-fld">
-                      <div class="pe-fld-l">{{ q.toUpperCase() }} факт</div>
+                      <div class="pe-fld-l">{{ t("{q} факт", { q: q.toUpperCase() }) }}</div>
                       <input class="pe-fld-i num" type="number" step="0.01" min="0"
                         :value="numInput(getYr(c, year), `${q}f` as keyof YearRow)"
                         @input="setNum(getYr(c, year), `${q}f` as keyof YearRow, ($event.target as HTMLInputElement).value)" />
@@ -314,34 +316,34 @@ async function save() {
                   </template>
                 </div>
 
-                <div class="pe-section-t" style="margin-top:14px">Метаданные</div>
+                <div class="pe-section-t" style="margin-top:14px">{{ t("Метаданные") }}</div>
                 <div class="pe-grid cols-2">
                   <div class="pe-fld">
-                    <div class="pe-fld-l">Статус плана</div>
+                    <div class="pe-fld-l">{{ t("Статус плана") }}</div>
                     <!-- Флагман (числовая сумма плана): показываем read-only, чтобы
                          <select> не превратил число в статус-строку и не затёр сумму. -->
                     <select v-if="typeof c.plan !== 'number'" class="pe-fld-i text" v-model="c.plan">
                       <option value="">—</option>
-                      <option value="Утверждён">Утверждён</option>
-                      <option value="Не утверждён">Не утверждён</option>
+                      <option value="Утверждён">{{ t("Утверждён") }}</option>
+                      <option value="Не утверждён">{{ t("Не утверждён") }}</option>
                     </select>
                     <div v-else class="pe-fld-i text" style="opacity:.7"
-                         title="Числовой план (флагман) — план утверждён на эту сумму; редактируется как «План год», не как статус">
-                      Утверждён · {{ c.plan }}
+                         :title="t('Числовой план (флагман) — план утверждён на эту сумму; редактируется как «План год», не как статус')">
+                      {{ t("Утверждён") }} · {{ c.plan }}
                     </div>
                   </div>
                   <div class="pe-fld">
-                    <div class="pe-fld-l">Статус форензика</div>
+                    <div class="pe-fld-l">{{ t("Статус форензика") }}</div>
                     <select class="pe-fld-i text" v-model="c.forensic">
                       <option value="">—</option>
-                      <option value="Завершён">Завершён</option>
-                      <option value="В процессе">В процессе</option>
-                      <option :value="`Тендер в ${year}`">Тендер</option>
-                      <option value="Не начат">Не начат</option>
+                      <option value="Завершён">{{ t("Завершён") }}</option>
+                      <option value="В процессе">{{ t("В процессе") }}</option>
+                      <option :value="`Тендер в ${year}`">{{ t("Тендер") }}</option>
+                      <option value="Не начат">{{ t("Не начат") }}</option>
                     </select>
                   </div>
                   <div class="pe-fld">
-                    <div class="pe-fld-l">Аудитор</div>
+                    <div class="pe-fld-l">{{ t("Аудитор") }}</div>
                     <select class="pe-fld-i text" v-model="c.auditor">
                       <option value="">—</option>
                       <option value="KPMG">KPMG</option>
@@ -351,7 +353,7 @@ async function save() {
                     </select>
                   </div>
                   <div class="pe-fld">
-                    <div class="pe-fld-l">Период аудита</div>
+                    <div class="pe-fld-l">{{ t("Период аудита") }}</div>
                     <input class="pe-fld-i text" type="text" placeholder="2024-2025"
                       v-model="c.aYears" />
                   </div>
@@ -363,13 +365,13 @@ async function save() {
 
         <div class="pe-foot">
           <div class="pe-foot-l">
-            <span v-if="totalChanges === 0">Нет изменений</span>
-            <span v-else><b>{{ totalChanges }}</b> {{ totalChanges === 1 ? 'изменение' : 'изменений' }} в {{ working.filter((_, i) => changedCount(i) > 0).length }} компаниях</span>
+            <span v-if="totalChanges === 0">{{ t("Нет изменений") }}</span>
+            <span v-else><b>{{ totalChanges }}</b> {{ totalChanges === 1 ? t('изменение') : t('изменений') }} {{ t("в {n} компаниях", { n: working.filter((_, i) => changedCount(i) > 0).length }) }}</span>
           </div>
           <div class="pe-foot-r">
-            <button class="pe-btn pe-btn-cancel" @click="requestClose">Отмена</button>
+            <button class="pe-btn pe-btn-cancel" @click="requestClose">{{ t("Отмена") }}</button>
             <button class="pe-btn pe-btn-save" :disabled="totalChanges === 0" @click="save">
-              Сохранить изменения
+              {{ t("Сохранить изменения") }}
             </button>
           </div>
         </div>

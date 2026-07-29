@@ -13,7 +13,9 @@ import { useAuthStore } from "@/stores/auth";
 import { companiesApi } from "@/api/companies";
 import { api } from "@/api/client";
 import { useEntityEditor } from "@/composables/useEntityEditor";
+import { useI18n } from "@/composables/useI18n";
 
+const { t } = useI18n();
 const router = useRouter();
 const auth = useAuthStore();
 const entityEditor = useEntityEditor();
@@ -77,45 +79,45 @@ function logout() { close(); auth.clear(); router.push({ name: "login" }); }
 const navCommands = computed<Cmd[]>(() => {
   // [показывать?, заголовок, подзаголовок, путь, иконка, ключевые слова]
   const defs: Array<[boolean, string, string, string, string, string]> = [
-    [can("financials.view"), "Executive Dashboard", "Обзор портфеля", "/executive-dashboard", "chart", "дашборд executive обзор"],
-    [isAdmin.value, "Execution Summary", "Мониторинг прогрессов", "/execution-summary", "activity", "control tower live мониторинг"],
-    [can("projects.view") || can("tasks.view"), "Проекты трансформации", "Портфель проектов и задач", "/dashboard", "grid", "проекты задачи доска kanban"],
-    [can("tasks.view"), "Отслеживаемое", "Подписки на изменения", "/followed", "eye", "watch подписки отслеживание"],
-    [can("tasks.view"), "Календарь", "Дедлайны проектов и задач", "/calendar", "calendar", "календарь сроки дедлайны"],
-    [can("bp.view"), "Бизнес-план", "", "/business-plan", "file", "бизнес план bp"],
-    [can("kpi.view"), "KPI", "Ключевые показатели", "/kpi", "target", "kpi показатели цели"],
-    [can("financials.view"), "Финансы · Обзор портфеля", "", "/financials", "bars", "финансы отчётность портфель"],
-    [can("finmodel.view"), "Финансовая модель", "Внешний модуль", "/finmodel", "bars", "finmodel финмодель модель"],
-    [can("credit.view"), "Кредитный портфель", "Внешний модуль", "/credit-portfolio", "bars", "кредиты займы covenant"],
-    [can("investment.view"), "Инвест-проекты", "CAPEX-объекты", "/invest-projects", "bars", "инвестиции capex проекты"],
-    [can("governance.view"), "Корпоративное управление", "", "/governance", "building", "governance совет директоров"],
-    [can("esg.view"), "ESG", "Экология, общество, управление", "/esg", "leaf", "esg экология устойчивость"],
-    [can("procurement.view"), "Закупки и форензик-аудит", "", "/procurement/forensic", "cart", "закупки форензик аудит"],
-    [can("procurement.view"), "Анализ закупочной деятельности", "", "/procurement/analysis", "cart", "анализ закупки supplier"],
-    [can("consultants.view"), "Консультанты", "", "/consultants", "users", "консультанты советники"],
-    [can("ratings.view"), "Рейтинги", "", "/ratings", "star", "рейтинги оценки"],
-    [can("companies.view"), "Библиотека · Компании", "MDM-карточки", "/library/companies", "book", "библиотека mdm справочник"],
-    [can("ai.view"), "ИИ-ассистент", "RAG по корпоративным данным", "/ai-chat", "sparkles", "ии ai чат ассистент"],
-    [true, "Уведомления", "Входящие", "/notifications", "bell", "уведомления входящие notifications"],
+    [can("financials.view"), "Executive Dashboard", t("Обзор портфеля"), "/executive-dashboard", "chart", "дашборд executive обзор"],
+    [isAdmin.value, "Execution Summary", t("Мониторинг прогрессов"), "/execution-summary", "activity", "control tower live мониторинг"],
+    [can("projects.view") || can("tasks.view"), t("Проекты трансформации"), t("Портфель проектов и задач"), "/dashboard", "grid", "проекты задачи доска kanban"],
+    [can("tasks.view"), t("Отслеживаемое"), t("Подписки на изменения"), "/followed", "eye", "watch подписки отслеживание"],
+    [can("tasks.view"), t("Календарь"), t("Дедлайны проектов и задач"), "/calendar", "calendar", "календарь сроки дедлайны"],
+    [can("bp.view"), t("Бизнес-план"), "", "/business-plan", "file", "бизнес план bp"],
+    [can("kpi.view"), "KPI", t("Ключевые показатели"), "/kpi", "target", "kpi показатели цели"],
+    [can("financials.view"), t("Финансы · Обзор портфеля"), "", "/financials", "bars", "финансы отчётность портфель"],
+    [can("finmodel.view"), t("Финансовая модель"), t("Внешний модуль"), "/finmodel", "bars", "finmodel финмодель модель"],
+    [can("credit.view"), t("Кредитный портфель"), t("Внешний модуль"), "/credit-portfolio", "bars", "кредиты займы covenant"],
+    [can("investment.view"), t("Инвест-проекты"), t("CAPEX-объекты"), "/invest-projects", "bars", "инвестиции capex проекты"],
+    [can("governance.view"), t("Корпоративное управление"), "", "/governance", "building", "governance совет директоров"],
+    [can("esg.view"), "ESG", t("Экология, общество, управление"), "/esg", "leaf", "esg экология устойчивость"],
+    [can("procurement.view"), t("Закупки и форензик-аудит"), "", "/procurement/forensic", "cart", "закупки форензик аудит"],
+    [can("procurement.view"), t("Анализ закупочной деятельности"), "", "/procurement/analysis", "cart", "анализ закупки supplier"],
+    [can("consultants.view"), t("Консультанты"), "", "/consultants", "users", "консультанты советники"],
+    [can("ratings.view"), t("Рейтинги"), "", "/ratings", "star", "рейтинги оценки"],
+    [can("companies.view"), t("Библиотека · Компании"), t("MDM-карточки"), "/library/companies", "book", "библиотека mdm справочник"],
+    [can("ai.view"), t("ИИ-ассистент"), t("RAG по корпоративным данным"), "/ai-chat", "sparkles", "ии ai чат ассистент"],
+    [true, t("Уведомления"), t("Входящие"), "/notifications", "bell", "уведомления входящие notifications"],
     // admin
-    [isAdmin.value || can("admin.users"), "Доступы (RBAC)", "Настройки", "/admin/rbac", "shield", "доступы права rbac роли пользователи"],
-    [can("moderation.review"), "Модерация", "Настройки", "/admin/moderation", "shield", "модерация review"],
-    [can("companies.edit"), "Компании и сектора", "Настройки", "/admin/companies-legacy", "building", "компании сектора админ"],
-    [can("system.config.view"), "Macro Indicators", "Настройки", "/admin/system-config", "bars", "макро константы курс инфляция"],
-    [can("notifications.broadcast"), "Кастомные рассылки", "Настройки", "/admin/broadcasts", "bell", "рассылки broadcast"],
-    [can("tasks.edit"), "Конструктор задач и проектов", "Массовое заведение", "/project-builder", "plus", "конструктор массовое создание задачи"],
-    [isAdmin.value, "База данных", "Настройки", "/admin/database", "layers", "база данных sql консоль"],
-    [isAdmin.value, "Почта и уведомления (SMTP)", "Настройки", "/admin/email-settings", "bell", "smtp почта email"],
-    [can("api_catalog.read"), "Каталог API", "Настройки", "/admin/api", "book", "api каталог интеграции"],
-    [true, "Документация API", "", "/api-docs", "book", "api docs документация"],
-    [true, "Безопасность и пароль", "Настройки профиля", "/settings/security", "cog", "безопасность пароль mfa 2fa"],
+    [isAdmin.value || can("admin.users"), t("Доступы (RBAC)"), t("Настройки"), "/admin/rbac", "shield", "доступы права rbac роли пользователи"],
+    [can("moderation.review"), t("Модерация"), t("Настройки"), "/admin/moderation", "shield", "модерация review"],
+    [can("companies.edit"), t("Компании и сектора"), t("Настройки"), "/admin/companies-legacy", "building", "компании сектора админ"],
+    [can("system.config.view"), "Macro Indicators", t("Настройки"), "/admin/system-config", "bars", "макро константы курс инфляция"],
+    [can("notifications.broadcast"), t("Кастомные рассылки"), t("Настройки"), "/admin/broadcasts", "bell", "рассылки broadcast"],
+    [can("tasks.edit"), t("Конструктор задач и проектов"), t("Массовое заведение"), "/project-builder", "plus", "конструктор массовое создание задачи"],
+    [isAdmin.value, t("База данных"), t("Настройки"), "/admin/database", "layers", "база данных sql консоль"],
+    [isAdmin.value, t("Почта и уведомления (SMTP)"), t("Настройки"), "/admin/email-settings", "bell", "smtp почта email"],
+    [can("api_catalog.read"), t("Каталог API"), t("Настройки"), "/admin/api", "book", "api каталог интеграции"],
+    [true, t("Документация API"), "", "/api-docs", "book", "api docs документация"],
+    [true, t("Безопасность и пароль"), t("Настройки профиля"), "/settings/security", "cog", "безопасность пароль mfa 2fa"],
   ];
   return defs
     .filter(([show]) => show)
     .map(([, title, subtitle, path, icon, keywords]) => ({
       id: `nav:${path}`,
       title, subtitle, icon, keywords,
-      group: "Переход", kind: "nav" as Kind,
+      group: t("Переход"), kind: "nav" as Kind,
       run: () => go(path),
     }));
 });
@@ -129,7 +131,7 @@ async function loadCompanies() {
     companies.value = (resp.items || []).map((c: any) => ({
       id: c.id,
       code: c.code || "",
-      name: c.name_ru || c.name_short || c.code || "Компания",
+      name: c.name_ru || c.name_short || c.code || t("Компания"),
       sub: c.name_short && c.name_short !== (c.name_ru || "") ? c.name_short : (c.code || ""),
       kw: `${c.code || ""} ${c.name_short || ""} ${c.name_en || ""}`.trim(),
     }));
@@ -139,9 +141,9 @@ const companyCommands = computed<Cmd[]>(() =>
   companies.value.map((c) => ({
     id: `co:${c.id}`,
     title: c.name,
-    subtitle: c.sub || "Компания",
+    subtitle: c.sub || t("Компания"),
     keywords: c.kw,
-    group: "Компании", kind: "company" as Kind, icon: "building",
+    group: t("Компании"), kind: "company" as Kind, icon: "building",
     run: () => go(`/library/companies/${c.id}`),
   })),
 );
@@ -176,11 +178,11 @@ const scopedCommands = computed<ScopedCmd[]>(() => {
     for (const m of WS_MODULES) {
       out.push({
         id: `scoped:${code}:${m.id}`,
-        title: `${co.name} · ${m.label}`,
-        subtitle: "Раздел компании",
-        group: "Компания · раздел", kind: "scoped", icon: m.icon,
+        title: `${co.name} · ${t(m.label)}`,
+        subtitle: t("Раздел компании"),
+        group: t("Компания · раздел"), kind: "scoped", icon: m.icon,
         companyTitle: co.name.toLowerCase(), companyText,
-        moduleLabel: m.label.toLowerCase(), moduleText: `${m.label} ${m.kw}`.toLowerCase(),
+        moduleLabel: t(m.label).toLowerCase(), moduleText: `${t(m.label)} ${m.label} ${m.kw}`.toLowerCase(),
         run: () => go(`/companies/${encodeURIComponent(code)}/workspace?tab=${m.id}`),
       });
     }
@@ -192,9 +194,9 @@ const scopedCommands = computed<ScopedCmd[]>(() => {
 const actionCommands = computed<Cmd[]>(() => {
   const out: Cmd[] = [];
   if (can("tasks.edit"))
-    out.push({ id: "act:newtask", title: "Создать задачу или проект", subtitle: "Конструктор", group: "Действия", kind: "action", icon: "plus", keywords: "новая задача проект создать", run: () => go("/project-builder") });
-  out.push({ id: "act:notifsettings", title: "Настройки уведомлений", group: "Действия", kind: "action", icon: "cog", keywords: "настройки уведомлений telegram email", run: () => go("/notifications/settings") });
-  out.push({ id: "act:logout", title: "Выйти из системы", group: "Действия", kind: "action", icon: "logout", keywords: "выйти logout выход", run: () => logout() });
+    out.push({ id: "act:newtask", title: t("Создать задачу или проект"), subtitle: t("Конструктор"), group: t("Действия"), kind: "action", icon: "plus", keywords: "новая задача проект создать", run: () => go("/project-builder") });
+  out.push({ id: "act:notifsettings", title: t("Настройки уведомлений"), group: t("Действия"), kind: "action", icon: "cog", keywords: "настройки уведомлений telegram email", run: () => go("/notifications/settings") });
+  out.push({ id: "act:logout", title: t("Выйти из системы"), group: t("Действия"), kind: "action", icon: "logout", keywords: "выйти logout выход", run: () => logout() });
   return out;
 });
 
@@ -203,7 +205,7 @@ const aiCommand = computed<Cmd | null>(() => {
   const q = query.value.trim();
   if (!q || !can("ai.view")) return null;
   return {
-    id: "ai:ask", title: `Спросить ИИ: «${q}»`, group: "AI", kind: "ai", icon: "sparkles",
+    id: "ai:ask", title: t("Спросить ИИ: «{q}»", { q }), group: "AI", kind: "ai", icon: "sparkles",
     run: () => { router.push({ name: "ai-chat", query: { q } }); close(); },
   };
 });
@@ -292,8 +294,8 @@ async function fetchLive(q: string) {
     liveResults.value = (data?.results || []).map((r: any) => ({
       id: `res:${r.type}:${r.id}`,
       title: r.title || "—",
-      subtitle: r.subtitle || RESULT_GROUP[r.type] || "",
-      group: "Результаты",
+      subtitle: r.subtitle || (RESULT_GROUP[r.type] ? t(RESULT_GROUP[r.type]) : ""),
+      group: t("Результаты"),
       kind: "result" as Kind,
       icon: RESULT_ICONS[r.type] || "search",
       keywords: r.title || "",
@@ -316,10 +318,10 @@ const displayGroups = computed<{ name: string; items: Cmd[] }[]>(() => {
   if (!q) {
     const groups: { name: string; items: Cmd[] }[] = [];
     const rec = recentCommands.value;
-    if (rec.length) groups.push({ name: "Недавнее", items: rec });
+    if (rec.length) groups.push({ name: t("Недавнее"), items: rec });
     const recSet = new Set(rec.map((c) => c.id));
     const sugg = navCommands.value.filter((c) => !recSet.has(c.id)).slice(0, 7);
-    if (sugg.length) groups.push({ name: "Быстрый переход", items: sugg });
+    if (sugg.length) groups.push({ name: t("Быстрый переход"), items: sugg });
     return groups;
   }
   const pool = [...navCommands.value, ...companyCommands.value, ...actionCommands.value];
@@ -341,7 +343,7 @@ const displayGroups = computed<{ name: string; items: Cmd[] }[]>(() => {
   groups.sort((a, b) => b.best - a.best);
   const out = groups.map((g) => ({ name: g.name, items: g.items }));
   // Живые результаты контента — наверх (Spotlight: сначала данные).
-  if (liveResults.value.length) out.unshift({ name: "Результаты", items: liveResults.value });
+  if (liveResults.value.length) out.unshift({ name: t("Результаты"), items: liveResults.value });
   if (aiCommand.value) out.push({ name: "AI", items: [aiCommand.value] });
   return out;
 });
@@ -411,13 +413,13 @@ onBeforeUnmount(() => {
   <Teleport to="body">
     <Transition name="cmdk">
       <div v-if="open" class="cmdk-overlay" @click.self="close" @keydown="onKeydown">
-        <div class="cmdk-panel" role="dialog" aria-label="Командная палитра">
+        <div class="cmdk-panel" role="dialog" :aria-label="t('Командная палитра')">
           <!-- Search row -->
           <div class="cmdk-search">
             <svg class="cmdk-search-ic" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             <input
               ref="inputEl" v-model="query" type="text"
-              class="cmdk-input" placeholder="Куда перейти или что сделать…"
+              class="cmdk-input" :placeholder="t('Куда перейти или что сделать…')"
               autocomplete="off" spellcheck="false"
               @keydown="onKeydown"
             />
@@ -445,23 +447,23 @@ onBeforeUnmount(() => {
                     <span v-if="row.cmd.subtitle" class="cmdk-sub">{{ row.cmd.subtitle }}</span>
                   </span>
                   <span v-if="row.cmd.kind === 'ai'" class="cmdk-tag">AI</span>
-                  <span v-else-if="row.cmd.kind === 'company'" class="cmdk-tag co">Компания</span>
-                  <span v-else-if="row.cmd.kind === 'scoped'" class="cmdk-tag sc">Раздел</span>
+                  <span v-else-if="row.cmd.kind === 'company'" class="cmdk-tag co">{{ t("Компания") }}</span>
+                  <span v-else-if="row.cmd.kind === 'scoped'" class="cmdk-tag sc">{{ t("Раздел") }}</span>
                   <svg v-if="row.index === selected" class="cmdk-enter" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 10 4 15 9 20"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/></svg>
                 </button>
               </template>
             </template>
             <div v-else class="cmdk-empty">
               <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#C7CCD9" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              <span>Ничего не найдено по «{{ query }}»</span>
+              <span>{{ t("Ничего не найдено по «{q}»", { q: query }) }}</span>
             </div>
           </div>
 
           <!-- Footer hints -->
           <div class="cmdk-foot">
-            <span><kbd>↑</kbd><kbd>↓</kbd> навигация</span>
-            <span><kbd>↵</kbd> выбрать</span>
-            <span><kbd>esc</kbd> закрыть</span>
+            <span><kbd>↑</kbd><kbd>↓</kbd> {{ t("навигация") }}</span>
+            <span><kbd>↵</kbd> {{ t("выбрать") }}</span>
+            <span><kbd>esc</kbd> {{ t("закрыть") }}</span>
             <span class="cmdk-foot-r">{{ isMac ? "⌘K" : "Ctrl K" }}</span>
           </div>
         </div>

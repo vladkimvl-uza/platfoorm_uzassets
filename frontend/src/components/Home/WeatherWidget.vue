@@ -4,6 +4,11 @@
  * Fetches /Tashkent?format=j1 (full JSON) on mount, caches in localStorage 30 min.
  */
 import { ref, onMounted } from "vue";
+import { useI18n } from "@/composables/useI18n";
+
+// aqiLabel хранится в localStorage-кеше по-русски; t() применяется в точке
+// отображения, чтобы смена языка не «замораживалась» кешем.
+const { t } = useI18n();
 
 interface Weather {
   temp: number;          // °C
@@ -161,7 +166,7 @@ async function loadWeather() {
     data.value = w;
     try { localStorage.setItem(CACHE_KEY, JSON.stringify(w)); } catch { /* ignore */ }
   } catch (e: any) {
-    errorMsg.value = e?.message || "Не удалось получить погоду";
+    errorMsg.value = e?.message || t("Не удалось получить погоду");
   } finally {
     loading.value = false;
   }
@@ -187,12 +192,12 @@ onMounted(loadWeather);
           <div class="ww-desc">{{ data.desc }}</div>
         </div>
         <div class="ww-meta">
-          <div class="ww-meta-row" :title="`Ощущается как ${Math.round(data.feelsLike)}°`">
+          <div class="ww-meta-row" :title="t('Ощущается как {n}°', { n: Math.round(data.feelsLike) })">
             <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
               <circle cx="8" cy="11" r="2.5"/>
               <path d="M8 8.5V3a1.5 1.5 0 013 0v5.5" stroke-linecap="round"/>
             </svg>
-            <span>ощущ. {{ Math.round(data.feelsLike) }}°</span>
+            <span>{{ t("ощущ. {n}°", { n: Math.round(data.feelsLike) }) }}</span>
           </div>
           <div class="ww-meta-row">
             <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -204,7 +209,7 @@ onMounted(loadWeather);
             <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
               <path d="M2 6h9a2 2 0 100-4M2 10h11a2 2 0 110 4M2 8h6"/>
             </svg>
-            <span>{{ Math.round(data.windKph) }} км/ч</span>
+            <span>{{ Math.round(data.windKph) }} {{ t("км/ч") }}</span>
           </div>
         </div>
       </div>
@@ -215,18 +220,18 @@ onMounted(loadWeather);
           v-if="data.aqi != null"
           class="ww-aqi"
           :style="{ background: data.aqiColor + '22', color: data.aqiColor, borderColor: data.aqiColor + '55' }"
-          :title="`Индекс качества воздуха (European AQI): ${data.aqi} — ${data.aqiLabel}\nИсточник: open-meteo.com (PM2.5 + PM10 + O₃ + NO₂ + SO₂)`"
+          :title="t('Индекс качества воздуха (European AQI): {v} — {label}', { v: data.aqi, label: t(data.aqiLabel) }) + '\n' + t('Источник: open-meteo.com (PM2.5 + PM10 + O₃ + NO₂ + SO₂)')"
         >
-          <span class="ww-aqi-l">ИКВ</span>
+          <span class="ww-aqi-l">{{ t("ИКВ") }}</span>
           <span class="ww-aqi-v">{{ data.aqi }}</span>
-          <span class="ww-aqi-q">{{ data.aqiLabel }}</span>
+          <span class="ww-aqi-q">{{ t(data.aqiLabel) }}</span>
         </div>
         <div
           v-if="data.tomorrow"
           class="ww-tom"
-          :title="`Завтра: ${data.tomorrow.desc}, от ${Math.round(data.tomorrow.minTemp)}° до ${Math.round(data.tomorrow.maxTemp)}°`"
+          :title="t('Завтра: {desc}, от {min}° до {max}°', { desc: data.tomorrow.desc, min: Math.round(data.tomorrow.minTemp), max: Math.round(data.tomorrow.maxTemp) })"
         >
-          <span class="ww-tom-l">Завтра</span>
+          <span class="ww-tom-l">{{ t("Завтра") }}</span>
           <span class="ww-tom-icon" v-html="wxSvg(data.tomorrow.icon)"></span>
           <span class="ww-tom-temp">
             <span class="ww-tom-min">{{ Math.round(data.tomorrow.minTemp) }}°</span>
@@ -234,7 +239,7 @@ onMounted(loadWeather);
             <span class="ww-tom-max">{{ Math.round(data.tomorrow.maxTemp) }}°</span>
           </span>
         </div>
-        <div class="ww-city-inline">Ташкент</div>
+        <div class="ww-city-inline">{{ t("Ташкент") }}</div>
       </div>
     </template>
   </div>

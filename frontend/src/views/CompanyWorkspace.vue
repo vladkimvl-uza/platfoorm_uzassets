@@ -27,8 +27,10 @@
 import { api } from "@/api/client";
 import { ref, computed, onMounted, onUnmounted, provide, inject, watch, nextTick } from "vue";
 import { useFormatters } from "@/composables/useFormatters";
+import { useI18n } from "@/composables/useI18n";
 
 const fmt = useFormatters();
+const { t } = useI18n();
 import { useRoute, useRouter, RouterLink } from "vue-router";
 import { useNotificationsStore } from "@/stores/notifications";
 import { companiesApi } from "@/api/companies";
@@ -375,8 +377,8 @@ async function loadAll() {
     adjustYearToData();
   } catch (e: any) {
     error.value = e?.response?.status === 404
-      ? `Компания «${code.value}» не найдена`
-      : (e?.response?.data?.detail || e?.message || "Не удалось загрузить компанию");
+      ? t("Компания «{code}» не найдена", { code: code.value })
+      : (e?.response?.data?.detail || e?.message || t("Не удалось загрузить компанию"));
   } finally {
     loading.value = false;
     setTimeout(() => { refreshing.value = false; }, 600);
@@ -610,31 +612,32 @@ function onColDragLeave() {
 async function onColDrop(targetStatus: string, ev: DragEvent) {
   ev.preventDefault();
   dragOverCol.value = null;
-  const t = draggingTask.value;
+  // Не называть переменную `t` — затеняет функцию перевода t().
+  const task = draggingTask.value;
   draggingTask.value = null;
-  if (!t || t.status === targetStatus) return;
+  if (!task || task.status === targetStatus) return;
 
   // Only standard columns accept drops
   const validTarget = KANBAN_STATUSES.some(s => s.id === targetStatus);
   if (!validTarget) return;
 
-  const oldStatus = t.status;
+  const oldStatus = task.status;
   // Optimistic update on local state — find the task in allTasks and mutate
-  const idx = allTasks.value.findIndex((x: any) => x.id === t.id);
+  const idx = allTasks.value.findIndex((x: any) => x.id === task.id);
   if (idx >= 0) {
     (allTasks.value[idx] as any).status = targetStatus;
   }
 
   dragSaving.value = true;
   try {
-    await tasksApi.update(t.id, { status: targetStatus as any });
+    await tasksApi.update(task.id, { status: targetStatus as any });
   } catch (e: any) {
     // Rollback
     if (idx >= 0) {
       (allTasks.value[idx] as any).status = oldStatus;
     }
     console.warn("[kanban] drag-drop status update failed:", e);
-    error.value = "Не удалось переместить задачу: " + (e?.response?.data?.detail || e?.message || "ошибка");
+    error.value = t("Не удалось переместить задачу: {err}", { err: e?.response?.data?.detail || e?.message || t("ошибка") });
   } finally {
     dragSaving.value = false;
   }
@@ -708,7 +711,7 @@ async function loadKpi() {
       }
     }
   } catch (e: any) {
-    kpiError.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить KPI";
+    kpiError.value = e?.response?.data?.detail || e?.message || t("Не удалось загрузить KPI");
     kpiManagers.value = [];
   } finally {
     kpiLoading.value = false;
@@ -743,7 +746,7 @@ async function loadBp() {
     bpData.value = data;
     bpLoadedFor.value = key;
   } catch (e: any) {
-    bpError.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить Бизнес-план";
+    bpError.value = e?.response?.data?.detail || e?.message || t("Не удалось загрузить Бизнес-план");
     bpData.value = null;
   } finally {
     bpLoading.value = false;
@@ -780,7 +783,7 @@ async function loadGovernance() {
     govMembers.value = Array.isArray(members) ? members : [];
     govLoadedFor.value = key;
   } catch (e: any) {
-    govError.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить Корп. управление";
+    govError.value = e?.response?.data?.detail || e?.message || t("Не удалось загрузить Корп. управление");
   } finally {
     govLoading.value = false;
   }
@@ -845,7 +848,7 @@ async function loadEsg() {
 
     esgLoadedFor.value = key;
   } catch (e: any) {
-    esgError.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить ESG";
+    esgError.value = e?.response?.data?.detail || e?.message || t("Не удалось загрузить ESG");
   } finally {
     esgLoading.value = false;
   }
@@ -856,10 +859,10 @@ const esgEditorOpen = ref(false);
 const esgShownYear = ref<number>(0);
 // Подвкладки ESG (как в /esg): зрелость · SWOT.
 const esgSubTab = ref<"maturity" | "swot">("maturity");
-const ESG_SUBTABS = [
-  { value: "maturity", label: "Зрелость" },
+const ESG_SUBTABS = computed(() => [
+  { value: "maturity", label: t("Зрелость") },
   { value: "swot", label: "SWOT" },
-];
+]);
 function openEsgEditor(): void { esgEditorOpen.value = true; }
 async function onEsgEditorSaved(): Promise<void> {
   esgLoadedFor.value = "";
@@ -882,13 +885,13 @@ const ucLoading = ref(false);
 const ucError = ref<string | null>(null);
 const ucLoadedFor = ref<string>("");        // "code:year:quarter"
 const ucQuarter = ref<string>("annual");
-const UC_QUARTERS = [
-  { value: "annual", label: "Год" },
-  { value: "q1", label: "I кв" },
-  { value: "q2", label: "II кв" },
-  { value: "q3", label: "III кв" },
-  { value: "q4", label: "IV кв" },
-];
+const UC_QUARTERS = computed(() => [
+  { value: "annual", label: t("Год") },
+  { value: "q1", label: t("I кв") },
+  { value: "q2", label: t("II кв") },
+  { value: "q3", label: t("III кв") },
+  { value: "q4", label: t("IV кв") },
+]);
 async function loadUnitCost(): Promise<void> {
   if (!company.value) return;
   const key = `${code.value}:${year.value}:${ucQuarter.value}`;
@@ -899,7 +902,7 @@ async function loadUnitCost(): Promise<void> {
     ucRaw.value = await unitCostApi.overview(year.value, ucQuarter.value);
     ucLoadedFor.value = key;
   } catch (e: any) {
-    ucError.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить себестоимость";
+    ucError.value = e?.response?.data?.detail || e?.message || t("Не удалось загрузить себестоимость");
   } finally {
     ucLoading.value = false;
   }
@@ -946,7 +949,7 @@ async function loadConsultantsPerCompany() {
     consPerCompanyLoadedFor.value = key;
     nextTick(() => animateCounters());   // count-up KPI-бэнда после загрузки данных
   } catch (e: any) {
-    consPerCompanyError.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить консультантов компании";
+    consPerCompanyError.value = e?.response?.data?.detail || e?.message || t("Не удалось загрузить консультантов компании");
     consPerCompany.value = null;
   } finally {
     consPerCompanyLoading.value = false;
@@ -961,7 +964,7 @@ async function loadConsultantsDirectory() {
     consDirectory.value = await consultantsApi.list();
     consDirectoryLoaded.value = true;
   } catch (e: any) {
-    consDirectoryError.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить справочник";
+    consDirectoryError.value = e?.response?.data?.detail || e?.message || t("Не удалось загрузить справочник");
   } finally {
     consDirectoryLoading.value = false;
   }
@@ -1016,7 +1019,7 @@ async function loadCredit() {
     creditAggregate.value = aggregate;
     creditLoadedFor.value = key;
   } catch (e: any) {
-    creditError.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить кредитный портфель";
+    creditError.value = e?.response?.data?.detail || e?.message || t("Не удалось загрузить кредитный портфель");
     creditLoans.value = [];
     creditAggregate.value = null;
   } finally {
@@ -1032,13 +1035,13 @@ const procForensic = ref<any>(null);
 interface FBadge { text: string; bg: string; fg: string }
 function fPlanBadge(plan: string | undefined | null): FBadge {
   if (!plan) return { text: "—", bg: "var(--bg3, #F1F5F9)", fg: "var(--t3, #64748B)" };
-  if (plan === "Утверждён") return { text: "Утверждён", bg: "rgba(29,158,117,.12)", fg: "#1D9E75" };
-  return { text: "Не утверждён", bg: "rgba(226,75,74,.08)", fg: "#993D3D" };
+  if (plan === "Утверждён") return { text: t("Утверждён"), bg: "rgba(29,158,117,.12)", fg: "#1D9E75" };
+  return { text: t("Не утверждён"), bg: "rgba(226,75,74,.08)", fg: "#993D3D" };
 }
 function fForensicBadge(f: string | undefined | null): FBadge {
   if (!f) return { text: "—", bg: "var(--bg3, #F1F5F9)", fg: "var(--t3, #64748B)" };
-  if (f === "Завершён") return { text: "Завершён", bg: "rgba(29,158,117,.12)", fg: "#1D9E75" };
-  if (f === "В процессе") return { text: "В процессе", bg: "rgba(55,138,221,.10)", fg: "#378ADD" };
+  if (f === "Завершён") return { text: t("Завершён"), bg: "rgba(29,158,117,.12)", fg: "#1D9E75" };
+  if (f === "В процессе") return { text: t("В процессе"), bg: "rgba(55,138,221,.10)", fg: "#378ADD" };
   if (f.indexOf("Тендер") >= 0) return { text: f, bg: "rgba(239,159,39,.10)", fg: "#D97706" };
   return { text: f, bg: "rgba(226,75,74,.08)", fg: "#993D3D" };
 }
@@ -1083,7 +1086,7 @@ async function loadProc() {
       : null;
     procLoadedFor.value = key;
   } catch (e: any) {
-    procError.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить закупки";
+    procError.value = e?.response?.data?.detail || e?.message || t("Не удалось загрузить закупки");
     procData.value = null;
   } finally {
     procLoading.value = false;
@@ -1173,7 +1176,7 @@ async function loadFinReports() {
       }
     }
   } catch (e: any) {
-    finError.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить отчётность";
+    finError.value = e?.response?.data?.detail || e?.message || t("Не удалось загрузить отчётность");
     finReports.value = [];
   } finally {
     finLoading.value = false;
@@ -1185,7 +1188,7 @@ async function loadFinFullReport(reportId: string) {
   try {
     finFullReport.value = await financialsApi.get(reportId);
   } catch (e: any) {
-    finError.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить отчёт";
+    finError.value = e?.response?.data?.detail || e?.message || t("Не удалось загрузить отчёт");
     finFullReport.value = null;
   } finally {
     finFullLoading.value = false;
@@ -1266,7 +1269,7 @@ const finKpis = computed<FinKpi[]>(() => {
     const yoy = rev.prev != null && rev.prev !== 0 ? ((rev.v - rev.prev) / Math.abs(rev.prev)) * 100 : null;
     out.push({
       key: "revenue",
-      label: "Выручка",
+      label: t("Выручка"),
       value: rev.v,
       prev: rev.prev,
       unit: pl?.currency || "UZS",
@@ -1294,7 +1297,7 @@ const finKpis = computed<FinKpi[]>(() => {
     const margin = rev.v && rev.v !== 0 ? (np.v / rev.v) * 100 : null;
     out.push({
       key: "net_profit",
-      label: "Чистая прибыль",
+      label: t("Чистая прибыль"),
       value: np.v,
       prev: np.prev,
       unit: pl?.currency || "UZS",
@@ -1313,7 +1316,7 @@ const finKpis = computed<FinKpi[]>(() => {
       prev: null,
       unit: "%",
       tone: roe >= 15 ? "good" : roe >= 5 ? "info" : (roe < 0 ? "bad" : "warn"),
-      hint: "доходность капитала",
+      hint: t("доходность капитала"),
     });
   }
 
@@ -1327,7 +1330,7 @@ const finKpis = computed<FinKpi[]>(() => {
       prev: null,
       unit: "%",
       tone: roa >= 5 ? "good" : roa >= 1 ? "info" : (roa < 0 ? "bad" : "warn"),
-      hint: "доходность активов",
+      hint: t("доходность активов"),
     });
   }
 
@@ -1341,7 +1344,7 @@ const finKpis = computed<FinKpi[]>(() => {
       prev: null,
       unit: "x",
       tone: de <= 0.5 ? "good" : de <= 1.5 ? "info" : (de <= 2.5 ? "warn" : "bad"),
-      hint: "леверидж",
+      hint: t("леверидж"),
     });
   }
 
@@ -1355,7 +1358,7 @@ const finKpis = computed<FinKpi[]>(() => {
       prev: null,
       unit: "%",
       tone: er >= 40 ? "good" : er >= 25 ? "info" : (er >= 10 ? "warn" : "bad"),
-      hint: "доля собственного капитала",
+      hint: t("доля собственного капитала"),
     });
   }
 
@@ -1571,11 +1574,11 @@ const bpTopMetrics = computed(() => {
 
 const bpGroups = computed(() => {
   const groups = [
-    { id: "opRevenue",   label: "Выручка и себестоимость" },
-    { id: "opExpenses",  label: "Расходы периода" },
-    { id: "opResult",    label: "Операционный результат" },
-    { id: "finActivity", label: "Финансовая деятельность" },
-    { id: "final",       label: "Итог" },
+    { id: "opRevenue",   label: t("Выручка и себестоимость") },
+    { id: "opExpenses",  label: t("Расходы периода") },
+    { id: "opResult",    label: t("Операционный результат") },
+    { id: "finActivity", label: t("Финансовая деятельность") },
+    { id: "final",       label: t("Итог") },
   ];
   return groups.map(g => ({
     ...g,
@@ -1641,13 +1644,13 @@ const govKpis = computed<GovKpi[]>(() => {
   const foreignPct = boardSize && foreign !== null ? Math.round((foreign / boardSize) * 100) : null;
 
   return [
-    { label: "Размер совета", value: boardSize ?? "—", raw: boardSize, unit: "чел.", color: "#7F77DD" },
-    { label: "Независимые", value: indepPct === null ? "—" : `${indepPct}%`, raw: indepPct, unit: indep !== null ? `(${indep} чел.)` : "", color: "#1D9E75" },
-    { label: "Женщины", value: womenPct === null ? "—" : `${womenPct}%`, raw: womenPct, unit: women !== null ? `(${women} чел.)` : "", color: "#EF9F27" },
-    { label: "Иностранцы", value: foreignPct === null ? "—" : `${foreignPct}%`, raw: foreignPct, unit: foreign !== null ? `(${foreign} чел.)` : "", color: "#378ADD" },
-    { label: "Посещаемость", value: attendance !== null ? `${attendance}%` : "—", raw: attendance, unit: "", color: "#1D9E75" },
-    { label: "Заседаний НС", value: meetings ?? "—", raw: meetings, unit: "за год", color: "#7F77DD" },
-    { label: "Решения (протоколы)", value: decisions ?? "—", raw: decisions, unit: "за год", color: "#A855F7" },
+    { label: t("Размер совета"), value: boardSize ?? "—", raw: boardSize, unit: t("чел."), color: "#7F77DD" },
+    { label: t("Независимые"), value: indepPct === null ? "—" : `${indepPct}%`, raw: indepPct, unit: indep !== null ? `(${indep} ${t("чел.")})` : "", color: "#1D9E75" },
+    { label: t("Женщины"), value: womenPct === null ? "—" : `${womenPct}%`, raw: womenPct, unit: women !== null ? `(${women} ${t("чел.")})` : "", color: "#EF9F27" },
+    { label: t("Иностранцы"), value: foreignPct === null ? "—" : `${foreignPct}%`, raw: foreignPct, unit: foreign !== null ? `(${foreign} ${t("чел.")})` : "", color: "#378ADD" },
+    { label: t("Посещаемость"), value: attendance !== null ? `${attendance}%` : "—", raw: attendance, unit: "", color: "#1D9E75" },
+    { label: t("Заседаний НС"), value: meetings ?? "—", raw: meetings, unit: t("за год"), color: "#7F77DD" },
+    { label: t("Решения (протоколы)"), value: decisions ?? "—", raw: decisions, unit: t("за год"), color: "#A855F7" },
   ];
 });
 
@@ -1662,11 +1665,11 @@ const govCommittees = computed(() => {
     present: flag || (meetings != null && meetings > 0),
   });
   return [
-    mk("Аудит", !!data.has_audit_committee, d.audit_mtg_year ?? null),
-    mk("Стратегия", !!data.has_strategy_committee, d.strategy_mtg_year ?? null),
-    mk("Назначения и вознагр.", !!(data.has_nomination_committee || data.has_remuneration_committee), d.nomrem_mtg_year ?? null),
-    mk("Антикор.", !!data.has_anticorr_committee, d.anticorr_mtg_year ?? null),
-    mk("Введение", !!data.has_induction_program, null),
+    mk(t("Аудит"), !!data.has_audit_committee, d.audit_mtg_year ?? null),
+    mk(t("Стратегия"), !!data.has_strategy_committee, d.strategy_mtg_year ?? null),
+    mk(t("Назначения и вознагр."), !!(data.has_nomination_committee || data.has_remuneration_committee), d.nomrem_mtg_year ?? null),
+    mk(t("Антикор."), !!data.has_anticorr_committee, d.anticorr_mtg_year ?? null),
+    mk(t("Введение"), !!data.has_induction_program, null),
   ];
 });
 
@@ -1709,7 +1712,7 @@ const boardMembersByRole = computed<BoardMemberView[]>(() => {
         fullName: m.full_name || "—",
         position: m.position || "",
         roleType: role,
-        roleLabel: meta?.label || "Член совета",
+        roleLabel: meta?.label ? t(meta.label) : t("Член совета"),
         roleColor: meta?.color || "#94A3B8",
         // Эффективная независимость: флаг ЛИБО роль «independent» (иначе цифры
         // расходятся с KPI-карточкой «Независимые»). Единый источник для полоски,
@@ -1758,9 +1761,9 @@ const boardComposition = computed(() => {
   const avgTenure = tenures.length ? tenures.reduce((a, b) => a + b, 0) / tenures.length : null;
   return {
     bars: [
-      { label: "Независимость", pct: pct(indep), count: indep, color: "#1D9E75" },
-      { label: "Женщины", pct: pct(women), count: women, color: "#A855F7" },
-      { label: "Иностранцы", pct: pct(foreign), count: foreign, color: "#0E7490" },
+      { label: t("Независимость"), pct: pct(indep), count: indep, color: "#1D9E75" },
+      { label: t("Женщины"), pct: pct(women), count: women, color: "#A855F7" },
+      { label: t("Иностранцы"), pct: pct(foreign), count: foreign, color: "#0E7490" },
     ],
     avgTenure,
     total: n,
@@ -1926,7 +1929,7 @@ const esgIssuesView = computed<EsgIssueView[]>(() => {
     const stmeta = ISSUE_STATUS_META.find(s => s.key === i.status);
     return {
       id: i.id,
-      title: i.title || i.metric_name || "Без названия",
+      title: i.title || i.metric_name || t("Без названия"),
       description: i.description || i.note || "",
       pillar: i.pillar as Pillar | null,
       pillarColor: pmeta?.color || "#94A3B8",
@@ -2012,8 +2015,8 @@ function getStatusShortLabel(s: string): string {
 }
 
 function getSourceLabel(src: string): string {
-  if (src === "task") return "из задачи";
-  if (src === "manual") return "вручную";
+  if (src === "task") return t("из задачи");
+  if (src === "manual") return t("вручную");
   if (src === "lookup") return "lookup";
   return src;
 }
@@ -2067,7 +2070,7 @@ const creditByLender = computed<CreditBucket[]>(() => {
     };
     return {
       key: lt,
-      label: meta.label,
+      label: t(meta.label),
       color: meta.color,
       count: data.count,
       debt: data.debt,
@@ -2088,12 +2091,12 @@ interface MaturityBucket {
 
 const creditMaturityLadder = computed<MaturityBucket[]>(() => {
   const buckets: Record<string, MaturityBucket> = {
-    overdue: { key: "overdue", label: "Просрочка",   color: "#E24B4A", count: 0, debt: 0, pct: 0 },
-    lt1y:    { key: "lt1y",    label: "< 1 года",    color: "#EF9F27", count: 0, debt: 0, pct: 0 },
-    y1_3:    { key: "y1_3",    label: "1 – 3 лет",  color: "#378ADD", count: 0, debt: 0, pct: 0 },
-    y3_5:    { key: "y3_5",    label: "3 – 5 лет",  color: "#7F77DD", count: 0, debt: 0, pct: 0 },
-    gt5y:    { key: "gt5y",    label: "> 5 лет",     color: "#1D9E75", count: 0, debt: 0, pct: 0 },
-    unknown: { key: "unknown", label: "Срок не указан", color: "#94A3B8", count: 0, debt: 0, pct: 0 },
+    overdue: { key: "overdue", label: t("Просрочка"),   color: "#E24B4A", count: 0, debt: 0, pct: 0 },
+    lt1y:    { key: "lt1y",    label: t("< 1 года"),    color: "#EF9F27", count: 0, debt: 0, pct: 0 },
+    y1_3:    { key: "y1_3",    label: t("1 – 3 лет"),  color: "#378ADD", count: 0, debt: 0, pct: 0 },
+    y3_5:    { key: "y3_5",    label: t("3 – 5 лет"),  color: "#7F77DD", count: 0, debt: 0, pct: 0 },
+    gt5y:    { key: "gt5y",    label: t("> 5 лет"),     color: "#1D9E75", count: 0, debt: 0, pct: 0 },
+    unknown: { key: "unknown", label: t("Срок не указан"), color: "#94A3B8", count: 0, debt: 0, pct: 0 },
   };
   const now = Date.now();
   const dayMs = 86400000;
@@ -2184,7 +2187,7 @@ const creditTopLoans = computed<LoanView[]>(() => {
         date_due: l.date_due || null,
         date_due_short: l.date_due ? fmtDate(l.date_due) : "—",
         lender_type: l.lender_type || "other",
-        lender_label: meta.label,
+        lender_label: t(meta.label),
         lender_color: meta.color,
         is_guaranteed: !!l.is_guaranteed,
         is_overdue: l.date_due ? isOverdue(l.date_due) : false,
@@ -2295,7 +2298,7 @@ const procSupplierConcentration = computed(() => {
   const map = new Map<string, { count: number; money: number }>();
   let totalMoney = 0;
   for (const p of all) {
-    const sup = (p.supplier || "Не указан").trim() || "Не указан";
+    const sup = (p.supplier || t("Не указан")).trim() || t("Не указан");
     const money = (Number(p.unit_price) || 0) * (Number(p.volume) || 0);
     if (!Number.isFinite(money)) continue;
     const b = map.get(sup) || { count: 0, money: 0 };
@@ -2355,8 +2358,8 @@ const finAvailableTypes = computed<FinAvailableType[]>(() => {
   const byType = new Map<string, FinancialReportListItem>();
   finReports.value.forEach(r => byType.set(r.report_type, r));
   return [
-    { type: "BS", label: "Баланс", short: "BS", available: byType.has("BS"), reportId: byType.get("BS")?.id || null },
-    { type: "PL", label: "ОПиУ",   short: "PL", available: byType.has("PL"), reportId: byType.get("PL")?.id || null },
+    { type: "BS", label: t("Баланс"), short: "BS", available: byType.has("BS"), reportId: byType.get("BS")?.id || null },
+    { type: "PL", label: t("ОПиУ"),   short: "PL", available: byType.has("PL"), reportId: byType.get("PL")?.id || null },
     { type: "CF", label: "Cash Flow", short: "CF", available: byType.has("CF"), reportId: byType.get("CF")?.id || null },
   ];
 });
@@ -2400,7 +2403,7 @@ function fmtFinValue(v: number, _scale: number): string {
 // Unit-scale label used in the table header. Per user spec all values are
 // shown in billions, so the header always says "млрд".
 function getUnitScaleLabel(_scale: number): string {
-  return "млрд";
+  return t("млрд");
 }
 
 // Friendly source label — sources stored as raw migration tags ("legacy store_sparse_fix",
@@ -2408,10 +2411,10 @@ function getUnitScaleLabel(_scale: number): string {
 function fmtSourceLabel(s: string | null | undefined): string {
   const v = String(s || "").toLowerCase();
   if (!v) return "—";
-  if (v.startsWith("legacy store")) return "Платформа (миграция)";
-  if (v === "ifrs-editor" || v === "nsbu-editor") return "Платформа (редактор)";
-  if (v === "ifrs" || v === "nsbu") return "Платформа";
-  if (v.startsWith("excel-confirm")) return "Excel-импорт";
+  if (v.startsWith("legacy store")) return t("Платформа (миграция)");
+  if (v === "ifrs-editor" || v === "nsbu-editor") return t("Платформа (редактор)");
+  if (v === "ifrs" || v === "nsbu") return t("Платформа");
+  if (v.startsWith("excel-confirm")) return t("Excel-импорт");
   return s as string;
 }
 
@@ -2421,7 +2424,7 @@ function fmtFinUpdated(s: string): string {
 }
 
 const finStandardLabel = computed(() =>
-  financialsStandard.value === "IFRS" ? "МСФО" : "НСБУ"
+  financialsStandard.value === "IFRS" ? t("МСФО") : t("НСБУ")
 );
 
 // =====================================================================
@@ -2556,21 +2559,21 @@ function _daysOverdueOf(due: string | null | undefined): number {
 const overdueItems = computed<OverdueRow[]>(() => {
   const tasks: OverdueRow[] = taskItems.value
     .filter(t => t.status !== "done" && isOverdue(t.due_date) && !isExcludedStatus(t.status))
-    .map((t: any) => ({
+    .map((tk: any) => ({
       kind: "task",
-      id: String(t.id),
-      title: t.title || t.name || "(без названия)",
-      owner: t.assignee_name || t.owner_name || t.responsible || null,
-      due_date: t.due_date,
-      daysOverdue: _daysOverdueOf(t.due_date),
-      link: t.project_id ? `/projects/${t.project_id}` : null,
+      id: String(tk.id),
+      title: tk.title || tk.name || t("(без названия)"),
+      owner: tk.assignee_name || tk.owner_name || tk.responsible || null,
+      due_date: tk.due_date,
+      daysOverdue: _daysOverdueOf(tk.due_date),
+      link: tk.project_id ? `/projects/${tk.project_id}` : null,
     }));
   const projects: OverdueRow[] = projItems.value
     .filter((p: any) => p.status !== "done" && isOverdue(p.due_date) && !isExcludedStatus(p.status))
     .map((p: any) => ({
       kind: "project",
       id: String(p.id),
-      title: p.name || p.title || "(без названия)",
+      title: p.name || p.title || t("(без названия)"),
       owner: p.manager_name || p.owner_name || p.responsible || null,
       due_date: p.due_date,
       daysOverdue: _daysOverdueOf(p.due_date),
@@ -2617,10 +2620,10 @@ const _wsSoon = computed(() => _wsItems.value.filter(x => {
   return days >= 0 && days <= 3;
 }).length);
 const _commentAlert = computed(() => _wsHasUnread.value
-  ? { alert: "warning" as const, alertTooltip: "Есть непрочитанные комментарии" } : {});
+  ? { alert: "warning" as const, alertTooltip: t("Есть непрочитанные комментарии") } : {});
 const _calendarAlert = computed(() =>
-  overdue.value ? { alert: "critical" as const, alertTooltip: `Просрочено дедлайнов: ${overdue.value}` }
-  : _wsSoon.value ? { alert: "warning" as const, alertTooltip: `Скоро дедлайн: ${_wsSoon.value}` }
+  overdue.value ? { alert: "critical" as const, alertTooltip: t("Просрочено дедлайнов: {n}", { n: overdue.value }) }
+  : _wsSoon.value ? { alert: "warning" as const, alertTooltip: t("Скоро дедлайн: {n}", { n: _wsSoon.value }) }
   : {});
 
 const tabIndicators = computed(() => ({
@@ -2742,7 +2745,7 @@ function _mapStatusRow(it: any, kind: "project" | "task"): StatusDrillRow {
   return {
     kind,
     id: String(it.id),
-    title: it.title || it.name || "(без названия)",
+    title: it.title || it.name || t("(без названия)"),
     owner: it.assignee_name || it.owner_name || it.manager_name || it.responsible || null,
     due_date: it.due_date ?? null,
     status: String(it.status || ""),
@@ -2954,7 +2957,7 @@ function onEditorClose() {
 <template>
   <div class="cw-page cw-shell">
     <!-- ─── Loading / Error states ─── -->
-    <UzaStateBlock v-if="loading" state="loading" text="Загрузка рабочего пространства…" />
+    <UzaStateBlock v-if="loading" state="loading" :text="t('Загрузка рабочего пространства…')" />
 
     <UzaStateBlock v-else-if="error" state="error" variant="block" :text="error" />
 
@@ -2962,7 +2965,7 @@ function onEditorClose() {
       <!-- ═══════ TOPBAR ═══════ -->
       <header class="cw-topbar">
         <div class="cw-topbar-l">
-          <button class="cw-sb-toggle" @click="onBurger()" title="Меню / свернуть сайдбар" aria-label="toggle sidebar">
+          <button class="cw-sb-toggle" @click="onBurger()" :title="t('Меню / свернуть сайдбар')" aria-label="toggle sidebar">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
               <line x1="3" y1="6" x2="21" y2="6"/>
               <line x1="3" y1="12" x2="21" y2="12"/>
@@ -2978,7 +2981,7 @@ function onEditorClose() {
 
           <!-- Премиум-ссылка на сайт компании -->
           <a v-if="companyWebsite" :href="companyWebsite" target="_blank" rel="noopener noreferrer"
-             class="cw-site-link" :title="'Открыть сайт: ' + companyWebsite">
+             class="cw-site-link" :title="t('Открыть сайт: {url}', { url: companyWebsite })">
             <svg class="cw-site-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
             <span class="cw-site-host">{{ websiteHost }}</span>
             <svg class="cw-site-ext" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M7 7h10v10"/></svg>
@@ -2996,18 +2999,18 @@ function onEditorClose() {
 
           <!-- Переключатель вида внутри таба «Работа»: Канбан | Список -->
           <div v-if="activeTab === 'work'" class="cw-viewtoggle" role="tablist">
-            <button class="cw-vt-btn" :class="{ on: workView === 'kanban' }" @click="workView = 'kanban'" title="Канбан-доска">
+            <button class="cw-vt-btn" :class="{ on: workView === 'kanban' }" @click="workView = 'kanban'" :title="t('Канбан-доска')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="6" height="18" rx="1"/><rect x="10" y="3" width="6" height="12" rx="1"/><rect x="17" y="3" width="4" height="8" rx="1"/></svg>
-              Канбан
+              {{ t("Канбан") }}
             </button>
-            <button class="cw-vt-btn" :class="{ on: workView === 'list' }" @click="workView = 'list'" title="Список">
+            <button class="cw-vt-btn" :class="{ on: workView === 'list' }" @click="workView = 'list'" :title="t('Список')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
-              Список
+              {{ t("Список") }}
             </button>
           </div>
 
-          <button class="cw-add-btn cw-add-btn-ghost" @click="openCreateProject">+ Проект</button>
-          <button class="cw-add-btn" @click="openCreateTask">+ Задача</button>
+          <button class="cw-add-btn cw-add-btn-ghost" @click="openCreateProject">+ {{ t("Проект") }}</button>
+          <button class="cw-add-btn" @click="openCreateTask">+ {{ t("Задача") }}</button>
         </div>
       </header>
 
@@ -3029,7 +3032,7 @@ function onEditorClose() {
 
               <!-- ── LEFT: 4 RATING TILES ── -->
               <div class="cw-hero-col cw-hero-col-ratings">
-                <div class="cw-section-label">РЕЙТИНГИ</div>
+                <div class="cw-section-label">{{ t("РЕЙТИНГИ") }}</div>
                 <div class="cw-ratings-grid">
 
                   <RatingTile
@@ -3077,7 +3080,7 @@ function onEditorClose() {
 
               <!-- ── CENTER: PROGRESS DONUT ── -->
               <div class="cw-hero-col cw-hero-col-donut">
-                <div class="cw-section-label">ПРОГРЕСС</div>
+                <div class="cw-section-label">{{ t("ПРОГРЕСС") }}</div>
 
                 <svg class="cw-donut-svg" viewBox="0 0 72 72" width="78" height="78">
                   <defs>
@@ -3095,7 +3098,7 @@ function onEditorClose() {
                           :stroke-dashoffset="planRingOffset"
                           transform="rotate(-90 36 36)"
                           opacity="0.22">
-                    <title>План по дедлайнам: {{ taskPlanPct }}%</title>
+                    <title>{{ t("План по дедлайнам: {n}%", { n: taskPlanPct }) }}</title>
                   </circle>
                   <circle class="cw-donut-arc"
                           cx="36" cy="36" :r="ringR" fill="none"
@@ -3112,29 +3115,29 @@ function onEditorClose() {
                 <div class="cw-donut-sub">
                   <span :data-countup="done" data-cu-d="0">{{ done }}</span> /
                   <span :data-countup="total" data-cu-d="0">{{ total }}</span>
-                  задач завершено
+                  {{ t("задач завершено") }}
                 </div>
                 <div v-if="projTotal > 0" class="cw-donut-sub">
                   <span :data-countup="projDone" data-cu-d="0">{{ projDone }}</span> /
                   <span :data-countup="projTotal" data-cu-d="0">{{ projTotal }}</span>
-                  проектов завершено
+                  {{ t("проектов завершено") }}
                 </div>
 
                 <!-- Recurring pill -->
                 <div v-if="recurCnt > 0" class="cw-recurring-pill"
-                     title="Регулярные задачи не учитываются в % прогресса">
+                     :title="t('Регулярные задачи не учитываются в % прогресса')">
                   <svg width="9" height="9" viewBox="0 0 12 12" fill="none" stroke="currentColor"
                        stroke-width="1.4" stroke-linecap="round">
                     <path d="M2 6a4 4 0 014-4 4 4 0 010 8 4 4 0 01-4-4z"/>
                   </svg>
                   <span v-if="quartCnt > 0">
-                    <span style="color: #7E22CE; font-weight: 600">{{ quartCnt }}</span> ежекв.
+                    <span style="color: #7E22CE; font-weight: 600">{{ quartCnt }}</span> {{ t("ежекв.") }}
                   </span>
                   <span v-if="monthCnt > 0">
-                    <span style="color: #4338CA; font-weight: 600">{{ monthCnt }}</span> ежемес.
+                    <span style="color: #4338CA; font-weight: 600">{{ monthCnt }}</span> {{ t("ежемес.") }}
                   </span>
                   <span v-if="ongCnt > 0">
-                    <span style="color: #0E7490; font-weight: 600">{{ ongCnt }}</span> постоянн.
+                    <span style="color: #0E7490; font-weight: 600">{{ ongCnt }}</span> {{ t("постоянн.") }}
                   </span>
                 </div>
               </div>
@@ -3149,46 +3152,46 @@ function onEditorClose() {
                 <!-- TIER 1: hero stat with completion ratio + status pill -->
                 <div class="cw-stats-hero">
                   <div class="cw-stats-hero-l cw-stats-clickable" @click="openStatusDrill('done')"
-                       title="Показать завершённые задачи и проекты">
+                       :title="t('Показать завершённые задачи и проекты')">
                     <div class="cw-stats-hero-num">
                       <span :data-countup="done" data-cu-d="0">{{ done }}</span>
                       <span class="cw-stats-hero-sep">/</span>
                       <span :data-countup="total" data-cu-d="0">{{ total }}</span>
                     </div>
                     <div class="cw-stats-hero-sub">
-                      задач завершено · <b>{{ projDone }}</b> из <b>{{ projTotal }}</b> проектов
+                      {{ t("задач завершено") }} · <b>{{ projDone }}</b> {{ t("из") }} <b>{{ projTotal }}</b> {{ t("проектов") }}
                     </div>
                   </div>
                   <div class="cw-stats-hero-r">
                     <div v-if="!overdue" class="cw-stats-pill cw-stats-pill-good">
-                      все в графике
+                      {{ t("все в графике") }}
                     </div>
                     <div v-else class="cw-stats-pill cw-stats-pill-bad cw-stats-clickable"
-                         @click="openOverdueModal()" title="Показать просроченные">
-                      просрочено: {{ overdueTask }} / {{ overdueProj }}
+                         @click="openOverdueModal()" :title="t('Показать просроченные')">
+                      {{ t("просрочено") }}: {{ overdueTask }} / {{ overdueProj }}
                     </div>
                   </div>
                 </div>
 
                 <!-- TIER 2: secondary statuses + results metric as 5-column micro grid -->
                 <div class="cw-stats-grid cw-stats-grid-5">
-                  <div v-for="t in statusTiles" :key="t.key"
+                  <div v-for="st in statusTiles" :key="st.key"
                        class="cw-st-tile"
-                       @click="openStatusDrill(t.key)"
-                       :title="'Показать: ' + STATUS_DRILLS[t.key].label">
-                    <div class="cw-st-tile-num" :data-countup="t.count" data-cu-d="0">{{ t.count }}</div>
-                    <div class="cw-st-tile-name">{{ STATUS_DRILLS[t.key].label }}</div>
+                       @click="openStatusDrill(st.key)"
+                       :title="t('Показать: {s}', { s: t(STATUS_DRILLS[st.key].label) })">
+                    <div class="cw-st-tile-num" :data-countup="st.count" data-cu-d="0">{{ st.count }}</div>
+                    <div class="cw-st-tile-name">{{ t(STATUS_DRILLS[st.key].label) }}</div>
                   </div>
                   <div v-if="resultsExpected > 0"
                        class="cw-st-tile"
                        @click="openStatusDrill('done')"
-                       :title="`Результаты подтверждены: ${resultsHave} из ${resultsExpected} (${resultsPct}%). Ждут: ${resultsMissing}`">
+                       :title="t('Результаты подтверждены: {have} из {exp} ({pct}%). Ждут: {miss}', { have: resultsHave, exp: resultsExpected, pct: resultsPct, miss: resultsMissing })">
                     <div class="cw-st-tile-num cw-st-tile-num-ratio">
                       <span :data-countup="resultsHave" data-cu-d="0">{{ resultsHave }}</span>
                       <span class="cw-st-ratio-sep">/</span>
                       <span :data-countup="resultsExpected" data-cu-d="0">{{ resultsExpected }}</span>
                     </div>
-                    <div class="cw-st-tile-name">Результаты</div>
+                    <div class="cw-st-tile-name">{{ t("Результаты") }}</div>
                   </div>
                 </div>
 
@@ -3203,7 +3206,7 @@ function onEditorClose() {
             :company-id="company?.id || ''"
             :company-code="(route.params.code as string) || ''"
             :sector-id="(company as any)?.sector_id || (sector as any)?.id || ''"
-            :sector-name="sector?.name_ru || 'Сектор'"
+            :sector-name="sector?.name_ru || t('Сектор')"
             :year="year"
             :overdue="overdue || 0"
           />
@@ -3240,7 +3243,7 @@ function onEditorClose() {
               <div class="kol-hd">
                 <div class="kol-hd-l">
                   <div class="kol-dot" :style="`background: ${col.bgAccent}`"></div>
-                  <div class="kol-title">{{ col.label }}</div>
+                  <div class="kol-title">{{ t(col.label) }}</div>
                 </div>
                 <div class="kol-cnt">{{ col.tasks.length }}</div>
               </div>
@@ -3252,7 +3255,7 @@ function onEditorClose() {
                       <rect x="4" y="5" width="16" height="14" rx="2"/>
                       <path d="M8 3v4M16 3v4M4 11h16"/>
                     </svg>
-                    <div>Нет задач</div>
+                    <div>{{ t("Нет задач") }}</div>
                   </div>
                 </template>
                 <KanbanCard
@@ -3271,7 +3274,7 @@ function onEditorClose() {
               <div class="kol-hd">
                 <div class="kol-hd-l">
                   <div class="kol-dot" style="background: linear-gradient(135deg, #A855F7, #06B6D4)"></div>
-                  <div class="kol-title" style="color: #7E22CE">Регулярные</div>
+                  <div class="kol-title" style="color: #7E22CE">{{ t("Регулярные") }}</div>
                 </div>
                 <div class="kol-cnt" style="background: rgba(168, 85, 247, .1); color: #7E22CE">
                   {{ recurringTasks.length }}
@@ -3282,7 +3285,7 @@ function onEditorClose() {
                   Q: {{ recurringTasks.filter(t => t.status === 'quarterly').length }}
                 </span>
                 <span v-if="recurringTasks.filter(t => t.status === 'monthly').length" style="color: #4338CA">
-                  · М: {{ recurringTasks.filter(t => t.status === 'monthly').length }}
+                  · {{ t("М") }}: {{ recurringTasks.filter(t => t.status === 'monthly').length }}
                 </span>
                 <span v-if="recurringTasks.filter(t => t.status === 'ongoing').length" style="color: #0E7490">
                   · ∞: {{ recurringTasks.filter(t => t.status === 'ongoing').length }}
@@ -3305,7 +3308,7 @@ function onEditorClose() {
               <div class="kol-hd">
                 <div class="kol-hd-l">
                   <div class="kol-dot" style="background: #E24B4A"></div>
-                  <div class="kol-title" style="color: #E24B4A">Просрочено</div>
+                  <div class="kol-title" style="color: #E24B4A">{{ t("Просрочено") }}</div>
                 </div>
                 <div class="kol-cnt" style="background: rgba(220, 38, 38, .1); color: #E24B4A">
                   {{ overdueTasks.length }}
@@ -3351,8 +3354,8 @@ function onEditorClose() {
             v-else
             state="empty"
             variant="block"
-            title="Раздел PMO недоступен"
-            text="Нужно право pmo.view. Обратитесь к администратору."
+            :title="t('Раздел PMO недоступен')"
+            :text="t('Нужно право pmo.view. Обратитесь к администратору.')"
           />
         </div>
 
@@ -3367,7 +3370,7 @@ function onEditorClose() {
               @open-entity="(p) => openTaskEditor({ id: p.entity_id, kind: p.entity_type })"
             />
             <div class="cw-cal-notes">
-              <div class="cw-cal-notes-h">Заметки</div>
+              <div class="cw-cal-notes-h">{{ t("Заметки") }}</div>
               <CompanyNotesTab
                 v-if="company?.id"
                 :company-id="company.id"
@@ -3379,9 +3382,9 @@ function onEditorClose() {
         <!-- ═══ ОТЧЁТ — Reporting Wizard (печать A4, фронт-онли) ═══ -->
         <div v-else-if="activeTab === 'reporting'" :key="'reporting'" class="cw-rep-scroll" style="padding: 18px 24px 44px;">
           <div style="display:inline-flex; gap:4px; background:var(--bg2,#fafafc); border:1px solid var(--border,rgba(99,102,180,.14)); border-radius:11px; padding:3px; margin-bottom:18px;">
-            <button @click="repSub = 'wizard'" :style="repSubBtn(repSub === 'wizard')">Мастер отчёта</button>
-            <button @click="repSub = 'projreport'" :style="repSubBtn(repSub === 'projreport')">Отчёт по проектам</button>
-            <button @click="repSub = 'overview'" :style="repSubBtn(repSub === 'overview')">Сводный обзор</button>
+            <button @click="repSub = 'wizard'" :style="repSubBtn(repSub === 'wizard')">{{ t("Мастер отчёта") }}</button>
+            <button @click="repSub = 'projreport'" :style="repSubBtn(repSub === 'projreport')">{{ t("Отчёт по проектам") }}</button>
+            <button @click="repSub = 'overview'" :style="repSubBtn(repSub === 'overview')">{{ t("Сводный обзор") }}</button>
           </div>
           <ReportingWizard
             v-if="repSub === 'wizard'"
@@ -3408,16 +3411,16 @@ function onEditorClose() {
         <!-- ═══ KPI TAB — real implementation ═══ -->
         <div v-else-if="activeTab === 'kpi'" :key="'kpi'" class="cw-kpi-scroll">
           <!-- Loading state -->
-          <UzaStateBlock v-if="kpiLoading" state="loading" :text="`Загрузка KPI ${year}…`" />
+          <UzaStateBlock v-if="kpiLoading" state="loading" :text="t('Загрузка KPI {year}…', { year })" />
 
           <!-- Error state -->
-          <UzaStateBlock v-else-if="kpiError" state="error" variant="block" title="Ошибка загрузки KPI" :text="kpiError" retry @retry="loadKpi" />
+          <UzaStateBlock v-else-if="kpiError" state="error" variant="block" :title="t('Ошибка загрузки KPI')" :text="kpiError" retry @retry="loadKpi" />
 
           <!-- Empty state -->
-          <UzaStateBlock v-else-if="kpiManagerViews.length === 0" state="empty" variant="block" title="KPI не настроены" :text="`Для ${company.name_short || company.name_ru} в ${year} году KPI не добавлены.`">
+          <UzaStateBlock v-else-if="kpiManagerViews.length === 0" state="empty" variant="block" :title="t('KPI не настроены')" :text="t('Для {name} в {year} году KPI не добавлены.', { name: company.name_short || company.name_ru, year })">
             <template #actions>
-              <button v-if="kpiPerm.canEdit" class="cw-cta-btn" @click="openKpiEditor">Создать KPI</button>
-              <RouterLink to="/kpi" class="cw-cta-btn" style="background:transparent;color:var(--uza-purple);border:1px solid var(--uza-purple)">Открыть в полной версии →</RouterLink>
+              <button v-if="kpiPerm.canEdit" class="cw-cta-btn" @click="openKpiEditor">{{ t("Создать KPI") }}</button>
+              <RouterLink to="/kpi" class="cw-cta-btn" style="background:transparent;color:var(--uza-purple);border:1px solid var(--uza-purple)">{{ t("Открыть в полной версии →") }}</RouterLink>
             </template>
           </UzaStateBlock>
 
@@ -3425,7 +3428,7 @@ function onEditorClose() {
           <template v-else>
             <!-- Period selector + Edit button (mirror BP-tab pattern) -->
             <div class="cw-bp-period-bar" style="margin-bottom: 12px">
-              <div class="cw-bp-period-label">Период:</div>
+              <div class="cw-bp-period-label">{{ t("Период") }}:</div>
               <!-- "Год" убран 2026-05-23: fact_year заведён у <1% индикаторов. -->
               <button
                 v-for="p in [{key:'q1', label:'Q1'}, {key:'q2', label:'Q2'}, {key:'q3', label:'Q3'}, {key:'q4', label:'Q4'}]"
@@ -3439,7 +3442,7 @@ function onEditorClose() {
                 class="cw-bp-edit-btn"
                 type="button"
                 @click="openKpiEditor"
-                title="Открыть редактор KPI"
+                :title="t('Открыть редактор KPI')"
               >
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
                      stroke="currentColor" stroke-width="2"
@@ -3447,7 +3450,7 @@ function onEditorClose() {
                   <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                   <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                 </svg>
-                Редактировать
+                {{ t("Редактировать") }}
               </button>
             </div>
 
@@ -3459,10 +3462,9 @@ function onEditorClose() {
             >
               <div class="cw-kpi-baseline-icon">↻</div>
               <div class="cw-kpi-baseline-text">
-                Факт за <b>{{ year }}</b> ещё не введён.
-                Внизу в деталях — <b>факт {{ kpiBaselineYear }}</b> как baseline.
+                {{ t("Факт за {year} ещё не введён. Внизу в деталях — факт {base} как baseline.", { year, base: kpiBaselineYear }) }}
                 <span v-if="kpiPeriod === 'annual'">
-                  Совет: переключитесь на <b>Q1</b> — там данные заполнены.
+                  {{ t("Совет: переключитесь на Q1 — там данные заполнены.") }}
                 </span>
               </div>
             </div>
@@ -3489,7 +3491,7 @@ function onEditorClose() {
         <div v-else-if="activeTab === 'bp'" :key="'bp'" class="cw-bp-scroll">
           <!-- Period selector + Edit button (right-aligned) -->
           <div class="cw-bp-period-bar">
-            <div class="cw-bp-period-label">Период:</div>
+            <div class="cw-bp-period-label">{{ t("Период") }}:</div>
             <button
               v-for="p in BP_PERIODS"
               :key="p.key"
@@ -3497,14 +3499,14 @@ function onEditorClose() {
               :class="{ active: bpPeriod === p.key }"
               @click="bpPeriod = p.key"
             >
-              {{ p.label }}
+              {{ t(p.label) }}
             </button>
             <button
               v-if="bpPerm.canEdit"
               class="cw-bp-edit-btn"
               type="button"
               @click="openBpEditor"
-              title="Открыть редактор бизнес-плана"
+              :title="t('Открыть редактор бизнес-плана')"
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
                    stroke="currentColor" stroke-width="2"
@@ -3512,16 +3514,16 @@ function onEditorClose() {
                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
               </svg>
-              Редактировать
+              {{ t("Редактировать") }}
             </button>
           </div>
 
           <!-- Loading state -->
-          <UzaStateBlock v-if="bpLoading" state="loading" :text="`Загрузка Бизнес-плана ${year} (${bpPeriod})…`" />
+          <UzaStateBlock v-if="bpLoading" state="loading" :text="t('Загрузка Бизнес-плана {year} ({period})…', { year, period: bpPeriod })" />
 
-          <UzaStateBlock v-else-if="bpError" state="error" variant="block" title="Ошибка загрузки Бизнес-плана" :text="bpError" retry @retry="loadBp" />
+          <UzaStateBlock v-else-if="bpError" state="error" variant="block" :title="t('Ошибка загрузки Бизнес-плана')" :text="bpError" retry @retry="loadBp" />
 
-          <UzaStateBlock v-else-if="!bpData || bpFieldViews.length === 0" state="empty" variant="block" title="Бизнес-план не загружен" :text="`Для ${company.name_short || company.name_ru} в ${year} году записи отсутствуют.`" />
+          <UzaStateBlock v-else-if="!bpData || bpFieldViews.length === 0" state="empty" variant="block" :title="t('Бизнес-план не загружен')" :text="t('Для {name} в {year} году записи отсутствуют.', { name: company.name_short || company.name_ru, year })" />
 
           <template v-else>
             <!-- Top 3 KPI cards -->
@@ -3532,19 +3534,19 @@ function onEditorClose() {
                 class="cw-bp-top-card"
                 :style="`--accent: ${m.key === 'revenue' ? 'var(--uza-purple)' : m.key === 'opProfit' ? 'var(--uza-teal)' : 'var(--uza-amber)'}`"
               >
-                <div class="cw-bp-top-label">{{ m.label }}</div>
+                <div class="cw-bp-top-label">{{ t(m.label) }}</div>
                 <div class="cw-bp-top-value">{{ bpFmt(m.fact ?? m.plan) }}</div>
                 <div class="cw-bp-top-stats">
                   <div class="cw-bp-top-stat">
-                    <span class="cw-bp-top-stat-l">План:</span>
+                    <span class="cw-bp-top-stat-l">{{ t("План") }}:</span>
                     <span class="cw-bp-top-stat-v">{{ bpFmt(m.plan) }}</span>
                   </div>
                   <div class="cw-bp-top-stat">
-                    <span class="cw-bp-top-stat-l">Факт:</span>
+                    <span class="cw-bp-top-stat-l">{{ t("Факт") }}:</span>
                     <span class="cw-bp-top-stat-v">{{ bpFmt(m.fact) }}</span>
                   </div>
                   <div class="cw-bp-top-stat" v-if="m.pct !== null">
-                    <span class="cw-bp-top-stat-l">Выполнение:</span>
+                    <span class="cw-bp-top-stat-l">{{ t("Выполнение") }}:</span>
                     <span class="cw-bp-top-stat-v" :style="`color: ${bpPctColor(m.pct)}; font-weight: 600`">
                       {{ m.pct }}%
                     </span>
@@ -3556,10 +3558,10 @@ function onEditorClose() {
             <!-- Detailed table grouped -->
             <div class="cw-bp-table">
               <div class="cw-bp-table-header">
-                <div class="cw-bp-th cw-bp-th-name">Метрика</div>
-                <div class="cw-bp-th cw-bp-th-num">План</div>
-                <div class="cw-bp-th cw-bp-th-num">Ожидание</div>
-                <div class="cw-bp-th cw-bp-th-num">Факт</div>
+                <div class="cw-bp-th cw-bp-th-name">{{ t("Метрика") }}</div>
+                <div class="cw-bp-th cw-bp-th-num">{{ t("План") }}</div>
+                <div class="cw-bp-th cw-bp-th-num">{{ t("Ожидание") }}</div>
+                <div class="cw-bp-th cw-bp-th-num">{{ t("Факт") }}</div>
                 <div class="cw-bp-th cw-bp-th-pct">%</div>
               </div>
 
@@ -3573,8 +3575,8 @@ function onEditorClose() {
                   :class="{ 'cw-bp-row-auto': row.auto, 'cw-bp-row-sub': row.sub, 'cw-bp-row-final': row.key === 'profit' }"
                 >
                   <div class="cw-bp-cell cw-bp-cell-name">
-                    <span v-if="row.auto" class="cw-bp-auto-mark" title="Автоматически вычисляется">∑</span>
-                    {{ row.label }}
+                    <span v-if="row.auto" class="cw-bp-auto-mark" :title="t('Автоматически вычисляется')">∑</span>
+                    {{ t(row.label) }}
                   </div>
                   <div class="cw-bp-cell cw-bp-cell-num">{{ bpFmt(row.plan) }}</div>
                   <div class="cw-bp-cell cw-bp-cell-num">{{ bpFmt(row.expect) }}</div>
@@ -3598,14 +3600,14 @@ function onEditorClose() {
 
         <!-- ═══ GOVERNANCE TAB — real implementation ═══ -->
         <div v-else-if="activeTab === 'governance'" :key="'governance'" class="cw-gov-scroll">
-          <UzaStateBlock v-if="govLoading" state="loading" text="Загрузка корпоративного управления…" />
+          <UzaStateBlock v-if="govLoading" state="loading" :text="t('Загрузка корпоративного управления…')" />
 
-          <UzaStateBlock v-else-if="govError" state="error" variant="block" title="Ошибка загрузки" :text="govError" retry @retry="loadGovernance" />
+          <UzaStateBlock v-else-if="govError" state="error" variant="block" :title="t('Ошибка загрузки')" :text="govError" retry @retry="loadGovernance" />
 
-          <UzaStateBlock v-else-if="!(govDetail?.data || govDetail?.governance_data) && govMembers.length === 0" state="empty" variant="block" title="Данные не введены" :text="`Для ${company.name_short || company.name_ru} в ${year} году данные о корп. управлении отсутствуют.`">
+          <UzaStateBlock v-else-if="!(govDetail?.data || govDetail?.governance_data) && govMembers.length === 0" state="empty" variant="block" :title="t('Данные не введены')" :text="t('Для {name} в {year} году данные о корп. управлении отсутствуют.', { name: company.name_short || company.name_ru, year })">
             <template #actions>
-              <button v-if="govPerm.canEdit.value" class="cw-cta-btn" @click="openGovEditor">Ввести данные</button>
-              <RouterLink v-else to="/governance" class="cw-cta-btn">Открыть редактор →</RouterLink>
+              <button v-if="govPerm.canEdit.value" class="cw-cta-btn" @click="openGovEditor">{{ t("Ввести данные") }}</button>
+              <RouterLink v-else to="/governance" class="cw-cta-btn">{{ t("Открыть редактор →") }}</RouterLink>
             </template>
           </UzaStateBlock>
 
@@ -3613,11 +3615,11 @@ function onEditorClose() {
             <!-- Header: year-fallback notice + edit -->
             <div class="cw-gov-toolbar">
               <div v-if="govShownYear && govShownYear !== year" class="cw-fin-year-notice cw-gov-notice">
-                За <b>{{ year }}</b> данных нет — показан <b>{{ govShownYear }}</b> (последний доступный).
+                {{ t("За {year} данных нет — показан {shown} (последний доступный).", { year, shown: govShownYear }) }}
               </div>
               <span v-else></span>
               <button v-if="govPerm.canEdit.value" class="cw-gov-edit-btn" @click="openGovEditor">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:5px"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>Редактировать
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:5px"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>{{ t("Редактировать") }}
               </button>
             </div>
 
@@ -3637,7 +3639,7 @@ function onEditorClose() {
 
             <!-- Аналитика состава совета — доли + средний срок -->
             <div v-if="boardComposition" class="cw-gov-section">
-              <div class="cw-section-label">Состав и разнообразие совета</div>
+              <div class="cw-section-label">{{ t("Состав и разнообразие совета") }}</div>
               <div class="cw-gov-comp">
                 <div
                   v-for="(b, bi) in boardComposition.bars"
@@ -3649,7 +3651,7 @@ function onEditorClose() {
                     <span class="cw-gov-comp-l">{{ b.label }}</span>
                     <span class="cw-gov-comp-v" :style="`color: ${b.color}`">
                       {{ b.pct }}<span class="cw-gov-comp-pc">%</span>
-                      <span class="cw-gov-comp-cnt">· {{ b.count }} из {{ boardComposition.total }}</span>
+                      <span class="cw-gov-comp-cnt">· {{ b.count }} {{ t("из") }} {{ boardComposition.total }}</span>
                     </span>
                   </div>
                   <div class="cw-gov-comp-track">
@@ -3658,15 +3660,15 @@ function onEditorClose() {
                 </div>
                 <div v-if="boardComposition.avgTenure != null" class="cw-gov-comp-tenure">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-                  Средний срок в совете:
-                  <b>{{ boardComposition.avgTenure < 1 ? '<1' : boardComposition.avgTenure.toFixed(1) }} {{ boardComposition.avgTenure >= 1 && boardComposition.avgTenure < 2 ? 'года' : 'лет' }}</b>
+                  {{ t("Средний срок в совете:") }}
+                  <b>{{ boardComposition.avgTenure < 1 ? '<1' : boardComposition.avgTenure.toFixed(1) }} {{ boardComposition.avgTenure >= 1 && boardComposition.avgTenure < 2 ? t('года') : t('лет') }}</b>
                 </div>
               </div>
             </div>
 
             <!-- Committees -->
             <div class="cw-gov-section">
-              <div class="cw-section-label">Комитеты совета</div>
+              <div class="cw-section-label">{{ t("Комитеты совета") }}</div>
               <div class="cw-gov-committees">
                 <div
                   v-for="c in govCommittees"
@@ -3676,7 +3678,7 @@ function onEditorClose() {
                 >
                   <span class="cw-gov-committee-icon"><svg v-if="c.present" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><svg v-else width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="8"/></svg></span>
                   <span>{{ c.label }}</span>
-                  <span v-if="c.meetings != null" class="cw-gov-committee-mtg" :title="`Заседаний за ${year} год`">{{ c.meetings }}</span>
+                  <span v-if="c.meetings != null" class="cw-gov-committee-mtg" :title="t('Заседаний за {year} год', { year })">{{ c.meetings }}</span>
                 </div>
               </div>
             </div>
@@ -3684,7 +3686,7 @@ function onEditorClose() {
             <!-- Board members -->
             <div v-if="boardMembersByRole.length > 0" class="cw-gov-section">
               <div class="cw-section-label">
-                Состав совета директоров ({{ boardMembersByRole.length }} {{ boardMembersByRole.length === 1 ? 'чел.' : 'чел.' }})
+                {{ t("Состав совета директоров") }} ({{ boardMembersByRole.length }} {{ t("чел.") }})
               </div>
               <div class="cw-gov-members">
                 <div
@@ -3712,12 +3714,12 @@ function onEditorClose() {
                       <span class="cw-gov-role-pill" :style="`background: ${m.roleColor}22; color: ${m.roleColor}`">
                         {{ m.roleLabel }}
                       </span>
-                      <span v-if="m.isIndependent && m.roleType !== 'independent'" class="cw-gov-badge">Независимый</span>
+                      <span v-if="m.isIndependent && m.roleType !== 'independent'" class="cw-gov-badge">{{ t("Независимый") }}</span>
                       <span v-if="m.isWoman" class="cw-gov-badge">♀</span>
-                      <span v-if="m.isForeign" class="cw-gov-badge">Иностранец</span>
+                      <span v-if="m.isForeign" class="cw-gov-badge">{{ t("Иностранец") }}</span>
                     </div>
                     <div class="cw-gov-member-dates">
-                      Назначен: {{ m.appointed }} · до {{ m.termEnd }}
+                      {{ t("Назначен:") }} {{ m.appointed }} · {{ t("до") }} {{ m.termEnd }}
                     </div>
                   </div>
                   <svg class="cw-gov-member-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
@@ -3753,15 +3755,15 @@ function onEditorClose() {
         <!-- ═══ UNIT COST TAB — срез компании из /unit-cost (общий бэкенд → синк) ═══ -->
         <div v-else-if="activeTab === 'unitcost'" :key="'unitcost'" class="cw-uc-scroll">
           <div class="cw-uc-bar">
-            <div class="cw-uc-bar-t">Удельная себестоимость <span>факт · норма расхода · энергоёмкость по продуктам</span></div>
+            <div class="cw-uc-bar-t">{{ t("Удельная себестоимость") }} <span>{{ t("факт · норма расхода · энергоёмкость по продуктам") }}</span></div>
             <UzaSegment v-model="ucQuarter" :options="UC_QUARTERS" size="sm" />
           </div>
 
-          <UzaStateBlock v-if="ucLoading" state="loading" text="Загрузка себестоимости…" />
-          <UzaStateBlock v-else-if="ucError" state="error" variant="block" title="Ошибка загрузки" :text="ucError" retry @retry="loadUnitCost" />
+          <UzaStateBlock v-if="ucLoading" state="loading" :text="t('Загрузка себестоимости…')" />
+          <UzaStateBlock v-else-if="ucError" state="error" variant="block" :title="t('Ошибка загрузки')" :text="ucError" retry @retry="loadUnitCost" />
           <UzaStateBlock v-else-if="company && !ucCompany" state="empty" variant="block"
-            title="Данных по себестоимости нет"
-            text="Для этой компании ещё не заведены продукты и удельный расход. Откройте модуль «Удельная себестоимость» и заполните данные." />
+            :title="t('Данных по себестоимости нет')"
+            :text="t('Для этой компании ещё не заведены продукты и удельный расход. Откройте модуль «Удельная себестоимость» и заполните данные.')" />
 
           <UnitCostCompanyPanel
             v-else-if="company && ucCompany"
@@ -3779,27 +3781,27 @@ function onEditorClose() {
         <!-- ═══ CONSULTANTS TAB — directory + per-company integration TBD ═══ -->
         <div v-else-if="activeTab === 'consultants'" :key="'consultants'" class="cw-cons-scroll">
           <!-- ─── PER-COMPANY SECTION (primary view) ─── -->
-          <UzaStateBlock v-if="consPerCompanyLoading" state="loading" text="Загрузка консультантов компании…" />
+          <UzaStateBlock v-if="consPerCompanyLoading" state="loading" :text="t('Загрузка консультантов компании…')" />
 
-          <UzaStateBlock v-else-if="consPerCompanyError" state="error" variant="block" title="Ошибка загрузки" :text="consPerCompanyError" retry @retry="loadConsultantsPerCompany" />
+          <UzaStateBlock v-else-if="consPerCompanyError" state="error" variant="block" :title="t('Ошибка загрузки')" :text="consPerCompanyError" retry @retry="loadConsultantsPerCompany" />
 
           <template v-else>
             <!-- KPI-бэнд (эталон, как в /consultants): top-accent + count-up + shimmer -->
             <div v-if="consPerCompanyKpis" class="cw-cons2-kpis kpi-rail">
               <div class="kpi2 fin-shimmer" style="--kpi2-accent:#3B82F6; --kpi2-d:0ms">
-                <div class="kpi2-lbl">Консультантов</div>
+                <div class="kpi2-lbl">{{ t("Консультантов") }}</div>
                 <div class="kpi2-val"><span :data-countup="consPerCompanyKpis.consultants">{{ consPerCompanyKpis.consultants }}</span></div>
               </div>
               <div class="kpi2 fin-shimmer" style="--kpi2-accent:#7F77DD; --kpi2-d:80ms">
-                <div class="kpi2-lbl">Из них Big 4</div>
+                <div class="kpi2-lbl">{{ t("Из них Big 4") }}</div>
                 <div class="kpi2-val"><span :data-countup="consPerCompanyKpis.big4">{{ consPerCompanyKpis.big4 }}</span></div>
               </div>
               <div class="kpi2 fin-shimmer" style="--kpi2-accent:#EF9F27; --kpi2-d:160ms">
-                <div class="kpi2-lbl">Назначений</div>
+                <div class="kpi2-lbl">{{ t("Назначений") }}</div>
                 <div class="kpi2-val"><span :data-countup="consPerCompanyKpis.assignments">{{ consPerCompanyKpis.assignments }}</span></div>
               </div>
               <div class="kpi2 fin-shimmer" style="--kpi2-accent:#1D9E75; --kpi2-d:240ms">
-                <div class="kpi2-lbl">Среднее выполнение</div>
+                <div class="kpi2-lbl">{{ t("Среднее выполнение") }}</div>
                 <div class="kpi2-val" :style="`color:${pctColor(consPerCompanyKpis.completionPct)}`"><span :data-countup="consPerCompanyKpis.completionPct">{{ consPerCompanyKpis.completionPct }}</span><span class="cw-cons2-pctsign">%</span></div>
               </div>
             </div>
@@ -3809,22 +3811,22 @@ function onEditorClose() {
               v-if="consPerCompany && consPerCompany.consultants.length === 0"
               state="empty"
               variant="block"
-              title="Консультанты не назначены"
+              :title="t('Консультанты не назначены')"
             >
-              Для {{ company.name_short || company.name_ru }} в {{ year }} году консультанты не привязаны ни к одной задаче.
+              {{ t("Для {name} в {year} году консультанты не привязаны ни к одной задаче.", { name: company.name_short || company.name_ru, year }) }}
               <p style="margin-top: 8px; font-size: 11.5px">
-                Чтобы добавить консультанта — откройте задачу в проекте и укажите консультанта в редакторе.
+                {{ t("Чтобы добавить консультанта — откройте задачу в проекте и укажите консультанта в редакторе.") }}
               </p>
             </UzaStateBlock>
 
             <!-- Список консультантов компании — карточка + строки как в /consultants -->
             <div v-else class="cw-cons2-card">
               <div class="cw-cons2-h">
-                <span class="cw-cons2-t">Консультанты компании</span>
+                <span class="cw-cons2-t">{{ t("Консультанты компании") }}</span>
                 <span class="cw-cons2-hsub">{{ company.name_short || company.name_ru }} · FY {{ year }}</span>
               </div>
               <div class="cw-cons2-lhead">
-                <span>КОНСУЛЬТАНТ</span><span>ПРОГРЕСС</span><span class="r">ЗАДАЧИ</span><span class="r">ПРОСРОЧЕНО</span>
+                <span>{{ t("КОНСУЛЬТАНТ") }}</span><span>{{ t("ПРОГРЕСС") }}</span><span class="r">{{ t("ЗАДАЧИ") }}</span><span class="r">{{ t("ПРОСРОЧЕНО") }}</span>
               </div>
               <div class="cw-cons2-lbody">
                 <template v-for="(c, i) in [...companyConsBig4, ...companyConsOther]" :key="c.id">
@@ -3833,7 +3835,7 @@ function onEditorClose() {
                     :class="{ big4: c.is_big4, open: expandedCons === c.id }"
                     :style="{ '--stripe-color': c.color || '#888', animationDelay: (i * 30) + 'ms' }"
                     role="button" tabindex="0"
-                    :title="c.projects.length ? 'Показать задачи' : ''"
+                    :title="c.projects.length ? t('Показать задачи') : ''"
                     @click="toggleConsRow(c.id)"
                     @keydown.enter="toggleConsRow(c.id)"
                     @keydown.space.prevent="toggleConsRow(c.id)"
@@ -3869,13 +3871,13 @@ function onEditorClose() {
                         <span v-if="p.due_date" class="cw-cons2-project-date">{{ fmtDate(p.due_date) }}</span>
                       </div>
                       <div v-if="c.task_count > c.projects.length" class="cw-cons2-project-more">
-                        показаны {{ c.projects.length }} из {{ c.task_count }} задач
+                        {{ t("показаны {shown} из {total} задач", { shown: c.projects.length, total: c.task_count }) }}
                       </div>
                     </div>
                   </transition>
 
                   <div v-if="c.is_big4 && i === companyConsBig4.length - 1 && companyConsOther.length"
-                       :key="c.id + '-sep'" class="cw-cons2-seclabel">Другие консультанты</div>
+                       :key="c.id + '-sep'" class="cw-cons2-seclabel">{{ t("Другие консультанты") }}</div>
                 </template>
               </div>
             </div>
@@ -3885,13 +3887,13 @@ function onEditorClose() {
 
         <!-- ═══ CREDIT PORTFOLIO TAB — real implementation ═══ -->
         <div v-else-if="activeTab === 'credit'" :key="'credit'" class="cw-cred-scroll">
-          <UzaStateBlock v-if="creditLoading" state="loading" text="Загрузка кредитного портфеля…" />
+          <UzaStateBlock v-if="creditLoading" state="loading" :text="t('Загрузка кредитного портфеля…')" />
 
-          <UzaStateBlock v-else-if="creditError" state="error" variant="block" title="Ошибка загрузки" :text="creditError" retry @retry="loadCredit" />
+          <UzaStateBlock v-else-if="creditError" state="error" variant="block" :title="t('Ошибка загрузки')" :text="creditError" retry @retry="loadCredit" />
 
-          <UzaStateBlock v-else-if="creditLoans.length === 0" state="empty" variant="block" title="Кредитов нет" :text="`У ${company.name_short || company.name_ru} нет активных кредитов в портфеле.`">
+          <UzaStateBlock v-else-if="creditLoans.length === 0" state="empty" variant="block" :title="t('Кредитов нет')" :text="t('У {name} нет активных кредитов в портфеле.', { name: company.name_short || company.name_ru })">
             <template #actions>
-              <RouterLink to="/credit-portfolio" class="cw-cta-btn">Открыть полный портфель →</RouterLink>
+              <RouterLink to="/credit-portfolio" class="cw-cta-btn">{{ t("Открыть полный портфель →") }}</RouterLink>
             </template>
           </UzaStateBlock>
 
@@ -3899,36 +3901,36 @@ function onEditorClose() {
             <!-- KPI strip -->
             <div class="cw-cred-kpis">
               <div class="cw-cred-kpi">
-                <div class="cw-cred-kpi-label">Активных кредитов</div>
+                <div class="cw-cred-kpi-label">{{ t("Активных кредитов") }}</div>
                 <div class="cw-cred-kpi-value">{{ creditKpis.total }}</div>
               </div>
               <div class="cw-cred-kpi-divider"></div>
               <div class="cw-cred-kpi">
-                <div class="cw-cred-kpi-label">Общая задолженность</div>
+                <div class="cw-cred-kpi-label">{{ t("Общая задолженность") }}</div>
                 <div class="cw-cred-kpi-value">{{ fmtUsd(creditKpis.totalDebt) }}</div>
               </div>
               <div class="cw-cred-kpi-divider"></div>
               <div class="cw-cred-kpi">
-                <div class="cw-cred-kpi-label">Гарантированных</div>
+                <div class="cw-cred-kpi-label">{{ t("Гарантированных") }}</div>
                 <div class="cw-cred-kpi-value">{{ creditKpis.guaranteed }}</div>
               </div>
               <div class="cw-cred-kpi-divider"></div>
               <div class="cw-cred-kpi">
-                <div class="cw-cred-kpi-label">Средняя ставка</div>
+                <div class="cw-cred-kpi-label">{{ t("Средняя ставка") }}</div>
                 <div class="cw-cred-kpi-value">{{ fmtRate(creditKpis.avgRate) }}</div>
               </div>
             </div>
 
             <!-- Lender type breakdown -->
             <div v-if="creditByLender.length > 0" class="cw-cred-section">
-              <div class="cw-section-label">По типу кредитора</div>
+              <div class="cw-section-label">{{ t("По типу кредитора") }}</div>
               <div class="cw-cred-buckets">
                 <div
                   v-for="b in creditByLender"
                   :key="b.key"
                   class="cw-cred-bucket"
                   :style="`--accent: ${b.color}`"
-                  :title="`${b.label} · ${b.count} ${b.count === 1 ? 'кредит' : 'кредитов'} · долг ${fmtUsd(b.debt)} (${b.pct}% от портфеля)`"
+                  :title="t('{label} · {n} {u} · долг {debt} ({pct}% от портфеля)', { label: b.label, n: b.count, u: b.count === 1 ? t('кредит') : t('кредитов'), debt: fmtUsd(b.debt), pct: b.pct })"
                 >
                   <div class="cw-cred-bucket-row">
                     <span class="cw-cred-bucket-dot" :style="`background: ${b.color}`"></span>
@@ -3946,7 +3948,7 @@ function onEditorClose() {
 
             <!-- Currency breakdown -->
             <div v-if="creditByCurrency.length > 0" class="cw-cred-section">
-              <div class="cw-section-label">По валюте</div>
+              <div class="cw-section-label">{{ t("По валюте") }}</div>
               <div class="cw-cred-currencies">
                 <div
                   v-for="c in creditByCurrency"
@@ -3956,21 +3958,21 @@ function onEditorClose() {
                 >
                   <div class="cw-cred-currency-code" :style="`color: ${c.color}`">{{ c.label }}</div>
                   <div class="cw-cred-currency-debt">{{ fmtUsd(c.debt) }}</div>
-                  <div class="cw-cred-currency-meta">{{ c.count }} {{ c.count === 1 ? 'кредит' : 'кредитов' }} · {{ c.pct }}%</div>
+                  <div class="cw-cred-currency-meta">{{ c.count }} {{ c.count === 1 ? t('кредит') : t('кредитов') }} · {{ c.pct }}%</div>
                 </div>
               </div>
             </div>
 
             <!-- Sprint B · Maturity ladder (waterfall by time-to-due bucket) -->
             <div v-if="creditMaturityLadder.length > 0" class="cw-cred-section">
-              <div class="cw-section-label">Maturity ladder · по срокам погашения</div>
+              <div class="cw-section-label">{{ t("Maturity ladder · по срокам погашения") }}</div>
               <div class="cw-cred-ladder">
                 <div
                   v-for="b in creditMaturityLadder"
                   :key="b.key"
                   class="cw-cred-ladder-row"
                   :style="`--accent: ${b.color}`"
-                  :title="`${b.label}: ${b.count} ${b.count === 1 ? 'кредит' : 'кредитов'} · ${fmtUsd(b.debt)}`"
+                  :title="t('{label}: {n} {u} · {debt}', { label: b.label, n: b.count, u: b.count === 1 ? t('кредит') : t('кредитов'), debt: fmtUsd(b.debt) })"
                 >
                   <div class="cw-cred-ladder-label">{{ b.label }}</div>
                   <div class="cw-cred-ladder-bar-track">
@@ -3990,15 +3992,15 @@ function onEditorClose() {
 
             <!-- Top loans table -->
             <div class="cw-cred-section">
-              <div class="cw-section-label">Кредиты ({{ creditTopLoans.length }})</div>
+              <div class="cw-section-label">{{ t("Кредиты") }} ({{ creditTopLoans.length }})</div>
               <div class="cw-cred-table">
                 <div class="cw-cred-table-header">
-                  <div class="cw-cred-th cw-cred-th-code">Код</div>
-                  <div class="cw-cred-th cw-cred-th-bank">Банк / Кредитор</div>
-                  <div class="cw-cred-th cw-cred-th-cur">Вал.</div>
-                  <div class="cw-cred-th cw-cred-th-rate">Ставка</div>
-                  <div class="cw-cred-th cw-cred-th-debt">Задолж. $</div>
-                  <div class="cw-cred-th cw-cred-th-due">Погашение</div>
+                  <div class="cw-cred-th cw-cred-th-code">{{ t("Код") }}</div>
+                  <div class="cw-cred-th cw-cred-th-bank">{{ t("Банк / Кредитор") }}</div>
+                  <div class="cw-cred-th cw-cred-th-cur">{{ t("Вал.") }}</div>
+                  <div class="cw-cred-th cw-cred-th-rate">{{ t("Ставка") }}</div>
+                  <div class="cw-cred-th cw-cred-th-debt">{{ t("Задолж. $") }}</div>
+                  <div class="cw-cred-th cw-cred-th-due">{{ t("Погашение") }}</div>
                 </div>
                 <div
                   v-for="l in creditTopLoans"
@@ -4008,7 +4010,7 @@ function onEditorClose() {
                 >
                   <div class="cw-cred-cell cw-cred-cell-code">
                     {{ l.loan_code }}
-                    <span v-if="l.is_guaranteed" class="cw-cred-guaranteed" title="Гарантированный">G</span>
+                    <span v-if="l.is_guaranteed" class="cw-cred-guaranteed" :title="t('Гарантированный')">G</span>
                   </div>
                   <div class="cw-cred-cell cw-cred-cell-bank" :title="l.bank">
                     <span class="cw-cred-lender-pill" :style="`background: ${l.lender_color}22; color: ${l.lender_color}`">
@@ -4036,41 +4038,41 @@ function onEditorClose() {
                если закупок в анализе нет -->
           <section v-if="!procLoading && !procError && procForensic" class="cw-forensic">
             <div class="cw-forensic-head">
-              <span class="cw-forensic-title">Форензик-аудит</span>
-              <RouterLink to="/procurement/forensic" class="cw-forensic-link">Полный аудит →</RouterLink>
+              <span class="cw-forensic-title">{{ t("Форензик-аудит") }}</span>
+              <RouterLink to="/procurement/forensic" class="cw-forensic-link">{{ t("Полный аудит →") }}</RouterLink>
             </div>
             <div class="cw-forensic-grid">
               <div class="cw-forensic-cell">
-                <div class="cw-forensic-label">Статус аудита</div>
+                <div class="cw-forensic-label">{{ t("Статус аудита") }}</div>
                 <span class="cw-forensic-badge"
                       :style="{ background: fForensicBadge(procForensic.forensic).bg, color: fForensicBadge(procForensic.forensic).fg }">
                   {{ fForensicBadge(procForensic.forensic).text }}
                 </span>
               </div>
               <div class="cw-forensic-cell">
-                <div class="cw-forensic-label">План закупок</div>
+                <div class="cw-forensic-label">{{ t("План закупок") }}</div>
                 <span class="cw-forensic-badge"
                       :style="{ background: fPlanBadge(procForensic.plan).bg, color: fPlanBadge(procForensic.plan).fg }">
                   {{ fPlanBadge(procForensic.plan).text }}
                 </span>
               </div>
               <div class="cw-forensic-cell">
-                <div class="cw-forensic-label">Аудитор</div>
+                <div class="cw-forensic-label">{{ t("Аудитор") }}</div>
                 <span v-if="procForensic.auditor" class="cw-forensic-auditor"
                       :style="{ color: fAuditorColor(procForensic.auditor) }">{{ procForensic.auditor }}</span>
                 <span v-else class="cw-forensic-dash">—</span>
               </div>
               <div class="cw-forensic-cell">
-                <div class="cw-forensic-label">Годы аудита</div>
+                <div class="cw-forensic-label">{{ t("Годы аудита") }}</div>
                 <span class="cw-forensic-years">{{ procForensic.aYears || '—' }}</span>
               </div>
               <div v-if="procForensicYear" class="cw-forensic-cell cw-forensic-pf">
-                <div class="cw-forensic-label">План / Факт {{ year }}</div>
+                <div class="cw-forensic-label">{{ t("План / Факт") }} {{ year }}</div>
                 <div class="cw-forensic-pf-val">
-                  <span>{{ procForensicYear.plan != null ? procForensicYear.plan + ' млрд' : '—' }}</span>
+                  <span>{{ procForensicYear.plan != null ? procForensicYear.plan + ' ' + t('млрд') : '—' }}</span>
                   <span class="cw-forensic-arrow">→</span>
                   <span :style="{ color: (procForensicYear.pct ?? 0) >= 90 ? '#1D9E75' : (procForensicYear.pct ?? 0) >= 70 ? '#D97706' : '#E24B4A' }">
-                    {{ procForensicYear.fact != null ? procForensicYear.fact + ' млрд' : '—' }}
+                    {{ procForensicYear.fact != null ? procForensicYear.fact + ' ' + t('млрд') : '—' }}
                     <template v-if="procForensicYear.pct != null"> ({{ procForensicYear.pct }}%)</template>
                   </span>
                 </div>
@@ -4078,13 +4080,13 @@ function onEditorClose() {
             </div>
           </section>
 
-          <UzaStateBlock v-if="procLoading" state="loading" :text="`Загрузка анализа закупок ${year}…`" />
+          <UzaStateBlock v-if="procLoading" state="loading" :text="t('Загрузка анализа закупок {year}…', { year })" />
 
-          <UzaStateBlock v-else-if="procError" state="error" variant="block" title="Ошибка загрузки" :text="procError" retry @retry="loadProc" />
+          <UzaStateBlock v-else-if="procError" state="error" variant="block" :title="t('Ошибка загрузки')" :text="procError" retry @retry="loadProc" />
 
-          <UzaStateBlock v-else-if="procPurchases.length === 0" state="empty" variant="block" title="Закупки не загружены" :text="`У ${company.name_short || company.name_ru} в ${year} году нет данных по закупкам в системе.`">
+          <UzaStateBlock v-else-if="procPurchases.length === 0" state="empty" variant="block" :title="t('Закупки не загружены')" :text="t('У {name} в {year} году нет данных по закупкам в системе.', { name: company.name_short || company.name_ru, year })">
             <template #actions>
-              <RouterLink to="/procurement/analysis" class="cw-cta-btn">Открыть полный анализ →</RouterLink>
+              <RouterLink to="/procurement/analysis" class="cw-cta-btn">{{ t("Открыть полный анализ →") }}</RouterLink>
             </template>
           </UzaStateBlock>
 
@@ -4092,34 +4094,34 @@ function onEditorClose() {
             <!-- KPI strip -->
             <div v-if="procCompanyKpis" class="cw-proc-kpis">
               <div class="cw-proc-kpi">
-                <div class="cw-proc-kpi-label">Закрытий</div>
+                <div class="cw-proc-kpi-label">{{ t("Закрытий") }}</div>
                 <div class="cw-proc-kpi-value">{{ procCompanyKpis.total }}</div>
                 <div v-if="procCompanyKpis.dirty > 0" class="cw-proc-kpi-meta">
-                  чистых: {{ procCompanyKpis.clean }} · отбраковано: {{ procCompanyKpis.dirty }}
+                  {{ t("чистых: {a} · отбраковано: {b}", { a: procCompanyKpis.clean, b: procCompanyKpis.dirty }) }}
                 </div>
               </div>
               <div class="cw-proc-kpi-divider"></div>
               <div class="cw-proc-kpi">
-                <div class="cw-proc-kpi-label">Переплата</div>
+                <div class="cw-proc-kpi-label">{{ t("Переплата") }}</div>
                 <div class="cw-proc-kpi-value" style="color: var(--uza-red)">
                   {{ paFmtMoneyShort(procCompanyKpis.totalOverpay) }}
                 </div>
-                <div class="cw-proc-kpi-meta">UZS, к рынку</div>
+                <div class="cw-proc-kpi-meta">{{ t("UZS, к рынку") }}</div>
               </div>
               <div class="cw-proc-kpi-divider"></div>
               <div class="cw-proc-kpi">
-                <div class="cw-proc-kpi-label">Выше рынка</div>
+                <div class="cw-proc-kpi-label">{{ t("Выше рынка") }}</div>
                 <div
                   class="cw-proc-kpi-value"
                   :style="`color: ${paColorByDev(procCompanyKpis.aboveMarketPct)}`"
                 >
                   {{ procCompanyKpis.aboveMarketPct }}%
                 </div>
-                <div class="cw-proc-kpi-meta">закупок &gt; +3%</div>
+                <div class="cw-proc-kpi-meta">{{ t("закупок > +3%") }}</div>
               </div>
               <div class="cw-proc-kpi-divider"></div>
               <div class="cw-proc-kpi">
-                <div class="cw-proc-kpi-label">Медианное отклон.</div>
+                <div class="cw-proc-kpi-label">{{ t("Медианное отклон.") }}</div>
                 <div
                   class="cw-proc-kpi-value"
                   :style="`color: ${paColorByDev(procCompanyKpis.medianDev)}`"
@@ -4135,7 +4137,7 @@ function onEditorClose() {
             <div class="cw-proc-cats-row" v-if="procWorstCats.length > 0 || procBestCats.length > 0">
               <div v-if="procWorstCats.length > 0" class="cw-proc-cats-block">
                 <div class="cw-section-label" style="color: var(--uza-red)">
-                  Проблемные категории · {{ procWorstCats.length }}
+                  {{ t("Проблемные категории") }} · {{ procWorstCats.length }}
                 </div>
                 <div class="cw-proc-cats">
                   <div
@@ -4149,14 +4151,14 @@ function onEditorClose() {
                       <span class="cw-proc-cat-dev" :style="`color: ${c.color}`">
                         {{ fmt.fmtPercent(c.deviation, { decimals: 1, signed: true }) }}
                       </span>
-                      <span class="cw-proc-cat-count">{{ c.closure_count }} закр.</span>
+                      <span class="cw-proc-cat-count">{{ c.closure_count }} {{ t("закр.") }}</span>
                     </div>
                   </div>
                 </div>
               </div>
               <div v-if="procBestCats.length > 0" class="cw-proc-cats-block">
                 <div class="cw-section-label" style="color: var(--uza-teal)">
-                  Лучшие категории · {{ procBestCats.length }}
+                  {{ t("Лучшие категории") }} · {{ procBestCats.length }}
                 </div>
                 <div class="cw-proc-cats">
                   <div
@@ -4170,7 +4172,7 @@ function onEditorClose() {
                       <span class="cw-proc-cat-dev" :style="`color: ${c.color}`">
                         {{ fmt.fmtPercent(c.deviation, { decimals: 1, signed: true }) }}
                       </span>
-                      <span class="cw-proc-cat-count">{{ c.closure_count }} закр.</span>
+                      <span class="cw-proc-cat-count">{{ c.closure_count }} {{ t("закр.") }}</span>
                     </div>
                   </div>
                 </div>
@@ -4180,28 +4182,28 @@ function onEditorClose() {
             <!-- Sprint C · Supplier concentration (top-5 share + single-source warning) -->
             <div v-if="procSupplierConcentration.top.length > 0" class="cw-proc-section">
               <div class="cw-section-label">
-                Концентрация поставщиков · топ-{{ procSupplierConcentration.top.length }} из {{ procSupplierConcentration.totalSuppliers }}
+                {{ t("Концентрация поставщиков · топ-{a} из {b}", { a: procSupplierConcentration.top.length, b: procSupplierConcentration.totalSuppliers }) }}
                 <span
                   v-if="procSupplierConcentration.isSingleSource"
                   class="cw-proc-supplier-flag cw-proc-supplier-flag-warn"
-                  title="Один поставщик забирает ≥80% объёма — high concentration risk"
+                  :title="t('Один поставщик забирает ≥80% объёма — high concentration risk')"
                 ><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px"><path d="M10.3 4 2 18.3a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 4a2 2 0 0 0-3.4 0z"/><line x1="12" y1="9.5" x2="12" y2="13.5"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>single-source</span>
               </div>
 
               <!-- Stacked horizontal bar showing top-5 cumulative share -->
-              <div class="cw-proc-supplier-bar" :title="`Топ-5 = ${fmt.fmtPercent(procSupplierConcentration.top5Share, { decimals: 1 })} от общего объёма`">
+              <div class="cw-proc-supplier-bar" :title="t('Топ-5 = {v} от общего объёма', { v: fmt.fmtPercent(procSupplierConcentration.top5Share, { decimals: 1 }) })">
                 <div
                   v-for="b in procSupplierConcentration.top"
                   :key="b.supplier"
                   class="cw-proc-supplier-bar-seg"
                   :style="`width: ${b.pct}%; background: ${b.color}`"
-                  :title="`${b.supplier} · ${b.pct}% (${b.count} закр.)`"
+                  :title="t('{s} · {pct}% ({n} закр.)', { s: b.supplier, pct: b.pct, n: b.count })"
                 ></div>
                 <div
                   v-if="procSupplierConcentration.otherMoney > 0"
                   class="cw-proc-supplier-bar-seg cw-proc-supplier-bar-other"
                   :style="`width: ${(100 - procSupplierConcentration.top5Share).toFixed(1)}%`"
-                  :title="`Другие (${procSupplierConcentration.otherCount} закр.)`"
+                  :title="t('Другие ({n} закр.)', { n: procSupplierConcentration.otherCount })"
                 ></div>
               </div>
 
@@ -4216,7 +4218,7 @@ function onEditorClose() {
                   <span class="cw-proc-supplier-dot" :style="`background: ${b.color}`"></span>
                   <span class="cw-proc-supplier-name" :title="b.supplier">{{ b.supplier }}</span>
                   <span class="cw-proc-supplier-count">
-                    <span :data-countup="b.count" data-cu-d="0">0</span> закр.
+                    <span :data-countup="b.count" data-cu-d="0">0</span> {{ t("закр.") }}
                   </span>
                   <span class="cw-proc-supplier-pct">
                     <span :data-countup="b.pct" data-cu-d="1">0</span>%
@@ -4227,8 +4229,8 @@ function onEditorClose() {
                   class="cw-proc-supplier-row cw-proc-supplier-row-other"
                 >
                   <span class="cw-proc-supplier-dot" style="background: #94A3B8"></span>
-                  <span class="cw-proc-supplier-name">Остальные ({{ procSupplierConcentration.totalSuppliers - procSupplierConcentration.top.length }} поставщиков)</span>
-                  <span class="cw-proc-supplier-count">{{ procSupplierConcentration.otherCount }} закр.</span>
+                  <span class="cw-proc-supplier-name">{{ t("Остальные ({n} поставщиков)", { n: procSupplierConcentration.totalSuppliers - procSupplierConcentration.top.length }) }}</span>
+                  <span class="cw-proc-supplier-count">{{ procSupplierConcentration.otherCount }} {{ t("закр.") }}</span>
                   <span class="cw-proc-supplier-pct">{{ fmt.fmtPercent(100 - procSupplierConcentration.top5Share, { decimals: 1 }) }}</span>
                 </div>
               </div>
@@ -4237,15 +4239,15 @@ function onEditorClose() {
             <!-- Top deviating purchases -->
             <div class="cw-proc-section">
               <div class="cw-section-label">
-                Топ-{{ procRecentPurchases.length }} закупок по отклонению от рынка
+                {{ t("Топ-{n} закупок по отклонению от рынка", { n: procRecentPurchases.length }) }}
               </div>
               <div class="cw-proc-purchases">
                 <div class="cw-proc-purchases-header">
-                  <div class="cw-proc-ph cw-proc-ph-name">Товар</div>
-                  <div class="cw-proc-ph cw-proc-ph-supplier">Поставщик</div>
-                  <div class="cw-proc-ph cw-proc-ph-price">Цена</div>
-                  <div class="cw-proc-ph cw-proc-ph-market">Рынок</div>
-                  <div class="cw-proc-ph cw-proc-ph-dev">Откл.</div>
+                  <div class="cw-proc-ph cw-proc-ph-name">{{ t("Товар") }}</div>
+                  <div class="cw-proc-ph cw-proc-ph-supplier">{{ t("Поставщик") }}</div>
+                  <div class="cw-proc-ph cw-proc-ph-price">{{ t("Цена") }}</div>
+                  <div class="cw-proc-ph cw-proc-ph-market">{{ t("Рынок") }}</div>
+                  <div class="cw-proc-ph cw-proc-ph-dev">{{ t("Откл.") }}</div>
                 </div>
                 <div
                   v-for="p in procRecentPurchases"
@@ -4299,7 +4301,7 @@ function onEditorClose() {
             :category="activeTab + '_report'"
             :year="year"
             :can-edit="companiesPerm.canEdit.value"
-            :title="'Загруженные исходные отчёты ' + finStandardLabel"
+            :title="t('Загруженные исходные отчёты {std}', { std: finStandardLabel })"
           />
         </div>
 
@@ -4315,18 +4317,18 @@ function onEditorClose() {
                  fill="none" stroke="currentColor" stroke-width="1.5"
                  stroke-linecap="round" stroke-linejoin="round"
                  v-html="getIconPath(currentTabDef.key)"></svg>
-            <h2>{{ currentTabDef.label }}</h2>
-            <p>Раздел «{{ currentTabDef.label }}» для {{ company.name_short || company.name_ru }}</p>
+            <h2>{{ t(currentTabDef.label) }}</h2>
+            <p>{{ t("Раздел «{tab}» для {name}", { tab: t(currentTabDef.label), name: company.name_short || company.name_ru }) }}</p>
             <p class="cw-cta-note">
-              Полная функциональность доступна на глобальной странице.<br>
-              Фильтрация по компании — в следующих сессиях.
+              {{ t("Полная функциональность доступна на глобальной странице.") }}<br>
+              {{ t("Фильтрация по компании — в следующих сессиях.") }}
             </p>
             <RouterLink
               v-if="currentTabDef.fullPageRoute"
               :to="currentTabDef.fullPageRoute"
               class="cw-cta-btn"
             >
-              Открыть полную страницу «{{ currentTabDef.label }}» →
+              {{ t("Открыть полную страницу «{tab}» →", { tab: t(currentTabDef.label) }) }}
             </RouterLink>
           </div>
         </div>
@@ -4351,19 +4353,19 @@ function onEditorClose() {
         class="cw-ov-modal-backdrop"
         @click.self="closeOverdueModal"
       >
-        <div class="cw-ov-modal-card" role="dialog" aria-modal="true" aria-label="Просроченные задачи и проекты">
+        <div class="cw-ov-modal-card" role="dialog" aria-modal="true" :aria-label="t('Просроченные задачи и проекты')">
           <header class="cw-ov-modal-head">
             <div>
-              <div class="cw-ov-modal-eyebrow">Требуют внимания</div>
+              <div class="cw-ov-modal-eyebrow">{{ t("Требуют внимания") }}</div>
               <h3 class="cw-ov-modal-title">
-                Просрочено: <span class="cw-ov-modal-num">{{ overdueItems.length }}</span>
+                {{ t("Просрочено") }}: <span class="cw-ov-modal-num">{{ overdueItems.length }}</span>
               </h3>
             </div>
-            <button class="cw-ov-modal-close" @click="closeOverdueModal" title="Закрыть">×</button>
+            <button class="cw-ov-modal-close" @click="closeOverdueModal" :title="t('Закрыть')">×</button>
           </header>
           <div class="cw-ov-modal-body">
             <div v-if="overdueItems.length === 0" class="cw-ov-modal-empty">
-              Просроченных нет — всё по графику.
+              {{ t("Просроченных нет — всё по графику.") }}
             </div>
             <ul v-else class="cw-ov-list">
               <li
@@ -4373,17 +4375,17 @@ function onEditorClose() {
                 :class="`cw-ov-row-${r.kind}`"
               >
                 <div class="cw-ov-row-l">
-                  <div class="cw-ov-row-tag">{{ r.kind === "project" ? "ПРОЕКТ" : "ЗАДАЧА" }}</div>
+                  <div class="cw-ov-row-tag">{{ r.kind === "project" ? t("ПРОЕКТ") : t("ЗАДАЧА") }}</div>
                   <div class="cw-ov-row-title">{{ r.title }}</div>
                   <div v-if="r.owner" class="cw-ov-row-owner">{{ r.owner }}</div>
                 </div>
                 <div class="cw-ov-row-r">
-                  <div class="cw-ov-row-days">+{{ r.daysOverdue }} дн</div>
-                  <div v-if="r.due_date" class="cw-ov-row-date">срок {{ new Date(r.due_date).toLocaleDateString("ru-RU") }}</div>
+                  <div class="cw-ov-row-days">+{{ r.daysOverdue }} {{ t("дн") }}</div>
+                  <div v-if="r.due_date" class="cw-ov-row-date">{{ t("срок") }} {{ new Date(r.due_date).toLocaleDateString("ru-RU") }}</div>
                   <button
                     type="button"
                     class="cw-ov-row-link"
-                    title="Открыть"
+                    :title="t('Открыть')"
                     @click="openOverdueRow(r)"
                   >→</button>
                 </div>
@@ -4405,22 +4407,22 @@ function onEditorClose() {
           class="cw-ov-modal-card cw-status-modal-card"
           :style="{ '--st-accent': statusDrillDef.color }"
           role="dialog" aria-modal="true"
-          :aria-label="`${statusDrillDef.label} — проекты и задачи`"
+          :aria-label="t('{label} — проекты и задачи', { label: t(statusDrillDef.label) })"
         >
           <header class="cw-ov-modal-head">
             <div>
               <div class="cw-ov-modal-eyebrow" :style="{ color: statusDrillDef.color }">
-                Статус · {{ statusDrillDef.sub }}
+                {{ t("Статус") }} · {{ t(statusDrillDef.sub) }}
               </div>
               <h3 class="cw-ov-modal-title">
-                {{ statusDrillDef.label }}: <span class="cw-ov-modal-num">{{ statusDrillRows.length }}</span>
+                {{ t(statusDrillDef.label) }}: <span class="cw-ov-modal-num">{{ statusDrillRows.length }}</span>
               </h3>
             </div>
-            <button class="cw-ov-modal-close" @click="closeStatusDrill" title="Закрыть">×</button>
+            <button class="cw-ov-modal-close" @click="closeStatusDrill" :title="t('Закрыть')">×</button>
           </header>
           <div class="cw-ov-modal-body">
             <div v-if="statusDrillRows.length === 0" class="cw-ov-modal-empty">
-              Нет элементов в этом статусе.
+              {{ t("Нет элементов в этом статусе.") }}
             </div>
             <ul v-else class="cw-ov-list">
               <li
@@ -4431,14 +4433,14 @@ function onEditorClose() {
                 @click="openStatusRow(r)"
               >
                 <div class="cw-ov-row-l">
-                  <div class="cw-ov-row-tag">{{ r.kind === "project" ? "ПРОЕКТ" : "ЗАДАЧА" }}</div>
+                  <div class="cw-ov-row-tag">{{ r.kind === "project" ? t("ПРОЕКТ") : t("ЗАДАЧА") }}</div>
                   <div class="cw-ov-row-title">{{ r.title }}</div>
                   <div v-if="r.owner" class="cw-ov-row-owner">{{ r.owner }}</div>
                 </div>
                 <div class="cw-ov-row-r">
                   <div v-if="r.progress != null" class="cw-status-row-pct">{{ Math.round(r.progress) }}%</div>
-                  <div v-if="r.isOverdue" class="cw-ov-row-days">просрочено</div>
-                  <div v-if="r.due_date" class="cw-ov-row-date">срок {{ new Date(r.due_date).toLocaleDateString("ru-RU") }}</div>
+                  <div v-if="r.isOverdue" class="cw-ov-row-days">{{ t("просрочено") }}</div>
+                  <div v-if="r.due_date" class="cw-ov-row-date">{{ t("срок") }} {{ new Date(r.due_date).toLocaleDateString("ru-RU") }}</div>
                   <span class="cw-ov-row-link" aria-hidden="true">→</span>
                 </div>
               </li>

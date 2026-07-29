@@ -10,6 +10,7 @@
 
 import type { ProcurementAggregate } from "@/api/procurement_analysis";
 import { useToast } from "@/composables/useToast";
+import { t } from "@/locale/i18n";
 
 const toast = useToast();
 
@@ -28,7 +29,7 @@ export async function exportProcurementYear(
   year: number | null,
 ): Promise<void> {
   if (!data) {
-    toast.info("Нет данных для экспорта.");
+    toast.info(t("Нет данных для экспорта."));
     return;
   }
   const XLSX = await loadXlsx();
@@ -37,40 +38,40 @@ export async function exportProcurementYear(
   // Sheet 1: KPI summary — синхронизирован с карточками дашборда
   const k = data.kpis;
   const sheetKpi = XLSX.utils.aoa_to_sheet([
-    ["Год", year ?? "—"],
-    ["Сектор", data.sector_code || "all"],
-    ["Источник", data.meta?.source || "—"],
+    [t("Год"), year ?? "—"],
+    [t("Сектор"), data.sector_code || "all"],
+    [t("Источник"), data.meta?.source || "—"],
     [],
-    ["KPI", "Значение"],
-    ["Совокупный расход (UZS, лот-дедуп)", fmtRu(k.total_spend)],
-    ["Уникальных лотов", k.total_lots],
-    ["Всего компаний", k.total_companies],
-    ["Уже сэкономлено на торгах (UZS)", fmtRu(k.saved_amount)],
-    ["Ставка экономии, %", fmtRu(k.saved_rate_pct)],
-    ["Потенциал экономии (UZS, только товары)", fmtRu(k.potential_saving_uzs)],
-    ["Без конкурентной процедуры (UZS, каталог/e-shop)", fmtRu(k.no_tender_spend)],
-    ["Без конкурентной процедуры, %", fmtRu(k.no_tender_pct)],
-    ["Конкурентные процедуры без экономии (UZS)", fmtRu(k.competitive_no_saving_spend)],
-    ["Конкурентные процедуры без экономии, %", fmtRu(k.competitive_no_saving_pct)],
-    ["Товары (UZS)", fmtRu(k.goods_spend)],
-    ["Услуги (UZS)", fmtRu(k.services_spend)],
-    ["Работы (UZS)", fmtRu(k.works_spend)],
-    ["Раскрытых поставщиков", k.supplier_count],
-    ["Доля спенда с раскрытым поставщиком, %", fmtRu(k.disclosed_supplier_pct)],
-    ["Доля спенда у сквозных поставщиков, %", fmtRu(k.cross_supplier_pct)],
+    ["KPI", t("Значение")],
+    [t("Совокупный расход (UZS, лот-дедуп)"), fmtRu(k.total_spend)],
+    [t("Уникальных лотов"), k.total_lots],
+    [t("Всего компаний"), k.total_companies],
+    [t("Уже сэкономлено на торгах (UZS)"), fmtRu(k.saved_amount)],
+    [t("Ставка экономии, %"), fmtRu(k.saved_rate_pct)],
+    [t("Потенциал экономии (UZS, только товары)"), fmtRu(k.potential_saving_uzs)],
+    [t("Без конкурентной процедуры (UZS, каталог/e-shop)"), fmtRu(k.no_tender_spend)],
+    [t("Без конкурентной процедуры, %"), fmtRu(k.no_tender_pct)],
+    [t("Конкурентные процедуры без экономии (UZS)"), fmtRu(k.competitive_no_saving_spend)],
+    [t("Конкурентные процедуры без экономии, %"), fmtRu(k.competitive_no_saving_pct)],
+    [t("Товары (UZS)"), fmtRu(k.goods_spend)],
+    [t("Услуги (UZS)"), fmtRu(k.services_spend)],
+    [t("Работы (UZS)"), fmtRu(k.works_spend)],
+    [t("Раскрытых поставщиков"), k.supplier_count],
+    [t("Доля спенда с раскрытым поставщиком, %"), fmtRu(k.disclosed_supplier_pct)],
+    [t("Доля спенда у сквозных поставщиков, %"), fmtRu(k.cross_supplier_pct)],
     [],
-    ["Совокупная переплата (UZS, нетто по компаниям)", fmtRu(k.total_overpay_uzs)],
-    ["% компаний выше рынка", fmtRu(k.above_market_pct)],
-    ["Медианное отклонение, %", fmtRu(k.median_deviation_pct)],
-    ["Компаний с сопоставимыми данными", k.clean_companies],
-    ["Закупок всего / чистых", `${k.total_closures} / ${k.clean_closures}`],
+    [t("Совокупная переплата (UZS, нетто по компаниям)"), fmtRu(k.total_overpay_uzs)],
+    [t("% компаний выше рынка"), fmtRu(k.above_market_pct)],
+    [t("Медианное отклонение, %"), fmtRu(k.median_deviation_pct)],
+    [t("Компаний с сопоставимыми данными"), k.clean_companies],
+    [t("Закупок всего / чистых"), `${k.total_closures} / ${k.clean_closures}`],
   ]);
   XLSX.utils.book_append_sheet(wb, sheetKpi, "KPI");
 
   // Sheet 2: Rating (per-company)
   const ratingHeader = [
-    "№", "Компания", "Сектор", "Откл. ср. %", "Σ Переплата (UZS)",
-    "Σ Объём (UZS)", "Закупок всего", "Чистых", "Красных", "Выше рынка",
+    "№", t("Компания"), t("Сектор"), t("Откл. ср. %"), "Σ " + t("Переплата") + " (UZS)",
+    "Σ " + t("Объём") + " (UZS)", t("Закупок всего"), t("Чистых"), t("Красных"), t("Выше рынка"),
   ];
   const ratingRows = data.rating.map((r, i) => [
     i + 1,
@@ -95,9 +96,9 @@ export async function exportProcurementYear(
       p.product_type === "PRODUCT" && Number(p.market_avg) > 0 && Math.abs(Number(p.deviation_pct) || 0) <= 1000
         ? fmtRu(p.deviation_pct) : "";
     const purchHeader = [
-      "ID", "Компания", "Категория", "Код товара", "Наименование", "Тип",
-      "Поставщик", "Дата", "Кол-во", "Цена/ед.",
-      "Сумма строки (цена×кол-во)", "Рыночная медиана", "Откл. % (сопост.)", "Грязная",
+      "ID", t("Компания"), t("Категория"), t("Код товара"), t("Наименование"), t("Тип"),
+      t("Поставщик"), t("Дата"), t("Кол-во"), t("Цена/ед."),
+      t("Сумма строки (цена×кол-во)"), t("Рыночная медиана"), t("Откл. % (сопост.)"), t("Грязная"),
     ];
     const purchRows = data.purchases.map((p) => [
       p.id, p.company_name || "", p.category_name || p.category_id || "",
@@ -105,11 +106,11 @@ export async function exportProcurementYear(
       p.supplier || "", p.contract_date || "",
       fmtRu(p.volume), fmtRu(p.unit_price), fmtRu((Number(p.unit_price) || 0) * (Number(p.volume) || 0)),
       fmtRu(p.market_avg), devCell(p),
-      p.is_dirty ? "да" : "нет",
+      p.is_dirty ? t("да") : t("нет"),
     ]);
     // Явное предупреждение, если список усечён бэкендом (cap 15k в _build_purchases).
     if (data.purchases.length >= 15000) {
-      purchRows.push([], ["⚠ Список усечён до 15 000 строк — выгрузка неполная."]);
+      purchRows.push([], [t("⚠ Список усечён до 15 000 строк — выгрузка неполная.")]);
     }
     const sheetPurch = XLSX.utils.aoa_to_sheet([purchHeader, ...purchRows]);
     XLSX.utils.book_append_sheet(wb, sheetPurch, "Closures");
@@ -118,8 +119,8 @@ export async function exportProcurementYear(
   // Sheet 4: Categories aggregate (считаем по товарам категории — band-метрики)
   if (data.category_aggregates?.length) {
     const catHeader = [
-      "ID категории", "Категория", "Товаров", "Товаров с benchmark",
-      "Σ Объём товаров (UZS)", "Σ Потенциал экономии (UZS)",
+      t("ID категории"), t("Категория"), t("Товаров"), t("Товаров с benchmark"),
+      t("Σ Объём товаров (UZS)"), t("Σ Потенциал экономии (UZS)"),
     ];
     const catRows = data.category_aggregates.map((c) => {
       const prods = c.all_products || [];
@@ -141,13 +142,13 @@ export async function exportProcurementYear(
   // Sheet 5: Suppliers (топ по спенду, лот-дедуп)
   if (data.suppliers_top?.length) {
     const supHeader = [
-      "Поставщик", "ИНН", "Спенд (UZS)", "Доля спенда, %", "Лотов",
-      "Компаний", "Сквозной", "Экономия (UZS)", "Премия к рынку, %", "Переплата (UZS)",
+      t("Поставщик"), t("ИНН"), t("Спенд (UZS)"), t("Доля спенда, %"), t("Лотов"),
+      t("Компаний"), t("Сквозной"), t("Экономия (UZS)"), t("Премия к рынку, %"), t("Переплата (UZS)"),
     ];
     const supRows = data.suppliers_top.map((s) => [
       s.supplier_name || "—", s.supplier_inn || "",
       fmtRu(s.spend), fmtRu(s.spend_share_pct), s.lot_count, s.company_count,
-      s.is_cross ? "да" : "нет", fmtRu(s.saved_amount),
+      s.is_cross ? t("да") : t("нет"), fmtRu(s.saved_amount),
       fmtRu(s.premium_pct), fmtRu(s.excess_uzs),
     ]);
     const sheetSup = XLSX.utils.aoa_to_sheet([supHeader, ...supRows]);
@@ -157,11 +158,11 @@ export async function exportProcurementYear(
   // Sheet 6: Methods (способы закупки, лот-дедуп)
   if (data.methods?.length) {
     const mHeader = [
-      "Способ", "Конкурентный", "Лотов", "Спенд (UZS)", "Доля спенда, %",
-      "Экономия (UZS)", "Ставка экономии, %",
+      t("Способ"), t("Конкурентный"), t("Лотов"), t("Спенд (UZS)"), t("Доля спенда, %"),
+      t("Экономия (UZS)"), t("Ставка экономии, %"),
     ];
     const mRows = data.methods.map((m) => [
-      m.label || m.method, m.is_competitive ? "да" : "нет",
+      m.label || m.method, m.is_competitive ? t("да") : t("нет"),
       m.lot_count, fmtRu(m.spend), fmtRu(m.spend_share_pct),
       fmtRu(m.saved_amount), fmtRu(m.saved_rate_pct),
     ]);

@@ -8,6 +8,7 @@
  * Pack 4: + Row 3 — Направления · Корпуправление · Стандарты.
  */
 import { onMounted } from "vue";
+import { useI18n } from "@/composables/useI18n";
 import { useExecutiveDashboard } from "@/composables/useExecutiveDashboard";
 import { useAiPageContext } from "@/composables/useAiPageContext";
 import ExecDashTopbar from "@/components/ExecDash/ExecDashTopbar.vue";
@@ -28,6 +29,7 @@ import ExecDashGovernanceBlock from "@/components/ExecDash/ExecDashGovernanceBlo
 import ExecDashStandardsBlock from "@/components/ExecDash/ExecDashStandardsBlock.vue";
 import UzaSkeleton from "@/components/UZA/UzaSkeleton.vue";
 
+const { t } = useI18n();
 const exec = useExecutiveDashboard();
 
 onMounted(() => exec.loadData());
@@ -38,15 +40,15 @@ useAiPageContext({
   label: "Executive Dashboard",
   describeState: () => `Год ${exec.year.value}; секторы: ${(exec.selectedSectors.value || []).join(", ") || "все"}`,
   quickActions: [
-    { label: "Сводка по портфелю",
+    { label: t("Сводка по портфелю"),
       prompt: "Дай аналитическую сводку по портфелю из 22 SOE: ключевые цифры, лидеры и отстающие, общая динамика. Используй get_kpi_summary." },
-    { label: "Топ-3 риска по портфелю",
+    { label: t("Топ-3 риска по портфелю"),
       prompt: "Найди топ-3 риска в портфеле: где провал KPI, где просрочки концентрируются, где credit-risk. Конкретные компании + рекомендации." },
-    { label: "IPO-готовность компаний",
+    { label: t("IPO-готовность компаний"),
       prompt: "Проанализируй IPO-готовность портфеля: какие компании ближе всего к IPO, какие блокеры (governance/ESG/KPI) у каждой из IPO-roadmap." },
-    { label: "Сравни 2025 vs 2026",
+    { label: t("Сравни 2025 vs 2026"),
       prompt: "Используй compare_years чтобы сравнить выполнение задач 2025 vs 2026 и compare_companies по EBITDA. Сделай вывод." },
-    { label: "Что важного сегодня?",
+    { label: t("Что важного сегодня?"),
       prompt: "Что важного на сегодня: просроченные критичные задачи, недавние модерация-events, активные алерты. Используй list_overdue_tasks + get_moderation_queue + list_notifications." },
   ],
 });
@@ -71,8 +73,8 @@ useAiPageContext({
 
       <!-- Error state -->
       <div v-else-if="exec.error.value" class="ed-empty-state ed-empty-error">
-        <div>Ошибка загрузки: {{ exec.error.value }}</div>
-        <button class="ed-retry-btn" @click="exec.loadData()">Повторить</button>
+        <div>{{ t("Ошибка загрузки:") }} {{ exec.error.value }}</div>
+        <button class="ed-retry-btn" @click="exec.loadData()">{{ t("Повторить") }}</button>
       </div>
 
       <!-- Empty data -->
@@ -80,9 +82,9 @@ useAiPageContext({
         v-else-if="!exec.data.value || (!exec.data.value.sectors.length && exec.data.value.bottom_metrics.task_count === 0)"
         class="ed-empty-state"
       >
-        <div>Нет данных за FY {{ exec.year.value }}</div>
+        <div>{{ t("Нет данных за FY {y}", { y: exec.year.value }) }}</div>
         <div v-if="exec.data.value?.available_years?.length" class="ed-empty-hint">
-          Доступные годы: {{ exec.data.value.available_years.join(", ") }}
+          {{ t("Доступные годы:") }} {{ exec.data.value.available_years.join(", ") }}
         </div>
       </div>
 

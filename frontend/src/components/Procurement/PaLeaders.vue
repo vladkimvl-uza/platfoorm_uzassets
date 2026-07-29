@@ -19,6 +19,9 @@ import {
   type CategoryMeta,
   type CompanyRatingRow,
 } from "@/api/procurement_analysis";
+import { useI18n } from "@/composables/useI18n";
+
+const { t } = useI18n();
 
 const props = defineProps<{
   rating: CompanyRatingRow[];
@@ -76,7 +79,7 @@ const leaders = computed<LeaderRow[]>(() => {
 
 <template>
   <div class="pa-leaders-host">
-    <div v-if="!leaders.length" class="pa-empty-block">Нет компаний с экономией</div>
+    <div v-if="!leaders.length" class="pa-empty-block">{{ t("Нет компаний с экономией") }}</div>
     <div
       v-for="(l, i) in leaders"
       :key="l.co.company_id"
@@ -90,10 +93,10 @@ const leaders = computed<LeaderRow[]>(() => {
         <span class="pa-leader-v">−{{ paFmtMoneyShort(l.netEconomy) }}</span>
       </div>
       <div class="pa-leader-meta">
-        {{ l.co.cat_count }} категорий
-        · {{ l.greenPct.toFixed(0) }}% закупок ниже median
+        {{ t("{n} категорий", { n: l.co.cat_count }) }}
+        · {{ t("{pct}% закупок ниже median", { pct: l.greenPct.toFixed(0) }) }}
         <template v-if="l.bestCatName && l.bestCatDev < 0">
-          · образец в {{ l.bestCatName }} ({{ l.bestCatDev.toFixed(0) }}%)
+          · {{ t("образец в {cat} ({dev}%)", { cat: l.bestCatName, dev: l.bestCatDev.toFixed(0) }) }}
         </template>
       </div>
     </div>

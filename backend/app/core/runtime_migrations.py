@@ -249,6 +249,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_direction_color(conn)
             await _patch_drop_value_module(conn)
             await _patch_kpi_quarters_mode(conn)
+            await _patch_user_ui_locale(conn)
             await _bump_alembic(conn)
     except Exception as e:
         # Never crash the app on a self-heal failure - just log and continue.
@@ -561,6 +562,18 @@ async def _patch_pmo_agile(conn) -> None:
 # ─────────────────────────────────────────────────────────────────────
 # Notes (Smart Journal) — чек-листы + ответственные
 # ─────────────────────────────────────────────────────────────────────
+
+async def _patch_user_ui_locale(conn) -> None:
+    """i18n: язык интерфейса пользователя (ru | uz-latn | uz-cyr | en).
+
+    Онлайн-ответы локализуются заголовком X-UI-Locale; эта колонка нужна
+    офлайн-каналам (email/Telegram/дайджесты), где заголовка нет.
+    """
+    await conn.execute(text(
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS ui_locale "
+        "VARCHAR(8) NOT NULL DEFAULT 'ru'"
+    ))
+
 
 async def _patch_kpi_quarters_mode(conn) -> None:
     """KPI: ЯВНЫЙ признак конвенции квартальных значений (решение владельца).

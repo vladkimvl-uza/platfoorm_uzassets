@@ -9,6 +9,9 @@ import { attachmentsApi, fileKind, formatBytes, type Attachment } from "@/api/at
 import { api } from "@/api/client";
 import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
+import { useI18n } from "@/composables/useI18n";
+
+const { t } = useI18n();
 
 const props = defineProps<{
   companyId: string;
@@ -78,18 +81,18 @@ async function uploadFiles(list: File[]) {
   uploading.value = true;
   let ok = 0;
   for (const file of list) {
-    if (file.size > 50 * 1024 * 1024) { toast.error(`«${file.name}» больше 50 МБ — пропущен`); continue; }
+    if (file.size > 50 * 1024 * 1024) { toast.error(t("«{name}» больше 50 МБ — пропущен", { name: file.name })); continue; }
     try {
       await attachmentsApi.upload("company", props.companyId, file, {
         title: file.name, category: props.category, year: props.year ?? undefined,
       });
       ok++;
     } catch (err: any) {
-      toast.error(`Не удалось загрузить «${file.name}»: ` + (err?.response?.data?.detail || err?.message || "ошибка"));
+      toast.error(t("Не удалось загрузить «{name}»: {err}", { name: file.name, err: err?.response?.data?.detail || err?.message || t("ошибка") }));
     }
   }
   uploading.value = false;
-  if (ok) { toast.success(ok === 1 ? "Отчёт загружен" : `Загружено файлов: ${ok}`); await load(); }
+  if (ok) { toast.success(ok === 1 ? t("Отчёт загружен") : t("Загружено файлов: {n}", { n: ok })); await load(); }
 }
 
 async function download(f: Attachment) {
@@ -97,29 +100,29 @@ async function download(f: Attachment) {
     const r = await attachmentsApi.signedUrl("company", f.id);
     window.open(r.url, "_blank");
   } catch (err: any) {
-    toast.error("Не удалось открыть файл: " + (err?.response?.data?.detail || err?.message || "ошибка"));
+    toast.error(t("Не удалось открыть файл: {err}", { err: err?.response?.data?.detail || err?.message || t("ошибка") }));
   }
 }
 async function remove(f: Attachment) {
   if (!props.canEdit) return;
-  if (!(await confirmDialog({ message: `Удалить «${f.filename}»?`, danger: true, confirmText: "Удалить" }))) return;
+  if (!(await confirmDialog({ message: t("Удалить «{name}»?", { name: f.filename }), danger: true, confirmText: t("Удалить") }))) return;
   try {
     await attachmentsApi.remove("company", f.id);
     files.value = files.value.filter(x => x.id !== f.id);
-    toast.success("Файл удалён");
+    toast.success(t("Файл удалён"));
   } catch (err: any) {
-    toast.error("Не удалось удалить: " + (err?.response?.data?.detail || err?.message || "ошибка"));
+    toast.error(t("Не удалось удалить: {err}", { err: err?.response?.data?.detail || err?.message || t("ошибка") }));
   }
 }
 
-const heading = computed(() => props.title || "Загруженные отчёты");
+const heading = computed(() => t(props.title || "Загруженные отчёты"));
 </script>
 
 <template>
   <div class="fru">
     <div class="fru-hd">
       <div class="fru-t">{{ heading }}<span v-if="files.length" class="fru-n">{{ files.length }}</span></div>
-      <div class="fru-s"><template v-if="year">за FY {{ year }} · </template>Excel, PDF, Word и др.</div>
+      <div class="fru-s"><template v-if="year">{{ t("за FY {y}", { y: year }) }} · </template>{{ t("Excel, PDF, Word и др.") }}</div>
     </div>
 
     <!-- зона загрузки -->
@@ -133,8 +136,8 @@ const heading = computed(() => props.title || "Загруженные отчёт
         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
       </svg>
       <div class="fru-drop-txt">
-        <b>{{ uploading ? "Загрузка…" : "Перетащите файл сюда или нажмите" }}</b>
-        <span>Excel, PDF, Word, изображения · до 50 МБ</span>
+        <b>{{ uploading ? t("Загрузка…") : t("Перетащите файл сюда или нажмите") }}</b>
+        <span>{{ t("Excel, PDF, Word, изображения · до 50 МБ") }}</span>
       </div>
     </div>
 
@@ -152,19 +155,19 @@ const heading = computed(() => props.title || "Загруженные отчёт
           </svg>
           <span class="fru-ic-ext">{{ ext(f) }}</span>
         </div>
-        <button class="fru-name" type="button" :title="'Открыть ' + f.filename" @click="download(f)">
+        <button class="fru-name" type="button" :title="t('Открыть {name}', { name: f.filename })" @click="download(f)">
           <span class="fru-name-t">{{ f.filename }}</span>
           <span class="fru-name-m">{{ formatBytes(f.size_bytes) }}<template v-if="f.uploader_name"> · {{ f.uploader_name }}</template> · {{ fmtDate(f.created_at) }}</span>
         </button>
-        <button class="fru-act fru-dl" type="button" title="Скачать" @click="download(f)">
+        <button class="fru-act fru-dl" type="button" :title="t('Скачать')" @click="download(f)">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         </button>
-        <button v-if="canEdit" class="fru-act fru-del" type="button" title="Удалить" @click="remove(f)">
+        <button v-if="canEdit" class="fru-act fru-del" type="button" :title="t('Удалить')" @click="remove(f)">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
         </button>
       </div>
     </transition-group>
-    <div v-else class="fru-empty">Отчёты ещё не загружены</div>
+    <div v-else class="fru-empty">{{ t("Отчёты ещё не загружены") }}</div>
   </div>
 </template>
 

@@ -5,6 +5,9 @@ import { useAuthStore } from "@/stores/auth";
 import { authApi } from "@/api/auth";
 import { mfaApi } from "@/api/mfa";
 import { AxiosError } from "axios";
+import { useI18n } from "@/composables/useI18n";
+
+const { t } = useI18n();
 
 interface StoredChallenge {
   challenge_id: string;
@@ -154,12 +157,12 @@ async function handleVerify() {
     if (e instanceof AxiosError) {
       const status = e.response?.status;
       const detail = e.response?.data?.detail;
-      if (status === 401) error.value = detail ?? "Неверный код";
-      else if (status === 429) error.value = "Слишком много попыток. Подождите минуту.";
-      else if (status === 400) error.value = detail ?? "Некорректный запрос";
-      else error.value = `Ошибка: ${detail ?? e.message}`;
+      if (status === 401) error.value = detail ?? t("Неверный код");
+      else if (status === 429) error.value = t("Слишком много попыток. Подождите минуту.");
+      else if (status === 400) error.value = detail ?? t("Некорректный запрос");
+      else error.value = t("Ошибка: {msg}", { msg: detail ?? e.message });
     } else {
-      error.value = "Не удалось подключиться к серверу";
+      error.value = t("Не удалось подключиться к серверу");
     }
     // Clear digits on failure so user types again
     if (mode.value === "code") {
@@ -196,12 +199,12 @@ function backToLogin() {
         </svg>
       </div>
 
-      <div class="mfa-title">Подтверждение входа</div>
+      <div class="mfa-title">{{ t("Подтверждение входа") }}</div>
       <div class="mfa-sub" v-if="challenge && mode === 'code'">
-        Код отправлен в {{ challenge.masked_destination }}
+        {{ t("Код отправлен в {dest}", { dest: challenge.masked_destination }) }}
       </div>
       <div class="mfa-sub" v-if="mode === 'recovery'">
-        Введите один из ваших recovery-кодов
+        {{ t("Введите один из ваших recovery-кодов") }}
       </div>
 
       <!-- ─── Code input mode ─── -->
@@ -224,8 +227,8 @@ function backToLogin() {
         </div>
 
         <div class="mfa-timer" :class="{ 'mfa-timer-expired': expired }">
-          <span v-if="!expired">Срок действия кода: {{ mmss }}</span>
-          <span v-else>Код истёк. Вернитесь к шагу входа.</span>
+          <span v-if="!expired">{{ t("Срок действия кода: {time}", { time: mmss }) }}</span>
+          <span v-else>{{ t("Код истёк. Вернитесь к шагу входа.") }}</span>
         </div>
 
         <button
@@ -234,7 +237,7 @@ function backToLogin() {
           @click="handleVerify"
         >
           <span v-if="loading" class="uza-spinner lg-spinner"></span>
-          {{ loading ? "Проверка…" : "Подтвердить" }}
+          {{ loading ? t("Проверка…") : t("Подтвердить") }}
         </button>
       </div>
 
@@ -255,7 +258,7 @@ function backToLogin() {
           @click="handleVerify"
         >
           <span v-if="loading" class="uza-spinner lg-spinner"></span>
-          {{ loading ? "Проверка…" : "Подтвердить" }}
+          {{ loading ? t("Проверка…") : t("Подтвердить") }}
         </button>
       </div>
 
@@ -265,11 +268,11 @@ function backToLogin() {
 
       <div class="mfa-links">
         <button type="button" class="mfa-link" @click="toggleMode">
-          {{ mode === "code" ? "Использовать recovery-код" : "Ввести код из Telegram" }}
+          {{ mode === "code" ? t("Использовать recovery-код") : t("Ввести код из Telegram") }}
         </button>
         <span class="mfa-sep">·</span>
         <button type="button" class="mfa-link" @click="backToLogin">
-          Назад
+          {{ t("Назад") }}
         </button>
       </div>
     </div>

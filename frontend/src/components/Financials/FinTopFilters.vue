@@ -14,7 +14,9 @@ import type { SectorBrief } from "@/api/companies";
 import { useCurrencyConverter } from "@/composables/useCurrencyConverter";
 import { useFormatters } from "@/composables/useFormatters";
 import UzaYearStepper from "@/components/UZA/UzaYearStepper.vue";
+import { useI18n } from "@/composables/useI18n";
 const fmt = useFormatters();
+const { t } = useI18n();
 
 // Pack 7.58.5: sidebar toggle injected from AppShell — burger renders inside topbar
 const toggleSidebar = inject<() => void>("toggleSidebar", () => {});
@@ -67,17 +69,17 @@ const sortedSectors = computed(() =>
 // получается меньше EUR, чем USD. Это математически корректно.
 const conv = useCurrencyConverter();
 function currencyTooltip(c: "UZS" | "USD" | "EUR"): string {
-  if (c === "UZS") return "Узбекский сум · базовая валюта отчётности";
+  if (c === "UZS") return t("Узбекский сум · базовая валюта отчётности");
   const rate = c === "EUR" ? conv.getEurRate(props.year) : conv.getUsdRate(props.year);
   const rateStr = fmt.fmtNumber(Math.round(rate));
-  return `${rateStr} сум за 1 ${c} (средневзв. курс ЦБ РУ за ${props.year} год)`;
+  return t("{rate} сум за 1 {c} (средневзв. курс ЦБ РУ за {y} год)", { rate: rateStr, c, y: props.year });
 }
 </script>
 
 <template>
   <div class="ft-bar">
     <!-- Pack 7.58.5: sidebar toggle — lives inside the page topbar -->
-    <button class="ft-burger" @click="onBurger()" title="Меню / свернуть сайдбар">
+    <button class="ft-burger" @click="onBurger()" :title="t('Меню / свернуть сайдбар')">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
         <line x1="3" y1="6" x2="21" y2="6"/>
         <line x1="3" y1="12" x2="21" y2="12"/>
@@ -87,9 +89,9 @@ function currencyTooltip(c: "UZS" | "USD" | "EUR"): string {
 
     <!-- Pack 7.50.1: header always rendered — no v-if. Fallback values if props missing. -->
     <div class="ft-head" data-pack="p750.1">
-        <div class="ft-head-eyebrow">{{ pageEyebrow || 'РАЗДЕЛ ПОРТФЕЛЯ' }}</div>
+        <div class="ft-head-eyebrow">{{ t(pageEyebrow || 'РАЗДЕЛ ПОРТФЕЛЯ') }}</div>
         <div class="ft-head-title-row">
-          <span class="ft-head-title">{{ pageTitle || 'Финансовые показатели' }}</span>
+          <span class="ft-head-title">{{ t(pageTitle || 'Финансовые показатели') }}</span>
           <span class="ft-head-sub">
             <slot name="subtitle"></slot>
           </span>
@@ -99,32 +101,32 @@ function currencyTooltip(c: "UZS" | "USD" | "EUR"): string {
     <!-- ALL switchers on the RIGHT cluster -->
     <div class="ft-cluster">
       <!-- Стандарт МСФО/НСБУ — первоклассный тумблер (важнейший, вызывает перезагрузку данных) -->
-      <div class="ft-tabs uza-seg on-dark ft-std-seg" title="Стандарт отчётности">
+      <div class="ft-tabs uza-seg on-dark ft-std-seg" :title="t('Стандарт отчётности')">
         <button v-for="s in STANDARDS" :key="s.value"
                 class="ft-tab uza-seg-btn"
                 :class="{ on: standard === s.value }"
-                @click="emit('update:standard', s.value)">{{ s.label }}</button>
+                @click="emit('update:standard', s.value)">{{ t(s.label) }}</button>
       </div>
 
       <!-- «Вид»: валюта + единицы собраны в поповер -->
       <div class="ft-view-wrap">
-        <button class="ft-view-btn" :class="{ on: viewMenuOpen }" @click.stop="viewMenuOpen = !viewMenuOpen" title="Валюта · единицы">
+        <button class="ft-view-btn" :class="{ on: viewMenuOpen }" @click.stop="viewMenuOpen = !viewMenuOpen" :title="t('Валюта · единицы')">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
-          <span>Вид</span>
-          <span class="ft-view-cur">{{ currency }} · {{ unit === 'bln' ? 'млрд' : 'млн' }}</span>
+          <span>{{ t("Вид") }}</span>
+          <span class="ft-view-cur">{{ currency }} · {{ t(unit === 'bln' ? 'млрд' : 'млн') }}</span>
         </button>
         <div v-if="viewMenuOpen" class="ft-view-bg" @click="viewMenuOpen = false"></div>
         <div v-if="viewMenuOpen" class="ft-view-pop" @click.stop>
           <div class="ft-view-row">
-            <span class="ft-view-lbl">Валюта</span>
+            <span class="ft-view-lbl">{{ t("Валюта") }}</span>
             <div class="ft-pill-grp">
               <button v-for="c in CURRENCIES" :key="c.value" class="ft-pill ft-pill-sm" :class="{ on: currency === c.value }" :title="currencyTooltip(c.value)" @click="emit('update:currency', c.value)">{{ c.label }}</button>
             </div>
           </div>
           <div class="ft-view-row">
-            <span class="ft-view-lbl">Единицы</span>
+            <span class="ft-view-lbl">{{ t("Единицы") }}</span>
             <div class="ft-pill-grp">
-              <button v-for="u in UNITS" :key="u.value" class="ft-pill ft-pill-sm" :class="{ on: unit === u.value }" @click="emit('update:unit', u.value)">{{ u.label }}</button>
+              <button v-for="u in UNITS" :key="u.value" class="ft-pill ft-pill-sm" :class="{ on: unit === u.value }" @click="emit('update:unit', u.value)">{{ t(u.label) }}</button>
             </div>
           </div>
         </div>
@@ -136,7 +138,7 @@ function currencyTooltip(c: "UZS" | "USD" | "EUR"): string {
       <select :value="sectorCode"
               class="ft-select"
               @change="emit('update:sectorCode', ($event.target as HTMLSelectElement).value)">
-        <option value="">Все секторы</option>
+        <option value="">{{ t("Все секторы") }}</option>
         <option v-for="s in sortedSectors"
                 :key="s.code"
                 :value="String(s.code).toLowerCase()">
@@ -152,12 +154,12 @@ function currencyTooltip(c: "UZS" | "USD" | "EUR"): string {
 
       <!-- View tabs (P&L / SOFP / Cash Flow) -->
       <div class="ft-tabs uza-seg on-dark">
-        <button v-for="t in viewTabs"
-                :key="t.value"
+        <button v-for="vt in viewTabs"
+                :key="vt.value"
                 class="ft-tab uza-seg-btn"
-                :class="{ on: viewTab === t.value }"
-                @click="emit('update:viewTab', t.value)">
-          {{ t.label }}
+                :class="{ on: viewTab === vt.value }"
+                @click="emit('update:viewTab', vt.value)">
+          {{ t(vt.label) }}
         </button>
       </div>
 

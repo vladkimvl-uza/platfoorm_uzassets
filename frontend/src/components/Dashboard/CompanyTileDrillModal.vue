@@ -25,7 +25,10 @@
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { api } from "@/api/client";
+import { useI18n } from "@/composables/useI18n";
 import EntityDrillShell from "@/components/UZA/EntityDrillShell.vue";
+
+const { t } = useI18n();
 
 type ItemFilter = "all" | "active" | "overdue";
 
@@ -127,10 +130,10 @@ const visibleTasks = computed<DrillItem[]>(() => {
 
 // ─── Status icon (idem DDM) ───
 function statusIcon(item: DrillItem): { symbol: "check" | "clock" | "warn" | "circle"; color: string; label: string } {
-  if (item.is_overdue) return { symbol: "warn", color: "#E24B4A", label: "просрочено" };
-  if (item.status === "done") return { symbol: "check", color: "#1D9E75", label: "завершено" };
-  if (item.status === "active" || item.status === "review") return { symbol: "clock", color: "#EF9F27", label: "в работе" };
-  return { symbol: "circle", color: "#888780", label: "не начат" };
+  if (item.is_overdue) return { symbol: "warn", color: "#E24B4A", label: t("просрочено") };
+  if (item.status === "done") return { symbol: "check", color: "#1D9E75", label: t("завершено") };
+  if (item.status === "active" || item.status === "review") return { symbol: "clock", color: "#EF9F27", label: t("в работе") };
+  return { symbol: "circle", color: "#888780", label: t("не начат") };
 }
 function statusTextColor(item: DrillItem): string {
   if (item.is_overdue) return "#A32D2D";
@@ -153,7 +156,7 @@ async function load() {
     data.value = res.data;
   } catch (err: unknown) {
     const e = err as { response?: { data?: { detail?: string } }; message?: string };
-    errorMsg.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить данные компании";
+    errorMsg.value = e?.response?.data?.detail || e?.message || t("Не удалось загрузить данные компании");
   } finally {
     loading.value = false;
   }
@@ -183,7 +186,9 @@ const accent = computed(() => data.value?.accent || ACCENT_FALLBACK);
 const summaryChip = computed(() => {
   if (!data.value) return "";
   const s = data.value.summary;
-  return `${s.projects_total} проектов · ${s.tasks_total} задач · ${s.projects_done} проектов завершено · ${s.tasks_done} из ${s.tasks_total} задач`;
+  return t("{p} проектов · {t} задач · {pd} проектов завершено · {td} из {tt} задач", {
+    p: s.projects_total, t: s.tasks_total, pd: s.projects_done, td: s.tasks_done, tt: s.tasks_total,
+  });
 });
 
 function formatDate(d: string | null): string {
@@ -201,7 +206,9 @@ function pluralDays(n: number): string {
   return "дней";
 }
 function overdueLabel(p: DrillItem): string {
-  if (p.days_overdue && p.days_overdue > 0) return `просрочено ${p.days_overdue} ${pluralDays(p.days_overdue)}`;
+  if (p.days_overdue && p.days_overdue > 0) {
+    return t("просрочено {n} {days}", { n: p.days_overdue, days: t(pluralDays(p.days_overdue)) });
+  }
   return formatDate(p.due_date);
 }
 </script>
@@ -218,31 +225,31 @@ function overdueLabel(p: DrillItem): string {
                     {{ data.company.code }}
                   </span>
                   <span class="ddm-h-l">
-                    Компания · <span :style="{ color: data.company.sector_color }">{{ data.company.sector_label }}</span>
+                    {{ t("Компания") }} · <span :style="{ color: data.company.sector_color }">{{ t(data.company.sector_label) }}</span>
                   </span>
                 </div>
-                <div v-else class="ddm-h-l">Загрузка</div>
+                <div v-else class="ddm-h-l">{{ t("Загрузка") }}</div>
                 <div class="ddm-h-title">{{ data?.company.name || "—" }}</div>
                 <div v-if="data" class="ddm-h-v">
                   <span class="num" :style="{ color: accent }">{{ data.summary.progress_pct }}</span>
-                  <span class="unit">процентов выполнения · по задачам</span>
+                  <span class="unit">{{ t("процентов выполнения · по задачам") }}</span>
                 </div>
                 <span v-if="data" class="ddm-h-d">{{ summaryChip }}</span>
               </div>
               <div v-if="data" class="ddm-h-right">
-                <div>{{ data.summary.assignees_count }} ответственных</div>
+                <div>{{ t("{n} ответственных", { n: data.summary.assignees_count }) }}</div>
                 <div v-if="data.summary.tasks_overdue > 0" class="ddm-h-right-bad">
-                  {{ data.summary.tasks_overdue }} задач просрочено
+                  {{ t("{n} задач просрочено", { n: data.summary.tasks_overdue }) }}
                 </div>
-                <div v-else style="color: #1D9E75;">нет просроченных задач</div>
-                <div class="ddm-h-year">{{ year || "—" }} финансовый год</div>
+                <div v-else style="color: #1D9E75;">{{ t("нет просроченных задач") }}</div>
+                <div class="ddm-h-year">{{ t("{y} финансовый год", { y: year || "—" }) }}</div>
               </div>
             </div>
           </div>
 
           <!-- Loading -->
           <div v-if="loading" class="ddm-sect ddm-loading">
-            Загрузка данных компании…
+            {{ t("Загрузка данных компании…") }}
           </div>
 
           <!-- Error -->
@@ -256,20 +263,20 @@ function overdueLabel(p: DrillItem): string {
             <div class="ddm-sect ddm-row" style="--si:1;">
               <div class="ddm-mini-grid">
                 <div class="ddm-mini" style="--kc:#7F77DD; --ki:0;">
-                  <div class="ddm-mk-l">Прогресс портфеля</div>
-                  <div class="ddm-mk-v">{{ data.summary.progress_pct }}<span class="ddm-mk-u">% · средневзв.</span></div>
+                  <div class="ddm-mk-l">{{ t("Прогресс портфеля") }}</div>
+                  <div class="ddm-mk-v">{{ data.summary.progress_pct }}<span class="ddm-mk-u">{{ t("% · средневзв.") }}</span></div>
                 </div>
                 <div class="ddm-mini" style="--kc:#1D9E75; --ki:1;">
-                  <div class="ddm-mk-l">Проекты завершены</div>
-                  <div class="ddm-mk-v">{{ data.summary.projects_done }}<span class="ddm-mk-u">из {{ data.summary.projects_total }}</span></div>
+                  <div class="ddm-mk-l">{{ t("Проекты завершены") }}</div>
+                  <div class="ddm-mk-v">{{ data.summary.projects_done }}<span class="ddm-mk-u">{{ t("из") }} {{ data.summary.projects_total }}</span></div>
                 </div>
                 <div class="ddm-mini" style="--kc:#EF9F27; --ki:2;">
-                  <div class="ddm-mk-l">Задачи завершены</div>
-                  <div class="ddm-mk-v">{{ data.summary.tasks_done }}<span class="ddm-mk-u">из {{ data.summary.tasks_total }}</span></div>
+                  <div class="ddm-mk-l">{{ t("Задачи завершены") }}</div>
+                  <div class="ddm-mk-v">{{ data.summary.tasks_done }}<span class="ddm-mk-u">{{ t("из") }} {{ data.summary.tasks_total }}</span></div>
                 </div>
                 <div class="ddm-mini" style="--kc:#E24B4A; --ki:3;">
-                  <div class="ddm-mk-l">Просрочено</div>
-                  <div class="ddm-mk-v">{{ data.summary.tasks_overdue }}<span class="ddm-mk-u">задач</span></div>
+                  <div class="ddm-mk-l">{{ t("Просрочено") }}</div>
+                  <div class="ddm-mk-v">{{ data.summary.tasks_overdue }}<span class="ddm-mk-u">{{ t("задач") }}</span></div>
                 </div>
               </div>
             </div>
@@ -278,25 +285,25 @@ function overdueLabel(p: DrillItem): string {
             <div class="ddm-sect ddm-row" style="--si:2;">
               <div class="ddm-l-sec">
                 <span>
-                  Проекты компании · {{ filteredProjects.length }}
+                  {{ t("Проекты компании") }} · {{ filteredProjects.length }}
                   <template v-if="filteredProjects.length !== data.projects.length">
-                    из {{ data.projects.length }}
+                    {{ t("из") }} {{ data.projects.length }}
                   </template>
                 </span>
                 <div class="ddm-fltr">
                   <span :class="['ddm-fltr-chip', { active: projectsFilter === 'all' }]"
-                        @click="projectsFilter = 'all'">Все</span>
+                        @click="projectsFilter = 'all'">{{ t("Все") }}</span>
                   <span :class="['ddm-fltr-chip', { active: projectsFilter === 'active' }]"
-                        @click="projectsFilter = 'active'">В работе</span>
+                        @click="projectsFilter = 'active'">{{ t("В работе") }}</span>
                   <span :class="['ddm-fltr-chip', { active: projectsFilter === 'overdue' }]"
-                        @click="projectsFilter = 'overdue'">Просрочено</span>
+                        @click="projectsFilter = 'overdue'">{{ t("Просрочено") }}</span>
                 </div>
               </div>
 
               <div v-if="!visibleProjects.length" class="ddm-empty">
-                <template v-if="projectsFilter === 'overdue'">Просроченных проектов нет</template>
-                <template v-else-if="projectsFilter === 'active'">Проектов в работе нет</template>
-                <template v-else>У компании нет проектов</template>
+                <template v-if="projectsFilter === 'overdue'">{{ t("Просроченных проектов нет") }}</template>
+                <template v-else-if="projectsFilter === 'active'">{{ t("Проектов в работе нет") }}</template>
+                <template v-else>{{ t("У компании нет проектов") }}</template>
               </div>
 
               <div v-else class="ddm-items">
@@ -306,7 +313,7 @@ function overdueLabel(p: DrillItem): string {
                   class="ddm-bord-row uza-side-stripe uza-side-stripe-tight"
                   :style="{ '--stripe-color': rowBorderColor(p) }"
                   @click="gotoTaskList"
-                  :title="'Открыть список — ' + p.title"
+                  :title="t('Открыть список — {name}', { name: p.title })"
                 >
                   <span class="ddm-itm-ico" :style="{ color: statusIcon(p).color }">
                     <svg v-if="statusIcon(p).symbol === 'check'" viewBox="0 0 14 14" class="svg-ic" width="10" height="10"><path d="M3 7l2.5 2.5L11 4.5"/></svg>
@@ -324,7 +331,7 @@ function overdueLabel(p: DrillItem): string {
 
               <div v-if="!projectsFullyShown && filteredProjects.length > PROJECTS_VISIBLE"
                    class="ddm-show-more" @click="projectsFullyShown = true">
-                показать ещё {{ filteredProjects.length - PROJECTS_VISIBLE }} проектов →
+                {{ t("показать ещё {n} проектов", { n: filteredProjects.length - PROJECTS_VISIBLE }) }} →
               </div>
             </div>
 
@@ -332,69 +339,69 @@ function overdueLabel(p: DrillItem): string {
             <div class="ddm-sect ddm-row" style="--si:3;">
               <div class="ddm-l-sec">
                 <span>
-                  Задачи компании · {{ filteredTasks.length }}
+                  {{ t("Задачи компании") }} · {{ filteredTasks.length }}
                   <template v-if="filteredTasks.length !== data.tasks.length">
-                    из {{ data.tasks.length }}
+                    {{ t("из") }} {{ data.tasks.length }}
                   </template>
                   <template v-if="!tasksFullyShown && filteredTasks.length > TASKS_VISIBLE">
-                    · показано {{ TASKS_VISIBLE }} из {{ filteredTasks.length }}
+                    · {{ t("показано {a} из {b}", { a: TASKS_VISIBLE, b: filteredTasks.length }) }}
                   </template>
                 </span>
                 <div class="ddm-fltr">
                   <span :class="['ddm-fltr-chip', { active: tasksFilter === 'all' }]"
-                        @click="tasksFilter = 'all'">Все</span>
+                        @click="tasksFilter = 'all'">{{ t("Все") }}</span>
                   <span :class="['ddm-fltr-chip', { active: tasksFilter === 'active' }]"
-                        @click="tasksFilter = 'active'">В работе</span>
+                        @click="tasksFilter = 'active'">{{ t("В работе") }}</span>
                   <span :class="['ddm-fltr-chip', { active: tasksFilter === 'overdue' }]"
-                        @click="tasksFilter = 'overdue'">Просрочено</span>
+                        @click="tasksFilter = 'overdue'">{{ t("Просрочено") }}</span>
                 </div>
               </div>
 
               <div v-if="!visibleTasks.length" class="ddm-empty">
-                <template v-if="tasksFilter === 'overdue'">Просроченных задач нет</template>
-                <template v-else-if="tasksFilter === 'active'">Задач в работе нет</template>
-                <template v-else>У компании нет задач</template>
+                <template v-if="tasksFilter === 'overdue'">{{ t("Просроченных задач нет") }}</template>
+                <template v-else-if="tasksFilter === 'active'">{{ t("Задач в работе нет") }}</template>
+                <template v-else>{{ t("У компании нет задач") }}</template>
               </div>
 
               <div v-else class="ddm-items">
                 <div
-                  v-for="t in visibleTasks"
-                  :key="t.id"
+                  v-for="item in visibleTasks"
+                  :key="item.id"
                   class="ddm-bord-row uza-side-stripe uza-side-stripe-tight"
-                  :style="{ '--stripe-color': rowBorderColor(t) }"
+                  :style="{ '--stripe-color': rowBorderColor(item) }"
                   @click="gotoTaskList"
-                  :title="'Открыть список — ' + t.title"
+                  :title="t('Открыть список — {name}', { name: item.title })"
                 >
-                  <span class="ddm-itm-ico" :style="{ color: statusIcon(t).color }">
-                    <svg v-if="statusIcon(t).symbol === 'check'" viewBox="0 0 14 14" class="svg-ic" width="10" height="10"><path d="M3 7l2.5 2.5L11 4.5"/></svg>
-                    <svg v-else-if="statusIcon(t).symbol === 'clock'" viewBox="0 0 14 14" class="svg-ic" width="10" height="10"><circle cx="7" cy="7" r="4"/><path d="M7 5v2l1.5 1"/></svg>
-                    <svg v-else-if="statusIcon(t).symbol === 'warn'" viewBox="0 0 14 14" class="svg-ic" width="10" height="10"><circle cx="7" cy="7" r="4"/><path d="M7 4v3M7 9.5h.01"/></svg>
+                  <span class="ddm-itm-ico" :style="{ color: statusIcon(item).color }">
+                    <svg v-if="statusIcon(item).symbol === 'check'" viewBox="0 0 14 14" class="svg-ic" width="10" height="10"><path d="M3 7l2.5 2.5L11 4.5"/></svg>
+                    <svg v-else-if="statusIcon(item).symbol === 'clock'" viewBox="0 0 14 14" class="svg-ic" width="10" height="10"><circle cx="7" cy="7" r="4"/><path d="M7 5v2l1.5 1"/></svg>
+                    <svg v-else-if="statusIcon(item).symbol === 'warn'" viewBox="0 0 14 14" class="svg-ic" width="10" height="10"><circle cx="7" cy="7" r="4"/><path d="M7 4v3M7 9.5h.01"/></svg>
                     <svg v-else viewBox="0 0 14 14" class="svg-ic" width="10" height="10"><circle cx="7" cy="7" r="4"/></svg>
                   </span>
-                  <span class="ddm-itm-name">{{ t.title }}</span>
-                  <span class="ddm-itm-meta" :style="t.is_overdue ? { color: '#A32D2D' } : undefined">
-                    {{ t.assignee_name || (t.is_overdue ? overdueLabel(t) : formatDate(t.due_date)) }}
+                  <span class="ddm-itm-name">{{ item.title }}</span>
+                  <span class="ddm-itm-meta" :style="item.is_overdue ? { color: '#A32D2D' } : undefined">
+                    {{ item.assignee_name || (item.is_overdue ? overdueLabel(item) : formatDate(item.due_date)) }}
                   </span>
-                  <span class="ddm-itm-status" :style="{ color: statusTextColor(t) }">{{ statusIcon(t).label }}</span>
+                  <span class="ddm-itm-status" :style="{ color: statusTextColor(item) }">{{ statusIcon(item).label }}</span>
                 </div>
               </div>
 
               <div v-if="!tasksFullyShown && filteredTasks.length > TASKS_VISIBLE"
                    class="ddm-show-more" @click="tasksFullyShown = true">
-                показать ещё {{ filteredTasks.length - TASKS_VISIBLE }} задач →
+                {{ t("показать ещё {n} задач", { n: filteredTasks.length - TASKS_VISIBLE }) }} →
               </div>
             </div>
           </template>
 
           <!-- Footer -->
           <div class="ddm-ftr ddm-row" style="--si:4;">
-            <button class="ddm-btn ddm-btn-g" @click="close">Закрыть</button>
+            <button class="ddm-btn ddm-btn-g" @click="close">{{ t("Закрыть") }}</button>
             <button class="ddm-btn ddm-btn-w" @click="gotoTaskList">
-              Список задач
+              {{ t("Список задач") }}
               <svg viewBox="0 0 14 14" class="svg-ic" width="12" height="12"><path d="M3 7h8M7.5 3.5L11 7l-3.5 3.5"/></svg>
             </button>
             <button class="ddm-btn ddm-btn-p" @click="gotoWorkspace">
-              Открыть карточку компании
+              {{ t("Открыть карточку компании") }}
               <svg viewBox="0 0 14 14" class="svg-ic" width="12" height="12"><path d="M3 7h8M7.5 3.5L11 7l-3.5 3.5"/></svg>
             </button>
           </div>

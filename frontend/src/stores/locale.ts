@@ -40,7 +40,7 @@ export const useLocaleStore = defineStore("locale", () => {
   const name = computed<string>(() => LOCALE_NAME[current.value]);
   const short = computed<string>(() => LOCALE_SHORT[current.value]);
 
-  function set(loc: AppLocale): void {
+  function set(loc: AppLocale, opts: { sync?: boolean } = {}): void {
     if (!APP_LOCALES.includes(loc)) return;
     if (current.value === loc) return;
     current.value = loc;
@@ -55,6 +55,19 @@ export const useLocaleStore = defineStore("locale", () => {
       document.documentElement.setAttribute("lang", tag);
     } catch {
       /* SSR */
+    }
+    // Синхронизация с профилем (best-effort): офлайн-каналы бэкенда
+    // (email/Telegram) берут язык из users.ui_locale. opts.sync=false —
+    // когда применяем язык, ПРИШЕДШИЙ с бэкенда (без эха обратно).
+    if (opts.sync !== false) {
+      void (async () => {
+        try {
+          const { api } = await import("@/api/client");
+          await api.patch("/auth/me", { ui_locale: loc });
+        } catch {
+          /* не залогинен/офлайн — язык всё равно применён локально */
+        }
+      })();
     }
   }
 

@@ -26,6 +26,7 @@ import Odometer from "@/components/Odometer.vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import BpQuarterDrillModal from "./BpQuarterDrillModal.vue";
 import { useToast } from "@/composables/useToast";
+import { useI18n } from "@/composables/useI18n";
 import {
   BP_FIELDS,
   bpApi,
@@ -55,6 +56,8 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
   (e: "comment-saved", c: BpComment): void;
 }>();
+
+const { t } = useI18n();
 
 // ─── Helpers ─────────────────────────────────────────────
 // «ЗА КВАРТАЛ» (решение владельца): при period=q2..q4 карточки/статусы/таблица
@@ -240,7 +243,7 @@ const statBand = computed<StatCell[]>(() => {
   const overall = cntPct > 0 ? sumPct / cntPct : null;
   const overallSev = overall == null ? "neutral" : overall >= 0.95 ? "ok" : overall >= 0.80 ? "warn" : "bad";
   const overallVal = overall == null ? "—" : Math.round(overall * 100) + "%";
-  const overallSub = overall == null ? "нет данных" : `взвешенно · ${cntPct} метрик`;
+  const overallSub = overall == null ? t("нет данных") : t("взвешенно · {n} метрик", { n: cntPct });
 
   // 2. На цели (≥95%) + 3. Критичных (<70%)
   let ontrack = 0, total = 0, critical = 0;
@@ -255,27 +258,27 @@ const statBand = computed<StatCell[]>(() => {
   }
   const ontrackSev = total === 0 ? "neutral" : (ontrack / total >= 0.7 ? "ok" : ontrack / total >= 0.4 ? "warn" : "bad");
   const ontrackVal = total === 0 ? "—" : `${ontrack} / ${total}`;
-  const ontrackSub = total === 0 ? "нет фактов" : "показателей";
+  const ontrackSub = total === 0 ? t("нет фактов") : t("показателей");
 
   const critSev = critical === 0 ? "ok" : critical <= 2 ? "warn" : "bad";
-  const critSub = critical === 0 ? "всё в норме" : "требуют решения";
+  const critSub = critical === 0 ? t("всё в норме") : t("требуют решения");
 
   // 4. YoY (revenue) — тот же период прошлого года (для кварталов — та же дельта).
-  let yoyVal = "—", yoySev: StatCell["severity"] = "neutral", yoySub = `нет данных за ${props.year - 1}`;
+  let yoyVal = "—", yoySev: StatCell["severity"] = "neutral", yoySub = t("нет данных за {y}", { y: props.year - 1 });
   const curRev = m["revenue"]?.fact;
   const prevRev = prevDisplayMetrics.value["revenue"]?.fact;
   if (curRev != null && prevRev != null && num(prevRev) !== 0) {
     const d = (num(curRev) - num(prevRev)) / Math.abs(num(prevRev));
     yoyVal = (d >= 0 ? "▲ +" : "▼ ") + Math.round(Math.abs(d) * 100) + "%";
     yoySev = d >= 0.10 ? "ok" : d >= 0 ? "neutral" : d >= -0.10 ? "warn" : "bad";
-    yoySub = `по выручке к ${props.year - 1}`;
+    yoySub = t("по выручке к {y}", { y: props.year - 1 });
   }
 
   return [
-    { id: "overall", severity: overallSev as StatCell["severity"], label: "Общий прогресс", value: overallVal, sub: overallSub },
-    { id: "ontrack", severity: ontrackSev as StatCell["severity"], label: "На цели (≥95%)", value: ontrackVal, sub: ontrackSub },
-    { id: "crit",    severity: critSev as StatCell["severity"],    label: "Критичных (<70%)", value: String(critical), sub: critSub },
-    { id: "yoy",     severity: yoySev,                              label: "Год к году", value: yoyVal, sub: yoySub },
+    { id: "overall", severity: overallSev as StatCell["severity"], label: t("Общий прогресс"), value: overallVal, sub: overallSub },
+    { id: "ontrack", severity: ontrackSev as StatCell["severity"], label: t("На цели (≥95%)"), value: ontrackVal, sub: ontrackSub },
+    { id: "crit",    severity: critSev as StatCell["severity"],    label: t("Критичных (<70%)"), value: String(critical), sub: critSub },
+    { id: "yoy",     severity: yoySev,                              label: t("Год к году"), value: yoyVal, sub: yoySub },
   ];
 });
 
@@ -325,18 +328,18 @@ const kpiCards = computed<KpiCard[]>(() => {
   // "income" — top income drivers; "expenses" — main spending buckets.
   if (props.lens === "expenses") {
     return [
-      build("cogs",        "Себестоимость",     "#E8B575", 120),
-      build("opExpenses",  "Расходы периода",   "#E89B9A", 180),
-      build("finCost",     "Финансовые расходы", "#E24B4A", 240),
-      build("tax",         "Налог на прибыль",  "#C36868", 300),
+      build("cogs",        t("Себестоимость"),     "#E8B575", 120),
+      build("opExpenses",  t("Расходы периода"),   "#E89B9A", 180),
+      build("finCost",     t("Финансовые расходы"), "#E24B4A", 240),
+      build("tax",         t("Налог на прибыль"),  "#C36868", 300),
     ];
   }
   if (props.lens === "income") {
     return [
-      build("revenue",    "Выручка",                "#7F77DD", 120),
-      build("finIncome",  "Финансовые доходы",      "#7DC4A0", 180),
-      build("otherOpInc", "Прочие опер. доходы",    "#A39EE6", 240),
-      build("opProfit",   "Операционная прибыль",   "#1D9E75", 300),
+      build("revenue",    t("Выручка"),                "#7F77DD", 120),
+      build("finIncome",  t("Финансовые доходы"),      "#7DC4A0", 180),
+      build("otherOpInc", t("Прочие опер. доходы"),    "#A39EE6", 240),
+      build("opProfit",   t("Операционная прибыль"),   "#1D9E75", 300),
     ];
   }
 
@@ -346,9 +349,9 @@ const kpiCards = computed<KpiCard[]>(() => {
   ebitdaCard.key = "_ebitda";
 
   return [
-    build("revenue",  "Выручка",             "#7F77DD", 120),
-    build("opProfit", "Операционная прибыль", "#1D9E75", 180),
-    build("profit",   "Чистая прибыль",       "#378ADD", 240),
+    build("revenue",  t("Выручка"),             "#7F77DD", 120),
+    build("opProfit", t("Операционная прибыль"), "#1D9E75", 180),
+    build("profit",   t("Чистая прибыль"),       "#378ADD", 240),
     ebitdaCard,
   ];
 });
@@ -388,7 +391,7 @@ const chartMetric = computed(() =>
   props.lens === "expenses" ? "opExpenses" : "revenue",
 );
 const chartLabel = computed(() =>
-  props.lens === "expenses" ? "Расходы периода" : "Выручка",
+  props.lens === "expenses" ? t("Расходы периода") : t("Выручка"),
 );
 
 async function loadQuarterly() {
@@ -445,7 +448,7 @@ const _FC_CONF_RU: Record<string, string> = { high: "высокая", medium: "�
 const coForecastMeta = computed(() => {
   const f = coOutlook.value;
   if (!f || !coProj.value.size) return null;
-  return `${_FC_METHOD_RU[f.method] || f.method} · увер.: ${_FC_CONF_RU[f.confidence] || f.confidence}`;
+  return `${t(_FC_METHOD_RU[f.method] || f.method)} · ${t("увер.")}: ${t(_FC_CONF_RU[f.confidence] || f.confidence)}`;
 });
 
 // ─── Интерактив «Квартального тренда»: hover-тултип + клик → разбор квартала ──
@@ -471,7 +474,7 @@ function openQuarterDrill(i: number) {
     q: y.q, plan: y.plan, fact: y.fact, expect: y.expect,
     planDelta: d.plan, factDelta: d.fact,
     cum: y.fact ?? y.expect ?? y.plan,
-    label: chartLabel.value, unit: "млрд сум",
+    label: chartLabel.value, unit: t("млрд сум"),
   };
 }
 watch(
@@ -561,10 +564,10 @@ const detailsFields = computed(() => {
 const periodLabel = computed(() => {
   // Значения экрана при квартале — ДЕЛЬТЫ «за квартал» (displayMetrics);
   // при пустом пред. квартале — YTD-фолбэк с соответствующим ярлыком.
-  if (props.period === "annual") return "годовой итог";
+  if (props.period === "annual") return t("годовой итог");
   return prevQMissing.value
-    ? `нарастающим итогом за ${props.period.toUpperCase()}`
-    : `за квартал ${props.period.toUpperCase()}`;
+    ? t("нарастающим итогом за {q}", { q: props.period.toUpperCase() })
+    : t("за квартал {q}", { q: props.period.toUpperCase() });
 });
 
 const factAutoCount = computed(() => {
@@ -594,10 +597,10 @@ async function saveComment() {
     );
     emit("comment-saved", saved);
     editingComment.value = false;
-    useToast().success("Комментарий сохранён");
+    useToast().success(t("Комментарий сохранён"));
   } catch (e) {
     console.error("[BP] comment save failed:", e);
-    useToast().error("Не удалось сохранить");
+    useToast().error(t("Не удалось сохранить"));
   } finally {
     savingComment.value = false;
   }
@@ -625,27 +628,22 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
       <div class="bpv-context">
         <span class="bpv-ctx-co">{{ companyName }}</span>
         <span class="bpv-ctx-sep">·</span>
-        <span class="bpv-ctx-period">FY {{ year }} · {{ periodLabel }} · млрд сум</span>
+        <span class="bpv-ctx-period">FY {{ year }} · {{ periodLabel }} · {{ t("млрд сум") }}</span>
         <span v-if="factAutoCount > 0" class="bpv-ctx-auto">
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 5l2.5 2.5L8.5 2.5"/></svg>
-          авто из НСБУ: {{ factAutoCount }}
+          {{ t("авто из НСБУ: {n}", { n: factAutoCount }) }}
         </span>
       </div>
 
       <!-- YTD-фолбэк: пред. квартал пуст → показываем нарастающий итог, не «—» -->
       <div v-if="prevQMissing" class="bpv-ytd-note">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        {{ (PREV_Q[period] || '').toUpperCase() }} не заполнен — показатели показаны
-        <b>нарастающим итогом с начала года</b>; разбивка «за квартал» появится после
-        заполнения предыдущего квартала в редакторе.
+        {{ t("{q} не заполнен — показатели показаны нарастающим итогом с начала года; разбивка «за квартал» появится после заполнения предыдущего квартала в редакторе.", { q: (PREV_Q[period] || '').toUpperCase() }) }}
       </div>
       <!-- Частичный фолбэк: в пред. квартале нет ФАКТА по части строк -->
       <div v-else-if="ytdKeys.size" class="bpv-ytd-note">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        Строки с меткой <span class="bpv-ytd-chip">нараст.</span> показаны
-        <b>нарастающим итогом</b>: в {{ (PREV_Q[period] || '').toUpperCase() }} не заполнен факт —
-        «за квартал» не вычислить. Внесите факт {{ (PREV_Q[period] || '').toUpperCase() }} в редакторе,
-        и строки переключатся на «за квартал».
+        {{ t("Строки с меткой «нараст.» показаны нарастающим итогом: в {q} не заполнен факт — «за квартал» не вычислить. Внесите факт {q} в редакторе, и строки переключатся на «за квартал».", { q: (PREV_Q[period] || '').toUpperCase() }) }}
       </div>
 
       <!-- ═══ 1. Status bar (4 cells) ═══ -->
@@ -671,22 +669,22 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
           class="kpi2 fin-shimmer bpv-kpi-cell"
           :style="{ '--kpi2-accent': k.accent, '--kpi2-d': k.delay + 'ms', '--d': k.delay + 'ms' }"
         >
-          <span v-if="k.factAuto" class="bpv-kpi-auto" title="Факт подставлен автоматически из НСБУ">
+          <span v-if="k.factAuto" class="bpv-kpi-auto" :title="t('Факт подставлен автоматически из НСБУ')">
             <svg width="8" height="8" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 5l2.5 2.5L8.5 2.5"/></svg>
-            НСБУ
+            {{ t("НСБУ") }}
           </span>
           <div class="kpi2-lbl bpv-kpi-l">{{ k.label }}</div>
           <div class="kpi2-val bpv-kpi-v" :class="{ 'is-empty': k.fact == null }">
             <Odometer :value="k.fact != null ? bpFmt(k.fact) : '—'" />
           </div>
-          <div class="kpi2-sub bpv-kpi-u">млрд сум · факт<template v-if="k.ytd"> · <span class="bpv-ytd-chip" title="Показано нарастающим итогом с начала года: в предыдущем квартале нет факта — «за квартал» не вычислить">нараст.</span></template></div>
+          <div class="kpi2-sub bpv-kpi-u">{{ t("млрд сум · факт") }}<template v-if="k.ytd"> · <span class="bpv-ytd-chip" :title="t('Показано нарастающим итогом с начала года: в предыдущем квартале нет факта — «за квартал» не вычислить')">{{ t("нараст.") }}</span></template></div>
           <div class="bpv-kpi-foot">
             <span class="bpv-kpi-plan" :style="k.pctOfPlan != null ? { color: bpPctColor(k.pctOfPlan) } : { color: 'var(--t3,#888780)' }">
               <template v-if="k.pctOfPlan != null">
                 <svg v-if="arrowFor(k.pctOfPlan) === 'up'" width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px"><path d="M5 2v6M2.5 4.5L5 2l2.5 2.5"/></svg>
                 <svg v-else-if="arrowFor(k.pctOfPlan) === 'down'" width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px"><path d="M5 2v6M2.5 5.5L5 8l2.5-2.5"/></svg>
                 <svg v-else width="9" height="9" viewBox="0 0 10 10" fill="none" style="vertical-align:-1px;margin-right:3px"><circle cx="5" cy="5" r="2.5" fill="currentColor"/></svg>
-                {{ Math.round(k.pctOfPlan * 100) }}% плана
+                {{ t("{n}% плана", { n: Math.round(k.pctOfPlan * 100) }) }}
               </template>
               <template v-else>—</template>
             </span>
@@ -694,17 +692,17 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
               <template v-if="k.yoyPct != null">
                 <svg v-if="k.yoyPct >= 0" width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px"><path d="M5 2v6M2.5 4.5L5 2l2.5 2.5"/></svg>
                 <svg v-else width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px"><path d="M5 2v6M2.5 5.5L5 8l2.5-2.5"/></svg>
-                {{ Math.round(Math.abs(k.yoyPct) * 100) }}% г/г
+                {{ t("{n}% г/г", { n: Math.round(Math.abs(k.yoyPct) * 100) }) }}
               </template>
-              <template v-else>— г/г</template>
+              <template v-else>{{ t("— г/г") }}</template>
             </span>
           </div>
           <div class="bpv-kpi-fc">
             <template v-if="k.footerFactAnnual != null && k.footerPlanAnnual != null">
-              Итог года: <b>{{ bpFmt(k.footerFactAnnual) }}</b> · план {{ bpFmt(k.footerPlanAnnual) }}
+              {{ t("Итог года:") }} <b>{{ bpFmt(k.footerFactAnnual) }}</b> · {{ t("план") }} {{ bpFmt(k.footerPlanAnnual) }}
             </template>
             <template v-else-if="k.footerPlanAnnual != null">
-              План года: <b>{{ bpFmt(k.footerPlanAnnual) }}</b>
+              {{ t("План года:") }} <b>{{ bpFmt(k.footerPlanAnnual) }}</b>
             </template>
             <template v-else>—</template>
           </div>
@@ -716,9 +714,9 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
 
         <!-- Quarterly chart -->
         <div class="bpv-card" style="--d:360ms">
-          <div class="bpv-card-ttl">Квартальный тренд · {{ chartLabel.toLowerCase() }}</div>
+          <div class="bpv-card-ttl">{{ t("Квартальный тренд") }} · {{ chartLabel.toLowerCase() }}</div>
           <div class="bpv-chart-wrap">
-            <div v-if="!hasQuarterly" class="bpv-chart-empty">Нет квартальных данных за {{ year }} · {{ chartLabel.toLowerCase() }}<br><span class="bpv-chart-empty-sub">показатель разнесён только по году или не заведён</span></div>
+            <div v-if="!hasQuarterly" class="bpv-chart-empty">{{ t("Нет квартальных данных за {y}", { y: year }) }} · {{ chartLabel.toLowerCase() }}<br><span class="bpv-chart-empty-sub">{{ t("показатель разнесён только по году или не заведён") }}</span></div>
             <svg v-else :viewBox="`0 0 ${CHART_W} ${CHART_H}`" preserveAspectRatio="xMidYMid meet" style="width:100%;height:100%">
               <!-- Белый «глянец» сверху баров — единый стиль с барами портфеля -->
               <defs>
@@ -770,27 +768,27 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
             <div v-if="hoveredQ != null && quarterlyData" class="bpvq-tip"
                  :style="{ left: ((PAD_L + gw * (hoveredQ + 0.5)) / CHART_W * 100) + '%' }">
               <div class="bpvq-tip-h">{{ quarterlyData[hoveredQ].q.toUpperCase() }} · {{ chartLabel.toLowerCase() }}</div>
-              <div class="bpvq-tip-r"><span>За квартал · план</span><b>{{ qTip(hoveredQ).d?.plan != null ? bpFmt(qTip(hoveredQ).d!.plan!) : '—' }}</b></div>
-              <div class="bpvq-tip-r"><span>За квартал · факт</span><b>{{ qTip(hoveredQ).d?.fact != null ? bpFmt(qTip(hoveredQ).d!.fact!) : '—' }}</b></div>
-              <div v-if="qTip(hoveredQ).gap" class="bpvq-tip-note">за квартал не вычислимо: нет данных предыдущего квартала</div>
+              <div class="bpvq-tip-r"><span>{{ t("За квартал · план") }}</span><b>{{ qTip(hoveredQ).d?.plan != null ? bpFmt(qTip(hoveredQ).d!.plan!) : '—' }}</b></div>
+              <div class="bpvq-tip-r"><span>{{ t("За квартал · факт") }}</span><b>{{ qTip(hoveredQ).d?.fact != null ? bpFmt(qTip(hoveredQ).d!.fact!) : '—' }}</b></div>
+              <div v-if="qTip(hoveredQ).gap" class="bpvq-tip-note">{{ t("за квартал не вычислимо: нет данных предыдущего квартала") }}</div>
               <template v-if="quarterlyData[hoveredQ].fact == null && coProj.get(hoveredQ)">
-                <div class="bpvq-tip-r"><span>Прогноз (за кв.)</span><b class="bpvq-tip-fc">≈{{ bpFmt(coProj.get(hoveredQ)!.value) }}</b></div>
+                <div class="bpvq-tip-r"><span>{{ t("Прогноз (за кв.)") }}</span><b class="bpvq-tip-fc">≈{{ bpFmt(coProj.get(hoveredQ)!.value) }}</b></div>
                 <div v-if="coProj.get(hoveredQ)!.low != null && coProj.get(hoveredQ)!.high != null" class="bpvq-tip-r">
-                  <span>Коридор</span><b>{{ bpFmt(coProj.get(hoveredQ)!.low!) }} – {{ bpFmt(coProj.get(hoveredQ)!.high!) }}</b>
+                  <span>{{ t("Коридор") }}</span><b>{{ bpFmt(coProj.get(hoveredQ)!.low!) }} – {{ bpFmt(coProj.get(hoveredQ)!.high!) }}</b>
                 </div>
                 <div v-if="coForecastMeta" class="bpvq-tip-note bpvq-tip-note-fc">{{ coForecastMeta }}</div>
               </template>
-              <div class="bpvq-tip-r"><span>Нараст. план</span><b>{{ qTip(hoveredQ).y?.plan != null ? bpFmt(qTip(hoveredQ).y!.plan!) : '—' }}</b></div>
-              <div class="bpvq-tip-r"><span>Нараст. факт</span><b>{{ qTip(hoveredQ).y?.fact != null ? bpFmt(qTip(hoveredQ).y!.fact!) : '—' }}</b></div>
-              <div v-if="qTip(hoveredQ).pct != null" class="bpvq-tip-r"><span>Исполнение с начала года</span><b>{{ qTip(hoveredQ).pct }}%</b></div>
-              <div class="bpvq-tip-cta">Открыть разбор →</div>
+              <div class="bpvq-tip-r"><span>{{ t("Нараст. план") }}</span><b>{{ qTip(hoveredQ).y?.plan != null ? bpFmt(qTip(hoveredQ).y!.plan!) : '—' }}</b></div>
+              <div class="bpvq-tip-r"><span>{{ t("Нараст. факт") }}</span><b>{{ qTip(hoveredQ).y?.fact != null ? bpFmt(qTip(hoveredQ).y!.fact!) : '—' }}</b></div>
+              <div v-if="qTip(hoveredQ).pct != null" class="bpvq-tip-r"><span>{{ t("Исполнение с начала года") }}</span><b>{{ qTip(hoveredQ).pct }}%</b></div>
+              <div class="bpvq-tip-cta">{{ t("Открыть разбор →") }}</div>
             </div>
           </div>
           <div class="bpv-chart-lgd">
-            <span><span class="dot" style="background:#7F77DD"></span>План</span>
-            <span><span class="dot" style="background:#EF9F27"></span>Ожидание</span>
-            <span><span class="dot" style="background:#5DC093"></span>Факт</span>
-            <span v-if="coProj.size" :title="coForecastMeta || ''"><span class="dot bpvq-dot-ghost"></span>Прогноз</span>
+            <span><span class="dot" style="background:#7F77DD"></span>{{ t("План") }}</span>
+            <span><span class="dot" style="background:#EF9F27"></span>{{ t("Ожидание") }}</span>
+            <span><span class="dot" style="background:#5DC093"></span>{{ t("Факт") }}</span>
+            <span v-if="coProj.size" :title="coForecastMeta || ''"><span class="dot bpvq-dot-ghost"></span>{{ t("Прогноз") }}</span>
           </div>
           <BpQuarterDrillModal v-if="qDrill" v-bind="qDrill" :fmt="bpFmt" @close="qDrill = null" />
         </div>
@@ -798,9 +796,9 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
         <!-- Attention -->
         <div class="bpv-card" style="--d:420ms">
           <div class="bpv-card-ttl">
-            <span><span class="bpv-att-dot" :style="{ background: attentionDotColor }"></span>Требуют решения</span>
+            <span><span class="bpv-att-dot" :style="{ background: attentionDotColor }"></span>{{ t("Требуют решения") }}</span>
           </div>
-          <UzaStateBlock v-if="!attention.length" state="empty" variant="block" text="Критических отклонений нет">
+          <UzaStateBlock v-if="!attention.length" state="empty" variant="block" :text="t('Критических отклонений нет')">
             <template #icon>
               <svg width="22" height="22" viewBox="0 0 14 14" fill="none" stroke="#1D9E75" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l3 3 5-6"/></svg>
             </template>
@@ -825,9 +823,9 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
         <!-- Achievements -->
         <div class="bpv-card" style="--d:480ms">
           <div class="bpv-card-ttl">
-            <span><span class="bpv-att-dot" style="background:#1D9E75"></span>Достижения периода</span>
+            <span><span class="bpv-att-dot" style="background:#1D9E75"></span>{{ t("Достижения периода") }}</span>
           </div>
-          <UzaStateBlock v-if="!achievements.length" state="empty" variant="block" text="Нет показателей ≥100% плана" />
+          <UzaStateBlock v-if="!achievements.length" state="empty" variant="block" :text="t('Нет показателей ≥100% плана')" />
           <div v-else>
             <div
               v-for="(a, i) in achievements"
@@ -836,8 +834,8 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
               :style="{ '--d': (i * 40) + 'ms' }"
             >
               <div>
-                <div class="bpv-ach-ttl">{{ a.title }}</div>
-                <div class="bpv-ach-d">факт {{ bpFmt(a.fact) }} · план {{ bpFmt(a.plan) }}</div>
+                <div class="bpv-ach-ttl">{{ t(a.title) }}</div>
+                <div class="bpv-ach-d">{{ t("факт") }} {{ bpFmt(a.fact) }} · {{ t("план") }} {{ bpFmt(a.plan) }}</div>
               </div>
               <div class="bpv-ach-val">{{ Math.round(a.ratio * 100) }}%</div>
             </div>
@@ -849,28 +847,28 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
       <!-- ═══ 4. Comment block ═══ -->
       <div class="bpv-cmt" style="--d:540ms">
         <div class="bpv-cmt-hd">
-          <span class="bpv-cmt-ttl">Комментарий руководителя</span>
+          <span class="bpv-cmt-ttl">{{ t("Комментарий руководителя") }}</span>
           <span style="display:flex;align-items:center;gap:10px">
-            <span class="bpv-cmt-meta">{{ comment?.body ? 'обновлено' : '' }}</span>
+            <span class="bpv-cmt-meta">{{ comment?.body ? t('обновлено') : '' }}</span>
             <button v-if="canEdit && !editingComment" class="bpv-cmt-edit" @click="editingComment = true">
-              {{ comment?.body ? 'Редактировать' : 'Добавить' }}
+              {{ comment?.body ? t('Редактировать') : t('Добавить') }}
             </button>
           </span>
         </div>
         <div v-if="!editingComment">
           <div v-if="comment?.body" class="bpv-cmt-text">{{ comment.body }}</div>
-          <div v-else class="bpv-cmt-text empty">Комментарий не задан. Нажмите «{{ canEdit ? 'Добавить' : '—' }}» чтобы добавить пояснение для НС.</div>
+          <div v-else class="bpv-cmt-text empty">{{ t("Комментарий не задан. Нажмите «{btn}» чтобы добавить пояснение для НС.", { btn: canEdit ? t('Добавить') : '—' }) }}</div>
         </div>
         <div v-else>
           <textarea
             v-model="commentDraft"
             class="bpv-cmt-textarea"
-            placeholder="Например: Операционный план Q1 выполнен на 104%. Отставание по IPO-процессу из-за задержки аудита — перенос на Q2..."
+            :placeholder="t('Например: Операционный план Q1 выполнен на 104%. Отставание по IPO-процессу из-за задержки аудита — перенос на Q2...')"
           ></textarea>
           <div class="bpv-cmt-btns">
-            <button class="bpv-cmt-cancel" @click="editingComment = false; commentDraft = comment?.body ?? ''">Отмена</button>
+            <button class="bpv-cmt-cancel" @click="editingComment = false; commentDraft = comment?.body ?? ''">{{ t("Отмена") }}</button>
             <button class="bpv-cmt-save" @click="saveComment" :disabled="savingComment">
-              {{ savingComment ? 'Сохранение...' : 'Сохранить' }}
+              {{ savingComment ? t('Сохранение...') : t('Сохранить') }}
             </button>
           </div>
         </div>
@@ -880,8 +878,8 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
       <div class="bpv-card" style="--d:600ms">
         <div class="bpv-card-ttl bpv-det-head">
           <div class="bpv-det-info">
-            <div class="lt">Детализация ОФР</div>
-            <div class="ls">Структура · {{ period === 'annual' ? 'годовой' : period.toUpperCase() }} {{ year }}</div>
+            <div class="lt">{{ t("Детализация ОФР") }}</div>
+            <div class="ls">{{ t("Структура") }} · {{ period === 'annual' ? t('годовой') : period.toUpperCase() }} {{ year }}</div>
           </div>
           <div class="bpv-det-actions">
             <!-- View-mode toggle (All / Income / Expenses) -->
@@ -890,15 +888,15 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
                 class="bpv-view-btn bpv-view-btn-inc"
                 :class="{ on: viewMode === 'income' }"
                 @click="viewMode = 'income'"
-              >Доходы</button>
+              >{{ t("Доходы") }}</button>
               <button
                 class="bpv-view-btn bpv-view-btn-exp"
                 :class="{ on: viewMode === 'expenses' }"
                 @click="viewMode = 'expenses'"
-              >Расходы</button>
+              >{{ t("Расходы") }}</button>
             </div>
             <button class="bpv-det-tgl" @click="detailsExpanded = !detailsExpanded">
-              {{ detailsExpanded ? 'Свернуть' : 'Раскрыть все' }}
+              {{ detailsExpanded ? t('Свернуть') : t('Раскрыть все') }}
             </button>
           </div>
         </div>
@@ -906,11 +904,11 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
           <table class="bpv-det-tbl">
             <thead>
               <tr>
-                <th class="lbl">Показатель</th>
-                <th class="r">План</th>
-                <th class="r">Ожидание</th>
-                <th class="r">Факт</th>
-                <th class="r">% плана</th>
+                <th class="lbl">{{ t("Показатель") }}</th>
+                <th class="r">{{ t("План") }}</th>
+                <th class="r">{{ t("Ожидание") }}</th>
+                <th class="r">{{ t("Факт") }}</th>
+                <th class="r">{{ t("% плана") }}</th>
               </tr>
             </thead>
             <tbody>
@@ -923,16 +921,16 @@ function arrowFor(pct: number): "up" | "down" | "dot" {
                 }"
               >
                 <td class="lbl">
-                  {{ f.label }}
-                  <span v-if="f.auto" class="auto-tag">расчёт</span>
-                  <span v-if="ytdKeys.has(f.key) && !prevQMissing" class="bpv-ytd-chip" title="Показано нарастающим итогом с начала года: в предыдущем квартале нет факта — «за квартал» не вычислить">нараст.</span>
+                  {{ t(f.label) }}
+                  <span v-if="f.auto" class="auto-tag">{{ t("расчёт") }}</span>
+                  <span v-if="ytdKeys.has(f.key) && !prevQMissing" class="bpv-ytd-chip" :title="t('Показано нарастающим итогом с начала года: в предыдущем квартале нет факта — «за квартал» не вычислить')">{{ t("нараст.") }}</span>
                 </td>
                 <td class="r">{{ fmtV(cell(f.key).plan) }}</td>
                 <td class="r">{{ fmtV(cell(f.key).expect) }}</td>
                 <td class="r">
                   {{ fmtV(cell(f.key).fact) }}
-                  <span v-if="cell(f.key).fact_auto" class="nsbu-badge" title="Автоматически из НСБУ">
-                    <svg width="7" height="7" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 5l2.5 2.5L8.5 2.5"/></svg>НСБУ
+                  <span v-if="cell(f.key).fact_auto" class="nsbu-badge" :title="t('Автоматически из НСБУ')">
+                    <svg width="7" height="7" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 5l2.5 2.5L8.5 2.5"/></svg>{{ t("НСБУ") }}
                   </span>
                 </td>
                 <td class="r">

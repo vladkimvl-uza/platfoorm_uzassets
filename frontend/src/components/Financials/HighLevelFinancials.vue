@@ -22,9 +22,11 @@ import CompanyAvatar from "@/components/CompanyAvatar.vue";
 import DOMPurify from "dompurify";
 import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
+import { useI18n } from "@/composables/useI18n";
 
 const toast = useToast();
 const { confirmDialog } = useConfirm();
+const { t } = useI18n();
 
 const props = defineProps<{
   companies: CompanyListItem[];
@@ -355,7 +357,7 @@ async function saveAnalysis(): Promise<void> {
     // P1 аудита (тихие сбои): в памяти обновлено, но на сервере НЕ сохранено —
     // после reload анализ исчезнет. Тост (не anError: он в шаблоне перекрыл бы
     // сам анализ, т.к. v-else-if anError идёт раньше anHtml).
-    toast.error("Анализ не сохранён на сервере — при обновлении страницы он исчезнет. Повторите.");
+    toast.error(t("Анализ не сохранён на сервере — при обновлении страницы он исчезнет. Повторите."));
   }
 }
 async function openAnalysis() {
@@ -389,17 +391,17 @@ function latestDataYearIdx(hlf: HlfData): number {
 
 function buildSteps(companyNames: string[], metricLabels: string[]): string[] {
   const s: string[] = [
-    "Загружаю отчётность всех компаний портфеля…",
-    "Свожу показатели в единую матрицу…",
+    t("Загружаю отчётность всех компаний портфеля…"),
+    t("Свожу показатели в единую матрицу…"),
   ];
-  for (const m of metricLabels) s.push(`Сверяю «${m}» с отраслевыми бенчмарками…`);
-  for (const n of companyNames.slice(0, 10)) s.push(`Оцениваю профиль: ${n}…`);
-  s.push("Ищу выбросы и аномалии по портфелю…");
-  s.push("Оцениваю долговую нагрузку и ликвидность…");
-  s.push("Сопоставляю качество прибыли (FCF против маржи)…");
-  if (anScenario.value === "investor") s.push("Формирую инвест-тезис и аллокацию капитала…");
-  else if (anScenario.value === "shareholder") s.push("Оцениваю дивидендный потенциал и создание стоимости…");
-  else s.push("Формулирую план действий для инвесткомитета…");
+  for (const m of metricLabels) s.push(t("Сверяю «{m}» с отраслевыми бенчмарками…", { m }));
+  for (const n of companyNames.slice(0, 10)) s.push(t("Оцениваю профиль: {n}…", { n }));
+  s.push(t("Ищу выбросы и аномалии по портфелю…"));
+  s.push(t("Оцениваю долговую нагрузку и ликвидность…"));
+  s.push(t("Сопоставляю качество прибыли (FCF против маржи)…"));
+  if (anScenario.value === "investor") s.push(t("Формирую инвест-тезис и аллокацию капитала…"));
+  else if (anScenario.value === "shareholder") s.push(t("Оцениваю дивидендный потенциал и создание стоимости…"));
+  else s.push(t("Формулирую план действий для инвесткомитета…"));
   return s;
 }
 
@@ -463,8 +465,9 @@ async function copyAnalysis() {
 const EPT_LOGO_SVG = `<svg width="44" height="40" viewBox="0 0 240 220" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="eptg" x1="0" y1="0.5" x2="1" y2="0.5"><stop offset="0%" stop-color="#7F77DD"/><stop offset="100%" stop-color="#1D9E75"/></linearGradient><clipPath id="eptc"><path d="M80 30L210 110L80 190L115 110Z"/></clipPath></defs><path d="M80 30L210 110L80 190L115 110Z" fill="url(#eptg)"/><g clip-path="url(#eptc)"><rect x="80" y="50" width="130" height="2" fill="#1E2A4A" opacity="0.5"/><rect x="80" y="68" width="130" height="2" fill="#1E2A4A" opacity="0.5"/><rect x="80" y="86" width="130" height="2" fill="#1E2A4A" opacity="0.5"/><rect x="80" y="104" width="130" height="2" fill="#1E2A4A" opacity="0.5"/><rect x="80" y="122" width="130" height="2" fill="#1E2A4A" opacity="0.5"/><rect x="80" y="140" width="130" height="2" fill="#1E2A4A" opacity="0.5"/><rect x="80" y="158" width="130" height="2" fill="#1E2A4A" opacity="0.5"/></g><g fill="#AFA9EC"><rect x="56" y="50" width="6" height="6"/><rect x="42" y="62" width="6" height="6"/><rect x="28" y="82" width="6" height="6"/><rect x="50" y="94" width="6" height="6"/><rect x="18" y="106" width="5" height="5"/><rect x="36" y="116" width="6" height="6"/><rect x="44" y="138" width="6" height="6"/><rect x="48" y="162" width="6" height="6"/></g></svg>`;
 
 function buildExportHtml(): string {
-  const scen = AN_SCENARIOS.find(s => s.id === anScenario.value)?.label || "";
-  const head = `<meta charset="utf-8"><title>Анализ ИИ — Единая платформа трансформации</title><style>`
+  const scenRaw = AN_SCENARIOS.find(s => s.id === anScenario.value)?.label;
+  const scen = scenRaw ? t(scenRaw) : "";
+  const head = `<meta charset="utf-8"><title>${_esc(t("Анализ ИИ — Единая платформа трансформации"))}</title><style>`
     + `@page{margin:14mm}`
     + `body{font-family:Geist,Arial,sans-serif;color:#1E2A4A;font-size:13px;line-height:1.6;padding:0;max-width:900px;margin:0 auto}`
     + `.ept-hd{display:flex;align-items:center;gap:14px;padding-bottom:14px;border-bottom:2px solid #EEF0F7;margin-bottom:20px}`
@@ -477,10 +480,10 @@ function buildExportHtml(): string {
     + `td{padding:6px 10px;border-bottom:1px solid #E5E7F0}ul{padding-left:20px}li{margin:3px 0}strong{font-weight:600}hr{border:none;border-top:1px solid #E5E7F0;margin:16px 0}`
     + `</style>`;
   const header = `<div class="ept-hd"><div style="flex-shrink:0;line-height:0">${EPT_LOGO_SVG}</div>`
-    + `<div><div class="ept-brand">Единая платформа трансформации</div>`
-    + `<div class="ept-h1">Высокоуровневые показатели — анализ ИИ</div>`
-    + `<div class="ept-sub">${_esc(scen)} · ${anCount.value} компаний · ${anYear.value ?? ""}<span>${anDoneAt.value ? " · " + _esc(anDoneAt.value) : ""}</span></div></div></div>`;
-  const charts = anChartsHtml.value ? `<h3>Визуализация показателей</h3>${anChartsHtml.value}` : "";
+    + `<div><div class="ept-brand">${_esc(t("Единая платформа трансформации"))}</div>`
+    + `<div class="ept-h1">${_esc(t("Высокоуровневые показатели — анализ ИИ"))}</div>`
+    + `<div class="ept-sub">${_esc(scen)} · ${_esc(t("{n} компаний", { n: anCount.value }))} · ${anYear.value ?? ""}<span>${anDoneAt.value ? " · " + _esc(anDoneAt.value) : ""}</span></div></div></div>`;
+  const charts = anChartsHtml.value ? `<h3>${_esc(t("Визуализация показателей"))}</h3>${anChartsHtml.value}` : "";
   return `<!DOCTYPE html><html><head>${head}</head><body>${header}${charts}${anHtml.value}</body></html>`;
 }
 function exportWord() {
@@ -513,8 +516,8 @@ async function runAnalysis() {
   anRaw.value = "";
   const _single = anScope.value === "company" && anSingleCompany.value ? anSingleCompany.value : null;
   startTicker([_single
-    ? `Загружаю отчётность: ${_single.name_short || _single.code}…`
-    : "Загружаю отчётность всех компаний портфеля…"]);
+    ? t("Загружаю отчётность: {n}…", { n: _single.name_short || _single.code })
+    : t("Загружаю отчётность всех компаний портфеля…")]);
   try {
     const { api } = await import("@/api/client");
     const cos = _single ? [_single] : displayCompanies.value;
@@ -542,7 +545,7 @@ async function runAnalysis() {
         if (hlf.years[yi] > maxYear) maxYear = hlf.years[yi];
       }
     }
-    if (!rows.length) { anError.value = "Нет данных для анализа — загрузите отчётность компаний."; stopTicker(); return; }
+    if (!rows.length) { anError.value = t("Нет данных для анализа — загрузите отчётность компаний."); stopTicker(); return; }
     const metric_labels: Record<string, string> = {};
     const metric_units: Record<string, string> = {};
     for (const d of defs) { metric_labels[d.key] = d.label; metric_units[d.key] = d.unit; }
@@ -559,11 +562,11 @@ async function runAnalysis() {
     anRaw.value = raw;
     anHtml.value = renderMd(raw);
     anDoneAt.value = new Date().toLocaleString("ru-RU");
-    if (!anHtml.value) anError.value = "ИИ вернул пустой ответ.";
+    if (!anHtml.value) anError.value = t("ИИ вернул пустой ответ.");
     else await saveAnalysis();
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    anError.value = err?.response?.data?.detail || err?.message || "Ошибка анализа";
+    anError.value = err?.response?.data?.detail || err?.message || t("Ошибка анализа");
   } finally {
     anLoading.value = false;
     stopTicker();
@@ -584,7 +587,7 @@ async function load() {
     dirty.value = false;
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    error.value = err?.response?.data?.detail || err?.message || "Не удалось загрузить";
+    error.value = err?.response?.data?.detail || err?.message || t("Не удалось загрузить");
     data.value = null;
   } finally {
     loading.value = false;
@@ -592,7 +595,7 @@ async function load() {
 }
 onMounted(load);
 watch(selectedCode, async () => {
-  if (dirty.value && !(await confirmDialog("Есть несохранённые изменения. Сменить компанию?"))) return;
+  if (dirty.value && !(await confirmDialog(t("Есть несохранённые изменения. Сменить компанию?")))) return;
   await load();
 });
 
@@ -623,19 +626,19 @@ async function save() {
     const newTok = resp.headers?.["x-editor-token"] as string | undefined;
     if (newTok) editorToken.value = newTok;  // re-issue → keep saving without reload
     // Успех = бэкенд закоммитил (API 2xx). Подтверждаем визуально.
-    toast.success("Финансовая отчётность сохранена");
+    toast.success(t("Финансовая отчётность сохранена"));
   } catch (e: unknown) {
     const err = e as { response?: { status?: number; data?: { detail?: string } }; message?: string };
     // Конфликт: кто-то сохранил, пока редактировали. Не сбрасываем dirty →
     // правки на экране целы; просим перезагрузить, чтобы не затереть чужое.
     if (err?.response?.status === 409) {
-      error.value = "Данные изменились, пока вы редактировали. Перезагрузите, чтобы не затереть чужие правки.";
-      toast.error("Конфликт: отчётность изменена. Перезагрузите, чтобы увидеть актуальные данные.");
+      error.value = t("Данные изменились, пока вы редактировали. Перезагрузите, чтобы не затереть чужие правки.");
+      toast.error(t("Конфликт: отчётность изменена. Перезагрузите, чтобы увидеть актуальные данные."));
       return;
     }
-    const reason = err?.response?.data?.detail || err?.message || "неизвестная ошибка";
-    error.value = `Не сохранено: ${reason}`;
-    toast.error(`Отчётность не сохранена: ${reason}`);
+    const reason = err?.response?.data?.detail || err?.message || t("неизвестная ошибка");
+    error.value = t("Не сохранено: {e}", { e: reason });
+    toast.error(t("Отчётность не сохранена: {e}", { e: reason }));
   } finally {
     saving.value = false;
   }
@@ -643,7 +646,7 @@ async function save() {
 
 async function toggleEditMode() {
   if (editMode.value && dirty.value) {
-    if (!(await confirmDialog("Выйти из режима редактирования? Несохранённые изменения будут потеряны."))) return;
+    if (!(await confirmDialog(t("Выйти из режима редактирования? Несохранённые изменения будут потеряны.")))) return;
     load();
   }
   editMode.value = !editMode.value;
@@ -703,11 +706,11 @@ function commitAddYear() {
   if (!data.value || !newYearValue.value) return;
   const yr = Number(newYearValue.value);
   if (!isFinite(yr) || yr < 1990 || yr > 2100) {
-    toast.error("Год должен быть от 1990 до 2100");
+    toast.error(t("Год должен быть от 1990 до 2100"));
     return;
   }
   if (data.value.years.includes(yr)) {
-    toast.error(`Год ${yr} уже есть в данных`);
+    toast.error(t("Год {y} уже есть в данных", { y: yr }));
     return;
   }
   data.value.years = [...data.value.years, yr].sort((a, b) => a - b);
@@ -727,7 +730,7 @@ function commitAddYear() {
 
 async function removeYear(yr: number) {
   if (!data.value) return;
-  if (!(await confirmDialog({ message: `Удалить колонку «${yr}» во всех секциях? Значения будут потеряны.`, danger: true }))) return;
+  if (!(await confirmDialog({ message: t("Удалить колонку «{y}» во всех секциях? Значения будут потеряны.", { y: yr }), danger: true }))) return;
   data.value.years = data.value.years.filter(y => y !== yr);
   for (const sec of data.value.sections) {
     const idx = sec.years.indexOf(yr);
@@ -814,7 +817,7 @@ function toggleAuto(row: HlfRow) {
 }
 
 async function removeRow(sec: HlfSection, rowIdx: number) {
-  if (!(await confirmDialog({ message: `Удалить строку «${sec.rows[rowIdx].label}»?`, danger: true }))) return;
+  if (!(await confirmDialog({ message: t("Удалить строку «{name}»?", { name: sec.rows[rowIdx].label }), danger: true }))) return;
   sec.rows.splice(rowIdx, 1);
   dirty.value = true;
 }
@@ -887,7 +890,7 @@ function addSection() {
 
 async function removeSection(secIdx: number) {
   if (!data.value) return;
-  if (!(await confirmDialog({ message: `Удалить секцию «${data.value.sections[secIdx].title}»?`, danger: true }))) return;
+  if (!(await confirmDialog({ message: t("Удалить секцию «{name}»?", { name: data.value.sections[secIdx].title }), danger: true }))) return;
   data.value.sections.splice(secIdx, 1);
   dirty.value = true;
 }
@@ -942,7 +945,7 @@ async function onFileChange(evt: Event) {
     await load();
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    error.value = err?.response?.data?.detail || err?.message || "Не удалось импортировать";
+    error.value = err?.response?.data?.detail || err?.message || t("Не удалось импортировать");
   } finally {
     importLoading.value = false;
     if (input) input.value = "";
@@ -1191,7 +1194,7 @@ function kpiDelta(k: KpiVal, yi: number): KpiDelta | null {
   const lowerBetter = k.key === "de" || k.key === "capex_rev";
   const good = lowerBetter ? diff < 0 : diff > 0;
   let txt: string;
-  if (k.unit === "%") txt = `${Math.abs(diff).toFixed(1)} пп`;
+  if (k.unit === "%") txt = t("{v} пп", { v: Math.abs(diff).toFixed(1) });
   else if (k.unit === "x") txt = `${Math.abs(diff).toFixed(2)}×`;
   else txt = fmtNum(Math.abs(diff));
   return { txt, dir: diff > 0 ? 1 : -1, good };
@@ -1243,13 +1246,13 @@ const kpiCards = computed(() => kpis.value.map(k => ({
     <!-- Header -->
     <div class="hlf-hdr">
       <div class="hlf-hdr-left">
-        <div class="hlf-eyebrow">ВЫСОКОУРОВНЕВЫЕ ПОКАЗАТЕЛИ</div>
-        <div class="hlf-title">Финансовая отчётность по компаниям</div>
+        <div class="hlf-eyebrow">{{ t("ВЫСОКОУРОВНЕВЫЕ ПОКАЗАТЕЛИ") }}</div>
+        <div class="hlf-title">{{ t("Финансовая отчётность по компаниям") }}</div>
         <div class="hlf-sub">
-          Иерархия из консолидированного шаблона
-          <template v-if="data?.updated_at"> · ред. {{ formatDate(data.updated_at) }}</template>
-          <template v-else-if="data?.imported_at"> · импорт {{ formatDate(data.imported_at) }}</template>
-          <span v-if="dirty" class="hlf-dirty"> · есть несохранённые изменения</span>
+          {{ t("Иерархия из консолидированного шаблона") }}
+          <template v-if="data?.updated_at"> · {{ t("ред. {d}", { d: formatDate(data.updated_at) }) }}</template>
+          <template v-else-if="data?.imported_at"> · {{ t("импорт {d}", { d: formatDate(data.imported_at) }) }}</template>
+          <span v-if="dirty" class="hlf-dirty"> · {{ t("есть несохранённые изменения") }}</span>
         </div>
       </div>
       <div class="hlf-hdr-right">
@@ -1259,7 +1262,7 @@ const kpiCards = computed(() => kpis.value.map(k => ({
             <CompanyAvatar v-if="selectedCompany"
               :name="selectedCompany.name_short || selectedCompany.name_ru"
               :code="selectedCompany.code" :color="selectedCompany.sector_color || undefined" :size="20" />
-            <span class="hlf-co-trig-name">{{ selectedCompany ? (selectedCompany.name_short || selectedCompany.name_ru) : "Выберите компанию" }}</span>
+            <span class="hlf-co-trig-name">{{ selectedCompany ? (selectedCompany.name_short || selectedCompany.name_ru) : t("Выберите компанию") }}</span>
             <span v-if="selectedCompany" class="hlf-co-trig-code">{{ selectedCompany.code }}</span>
             <svg class="hlf-co-chev" :class="{ up: coOpen }" viewBox="0 0 12 12" width="11" height="11"
                  fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5L6 7.5l3-3"/></svg>
@@ -1267,27 +1270,27 @@ const kpiCards = computed(() => kpis.value.map(k => ({
         </div>
         <button class="hlf-btn-analyze" @click="openAnalysis" :disabled="anLoading">
           <svg viewBox="0 0 14 14" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9l3-3 2.5 2.5L12 4M12 4H8.5M12 4v3.5"/></svg>
-          {{ anLoading ? "Анализирую…" : "Анализ ИИ" }}
+          {{ anLoading ? t("Анализирую…") : t("Анализ ИИ") }}
         </button>
         <button v-if="data" class="hlf-btn-mode" :class="{ on: editMode }"
                 @click="toggleEditMode">
           <svg viewBox="0 0 14 14" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 11L9 4l3 3-7 7H2v-3zM8 5l3 3"/></svg>
-          {{ editMode ? "Просмотр" : "Редактировать" }}
+          {{ editMode ? t("Просмотр") : t("Редактировать") }}
         </button>
         <button v-if="editMode && data" class="hlf-btn-year" @click="openAddYear">
           <svg viewBox="0 0 14 14" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M7 2v10M2 7h10"/></svg>
-          + год
+          {{ t("+ год") }}
         </button>
         <button v-if="editMode && data" class="hlf-btn-section" @click="addSection">
           <svg viewBox="0 0 14 14" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="2" y="3" width="10" height="8" rx="1"/><path d="M7 5v4M5 7h4"/></svg>
-          + секция
+          {{ t("+ секция") }}
         </button>
         <button v-if="dirty && data" class="hlf-btn-save" @click="save" :disabled="saving">
-          {{ saving ? "Сохраняю…" : "Сохранить" }}
+          {{ saving ? t("Сохраняю…") : t("Сохранить") }}
         </button>
         <button class="hlf-btn-import" @click="triggerFilePick" :disabled="importLoading">
           <svg viewBox="0 0 14 14" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M7 2v8M3 6l4-4 4 4M2 12h10"/></svg>
-          {{ importLoading ? "Импорт…" : "Импорт" }}
+          {{ importLoading ? t("Импорт…") : t("Импорт") }}
         </button>
         <input ref="importFileRef" type="file" accept=".xlsx" style="display:none" @change="onFileChange" />
       </div>
@@ -1295,28 +1298,28 @@ const kpiCards = computed(() => kpis.value.map(k => ({
 
     <!-- Add year inline form -->
     <div v-if="showAddYear" class="hlf-add-year">
-      <span>Добавить колонку для года:</span>
+      <span>{{ t("Добавить колонку для года:") }}</span>
       <input type="number" v-model.number="newYearValue" min="1990" max="2100" class="hlf-year-inp" />
-      <button class="hlf-btn-save" @click="commitAddYear">Добавить</button>
-      <button class="hlf-btn-g" @click="showAddYear = false">Отмена</button>
+      <button class="hlf-btn-save" @click="commitAddYear">{{ t("Добавить") }}</button>
+      <button class="hlf-btn-g" @click="showAddYear = false">{{ t("Отмена") }}</button>
     </div>
 
     <!-- Import banner -->
     <div v-if="importResult" class="hlf-import-result">
-      <strong>✓ Импорт завершён.</strong>
-      Обработано компаний: {{ importResult.imported_count || 0 }}.
+      <strong>✓ {{ t("Импорт завершён.") }}</strong>
+      {{ t("Обработано компаний: {n}.", { n: importResult.imported_count || 0 }) }}
       <button class="hlf-banner-x" @click="importResult = null">×</button>
     </div>
 
     <!-- KPI band -->
     <div v-if="data && !error" class="hlf-kpis-wrap">
       <div class="hlf-kpis-hdr">
-        <span class="hlf-kpis-lbl">KEY METRICS · {{ data.years[activeKpiYearIdx] }} (млрд UZS · derived)</span>
+        <span class="hlf-kpis-lbl">{{ t("KEY METRICS · {y} (млрд UZS · derived)", { y: data.years[activeKpiYearIdx] }) }}</span>
         <div class="hlf-kpi-yr-pills">
           <button v-for="(y, idx) in data.years" :key="y"
                   class="hlf-yr-pill" :class="{ on: idx === activeKpiYearIdx, weak: kpiCoverage(idx) < 4 }"
                   @click="activeKpiYearIdx = idx"
-                  :title="`Покрытие: ${kpiCoverage(idx)}/${kpis.length} KPI`">{{ y }}</button>
+                  :title="t('Покрытие: {a}/{b} KPI', { a: kpiCoverage(idx), b: kpis.length })">{{ y }}</button>
         </div>
         <span class="hlf-coverage">{{ kpiCoverage(activeKpiYearIdx) }}/{{ kpis.length }} KPI</span>
       </div>
@@ -1340,16 +1343,15 @@ const kpiCards = computed(() => kpis.value.map(k => ({
     </div>
 
     <!-- States -->
-    <div v-if="loading" class="hlf-state">Загрузка…</div>
+    <div v-if="loading" class="hlf-state">{{ t("Загрузка…") }}</div>
     <div v-else-if="error" class="hlf-state hlf-state-error">{{ error }}</div>
     <div v-else-if="!data" class="hlf-state hlf-state-empty">
       <div class="hlf-empty-icon">
         <svg viewBox="0 0 32 32" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><rect x="5" y="4" width="22" height="24" rx="2"/><path d="M10 11h12M10 15h12M10 19h8M10 23h6"/></svg>
       </div>
-      <div class="hlf-empty-title">Данные не загружены</div>
+      <div class="hlf-empty-title">{{ t("Данные не загружены") }}</div>
       <div class="hlf-empty-text">
-        Загрузи XLSX-шаблон с консолидированными показателями (SOFP / P&amp;L / Cash Flow)
-        через кнопку «Импорт» наверху. Парсер обработает все 22 листа автоматически.
+        {{ t("Загрузи XLSX-шаблон с консолидированными показателями (SOFP / P&L / Cash Flow) через кнопку «Импорт» наверху. Парсер обработает все 22 листа автоматически.") }}
       </div>
     </div>
 
@@ -1368,7 +1370,7 @@ const kpiCards = computed(() => kpis.value.map(k => ({
           <template v-else>
             <button type="button" class="hlf-chevron-btn"
                     @click="toggleSection(sec.id)" :aria-expanded="!collapsedSec.has(sec.id)"
-                    :aria-label="collapsedSec.has(sec.id) ? 'Развернуть секцию' : 'Свернуть секцию'">
+                    :aria-label="collapsedSec.has(sec.id) ? t('Развернуть секцию') : t('Свернуть секцию')">
               <svg class="hlf-chevron" :class="{ collapsed: collapsedSec.has(sec.id) }"
                    viewBox="0 0 12 12" width="11" height="11" fill="none" stroke="currentColor"
                    stroke-width="1.8" stroke-linecap="round"><path d="M4 3l4 3-4 3"/></svg>
@@ -1376,19 +1378,19 @@ const kpiCards = computed(() => kpis.value.map(k => ({
             <input type="text" class="hlf-sec-title-inp" :value="sec.title"
                    @input="onSectionTitleInput(sec, ($event.target as HTMLInputElement).value)" />
           </template>
-          <span class="hlf-sec-meta">{{ sec.rows.length }} строк · {{ data.unit === 'bln' ? 'млрд UZS' : data.unit }}</span>
-          <button v-if="editMode" class="hlf-sec-remove" @click="removeSection(secIdx)" title="Удалить секцию">×</button>
+          <span class="hlf-sec-meta">{{ t("{n} строк", { n: sec.rows.length }) }} · {{ data.unit === 'bln' ? t('млрд UZS') : data.unit }}</span>
+          <button v-if="editMode" class="hlf-sec-remove" @click="removeSection(secIdx)" :title="t('Удалить секцию')">×</button>
         </div>
 
         <div v-if="!collapsedSec.has(sec.id)" class="hlf-table-wrap">
           <table class="hlf-table">
             <thead>
               <tr>
-                <th class="hlf-th-name">ПОКАЗАТЕЛЬ</th>
+                <th class="hlf-th-name">{{ t("Показатель") }}</th>
                 <th v-for="(y, idx) in sec.years" :key="y" class="hlf-th-num"
                     :class="{ current: idx === sec.years.length - 1 }">
                   {{ y }}
-                  <button v-if="editMode" class="hlf-th-x" @click="removeYear(y)" title="Удалить год">×</button>
+                  <button v-if="editMode" class="hlf-th-x" @click="removeYear(y)" :title="t('Удалить год')">×</button>
                 </th>
                 <th v-if="editMode" class="hlf-th-actions"></th>
               </tr>
@@ -1403,7 +1405,7 @@ const kpiCards = computed(() => kpis.value.map(k => ({
                   <template v-else>
                     <button v-if="isCostParent(sec.id, rowIdx)" type="button" class="hlf-cost-toggle"
                             :class="{ collapsed: costCollapsed(sec.id) }"
-                            :title="costCollapsed(sec.id) ? 'Развернуть подстатьи' : 'Свернуть подстатьи'"
+                            :title="costCollapsed(sec.id) ? t('Развернуть подстатьи') : t('Свернуть подстатьи')"
                             @click="toggleCost(sec.id)">
                       <svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2l4 3-4 3"/></svg>
                     </button>
@@ -1431,7 +1433,7 @@ const kpiCards = computed(() => kpis.value.map(k => ({
                   <button class="hlf-rowmenu-trigger"
                           :class="{ open: rowMenu && rowMenu.sec === sec && rowMenu.rowIdx === rowIdx }"
                           @click="openRowMenu($event, sec, rowIdx)"
-                          title="Действия со строкой" aria-haspopup="menu">
+                          :title="t('Действия со строкой')" aria-haspopup="menu">
                     <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
                       <circle cx="3" cy="8" r="1.4"/><circle cx="8" cy="8" r="1.4"/><circle cx="13" cy="8" r="1.4"/>
                     </svg>
@@ -1440,10 +1442,10 @@ const kpiCards = computed(() => kpis.value.map(k => ({
               </tr>
               <tr v-if="editMode" class="hlf-add-row">
                 <td :colspan="sec.years.length + 2">
-                  <button class="hlf-add-btn" @click="addRow(sec, 'line')">+ строка</button>
-                  <button class="hlf-add-btn" @click="addRow(sec, 'subheader')">+ подсекция</button>
-                  <button class="hlf-add-btn" @click="addRow(sec, 'subtotal')">+ подытог</button>
-                  <button class="hlf-add-btn" @click="addRow(sec, 'total')">+ итого</button>
+                  <button class="hlf-add-btn" @click="addRow(sec, 'line')">{{ t("+ строка") }}</button>
+                  <button class="hlf-add-btn" @click="addRow(sec, 'subheader')">{{ t("+ подсекция") }}</button>
+                  <button class="hlf-add-btn" @click="addRow(sec, 'subtotal')">{{ t("+ подытог") }}</button>
+                  <button class="hlf-add-btn" @click="addRow(sec, 'total')">{{ t("+ итого") }}</button>
                 </td>
               </tr>
             </tbody>
@@ -1462,7 +1464,7 @@ const kpiCards = computed(() => kpis.value.map(k => ({
       <div class="hlf-co-search">
         <svg viewBox="0 0 14 14" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="6" cy="6" r="4"/><path d="M11 11L9 9"/></svg>
         <input ref="coSearchInp" v-model="coSearch" type="text" class="hlf-co-search-inp"
-               placeholder="Поиск компании…" @keydown="coKeydown" />
+               :placeholder="t('Поиск компании…')" @keydown="coKeydown" />
       </div>
       <div class="hlf-co-list">
         <button v-for="(co, i) in coFiltered" :key="co.code" type="button"
@@ -1473,7 +1475,7 @@ const kpiCards = computed(() => kpis.value.map(k => ({
           <span class="hlf-co-opt-code">{{ co.code }}</span>
           <svg v-if="co.code === selectedCode" class="hlf-co-check" viewBox="0 0 14 14" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 7.5L6 11l5.5-7"/></svg>
         </button>
-        <div v-if="!coFiltered.length" class="hlf-co-empty">Ничего не найдено</div>
+        <div v-if="!coFiltered.length" class="hlf-co-empty">{{ t("Ничего не найдено") }}</div>
       </div>
     </div>
   </Teleport>
@@ -1483,25 +1485,25 @@ const kpiCards = computed(() => kpis.value.map(k => ({
     <div v-if="rowMenu" id="hlf-rowmenu" class="hlf-rowmenu" role="menu"
          :style="{ top: rowMenuPos.top + 'px', left: rowMenuPos.left + 'px' }">
       <button class="hlf-rowmenu-item" role="menuitem" @click="menuInsert">
-        <span class="hlf-rowmenu-ico">＋</span><span>Вставить строку ниже</span>
+        <span class="hlf-rowmenu-ico">＋</span><span>{{ t("Вставить строку ниже") }}</span>
       </button>
       <button v-if="['total','subtotal'].includes(rowMenu.row.type)"
               class="hlf-rowmenu-item" role="menuitem" @click="menuToggleAuto">
         <span class="hlf-rowmenu-ico">∑</span>
-        <span>{{ effectiveAuto(rowMenu.row) ? 'Автосумма: включена' : 'Включить автосумму' }}</span>
-        <span v-if="effectiveAuto(rowMenu.row)" class="hlf-rowmenu-on">вкл</span>
+        <span>{{ effectiveAuto(rowMenu.row) ? t('Автосумма: включена') : t('Включить автосумму') }}</span>
+        <span v-if="effectiveAuto(rowMenu.row)" class="hlf-rowmenu-on">{{ t("вкл") }}</span>
       </button>
       <div class="hlf-rowmenu-sep"></div>
       <button class="hlf-rowmenu-item" role="menuitem" :disabled="rowMenu.rowIdx === 0" @click="menuUp">
-        <span class="hlf-rowmenu-ico">↑</span><span>Переместить вверх</span>
+        <span class="hlf-rowmenu-ico">↑</span><span>{{ t("Переместить вверх") }}</span>
       </button>
       <button class="hlf-rowmenu-item" role="menuitem"
               :disabled="rowMenu.rowIdx === rowMenu.sec.rows.length - 1" @click="menuDown">
-        <span class="hlf-rowmenu-ico">↓</span><span>Переместить вниз</span>
+        <span class="hlf-rowmenu-ico">↓</span><span>{{ t("Переместить вниз") }}</span>
       </button>
       <div class="hlf-rowmenu-sep"></div>
       <button class="hlf-rowmenu-item danger" role="menuitem" @click="menuDelete">
-        <span class="hlf-rowmenu-ico">✕</span><span>Удалить строку</span>
+        <span class="hlf-rowmenu-ico">✕</span><span>{{ t("Удалить строку") }}</span>
       </button>
     </div>
   </Teleport>
@@ -1512,26 +1514,26 @@ const kpiCards = computed(() => kpis.value.map(k => ({
       <div class="hlf-an-card">
         <header class="hlf-an-hd">
           <div class="hlf-an-hd-txt">
-            <div class="hlf-an-eyebrow">ИИ-АНАЛИЗ {{ anScope === 'company' ? 'КОМПАНИИ' : 'ПОРТФЕЛЯ' }}</div>
-            <h2 class="hlf-an-title">Высокоуровневые показатели — {{ anScope === 'company' ? (anSingleCompany?.name_short || anSingleCompany?.name_ru || anSingleCompany?.code || 'компания') : 'все компании' }}</h2>
-            <div v-if="anYear && !anLoading && anHtml" class="hlf-an-sub">{{ anScope === 'company' ? '1 компания' : anCount + ' компаний' }} · {{ anYear }}<span v-if="anDoneAt"> · {{ anDoneAt }}</span></div>
+            <div class="hlf-an-eyebrow">{{ anScope === 'company' ? t('ИИ-АНАЛИЗ КОМПАНИИ') : t('ИИ-АНАЛИЗ ПОРТФЕЛЯ') }}</div>
+            <h2 class="hlf-an-title">{{ t("Высокоуровневые показатели — {x}", { x: anScope === 'company' ? (anSingleCompany?.name_short || anSingleCompany?.name_ru || anSingleCompany?.code || t('компания')) : t('все компании') }) }}</h2>
+            <div v-if="anYear && !anLoading && anHtml" class="hlf-an-sub">{{ anScope === 'company' ? t('1 компания') : t('{n} компаний', { n: anCount }) }} · {{ anYear }}<span v-if="anDoneAt"> · {{ anDoneAt }}</span></div>
           </div>
-          <button class="hlf-an-x" @click="anOpen = false" aria-label="Закрыть">×</button>
+          <button class="hlf-an-x" @click="anOpen = false" :aria-label="t('Закрыть')">×</button>
         </header>
 
         <!-- Охват: весь портфель / одна компания (выбор прямо здесь) -->
         <div class="hlf-an-scen">
-          <span class="hlf-an-scen-lbl">Охват</span>
+          <span class="hlf-an-scen-lbl">{{ t("Охват") }}</span>
           <div class="hlf-an-scen-seg">
             <button class="hlf-an-scen-opt" :class="{ on: anScope === 'portfolio' }"
-                    :disabled="anLoading" @click="setAnScope('portfolio')">Весь портфель</button>
+                    :disabled="anLoading" @click="setAnScope('portfolio')">{{ t("Весь портфель") }}</button>
             <button class="hlf-an-scen-opt" :class="{ on: anScope === 'company' }"
                     :disabled="anLoading || !displayCompanies.length" @click="setAnScope('company')">
-              Одна компания
+              {{ t("Одна компания") }}
             </button>
           </div>
           <select v-if="anScope === 'company'" v-model="anPickedCode" @change="onAnPickCompany"
-                  :disabled="anLoading" class="hlf-an-co-select" aria-label="Компания для анализа">
+                  :disabled="anLoading" class="hlf-an-co-select" :aria-label="t('Компания для анализа')">
             <option v-for="c in displayCompanies" :key="c.code" :value="c.code">
               {{ c.name_short || c.name_ru || c.code }}
             </option>
@@ -1540,14 +1542,14 @@ const kpiCards = computed(() => kpis.value.map(k => ({
 
         <!-- Сценарий анализа: senior CFO / инвестор / акционер -->
         <div class="hlf-an-scen">
-          <span class="hlf-an-scen-lbl">Сценарий</span>
+          <span class="hlf-an-scen-lbl">{{ t("Сценарий") }}</span>
           <div class="hlf-an-scen-seg">
             <button v-for="s in AN_SCENARIOS" :key="s.id" class="hlf-an-scen-opt"
                     :class="{ on: anScenario === s.id }" :disabled="anLoading"
-                    @click="applyScenario(s.id)" :title="s.hint">{{ s.label }}</button>
+                    @click="applyScenario(s.id)" :title="t(s.hint)">{{ t(s.label) }}</button>
           </div>
           <button class="hlf-an-run" :disabled="anLoading" @click="runAnalysis">
-            {{ anLoading ? 'Анализирую…' : (anHtml ? 'Пересчитать' : 'Запустить анализ') }}
+            {{ anLoading ? t('Анализирую…') : (anHtml ? t('Пересчитать') : t('Запустить анализ')) }}
           </button>
         </div>
 
@@ -1560,29 +1562,29 @@ const kpiCards = computed(() => kpis.value.map(k => ({
                 <span class="hlf-an-think-dot"></span><span>{{ st }}</span>
               </div>
             </div>
-            <div class="hlf-an-hint">Аналитик ИИ читает отчётность всех компаний, сверяет с отраслевыми бенчмарками (web) и оценивает риски. До минуты.</div>
+            <div class="hlf-an-hint">{{ t("Аналитик ИИ читает отчётность всех компаний, сверяет с отраслевыми бенчмарками (web) и оценивает риски. До минуты.") }}</div>
           </div>
           <div v-else-if="anError" class="hlf-an-error">{{ anError }}</div>
           <template v-else-if="anHtml">
             <div v-if="anChartsHtml" class="hlf-an-charts">
-              <div class="hlf-an-charts-hd">Визуализация показателей</div>
+              <div class="hlf-an-charts-hd">{{ t("Визуализация показателей") }}</div>
               <div v-html="anChartsHtml"></div>
             </div>
             <div class="hlf-an-md" v-html="anHtml"></div>
           </template>
           <div v-else class="hlf-an-empty">
-            <div class="hlf-an-empty-t">Выберите сценарий и запустите анализ</div>
-            <div class="hlf-an-hint">ИИ разберёт каждый показатель по всем компаниям, построит графики и даст выводы под выбранную роль.</div>
+            <div class="hlf-an-empty-t">{{ t("Выберите сценарий и запустите анализ") }}</div>
+            <div class="hlf-an-hint">{{ t("ИИ разберёт каждый показатель по всем компаниям, построит графики и даст выводы под выбранную роль.") }}</div>
           </div>
         </div>
 
         <footer v-if="!anLoading && anHtml" class="hlf-an-ft">
           <div class="hlf-an-ft-actions">
-            <button class="hlf-an-tool" @click="copyAnalysis">{{ anCopyOk ? 'Скопировано' : 'Копировать' }}</button>
+            <button class="hlf-an-tool" @click="copyAnalysis">{{ anCopyOk ? t('Скопировано') : t('Копировать') }}</button>
             <button class="hlf-an-tool" @click="exportWord">Word</button>
-            <button class="hlf-an-tool" @click="exportPrint">PDF / печать</button>
+            <button class="hlf-an-tool" @click="exportPrint">{{ t("PDF / печать") }}</button>
           </div>
-          <span class="hlf-an-disc">Сгенерировано ИИ-движком с web-поиском · сверяйте цифры</span>
+          <span class="hlf-an-disc">{{ t("Сгенерировано ИИ-движком с web-поиском · сверяйте цифры") }}</span>
         </footer>
       </div>
     </div>

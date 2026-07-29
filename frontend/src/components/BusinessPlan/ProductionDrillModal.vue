@@ -8,6 +8,9 @@ import CompanyAvatar from "@/components/CompanyAvatar.vue";
 import { usePermissions } from "@/composables/usePermissions";
 import type { ProdCompany, ProdLine } from "@/api/production";
 import { execCol as pctCol, execZone as pctZone } from "@/utils/execBand";
+import { useI18n } from "@/composables/useI18n";
+
+const { t } = useI18n();
 
 const props = defineProps<{ company: ProdCompany; year: number; period: string }>();
 const emit = defineEmits<{ (e: "close"): void; (e: "edit"): void }>();
@@ -30,7 +33,7 @@ function fmtN(v: number | null | undefined): string {
 // pctCol/pctZone. Раньше инлайн 90/75 с врущим комментарием «mirror forensic».
 function execText(l: ProdLine): string {
   if (l.execState === "pct") return (l.execPct ?? 0) + "%";
-  if (l.execState === "nofact") return "факт —";
+  if (l.execState === "nofact") return t("факт —");
   return "—";
 }
 
@@ -44,28 +47,28 @@ const products = computed(() => props.company.lines.filter((l) => !l.total));
       <div class="pdm-hd">
         <CompanyAvatar :name="company.n" :color="company.sector_color || '#888780'" :size="30" />
         <div class="pdm-hd-txt">
-          <div class="pdm-eyebrow">Производственный план · FY{{ year }} · {{ periodLabel }}</div>
+          <div class="pdm-eyebrow">{{ t("Производственный план") }} · FY{{ year }} · {{ t(periodLabel) }}</div>
           <div class="pdm-title">{{ company.n }}</div>
         </div>
         <span v-if="company.execPct != null" class="pdm-badge"
               :style="{ color: pctCol(company.execPct), background: pctCol(company.execPct) + '18' }"
-              :title="pctZone(company.execPct)">{{ company.execPct }}%</span>
+              :title="t(pctZone(company.execPct))">{{ company.execPct }}%</span>
       </div>
     </template>
 
     <!-- KPI row -->
     <div class="pdm-kpis">
-      <div class="pdm-k"><div class="pdm-k-l">План</div><div class="pdm-k-v">{{ fmtM(company.planM) }}</div><div class="pdm-k-u">млрд сум</div></div>
-      <div class="pdm-k"><div class="pdm-k-l">Ожидаемое</div><div class="pdm-k-v">{{ fmtM(company.expM) }}</div><div class="pdm-k-u">млрд сум</div></div>
-      <div class="pdm-k pdm-k-fact"><div class="pdm-k-l">Факт</div>
+      <div class="pdm-k"><div class="pdm-k-l">{{ t("План") }}</div><div class="pdm-k-v">{{ fmtM(company.planM) }}</div><div class="pdm-k-u">{{ t("млрд сум") }}</div></div>
+      <div class="pdm-k"><div class="pdm-k-l">{{ t("Ожидаемое") }}</div><div class="pdm-k-v">{{ fmtM(company.expM) }}</div><div class="pdm-k-u">{{ t("млрд сум") }}</div></div>
+      <div class="pdm-k pdm-k-fact"><div class="pdm-k-l">{{ t("Факт") }}</div>
         <div class="pdm-k-v">{{ fmtM(company.factM) }}</div>
-        <div class="pdm-k-u">{{ company.factM != null ? 'млрд сум' : 'не введён' }}</div></div>
-      <div class="pdm-k"><div class="pdm-k-l">Темп роста</div>
+        <div class="pdm-k-u">{{ company.factM != null ? t('млрд сум') : t('не введён') }}</div></div>
+      <div class="pdm-k"><div class="pdm-k-l">{{ t("Темп роста") }}</div>
         <div class="pdm-k-v" :style="{ color: company.growthPct != null && company.growthPct >= 100 ? '#1D9E75' : 'var(--t1)' }">
-          {{ company.growthPct != null ? company.growthPct + '%' : '—' }}</div><div class="pdm-k-u">к пред. периоду</div></div>
-      <div class="pdm-k"><div class="pdm-k-l">Исполнение</div>
+          {{ company.growthPct != null ? company.growthPct + '%' : '—' }}</div><div class="pdm-k-u">{{ t("к пред. периоду") }}</div></div>
+      <div class="pdm-k"><div class="pdm-k-l">{{ t("Исполнение") }}</div>
         <div class="pdm-k-v" :style="{ color: pctCol(company.execPct) }">{{ company.execPct != null ? company.execPct + '%' : '—' }}</div>
-        <div class="pdm-k-u">{{ (company.execKind === 'fact' ? 'факт' : 'ожид') + ' / план' + (company.execBasis === 'natura' ? ' · нат' : '') }}</div></div>
+        <div class="pdm-k-u">{{ t(company.execKind === 'fact' ? 'факт / план' : 'ожид / план') + (company.execBasis === 'natura' ? ' · ' + t('нат') : '') }}</div></div>
     </div>
 
     <!-- Product table -->
@@ -73,10 +76,10 @@ const products = computed(() => props.company.lines.filter((l) => !l.total));
       <table class="pdm-tbl">
         <thead>
           <tr>
-            <th class="lt">Продукция</th><th class="rt">Ед.</th>
-            <th class="rt">План (нат.)</th><th class="rt">Ожид. (нат.)</th><th class="rt pdm-fact-h">Факт (нат.)</th>
-            <th class="rt">План (млрд)</th><th class="rt">Ожид. (млрд)</th><th class="rt pdm-fact-h">Факт (млрд)</th>
-            <th class="rt">Темп</th><th class="rt">Исп.</th>
+            <th class="lt">{{ t("Продукция") }}</th><th class="rt">{{ t("Ед.") }}</th>
+            <th class="rt">{{ t("План (нат.)") }}</th><th class="rt">{{ t("Ожид. (нат.)") }}</th><th class="rt pdm-fact-h">{{ t("Факт (нат.)") }}</th>
+            <th class="rt">{{ t("План (млрд)") }}</th><th class="rt">{{ t("Ожид. (млрд)") }}</th><th class="rt pdm-fact-h">{{ t("Факт (млрд)") }}</th>
+            <th class="rt">{{ t("Темп") }}</th><th class="rt">{{ t("Исп.") }}</th>
           </tr>
         </thead>
         <tbody>
@@ -92,9 +95,9 @@ const products = computed(() => props.company.lines.filter((l) => !l.total));
             <td class="rt num pdm-fact">{{ fmtM(l.factM) }}</td>
             <td class="rt num" :style="{ color: l.growthPct != null && l.growthPct >= 100 ? '#1D9E75' : 'var(--t3,#94A3B8)' }">
               {{ l.growthPct != null ? l.growthPct + '%' : '—' }}</td>
-            <td class="rt num" :style="{ color: pctCol(l.execPct), fontWeight: 600 }" :title="pctZone(l.execPct)">{{ execText(l) }}</td>
+            <td class="rt num" :style="{ color: pctCol(l.execPct), fontWeight: 600 }" :title="t(pctZone(l.execPct))">{{ execText(l) }}</td>
           </tr>
-          <tr v-if="!products.length"><td colspan="10" class="pdm-empty">Нет детализации по продукции</td></tr>
+          <tr v-if="!products.length"><td colspan="10" class="pdm-empty">{{ t("Нет детализации по продукции") }}</td></tr>
         </tbody>
       </table>
     </div>
@@ -102,7 +105,7 @@ const products = computed(() => props.company.lines.filter((l) => !l.total));
     <div class="pdm-foot">
       <button v-if="canEdit" class="pdm-edit" @click="emit('edit')">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
-        Редактировать данные
+        {{ t("Редактировать данные") }}
       </button>
     </div>
   </ModalShell>

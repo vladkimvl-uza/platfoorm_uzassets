@@ -16,7 +16,9 @@ import { ensureFinancialsCss } from "@/components/Financials/financialsHelpers";
 import { api } from "@/api/client";
 import SoeHealthDrillModal from "@/components/Financials/SoeHealthDrillModal.vue";
 import type { SoeCompany } from "@/components/Financials/SoeHealthBoard.vue";
+import { useI18n } from "@/composables/useI18n";
 
+const { t } = useI18n();
 const exec = useExecutiveDashboard();
 const router = useRouter();
 
@@ -98,17 +100,17 @@ function openBoard() {
   <section class="ed-card ehl-card">
     <header class="ehl-hdr">
       <div class="ehl-hdr-l">
-        <div class="ehl-eyebrow">Здоровье портфеля
-          <span v-if="isFallback" class="ehl-fallback">данные за FY {{ block?.year }}</span>
+        <div class="ehl-eyebrow">{{ t("Здоровье портфеля") }}
+          <span v-if="isFallback" class="ehl-fallback">{{ t("данные за FY {year}", { year: block?.year }) }}</span>
         </div>
         <div class="ehl-sub">
-          FY {{ block?.year || exec.year.value }} · SOE Health Check Tool · RAG-оценка устойчивости
+          FY {{ block?.year || exec.year.value }} · SOE Health Check Tool · {{ t("RAG-оценка устойчивости") }}
         </div>
       </div>
       <div v-if="block && block.has_data" class="ehl-hdr-r">
-        <span class="ehl-stat">{{ block.scored_count }} / {{ block.total_companies }} оценено · {{ block.standard }}</span>
-        <button class="ehl-open" type="button" @click="openBoard" title="Открыть SOE Health Check Tool">
-          Подробнее
+        <span class="ehl-stat">{{ block.scored_count }} / {{ block.total_companies }} {{ t("оценено") }} · {{ t(block.standard || "") }}</span>
+        <button class="ehl-open" type="button" @click="openBoard" :title="t('Открыть SOE Health Check Tool')">
+          {{ t("Подробнее") }}
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>
         </button>
       </div>
@@ -120,10 +122,10 @@ function openBoard() {
            stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
         <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
       </svg>
-      <div class="ehl-empty-title">Нет данных о здоровье за FY {{ exec.year.value }}</div>
+      <div class="ehl-empty-title">{{ t("Нет данных о здоровье за FY {year}", { year: exec.year.value }) }}</div>
       <div class="ehl-empty-text">
-        Заполните финансовую отчётность портфеля (НСБУ / МСФО)<br>
-        — коэффициенты и оценка рассчитаются автоматически.
+        {{ t("Заполните финансовую отчётность портфеля (НСБУ / МСФО)") }}<br>
+        {{ t("— коэффициенты и оценка рассчитаются автоматически.") }}
       </div>
     </div>
 
@@ -131,55 +133,55 @@ function openBoard() {
       <!-- KPI band -->
       <div class="ehl-kpi-band kpi-rail">
         <div class="ehl-kpi" :style="{ '--accent': block.avg_zone_color || '#7F77DD', '--d': '0ms' }">
-          <div class="ehl-kpi-lbl">Средний балл портфеля</div>
+          <div class="ehl-kpi-lbl">{{ t("Средний балл портфеля") }}</div>
           <div class="ehl-kpi-val">
             {{ tAvg.toFixed(1) }}<span class="ehl-kpi-u">/ 5</span>
           </div>
           <div class="ehl-kpi-zone" :style="{ color: block.avg_zone_color || '#9AA0AE' }">
-            {{ block.avg_zone_label || '—' }} · ниже = устойчивее
+            {{ t(block.avg_zone_label || '—') }} · {{ t("ниже = устойчивее") }}
           </div>
         </div>
 
         <div class="ehl-kpi" style="--accent: #E24B4A; --d: 80ms;">
-          <div class="ehl-kpi-lbl">Требуют внимания</div>
+          <div class="ehl-kpi-lbl">{{ t("Требуют внимания") }}</div>
           <div class="ehl-kpi-val">
-            {{ attention }}<span class="ehl-kpi-u">компаний</span>
+            {{ attention }}<span class="ehl-kpi-u">{{ t("компаний") }}</span>
           </div>
-          <div class="ehl-kpi-zone ehl-muted">высокий + критический риск</div>
+          <div class="ehl-kpi-zone ehl-muted">{{ t("высокий + критический риск") }}</div>
         </div>
 
         <div class="ehl-kpi" style="--accent: #1D9E75; --d: 160ms;">
-          <div class="ehl-kpi-lbl">Опора портфеля</div>
+          <div class="ehl-kpi-lbl">{{ t("Опора портфеля") }}</div>
           <div class="ehl-kpi-val">
-            {{ support }}<span class="ehl-kpi-u">компаний</span>
+            {{ support }}<span class="ehl-kpi-u">{{ t("компаний") }}</span>
           </div>
-          <div class="ehl-kpi-zone ehl-muted">низкий риск</div>
+          <div class="ehl-kpi-zone ehl-muted">{{ t("низкий риск") }}</div>
         </div>
 
         <div class="ehl-kpi" style="--accent: #7F77DD; --d: 240ms;">
-          <div class="ehl-kpi-lbl">Покрытие данными</div>
+          <div class="ehl-kpi-lbl">{{ t("Покрытие данными") }}</div>
           <div class="ehl-kpi-val">
             {{ block.scored_count }}<span class="ehl-kpi-u">/ {{ block.total_companies }}</span>
           </div>
           <div class="ehl-kpi-zone ehl-muted">
-            {{ block.total_companies - block.scored_count }} без отчётности
+            {{ t("{n} без отчётности", { n: block.total_companies - block.scored_count }) }}
           </div>
         </div>
       </div>
 
       <!-- Распределение по зонам -->
       <div v-if="zoneSegs.length" class="ehl-dist">
-        <div class="ehl-dist-hdr">Распределение риска · {{ zoneTotal }} компаний</div>
+        <div class="ehl-dist-hdr">{{ t("Распределение риска · {n} компаний", { n: zoneTotal }) }}</div>
         <div class="ehl-dist-bar">
           <div v-for="(z, i) in zoneSegs" :key="z.key" class="ehl-dist-seg"
                :style="{ width: z.pct + '%', background: z.color, '--d': (i * 90) + 'ms' }"
-               :title="z.label + ': ' + z.count">
+               :title="t(z.label) + ': ' + z.count">
             <span v-if="z.pct >= 10" class="ehl-dist-n">{{ z.count }}</span>
           </div>
         </div>
         <div class="ehl-legend">
           <span v-for="z in zones" :key="z.key" class="ehl-leg" :class="{ off: !z.count }">
-            <i :style="{ background: z.color }" />{{ z.label }}
+            <i :style="{ background: z.color }" />{{ t(z.label) }}
             <b>{{ z.count }}</b>
           </span>
         </div>
@@ -188,11 +190,11 @@ function openBoard() {
       <!-- Тянут вниз / Опора -->
       <div class="ehl-cols">
         <div class="ehl-col">
-          <div class="ehl-col-t" style="color:#E24B4A">↓ Тянут вниз</div>
+          <div class="ehl-col-t" style="color:#E24B4A">↓ {{ t("Тянут вниз") }}</div>
           <div v-for="(c, i) in worst" :key="c.code" class="ehl-row ehl-row-click"
                :class="{ 'is-loading': drillLoadingCode === c.code }"
                :style="{ '--d': (i * 60) + 'ms' }"
-               role="button" tabindex="0" :title="'Открыть разбор здоровья: ' + c.name"
+               role="button" tabindex="0" :title="t('Открыть разбор здоровья: {name}', { name: c.name })"
                @click="openDrill(c)" @keydown="onRowKey($event, c)">
             <span class="ehl-dot" :style="{ background: c.zone_color }" />
             <span class="ehl-name" :title="c.name">{{ c.name }}</span>
@@ -207,14 +209,14 @@ function openBoard() {
               <span v-else class="ehl-row-spin" />
             </span>
           </div>
-          <div v-if="!worst.length" class="ehl-none">нет компаний в зонах риска</div>
+          <div v-if="!worst.length" class="ehl-none">{{ t("нет компаний в зонах риска") }}</div>
         </div>
         <div class="ehl-col">
-          <div class="ehl-col-t" style="color:#1D9E75">↑ Опора портфеля</div>
+          <div class="ehl-col-t" style="color:#1D9E75">↑ {{ t("Опора портфеля") }}</div>
           <div v-for="(c, i) in best" :key="c.code" class="ehl-row ehl-row-click"
                :class="{ 'is-loading': drillLoadingCode === c.code }"
                :style="{ '--d': (i * 60) + 'ms' }"
-               role="button" tabindex="0" :title="'Открыть разбор здоровья: ' + c.name"
+               role="button" tabindex="0" :title="t('Открыть разбор здоровья: {name}', { name: c.name })"
                @click="openDrill(c)" @keydown="onRowKey($event, c)">
             <span class="ehl-dot" :style="{ background: c.zone_color }" />
             <span class="ehl-name" :title="c.name">{{ c.name }}</span>

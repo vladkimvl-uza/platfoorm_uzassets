@@ -1,16 +1,18 @@
 <script setup lang="ts">
+import { useI18n } from '@/composables/useI18n';
 defineProps<{ targetEmail: string }>();
 defineEmits<{ (e: 'exit'): void }>();
+const { t } = useI18n();
 </script>
 
 <template>
   <div class="rv3-imp-banner">
     <div class="rv3-imp-l">
       <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="8" cy="5" r="2.5"/><path d="M3 13c0-2.5 2-4 5-4s5 1.5 5 4"/></svg>
-      <span>Вы вошли как <strong>{{ targetEmail }}</strong> (режим просмотра, 30 мин)</span>
+      <span>{{ t("Вы вошли как") }} <strong>{{ targetEmail }}</strong> {{ t("(режим просмотра, 30 мин)") }}</span>
     </div>
     <button class="rv3-imp-exit" @click="$emit('exit')">
-      Вернуться в свой аккаунт
+      {{ t("Вернуться в свой аккаунт") }}
     </button>
   </div>
 </template>

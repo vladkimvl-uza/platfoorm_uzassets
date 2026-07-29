@@ -5,6 +5,7 @@
  * везде один паттерн «клик → список компаний с метрикой → переход в профиль».
  */
 import ModalShell from "@/components/ModalShell.vue";
+import { useI18n } from "@/composables/useI18n";
 
 export interface ESGDrillRow {
   id: string;
@@ -27,6 +28,7 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ (e: "close"): void; (e: "open-company", id: string): void }>();
 void props;
+const { t } = useI18n();
 </script>
 
 <template>
@@ -53,7 +55,7 @@ void props;
           <span class="dm-val" :style="{ color: r.valueColor || 'var(--t1, #1E2A4A)' }">{{ r.value }}</span>
           <svg class="dm-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
         </button>
-        <div v-if="!rows.length" class="dm-empty">Нет компаний по этому критерию</div>
+        <div v-if="!rows.length" class="dm-empty">{{ t("Нет компаний по этому критерию") }}</div>
       </div>
     </div>
   </ModalShell>

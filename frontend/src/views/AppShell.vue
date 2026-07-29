@@ -27,12 +27,15 @@ import { useHeartbeat } from "@/composables/usePresence";
 
 const aiAct = useAiActivation();
 const aiActive = computed(() => aiAct.state.active);
+const { t } = useI18n();
 import UserProfileModal from "@/components/UserProfileModal.vue";
 import WelcomeModal from "@/components/WelcomeModal.vue";
 import UserAffiliationBadge from "@/components/rbac-v3/UserAffiliationBadge.vue";
 import BottomNav from "@/components/BottomNav.vue";
 import EptLogo from "@/components/EptLogo.vue";
 import AppTopbar from "@/components/AppTopbar.vue";
+import LangSwitcher from "@/components/LangSwitcher.vue";
+import { useI18n } from "@/composables/useI18n";
 import PasswordExpiryBanner from "@/components/PasswordExpiryBanner.vue";
 import UserCardHost from "@/components/user/UserCardHost.vue";
 import UserViewModal from "@/components/user/UserViewModal.vue";
@@ -352,7 +355,7 @@ _impOnMounted(() => {
   // Restore previous state on subsequent mounts
   if (localStorage.getItem('uza_preview_real_token')) {
     _impActive.value = true;
-    _impEmail.value = localStorage.getItem('uza_preview_email') || 'другой пользователь';
+    _impEmail.value = localStorage.getItem('uza_preview_email') || t('другой пользователь');
   }
 });
 function exitImpersonate() {
@@ -391,8 +394,8 @@ function exitImpersonate() {
       v-if="!hasOwnTopbar && !mobileSidebarOpen"
       class="uza-mobile-toggle"
       type="button"
-      aria-label="Открыть меню"
-      title="Меню"
+      :aria-label="t('Открыть меню')"
+      :title="t('Меню')"
       @click="mobileSidebarOpen = true"
     >
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
@@ -411,12 +414,12 @@ function exitImpersonate() {
       <!-- Свернуть drawer (планшет/телефон): липкая по центру высоты кнопка-«язычок»
            на правом крае — чтобы закрыть меню не нужно скроллить наверх. -->
       <button v-if="mobileSidebarOpen" class="uza-drawer-close" type="button"
-              @click="mobileSidebarOpen = false" aria-label="Свернуть меню" title="Свернуть">
+              @click="mobileSidebarOpen = false" :aria-label="t('Свернуть меню')" :title="t('Свернуть')">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 7l-5 5 5 5"/></svg>
       </button>
       <!-- Header: logo + tagline (3 строки колонкой справа от лого) + bell -->
       <div class="sb-header">
-        <RouterLink to="/home" class="sb-brand" title="UzAssets · Единая платформа трансформации">
+        <RouterLink to="/home" class="sb-brand" :title="t('UzAssets · Единая платформа трансформации')">
           <EptLogo :size="40" />
           <span class="sb-brand-tagline-stack">
             <span>Единая</span>
@@ -432,22 +435,22 @@ function exitImpersonate() {
       <nav class="sb-body">
 
         <!-- Командная палитра — триггер для мыши (хоткей Cmd/Ctrl+K) -->
-        <button class="sb-search" type="button" @click="openCommandPalette" :title="`Поиск и команды (${cmdHint})`">
+        <button class="sb-search" type="button" @click="openCommandPalette" :title="t('Поиск и команды ({k})', { k: cmdHint })">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <span class="sb-search-label">Поиск</span>
+          <span class="sb-search-label">{{ t("Поиск") }}</span>
           <kbd class="sb-search-kbd">{{ cmdHint }}</kbd>
         </button>
 
         <!-- ИИ-ассистент — premium card (Pack 7.44 — main value-prop) -->
-        <RouterLink v-if="can('ai.view')" to="/ai-chat" class="ai-pcard" :class="{ 'ai-pcard-off': !aiActive }" active-class="ai-pcard-active" :title="aiActive ? 'ИИ-ассистент' : 'ИИ-ассистент выключен'">
+        <RouterLink v-if="can('ai.view')" to="/ai-chat" class="ai-pcard" :class="{ 'ai-pcard-off': !aiActive }" active-class="ai-pcard-active" :title="aiActive ? t('ИИ-ассистент') : t('ИИ-ассистент выключен')">
           <span class="ai-pcard-pulse"></span>
           <div class="ai-pcard-logo">
             <EptLogo :size="22" />
           </div>
           <div class="ai-pcard-txt">
             <div class="ai-pcard-t1">
-              ИИ-ассистент
-              <span class="ai-pcard-beta">BETA</span>
+              {{ t("ИИ-ассистент") }}
+              <span class="ai-pcard-beta">{{ t("BETA") }}</span>
             </div>
 
           </div>
@@ -456,7 +459,7 @@ function exitImpersonate() {
         <div v-if="can('ai.view')" class="ai-pcard-divider"></div>
 
         <!-- ── Группа: Обзор ── -->
-        <div v-if="can('financials.view') || can('monitoring.view') || isAdmin()" class="sb-group-label first">Обзор</div>
+        <div v-if="can('financials.view') || can('monitoring.view') || isAdmin()" class="sb-group-label first">{{ t("Обзор") }}</div>
 
         <!-- 1. Executive Dashboard (AMBER) — same gate as the route -->
         <RouterLink
@@ -474,7 +477,7 @@ function exitImpersonate() {
             <path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3" />
           </svg>
           <span class="sb-name">Executive Dashboard</span>
-          <span class="sb-exec-badge">Review</span>
+          <span class="sb-exec-badge">{{ t("Review") }}</span>
         </RouterLink>
 
         <!-- Сводный обзор перенесён в подвкладку «Отчёт» воркспейса компании (убран из сайдбара) -->
@@ -495,11 +498,11 @@ function exitImpersonate() {
             <circle cx="12" cy="12" r="3" />
           </svg>
           <span class="sb-name">Execution Summary</span>
-          <span class="sb-summary-badge">Live</span>
+          <span class="sb-summary-badge">{{ t("Live") }}</span>
         </RouterLink>
 
         <!-- ── Группа: Проекты и сроки ── -->
-        <div v-if="can('projects.view') || can('tasks.view')" class="sb-group-label">Проекты и сроки</div>
+        <div v-if="can('projects.view') || can('tasks.view')" class="sb-group-label">{{ t("Проекты и сроки") }}</div>
 
         <!-- 2. Проекты трансформации — показывает портфель проектов / задач;
              скрываем если у юзера нет ни projects.view, ни tasks.view (либо
@@ -516,7 +519,7 @@ function exitImpersonate() {
             <rect x="3" y="14" width="7" height="7" rx="1" />
             <rect x="14" y="14" width="7" height="7" rx="1" />
           </svg>
-          <span class="sb-name">Проекты трансформации</span>
+          <span class="sb-name">{{ t("Проекты трансформации") }}</span>
           <span v-if="secBadge(SB.projects)" class="sb-badge">{{ secBadge(SB.projects) }}</span>
         </RouterLink>
 
@@ -527,7 +530,7 @@ function exitImpersonate() {
                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/>
           </svg>
-          <span class="sb-name">Отслеживаемое</span>
+          <span class="sb-name">{{ t("Отслеживаемое") }}</span>
           <span v-if="secBadge(SB.followed)" class="sb-badge">{{ secBadge(SB.followed) }}</span>
         </RouterLink>
 
@@ -538,13 +541,13 @@ function exitImpersonate() {
                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
           </svg>
-          <span class="sb-name">Календарь</span>
+          <span class="sb-name">{{ t("Календарь") }}</span>
           <span v-if="secBadge(SB.calendar)" class="sb-badge">{{ secBadge(SB.calendar) }}</span>
         </RouterLink>
 
         <!-- ── Группа: Аналитика и модули ── -->
         <div v-if="showFinanceGroup || can('bp.view') || can('kpi.view') || can('governance.view') || can('esg.view') || showProcurementGroup || can('consultants.view') || can('ratings.view')"
-             class="sb-group-label">Аналитика и модули</div>
+             class="sb-group-label">{{ t("Аналитика и модули") }}</div>
 
         <!-- 3. Финансы (collapsible) — скрываем целиком если нет ни одного suб-доступа -->
         <template v-if="showFinanceGroup">
@@ -565,19 +568,19 @@ function exitImpersonate() {
               <line x1="12" y1="20" x2="12" y2="8" />
               <line x1="18" y1="20" x2="18" y2="11" />
             </svg>
-            <span class="sb-section-title">Финансы</span>
+            <span class="sb-section-title">{{ t("Финансы") }}</span>
             <span class="sb-chevron" :class="{ open: openGroups.finance }"></span>
           </div>
           <div class="sb-section-body" :class="{ open: openGroups.finance }">
             <RouterLink v-if="can('financials.view')" to="/financials" class="sb-item sb-sub" active-class="active">
               <span class="sb-sub-dot"></span>
-              <span class="sb-name">Обзор портфеля</span>
+              <span class="sb-name">{{ t("Обзор портфеля") }}</span>
             </RouterLink>
 
             <!-- Удельная себестоимость — энергоёмкость + статьи по продуктам -->
             <RouterLink v-if="can('financials.view')" to="/unit-cost" class="sb-item sb-sub" active-class="active">
               <span class="sb-sub-dot"></span>
-              <span class="sb-name">Удельная себестоимость</span>
+              <span class="sb-name">{{ t("Удельная себестоимость") }}</span>
             </RouterLink>
 
             <!-- SOE Health Check — светофорная оценка устойчивости портфеля -->
@@ -589,8 +592,8 @@ function exitImpersonate() {
             <!-- FinModel: единая страница с company picker в топбаре -->
             <RouterLink v-if="can('finmodel.view')" to="/finmodel" class="sb-item sb-sub" active-class="active" target="_blank" rel="noopener">
               <span class="sb-sub-dot"></span>
-              <span class="sb-name">Финансовая модель</span>
-              <span class="sb-ext-badge" title="Откроется в новой вкладке">
+              <span class="sb-name">{{ t("Финансовая модель") }}</span>
+              <span class="sb-ext-badge" :title="t('Откроется в новой вкладке')">
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
                      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
@@ -602,8 +605,8 @@ function exitImpersonate() {
 
             <RouterLink v-if="can('credit.view')" to="/credit-portfolio" class="sb-item sb-sub" active-class="active" target="_blank" rel="noopener">
               <span class="sb-sub-dot"></span>
-              <span class="sb-name">Кредитный портфель</span>
-              <span class="sb-ext-badge" title="Откроется в новой вкладке">
+              <span class="sb-name">{{ t("Кредитный портфель") }}</span>
+              <span class="sb-ext-badge" :title="t('Откроется в новой вкладке')">
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
                      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
@@ -615,8 +618,8 @@ function exitImpersonate() {
 
             <RouterLink v-if="can('investment.view')" to="/invest-projects" class="sb-item sb-sub" active-class="active" target="_blank" rel="noopener">
               <span class="sb-sub-dot"></span>
-              <span class="sb-name">Инвест-проекты</span>
-              <span class="sb-ext-badge" title="Откроется в новой вкладке">
+              <span class="sb-name">{{ t("Инвест-проекты") }}</span>
+              <span class="sb-ext-badge" :title="t('Откроется в новой вкладке')">
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
                      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
@@ -640,7 +643,7 @@ function exitImpersonate() {
             <line x1="8" y1="13" x2="16" y2="13" />
             <line x1="8" y1="17" x2="13" y2="17" />
           </svg>
-          <span class="sb-name">Бизнес-план</span>
+          <span class="sb-name">{{ t("Бизнес-план") }}</span>
           <span v-if="secBadge(SB.bp)" class="sb-badge">{{ secBadge(SB.bp) }}</span>
         </RouterLink>
 
@@ -669,16 +672,16 @@ function exitImpersonate() {
             <path d="M5 21V8l7-5 7 5v13" />
             <path d="M9 21V12h6v9" />
           </svg>
-          <span class="sb-name">Корпоративное управление</span>
+          <span class="sb-name">{{ t("Корпоративное управление") }}</span>
           <span v-if="secBadge(SB.governance)" class="sb-badge">{{ secBadge(SB.governance) }}</span>
         </RouterLink>
         <!-- 6.1 E-kengash — внешняя система корпоративного управления -->
         <a v-if="can('governance.view')"
            href="https://ekengash.imv.uz/auth" target="_blank" rel="noopener noreferrer"
-           class="sb-item sb-sub" title="E-kengash — открыть в новой вкладке">
+           class="sb-item sb-sub" :title="t('E-kengash — открыть в новой вкладке')">
           <span class="sb-sub-dot"></span>
           <span class="sb-name">E-kengash</span>
-          <span class="sb-ext-badge" title="Откроется в новой вкладке">
+          <span class="sb-ext-badge" :title="t('Откроется в новой вкладке')">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
@@ -721,20 +724,20 @@ function exitImpersonate() {
               <circle cx="20" cy="21" r="1" />
               <path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6" />
             </svg>
-            <span class="sb-section-title">Закупки</span>
+            <span class="sb-section-title">{{ t("Закупки") }}</span>
             <span class="sb-chevron" :class="{ open: openGroups.procurement }"></span>
           </div>
           <div class="sb-section-body" :class="{ open: openGroups.procurement }">
             <RouterLink v-if="can('procurement.view') || can('forensic.view')"
                         to="/procurement/forensic" class="sb-item sb-sub" active-class="active">
               <span class="sb-sub-dot"></span>
-              <span class="sb-name">Закупки и форензик-аудит</span>
+              <span class="sb-name">{{ t("Закупки и форензик-аудит") }}</span>
               <span v-if="secBadge(SB.procurement)" class="sb-badge">{{ secBadge(SB.procurement) }}</span>
             </RouterLink>
             <RouterLink v-if="can('procurement_analysis.view') || can('procurement.view')"
                         to="/procurement/analysis" class="sb-item sb-sub" active-class="active">
               <span class="sb-sub-dot"></span>
-              <span class="sb-name">Анализ закупочной деятельности государственных компаний</span>
+              <span class="sb-name">{{ t("Анализ закупочной деятельности государственных компаний") }}</span>
             </RouterLink>
           </div>
         </template>
@@ -751,7 +754,7 @@ function exitImpersonate() {
             <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
             <path d="M16 3.13a4 4 0 0 1 0 7.75" />
           </svg>
-          <span class="sb-name">Консультанты</span>
+          <span class="sb-name">{{ t("Консультанты") }}</span>
         </RouterLink>
 
         <!-- 10. Рейтинги -->
@@ -763,12 +766,12 @@ function exitImpersonate() {
           >
             <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
           </svg>
-          <span class="sb-name">Рейтинги</span>
+          <span class="sb-name">{{ t("Рейтинги") }}</span>
           <span v-if="secBadge(SB.ratings)" class="sb-badge">{{ secBadge(SB.ratings) }}</span>
         </RouterLink>
 
         <!-- ── Группа: Портфель ── -->
-        <div v-if="can('companies.view')" class="sb-group-label">Портфель компаний</div>
+        <div v-if="can('companies.view')" class="sb-group-label">{{ t("Портфель компаний") }}</div>
 
         <!-- 11. Компании (раскрывающийся раздел с компаниями по секторам) -->
         <SidebarCompaniesSection />
@@ -789,14 +792,14 @@ function exitImpersonate() {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M12 2l7 4v6c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6z"/>
             </svg>
-            <span class="sb-section-title">Настройки</span>
+            <span class="sb-section-title">{{ t("Настройки") }}</span>
             <span class="sb-chevron" :class="{ open: openGroups.rbac }"></span>
           </div>
           <div class="sb-section-body" :class="{ open: openGroups.rbac }">
             <!-- Pack 141: основная страница доступов -->
             <RouterLink to="/admin/rbac" class="sb-item sb-item-admin sb-sub" active-class="active">
               <span class="sb-sub-dot"></span>
-              <span class="sb-name">Доступы</span>
+              <span class="sb-name">{{ t("Доступы") }}</span>
             </RouterLink>
 
             <!-- Pack 148-followup: Moderation -->
@@ -807,7 +810,7 @@ function exitImpersonate() {
               active-class="active"
             >
               <span class="sb-sub-dot"></span>
-              <span class="sb-name">Модерация</span>
+              <span class="sb-name">{{ t("Модерация") }}</span>
             </RouterLink>
 
             <!-- Pack 148 D: Companies admin -->
@@ -818,7 +821,7 @@ function exitImpersonate() {
               active-class="active"
             >
               <span class="sb-sub-dot"></span>
-              <span class="sb-name">Компании и сектора</span>
+              <span class="sb-name">{{ t("Компании и сектора") }}</span>
             </RouterLink>
 
             <!-- Pack 7.35: системные константы -->
@@ -830,7 +833,7 @@ function exitImpersonate() {
             <!-- Pack 11.2: Admin Broadcasts -->
             <RouterLink to="/admin/broadcasts" class="sb-item sb-item-admin sb-sub" active-class="active">
               <span class="sb-sub-dot"></span>
-              <span class="sb-name">Кастомные рассылки</span>
+              <span class="sb-name">{{ t("Кастомные рассылки") }}</span>
             </RouterLink>
 
             <!-- Pack 149: Catalogs (directions + consultants) -->
@@ -841,7 +844,7 @@ function exitImpersonate() {
               active-class="active"
             >
               <span class="sb-sub-dot"></span>
-              <span class="sb-name">Каталоги · направления и консультанты</span>
+              <span class="sb-name">{{ t("Каталоги · направления и консультанты") }}</span>
             </RouterLink>
 
             <!-- Конструктор задач — массовое заведение проектов/задач -->
@@ -852,7 +855,7 @@ function exitImpersonate() {
               active-class="active"
             >
               <span class="sb-sub-dot"></span>
-              <span class="sb-name">Конструктор задач и проектов</span>
+              <span class="sb-name">{{ t("Конструктор задач и проектов") }}</span>
             </RouterLink>
 
             <!-- Pack 149: Storage backend admin -->
@@ -863,7 +866,7 @@ function exitImpersonate() {
               active-class="active"
             >
               <span class="sb-sub-dot"></span>
-              <span class="sb-name">Хранилище файлов (S3)</span>
+              <span class="sb-name">{{ t("Хранилище файлов (S3)") }}</span>
             </RouterLink>
 
             <!-- Pack 149: DB-консоль (только owner/admin) -->
@@ -874,8 +877,8 @@ function exitImpersonate() {
               active-class="active"
             >
               <span class="sb-sub-dot"></span>
-              <span class="sb-name">База данных</span>
-              <span class="sb-macro-beta" style="background: rgba(226,75,74,.15); color: #C36868;">RAW</span>
+              <span class="sb-name">{{ t("База данных") }}</span>
+              <span class="sb-macro-beta" style="background: rgba(226,75,74,.15); color: #C36868;">{{ t("RAW") }}</span>
             </RouterLink>
 
             <!-- Pack 150: TLS-сертификат (только owner/admin) -->
@@ -886,7 +889,7 @@ function exitImpersonate() {
               active-class="active"
             >
               <span class="sb-sub-dot"></span>
-              <span class="sb-name">TLS сертификат</span>
+              <span class="sb-name">{{ t("TLS сертификат") }}</span>
             </RouterLink>
 
             <!-- Настройка SMTP / email-уведомлений (owner/admin) -->
@@ -897,17 +900,17 @@ function exitImpersonate() {
               active-class="active"
             >
               <span class="sb-sub-dot"></span>
-              <span class="sb-name">Почта и уведомления (SMTP)</span>
+              <span class="sb-name">{{ t("Почта и уведомления (SMTP)") }}</span>
             </RouterLink>
 
             <!-- API & Интеграции (слиты в «Настройки») -->
             <RouterLink to="/admin/api" class="sb-item sb-item-admin sb-sub" active-class="active">
               <span class="sb-sub-dot"></span>
-              <span class="sb-name">Каталог API</span>
+              <span class="sb-name">{{ t("Каталог API") }}</span>
             </RouterLink>
             <RouterLink to="/api-docs" class="sb-item sb-item-admin sb-sub" active-class="active">
               <span class="sb-sub-dot"></span>
-              <span class="sb-name">Документация API</span>
+              <span class="sb-name">{{ t("Документация API") }}</span>
             </RouterLink>
 
             <!-- Библиотека компаний (MDM) — слита в «Настройки» -->
@@ -918,7 +921,7 @@ function exitImpersonate() {
               active-class="active"
             >
               <span class="sb-sub-dot"></span>
-              <span class="sb-name">Библиотека · Компании</span>
+              <span class="sb-name">{{ t("Библиотека · Компании") }}</span>
             </RouterLink>
           </div>
         </template>
@@ -926,28 +929,31 @@ function exitImpersonate() {
         <!-- Pack 9.2.2: Audit log moved into RBAC v2 (tab "Журнал активности") — sidebar item removed -->
       </nav>
 
-      <!-- Footer: профиль-чип + logout -->
+      <!-- Footer: язык + профиль-чип + logout -->
       <div class="sb-footer">
-        <button class="sb-profile" type="button" @click="showProfile = true" title="Профиль и настройки">
+        <div class="sb-lang-row">
+          <LangSwitcher variant="dark" />
+        </div>
+        <button class="sb-profile" type="button" @click="showProfile = true" :title="t('Профиль и настройки')">
           <span class="sb-profile-avwrap">
             <span class="sb-profile-av">
               <img v-if="auth.user?.avatar_url" :src="auth.user.avatar_url" alt="" />
               <template v-else>{{ profileInitials }}</template>
             </span>
-            <span class="sb-profile-online" title="В сети"></span>
+            <span class="sb-profile-online" :title="t('В сети')"></span>
           </span>
           <span class="sb-profile-txt">
-            <span class="sb-profile-name">{{ auth.user?.full_name || auth.user?.email || 'Профиль' }}</span>
+            <span class="sb-profile-name">{{ auth.user?.full_name || auth.user?.email || t('Профиль') }}</span>
             <UserAffiliationBadge
               v-if="auth.user?.company || auth.user?.sector || auth.user?.job_title"
               class="sb-profile-badges" size="sm"
               :company="auth.user?.company" :sector="auth.user?.sector" :job-title="auth.user?.job_title"
             />
-            <span v-else class="sb-profile-sub">настройки профиля</span>
+            <span v-else class="sb-profile-sub">{{ t('настройки профиля') }}</span>
           </span>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto;opacity:.6"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         </button>
-        <button class="sb-logout" type="button" @click="logout" title="Выйти">
+        <button class="sb-logout" type="button" @click="logout" :title="t('Выйти')">
           <svg
             width="14" height="14" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" stroke-width="2"
@@ -957,7 +963,7 @@ function exitImpersonate() {
             <polyline points="16 17 21 12 16 7" />
             <line x1="21" y1="12" x2="9" y2="12" />
           </svg>
-          <span>Выйти</span>
+          <span>{{ t("Выйти") }}</span>
         </button>
       </div>
     </aside>
@@ -1861,6 +1867,9 @@ function exitImpersonate() {
   gap: 8px;
   flex-wrap: wrap;
 }
+/* Переключатель языка — своя строка над профилем; в свёрнутом сайдбаре скрыт */
+.sb-lang-row { width: 100%; display: flex; }
+.uza-aside.collapsed .sb-lang-row { display: none; }
 .sb-profile {
   display: flex; align-items: center; gap: 9px; width: 100%;
   padding: 8px 10px; border-radius: 10px;

@@ -19,6 +19,9 @@ import {
 } from "@/api/procurement_analysis";
 import { useToast } from "@/composables/useToast";
 import PaModalShell from "./PaModalShell.vue";
+import { useI18n } from "@/composables/useI18n";
+
+const { t } = useI18n();
 
 const props = defineProps<{
   purchase: ClosureRow;
@@ -93,10 +96,10 @@ async function saveConcl() {
       conclusion_author_name: res.conclusion_author_name ?? null,
     });
     editingConcl.value = false;
-    toast.success("Заключение сохранено");
+    toast.success(t("Заключение сохранено"));
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    toast.error("Не удалось сохранить заключение: " + (err?.response?.data?.detail || err?.message || "ошибка"));
+    toast.error(t("Не удалось сохранить заключение") + ": " + (err?.response?.data?.detail || err?.message || t("ошибка")));
   } finally {
     savingConcl.value = false;
   }
@@ -156,14 +159,21 @@ const recommendation = computed<string>(() => {
   const best = bestCo.value;
   if (best && best.company_id !== props.purchase.company_id && best.unit_price < props.purchase.unit_price) {
     const saveTotal = (props.purchase.unit_price - best.unit_price) * totalVol.value;
-    return `<b>${_escHtml(best.company_name)}</b> закупает по <b>${paFmtMoney(best.unit_price)}</b>` +
-      (best.supplier ? ` у поставщика «${_escHtml(best.supplier)}»` : "") +
-      `. Рассмотреть смену поставщика — потенциальная экономия <b>${paFmtMoneyShort(saveTotal)} сум/год</b> при сохранении объёмов.`;
+    const vars = {
+      co: `<b>${_escHtml(best.company_name)}</b>`,
+      price: `<b>${paFmtMoney(best.unit_price)}</b>`,
+      sup: _escHtml(best.supplier || ""),
+      save: `<b>${paFmtMoneyShort(saveTotal)} ${t("сум/год")}</b>`,
+    };
+    return best.supplier
+      ? t("{co} закупает по {price} у поставщика «{sup}». Рассмотреть смену поставщика — потенциальная экономия {save} при сохранении объёмов.", vars)
+      : t("{co} закупает по {price}. Рассмотреть смену поставщика — потенциальная экономия {save} при сохранении объёмов.", vars);
   }
   if (devPct.value < -5) {
-    return `Закупка <b>ниже рынка на ${Math.abs(devPct.value).toFixed(1)}%</b> — хороший результат. Поделиться методикой с другими компаниями портфеля.`;
+    const dev = `<b>${t("ниже рынка на {pct}%", { pct: Math.abs(devPct.value).toFixed(1) })}</b>`;
+    return t("Закупка {dev} — хороший результат. Поделиться методикой с другими компаниями портфеля.", { dev });
   }
-  return "Цена в пределах рыночной. Продолжать мониторинг.";
+  return t("Цена в пределах рыночной. Продолжать мониторинг.");
 });
 
 const isRecGood = computed(() => devPct.value < -5);
@@ -191,7 +201,7 @@ const headerTitle = computed(() => {
 
 <template>
   <PaModalShell
-    kind="Закупка"
+    :kind="t('Закупка')"
     :title="headerTitle"
     :accent="accentColor"
     max-width="940px"
@@ -200,15 +210,15 @@ const headerTitle = computed(() => {
     <!-- ─── Stats ─── -->
     <template #stats>
       <div class="pms-stat">
-        <div class="pms-stat-lbl">Цена SOE</div>
-        <div class="pms-stat-val">{{ paFmtMoney(purchase.unit_price) }}<small>/{{ cat.short || 'ед' }}</small></div>
+        <div class="pms-stat-lbl">{{ t("Цена SOE") }}</div>
+        <div class="pms-stat-val">{{ paFmtMoney(purchase.unit_price) }}<small>/{{ cat.short || t('ед') }}</small></div>
       </div>
       <div class="pms-stat">
-        <div class="pms-stat-lbl">Median рынка</div>
-        <div class="pms-stat-val">{{ paFmtMoney(purchase.market_avg) }}<small>/{{ cat.short || 'ед' }}</small></div>
+        <div class="pms-stat-lbl">{{ t("Median рынка") }}</div>
+        <div class="pms-stat-val">{{ paFmtMoney(purchase.market_avg) }}<small>/{{ cat.short || t('ед') }}</small></div>
       </div>
       <div class="pms-stat">
-        <div class="pms-stat-lbl">{{ devAbs >= 0 ? 'Переплата / ед.' : 'Экономия / ед.' }}</div>
+        <div class="pms-stat-lbl">{{ devAbs >= 0 ? t('Переплата / ед.') : t('Экономия / ед.') }}</div>
         <div class="pms-stat-val" :class="devAbs >= 0 ? 'neg' : 'pos'">
           {{ devAbs >= 0 ? '+' : '−' }}{{ paFmtMoney(Math.abs(purchase.unit_price - purchase.market_avg)) }}
         </div>
@@ -220,13 +230,13 @@ const headerTitle = computed(() => {
         </div>
       </div>
       <div class="pms-stat">
-        <div class="pms-stat-lbl">Объём</div>
-        <div class="pms-stat-val">{{ purchase.volume.toLocaleString('ru-RU') }}<small>{{ cat.short || 'ед' }}</small></div>
+        <div class="pms-stat-lbl">{{ t("Объём") }}</div>
+        <div class="pms-stat-val">{{ purchase.volume.toLocaleString('ru-RU') }}<small>{{ cat.short || t('ед') }}</small></div>
       </div>
       <div class="pms-stat">
-        <div class="pms-stat-lbl">{{ devAbs >= 0 ? 'Переплата итого' : 'Экономия итого' }}</div>
+        <div class="pms-stat-lbl">{{ devAbs >= 0 ? t('Переплата итого') : t('Экономия итого') }}</div>
         <div class="pms-stat-val" :class="devAbs >= 0 ? 'neg' : 'pos'">
-          {{ devAbs >= 0 ? '+' : '−' }}{{ paFmtMoneyShort(Math.abs(devAbs)) }}<small>сум</small>
+          {{ devAbs >= 0 ? '+' : '−' }}{{ paFmtMoneyShort(Math.abs(devAbs)) }}<small>{{ t("сум") }}</small>
         </div>
       </div>
     </template>
@@ -240,7 +250,7 @@ const headerTitle = computed(() => {
           <path d="M12 9v4M12 17h.01"/>
           <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
         </svg>
-        <span><b>Закупка помечена как dirty</b> — extreme deviation, цены могут быть искажены (разные единицы, спецификации). Используй данные с осторожностью.</span>
+        <span><b>{{ t("Закупка помечена как dirty") }}</b> — extreme deviation, {{ t("цены могут быть искажены (разные единицы, спецификации). Используй данные с осторожностью.") }}</span>
       </div>
 
       <!-- AI recommendation -->
@@ -255,62 +265,62 @@ const headerTitle = computed(() => {
 
       <!-- Meta line -->
       <div class="ppd-meta">
-        <span v-if="purchase.supplier"><span class="ppd-meta-l">Поставщик:</span> {{ purchase.supplier }}</span>
-        <span v-if="purchase.contract_date"><span class="ppd-meta-l">Дата:</span> {{ fmtDate(purchase.contract_date) }}</span>
-        <span v-if="data.year"><span class="ppd-meta-l">Год:</span> FY {{ data.year }}</span>
+        <span v-if="purchase.supplier"><span class="ppd-meta-l">{{ t("Поставщик") }}:</span> {{ purchase.supplier }}</span>
+        <span v-if="purchase.contract_date"><span class="ppd-meta-l">{{ t("Дата") }}:</span> {{ fmtDate(purchase.contract_date) }}</span>
+        <span v-if="data.year"><span class="ppd-meta-l">{{ t("Год") }}:</span> FY {{ data.year }}</span>
         <button
           v-if="bestCo && bestCo.company_id !== purchase.company_id"
           class="ppd-best-btn"
           @click="emit('select-co', bestCo!.company_id); emit('close')"
         >
-          Профиль эталона ({{ bestCo!.company_name }}) →
+          {{ t("Профиль эталона") }} ({{ bestCo!.company_name }}) →
         </button>
       </div>
 
       <!-- Заключение центра экспертизы (по закупке) -->
       <div class="ppd-section ppd-concl">
         <div class="ppd-section-h">
-          <span class="ppd-section-t">Заключение центра экспертизы</span>
+          <span class="ppd-section-t">{{ t("Заключение центра экспертизы") }}</span>
           <span
             v-if="purchase.conclusion_status"
             class="ppd-concl-badge"
             :class="'st-' + purchase.conclusion_status"
-          >{{ conclStatusMeta.label }}</span>
+          >{{ t(conclStatusMeta.label) }}</span>
         </div>
 
         <div class="ppd-concl-body">
           <template v-if="!editingConcl">
             <div v-if="purchase.conclusion_text" class="ppd-concl-text">{{ purchase.conclusion_text }}</div>
             <div v-else class="ppd-concl-empty">
-              Заключение по данной закупке ещё не добавлено.
+              {{ t("Заключение по данной закупке ещё не добавлено.") }}
             </div>
             <div class="ppd-concl-foot">
               <span v-if="purchase.conclusion_author_name || purchase.conclusion_date" class="ppd-concl-meta">
                 <template v-if="purchase.conclusion_author_name">{{ purchase.conclusion_author_name }}</template><template v-if="purchase.conclusion_author_name && purchase.conclusion_date"> · </template><template v-if="purchase.conclusion_date">{{ fmtDateTime(purchase.conclusion_date) }}</template>
               </span>
               <button v-if="canEdit" class="ppd-concl-edit" @click="startEditConcl">
-                {{ purchase.conclusion_text ? 'Редактировать' : 'Добавить заключение' }}
+                {{ purchase.conclusion_text ? t('Редактировать') : t('Добавить заключение') }}
               </button>
             </div>
           </template>
 
           <template v-else>
             <div class="ppd-concl-srow">
-              <label class="ppd-concl-slbl">Статус</label>
+              <label class="ppd-concl-slbl">{{ t("Статус") }}</label>
               <select v-model="conclStatusDraft" class="ppd-concl-sel">
-                <option v-for="s in CONCLUSION_STATUSES" :key="s.key" :value="s.key">{{ s.label }}</option>
+                <option v-for="s in CONCLUSION_STATUSES" :key="s.key" :value="s.key">{{ t(s.label) }}</option>
               </select>
             </div>
             <textarea
               v-model="conclDraft"
               class="ppd-concl-ta"
               rows="4"
-              placeholder="Вывод центра экспертизы по закупке: обоснованность цены, соответствие рынку, выявленные риски, рекомендации…"
+              :placeholder="t('Вывод центра экспертизы по закупке: обоснованность цены, соответствие рынку, выявленные риски, рекомендации…')"
             ></textarea>
             <div class="ppd-concl-btns">
-              <button class="ppd-concl-cancel" :disabled="savingConcl" @click="cancelConcl">Отмена</button>
+              <button class="ppd-concl-cancel" :disabled="savingConcl" @click="cancelConcl">{{ t("Отмена") }}</button>
               <button class="ppd-concl-save" :disabled="savingConcl" @click="saveConcl">
-                {{ savingConcl ? 'Сохранение…' : 'Сохранить' }}
+                {{ savingConcl ? t('Сохранение…') : t('Сохранить') }}
               </button>
             </div>
           </template>
@@ -320,22 +330,22 @@ const headerTitle = computed(() => {
       <!-- Related purchases -->
       <div v-if="related.length > 1" class="ppd-section">
         <div class="ppd-section-h">
-          <span class="ppd-section-t">Закупки этой компании в категории</span>
-          <span class="ppd-section-s">{{ related.length }} закупок · {{ totalVol.toLocaleString('ru-RU') }} {{ cat.short || 'ед' }} объёма</span>
+          <span class="ppd-section-t">{{ t("Закупки этой компании в категории") }}</span>
+          <span class="ppd-section-s">{{ t("{n} закупок · {vol} {unit} объёма", { n: related.length, vol: totalVol.toLocaleString('ru-RU'), unit: cat.short || t('ед') }) }}</span>
         </div>
         <table class="ppd-tbl pa-stagger">
           <thead>
             <tr>
-              <th class="left">Дата</th>
-              <th class="left">Поставщик</th>
-              <th class="right">Объём</th>
-              <th class="right">Цена</th>
+              <th class="left">{{ t("Дата") }}</th>
+              <th class="left">{{ t("Поставщик") }}</th>
+              <th class="right">{{ t("Объём") }}</th>
+              <th class="right">{{ t("Цена") }}</th>
               <th class="right">{{ 'Δ %' }}</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="r in related" :key="r.id" :class="{ 'ppd-row-dirty': r.is_dirty, 'ppd-row-current': r.id === purchase.id }">
-              <td class="left">{{ fmtDate(r.contract_date) }}<span v-if="r.id === purchase.id" class="ppd-current-tag">текущая</span></td>
+              <td class="left">{{ fmtDate(r.contract_date) }}<span v-if="r.id === purchase.id" class="ppd-current-tag">{{ t("текущая") }}</span></td>
               <td class="left supplier">{{ r.supplier || '—' }}</td>
               <td class="right">{{ r.volume.toLocaleString('ru-RU') }}</td>
               <td class="right">{{ paFmtMoney(r.unit_price) }}</td>

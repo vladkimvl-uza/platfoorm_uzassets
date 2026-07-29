@@ -18,6 +18,9 @@ import {
   type MethodAgg,
   type PlatformAgg,
 } from "@/api/procurement_analysis";
+import { useI18n } from "@/composables/useI18n";
+
+const { t } = useI18n();
 
 const props = defineProps<{ data: ProcurementAggregate }>();
 
@@ -119,16 +122,15 @@ function fmtInt(v: number | null | undefined): string {
       </div>
 
       <div class="pa-mp-callout-body">
-        <div class="pa-mp-eyebrow pa-mp-eyebrow--amber">Без конкурентной процедуры</div>
-        <div class="pa-mp-callout-amt">{{ paFmtMoneyShort(noTenderSpend) }}<span class="pa-mp-cur"> сум</span></div>
+        <div class="pa-mp-eyebrow pa-mp-eyebrow--amber">{{ t("Без конкурентной процедуры") }}</div>
+        <div class="pa-mp-callout-amt">{{ paFmtMoneyShort(noTenderSpend) }}<span class="pa-mp-cur"> {{ t("сум") }}</span></div>
         <div class="pa-mp-callout-sub">
-          {{ fmtPct(noTenderPct) }}% спенда — прямые каталоги/неконкурентные методы
-          (e-shop), где торга нет по определению.
+          {{ t("{pct}% спенда — прямые каталоги/неконкурентные методы (e-shop), где торга нет по определению.", { pct: fmtPct(noTenderPct) }) }}
         </div>
         <div class="pa-mp-callout-flag">
           <span class="pa-mp-flag-dot" />
-          ещё <b>{{ fmtPct(compNoSavingPct) }}%</b> ({{ paFmtMoneyShort(compNoSavingSpend) }} сум) —
-          конкурентные процедуры с нулевой экономией (возможная имитация торга)
+          {{ t("ещё") }} <b>{{ fmtPct(compNoSavingPct) }}%</b> ({{ paFmtMoneyShort(compNoSavingSpend) }} {{ t("сум") }}) —
+          {{ t("конкурентные процедуры с нулевой экономией (возможная имитация торга)") }}
         </div>
       </div>
     </section>
@@ -138,13 +140,13 @@ function fmtInt(v: number | null | undefined): string {
       <!-- ── Карточка 1: Способы закупки ── -->
       <section class="pa-mp-card pa-mp-card--methods" :style="{ '--i': 1 }">
         <header class="pa-mp-card-head">
-          <div class="pa-mp-eyebrow">Способы закупки</div>
-          <div class="pa-mp-card-hint">экономия по типу процедуры</div>
+          <div class="pa-mp-eyebrow">{{ t("Способы закупки") }}</div>
+          <div class="pa-mp-card-hint">{{ t("экономия по типу процедуры") }}</div>
         </header>
 
         <div v-if="!methods.length" class="pa-mp-empty">
-          <div class="pa-mp-empty-title">Нет данных о способах закупки</div>
-          <div class="pa-mp-empty-sub">За выбранный период записи отсутствуют</div>
+          <div class="pa-mp-empty-title">{{ t("Нет данных о способах закупки") }}</div>
+          <div class="pa-mp-empty-sub">{{ t("За выбранный период записи отсутствуют") }}</div>
         </div>
 
         <ul v-else class="pa-mp-rows">
@@ -162,18 +164,18 @@ function fmtInt(v: number | null | undefined): string {
               <span
                 v-if="badgeKind(m.saved_rate_pct, m.is_competitive) === 'catalog'"
                 class="pa-mp-badge pa-mp-badge--red"
-                title="Неконкурентный метод (каталог/прямая закупка) — торга нет по определению"
-              >каталог · без торга</span>
+                :title="t('Неконкурентный метод (каталог/прямая закупка) — торга нет по определению')"
+              >{{ t("каталог · без торга") }}</span>
               <span
                 v-else-if="badgeKind(m.saved_rate_pct, m.is_competitive) === 'no-effect'"
                 class="pa-mp-badge pa-mp-badge--amber"
-                title="Конкурентная процедура, но экономия ≈0 — возможна имитация торга"
-              >торг без эффекта</span>
+                :title="t('Конкурентная процедура, но экономия ≈0 — возможна имитация торга')"
+              >{{ t("торг без эффекта") }}</span>
               <span
                 v-else
                 class="pa-mp-badge pa-mp-badge--green"
-                title="Конкурентный метод — достигнута экономия"
-              >−{{ fmtPct(m.saved_rate_pct) }}% экономия</span>
+                :title="t('Конкурентный метод — достигнута экономия')"
+              >−{{ fmtPct(m.saved_rate_pct) }}% {{ t("экономия") }}</span>
             </div>
 
             <div class="pa-mp-bar-track">
@@ -185,9 +187,9 @@ function fmtInt(v: number | null | undefined): string {
             </div>
 
             <div class="pa-mp-row-meta">
-              <span class="pa-mp-share">{{ fmtPct(m.spend_share_pct) }}% спенда</span>
+              <span class="pa-mp-share">{{ t("{p}% спенда", { p: fmtPct(m.spend_share_pct) }) }}</span>
               <span class="pa-mp-dot">·</span>
-              <span class="pa-mp-lots">{{ fmtInt(m.lot_count) }} лот.</span>
+              <span class="pa-mp-lots">{{ fmtInt(m.lot_count) }} {{ t("лот.") }}</span>
             </div>
           </li>
         </ul>
@@ -196,13 +198,13 @@ function fmtInt(v: number | null | undefined): string {
       <!-- ── Карточка 2: Электронные площадки ── -->
       <section class="pa-mp-card pa-mp-card--platforms" :style="{ '--i': 1 }">
         <header class="pa-mp-card-head">
-          <div class="pa-mp-eyebrow">Электронные площадки</div>
-          <div class="pa-mp-card-hint">экономия по торговой площадке</div>
+          <div class="pa-mp-eyebrow">{{ t("Электронные площадки") }}</div>
+          <div class="pa-mp-card-hint">{{ t("экономия по торговой площадке") }}</div>
         </header>
 
         <div v-if="!platforms.length" class="pa-mp-empty">
-          <div class="pa-mp-empty-title">Нет данных о площадках</div>
-          <div class="pa-mp-empty-sub">За выбранный период записи отсутствуют</div>
+          <div class="pa-mp-empty-title">{{ t("Нет данных о площадках") }}</div>
+          <div class="pa-mp-empty-sub">{{ t("За выбранный период записи отсутствуют") }}</div>
         </div>
 
         <ul v-else class="pa-mp-rows">
@@ -218,12 +220,12 @@ function fmtInt(v: number | null | undefined): string {
               <span
                 v-if="isZeroRow(p.saved_rate_pct, true)"
                 class="pa-mp-badge pa-mp-badge--red"
-                title="Площадка прямого каталога — экономия отсутствует"
-              >0% экономия</span>
+                :title="t('Площадка прямого каталога — экономия отсутствует')"
+              >0% {{ t("экономия") }}</span>
               <span
                 v-else
                 class="pa-mp-badge pa-mp-badge--green"
-                title="Достигнута экономия на торгах"
+                :title="t('Достигнута экономия на торгах')"
               >−{{ fmtPct(p.saved_rate_pct) }}%</span>
             </div>
 
@@ -236,9 +238,9 @@ function fmtInt(v: number | null | undefined): string {
             </div>
 
             <div class="pa-mp-row-meta">
-              <span class="pa-mp-share">{{ fmtPct(p.spend_share_pct) }}% спенда</span>
+              <span class="pa-mp-share">{{ t("{p}% спенда", { p: fmtPct(p.spend_share_pct) }) }}</span>
               <span class="pa-mp-dot">·</span>
-              <span class="pa-mp-lots">{{ fmtInt(p.lot_count) }} лот.</span>
+              <span class="pa-mp-lots">{{ fmtInt(p.lot_count) }} {{ t("лот.") }}</span>
             </div>
           </li>
         </ul>

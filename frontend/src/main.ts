@@ -76,6 +76,16 @@ const pinia = createPinia();
 
 app.use(pinia);
 
+// <html lang> с первого кадра соответствует сохранённой локали (стор меняет
+// атрибут только при переключении — на старте выставляем сами).
+try {
+  const _loc = localStorage.getItem("uza-locale-v1") || "ru";
+  document.documentElement.setAttribute(
+    "lang",
+    _loc === "uz-latn" ? "uz" : _loc === "uz-cyr" ? "uz-Cyrl" : _loc,
+  );
+} catch { /* SSR/приватный режим */ }
+
 // Пароль не может содержать пробел — глобально вырезаем/блокируем пробелы
 // во всех input[type=password] (логин, смена/сброс пароля, инвайт, step-up).
 installNoSpacePasswordGuard();

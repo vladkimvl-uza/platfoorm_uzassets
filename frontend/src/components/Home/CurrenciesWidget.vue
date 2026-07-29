@@ -9,6 +9,9 @@
  * Кеш 30 мин в localStorage.
  */
 import { ref, onMounted } from "vue";
+import { useI18n } from "@/composables/useI18n";
+
+const { t } = useI18n();
 
 interface Rate {
   ccy: "USD" | "EUR" | "CNY" | "JPY" | "GBP" | "RUB";
@@ -92,7 +95,7 @@ async function loadRates() {
     data.value = snap;
     try { localStorage.setItem(CACHE_KEY, JSON.stringify(snap)); } catch { /* ignore */ }
   } catch (e: any) {
-    errorMsg.value = e?.message || "Не удалось получить курсы";
+    errorMsg.value = e?.message || t("Не удалось получить курсы");
   } finally {
     loading.value = false;
   }
@@ -104,7 +107,7 @@ onMounted(loadRates);
 <template>
   <div class="cw-root">
     <div class="cw-head">
-      <span class="cw-h-l">ЦБ РУз</span>
+      <span class="cw-h-l">{{ t("ЦБ РУз") }}</span>
       <span v-if="data?.rates[0]?.date" class="cw-h-d">{{ data.rates[0].date }}</span>
     </div>
     <div v-if="loading" class="cw-loading">
@@ -116,7 +119,7 @@ onMounted(loadRates);
         v-for="r in data.rates"
         :key="r.ccy"
         class="cw-row"
-        :title="`${r.nameRu} (1 ${r.ccy}${r.nominal !== 1 ? ' / ' + r.nominal : ''}) на ${r.date}`"
+        :title="t('{name} (1 {ccy}{nom}) на {date}', { name: t(r.nameRu), ccy: r.ccy, nom: r.nominal !== 1 ? ' / ' + r.nominal : '', date: r.date })"
       >
         <img class="cw-flag" :src="flagUrl(r.cc || 'un')" :alt="(r.cc || '').toUpperCase()" width="18" height="13" loading="lazy" />
         <span class="cw-ccy">{{ r.ccy }}</span>

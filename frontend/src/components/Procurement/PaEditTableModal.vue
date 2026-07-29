@@ -3,10 +3,9 @@
     <template #header>
       <div>
         <div class="pa-edit-eyebrow">Procurement editor</div>
-        <h2 class="pa-edit-title">Редактирование закупок</h2>
+        <h2 class="pa-edit-title">{{ t("Редактирование закупок") }}</h2>
         <p class="pa-edit-sub">
-          {{ year ? `Год ${year} · ` : "" }}{{ rows.length }} строк ·
-          клик по ячейке → редактирование · Enter — сохранить
+          {{ year ? t("Год {year}", { year }) + " · " : "" }}{{ t("{n} строк · клик по ячейке → редактирование · Enter — сохранить", { n: rows.length }) }}
         </p>
       </div>
     </template>
@@ -16,12 +15,12 @@
         <input
           v-model="filterQuery"
           type="text"
-          placeholder="Поиск: компания / поставщик / продукт / код…"
+          :placeholder="t('Поиск: компания / поставщик / продукт / код…')"
           class="pa-edit-search"
         />
         <span class="pa-edit-status">
-          <template v-if="savingId">Сохранение…</template>
-          <template v-else-if="lastSaved">✓ сохранено: {{ lastSavedShort }}</template>
+          <template v-if="savingId">{{ t("Сохранение…") }}</template>
+          <template v-else-if="lastSaved">✓ {{ t("сохранено") }}: {{ lastSavedShort }}</template>
           <template v-else>—</template>
         </span>
       </div>
@@ -30,14 +29,14 @@
         <thead>
           <tr>
             <th class="num">№</th>
-            <th>Компания</th>
-            <th>Поставщик</th>
-            <th>Продукт</th>
-            <th class="num">Кол-во</th>
-            <th class="num">Цена</th>
-            <th class="num">Сумма</th>
-            <th>Дата</th>
-            <th class="num">Откл. %</th>
+            <th>{{ t("Компания") }}</th>
+            <th>{{ t("Поставщик") }}</th>
+            <th>{{ t("Продукт") }}</th>
+            <th class="num">{{ t("Кол-во") }}</th>
+            <th class="num">{{ t("Цена") }}</th>
+            <th class="num">{{ t("Сумма") }}</th>
+            <th>{{ t("Дата") }}</th>
+            <th class="num">{{ t("Откл. %") }}</th>
             <th class="ctr">Dirty</th>
           </tr>
         </thead>
@@ -96,7 +95,7 @@
             </td>
           </tr>
           <tr v-if="!visibleRows.length">
-            <td colspan="10" class="pa-edit-empty">Нет строк по фильтру</td>
+            <td colspan="10" class="pa-edit-empty">{{ t("Нет строк по фильтру") }}</td>
           </tr>
         </tbody>
       </table>
@@ -104,10 +103,10 @@
 
     <template #footer>
       <span class="pa-edit-foot-l">
-        Показано <b>{{ visibleRows.length }}</b> из {{ rows.length }} ·
-        изменения сохраняются автоматически по PUT /procurement/closures/&lbrace;id&rbrace;
+        {{ t("Показано {shown} из {total} · изменения сохраняются автоматически", { shown: visibleRows.length, total: rows.length }) }}
+        · PUT /procurement/closures/&lbrace;id&rbrace;
       </span>
-      <button class="pa-edit-close" @click="close">Закрыть</button>
+      <button class="pa-edit-close" @click="close">{{ t("Закрыть") }}</button>
     </template>
   </ModalShell>
 </template>
@@ -116,8 +115,11 @@
 import { ref, computed } from "vue";
 import { api } from "@/api/client";
 import { useToast } from "@/composables/useToast";
+import { useI18n } from "@/composables/useI18n";
 import type { ClosureRow } from "@/api/procurement_analysis";
 import ModalShell from "@/components/ModalShell.vue";
+
+const { t } = useI18n();
 
 const props = defineProps<{
   modelValue: boolean;
@@ -149,7 +151,7 @@ const visibleRows = computed(() => {
 const lastSavedShort = computed(() => {
   if (!lastSaved.value) return "";
   const sec = Math.max(0, Math.floor((Date.now() - lastSaved.value.at) / 1000));
-  return sec < 5 ? "только что" : `${sec}s назад`;
+  return sec < 5 ? t("только что") : t("{sec}s назад", { sec });
 });
 
 function fmt(n: number | null | undefined): string {
@@ -169,7 +171,7 @@ async function patch(row: ClosureRow, body: Record<string, unknown>) {
   } catch (e) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
     const detail = err?.response?.data?.detail || err?.message || "—";
-    useToast().error("Ошибка сохранения закупки: " + detail);
+    useToast().error(t("Ошибка сохранения закупки: {msg}", { msg: detail }));
   } finally {
     savingId.value = null;
   }

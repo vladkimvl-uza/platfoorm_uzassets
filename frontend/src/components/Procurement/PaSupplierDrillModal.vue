@@ -20,7 +20,9 @@ import {
 } from "@/api/procurement_analysis";
 import { useFormatters } from "@/composables/useFormatters";
 import PaModalShell from "./PaModalShell.vue";
+import { useI18n } from "@/composables/useI18n";
 
+const { t } = useI18n();
 const fmt = useFormatters();
 
 const props = defineProps<{
@@ -190,7 +192,7 @@ const accentColor = computed(() => {
 
 <template>
   <PaModalShell
-    kind="Поставщик"
+    :kind="t('Поставщик')"
     :title="supplierName"
     :accent="accentColor"
     max-width="1080px"
@@ -199,29 +201,29 @@ const accentColor = computed(() => {
     <!-- ─── Stats ─── -->
     <template #stats>
       <div class="pms-stat">
-        <div class="pms-stat-lbl">Контрактов</div>
+        <div class="pms-stat-lbl">{{ t("Контрактов") }}</div>
         <div class="pms-stat-val">{{ supplierPurchases.length }}</div>
       </div>
       <div class="pms-stat">
-        <div class="pms-stat-lbl">Объём</div>
-        <div class="pms-stat-val">{{ paFmtMoneyShort(sumSpend) }}<small>сум</small></div>
+        <div class="pms-stat-lbl">{{ t("Объём") }}</div>
+        <div class="pms-stat-val">{{ paFmtMoneyShort(sumSpend) }}<small>{{ t("сум") }}</small></div>
       </div>
       <div class="pms-stat">
-        <div class="pms-stat-lbl">Median рынка</div>
-        <div class="pms-stat-val">{{ paFmtMoneyShort(sumRef) }}<small>сум</small></div>
+        <div class="pms-stat-lbl">{{ t("Median рынка") }}</div>
+        <div class="pms-stat-val">{{ paFmtMoneyShort(sumRef) }}<small>{{ t("сум") }}</small></div>
       </div>
       <div class="pms-stat">
-        <div class="pms-stat-lbl">Переплата</div>
-        <div class="pms-stat-val neg">+{{ paFmtMoneyShort(sumOverpay) }}<small>сум</small></div>
+        <div class="pms-stat-lbl">{{ t("Переплата") }}</div>
+        <div class="pms-stat-val neg">+{{ paFmtMoneyShort(sumOverpay) }}<small>{{ t("сум") }}</small></div>
       </div>
       <div class="pms-stat">
-        <div class="pms-stat-lbl">Откл.</div>
+        <div class="pms-stat-lbl">{{ t("Откл.") }}</div>
         <div class="pms-stat-val" :class="devPct >= 10 ? 'neg' : devPct >= 0 ? 'warn' : 'pos'">
           {{ devPct >= 0 ? '+' : '' }}{{ devPct.toFixed(1) }}<small>%</small>
         </div>
       </div>
       <div class="pms-stat">
-        <div class="pms-stat-lbl">SOE-клиентов</div>
+        <div class="pms-stat-lbl">{{ t("SOE-клиентов") }}</div>
         <div class="pms-stat-val">{{ buyersCount }}</div>
       </div>
     </template>
@@ -229,13 +231,13 @@ const accentColor = computed(() => {
     <!-- ─── Tabs ─── -->
     <template #tabs>
       <button class="pms-tab" :class="{ active: activeTab === 'buyers' }" @click="activeTab = 'buyers'">
-        Покупатели<span class="pms-tab-count">{{ buyersCount }}</span>
+        {{ t("Покупатели") }}<span class="pms-tab-count">{{ buyersCount }}</span>
       </button>
       <button class="pms-tab" :class="{ active: activeTab === 'categories' }" @click="activeTab = 'categories'">
-        Категории<span class="pms-tab-count">{{ catsCount }}</span>
+        {{ t("Категории") }}<span class="pms-tab-count">{{ catsCount }}</span>
       </button>
       <button class="pms-tab" :class="{ active: activeTab === 'purchases' }" @click="activeTab = 'purchases'">
-        Закупки<span class="pms-tab-count">{{ supplierPurchases.length }}</span>
+        {{ t("Закупки") }}<span class="pms-tab-count">{{ supplierPurchases.length }}</span>
       </button>
     </template>
 
@@ -247,11 +249,11 @@ const accentColor = computed(() => {
       <table class="psd-tbl pa-stagger">
         <thead>
           <tr>
-            <th class="left">SOE-клиент</th>
-            <th class="right">Закупок</th>
-            <th class="right">Объём</th>
-            <th class="right">Median рынка</th>
-            <th class="right">Переплата</th>
+            <th class="left">{{ t("SOE-клиент") }}</th>
+            <th class="right">{{ t("Закупок") }}</th>
+            <th class="right">{{ t("Объём") }}</th>
+            <th class="right">{{ t("Median рынка") }}</th>
+            <th class="right">{{ t("Переплата") }}</th>
             <th class="right">{{ 'Δ %' }}</th>
           </tr>
         </thead>
@@ -259,7 +261,7 @@ const accentColor = computed(() => {
           <tr v-for="b in buyersMap" :key="b.companyId"
               class="psd-row-clickable"
               @click="emit('select-company', b.companyId); emit('close')"
-              :title="`Открыть профиль ${b.name}`">
+              :title="t('Открыть профиль {name}', { name: b.name })">
             <td class="left">
               <span class="psd-co-dot" :style="{ background: b.color || '#888' }"></span>
               {{ b.name }}
@@ -274,7 +276,7 @@ const accentColor = computed(() => {
               {{ b.sumRef > 0 ? (((b.sumSpend - b.sumRef) / b.sumRef) * 100).toFixed(1) : '0' }}%
             </td>
           </tr>
-          <tr v-if="!buyersMap.length"><td colspan="6" class="pms-empty">Нет SOE-клиентов</td></tr>
+          <tr v-if="!buyersMap.length"><td colspan="6" class="pms-empty">{{ t("Нет SOE-клиентов") }}</td></tr>
         </tbody>
       </table>
     </div>
@@ -285,11 +287,11 @@ const accentColor = computed(() => {
         <thead>
           <tr>
             <th class="left">№</th>
-            <th class="left">Категория</th>
-            <th class="right">Закупок</th>
-            <th class="right">Объём</th>
-            <th class="right">Median рынка</th>
-            <th class="right">Переплата</th>
+            <th class="left">{{ t("Категория") }}</th>
+            <th class="right">{{ t("Закупок") }}</th>
+            <th class="right">{{ t("Объём") }}</th>
+            <th class="right">{{ t("Median рынка") }}</th>
+            <th class="right">{{ t("Переплата") }}</th>
           </tr>
         </thead>
         <tbody>
@@ -303,7 +305,7 @@ const accentColor = computed(() => {
               +{{ paFmtMoneyShort(c.sumOverpay) }}
             </td>
           </tr>
-          <tr v-if="!categoryStats.length"><td colspan="6" class="pms-empty">Нет категорий</td></tr>
+          <tr v-if="!categoryStats.length"><td colspan="6" class="pms-empty">{{ t("Нет категорий") }}</td></tr>
         </tbody>
       </table>
     </div>
@@ -313,11 +315,11 @@ const accentColor = computed(() => {
       <table class="psd-tbl pa-stagger">
         <thead>
           <tr>
-            <th class="left">Категория</th>
+            <th class="left">{{ t("Категория") }}</th>
             <th class="left">SOE</th>
-            <th class="right">Цена</th>
+            <th class="right">{{ t("Цена") }}</th>
             <th class="right">Median</th>
-            <th class="right">Объём</th>
+            <th class="right">{{ t("Объём") }}</th>
             <th class="right">{{ 'Δ %' }}</th>
           </tr>
         </thead>
@@ -325,7 +327,7 @@ const accentColor = computed(() => {
           <tr v-for="p in sortedPurchases" :key="p.id"
               class="psd-row-clickable"
               @click="emit('drill-closure', p)"
-              title="Подробнее о закупке">
+              :title="t('Подробнее о закупке')">
             <td class="left">
               <span class="psd-num">{{ padCat(p.category_id) }}</span>
               {{ p.category_name }}
@@ -337,12 +339,12 @@ const accentColor = computed(() => {
             <td class="right neu">{{ paFmtMoney(p.market_avg) }}</td>
             <td class="right">{{ fmt.fmtNumber(Number(p.volume)) }}</td>
             <td class="right" :class="devComparable(p) ? (p.deviation_pct >= 0 ? 'neg' : 'pos') : 'neu'"
-                :title="devComparable(p) ? '' : 'Услуга/работа или несопоставимый код — отклонение неинформативно'">
+                :title="devComparable(p) ? '' : t('Услуга/работа или несопоставимый код — отклонение неинформативно')">
               <template v-if="devComparable(p)">{{ fmt.fmtPercent(p.deviation_pct, { decimals: 1, signed: true }) }}</template>
               <template v-else>—</template>
             </td>
           </tr>
-          <tr v-if="!sortedPurchases.length"><td colspan="6" class="pms-empty">Нет закупок</td></tr>
+          <tr v-if="!sortedPurchases.length"><td colspan="6" class="pms-empty">{{ t("Нет закупок") }}</td></tr>
         </tbody>
       </table>
     </div>

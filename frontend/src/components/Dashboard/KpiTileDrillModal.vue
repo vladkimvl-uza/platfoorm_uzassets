@@ -25,8 +25,11 @@
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { api } from "@/api/client";
+import { useI18n } from "@/composables/useI18n";
 import Odometer from "@/components/Odometer.vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
+
+const { t } = useI18n();
 
 type Bucket = "total" | "done" | "active" | "overdue" | "deferred";
 type Entity = "projects" | "tasks";
@@ -129,10 +132,10 @@ const visibleCompanies = computed<DrillCompany[]>(() => {
 
 // ─── Status icon helpers (idem DirectionDrillModal) ───
 function statusIcon(item: DrillItem): { symbol: "check" | "clock" | "warn" | "circle"; color: string; label: string } {
-  if (item.is_overdue) return { symbol: "warn", color: "#E24B4A", label: "просрочено" };
-  if (item.status === "done") return { symbol: "check", color: "#1D9E75", label: "завершено" };
-  if (item.status === "active" || item.status === "review") return { symbol: "clock", color: "#EF9F27", label: "в работе" };
-  return { symbol: "circle", color: "#888780", label: "не начат" };
+  if (item.is_overdue) return { symbol: "warn", color: "#E24B4A", label: t("просрочено") };
+  if (item.status === "done") return { symbol: "check", color: "#1D9E75", label: t("завершено") };
+  if (item.status === "active" || item.status === "review") return { symbol: "clock", color: "#EF9F27", label: t("в работе") };
+  return { symbol: "circle", color: "#888780", label: t("не начат") };
 }
 function statusTextColor(item: DrillItem): string {
   if (item.is_overdue) return "#A32D2D";
@@ -157,7 +160,7 @@ async function load() {
     data.value = res.data;
   } catch (err: unknown) {
     const e = err as { response?: { data?: { detail?: string } }; message?: string };
-    errorMsg.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить данные";
+    errorMsg.value = e?.response?.data?.detail || e?.message || t("Не удалось загрузить данные");
   } finally {
     loading.value = false;
   }
@@ -230,7 +233,8 @@ const heroNum = computed(() => {
 const heroUnit = computed(() => {
   const action = HERO_VERB[props.bucket] || "";
   const noun = props.initialEntity === "projects" ? "проектов" : "задач";
-  return action ? `${noun} ${action}` : `${noun} всего`;
+  // Ключ перевода — целиком составленная русская фраза («задач завершено» и т.п.)
+  return t(action ? `${noun} ${action}` : `${noun} всего`);
 });
 const heroOf = computed(() => {
   if (!data.value) return "";
@@ -238,14 +242,17 @@ const heroOf = computed(() => {
     ? data.value.summary.projects_total_all
     : data.value.summary.tasks_total_all;
   if (props.bucket === "total" || total === 0) return "";
-  return `из ${total}`;
+  return t("из {n}", { n: total });
 });
 
 // summary line under hero (chip-style purple)
 const summaryChip = computed(() => {
   if (!data.value) return "";
   const s = data.value.summary;
-  return `${s.companies_count} компаний · ${s.projects_count} из ${s.projects_total_all} проектов · ${s.tasks_count} из ${s.tasks_total_all} задач`;
+  return t("{c} компаний · {p} из {pt} проектов · {t} из {tt} задач", {
+    c: s.companies_count, p: s.projects_count, pt: s.projects_total_all,
+    t: s.tasks_count, tt: s.tasks_total_all,
+  });
 });
 
 function formatDate(d: string | null): string {
@@ -262,14 +269,16 @@ function pluralDays(n: number): string {
   return "дней";
 }
 function overdueLabel(p: DrillItem): string {
-  if (p.days_overdue && p.days_overdue > 0) return `просрочено ${p.days_overdue} ${pluralDays(p.days_overdue)}`;
+  if (p.days_overdue && p.days_overdue > 0) {
+    return t("просрочено {n} {days}", { n: p.days_overdue, days: t(pluralDays(p.days_overdue)) });
+  }
   return formatDate(p.due_date);
 }
 
 function ctaLabel(): string {
   return props.initialEntity === "projects"
-    ? "Открыть список проектов"
-    : "Открыть список задач";
+    ? t("Открыть список проектов")
+    : t("Открыть список задач");
 }
 </script>
 
@@ -282,7 +291,7 @@ function ctaLabel(): string {
           <div class="ddm-shim" aria-hidden="true" />
           <div class="ddm-glow" aria-hidden="true" />
 
-          <button class="ddm-x" @click="close" aria-label="Закрыть">
+          <button class="ddm-x" @click="close" :aria-label="t('Закрыть')">
             <svg viewBox="0 0 14 14" class="svg-ic" width="13" height="13"><path d="M3.5 3.5l7 7M10.5 3.5l-7 7"/></svg>
           </button>
 
@@ -290,8 +299,8 @@ function ctaLabel(): string {
           <div class="ddm-sect ddm-row" style="--si:0; padding-top:20px;">
             <div class="ddm-h-top">
               <div>
-                <div class="ddm-h-l">{{ data?.label || "Загрузка" }}</div>
-                <div class="ddm-h-title">{{ data?.title || "&nbsp;" }}</div>
+                <div class="ddm-h-l">{{ data?.label ? t(data.label) : t("Загрузка") }}</div>
+                <div class="ddm-h-title">{{ data?.title ? t(data.title) : "&nbsp;" }}</div>
                 <div v-if="data" class="ddm-h-v">
                   <span class="num"><Odometer :value="heroNum" /></span>
                   <span class="unit">{{ heroUnit }} <span v-if="heroOf" class="of">· {{ heroOf }}</span></span>
@@ -299,19 +308,19 @@ function ctaLabel(): string {
                 <span v-if="data" class="ddm-h-d">{{ summaryChip }}</span>
               </div>
               <div v-if="data" class="ddm-h-right">
-                <div>{{ data.summary.assignees_count }} ответственных</div>
+                <div>{{ t("{n} ответственных", { n: data.summary.assignees_count }) }}</div>
                 <div v-if="data.summary.extra_value > 0 && (bucket === 'overdue' || bucket === 'active')"
                      class="ddm-h-right-bad">
-                  {{ data.summary.extra_value }} {{ data.summary.extra_label }}
+                  {{ data.summary.extra_value }} {{ t(data.summary.extra_label) }}
                 </div>
-                <div v-else-if="bucket === 'overdue'" style="color: #1D9E75;">нет критичных</div>
-                <div class="ddm-h-year">{{ year || "—" }} финансовый год</div>
+                <div v-else-if="bucket === 'overdue'" style="color: #1D9E75;">{{ t("нет критичных") }}</div>
+                <div class="ddm-h-year">{{ t("{y} финансовый год", { y: year || "—" }) }}</div>
               </div>
             </div>
           </div>
 
           <!-- Loading -->
-          <UzaStateBlock v-if="loading" class="ddm-sect" state="loading" text="Загрузка данных…" />
+          <UzaStateBlock v-if="loading" class="ddm-sect" state="loading" :text="t('Загрузка данных…')" />
 
           <!-- Error -->
           <UzaStateBlock v-else-if="errorMsg" class="ddm-sect" state="error" variant="block" :text="errorMsg" />
@@ -321,20 +330,20 @@ function ctaLabel(): string {
             <div class="ddm-sect ddm-row" style="--si:1;">
               <div class="ddm-mini-grid kpi-rail">
                 <div class="ddm-mini" style="--kc:#7F77DD; --ki:0;">
-                  <div class="ddm-mk-l">Компаний затронуто</div>
-                  <div class="ddm-mk-v"><Odometer :value="data.summary.companies_count" /><span class="ddm-mk-u">с проектами или задачами</span></div>
+                  <div class="ddm-mk-l">{{ t("Компаний затронуто") }}</div>
+                  <div class="ddm-mk-v"><Odometer :value="data.summary.companies_count" /><span class="ddm-mk-u">{{ t("с проектами или задачами") }}</span></div>
                 </div>
                 <div class="ddm-mini" style="--kc:#1D9E75; --ki:1;">
-                  <div class="ddm-mk-l">{{ bucket === "total" ? "Проекты всего" : `Проекты ${HERO_VERB[bucket]}` }}</div>
-                  <div class="ddm-mk-v"><Odometer :value="data.summary.projects_count" /><span class="ddm-mk-u">из {{ data.summary.projects_total_all }}</span></div>
+                  <div class="ddm-mk-l">{{ t(bucket === "total" ? "Проекты всего" : `Проекты ${HERO_VERB[bucket]}`) }}</div>
+                  <div class="ddm-mk-v"><Odometer :value="data.summary.projects_count" /><span class="ddm-mk-u">{{ t("из") }} {{ data.summary.projects_total_all }}</span></div>
                 </div>
                 <div class="ddm-mini" style="--kc:#EF9F27; --ki:2;">
-                  <div class="ddm-mk-l">{{ bucket === "total" ? "Задачи всего" : `Задачи ${HERO_VERB[bucket]}` }}</div>
-                  <div class="ddm-mk-v"><Odometer :value="data.summary.tasks_count" /><span class="ddm-mk-u">из {{ data.summary.tasks_total_all }}</span></div>
+                  <div class="ddm-mk-l">{{ t(bucket === "total" ? "Задачи всего" : `Задачи ${HERO_VERB[bucket]}`) }}</div>
+                  <div class="ddm-mk-v"><Odometer :value="data.summary.tasks_count" /><span class="ddm-mk-u">{{ t("из") }} {{ data.summary.tasks_total_all }}</span></div>
                 </div>
                 <div class="ddm-mini" style="--kc:#E24B4A; --ki:3;">
-                  <div class="ddm-mk-l">{{ data.summary.extra_label || "—" }}</div>
-                  <div class="ddm-mk-v"><Odometer :value="data.summary.extra_value" /><span class="ddm-mk-u">{{ initialEntity === "projects" ? "проектов" : "задач" }}</span></div>
+                  <div class="ddm-mk-l">{{ data.summary.extra_label ? t(data.summary.extra_label) : "—" }}</div>
+                  <div class="ddm-mk-v"><Odometer :value="data.summary.extra_value" /><span class="ddm-mk-u">{{ t(initialEntity === "projects" ? "проектов" : "задач") }}</span></div>
                 </div>
               </div>
             </div>
@@ -342,15 +351,15 @@ function ctaLabel(): string {
             <!-- Companies list -->
             <div class="ddm-sect ddm-row" style="--si:2;">
               <div class="ddm-l-sec">
-                <span>Компании · отсортированы по числу {{ initialEntity === "projects" ? "проектов" : "задач" }}</span>
-                <span class="side">{{ data.summary.companies_count }} компаний</span>
+                <span>{{ t(initialEntity === "projects" ? "Компании · отсортированы по числу проектов" : "Компании · отсортированы по числу задач") }}</span>
+                <span class="side">{{ t("{n} компаний", { n: data.summary.companies_count }) }}</span>
               </div>
 
               <UzaStateBlock
                 v-if="!visibleCompanies.length"
                 state="empty"
                 variant="inline"
-                text="Нет компаний с подходящими элементами"
+                :text="t('Нет компаний с подходящими элементами')"
               />
 
               <div v-else class="ddm-co-list">
@@ -367,18 +376,18 @@ function ctaLabel(): string {
                     <span class="ddm-co-tick" :style="{ background: data.sector_color_map[c.sector] || '#888780' }" />
                     <span
                       class="ddm-co-name"
-                      :title="'Открыть карточку компании «' + c.company_name + '»'"
+                      :title="t('Открыть карточку компании «{name}»', { name: c.company_name })"
                       @click.stop="gotoCompany(c)"
                     >{{ c.company_name }}</span>
-                    <span class="ddm-co-stat" :title="'Проекты: ' + c.projects_count + ' в выборке из ' + c.projects_total">
+                    <span class="ddm-co-stat" :title="t('Проекты: {n} в выборке из {total}', { n: c.projects_count, total: c.projects_total })">
                       <svg viewBox="0 0 14 14" class="ddm-co-stat-ico"><path d="M2.5 11V4l5-1.5 5 1.5v7M5 7h4M5 9.5h4"/></svg>
                       <span class="ddm-co-stat-num">{{ c.projects_count }}</span><span class="ddm-co-stat-tot">/{{ c.projects_total }}</span>
                     </span>
-                    <span class="ddm-co-stat" :title="'Задачи: ' + c.tasks_count + ' в выборке из ' + c.tasks_total">
+                    <span class="ddm-co-stat" :title="t('Задачи: {n} в выборке из {total}', { n: c.tasks_count, total: c.tasks_total })">
                       <svg viewBox="0 0 14 14" class="ddm-co-stat-ico"><path d="M3 7l3 3 5-6"/></svg>
                       <span class="ddm-co-stat-num">{{ c.tasks_count }}</span><span class="ddm-co-stat-tot">/{{ c.tasks_total }}</span>
                     </span>
-                    <span class="ddm-co-overdue" v-if="c.overdue_tasks > 0" :title="c.overdue_tasks + ' просроченных задач'">
+                    <span class="ddm-co-overdue" v-if="c.overdue_tasks > 0" :title="t('{n} просроченных задач', { n: c.overdue_tasks })">
                       <svg viewBox="0 0 14 14" class="svg-ic" width="10" height="10" style="margin-right:2px"><path d="M7 2L1 12h12L7 2zM7 6v3M7 11h.01"/></svg>{{ c.overdue_tasks }}
                     </span>
                     <span v-else></span>
@@ -389,23 +398,23 @@ function ctaLabel(): string {
                     <div v-if="c.projects.length" class="ddm-co-section">
                       <div class="ddm-co-sub">
                         <span>
-                          Проекты · {{ c.projects_count }}
+                          {{ t("Проекты") }} · {{ c.projects_count }}
                           <template v-if="!projectsFullyShown.has(c.company_id) && c.projects.length > ITEMS_VISIBLE">
-                            · показано {{ ITEMS_VISIBLE }} из {{ c.projects.length }}
+                            · {{ t("показано {a} из {b}", { a: ITEMS_VISIBLE, b: c.projects.length }) }}
                           </template>
                         </span>
                         <span
                           v-if="!projectsFullyShown.has(c.company_id) && c.projects.length > ITEMS_VISIBLE"
                           class="ddm-co-sub-cta"
                           @click.stop="showAllProjects(c.company_id)"
-                        >показать все →</span>
+                        >{{ t("показать все") }} →</span>
                       </div>
                       <div
                         v-for="p in projectsFullyShown.has(c.company_id) ? c.projects : c.projects.slice(0, ITEMS_VISIBLE)"
                         :key="p.id"
                         class="ddm-itm-row"
                         @click="gotoTaskList(c)"
-                        :title="'Открыть список — ' + p.title"
+                        :title="t('Открыть список — {name}', { name: p.title })"
                       >
                         <span class="ddm-itm-ico" :style="{ color: statusIcon(p).color }">
                           <svg v-if="statusIcon(p).symbol === 'check'" viewBox="0 0 14 14" class="svg-ic" width="10" height="10"><path d="M3 7l2.5 2.5L11 4.5"/></svg>
@@ -420,44 +429,44 @@ function ctaLabel(): string {
                         <span class="ddm-itm-status" :style="{ color: statusTextColor(p) }">{{ statusIcon(p).label }}</span>
                       </div>
                     </div>
-                    <div v-else class="ddm-co-empty">Проектов в этой выборке нет</div>
+                    <div v-else class="ddm-co-empty">{{ t("Проектов в этой выборке нет") }}</div>
 
                     <!-- Tasks -->
                     <div v-if="c.tasks.length" class="ddm-co-section">
                       <div class="ddm-co-sub">
                         <span>
-                          Задачи · {{ c.tasks_count }}
+                          {{ t("Задачи") }} · {{ c.tasks_count }}
                           <template v-if="!tasksFullyShown.has(c.company_id) && c.tasks.length > ITEMS_VISIBLE">
-                            · показано {{ ITEMS_VISIBLE }} из {{ c.tasks.length }}
+                            · {{ t("показано {a} из {b}", { a: ITEMS_VISIBLE, b: c.tasks.length }) }}
                           </template>
                         </span>
                         <span
                           v-if="!tasksFullyShown.has(c.company_id) && c.tasks.length > ITEMS_VISIBLE"
                           class="ddm-co-sub-cta"
                           @click.stop="showAllTasks(c.company_id)"
-                        >показать все задачи →</span>
+                        >{{ t("показать все задачи") }} →</span>
                       </div>
                       <div
-                        v-for="t in tasksFullyShown.has(c.company_id) ? c.tasks : c.tasks.slice(0, ITEMS_VISIBLE)"
-                        :key="t.id"
+                        v-for="item in tasksFullyShown.has(c.company_id) ? c.tasks : c.tasks.slice(0, ITEMS_VISIBLE)"
+                        :key="item.id"
                         class="ddm-itm-row"
                         @click="gotoTaskList(c)"
-                        :title="'Открыть список — ' + t.title"
+                        :title="t('Открыть список — {name}', { name: item.title })"
                       >
-                        <span class="ddm-itm-ico" :style="{ color: statusIcon(t).color }">
-                          <svg v-if="statusIcon(t).symbol === 'check'" viewBox="0 0 14 14" class="svg-ic" width="10" height="10"><path d="M3 7l2.5 2.5L11 4.5"/></svg>
-                          <svg v-else-if="statusIcon(t).symbol === 'clock'" viewBox="0 0 14 14" class="svg-ic" width="10" height="10"><circle cx="7" cy="7" r="4"/><path d="M7 5v2l1.5 1"/></svg>
-                          <svg v-else-if="statusIcon(t).symbol === 'warn'" viewBox="0 0 14 14" class="svg-ic" width="10" height="10"><circle cx="7" cy="7" r="4"/><path d="M7 4v3M7 9.5h.01"/></svg>
+                        <span class="ddm-itm-ico" :style="{ color: statusIcon(item).color }">
+                          <svg v-if="statusIcon(item).symbol === 'check'" viewBox="0 0 14 14" class="svg-ic" width="10" height="10"><path d="M3 7l2.5 2.5L11 4.5"/></svg>
+                          <svg v-else-if="statusIcon(item).symbol === 'clock'" viewBox="0 0 14 14" class="svg-ic" width="10" height="10"><circle cx="7" cy="7" r="4"/><path d="M7 5v2l1.5 1"/></svg>
+                          <svg v-else-if="statusIcon(item).symbol === 'warn'" viewBox="0 0 14 14" class="svg-ic" width="10" height="10"><circle cx="7" cy="7" r="4"/><path d="M7 4v3M7 9.5h.01"/></svg>
                           <svg v-else viewBox="0 0 14 14" class="svg-ic" width="10" height="10"><circle cx="7" cy="7" r="4"/></svg>
                         </span>
-                        <span class="ddm-itm-name">{{ t.title }}</span>
-                        <span class="ddm-itm-meta" :style="t.is_overdue ? { color: '#A32D2D' } : undefined">
-                          {{ t.assignee_name || (t.is_overdue ? overdueLabel(t) : formatDate(t.due_date)) }}
+                        <span class="ddm-itm-name">{{ item.title }}</span>
+                        <span class="ddm-itm-meta" :style="item.is_overdue ? { color: '#A32D2D' } : undefined">
+                          {{ item.assignee_name || (item.is_overdue ? overdueLabel(item) : formatDate(item.due_date)) }}
                         </span>
-                        <span class="ddm-itm-status" :style="{ color: statusTextColor(t) }">{{ statusIcon(t).label }}</span>
+                        <span class="ddm-itm-status" :style="{ color: statusTextColor(item) }">{{ statusIcon(item).label }}</span>
                       </div>
                     </div>
-                    <div v-else class="ddm-co-empty">Задач в этой выборке нет</div>
+                    <div v-else class="ddm-co-empty">{{ t("Задач в этой выборке нет") }}</div>
                   </div>
                 </div>
               </div>
@@ -469,7 +478,7 @@ function ctaLabel(): string {
                 @click="companiesExpanded = true"
               >
                 <svg viewBox="0 0 14 14" class="svg-ic" width="11" height="11" style="color:#7F77DD;"><path d="M3.5 5l3.5 3.5L10.5 5"/></svg>
-                Показать ещё {{ data.companies.length - VISIBLE_COMPANIES }} компаний
+                {{ t("Показать ещё {n} компаний", { n: data.companies.length - VISIBLE_COMPANIES }) }}
               </button>
               <button
                 v-else-if="data.companies.length > VISIBLE_COMPANIES"
@@ -477,14 +486,14 @@ function ctaLabel(): string {
                 @click="companiesExpanded = false"
               >
                 <svg viewBox="0 0 14 14" class="svg-ic" width="11" height="11" style="color:#7F77DD; transform:rotate(180deg);"><path d="M3.5 5l3.5 3.5L10.5 5"/></svg>
-                Свернуть · показано {{ data.companies.length }}
+                {{ t("Свернуть · показано {n}", { n: data.companies.length }) }}
               </button>
             </div>
           </template>
 
           <!-- Footer -->
           <div class="ddm-ftr ddm-row" style="--si:3;">
-            <button class="ddm-btn ddm-btn-g" @click="close">Закрыть</button>
+            <button class="ddm-btn ddm-btn-g" @click="close">{{ t("Закрыть") }}</button>
             <button class="ddm-btn ddm-btn-p" @click="gotoListAll">
               {{ ctaLabel() }}
               <svg viewBox="0 0 14 14" class="svg-ic" width="12" height="12"><path d="M3 7h8M7.5 3.5L11 7l-3.5 3.5"/></svg>

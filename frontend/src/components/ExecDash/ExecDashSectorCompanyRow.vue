@@ -8,7 +8,10 @@
  * 2026-05-26: extracted so per-company numbers animate on year change
  * alongside the sector card's avg_pct.
  */
+import { useI18n } from "@/composables/useI18n";
 import { useNumberTween } from "@/composables/useNumberTween";
+
+const { t } = useI18n();
 
 interface CoData {
   company_id: string;
@@ -35,11 +38,11 @@ const tPct = useNumberTween(() => Number(props.co.pct) || 0, { duration: 900 });
     class="va-sec-co va-sec-co-clickable"
     role="button"
     tabindex="0"
-    :aria-label="`Открыть карточку компании ${displayName}`"
+    :aria-label="t('Открыть карточку компании {name}', { name: displayName })"
     @click.stop="$emit('click')"
     @keydown.enter.prevent="$emit('click')"
     @keydown.space.prevent="$emit('click')"
-    title="Открыть карточку компании"
+    :title="t('Открыть карточку компании')"
   >
     <span class="co">{{ displayName }}</span>
     <span class="pct" :style="{ color: pctColor }">{{ Math.round(tPct) }}%</span>

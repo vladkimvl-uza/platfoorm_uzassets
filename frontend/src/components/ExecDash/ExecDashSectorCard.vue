@@ -15,12 +15,14 @@
  */
 import { computed, ref, onMounted } from "vue";
 import type { ExecSectorRow } from "@/api/executiveDashboard";
+import { useI18n } from "@/composables/useI18n";
 import { useCompaniesStore } from "@/stores/companies";
 import { useNumberTween } from "@/composables/useNumberTween";
 import ExecDashSectorCompanyRow from "./ExecDashSectorCompanyRow.vue";
 import { pctColor as pctColorBase } from "@/utils/pctColor";
 
 // Pack 7.13: unified naming via store
+const { t } = useI18n();
 const companies = useCompaniesStore();
 onMounted(() => { void companies.ensureLoaded(); });
 
@@ -86,6 +88,14 @@ const coWord = computed(() => {
 const tAvgPct      = useNumberTween(() => Number(props.sector.avg_pct) || 0, { duration: 900 });
 const tCoActive    = useNumberTween(() => Number(props.sector.companies_active) || 0, { duration: 900 });
 const tCoTotal     = useNumberTween(() => Number(props.sector.companies_total) || 0, { duration: 900 });
+
+// «N из M компаний» — ключ выбирается по русской плюрализации coWord.
+const coLine = computed(() => {
+  const vars = { n: Math.round(tCoActive.value), total: Math.round(tCoTotal.value) };
+  if (coWord.value === "компания") return t("{n} из {total} компания", vars);
+  if (coWord.value === "компании") return t("{n} из {total} компании", vars);
+  return t("{n} из {total} компаний", vars);
+});
 </script>
 
 <template>
@@ -102,14 +112,14 @@ const tCoTotal     = useNumberTween(() => Number(props.sector.companies_total) |
       <div>
         <div class="va-sec-t">{{ sector.label }}</div>
         <div class="va-sec-l">
-          {{ Math.round(tCoActive) }} из {{ Math.round(tCoTotal) }} {{ coWord }}
+          {{ coLine }}
         </div>
       </div>
       <div style="text-align: right">
         <div class="va-sec-p">
           {{ Math.round(tAvgPct) }}<span class="u">%</span>
         </div>
-        <div class="va-sec-l">средний</div>
+        <div class="va-sec-l">{{ t("средний") }}</div>
       </div>
     </div>
 
@@ -126,7 +136,7 @@ const tCoTotal     = useNumberTween(() => Number(props.sector.companies_total) |
         @click="onClickCompany(c)"
       />
     </div>
-    <div v-else class="va-sec-empty">Нет данных</div>
+    <div v-else class="va-sec-empty">{{ t("Нет данных") }}</div>
 
     <!-- Chev -->
     <div
@@ -135,11 +145,11 @@ const tCoTotal     = useNumberTween(() => Number(props.sector.companies_total) |
       role="button"
       tabindex="0"
       :aria-expanded="expanded"
-      :aria-label="expanded ? 'Свернуть список компаний' : `Показать ещё ${hiddenCount}`"
+      :aria-label="expanded ? t('Свернуть список компаний') : t('Показать ещё {n}', { n: hiddenCount })"
       @click.stop="expanded = !expanded"
       @keydown.enter.prevent="expanded = !expanded"
       @keydown.space.prevent="expanded = !expanded"
-      :title="expanded ? 'Свернуть' : 'Показать ещё ' + hiddenCount"
+      :title="expanded ? t('Свернуть') : t('Показать ещё {n}', { n: hiddenCount })"
     >
       <svg
         viewBox="0 0 14 14" fill="none" stroke="currentColor"

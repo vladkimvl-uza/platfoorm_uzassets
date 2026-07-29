@@ -1,8 +1,8 @@
 <template>
   <div v-if="!rows.length" class="pa-wsc-empty">
-    <div class="pa-wsc-empty-title">Нет данных</div>
+    <div class="pa-wsc-empty-title">{{ t("Нет данных") }}</div>
     <div class="pa-wsc-empty-sub">
-      По {{ mode === 'works' ? 'работам' : 'услугам' }} нет расходов в выбранном периоде.
+      {{ mode === 'works' ? t("По работам нет расходов в выбранном периоде.") : t("По услугам нет расходов в выбранном периоде.") }}
     </div>
   </div>
   <div v-else class="pa-wsc-host" ref="hostRef">
@@ -25,6 +25,9 @@ import {
   paFmtMoneyShort,
   type WorkServiceByCompany,
 } from "@/api/procurement_analysis";
+import { useI18n } from "@/composables/useI18n";
+
+const { t } = useI18n();
 
 declare global {
   interface Window {
@@ -151,8 +154,8 @@ function build() {
               const r = rowsCache[c.dataIndex] as WorkServiceByCompany;
               if (!r) return "";
               return [
-                "Расход: " + paFmtMoneyShort(valueOf(r)),
-                "Лотов: " + lotsOf(r),
+                t("Расход") + ": " + paFmtMoneyShort(valueOf(r)),
+                t("Лотов") + ": " + lotsOf(r),
               ];
             },
           },
@@ -164,7 +167,7 @@ function build() {
           ticks: {
             color: "rgba(15,23,60,.55)",
             font: { size: 10 },
-            callback: (v: number) => v + " млрд",
+            callback: (v: number) => v + " " + t("млрд"),
           },
           border: { display: false },
         },

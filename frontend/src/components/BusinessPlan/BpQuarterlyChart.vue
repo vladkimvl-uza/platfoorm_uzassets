@@ -13,6 +13,9 @@
  */
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { ytdToDeltas, type BpQuarterOutlook, type BpQuarterRow } from "@/api/bpKpi";
+import { useI18n } from "@/composables/useI18n";
+
+const { t } = useI18n();
 
 type QuarterRow = BpQuarterRow;
 
@@ -189,7 +192,7 @@ const _FC_CONF_RU: Record<string, string> = { high: "высокая", medium: "�
 const forecastMeta = computed(() => {
   const f = props.forecast;
   if (!f || !hasForecast.value) return null;
-  return `${_FC_METHOD_RU[f.method] || f.method} · увер.: ${_FC_CONF_RU[f.confidence] || f.confidence}`;
+  return `${t(_FC_METHOD_RU[f.method] || f.method)} · ${t("увер.")}: ${t(_FC_CONF_RU[f.confidence] || f.confidence)}`;
 });
 
 // % исполнения — С НАЧАЛА ГОДА (YTD-факт / YTD-план того же квартала): это
@@ -240,13 +243,13 @@ function tip(i: number) {
 <template>
   <div class="bqc">
     <div class="bqc-hd">
-      <span class="bqc-t">Динамика по кварталам<span v-if="label"> · {{ label }}</span></span>
+      <span class="bqc-t">{{ t("Динамика по кварталам") }}<span v-if="label"> · {{ label }}</span></span>
       <span class="bqc-legend">
-        <span><i class="bqc-sw bqc-sw-plan" />План (за кв.)</span>
-        <span><i class="bqc-sw bqc-sw-fact" />Факт (за кв.)</span>
-        <span v-if="hasForecast" :title="forecastMeta || ''"><i class="bqc-sw bqc-sw-ghost" />Прогноз</span>
-        <span><i class="bqc-sw bqc-sw-cum" />Нараст. итог</span>
-        <span><i class="bqc-sw bqc-sw-cumplan" />Нараст. план</span>
+        <span><i class="bqc-sw bqc-sw-plan" />{{ t("План (за кв.)") }}</span>
+        <span><i class="bqc-sw bqc-sw-fact" />{{ t("Факт (за кв.)") }}</span>
+        <span v-if="hasForecast" :title="forecastMeta || ''"><i class="bqc-sw bqc-sw-ghost" />{{ t("Прогноз") }}</span>
+        <span><i class="bqc-sw bqc-sw-cum" />{{ t("Нараст. итог") }}</span>
+        <span><i class="bqc-sw bqc-sw-cumplan" />{{ t("Нараст. план") }}</span>
       </span>
     </div>
 
@@ -293,7 +296,7 @@ function tip(i: number) {
           <!-- % исполнения с начала года (YTD/YTD) -->
           <text class="bqc-pct" :x="centerX(i)" :y="H - 12" text-anchor="middle"
                 :style="{ fill: execColor(execPct(i)) }">
-            <title>Исполнение с начала года (нарастающим итогом)</title>
+            <title>{{ t("Исполнение с начала года (нарастающим итогом)") }}</title>
             {{ execPct(i) != null ? execPct(i) + '%' : '—' }}
           </text>
         </g>
@@ -317,25 +320,25 @@ function tip(i: number) {
       <div v-if="hovered != null" class="bqc-tip"
            :style="{ left: (centerX(hovered) / W * 100) + '%' }">
         <div class="bqc-tip-h">{{ rows[hovered].q.toUpperCase() }}</div>
-        <div class="bqc-tip-r"><span>За квартал · план</span><b>{{ tip(hovered).dp != null ? fmt(tip(hovered).dp!) : '—' }}</b></div>
-        <div v-if="tip(hovered).planPartial" class="bqc-tip-note">план разнесён лишь частью компаний ({{ tip(hovered).planPartial }})</div>
-        <div class="bqc-tip-r"><span>За квартал · факт</span><b>{{ tip(hovered).df != null ? fmt(tip(hovered).df!) : '—' }}</b></div>
-        <div v-if="tip(hovered).deltaGap" class="bqc-tip-note">за квартал не вычислимо: нет данных предыдущего квартала</div>
+        <div class="bqc-tip-r"><span>{{ t("За квартал · план") }}</span><b>{{ tip(hovered).dp != null ? fmt(tip(hovered).dp!) : '—' }}</b></div>
+        <div v-if="tip(hovered).planPartial" class="bqc-tip-note">{{ t("план разнесён лишь частью компаний ({v})", { v: tip(hovered).planPartial! }) }}</div>
+        <div class="bqc-tip-r"><span>{{ t("За квартал · факт") }}</span><b>{{ tip(hovered).df != null ? fmt(tip(hovered).df!) : '—' }}</b></div>
+        <div v-if="tip(hovered).deltaGap" class="bqc-tip-note">{{ t("за квартал не вычислимо: нет данных предыдущего квартала") }}</div>
         <template v-if="tip(hovered).proj">
-          <div class="bqc-tip-r"><span>Прогноз (за кв.)</span><b class="bqc-tip-fc">≈{{ fmt(tip(hovered).proj!.value) }}</b></div>
+          <div class="bqc-tip-r"><span>{{ t("Прогноз (за кв.)") }}</span><b class="bqc-tip-fc">≈{{ fmt(tip(hovered).proj!.value) }}</b></div>
           <div class="bqc-tip-r" v-if="tip(hovered).proj!.low != null && tip(hovered).proj!.high != null">
-            <span>Коридор</span><b>{{ fmt(tip(hovered).proj!.low!) }} – {{ fmt(tip(hovered).proj!.high!) }}</b>
+            <span>{{ t("Коридор") }}</span><b>{{ fmt(tip(hovered).proj!.low!) }} – {{ fmt(tip(hovered).proj!.high!) }}</b>
           </div>
           <div v-if="forecastMeta" class="bqc-tip-note bqc-tip-note-fc">{{ forecastMeta }}</div>
         </template>
-        <div class="bqc-tip-r"><span>Нараст. план</span><b>{{ tip(hovered).ytdPlan != null ? fmt(tip(hovered).ytdPlan!) : '—' }}</b></div>
-        <div class="bqc-tip-r"><span>Нараст. факт</span><b>{{ tip(hovered).ytdFact != null ? fmt(tip(hovered).ytdFact!) : '—' }}</b></div>
-        <div class="bqc-tip-r" v-if="tip(hovered).pct != null"><span>Исполнение с начала года</span><b :style="{ color: execColor(tip(hovered).pct) }">{{ tip(hovered).pct }}%</b></div>
+        <div class="bqc-tip-r"><span>{{ t("Нараст. план") }}</span><b>{{ tip(hovered).ytdPlan != null ? fmt(tip(hovered).ytdPlan!) : '—' }}</b></div>
+        <div class="bqc-tip-r"><span>{{ t("Нараст. факт") }}</span><b>{{ tip(hovered).ytdFact != null ? fmt(tip(hovered).ytdFact!) : '—' }}</b></div>
+        <div class="bqc-tip-r" v-if="tip(hovered).pct != null"><span>{{ t("Исполнение с начала года") }}</span><b :style="{ color: execColor(tip(hovered).pct) }">{{ tip(hovered).pct }}%</b></div>
         <template v-if="tip(hovered).covDelta != null && tip(hovered).covCum != null && tip(hovered).covDelta !== tip(hovered).covCum">
-          <div class="bqc-tip-r"><span>Покрытие</span><b>{{ tip(hovered).covDelta }} / {{ tip(hovered).covCum }} комп.</b></div>
-          <div class="bqc-tip-note">в итог входят компании без данных пред. квартала — поэтому Σ баров ≠ нараст. итогу</div>
+          <div class="bqc-tip-r"><span>{{ t("Покрытие") }}</span><b>{{ tip(hovered).covDelta }} / {{ tip(hovered).covCum }} {{ t("комп.") }}</b></div>
+          <div class="bqc-tip-note">{{ t("в итог входят компании без данных пред. квартала — поэтому Σ баров ≠ нараст. итогу") }}</div>
         </template>
-        <div class="bqc-tip-cta">Открыть разбор →</div>
+        <div class="bqc-tip-cta">{{ t("Открыть разбор →") }}</div>
       </div>
     </div>
   </div>

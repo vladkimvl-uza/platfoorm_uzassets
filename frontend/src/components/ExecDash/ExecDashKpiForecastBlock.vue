@@ -8,10 +8,12 @@
  */
 import { computed } from "vue";
 import { useRouter } from "vue-router";
+import { useI18n } from "@/composables/useI18n";
 import { useExecutiveDashboard } from "@/composables/useExecutiveDashboard";
 import { useNumberTween } from "@/composables/useNumberTween";
 import type { ExecKpiForecastCompany } from "@/api/executiveDashboard";
 
+const { t } = useI18n();
 const exec = useExecutiveDashboard();
 const router = useRouter();
 
@@ -44,10 +46,11 @@ function deltaArrow(v: number | null | undefined): string {
   if (v == null || v === 0) return "→";
   return v > 0 ? "▲" : "▼";
 }
+// Русские лейблы — ключи словаря; t() применяется в точке отображения.
 const CONF_LABEL: Record<string, string> = {
   high: "высокая", medium: "средняя", low: "низкая", none: "нет данных",
 };
-function confLabel(c: string): string { return CONF_LABEL[c] || c; }
+function confLabel(c: string): string { return t(CONF_LABEL[c] || c); }
 
 function openKpi() { router.push({ path: "/kpi" }); }
 function onRowKey(e: KeyboardEvent) {
@@ -59,15 +62,15 @@ function onRowKey(e: KeyboardEvent) {
   <section class="ed-card efk-card">
     <header class="efk-hdr">
       <div class="efk-hdr-l">
-        <div class="efk-eyebrow">Прогноз KPI</div>
+        <div class="efk-eyebrow">{{ t("Прогноз KPI") }}</div>
         <div class="efk-sub">
-          FY {{ block?.year || exec.year.value }} · детерминированный тренд · ожидаемое выполнение FY {{ block?.forecast_year }}
+          {{ t("FY {y} · детерминированный тренд · ожидаемое выполнение FY {fy}", { y: block?.year || exec.year.value, fy: block?.forecast_year ?? "" }) }}
         </div>
       </div>
       <div v-if="block && block.has_data" class="efk-hdr-r">
-        <span class="efk-stat">{{ block.scored_count }} / {{ block.total_companies }} с прогнозом</span>
-        <button class="efk-open" type="button" @click="openKpi" title="Открыть модуль KPI">
-          Подробнее
+        <span class="efk-stat">{{ t("{a} / {b} с прогнозом", { a: block.scored_count, b: block.total_companies }) }}</span>
+        <button class="efk-open" type="button" @click="openKpi" :title="t('Открыть модуль KPI')">
+          {{ t("Подробнее") }}
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>
         </button>
       </div>
@@ -79,9 +82,9 @@ function onRowKey(e: KeyboardEvent) {
            stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
         <path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/>
       </svg>
-      <div class="efk-empty-title">Прогноз KPI недоступен за FY {{ exec.year.value }}</div>
+      <div class="efk-empty-title">{{ t("Прогноз KPI недоступен за FY {y}", { y: exec.year.value }) }}</div>
       <div class="efk-empty-text">
-        Нужно ≥2 лет истории KPI по компаниям —<br>тренд рассчитается автоматически.
+        {{ t("Нужно ≥2 лет истории KPI по компаниям —") }}<br>{{ t("тренд рассчитается автоматически.") }}
       </div>
     </div>
 
@@ -89,42 +92,42 @@ function onRowKey(e: KeyboardEvent) {
       <!-- KPI band -->
       <div class="efk-kpi-band kpi-rail">
         <div class="efk-kpi" :style="{ '--accent': barColor(block.avg_forecast), '--d': '0ms' }">
-          <div class="efk-kpi-lbl">Ожид. выполнение FY {{ block.forecast_year }}</div>
+          <div class="efk-kpi-lbl">{{ t("Ожид. выполнение FY {y}", { y: block.forecast_year }) }}</div>
           <div class="efk-kpi-val">{{ tAvg.toFixed(0) }}<span class="efk-kpi-u">%</span></div>
           <div class="efk-kpi-zone efk-muted">
-            тек. {{ fmtPct(block.avg_current) }} по портфелю
+            {{ t("тек. {v} по портфелю", { v: fmtPct(block.avg_current) }) }}
           </div>
         </div>
 
         <div class="efk-kpi" style="--accent: #E24B4A; --d: 80ms;">
-          <div class="efk-kpi-lbl">В зоне риска</div>
-          <div class="efk-kpi-val">{{ block.at_risk }}<span class="efk-kpi-u">компаний</span></div>
-          <div class="efk-kpi-zone efk-muted">прогноз ниже 75%</div>
+          <div class="efk-kpi-lbl">{{ t("В зоне риска") }}</div>
+          <div class="efk-kpi-val">{{ block.at_risk }}<span class="efk-kpi-u">{{ t("компаний") }}</span></div>
+          <div class="efk-kpi-zone efk-muted">{{ t("прогноз ниже 75%") }}</div>
         </div>
 
         <div class="efk-kpi" style="--accent: #1D9E75; --d: 160ms;">
-          <div class="efk-kpi-lbl">Динамика тренда</div>
+          <div class="efk-kpi-lbl">{{ t("Динамика тренда") }}</div>
           <div class="efk-kpi-val">
             <span style="color:#1D9E75">{{ block.improving }}</span>
             <span class="efk-kpi-slash">/</span>
             <span style="color:#E24B4A">{{ block.declining }}</span>
           </div>
-          <div class="efk-kpi-zone efk-muted">улучшаются / ухудшаются</div>
+          <div class="efk-kpi-zone efk-muted">{{ t("улучшаются / ухудшаются") }}</div>
         </div>
 
         <div class="efk-kpi" style="--accent: #7F77DD; --d: 240ms;">
-          <div class="efk-kpi-lbl">Покрытие прогнозом</div>
+          <div class="efk-kpi-lbl">{{ t("Покрытие прогнозом") }}</div>
           <div class="efk-kpi-val">{{ block.scored_count }}<span class="efk-kpi-u">/ {{ block.total_companies }}</span></div>
-          <div class="efk-kpi-zone efk-muted">{{ block.total_companies - block.scored_count }} без истории</div>
+          <div class="efk-kpi-zone efk-muted">{{ t("{n} без истории", { n: block.total_companies - block.scored_count }) }}</div>
         </div>
       </div>
 
       <!-- График прогноза по компаниям (топ-8) -->
       <div v-if="chartRows.length" class="efk-chart">
-        <div class="efk-chart-hdr">Прогноз выполнения FY {{ block.forecast_year }} · топ-{{ chartRows.length }}</div>
+        <div class="efk-chart-hdr">{{ t("Прогноз выполнения FY {y} · топ-{n}", { y: block.forecast_year, n: chartRows.length }) }}</div>
         <div v-for="(c, i) in chartRows" :key="c.company_id" class="efk-bar-row"
              :style="{ '--d': (i * 55) + 'ms' }" role="button" tabindex="0"
-             :title="'Открыть KPI: ' + c.name" @click="openKpi" @keydown="onRowKey">
+             :title="t('Открыть KPI: {name}', { name: c.name })" @click="openKpi" @keydown="onRowKey">
           <span class="efk-bar-lbl" :title="c.name">
             <i class="efk-dot" :style="{ background: c.sector_color || '#7F77DD' }" />{{ c.name }}
           </span>
@@ -141,24 +144,24 @@ function onRowKey(e: KeyboardEvent) {
       <!-- Риски / Лидеры -->
       <div class="efk-cols">
         <div class="efk-col">
-          <div class="efk-col-t" style="color:#E24B4A">↓ Риски недостижения</div>
+          <div class="efk-col-t" style="color:#E24B4A">↓ {{ t("Риски недостижения") }}</div>
           <div v-for="(c, i) in (block.risks || [])" :key="c.company_id" class="efk-row"
                :style="{ '--d': (i * 60) + 'ms' }" role="button" tabindex="0"
-               :title="'Открыть KPI: ' + c.name" @click="openKpi" @keydown="onRowKey">
+               :title="t('Открыть KPI: {name}', { name: c.name })" @click="openKpi" @keydown="onRowKey">
             <span class="efk-dot" :style="{ background: c.sector_color || '#E24B4A' }" />
             <span class="efk-name" :title="c.name">{{ c.name }}</span>
-            <span class="efk-conf" :title="'надёжность прогноза'">{{ confLabel(c.confidence) }}</span>
+            <span class="efk-conf" :title="t('надёжность прогноза')">{{ confLabel(c.confidence) }}</span>
             <span class="efk-score" :style="{ color: barColor(c.forecast), background: barColor(c.forecast) + '18' }">
               {{ fmtPct(c.forecast) }}
             </span>
           </div>
-          <div v-if="!(block.risks || []).length" class="efk-none">нет компаний в зоне риска</div>
+          <div v-if="!(block.risks || []).length" class="efk-none">{{ t("нет компаний в зоне риска") }}</div>
         </div>
         <div class="efk-col">
-          <div class="efk-col-t" style="color:#1D9E75">↑ Лидеры прогноза</div>
+          <div class="efk-col-t" style="color:#1D9E75">↑ {{ t("Лидеры прогноза") }}</div>
           <div v-for="(c, i) in (block.leaders || [])" :key="c.company_id" class="efk-row"
                :style="{ '--d': (i * 60) + 'ms' }" role="button" tabindex="0"
-               :title="'Открыть KPI: ' + c.name" @click="openKpi" @keydown="onRowKey">
+               :title="t('Открыть KPI: {name}', { name: c.name })" @click="openKpi" @keydown="onRowKey">
             <span class="efk-dot" :style="{ background: c.sector_color || '#1D9E75' }" />
             <span class="efk-name" :title="c.name">{{ c.name }}</span>
             <span v-if="c.delta != null" class="efk-delta" :style="{ color: deltaColor(c.delta) }">
@@ -171,7 +174,7 @@ function onRowKey(e: KeyboardEvent) {
           <div v-if="!(block.leaders || []).length" class="efk-none">—</div>
         </div>
       </div>
-      <div class="efk-foot">Числа — детерминированный движок (OLS-тренд по годовому ряду выполнения); коридор надёжности учтён. Разбор и прогноз по показателям — в модуле KPI, режим «Прогноз».</div>
+      <div class="efk-foot">{{ t("Числа — детерминированный движок (OLS-тренд по годовому ряду выполнения); коридор надёжности учтён. Разбор и прогноз по показателям — в модуле KPI, режим «Прогноз».") }}</div>
     </template>
   </section>
 </template>

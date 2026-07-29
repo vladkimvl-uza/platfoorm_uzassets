@@ -6,6 +6,7 @@
  * (variant embedded) → 1:1 и синхронно (общий бэкенд saveCompany/overview).
  */
 import { computed, ref, watch } from "vue";
+import { useI18n } from "@/composables/useI18n";
 import { useToast } from "@/composables/useToast";
 import CreditDonut, { type DonutEntry } from "@/components/CreditPortfolio/CreditDonut.vue";
 import MentionableTextarea from "@/components/MentionableTextarea.vue";
@@ -21,6 +22,7 @@ const props = withDefaults(defineProps<{
 }>(), { variant: "embedded", open: true });
 const emit = defineEmits<{ (e: "close"): void; (e: "saved"): void; (e: "update:dirty", v: boolean): void; (e: "update:saving", v: boolean): void }>();
 const toast = useToast();
+const { t } = useI18n();
 
 const FUEL_UNIT: Record<string, string> = {
   electricity: "кВт·ч/ед", gas: "м³/ед", diesel: "т/ед", mazut: "т/ед", coal: "т/ед", kerosene: "т/ед",
@@ -81,8 +83,8 @@ const structDonut = computed<DonutEntry[]>(() => {
   const comps = draft.value.reduce((s, p) =>
     s + (p.components || []).reduce((a, c) => a + num(c.value), 0) * (num(p.output) || 1), 0);
   const out: DonutEntry[] = [];
-  if (energy > 0) out.push({ label: "Энергозатраты", color: "#EF9F27", value: energy });
-  if (comps > 0) out.push({ label: "Прочие статьи", color: "#7F77DD", value: comps });
+  if (energy > 0) out.push({ label: t("Энергозатраты"), color: "#EF9F27", value: energy });
+  if (comps > 0) out.push({ label: t("Прочие статьи"), color: "#7F77DD", value: comps });
   return out;
 });
 const structTotal = computed(() => structDonut.value.reduce((s, e) => s + e.value, 0));
@@ -142,10 +144,10 @@ function fmt(v: number | null): string {
 function fmtC(v: number | null): string {
   if (v == null) return "—";
   const a = Math.abs(v);
-  if (a >= 1e12) return (v / 1e12).toLocaleString("ru", { maximumFractionDigits: 2 }) + " трлн";
-  if (a >= 1e9) return (v / 1e9).toLocaleString("ru", { maximumFractionDigits: 1 }) + " млрд";
-  if (a >= 1e6) return (v / 1e6).toLocaleString("ru", { maximumFractionDigits: 1 }) + " млн";
-  if (a >= 1e3) return (v / 1e3).toLocaleString("ru", { maximumFractionDigits: 1 }) + " тыс";
+  if (a >= 1e12) return (v / 1e12).toLocaleString("ru", { maximumFractionDigits: 2 }) + " " + t("трлн");
+  if (a >= 1e9) return (v / 1e9).toLocaleString("ru", { maximumFractionDigits: 1 }) + " " + t("млрд");
+  if (a >= 1e6) return (v / 1e6).toLocaleString("ru", { maximumFractionDigits: 1 }) + " " + t("млн");
+  if (a >= 1e3) return (v / 1e3).toLocaleString("ru", { maximumFractionDigits: 1 }) + " " + t("тыс");
   return v.toLocaleString("ru", { maximumFractionDigits: 0 });
 }
 function shareColor(s: number | null): string {
@@ -192,18 +194,18 @@ const canEdit = computed(() => !!props.company);
 async function save() {
   if (saving.value || !props.company) return;
   for (const p of draft.value) {
-    if (!p.name.trim()) { toast.error("У продукта пустое название"); return; }
+    if (!p.name.trim()) { toast.error(t("У продукта пустое название")); return; }
   }
   if (newComment.value.trim()) addComment();
   saving.value = true;
   try {
     await unitCostApi.saveCompany(props.company.code, draft.value, imports.value, comments.value, props.year, props.quarter);
-    toast.success("Себестоимость сохранена");
+    toast.success(t("Себестоимость сохранена"));
     initial = JSON.stringify({ p: draft.value, i: imports.value, c: comments.value });
     emit("saved");
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    toast.error("Не сохранено: " + (err?.response?.data?.detail || err?.message || "ошибка"));
+    toast.error(t("Не сохранено: {msg}", { msg: err?.response?.data?.detail || err?.message || t("ошибка") }));
   } finally { saving.value = false; }
 }
 
@@ -215,18 +217,18 @@ defineExpose({ save, saving, dirty });
     <!-- заголовок (в модалке дублирует шапку — там свой header-слот; в embedded — единственный) -->
     <div v-if="variant === 'embedded'" class="ucm-head ucp-head">
       <h2 class="ucm-title"><span class="ucm-dot" :style="{ background: company.color }" />{{ company.name }}</h2>
-      <div class="ucm-meta">{{ company.sector }} · продуктов: {{ draft.length }}</div>
+      <div class="ucm-meta">{{ company.sector }} · {{ t("продуктов: {n}", { n: draft.length }) }}</div>
     </div>
 
     <div class="ucm-body">
       <!-- сводные показатели компании (те же, что на дашборде) -->
       <div class="ucm-kpis">
-        <div class="ucm-k" style="--kc:#7F77DD"><span>Себестоимость</span><b>{{ fmtC(kpi.total) }}</b></div>
-        <div class="ucm-k" style="--kc:#EF9F27"><span>Энергозатраты</span><b>{{ fmtC(kpi.energy) }}</b></div>
-        <div class="ucm-k" style="--kc:#E24B4A"><span>Доля энергии</span><b>{{ kpi.share != null ? kpi.share.toFixed(1) + '%' : '—' }}</b></div>
-        <div class="ucm-k" style="--kc:#1D9E75"><span>Заполнено</span><b>{{ kpi.filled }}<i>/{{ kpi.count }}</i></b></div>
-        <div class="ucm-k" :style="{ '--kc': overColor }" title="Отклонение факта от нормы расхода, в деньгах">
-          <span>Перерасход / Экономия</span>
+        <div class="ucm-k" style="--kc:#7F77DD"><span>{{ t("Себестоимость") }}</span><b>{{ fmtC(kpi.total) }}</b></div>
+        <div class="ucm-k" style="--kc:#EF9F27"><span>{{ t("Энергозатраты") }}</span><b>{{ fmtC(kpi.energy) }}</b></div>
+        <div class="ucm-k" style="--kc:#E24B4A"><span>{{ t("Доля энергии") }}</span><b>{{ kpi.share != null ? kpi.share.toFixed(1) + '%' : '—' }}</b></div>
+        <div class="ucm-k" style="--kc:#1D9E75"><span>{{ t("Заполнено") }}</span><b>{{ kpi.filled }}<i>/{{ kpi.count }}</i></b></div>
+        <div class="ucm-k" :style="{ '--kc': overColor }" :title="t('Отклонение факта от нормы расхода, в деньгах')">
+          <span>{{ t("Перерасход / Экономия") }}</span>
           <b :style="{ color: overColor }">
             <template v-if="kpi.overrun != null">{{ kpi.overrun > 0 ? '+' : '−' }}{{ fmtC(Math.abs(kpi.overrun)) }}</template>
             <template v-else>—</template>
@@ -236,102 +238,102 @@ defineExpose({ save, saving, dirty });
 
       <div v-if="mixDonut.length || structDonut.length" class="ucm-charts">
         <div v-if="mixDonut.length" class="ucm-chart">
-          <div class="ucm-chart-t">Энергомикс</div>
-          <CreditDonut :entries="mixDonut" :center-value="fmtC(mixTotal)" center-label="энергия" :hover-fmt="donutHover" :size="118" />
+          <div class="ucm-chart-t">{{ t("Энергомикс") }}</div>
+          <CreditDonut :entries="mixDonut" :center-value="fmtC(mixTotal)" :center-label="t('энергия')" :hover-fmt="donutHover" :size="118" />
         </div>
         <div v-if="structDonut.length" class="ucm-chart">
-          <div class="ucm-chart-t">Структура</div>
-          <CreditDonut :entries="structDonut" :center-value="fmtC(structTotal)" center-label="итого" :hover-fmt="donutHover" :size="118" />
+          <div class="ucm-chart-t">{{ t("Структура") }}</div>
+          <CreditDonut :entries="structDonut" :center-value="fmtC(structTotal)" :center-label="t('итого')" :hover-fmt="donutHover" :size="118" />
         </div>
       </div>
 
       <div v-for="(p, i) in draft" :key="i" class="ucm-prod" :class="{ open: expanded === i }" :style="{ '--d': (i * 40) + 'ms' }">
         <div class="ucm-prod-hd" @click="toggle(i)">
           <span class="ucm-chevron" :class="{ open: expanded === i }"></span>
-          <span class="ucm-prod-name">{{ p.name || 'Без названия' }}</span>
-          <span class="ucm-prod-cost">{{ fmt(calc(p).unit) }}<span class="ucm-cu">сум/{{ p.unit || 'ед.' }}</span></span>
+          <span class="ucm-prod-name">{{ p.name || t('Без названия') }}</span>
+          <span class="ucm-prod-cost">{{ fmt(calc(p).unit) }}<span class="ucm-cu">{{ t("сум") }}/{{ p.unit || t('ед.') }}</span></span>
           <span v-if="calc(p).share != null" class="ucm-prod-share"
                 :style="{ color: shareColor(calc(p).share), background: shareColor(calc(p).share) + '16' }">
-            энергия {{ calc(p).share!.toFixed(0) }}%
+            {{ t("энергия") }} {{ calc(p).share!.toFixed(0) }}%
           </span>
         </div>
         <transition name="ucm-exp">
           <div v-if="expanded === i" class="ucm-prod-body">
             <div class="ucm-row3">
-              <label class="ucm-f"><span>Название</span><input v-model="p.name" type="text" class="ucm-inp" /></label>
-              <label class="ucm-f ucm-f-sm"><span>Ед. изм.</span><input v-model="p.unit" type="text" class="ucm-inp" /></label>
-              <label class="ucm-f ucm-f-sm"><span>Годовой выпуск</span><input v-model.number="p.output" type="text" inputmode="decimal" class="ucm-inp" /></label>
+              <label class="ucm-f"><span>{{ t("Название") }}</span><input v-model="p.name" type="text" class="ucm-inp" /></label>
+              <label class="ucm-f ucm-f-sm"><span>{{ t("Ед. изм.") }}</span><input v-model="p.unit" type="text" class="ucm-inp" /></label>
+              <label class="ucm-f ucm-f-sm"><span>{{ t("Годовой выпуск") }}</span><input v-model.number="p.output" type="text" inputmode="decimal" class="ucm-inp" /></label>
             </div>
-            <div class="ucm-sub">Удельный расход энергоресурсов <span>факт и норма на единицу · отклонение = перерасход / экономия</span></div>
+            <div class="ucm-sub">{{ t("Удельный расход энергоресурсов") }} <span>{{ t("факт и норма на единицу · отклонение = перерасход / экономия") }}</span></div>
             <div class="ucm-energy">
               <div v-for="f in FUELS" :key="f" class="ucm-en">
-                <div class="ucm-en-l">{{ fuelLabels[f] || f }} <span class="ucm-en-u">{{ FUEL_UNIT[f] }}</span></div>
+                <div class="ucm-en-l">{{ fuelLabels[f] || f }} <span class="ucm-en-u">{{ t(FUEL_UNIT[f]) }}</span></div>
                 <div class="ucm-en-flds">
-                  <label class="ucm-en-fld"><span>факт</span><input v-model.number="p.energy[f]" type="text" inputmode="decimal" class="ucm-inp ucm-inp-c" placeholder="—" /></label>
-                  <label class="ucm-en-fld ucm-en-norm"><span>норма</span><input v-model.number="p.norm[f]" type="text" inputmode="decimal" class="ucm-inp ucm-inp-c" placeholder="—" /></label>
+                  <label class="ucm-en-fld"><span>{{ t("факт") }}</span><input v-model.number="p.energy[f]" type="text" inputmode="decimal" class="ucm-inp ucm-inp-c" placeholder="—" /></label>
+                  <label class="ucm-en-fld ucm-en-norm"><span>{{ t("норма") }}</span><input v-model.number="p.norm[f]" type="text" inputmode="decimal" class="ucm-inp ucm-inp-c" placeholder="—" /></label>
                 </div>
                 <div class="ucm-en-foot">
-                  <span class="ucm-en-c">{{ p.energy[f] != null ? fmt(num(p.energy[f]) * priceOf(f)) + ' сум' : '' }}</span>
+                  <span class="ucm-en-c">{{ p.energy[f] != null ? fmt(num(p.energy[f]) * priceOf(f)) + ' ' + t("сум") : '' }}</span>
                   <span v-if="fuelDelta(p, f)" class="ucm-en-diff" :class="fuelDelta(p, f)!.over ? 'over' : 'save'"
-                        :title="fuelDelta(p, f)!.over ? 'Перерасход к норме' : 'Экономия против нормы'">
+                        :title="fuelDelta(p, f)!.over ? t('Перерасход к норме') : t('Экономия против нормы')">
                     {{ fuelDelta(p, f)!.over ? '+' : '−' }}{{ fmt(Math.abs(fuelDelta(p, f)!.d)) }}
                   </span>
                 </div>
               </div>
             </div>
-            <div class="ucm-sub">Прочие статьи себестоимости <span>сум на единицу</span>
-              <button type="button" class="ucm-add" @click="addComponent(p)">+ статья</button>
+            <div class="ucm-sub">{{ t("Прочие статьи себестоимости") }} <span>{{ t("сум на единицу") }}</span>
+              <button type="button" class="ucm-add" @click="addComponent(p)">{{ t("+ статья") }}</button>
             </div>
             <div class="ucm-comps">
               <div v-for="(c, ci) in p.components" :key="ci" class="ucm-comp">
-                <input v-model="c.name" type="text" class="ucm-inp" placeholder="Статья" />
+                <input v-model="c.name" type="text" class="ucm-inp" :placeholder="t('Статья')" />
                 <input v-model.number="c.value" type="text" inputmode="decimal" class="ucm-inp ucm-inp-c" placeholder="0" />
-                <button type="button" class="ucm-del" @click="removeComponent(p, ci)" title="Удалить">✕</button>
+                <button type="button" class="ucm-del" @click="removeComponent(p, ci)" :title="t('Удалить')">✕</button>
               </div>
-              <div v-if="!p.components.length" class="ucm-empty">нет статей — добавьте кнопкой «+ статья»</div>
+              <div v-if="!p.components.length" class="ucm-empty">{{ t("нет статей — добавьте кнопкой «+ статья»") }}</div>
             </div>
             <div class="ucm-total">
-              <div class="ucm-tot-i"><span>Энергозатраты</span><b>{{ fmt(calc(p).energy) }}</b></div>
-              <div class="ucm-tot-i"><span>Прочие статьи</span><b>{{ fmt(calc(p).comps) }}</b></div>
-              <div class="ucm-tot-i ucm-tot-sum"><span>Удельная себестоимость</span><b>{{ fmt(calc(p).unit) }} сум/{{ p.unit || 'ед.' }}</b></div>
-              <div v-if="calc(p).total != null" class="ucm-tot-i"><span>Годовая себестоимость</span><b>{{ fmt(calc(p).total) }} сум</b></div>
+              <div class="ucm-tot-i"><span>{{ t("Энергозатраты") }}</span><b>{{ fmt(calc(p).energy) }}</b></div>
+              <div class="ucm-tot-i"><span>{{ t("Прочие статьи") }}</span><b>{{ fmt(calc(p).comps) }}</b></div>
+              <div class="ucm-tot-i ucm-tot-sum"><span>{{ t("Удельная себестоимость") }}</span><b>{{ fmt(calc(p).unit) }} {{ t("сум") }}/{{ p.unit || t('ед.') }}</b></div>
+              <div v-if="calc(p).total != null" class="ucm-tot-i"><span>{{ t("Годовая себестоимость") }}</span><b>{{ fmt(calc(p).total) }} {{ t("сум") }}</b></div>
               <div v-if="calc(p).overrunCost != null" class="ucm-tot-i">
-                <span>{{ calc(p).overUnit! > 0 ? 'Перерасход к норме' : 'Экономия к норме' }}</span>
-                <b :style="{ color: calc(p).overUnit! > 0 ? '#E24B4A' : '#1D9E75' }">{{ calc(p).overUnit! > 0 ? '+' : '−' }}{{ fmt(Math.abs(calc(p).overrunCost!)) }} сум</b>
+                <span>{{ calc(p).overUnit! > 0 ? t('Перерасход к норме') : t('Экономия к норме') }}</span>
+                <b :style="{ color: calc(p).overUnit! > 0 ? '#E24B4A' : '#1D9E75' }">{{ calc(p).overUnit! > 0 ? '+' : '−' }}{{ fmt(Math.abs(calc(p).overrunCost!)) }} {{ t("сум") }}</b>
               </div>
-              <button type="button" class="ucm-rmprod" @click="removeProduct(i)">Удалить продукт</button>
+              <button type="button" class="ucm-rmprod" @click="removeProduct(i)">{{ t("Удалить продукт") }}</button>
             </div>
           </div>
         </transition>
       </div>
 
-      <button type="button" class="ucm-addprod" @click="addProduct">+ добавить продукт</button>
+      <button type="button" class="ucm-addprod" @click="addProduct">{{ t("+ добавить продукт") }}</button>
 
       <div class="ucm-imp">
         <div class="ucm-imp-hd">
           <div>
-            <div class="ucm-imp-t">Импорт для производства</div>
-            <div class="ucm-imp-s">закупаемое за рубежом сырьё и комплектующие · цена в USD × курс {{ num(usdRate).toLocaleString("ru") }}</div>
+            <div class="ucm-imp-t">{{ t("Импорт для производства") }}</div>
+            <div class="ucm-imp-s">{{ t("закупаемое за рубежом сырьё и комплектующие · цена в USD × курс {rate}", { rate: num(usdRate).toLocaleString("ru") }) }}</div>
           </div>
-          <button type="button" class="ucm-add" @click="addImport">+ позиция</button>
+          <button type="button" class="ucm-add" @click="addImport">{{ t("+ позиция") }}</button>
         </div>
         <div v-if="imports.length" class="ucm-imp-list">
-          <div class="ucm-imp-head"><span>Наименование</span><span>Ед.</span><span>Цена, $</span><span>Кол-во</span><span>Итог, сум</span><span></span></div>
+          <div class="ucm-imp-head"><span>{{ t("Наименование") }}</span><span>{{ t("Ед.") }}</span><span>{{ t("Цена, $") }}</span><span>{{ t("Кол-во") }}</span><span>{{ t("Итог, сум") }}</span><span></span></div>
           <div v-for="(it, ii) in imports" :key="ii" class="ucm-imp-row">
-            <input v-model="it.name" type="text" class="ucm-inp" placeholder="Импортируемая позиция" />
-            <input v-model="it.unit" type="text" class="ucm-inp ucm-inp-c" placeholder="т" />
+            <input v-model="it.name" type="text" class="ucm-inp" :placeholder="t('Импортируемая позиция')" />
+            <input v-model="it.unit" type="text" class="ucm-inp ucm-inp-c" :placeholder="t('т')" />
             <input v-model.number="it.usd" type="text" inputmode="decimal" class="ucm-inp ucm-inp-c" placeholder="0" />
             <input v-model.number="it.qty" type="text" inputmode="decimal" class="ucm-inp ucm-inp-c" placeholder="0" />
             <span class="ucm-imp-cost">{{ fmt(importCost(it)) }}</span>
-            <button type="button" class="ucm-del" @click="removeImport(ii)" title="Удалить">✕</button>
+            <button type="button" class="ucm-del" @click="removeImport(ii)" :title="t('Удалить')">✕</button>
           </div>
-          <div class="ucm-imp-total">Итого импорт: <b>{{ fmt(importTotal) }} сум</b></div>
+          <div class="ucm-imp-total">{{ t("Итого импорт:") }} <b>{{ fmt(importTotal) }} {{ t("сум") }}</b></div>
         </div>
-        <div v-else class="ucm-imp-empty">импорт не указан — добавьте позиции кнопкой «+ позиция»</div>
+        <div v-else class="ucm-imp-empty">{{ t("импорт не указан — добавьте позиции кнопкой «+ позиция»") }}</div>
       </div>
 
       <div class="ucm-cm">
-        <div class="ucm-cm-t">Комментарии</div>
+        <div class="ucm-cm-t">{{ t("Комментарии") }}</div>
         <div v-if="comments.length" class="ucm-cm-list">
           <div v-for="(c, ci) in comments" :key="ci" class="ucm-cm-item">
             <div class="ucm-cm-hd"><span class="ucm-cm-author">{{ c.author || "—" }}</span><span class="ucm-cm-date">{{ fmtDate(c.at) }}</span></div>
@@ -339,17 +341,17 @@ defineExpose({ save, saving, dirty });
           </div>
         </div>
         <div class="ucm-cm-add">
-          <MentionableTextarea v-model="newComment" placeholder="Комментарий… используйте @ для упоминания" @mention="onMention" />
-          <button type="button" class="ucm-cm-btn" :disabled="!newComment.trim()" @click="addComment">Добавить</button>
+          <MentionableTextarea v-model="newComment" :placeholder="t('Комментарий… используйте @ для упоминания')" @mention="onMention" />
+          <button type="button" class="ucm-cm-btn" :disabled="!newComment.trim()" @click="addComment">{{ t("Добавить") }}</button>
         </div>
       </div>
     </div>
 
     <!-- action bar (в embedded — своя; в modal — используется footer ModalShell через слот) -->
     <div v-if="variant === 'embedded'" class="ucp-actions">
-      <span class="ucm-hint">энергонормы предзаполнены из отчёта энергоёмкости · остальное — вручную</span>
+      <span class="ucm-hint">{{ t("энергонормы предзаполнены из отчёта энергоёмкости · остальное — вручную") }}</span>
       <button class="ucm-save" type="button" :disabled="!dirty || saving || !canEdit" @click="save">
-        {{ saving ? "Сохранение…" : "Сохранить" }}
+        {{ saving ? t("Сохранение…") : t("Сохранить") }}
       </button>
     </div>
   </div>

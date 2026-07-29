@@ -129,6 +129,11 @@ async def update_me(
         if f in data:
             v = data[f]
             setattr(u, f, (v.strip() if isinstance(v, str) and v.strip() else (v if v else None)))
+    # Язык интерфейса — офлайн-каналы (email/Telegram) читают его из БД.
+    if data.get("ui_locale"):
+        from app.core.i18n import VALID_LOCALES
+        if data["ui_locale"] in VALID_LOCALES:
+            u.ui_locale = data["ui_locale"]
     # Соцссылки — нормализуем (https:// если без схемы), "" = удалить.
     for f in ("linkedin_url", "website_url"):
         if f in data:

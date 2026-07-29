@@ -5,24 +5,24 @@
       <div class="kps-hero">
         <div class="kps-hero-l">
           <div class="kps-hero-top">
-            <div class="kps-hero-eyebrow">Общее выполнение KPI · FY {{ summary.year }} · {{ periodLabel }} · {{ summary.co_count }} компаний</div>
+            <div class="kps-hero-eyebrow">{{ t("Общее выполнение KPI") }} · FY {{ summary.year }} · {{ periodLabel }} · {{ t("{n} компаний", { n: summary.co_count }) }}</div>
             <span class="kps-status" :class="execStatus.cls">{{ execStatus.label }}</span>
           </div>
           <div class="kps-hero-v">
             <span :style="{ color: overallColor }"><Odometer :value="overallText" /></span>
-            <span class="kps-info" :title="formulaTip" aria-label="Как считается общий процент" tabindex="0"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></span>
+            <span class="kps-info" :title="formulaTip" :aria-label="t('Как считается общий процент')" tabindex="0"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></span>
           </div>
           <div class="kps-hero-meta">
-            {{ summary.total_count }} индикаторов с весом ·
-            <span class="kps-cnt-link" style="color: #1D9E75" @click="summary.over_count && $emit('open-status', 'over')">{{ summary.over_count }} превышено</span> ·
-            <span class="kps-cnt-link" style="color: #5AA77F" @click="summary.hit_count && $emit('open-status', 'hit')">{{ summary.hit_count }} на цели</span> ·
-            <span class="kps-cnt-link" style="color: #C97F1A" @click="summary.risk_count && $emit('open-status', 'risk')">{{ summary.risk_count }} в риске</span> ·
-            <span class="kps-cnt-link" style="color: #D14343" @click="summary.crit_count && $emit('open-status', 'crit')">{{ summary.crit_count }} критично</span> ·
-            <span class="kps-cnt-link" style="color: #B91C1C" @click="summary.fail_count && $emit('open-status', 'fail')">{{ summary.fail_count }} провалено</span>
+            {{ t("{n} индикаторов с весом", { n: summary.total_count }) }} ·
+            <span class="kps-cnt-link" style="color: #1D9E75" @click="summary.over_count && $emit('open-status', 'over')">{{ t("{n} превышено", { n: summary.over_count }) }}</span> ·
+            <span class="kps-cnt-link" style="color: #5AA77F" @click="summary.hit_count && $emit('open-status', 'hit')">{{ t("{n} на цели", { n: summary.hit_count }) }}</span> ·
+            <span class="kps-cnt-link" style="color: #C97F1A" @click="summary.risk_count && $emit('open-status', 'risk')">{{ t("{n} в риске", { n: summary.risk_count }) }}</span> ·
+            <span class="kps-cnt-link" style="color: #D14343" @click="summary.crit_count && $emit('open-status', 'crit')">{{ t("{n} критично", { n: summary.crit_count }) }}</span> ·
+            <span class="kps-cnt-link" style="color: #B91C1C" @click="summary.fail_count && $emit('open-status', 'fail')">{{ t("{n} провалено", { n: summary.fail_count }) }}</span>
           </div>
           <div v-if="drivers.length || risks.length" class="kps-hero-drivers">
-            <span v-if="drivers.length" class="kps-drv up">▲ Драйверы: {{ drivers.join(" · ") }}</span>
-            <span v-if="risks.length" class="kps-drv dn">▼ Зоны риска: {{ risks.join(" · ") }}</span>
+            <span v-if="drivers.length" class="kps-drv up">▲ {{ t("Драйверы:") }} {{ drivers.join(" · ") }}</span>
+            <span v-if="risks.length" class="kps-drv dn">▼ {{ t("Зоны риска:") }} {{ risks.join(" · ") }}</span>
           </div>
         </div>
 
@@ -34,7 +34,7 @@
             class="kps-dist-seg"
             :class="{ 'is-click': s.count > 0 }"
             :style="{ flex: s.count, backgroundColor: s.color, animationDelay: `${i * 70}ms` }"
-            :title="s.count ? `${s.label}: ${s.count} · открыть список` : `${s.label}: 0`"
+            :title="s.count ? `${s.label}: ${s.count} · ${t('открыть список')}` : `${s.label}: 0`"
             @click="s.count && $emit('open-status', s.key)"
           />
         </div>
@@ -56,7 +56,7 @@
       <div class="kps-grid">
         <!-- Companies leaderboard -->
         <div class="kps-w">
-          <div class="kps-w-t">Компании · по % выполнения</div>
+          <div class="kps-w-t">{{ t("Компании · по % выполнения") }}</div>
           <div class="kps-co-list">
             <div
               v-for="(c, i) in summary.by_company"
@@ -71,26 +71,26 @@
                   v-if="c.weight_skew || c.low_sample"
                   class="kps-warn"
                   :title="c.weight_skew
-                    ? 'Оценка перекошена: один индикатор тянет >60% веса компании (по сути выполнение одного KPI)'
-                    : `Оценка по малой выборке: ${c.count} из ${c.ind_total} индикаторов`"
+                    ? t('Оценка перекошена: один индикатор тянет >60% веса компании (по сути выполнение одного KPI)')
+                    : t('Оценка по малой выборке: {a} из {b} индикаторов', { a: c.count, b: c.ind_total })"
                 >⚠</span>
               </span>
               <span class="meta">
-                <span class="cnt-hit" :title="`${c.hit} на цели`">{{ c.hit }}</span>
-                <span class="cnt-risk" :title="`${c.risk} в риске`">{{ c.risk }}</span>
-                <span class="cnt-crit" :title="`${c.crit} критично`">{{ c.crit }}</span>
+                <span class="cnt-hit" :title="t('{n} на цели', { n: c.hit })">{{ c.hit }}</span>
+                <span class="cnt-risk" :title="t('{n} в риске', { n: c.risk })">{{ c.risk }}</span>
+                <span class="cnt-crit" :title="t('{n} критично', { n: c.crit })">{{ c.crit }}</span>
               </span>
               <span class="pc" :style="{ color: kpiStatusColor(c.pct) }">
                 {{ fmt.fmtPercent(c.pct, { decimals: 1 }) }}
               </span>
             </div>
-            <div v-if="!summary.by_company.length" class="kps-empty">Нет данных</div>
+            <div v-if="!summary.by_company.length" class="kps-empty">{{ t("Нет данных") }}</div>
           </div>
         </div>
 
         <!-- Sectors -->
         <div class="kps-w">
-          <div class="kps-w-t">По секторам</div>
+          <div class="kps-w-t">{{ t("По секторам") }}</div>
           <div class="kps-sec-list">
             <div
               v-for="s in summary.by_sector"
@@ -98,11 +98,11 @@
               class="kps-sec-row kps-sec-click"
               :style="{ animationDelay: `${summary.by_sector.indexOf(s) * 60}ms` }"
               @click="$emit('open-sector', s.sector_code, s.label)"
-              :title="`Открыть сектор · ${s.label}`"
+              :title="`${t('Открыть сектор')} · ${s.label}`"
             >
               <div class="kps-sec-row-l">
                 <div class="kps-sec-name">{{ s.label }}</div>
-                <div class="kps-sec-meta">{{ s.co_count }} компаний · {{ s.count }} индикаторов</div>
+                <div class="kps-sec-meta">{{ t("{n} компаний", { n: s.co_count }) }} · {{ t("{n} индикаторов", { n: s.count }) }}</div>
               </div>
               <div class="kps-sec-row-r">
                 <div class="kps-sec-pct" :style="{ color: kpiStatusColor(s.pct ?? 0) }">
@@ -113,13 +113,13 @@
                 </div>
               </div>
             </div>
-            <div v-if="!summary.by_sector.length" class="kps-empty">Нет данных</div>
+            <div v-if="!summary.by_sector.length" class="kps-empty">{{ t("Нет данных") }}</div>
           </div>
         </div>
 
         <!-- Quarterly progress · vertical bar chart + detail grid -->
         <div class="kps-w">
-          <div class="kps-w-t">Прогресс по кварталам</div>
+          <div class="kps-w-t">{{ t("Прогресс по кварталам") }}</div>
 
           <!-- Bar chart: 4 vertical bars Q1-Q4, dashed 100% baseline, animated fill -->
           <div class="kps-q-chart">
@@ -139,7 +139,7 @@
               >
                 <div class="kps-q-chart-bar-wrap" :title="(q.fact != null
                     ? `${q.q.toUpperCase()}: ${q.fact.toFixed(1)}%`
-                    : `${q.q.toUpperCase()}: ${quarterState(q)}`) + ' · открыть период'">
+                    : `${q.q.toUpperCase()}: ${t(quarterState(q) || '')}`) + ' · ' + t('открыть период')">
                   <div
                     v-if="q.fact != null"
                     class="kps-q-chart-bar"
@@ -151,7 +151,7 @@
                   >
                     <span class="kps-q-chart-val">{{ fmt.fmtPercent(q.fact, { decimals: 1 }) }}</span>
                   </div>
-                  <div v-else class="kps-q-chart-bar-empty">{{ quarterState(q) }}</div>
+                  <div v-else class="kps-q-chart-bar-empty">{{ t(quarterState(q) || "") }}</div>
                 </div>
                 <div class="kps-q-chart-lbl">{{ q.q.toUpperCase() }}</div>
               </div>
@@ -165,14 +165,14 @@
               :key="q.q"
               class="kps-q-cell is-click"
               :class="{ active: q.q === summary.period }"
-              :title="`${q.q.toUpperCase()} · открыть период`"
+              :title="`${q.q.toUpperCase()} · ${t('открыть период')}`"
               @click="$emit('open-period', q.q)"
             >
               <div class="kps-q-l">{{ q.q.toUpperCase() }}</div>
               <div v-if="q.fact != null" class="kps-q-v" :style="{ color: kpiStatusColor(q.fact) }">
                 {{ fmt.fmtPercent(q.fact, { decimals: 1 }) }}
               </div>
-              <div v-else class="kps-q-v kps-q-v-state">{{ quarterState(q) }}</div>
+              <div v-else class="kps-q-v kps-q-v-state">{{ t(quarterState(q) || "") }}</div>
               <div class="kps-q-bar-wrap">
                 <div class="kps-q-bar" :style="{ width: Math.min(150, q.fact ?? 0) / 1.5 + '%', backgroundColor: q.fact != null ? kpiBarFill(q.fact) : '#B8B7B0' }" />
               </div>
@@ -181,18 +181,18 @@
 
           <!-- FY outlook -->
           <div class="kps-q-foot">
-            <span>FY {{ summary.year }} · закрыто {{ closedQ }} из 4 · текущий результат
+            <span>FY {{ summary.year }} · {{ t("закрыто {n} из 4 · текущий результат", { n: closedQ }) }}
               <b :style="{ color: overallColor }">{{ overallText }}</b></span>
             <span class="kps-q-foot-status" :class="execStatus.cls">{{ execStatus.label }}</span>
           </div>
-          <div v-if="hasFutureQ" class="kps-q-note">Данные за следующие кварталы появятся после закрытия периода.</div>
+          <div v-if="hasFutureQ" class="kps-q-note">{{ t("Данные за следующие кварталы появятся после закрытия периода.") }}</div>
         </div>
       </div>
 
       <!-- Achievements + Issues -->
       <div class="kps-grid-2">
         <div class="kps-w">
-          <div class="kps-w-t" style="color:#1D9E75">↑ Достижения · превышение плана</div>
+          <div class="kps-w-t" style="color:#1D9E75">↑ {{ t("Достижения · превышение плана") }}</div>
           <div class="kps-ind-list">
             <div
               v-for="(ind, i) in summary.achievements"
@@ -203,24 +203,24 @@
             >
               <div class="kps-ind-body">
                 <div class="kps-ind-name">{{ ind.name }}</div>
-                <div class="kps-ind-meta">{{ ind.co_name }} · {{ ind.mgr }} · вес {{ weightVal(ind) }}</div>
-                <div v-if="isAnomaly(ind)" class="kps-ind-flag" title="Перевыполнение выше 150% — вероятно низкая база, разовый эффект или ошибка плана. Требуется пояснение руководителя.">
-                  ⚠ аномальное перевыполнение · требуется пояснение
+                <div class="kps-ind-meta">{{ ind.co_name }} · {{ ind.mgr }} · {{ t("вес") }} {{ weightVal(ind) }}</div>
+                <div v-if="isAnomaly(ind)" class="kps-ind-flag" :title="t('Перевыполнение выше 150% — вероятно низкая база, разовый эффект или ошибка плана. Требуется пояснение руководителя.')">
+                  ⚠ {{ t("аномальное перевыполнение · требуется пояснение") }}
                 </div>
               </div>
               <div class="kps-ind-pcts">
                 <div class="kps-ind-pct" :style="{ color: kpiStatusColor(ind.pct ?? 0) }">
                   {{ fmt.fmtPercent(ind.pct, { decimals: 0 }) }}
                 </div>
-                <div class="kps-ind-capped" title="В индекс KPI идёт с ограничением 150%">в индексе {{ cappedPct(ind) }}%</div>
+                <div class="kps-ind-capped" :title="t('В индекс KPI идёт с ограничением 150%')">{{ t("в индексе {p}%", { p: cappedPct(ind) }) }}</div>
               </div>
             </div>
-            <div v-if="!summary.achievements.length" class="kps-empty">Нет достижений ≥105%</div>
+            <div v-if="!summary.achievements.length" class="kps-empty">{{ t("Нет достижений ≥105%") }}</div>
           </div>
         </div>
 
         <div class="kps-w">
-          <div class="kps-w-t" style="color:#E24B4A">↓ Зона внимания · отстают от плана</div>
+          <div class="kps-w-t" style="color:#E24B4A">↓ {{ t("Зона внимания · отстают от плана") }}</div>
           <div class="kps-ind-list">
             <div
               v-for="(ind, i) in summary.issues"
@@ -230,13 +230,13 @@
             >
               <div class="kps-ind-body">
                 <div class="kps-ind-name">{{ ind.name }}</div>
-                <div class="kps-ind-meta">{{ ind.co_name }} · {{ ind.mgr }} · вес {{ weightVal(ind) }} · откл {{ deltaPp(ind) }}</div>
+                <div class="kps-ind-meta">{{ ind.co_name }} · {{ ind.mgr }} · {{ t("вес") }} {{ weightVal(ind) }} · {{ t("откл") }} {{ deltaPp(ind) }}</div>
               </div>
               <div class="kps-ind-pct" :style="{ color: kpiStatusColor(ind.pct ?? 0) }">
                 {{ fmt.fmtPercent(ind.pct, { decimals: 0 }) }}
               </div>
             </div>
-            <div v-if="!summary.issues.length" class="kps-empty">Нет отстающих с весом ≥5</div>
+            <div v-if="!summary.issues.length" class="kps-empty">{{ t("Нет отстающих с весом ≥5") }}</div>
           </div>
         </div>
       </div>
@@ -248,9 +248,11 @@
 import { computed } from "vue";
 import { kpiStatusColor, type KpiSummary, type KpiIndPayload, type KpiStatus, num } from "@/api/bpKpi";
 import { useFormatters } from "@/composables/useFormatters";
+import { useI18n } from "@/composables/useI18n";
 import Odometer from "@/components/Odometer.vue";
 
 const fmt = useFormatters();
+const { t } = useI18n();
 
 const props = defineProps<{ summary: KpiSummary }>();
 defineEmits<{
@@ -271,11 +273,11 @@ const overallColor = computed(() => {
 });
 
 const distSegments = computed<{ key: KpiStatus; label: string; color: string; count: number }[]>(() => [
-  { key: "over", label: "Превышено", color: "#5DC093", count: props.summary.over_count },
-  { key: "hit", label: "На цели", color: "#93D3B0", count: props.summary.hit_count },
-  { key: "risk", label: "В риске", color: "#EFB373", count: props.summary.risk_count },
-  { key: "crit", label: "Критично", color: "#E2807F", count: props.summary.crit_count },
-  { key: "fail", label: "Провал", color: "#C76A68", count: props.summary.fail_count },
+  { key: "over", label: t("Превышено"), color: "#5DC093", count: props.summary.over_count },
+  { key: "hit", label: t("На цели"), color: "#93D3B0", count: props.summary.hit_count },
+  { key: "risk", label: t("В риске"), color: "#EFB373", count: props.summary.risk_count },
+  { key: "crit", label: t("Критично"), color: "#E2807F", count: props.summary.crit_count },
+  { key: "fail", label: t("Провал"), color: "#C76A68", count: props.summary.fail_count },
 ]);
 
 /**
@@ -293,7 +295,7 @@ function kpiBarFill(pct: number): string {
 
 const periodLabel = computed(() => {
   const p = props.summary.period;
-  return p === "year" ? "Год" : p.toUpperCase();
+  return p === "year" ? t("Год") : p.toUpperCase();
 });
 
 // ─── Executive status поверх процента ─────────────────────────────
@@ -301,20 +303,20 @@ const periodLabel = computed(() => {
 const execStatus = computed(() => {
   const s = props.summary;
   const o = s.overall;
-  if (o == null || s.total_count === 0) return { label: "Нет данных", cls: "is-na" };
+  if (o == null || s.total_count === 0) return { label: t("Нет данных"), cls: "is-na" };
   const critFail = s.crit_count + s.fail_count;
   const critShare = s.total_count > 0 ? critFail / s.total_count : 0;
-  if (o < 75 || critShare >= 0.35) return { label: "Критично", cls: "is-crit" };
-  if (o < 90 || critShare >= 0.2) return { label: "Риск", cls: "is-risk" };
-  if (o < 100 || critFail > 0) return { label: "Зона внимания", cls: "is-warn" };
-  return { label: "На цели", cls: "is-ok" };
+  if (o < 75 || critShare >= 0.35) return { label: t("Критично"), cls: "is-crit" };
+  if (o < 90 || critShare >= 0.2) return { label: t("Риск"), cls: "is-risk" };
+  if (o < 100 || critFail > 0) return { label: t("Зона внимания"), cls: "is-warn" };
+  return { label: t("На цели"), cls: "is-ok" };
 });
 
 // Раскрытие формулы общего % (tooltip)
 const formulaTip = computed(() =>
-  "Общее выполнение = среднее по компаниям (каждая компания весит одинаково — защита от инфляции весов одной компании). " +
-  "Внутри компании KPI взвешены по своим весам: Σ(выполнение×вес) ÷ Σвес. " +
-  "Перевыполнение учитывается с ограничением 150% — сверхвыполнение одного KPI не компенсирует провал другого сверх этого порога.",
+  t("Общее выполнение = среднее по компаниям (каждая компания весит одинаково — защита от инфляции весов одной компании).") + " " +
+  t("Внутри компании KPI взвешены по своим весам: Σ(выполнение×вес) ÷ Σвес.") + " " +
+  t("Перевыполнение учитывается с ограничением 150% — сверхвыполнение одного KPI не компенсирует провал другого сверх этого порога."),
 );
 
 // Драйверы успеха / зоны риска — по секторам
@@ -339,7 +341,7 @@ function isAnomaly(ind: KpiIndPayload): boolean {
 }
 function deltaPp(ind: KpiIndPayload): string {
   const d = (ind.pct ?? 0) - 100;
-  return (d >= 0 ? "+" : "−") + Math.abs(Math.round(d)) + " п.п.";
+  return (d >= 0 ? "+" : "−") + Math.abs(Math.round(d)) + " " + t("п.п.");
 }
 function weightVal(ind: KpiIndPayload): number {
   return num(ind.weight);

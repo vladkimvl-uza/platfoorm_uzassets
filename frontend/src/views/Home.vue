@@ -14,16 +14,18 @@ import TomorrowHolidayWidget from "@/components/Home/TomorrowHolidayWidget.vue";
 import CurrenciesWidget from "@/components/Home/CurrenciesWidget.vue";
 import FlagSeparator from "@/components/Home/FlagSeparator.vue";
 import { getHoliday } from "@/api/holidays";
+import { useI18n } from "@/composables/useI18n";
 
+const { t } = useI18n();
 const router = useRouter();
 const auth = useAuthStore();
 
 // Time-of-day greeting (1:1 legacy logic — by hour)
 const greeting = computed(() => {
   const h = new Date().getHours();
-  if (h >= 5 && h < 12) return "Доброе утро";
-  if (h >= 12 && h < 18) return "Добрый день";
-  return "Добрый вечер";
+  if (h >= 5 && h < 12) return t("Доброе утро");
+  if (h >= 12 && h < 18) return t("Добрый день");
+  return t("Добрый вечер");
 });
 
 const firstName = computed(() => {
@@ -96,14 +98,14 @@ function doLogout() {
       <!-- Topbar — без логотипа, без lang-switches -->
       <div class="home-topbar">
         <div class="home-tb-left">
-          <span class="home-tb-eyebrow">Единая платформа трансформации</span>
+          <span class="home-tb-eyebrow">{{ t("Единая платформа трансформации") }}</span>
         </div>
         <div class="home-tb-right">
           <button
             class="home-profile-pill"
             type="button"
             @click="openProfile"
-            title="Профиль и настройки безопасности"
+            :title="t('Профиль и настройки безопасности')"
           >
             <div class="home-av">
               <img v-if="auth.user?.avatar_url" :src="auth.user.avatar_url" alt="" />
@@ -121,8 +123,8 @@ function doLogout() {
               <polyline points="6 4 10 8 6 12"/>
             </svg>
           </button>
-          <button class="home-logout-btn" @click="doLogout" title="Выйти из системы">
-            Выйти
+          <button class="home-logout-btn" @click="doLogout" :title="t('Выйти из системы')">
+            {{ t("Выйти") }}
           </button>
         </div>
       </div>
@@ -150,7 +152,7 @@ function doLogout() {
       <!-- Products UzAssets -->
       <div class="home-section-head">
         <div class="home-section-stripe" style="background: #7C6FF7"></div>
-        <span class="home-section-label">Продукты UzAssets</span>
+        <span class="home-section-label">{{ t("Продукты UzAssets") }}</span>
       </div>
 
       <div class="home-panel-unified">
@@ -165,18 +167,18 @@ function doLogout() {
             <div class="hpu-hero-icon">
               <img
                 src="/favicon.svg"
-                alt="UzAssets — Единая платформа трансформации"
+                :alt="'UzAssets — ' + t('Единая платформа трансформации')"
                 class="hpu-hero-logo"
               />
             </div>
-            <span class="hpu-hero-badge">Портфель</span>
+            <span class="hpu-hero-badge">{{ t("Портфель") }}</span>
           </div>
           <div>
-            <div class="hpu-hero-title">Портфель государственных компаний</div>
-            <div class="hpu-hero-sub">Мониторинг проектов трансформаций</div>
+            <div class="hpu-hero-title">{{ t("Портфель государственных компаний") }}</div>
+            <div class="hpu-hero-sub">{{ t("Мониторинг проектов трансформаций") }}</div>
           </div>
           <div class="hpu-hero-foot">
-            <span ref="heroEnter" class="hpu-hero-enter">Перейти →</span>
+            <span ref="heroEnter" class="hpu-hero-enter">{{ t("Перейти") }} →</span>
           </div>
         </div>
 
@@ -196,7 +198,7 @@ function doLogout() {
               <div class="hpu-esg-title">UzAssets ESG Center<br>of Excellence</div>
             </div>
             <div class="hpu-esg-foot">
-              <span>Открыть
+              <span>{{ t("Открыть") }}
                 <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
                   <path d="M3.5 3.5h5v5"/>
                   <path d="M8.5 3.5L3 9"/>
@@ -210,7 +212,7 @@ function doLogout() {
       <!-- External systems -->
       <div class="home-section-head">
         <div class="home-section-stripe" style="background: #94A3B8"></div>
-        <span class="home-section-label" style="color: var(--t3, #94A3B8)">Внешние системы</span>
+        <span class="home-section-label" style="color: var(--t3, #94A3B8)">{{ t("Внешние системы") }}</span>
       </div>
 
       <div class="home-ws-grid">
@@ -231,16 +233,16 @@ function doLogout() {
             </svg>
           </div>
           <div>
-            <div class="home-ws-title">Финансовые показатели и инвестиционный портфель</div>
-            <div class="home-ws-sub">Аналитическая панель управления</div>
+            <div class="home-ws-title">{{ t("Финансовые показатели и инвестиционный портфель") }}</div>
+            <div class="home-ws-sub">{{ t("Аналитическая панель управления") }}</div>
           </div>
           <div class="home-ws-tag-row">
-            <span class="home-ws-vendor">ООО Tenzorsoft | Разработано совместно с UzAssets</span>
+            <span class="home-ws-vendor">{{ t("ООО Tenzorsoft | Разработано совместно с UzAssets") }}</span>
           </div>
           <div class="home-ws-pills">
-            <span class="home-ws-pill" @click="openTenzorsoftSub('credits', $event)">Кредитный портфель</span>
-            <span class="home-ws-pill" @click="openTenzorsoftSub('investments-v2', $event)">Инвестиционные проекты</span>
-            <span class="home-ws-pill" @click="openTenzorsoftSub('soe-dashboard/finmodel-old-3', $event)">Финансовая модель</span>
+            <span class="home-ws-pill" @click="openTenzorsoftSub('credits', $event)">{{ t("Кредитный портфель") }}</span>
+            <span class="home-ws-pill" @click="openTenzorsoftSub('investments-v2', $event)">{{ t("Инвестиционные проекты") }}</span>
+            <span class="home-ws-pill" @click="openTenzorsoftSub('soe-dashboard/finmodel-old-3', $event)">{{ t("Финансовая модель") }}</span>
           </div>
         </a>
 
@@ -260,11 +262,11 @@ function doLogout() {
           </div>
           <div>
             <div class="home-ws-title">E-Kengash IMV</div>
-            <div class="home-ws-sub">Электронные заседания</div>
+            <div class="home-ws-sub">{{ t("Электронные заседания") }}</div>
           </div>
           <div class="home-ws-tag-row">
             <span class="home-ws-vendor" style="color: #4B6A8A; background: rgba(75, 106, 138, 0.07)">
-              ИВЦ Министерства Экономики и Финансов Республики Узбекистан
+              {{ t("ИВЦ Министерства Экономики и Финансов Республики Узбекистан") }}
             </span>
           </div>
         </a>

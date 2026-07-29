@@ -7,6 +7,9 @@ import UzaSkeleton from "@/components/UZA/UzaSkeleton.vue";
 import Odometer from "@/components/Odometer.vue";
 import { api } from "@/api/client";
 import { Chart } from "@/utils/chartjsRegister";
+import { useI18n } from "@/composables/useI18n";
+
+const { t } = useI18n();
 
 defineEmits<{ (e: 'toggle-sidebar'): void }>();
 
@@ -170,7 +173,7 @@ const hoveredStatus = ref<StatusRow | null>(null);
 const centerNum = computed(() =>
   hoveredStatus.value ? formatStatusValue(hoveredStatus.value) : String(totalCenterValue.value));
 const centerLbl = computed(() =>
-  hoveredStatus.value ? hoveredStatus.value.label : (statusEntity.value === "projects" ? "ПРОЕКТОВ" : "ЗАДАЧ"));
+  hoveredStatus.value ? t(hoveredStatus.value.label) : (statusEntity.value === "projects" ? t("ПРОЕКТОВ") : t("ЗАДАЧ")));
 function fadeColor(hex: string): string {
   const h = hex.replace("#", "");
   if (h.length < 6) return hex;
@@ -205,7 +208,7 @@ const ringStatuses = computed(() => {
 // Chart.js плавно интерполирует от текущих data к новым.
 function renderDonut() {
   if (!data.value || !donutCanvas.value) return;
-  const labels = ringStatuses.value.map(s => s.label);
+  const labels = ringStatuses.value.map(s => t(s.label));
   const newData = ringStatuses.value.map(s => statusEntity.value === "projects" ? s.projects_count : s.tasks_count);
   const colors = ringStatuses.value.map(s => s.color);
 
@@ -288,7 +291,7 @@ async function load() {
       yearStore.setAvailableYears(res.data.available_years);
     }
   } catch (e: any) {
-    errorMsg.value = e?.response?.data?.detail || e?.message || "Ошибка загрузки";
+    errorMsg.value = e?.response?.data?.detail || e?.message || t("Ошибка загрузки");
     data.value = null;
   } finally {
     loading.value = false;
@@ -309,7 +312,7 @@ const companyFilter = useSavedFilter<string>("dashboard.companyFilter", "");
 // Pack 7.9e: AI Bubble context
 useAiPageContext({
   key: "dashboard",
-  label: "Главный дашборд",
+  label: t("Главный дашборд"),
   describeState: () => {
     const parts: string[] = [];
     if (sectorFilter.value) parts.push(`сектор: ${sectorFilter.value}`);
@@ -319,11 +322,11 @@ useAiPageContext({
     return parts.join("; ");
   },
   quickActions: [
-    { label: "Сводка дашборда",
+    { label: t("Сводка дашборда"),
       prompt: "Дай сводку главного дашборда: статусы проектов/задач по компаниям и секторам. Что выделяется. Используй get_kpi_summary." },
-    { label: "Топ-5 отстающих",
+    { label: t("Топ-5 отстающих"),
       prompt: "Найди топ-5 отстающих компаний по выполнению задач за текущий год. Используй get_kpi_summary.top_overdue_companies + конкретные рекомендации." },
-    { label: "Что просрочено?",
+    { label: t("Что просрочено?"),
       prompt: "Покажи все критичные просрочки задач на сегодня. Используй list_overdue_tasks." },
   ],
 });
@@ -448,18 +451,18 @@ const tweenedDeferredTasks = useNumberTween(
     <!-- Phase 1: page-specific filters (rendered into AppTopbar via Teleport) -->
     <Teleport to="#page-filters-target" v-if="data">
       <select v-model="companyFilter" class="apt-page-select">
-        <option value="">Все компании</option>
+        <option value="">{{ t("Все компании") }}</option>
         <option v-for="c in allCompaniesList" :key="c.code" :value="c.code">{{ companies.getCompanyName(c.code) || c.name }}</option>
       </select>
       <select v-model="sectorFilter" class="apt-page-select">
-        <option value="">Все секторы</option>
-        <option v-for="s in sectorOptions" :key="s.code" :value="s.code">{{ s.label }}</option>
+        <option value="">{{ t("Все секторы") }}</option>
+        <option v-for="s in sectorOptions" :key="s.code" :value="s.code">{{ t(s.label) }}</option>
       </select>
       <select v-model="directionFilter" class="apt-page-select">
-        <option value="">Все направления</option>
-        <option v-for="d in (data?.directions || [])" :key="d.id" :value="d.id">{{ d.label }}</option>
+        <option value="">{{ t("Все направления") }}</option>
+        <option v-for="d in (data?.directions || [])" :key="d.id" :value="d.id">{{ t(d.label) }}</option>
       </select>
-      <button v-if="hasFilters" @click="clearFilters" title="Сбросить" class="apt-page-reset">×</button>
+      <button v-if="hasFilters" @click="clearFilters" :title="t('Сбросить')" class="apt-page-reset">×</button>
     </Teleport>
 
     <div v-if="loading && !data" class="sh-skel-stack">
@@ -480,13 +483,13 @@ const tweenedDeferredTasks = useNumberTween(
              style="--kpi2-accent: #7F77DD; animation-delay: 0ms"
              @click="openKpiDrill('total','projects')">
           <div class="kpi2-head">
-            <div class="kpi2-lbl">ПРОЕКТОВ</div>
+            <div class="kpi2-lbl">{{ t("ПРОЕКТОВ") }}</div>
             <span class="kpi2-ico" style="--ico:#7F77DD">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="7" height="16" rx="1.5"/><rect x="14" y="4" width="7" height="16" rx="1.5"/></svg>
             </span>
           </div>
           <div class="kpi2-val">{{ Math.round(tweenedProjects) }}</div>
-          <div class="kpi2-foot">в портфеле</div>
+          <div class="kpi2-foot">{{ t("в портфеле") }}</div>
         </div>
 
         <!-- ВСЕГО ЗАДАЧ -->
@@ -494,13 +497,13 @@ const tweenedDeferredTasks = useNumberTween(
              style="--kpi2-accent: #3B82F6; animation-delay: 80ms"
              @click="openKpiDrill('total','tasks')">
           <div class="kpi2-head">
-            <div class="kpi2-lbl">ВСЕГО ЗАДАЧ</div>
+            <div class="kpi2-lbl">{{ t("ВСЕГО ЗАДАЧ") }}</div>
             <span class="kpi2-ico" style="--ico:#3B82F6">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg>
             </span>
           </div>
           <div class="kpi2-val">{{ Math.round(tweenedTasks) }}</div>
-          <div class="kpi2-foot">по {{ kpiTotal.proj }} проектам</div>
+          <div class="kpi2-foot">{{ t("по {n} проектам", { n: kpiTotal.proj }) }}</div>
         </div>
 
         <!-- ЗАВЕРШЕНО -->
@@ -508,17 +511,17 @@ const tweenedDeferredTasks = useNumberTween(
              style="--kpi2-accent: #1D9E75; animation-delay: 160ms"
              @click="openKpiDrill('done','tasks')">
           <div class="kpi2-head">
-            <div class="kpi2-lbl">ЗАВЕРШЕНО</div>
+            <div class="kpi2-lbl">{{ t("ЗАВЕРШЕНО") }}</div>
             <span class="kpi2-ico" style="--ico:#1D9E75">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg>
             </span>
           </div>
           <div class="kpi2-split">
-            <div class="kpi2-half" role="button" tabindex="0" aria-label="Завершённые проекты" @click.stop="openKpiDrill('done','projects')" @keydown.enter.prevent="openKpiDrill('done','projects')" @keydown.space.prevent="openKpiDrill('done','projects')"><div class="kpi2-num" style="color:#1D9E75">{{ fmtKpi(Math.round(tweenedDoneProj), kpiTotal.proj) }}</div><div class="kpi2-sub">проектов</div><div class="kpi2-mbar"><span :style="{ width: pct(data.kpis.done_proj, kpiTotal.proj) + '%', background: '#1D9E75' }"></span></div></div>
+            <div class="kpi2-half" role="button" tabindex="0" :aria-label="t('Завершённые проекты')" @click.stop="openKpiDrill('done','projects')" @keydown.enter.prevent="openKpiDrill('done','projects')" @keydown.space.prevent="openKpiDrill('done','projects')"><div class="kpi2-num" style="color:#1D9E75">{{ fmtKpi(Math.round(tweenedDoneProj), kpiTotal.proj) }}</div><div class="kpi2-sub">{{ t("проектов") }}</div><div class="kpi2-mbar"><span :style="{ width: pct(data.kpis.done_proj, kpiTotal.proj) + '%', background: '#1D9E75' }"></span></div></div>
             <div class="kpi2-divider"></div>
-            <div class="kpi2-half" role="button" tabindex="0" aria-label="Завершённые задачи" @click.stop="openKpiDrill('done','tasks')" @keydown.enter.prevent="openKpiDrill('done','tasks')" @keydown.space.prevent="openKpiDrill('done','tasks')"><div class="kpi2-num" style="color:#1D9E75">{{ fmtKpi(Math.round(tweenedDoneTasks), kpiTotal.tasks) }}</div><div class="kpi2-sub">задач</div><div class="kpi2-mbar"><span :style="{ width: pct(data.kpis.done_tasks, kpiTotal.tasks) + '%', background: '#1D9E75' }"></span></div></div>
+            <div class="kpi2-half" role="button" tabindex="0" :aria-label="t('Завершённые задачи')" @click.stop="openKpiDrill('done','tasks')" @keydown.enter.prevent="openKpiDrill('done','tasks')" @keydown.space.prevent="openKpiDrill('done','tasks')"><div class="kpi2-num" style="color:#1D9E75">{{ fmtKpi(Math.round(tweenedDoneTasks), kpiTotal.tasks) }}</div><div class="kpi2-sub">{{ t("задач") }}</div><div class="kpi2-mbar"><span :style="{ width: pct(data.kpis.done_tasks, kpiTotal.tasks) + '%', background: '#1D9E75' }"></span></div></div>
           </div>
-          <div class="kpi2-foot">{{ pct(data.kpis.done_tasks, kpiTotal.tasks) }}% от всех задач</div>
+          <div class="kpi2-foot">{{ t("{p}% от всех задач", { p: pct(data.kpis.done_tasks, kpiTotal.tasks) }) }}</div>
         </div>
 
         <!-- В ПРОЦЕССЕ -->
@@ -526,17 +529,17 @@ const tweenedDeferredTasks = useNumberTween(
              style="--kpi2-accent: #D97706; animation-delay: 240ms"
              @click="openKpiDrill('active','tasks')">
           <div class="kpi2-head">
-            <div class="kpi2-lbl">В ПРОЦЕССЕ</div>
+            <div class="kpi2-lbl">{{ t("В ПРОЦЕССЕ") }}</div>
             <span class="kpi2-ico" style="--ico:#D97706">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 12V5a7 7 0 0 1 6.1 3.5z" fill="currentColor" stroke="none"/></svg>
             </span>
           </div>
           <div class="kpi2-split">
-            <div class="kpi2-half" role="button" tabindex="0" aria-label="Проекты в процессе" @click.stop="openKpiDrill('active','projects')" @keydown.enter.prevent="openKpiDrill('active','projects')" @keydown.space.prevent="openKpiDrill('active','projects')"><div class="kpi2-num" style="color:#D97706">{{ fmtKpi(Math.round(tweenedActiveProj), kpiTotal.proj) }}</div><div class="kpi2-sub">проектов</div><div class="kpi2-mbar"><span :style="{ width: pct(data.kpis.active_proj, kpiTotal.proj) + '%', background: '#D97706' }"></span></div></div>
+            <div class="kpi2-half" role="button" tabindex="0" :aria-label="t('Проекты в процессе')" @click.stop="openKpiDrill('active','projects')" @keydown.enter.prevent="openKpiDrill('active','projects')" @keydown.space.prevent="openKpiDrill('active','projects')"><div class="kpi2-num" style="color:#D97706">{{ fmtKpi(Math.round(tweenedActiveProj), kpiTotal.proj) }}</div><div class="kpi2-sub">{{ t("проектов") }}</div><div class="kpi2-mbar"><span :style="{ width: pct(data.kpis.active_proj, kpiTotal.proj) + '%', background: '#D97706' }"></span></div></div>
             <div class="kpi2-divider"></div>
-            <div class="kpi2-half" role="button" tabindex="0" aria-label="Задачи в процессе" @click.stop="openKpiDrill('active','tasks')" @keydown.enter.prevent="openKpiDrill('active','tasks')" @keydown.space.prevent="openKpiDrill('active','tasks')"><div class="kpi2-num" style="color:#D97706">{{ fmtKpi(Math.round(tweenedActiveTasks), kpiTotal.tasks) }}</div><div class="kpi2-sub">задач</div><div class="kpi2-mbar"><span :style="{ width: pct(data.kpis.active_tasks, kpiTotal.tasks) + '%', background: '#D97706' }"></span></div></div>
+            <div class="kpi2-half" role="button" tabindex="0" :aria-label="t('Задачи в процессе')" @click.stop="openKpiDrill('active','tasks')" @keydown.enter.prevent="openKpiDrill('active','tasks')" @keydown.space.prevent="openKpiDrill('active','tasks')"><div class="kpi2-num" style="color:#D97706">{{ fmtKpi(Math.round(tweenedActiveTasks), kpiTotal.tasks) }}</div><div class="kpi2-sub">{{ t("задач") }}</div><div class="kpi2-mbar"><span :style="{ width: pct(data.kpis.active_tasks, kpiTotal.tasks) + '%', background: '#D97706' }"></span></div></div>
           </div>
-          <div class="kpi2-foot">{{ pct(data.kpis.active_tasks, kpiTotal.tasks) }}% от всех задач</div>
+          <div class="kpi2-foot">{{ t("{p}% от всех задач", { p: pct(data.kpis.active_tasks, kpiTotal.tasks) }) }}</div>
         </div>
 
         <!-- ПРОСРОЧЕНО -->
@@ -544,17 +547,17 @@ const tweenedDeferredTasks = useNumberTween(
              :style="`--kpi2-accent:${data.kpis.overdue_proj+data.kpis.overdue_tasks>0?'#EF4444':'#e2e8f0'};animation-delay:320ms`"
              @click="data.kpis.overdue_tasks>0 ? openKpiDrill('overdue','tasks') : (data.kpis.overdue_proj>0 && openKpiDrill('overdue','projects'))">
           <div class="kpi2-head">
-            <div class="kpi2-lbl">ПРОСРОЧЕНО</div>
+            <div class="kpi2-lbl">{{ t("ПРОСРОЧЕНО") }}</div>
             <span class="kpi2-ico" :style="{ '--ico': data.kpis.overdue_proj+data.kpis.overdue_tasks>0 ? '#EF4444' : '#94a3b8' }">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5M12 16h.01"/></svg>
             </span>
           </div>
           <div class="kpi2-split">
-            <div class="kpi2-half" @click.stop="data.kpis.overdue_proj>0 && openKpiDrill('overdue','projects')"><div class="kpi2-num" :style="{color: data.kpis.overdue_proj>0?'var(--t1, #1E2A4A)':'#94a3b8'}">{{ fmtKpi(Math.round(tweenedOverdueProj), kpiTotal.proj) }}</div><div class="kpi2-sub">проектов</div><div class="kpi2-mbar"><span :style="{ width: pct(data.kpis.overdue_proj, kpiTotal.proj) + '%', background: '#EF4444' }"></span></div></div>
+            <div class="kpi2-half" @click.stop="data.kpis.overdue_proj>0 && openKpiDrill('overdue','projects')"><div class="kpi2-num" :style="{color: data.kpis.overdue_proj>0?'var(--t1, #1E2A4A)':'#94a3b8'}">{{ fmtKpi(Math.round(tweenedOverdueProj), kpiTotal.proj) }}</div><div class="kpi2-sub">{{ t("проектов") }}</div><div class="kpi2-mbar"><span :style="{ width: pct(data.kpis.overdue_proj, kpiTotal.proj) + '%', background: '#EF4444' }"></span></div></div>
             <div class="kpi2-divider"></div>
-            <div class="kpi2-half" @click.stop="data.kpis.overdue_tasks>0 && openKpiDrill('overdue','tasks')"><div class="kpi2-num" :style="{color: data.kpis.overdue_tasks>0?'var(--t1, #1E2A4A)':'#94a3b8'}">{{ fmtKpi(Math.round(tweenedOverdueTasks), kpiTotal.tasks) }}</div><div class="kpi2-sub">задач</div><div class="kpi2-mbar"><span :style="{ width: pct(data.kpis.overdue_tasks, kpiTotal.tasks) + '%', background: '#EF4444' }"></span></div></div>
+            <div class="kpi2-half" @click.stop="data.kpis.overdue_tasks>0 && openKpiDrill('overdue','tasks')"><div class="kpi2-num" :style="{color: data.kpis.overdue_tasks>0?'var(--t1, #1E2A4A)':'#94a3b8'}">{{ fmtKpi(Math.round(tweenedOverdueTasks), kpiTotal.tasks) }}</div><div class="kpi2-sub">{{ t("задач") }}</div><div class="kpi2-mbar"><span :style="{ width: pct(data.kpis.overdue_tasks, kpiTotal.tasks) + '%', background: '#EF4444' }"></span></div></div>
           </div>
-          <div class="kpi2-foot">{{ data.kpis.overdue_tasks>0 ? pct(data.kpis.overdue_tasks, kpiTotal.tasks) + '% от всех задач' : 'просрочек нет' }}</div>
+          <div class="kpi2-foot">{{ data.kpis.overdue_tasks>0 ? t("{p}% от всех задач", { p: pct(data.kpis.overdue_tasks, kpiTotal.tasks) }) : t("просрочек нет") }}</div>
         </div>
 
         <!-- ПЕРЕНЕСЕНО — скрываем при 0, показываем когда появятся переносы -->
@@ -563,17 +566,17 @@ const tweenedDeferredTasks = useNumberTween(
              :style="`--kpi2-accent:${data.kpis.deferred_proj+data.kpis.deferred_tasks>0?'#7F77DD':'#e2e8f0'};animation-delay:400ms;${data.kpis.deferred_proj+data.kpis.deferred_tasks>0?'background:linear-gradient(180deg,#FFF 0%,#FCFAFF 100%);':''}`"
              @click="data.kpis.deferred_tasks>0 ? openKpiDrill('deferred','tasks') : (data.kpis.deferred_proj>0 && openKpiDrill('deferred','projects'))">
           <div class="kpi2-head">
-            <div class="kpi2-lbl">ПЕРЕНЕСЕНО</div>
+            <div class="kpi2-lbl">{{ t("ПЕРЕНЕСЕНО") }}</div>
             <span class="kpi2-ico" :style="{ '--ico': data.kpis.deferred_proj+data.kpis.deferred_tasks>0 ? '#7F77DD' : '#94a3b8' }">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h13l-3-3M20 16H7l3 3"/></svg>
             </span>
           </div>
           <div class="kpi2-split">
-            <div class="kpi2-half" @click.stop="data.kpis.deferred_proj>0 && openKpiDrill('deferred','projects')"><div class="kpi2-num" :style="{color: data.kpis.deferred_proj>0?'#7F77DD':'#94a3b8'}">{{ fmtKpi(Math.round(tweenedDeferredProj), kpiTotal.proj) }}</div><div class="kpi2-sub">проектов</div><div class="kpi2-mbar"><span :style="{ width: pct(data.kpis.deferred_proj, kpiTotal.proj) + '%', background: '#7F77DD' }"></span></div></div>
+            <div class="kpi2-half" @click.stop="data.kpis.deferred_proj>0 && openKpiDrill('deferred','projects')"><div class="kpi2-num" :style="{color: data.kpis.deferred_proj>0?'#7F77DD':'#94a3b8'}">{{ fmtKpi(Math.round(tweenedDeferredProj), kpiTotal.proj) }}</div><div class="kpi2-sub">{{ t("проектов") }}</div><div class="kpi2-mbar"><span :style="{ width: pct(data.kpis.deferred_proj, kpiTotal.proj) + '%', background: '#7F77DD' }"></span></div></div>
             <div class="kpi2-divider"></div>
-            <div class="kpi2-half" @click.stop="data.kpis.deferred_tasks>0 && openKpiDrill('deferred','tasks')"><div class="kpi2-num" :style="{color: data.kpis.deferred_tasks>0?'#7F77DD':'#94a3b8'}">{{ fmtKpi(Math.round(tweenedDeferredTasks), kpiTotal.tasks) }}</div><div class="kpi2-sub">задач</div><div class="kpi2-mbar"><span :style="{ width: pct(data.kpis.deferred_tasks, kpiTotal.tasks) + '%', background: '#7F77DD' }"></span></div></div>
+            <div class="kpi2-half" @click.stop="data.kpis.deferred_tasks>0 && openKpiDrill('deferred','tasks')"><div class="kpi2-num" :style="{color: data.kpis.deferred_tasks>0?'#7F77DD':'#94a3b8'}">{{ fmtKpi(Math.round(tweenedDeferredTasks), kpiTotal.tasks) }}</div><div class="kpi2-sub">{{ t("задач") }}</div><div class="kpi2-mbar"><span :style="{ width: pct(data.kpis.deferred_tasks, kpiTotal.tasks) + '%', background: '#7F77DD' }"></span></div></div>
           </div>
-          <div class="kpi2-foot">{{ data.kpis.deferred_tasks+data.kpis.deferred_proj>0 ? pct(data.kpis.deferred_tasks, kpiTotal.tasks) + '% от всех задач' : 'нет записей' }}</div>
+          <div class="kpi2-foot">{{ data.kpis.deferred_tasks+data.kpis.deferred_proj>0 ? t("{p}% от всех задач", { p: pct(data.kpis.deferred_tasks, kpiTotal.tasks) }) : t("нет записей") }}</div>
         </div>
       </div>
 
@@ -601,11 +604,11 @@ const tweenedDeferredTasks = useNumberTween(
       <div class="three-cols">
         <div class="cc">
           <div class="cc-header">
-            <div class="cc-title">Статусы</div>
+            <div class="cc-title">{{ t("Статусы") }}</div>
             <div class="seg-controls">
               <div class="uza-seg is-sm">
-                <button :class="['uza-seg-btn',{on:statusEntity==='projects'}]" @click="statusEntity='projects'">Проекты</button>
-                <button :class="['uza-seg-btn',{on:statusEntity==='tasks'}]" @click="statusEntity='tasks'">Задачи</button>
+                <button :class="['uza-seg-btn',{on:statusEntity==='projects'}]" @click="statusEntity='projects'">{{ t("Проекты") }}</button>
+                <button :class="['uza-seg-btn',{on:statusEntity==='tasks'}]" @click="statusEntity='tasks'">{{ t("Задачи") }}</button>
               </div>
               <div class="uza-seg is-sm">
                 <button :class="['uza-seg-btn',{on:statusFormat==='count'}]" @click="statusFormat='count'">#</button>
@@ -628,7 +631,7 @@ const tweenedDeferredTasks = useNumberTween(
                    :style="{ '--si': si }"
                    @mouseenter="onLegendEnter(s)" @mouseleave="onLegendLeave()">
                 <span class="legend-dot" :style="{background:s.color}"></span>
-                <span class="legend-lbl">{{ s.label }}<small v-if="s.id==='overdue'" class="legend-note" title="«Просрочено» — сквозной счётчик по всем статусам, не отдельный сегмент кольца">· вне кольца</small></span>
+                <span class="legend-lbl">{{ t(s.label) }}<small v-if="s.id==='overdue'" class="legend-note" :title="t('«Просрочено» — сквозной счётчик по всем статусам, не отдельный сегмент кольца')">· {{ t("вне кольца") }}</small></span>
                 <span class="legend-val" :style="{color:s.id==='overdue'?'#E24B4A':'var(--t1)'}">{{ formatStatusValue(s) }}</span>
               </div>
             </div>
@@ -636,9 +639,9 @@ const tweenedDeferredTasks = useNumberTween(
         </div>
 
         <div class="cc">
-          <div class="cc-header"><div class="cc-title">Проекты по компаниям</div></div>
+          <div class="cc-header"><div class="cc-title">{{ t("Проекты по компаниям") }}</div></div>
           <div class="comp-list-head">
-            <span>КОМПАНИЯ</span><span title="Средневзвешенный прогресс по статусам задач (не done/всего)">ПРОГРЕСС</span><span class="r" title="Завершено полностью / всего">ПРОЕКТЫ</span><span class="r" title="Завершено полностью / всего">ЗАДАЧИ</span>
+            <span>{{ t("КОМПАНИЯ") }}</span><span :title="t('Средневзвешенный прогресс по статусам задач (не done/всего)')">{{ t("ПРОГРЕСС") }}</span><span class="r" :title="t('Завершено полностью / всего')">{{ t("ПРОЕКТЫ") }}</span><span class="r" :title="t('Завершено полностью / всего')">{{ t("ЗАДАЧИ") }}</span>
           </div>
           <div class="comp-body">
             <template v-for="grp in (data?.companies_by_sector || [])" :key="grp.sector">
@@ -648,7 +651,7 @@ const tweenedDeferredTasks = useNumberTween(
                    @keydown.enter.prevent="toggleSector(grp.sector)"
                    @keydown.space.prevent="toggleSector(grp.sector)">
                 <span class="sector-pill" :style="{background:grp.sector_color}"></span>
-                <span class="sector-name">{{ grp.sector_label }}</span>
+                <span class="sector-name">{{ t(grp.sector_label) }}</span>
                 <span class="sector-count">{{ grp.companies.length }}</span>
                 <span class="sector-arrow" :class="{open: !expandedSectors.has(grp.sector)}">
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -665,28 +668,28 @@ const tweenedDeferredTasks = useNumberTween(
                     <span class="co-code"
                           :style="{ background: grp.sector_color + '22', color: grp.sector_color, '--cl': grp.sector_color }"
                           @click.stop="openCompanyDrill(co.code, 'projects')"
-                          :title="'Открыть drill компании ' + co.name">{{ co.code }}</span>
+                          :title="t('Открыть drill компании {name}', { name: co.name })">{{ co.code }}</span>
                     <span class="co-text"
                           style="min-width:0; overflow:hidden; text-overflow:ellipsis;"
                           @click.stop="gotoCompanyWorkspace(co.code)"
-                          :title="'Открыть карточку — ' + co.name">{{ co.name }}</span>
+                          :title="t('Открыть карточку — {name}', { name: co.name })">{{ co.name }}</span>
                   </div>
                   <div class="co-bar-wrap" role="button" tabindex="0"
                        @click.stop="openCompanyDrill(co.code, 'tasks')"
                        @keydown.enter.prevent.stop="openCompanyDrill(co.code, 'tasks')"
                        @keydown.space.prevent.stop="openCompanyDrill(co.code, 'tasks')"
-                       :aria-label="'Открыть детализацию задач — ' + co.name"
-                       :title="'Открыть drill компании ' + co.name">
+                       :aria-label="t('Открыть детализацию задач — {name}', { name: co.name })"
+                       :title="t('Открыть drill компании {name}', { name: co.name })">
                     <span class="co-pct" :style="{color: pctColor(co.progress_pct)}">{{ co.progress_pct }}%</span>
                     <span class="co-bar"><i class="co-bar-fill"
                           :style="{ width: co.progress_pct + '%', '--c': pctColor(co.progress_pct), '--d': (idx * 45) + 'ms' }"></i></span>
                   </div>
                   <div class="co-num r co-num-clickable"
                        @click.stop="openCompanyDrill(co.code, 'projects')"
-                       :title="'Drill: проекты ' + co.name">{{ co.projects_done }}/{{ co.projects_total }}</div>
+                       :title="t('Drill: проекты {name}', { name: co.name })">{{ co.projects_done }}/{{ co.projects_total }}</div>
                   <div class="co-num r co-num-clickable"
                        @click.stop="openCompanyDrill(co.code, 'tasks')"
-                       :title="'Drill: задачи ' + co.name">{{ co.tasks_done }}/{{ co.tasks_total }}</div>
+                       :title="t('Drill: задачи {name}', { name: co.name })">{{ co.tasks_done }}/{{ co.tasks_total }}</div>
                 </div>
               </template>
             </template>

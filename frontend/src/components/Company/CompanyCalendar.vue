@@ -13,15 +13,19 @@ import { companiesApi } from "@/api/companies";
 import { useEntityEditor } from "@/composables/useEntityEditor";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
+import { useI18n } from "@/composables/useI18n";
 
 const entityEditor = useEntityEditor();
 const { confirmDialog } = useConfirm();
 const toast = useToast();
+const { t } = useI18n();
 const props = defineProps<{ companyId?: string | null }>();
 const emit = defineEmits<{ (e: "open-entity", payload: { entity_type: "project" | "task"; entity_id: string; company_id: string | null }): void }>();
 const isGlobal = computed(() => !props.companyId);
 
 const MONTHS = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
+// Краткие месяцы (ключи common-словаря) — для заголовка недели.
+const MONTHS_SHORT = ["Янв", "Фев", "Мар", "Апр", "Май", "Июн", "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"];
 const WD = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 
 const today = new Date();
@@ -64,7 +68,7 @@ async function load() {
     events.value = ev; notes.value = nt; watchedSet.value = w;
   } catch (e: any) {
     events.value = []; notes.value = [];
-    toast.error(e?.message || "Не удалось загрузить календарь");
+    toast.error(e?.message || t("Не удалось загрузить календарь"));
   } finally { loading.value = false; }
 }
 // Дозагрузка, если текущий вид вышел за пределы загруженного окна (иначе месяц
@@ -176,10 +180,10 @@ const titleText = computed(() => {
   if (view.value === "week") {
     const w = weekDays.value;
     const a = w[0].date, b = w[6].date;
-    return `${a.getDate()} ${MONTHS[a.getMonth()].slice(0, 3).toLowerCase()} — ${b.getDate()} ${MONTHS[b.getMonth()].slice(0, 3).toLowerCase()} ${b.getFullYear()}`;
+    return `${a.getDate()} ${t(MONTHS_SHORT[a.getMonth()]).toLowerCase()} — ${b.getDate()} ${t(MONTHS_SHORT[b.getMonth()]).toLowerCase()} ${b.getFullYear()}`;
   }
-  if (view.value === "agenda") return "Повестка";
-  return `${MONTHS[cur.value.getMonth()]} ${cur.value.getFullYear()}`;
+  if (view.value === "agenda") return t("Повестка");
+  return `${t(MONTHS[cur.value.getMonth()])} ${cur.value.getFullYear()}`;
 });
 function go(delta: number) {
   dir.value = delta;
@@ -215,7 +219,7 @@ const selectedIsPast = computed(() => {
   if (!selectedKey.value) return false;
   return selectedKey.value < ymd(today);
 });
-const selectedWeekday = computed(() => (selectedDate.value ? WEEKDAYS_FULL[selectedDate.value.getDay()] : ""));
+const selectedWeekday = computed(() => (selectedDate.value ? t(WEEKDAYS_FULL[selectedDate.value.getDay()]) : ""));
 const pendingCreate = ref(false);
 function createOnDay(kind: "task" | "project") {
   if (!selectedKey.value) return;
@@ -252,7 +256,7 @@ async function saveNote() {
   const body = noteBody.value.trim();
   if (!body || !selectedKey.value) return;
   const companyId = props.companyId || noteCompanyId.value;
-  if (!noteEditId.value && !companyId) { noteError.value = "Выберите компанию для заметки"; return; }
+  if (!noteEditId.value && !companyId) { noteError.value = t("Выберите компанию для заметки"); return; }
   noteSaving.value = true; noteError.value = "";
   try {
     if (noteEditId.value) {
@@ -263,11 +267,11 @@ async function saveNote() {
     noteAdding.value = false; noteEditId.value = null; noteBody.value = ""; noteCompanyId.value = "";
     await load();
   } catch (e: any) {
-    noteError.value = e?.response?.data?.detail || "Не удалось сохранить заметку";
+    noteError.value = e?.response?.data?.detail || t("Не удалось сохранить заметку");
   } finally { noteSaving.value = false; }
 }
 async function deleteNote(n: Note) {
-  if (!(await confirmDialog({ message: "Удалить заметку?", danger: true }))) return;
+  if (!(await confirmDialog({ message: t("Удалить заметку?"), danger: true }))) return;
   noteDeletingId.value = n.id;
   try {
     await notesApi.delete(n.id);
@@ -280,7 +284,7 @@ watch(selectedKey, () => { noteAdding.value = false; noteEditId.value = null; no
 
 const overdueTotal = computed(() => filteredEvents.value.filter((e) => evState(e) === "overdue").length);
 
-function fmtFull(d: Date) { return `${d.getDate()} ${MONTHS[d.getMonth()].toLowerCase()} ${d.getFullYear()}`; }
+function fmtFull(d: Date) { return `${d.getDate()} ${t(MONTHS[d.getMonth()]).toLowerCase()} ${d.getFullYear()}`; }
 function overdueDays(e: CalendarEvent): number {
   if (!e.due_date) return 0;
   const diff = dayDiff(e.due_date);

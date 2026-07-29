@@ -15,6 +15,9 @@ import { computed, ref } from "vue";
 import type { PortfolioSummaryResponse } from "@/api/financials";
 import type { CompanyListItem, SectorBrief } from "@/api/companies";
 import { fmtCompact, sectorColor, buildCompanyIndex } from "./financialsHelpers";
+import { useI18n } from "@/composables/useI18n";
+
+const { t } = useI18n();
 
 const props = defineProps<{
   summary: PortfolioSummaryResponse | null;
@@ -280,40 +283,40 @@ interface Col { label: string; sortable: boolean; align: Align; width?: string; 
 const cols = computed<Col[]>(() => {
   if (props.viewTab === "SOFP" || props.viewTab === "BS") {
     return [
-      { label: "#",          sortable: false, align: "center", width: "32px" },
-      { label: "Компания",   sortable: false, align: "left" },
-      { label: "Активы",     sortable: true,  align: "right" },
-      { label: "Капитал",    sortable: true,  align: "right" },
-      { label: "Долг",       sortable: true,  align: "right" },
-      { label: "D/E",        sortable: true,  align: "right" },
-      { label: "Чист.долг",  sortable: true,  align: "right" },
-      { label: "Кэш",        sortable: true,  align: "right" },
-      { label: "ROE",        sortable: true,  align: "right" },
+      { label: "#",             sortable: false, align: "center", width: "32px" },
+      { label: t("Компания"),   sortable: false, align: "left" },
+      { label: t("Активы"),     sortable: true,  align: "right" },
+      { label: t("Капитал"),    sortable: true,  align: "right" },
+      { label: t("Долг"),       sortable: true,  align: "right" },
+      { label: "D/E",           sortable: true,  align: "right" },
+      { label: t("Чист.долг"),  sortable: true,  align: "right" },
+      { label: t("Кэш"),        sortable: true,  align: "right" },
+      { label: "ROE",           sortable: true,  align: "right" },
     ];
   }
   if (props.viewTab === "CF") {
     return [
-      { label: "#",          sortable: false, align: "center", width: "32px" },
-      { label: "Компания",   sortable: false, align: "left" },
-      { label: "CFO",        sortable: true,  align: "right" },
-      { label: "CFI",        sortable: true,  align: "right" },
-      { label: "CFF",        sortable: true,  align: "right" },
-      { label: "FCF",        sortable: true,  align: "right" },
-      { label: "Дивиденды",  sortable: true,  align: "right" },
-      { label: "CF/EBITDA",  sortable: true,  align: "right" },
+      { label: "#",             sortable: false, align: "center", width: "32px" },
+      { label: t("Компания"),   sortable: false, align: "left" },
+      { label: "CFO",           sortable: true,  align: "right" },
+      { label: "CFI",           sortable: true,  align: "right" },
+      { label: "CFF",           sortable: true,  align: "right" },
+      { label: "FCF",           sortable: true,  align: "right" },
+      { label: t("Дивиденды"),  sortable: true,  align: "right" },
+      { label: "CF/EBITDA",     sortable: true,  align: "right" },
     ];
   }
   return [
-    { label: "#",            sortable: false, align: "center", width: "32px" },
-    { label: "Компания",     sortable: false, align: "left" },
-    { label: "Тренд",        sortable: false, align: "center", width: "60px" },
-    { label: "Выручка",      sortable: true,  align: "right" },
-    { label: "Вал.маржа",    sortable: true,  align: "right" },
-    { label: "EBITDA",       sortable: true,  align: "right" },
-    { label: "EB маржа",     sortable: true,  align: "right" },
-    { label: "Чист.приб.",   sortable: true,  align: "right" },
-    { label: "Чист.маржа",   sortable: true,  align: "right" },
-    { label: "Δ Rev",        sortable: true,  align: "right" },
+    { label: "#",               sortable: false, align: "center", width: "32px" },
+    { label: t("Компания"),     sortable: false, align: "left" },
+    { label: t("Тренд"),        sortable: false, align: "center", width: "60px" },
+    { label: t("Выручка"),      sortable: true,  align: "right" },
+    { label: t("Вал.маржа"),    sortable: true,  align: "right" },
+    { label: "EBITDA",          sortable: true,  align: "right" },
+    { label: t("EB маржа"),     sortable: true,  align: "right" },
+    { label: t("Чист.приб."),   sortable: true,  align: "right" },
+    { label: t("Чист.маржа"),   sortable: true,  align: "right" },
+    { label: "Δ Rev",           sortable: true,  align: "right" },
   ];
 });
 
@@ -325,7 +328,7 @@ function rowClick(co: string) {
 <template>
   <div class="fsb-card">
     <div class="fsb-head">
-      <div class="fsb-eyebrow">Скорборд</div>
+      <div class="fsb-eyebrow">{{ t("Скорборд") }}</div>
       <div class="fsb-title">{{ standard }} · {{ viewTab }} · FY {{ year }}</div>
     </div>
 
@@ -365,7 +368,7 @@ function rowClick(co: string) {
           </tr>
           <tr v-if="!sortedRows.length">
             <td :colspan="cols.length" class="fsb-empty">
-              Нет данных по этой выборке
+              {{ t("Нет данных по этой выборке") }}
             </td>
           </tr>
         </tbody>

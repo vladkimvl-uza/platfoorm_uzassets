@@ -15,6 +15,9 @@ import { execOverviewApi, type ExecOverviewResponse, type ExecOverviewProject, t
 import { overviewMatrixApi, type MatrixConfig, type ManualProject } from "@/api/overviewMatrix";
 import MatrixEditor from "@/components/reporting/MatrixEditor.vue";
 import { usePermissions } from "@/composables/usePermissions";
+import { useI18n } from "@/composables/useI18n";
+
+const { t } = useI18n();
 
 // Встраивание как подвкладка «Отчёт» в воркспейсе компании: фиксируем фильтр на
 // одной компании и прячем портфельную «обвязку» (логотип/название, статистику, чипы).
@@ -120,7 +123,7 @@ async function load() {
     companyFilter.value = props.embedCompanyId || null;
     loadMatrixConfigs();
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить обзор";
+    error.value = e?.response?.data?.detail || e?.message || t("Не удалось загрузить обзор");
   } finally { loading.value = false; }
 }
 onMounted(load);
@@ -385,7 +388,7 @@ function buildManualReport(c: ExecOverviewCompany): ManualReport {
       const p = byId.get(b.id);
       details.push({
         num: b.note,
-        title: b.title === "—" ? "(без названия)" : b.title,
+        title: b.title === "—" ? t("(без названия)") : b.title,
         responsible: (p?.responsible || "").trim(),
         goal: (p?.goal || p?.details || "").trim(),
         cost: (p?.cost || "").trim(),
@@ -504,50 +507,50 @@ watch(data, (d) => {
       <div v-if="!embedCompanyId" class="eo-tb-l">
         <EptLogo :size="30" />
         <div class="eo-tb-titles">
-          <h1 class="eo-title">Сводный обзор портфеля</h1>
-          <div class="eo-sub">Единая платформа трансформации<template v-if="data"> · на {{ new Date(data.as_of).toLocaleDateString("ru-RU") }}</template></div>
+          <h1 class="eo-title">{{ t("Сводный обзор портфеля") }}</h1>
+          <div class="eo-sub">{{ t("Единая платформа трансформации") }}<template v-if="data"> · {{ t("на {d}", { d: new Date(data.as_of).toLocaleDateString("ru-RU") }) }}</template></div>
         </div>
       </div>
       <div class="eo-tb-r">
         <div class="eo-year">
-          <button @click="year--" title="Предыдущий год">‹</button>
+          <button @click="year--" :title="t('Предыдущий год')">‹</button>
           <span>FY {{ year }}</span>
-          <button @click="year++" title="Следующий год">›</button>
+          <button @click="year++" :title="t('Следующий год')">›</button>
         </div>
         <button
           v-if="matrixPerm.canEdit.value"
           class="eo-fill"
           :disabled="!fillCompany"
-          :title="fillCompany ? ('Заполнить отчёт: ' + fillCompany.name) : 'Сначала выберите компанию в списке ниже'"
+          :title="fillCompany ? t('Заполнить отчёт: {name}', { name: fillCompany.name }) : t('Сначала выберите компанию в списке ниже')"
           @click="fillCompany && openMatrixEditor(fillCompany)"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="1.5"/><path d="M3 9h18M9 9v12"/></svg>
-          Заполнить отчёт
-          <span v-if="fillCompany && hasManualReport(fillCompany.id)" class="eo-fill-dot" title="Отчёт заполнен"></span>
+          {{ t("Заполнить отчёт") }}
+          <span v-if="fillCompany && hasManualReport(fillCompany.id)" class="eo-fill-dot" :title="t('Отчёт заполнен')"></span>
         </button>
         <button class="eo-print" :disabled="!printCompanies.length"
-                :title="printCompanies.length ? 'Печать заполненного отчёта' : 'Нет заполненного отчёта для печати'"
+                :title="printCompanies.length ? t('Печать заполненного отчёта') : t('Нет заполненного отчёта для печати')"
                 @click="doPrint">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-          Печать
+          {{ t("Печать") }}
         </button>
       </div>
     </div>
     <div class="eo-body">
 
     <UzaStateBlock v-if="error" state="error" variant="banner" :text="error" dismissible @dismiss="error = null" />
-    <UzaStateBlock v-if="loading" state="loading" text="Собираем обзор…" />
+    <UzaStateBlock v-if="loading" state="loading" :text="t('Собираем обзор…')" />
 
     <template v-else-if="data">
       <!-- Авто-статистика проектов и дерево убраны: страница = заполнить → превью → печать ручного отчёта -->
 
       <!-- чипы компаний: выбор компании для заполнения / превью / печати -->
       <div v-if="allCompanies.length && !embedCompanyId" class="eo-chips">
-        <button class="eo-chip" :class="{ on: companyFilter === null }" @click="companyFilter = null">Все компании</button>
+        <button class="eo-chip" :class="{ on: companyFilter === null }" @click="companyFilter = null">{{ t("Все компании") }}</button>
         <button v-for="co in allCompanies" :key="co.id" class="eo-chip" :class="{ on: companyFilter === co.id }" @click="companyFilter = co.id">{{ co.name }}</button>
       </div>
 
-      <UzaStateBlock v-if="!data.sectors.length" state="empty" variant="block" title="Нет текущих проектов" text="За выбранный год не найдено открытых проектов. Смените год или проверьте портфель." />
+      <UzaStateBlock v-if="!data.sectors.length" state="empty" variant="block" :title="t('Нет текущих проектов')" :text="t('За выбранный год не найдено открытых проектов. Смените год или проверьте портфель.')" />
 
       <!-- ── Авто-дерево проектов ОТКЛЮЧЕНО (заменено превью печати ниже).
            Разметка оставлена как dead-branch (v-else-if="false"); удалить при чистке. ── -->
@@ -630,10 +633,10 @@ watch(data, (d) => {
           <UzaStateBlock
             state="empty"
             variant="block"
-            :title="(!embedCompanyId && !companyFilter) ? 'Нет заполненных отчётов' : 'Компания не выбрана'"
+            :title="(!embedCompanyId && !companyFilter) ? t('Нет заполненных отчётов') : t('Компания не выбрана')"
             :desc="(!embedCompanyId && !companyFilter)
-              ? `Заполнено отчётов: ${filledCount} из ${allCompanies.length}. Выберите компанию выше и нажмите «Заполнить отчёт».`
-              : 'Выберите компанию в списке выше, чтобы увидеть превью отчёта.'"
+              ? t('Заполнено отчётов: {a} из {b}. Выберите компанию выше и нажмите «Заполнить отчёт».', { a: filledCount, b: allCompanies.length })
+              : t('Выберите компанию в списке выше, чтобы увидеть превью отчёта.')"
           />
         </div>
         <div v-for="c in previewCompanies" :key="'pv_' + c.id" class="eo-pv-paper">
@@ -641,7 +644,7 @@ watch(data, (d) => {
           <div class="eo-pv-head">
             <div class="eo-pv-co">{{ c.name }}</div>
             <div class="eo-pv-meta">
-              {{ c._sector }} · {{ manualReports[c.id]?.total || 0 }} {{ projWord(manualReports[c.id]?.total || 0) }}<template v-if="manualReports[c.id]?.ministerCount"> · <b class="eo-pv-req">{{ manualReports[c.id]?.ministerCount }} требует решения</b></template>
+              {{ c._sector }} · {{ manualReports[c.id]?.total || 0 }} {{ t(projWord(manualReports[c.id]?.total || 0)) }}<template v-if="manualReports[c.id]?.ministerCount"> · <b class="eo-pv-req">{{ manualReports[c.id]?.ministerCount }} {{ t("требует решения") }}</b></template>
             </div>
           </div>
           <template v-if="isManual(c) && (manualReports[c.id]?.rows || []).length">
@@ -649,9 +652,9 @@ watch(data, (d) => {
             <table class="eo-pv-qm">
               <thead>
                 <tr>
-                  <th class="eo-pv-qm-dir">Направление</th>
-                  <th>Q1 <span>· янв–мар</span></th><th>Q2 <span>· апр–июн</span></th>
-                  <th>Q3 <span>· июл–сен</span></th><th>Q4 <span>· окт–дек</span></th>
+                  <th class="eo-pv-qm-dir">{{ t("Направление") }}</th>
+                  <th>Q1 <span>{{ t("· янв–мар") }}</span></th><th>Q2 <span>{{ t("· апр–июн") }}</span></th>
+                  <th>Q3 <span>{{ t("· июл–сен") }}</span></th><th>Q4 <span>{{ t("· окт–дек") }}</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -667,7 +670,7 @@ watch(data, (d) => {
                         :style="{ gridColumn: (b.qStart + 1) + ' / ' + (b.qEnd + 2), gridRow: bi + 1 }"
                       >
                         <span class="eo-pv-bar-t"><span v-if="b.requires_minister" class="eo-pv-bstar">★</span>{{ b.title }}</span>
-                        <span class="eo-pv-bar-meta"><template v-if="b.due_date">срок {{ fmtDue(b.due_date) }}</template><template v-if="b.status"> · {{ statusMeta(b.status).label }}</template></span>
+                        <span class="eo-pv-bar-meta"><template v-if="b.due_date">{{ t("срок") }} {{ fmtDue(b.due_date) }}</template><template v-if="b.status"> · {{ t(statusMeta(b.status).label) }}</template></span>
                       </div>
                     </div>
                   </td>
@@ -676,25 +679,25 @@ watch(data, (d) => {
             </table>
 
             <!-- Детали проекта -->
-            <div class="eo-pv-det-h">Детали проекта</div>
+            <div class="eo-pv-det-h">{{ t("Детали проекта") }}</div>
             <table class="eo-pv-det">
               <thead>
-                <tr><th style="width:30%">Проект</th><th style="width:30%">Цель / результат</th><th style="width:40%">Требуется распоряжение</th></tr>
+                <tr><th style="width:30%">{{ t("Проект") }}</th><th style="width:30%">{{ t("Цель / результат") }}</th><th style="width:40%">{{ t("Требуется распоряжение") }}</th></tr>
               </thead>
               <tbody>
                 <tr v-for="d in (manualReports[c.id]?.details || [])" :key="d.num">
                   <td>
                     <div class="eo-pv-det-t">{{ d.title }}</div>
-                    <div class="eo-pv-det-resp" :class="{ none: !d.responsible }">Ответственный: {{ d.responsible || 'не назначен' }}</div>
+                    <div class="eo-pv-det-resp" :class="{ none: !d.responsible }">{{ t("Ответственный") }}: {{ d.responsible || t('не назначен') }}</div>
                   </td>
-                  <td><span v-if="d.goal">{{ d.goal }}</span><span v-else class="eo-pv-ochia">ochiq — цель не указана</span></td>
-                  <td><span v-if="d.minister_ask">{{ d.minister_ask }}</span><span v-else class="eo-pv-info">Распоряжений не требуется</span></td>
+                  <td><span v-if="d.goal">{{ d.goal }}</span><span v-else class="eo-pv-ochia">{{ t("ochiq — цель не указана") }}</span></td>
+                  <td><span v-if="d.minister_ask">{{ d.minister_ask }}</span><span v-else class="eo-pv-info">{{ t("Распоряжений не требуется") }}</span></td>
                 </tr>
               </tbody>
             </table>
           </template>
           <div v-else class="eo-pv-empty">
-            Отчёт ещё не заполнен. Нажмите «Заполнить отчёт» в шапке, чтобы внести направления и проекты по кварталам.
+            {{ t("Отчёт ещё не заполнен. Нажмите «Заполнить отчёт» в шапке, чтобы внести направления и проекты по кварталам.") }}
           </div>
         </div>
       </div>
@@ -714,25 +717,25 @@ watch(data, (d) => {
                   <path d="M 80 30 L 210 110 L 80 190 L 115 110 Z" fill="#534AB7" />
                   <g fill="#7F77DD"><rect x="56" y="50" width="8" height="8" /><rect x="42" y="64" width="7" height="7" /><rect x="50" y="96" width="7" height="7" /><rect x="36" y="116" width="7" height="7" /><rect x="48" y="150" width="7" height="7" /></g>
                 </svg>
-                <span class="eo-pp-brand-txt">Единая платформа<br />трансформации</span>
+                <span class="eo-pp-brand-txt">{{ t("Единая платформа трансформации") }}</span>
               </div>
               <img :src="uzassetsLogoUrl" class="eo-pp-uza-img" alt="UzAssets" />
             </div>
             <div class="eo-pp-titlerow">
               <h2>{{ c.name }}</h2>
-              <span class="eo-pp-doc">{{ c._sector }} · сводный обзор</span>
+              <span class="eo-pp-doc">{{ c._sector }} · {{ t("сводный обзор") }}</span>
             </div>
           </div>
           <!-- Печать = ТОЛЬКО ручной отчёт (1-в-1 с превью) -->
-          <div class="eo-qm-summary">{{ manualReports[c.id]?.total || 0 }} {{ projWord(manualReports[c.id]?.total || 0) }}<template v-if="manualReports[c.id]?.ministerCount"> · <b class="eo-qm-req">{{ manualReports[c.id]?.ministerCount }} требует решения</b></template></div>
+          <div class="eo-qm-summary">{{ manualReports[c.id]?.total || 0 }} {{ t(projWord(manualReports[c.id]?.total || 0)) }}<template v-if="manualReports[c.id]?.ministerCount"> · <b class="eo-qm-req">{{ manualReports[c.id]?.ministerCount }} {{ t("требует решения") }}</b></template></div>
           <table class="eo-qm">
             <thead>
               <tr>
-                <th class="eo-qm-h-dir">Направление</th>
-                <th class="eo-qm-h-q">Q1<span class="eo-qm-h-mon">· янв–мар</span></th>
-                <th class="eo-qm-h-q">Q2<span class="eo-qm-h-mon">· апр–июн</span></th>
-                <th class="eo-qm-h-q">Q3<span class="eo-qm-h-mon">· июл–сен</span></th>
-                <th class="eo-qm-h-q">Q4<span class="eo-qm-h-mon">· окт–дек</span></th>
+                <th class="eo-qm-h-dir">{{ t("Направление") }}</th>
+                <th class="eo-qm-h-q">Q1<span class="eo-qm-h-mon">{{ t("· янв–мар") }}</span></th>
+                <th class="eo-qm-h-q">Q2<span class="eo-qm-h-mon">{{ t("· апр–июн") }}</span></th>
+                <th class="eo-qm-h-q">Q3<span class="eo-qm-h-mon">{{ t("· июл–сен") }}</span></th>
+                <th class="eo-qm-h-q">Q4<span class="eo-qm-h-mon">{{ t("· окт–дек") }}</span></th>
               </tr>
             </thead>
             <tbody>
@@ -748,7 +751,7 @@ watch(data, (d) => {
                       :style="{ gridColumn: (b.qStart + 1) + ' / ' + (b.qEnd + 2), gridRow: bi + 1 }"
                     >
                       <span class="eo-qm-bar-t"><span v-if="b.requires_minister" class="eo-qm-bstar">★</span>{{ b.title }}</span>
-                      <span class="eo-qm-bar-meta"><template v-if="b.due_date">срок {{ fmtDue(b.due_date) }}</template><template v-if="b.status"> · {{ statusMeta(b.status).label }}</template></span>
+                      <span class="eo-qm-bar-meta"><template v-if="b.due_date">{{ t("срок") }} {{ fmtDue(b.due_date) }}</template><template v-if="b.status"> · {{ t(statusMeta(b.status).label) }}</template></span>
                     </div>
                   </div>
                 </td>
@@ -757,19 +760,19 @@ watch(data, (d) => {
           </table>
 
           <!-- Детали проекта -->
-          <div class="eo-qm-det-h">Детали проекта</div>
+          <div class="eo-qm-det-h">{{ t("Детали проекта") }}</div>
           <table class="eo-qm-det">
             <thead>
-              <tr><th style="width:30%">Проект</th><th style="width:30%">Цель / результат</th><th style="width:40%">Требуется распоряжение</th></tr>
+              <tr><th style="width:30%">{{ t("Проект") }}</th><th style="width:30%">{{ t("Цель / результат") }}</th><th style="width:40%">{{ t("Требуется распоряжение") }}</th></tr>
             </thead>
             <tbody>
               <tr v-for="d in (manualReports[c.id]?.details || [])" :key="d.num">
                 <td>
                   <div class="eo-qm-det-t">{{ d.title }}</div>
-                  <div class="eo-qm-det-resp" :class="{ none: !d.responsible }">Ответственный: {{ d.responsible || 'не назначен' }}</div>
+                  <div class="eo-qm-det-resp" :class="{ none: !d.responsible }">{{ t("Ответственный") }}: {{ d.responsible || t('не назначен') }}</div>
                 </td>
-                <td><span v-if="d.goal">{{ d.goal }}</span><span v-else class="eo-qm-ochia">ochiq — цель не указана</span></td>
-                <td><span v-if="d.minister_ask">{{ d.minister_ask }}</span><span v-else class="eo-qm-info">Распоряжений не требуется</span></td>
+                <td><span v-if="d.goal">{{ d.goal }}</span><span v-else class="eo-qm-ochia">{{ t("ochiq — цель не указана") }}</span></td>
+                <td><span v-if="d.minister_ask">{{ d.minister_ask }}</span><span v-else class="eo-qm-info">{{ t("Распоряжений не требуется") }}</span></td>
               </tr>
             </tbody>
           </table>
@@ -1114,7 +1117,8 @@ watch(data, (d) => {
   .eo-pp-toprow { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 9px; }
   .eo-pp-brand { display: flex; align-items: center; gap: 9px; }
   .eo-pp-logo { display: block; flex-shrink: 0; }
-  .eo-pp-brand-txt { font-size: 8.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; color: #534AB7; line-height: 1.25; }
+  /* max-width сохраняет двухстрочный лого-локап (раньше был жёсткий <br>) на всех языках */
+  .eo-pp-brand-txt { font-size: 8.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; color: #534AB7; line-height: 1.25; max-width: 40mm; }
   .eo-pp-imv-img { height: 42px; width: auto; flex-shrink: 0; }
   .eo-pp-uza-img { height: 27px; width: auto; flex-shrink: 0; }
   .eo-pp-titlerow { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }

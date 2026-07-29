@@ -26,8 +26,10 @@ import {
   type ProductAgg,
 } from "@/api/procurement_analysis";
 import { useFormatters } from "@/composables/useFormatters";
+import { useI18n } from "@/composables/useI18n";
 
 const fmt = useFormatters();
+const { t } = useI18n();
 
 const props = defineProps<{
   categories: CategoryMeta[];
@@ -153,14 +155,14 @@ function spreadFor(cat: CategoryMeta): { min: number; max: number; clean: boolea
 
 // ─── Subtitle ─────────────────────────────────────────────────
 function subtitleFor(cat: CategoryMeta): string {
-  const parts: string[] = [(aggByCat.value[cat.id]?.unit) || cat.unit || "ед"];
+  const parts: string[] = [(aggByCat.value[cat.id]?.unit) || cat.unit || t("ед")];
   const inCat = purchasesByCat(cat.id);
   if (fromContracts.value) {
     const a = aggByCat.value[cat.id];
-    if (a && a.benchmark_product_count) parts.push(a.benchmark_product_count + " товаров с benchmark");
-    parts.push(inCat.length + " закупок");
+    if (a && a.benchmark_product_count) parts.push(t("{n} товаров с benchmark", { n: a.benchmark_product_count }));
+    parts.push(t("{n} закупок", { n: inCat.length }));
   } else {
-    parts.push(inCat.length + " закупок");
+    parts.push(t("{n} закупок", { n: inCat.length }));
   }
   return parts.join(" · ");
 }
@@ -215,7 +217,7 @@ function keyStatFor(cat: CategoryMeta): { text: string; color: string } {
   const keyVal = Math.abs(safeMax) > Math.abs(safeMin) ? safeMax : safeMin;
   const keyLabel = fmt.fmtPercent(keyVal, { decimals: 0, signed: true });
   const color = keyVal >= 10 ? "#C53030" : keyVal >= 0 ? "#B07415" : "#0F6E56";
-  const prefix = Math.abs(safeMax) > Math.abs(safeMin) ? "макс " : "мин ";
+  const prefix = Math.abs(safeMax) > Math.abs(safeMin) ? t("макс") + " " : t("мин") + " ";
   return { text: prefix + keyLabel, color };
 }
 
@@ -268,6 +270,17 @@ function excludedCount(cat: CategoryMeta): { kept: number; raw: number; excluded
   const kept = a?.all_products.length || 0;
   return { kept, raw: uniqueRaw, excluded: Math.max(0, uniqueRaw - kept) };
 }
+
+// «N компания/компаний» для футеров (правильная форма числа + перевод).
+function coLabel(catId: number): string {
+  const n = coCountFor(catId);
+  return t(n === 1 ? "{n} компания" : "{n} компаний", { n });
+}
+
+// Пояснение отсечки — в script, чтобы «<» не попадал в текст шаблона.
+function excludedNote(cat: CategoryMeta): string {
+  return t("отсечено {n}: n_co<2 или n<3", { n: excludedCount(cat).excluded });
+}
 </script>
 
 <template>
@@ -289,9 +302,9 @@ function excludedCount(cat: CategoryMeta): { kept: number; raw: number; excluded
           <span class="pa-acc-num">{{ pad2(cat.id) }}</span>
           <span class="pa-acc-name">
             {{ cat.name }}
-            <small>{{ cat.unit || "ед" }}</small>
+            <small>{{ cat.unit || t("ед") }}</small>
           </span>
-          <span class="pa-acc-spread pa-empty-stat">нет данных</span>
+          <span class="pa-acc-spread pa-empty-stat">{{ t("нет данных") }}</span>
         </div>
       </template>
 
@@ -303,7 +316,7 @@ function excludedCount(cat: CategoryMeta): { kept: number; raw: number; excluded
             {{ cat.name }}
             <small>{{ subtitleFor(cat) }}</small>
           </span>
-          <span class="pa-acc-spread" :title="fromContracts ? (spreadFor(cat).clean ? 'Диапазон средних цен товаров с чистым benchmark (spread<200%)' : 'Все товары — clean выборки нет') : ''">
+          <span class="pa-acc-spread" :title="fromContracts ? (spreadFor(cat).clean ? t('Диапазон средних цен товаров с чистым benchmark (spread<200%)') : t('Все товары — clean выборки нет')) : ''">
             {{ paFmtMoneyShort(spreadFor(cat).min) }} – {{ paFmtMoneyShort(spreadFor(cat).max) }}
           </span>
           <span class="pa-acc-bar">
@@ -334,18 +347,18 @@ function excludedCount(cat: CategoryMeta): { kept: number; raw: number; excluded
                   <tr>
                     <td>#</td>
                     <td class="sortable" :class="{ on: sortKey === 'name' }" @click.stop="setSort('name')">
-                      Товар <span class="arr">{{ sortIndicator("name") }}</span>
+                      {{ t("Товар") }} <span class="arr">{{ sortIndicator("name") }}</span>
                     </td>
                     <td class="r sortable" :class="{ on: sortKey === 'avgPrice' }" @click.stop="setSort('avgPrice')">
-                      Средняя <span class="arr">{{ sortIndicator("avgPrice") }}</span>
+                      {{ t("Средняя") }} <span class="arr">{{ sortIndicator("avgPrice") }}</span>
                     </td>
-                    <td class="r">Диапазон</td>
+                    <td class="r">{{ t("Диапазон") }}</td>
                     <td class="r sortable" :class="{ on: sortKey === 'totalSpend' }" @click.stop="setSort('totalSpend')">
-                      Объём <span class="arr">{{ sortIndicator("totalSpend") }}</span>
+                      {{ t("Объём") }} <span class="arr">{{ sortIndicator("totalSpend") }}</span>
                     </td>
-                    <td class="r">Покупатели</td>
+                    <td class="r">{{ t("Покупатели") }}</td>
                     <td class="r sortable" :class="{ on: sortKey === 'spreadPct' }" @click.stop="setSort('spreadPct')">
-                      Δ макс <span class="arr">{{ sortIndicator("spreadPct") }}</span>
+                      {{ t("Δ макс") }} <span class="arr">{{ sortIndicator("spreadPct") }}</span>
                     </td>
                   </tr>
                 </thead>
@@ -361,11 +374,11 @@ function excludedCount(cat: CategoryMeta): { kept: number; raw: number; excluded
                     <td>
                       <div class="pa-prod-nm" :title="p.name">{{ p.name.length > 62 ? p.name.slice(0, 62) + "…" : p.name }}</div>
                       <div class="pa-prod-code">{{ p.root_code || p.code }}</div>
-                      <div class="pa-prod-meta">{{ p.unit }} · {{ p.unique_buyers }} SOE × {{ p.contract_count }} закупок</div>
+                      <div class="pa-prod-meta">{{ p.unit }} · {{ t("{n} SOE × {m} закупок", { n: p.unique_buyers, m: p.contract_count }) }}</div>
                     </td>
                     <td class="r">
                       <b>{{ paFmtMoney(p.avg_price) }}</b>
-                      <div class="pa-prod-unit-sub">сум/{{ p.unit }}</div>
+                      <div class="pa-prod-unit-sub">{{ t("сум") }}/{{ p.unit }}</div>
                     </td>
                     <td class="rng">
                       <span class="lo">{{ paFmtMoneyShort(p.min_price) }}</span>
@@ -380,14 +393,14 @@ function excludedCount(cat: CategoryMeta): { kept: number; raw: number; excluded
               </table>
               <div class="pa-acc-foot">
                 <template v-if="excludedCount(cat).excluded">
-                  {{ coCountFor(cat.id) }}{{ coCountFor(cat.id) === 1 ? " компания" : " компаний" }}
-                  · {{ excludedCount(cat).kept }} товаров с benchmark из {{ excludedCount(cat).raw }}
-                  (отсечено {{ excludedCount(cat).excluded }}: n_co&lt;2 или n&lt;3)
-                  · клик по товару — все покупатели
+                  {{ coLabel(cat.id) }}
+                  · {{ t("{kept} товаров с benchmark из {raw}", { kept: excludedCount(cat).kept, raw: excludedCount(cat).raw }) }}
+                  ({{ excludedNote(cat) }})
+                  · {{ t("клик по товару — все покупатели") }}
                 </template>
                 <template v-else>
-                  {{ coCountFor(cat.id) }}{{ coCountFor(cat.id) === 1 ? " компания" : " компаний" }}
-                  · {{ excludedCount(cat).kept }} товаров · клик по товару — все покупатели
+                  {{ coLabel(cat.id) }}
+                  · {{ t("{n} товаров", { n: excludedCount(cat).kept }) }} · {{ t("клик по товару — все покупатели") }}
                 </template>
               </div>
             </template>
@@ -398,11 +411,11 @@ function excludedCount(cat: CategoryMeta): { kept: number; raw: number; excluded
                 <colgroup><col/><col style="width:110px"/><col style="width:90px"/><col/><col style="width:70px"/></colgroup>
                 <thead>
                   <tr>
-                    <td>Компания</td>
-                    <td class="r">Цена</td>
-                    <td class="r">Объём</td>
-                    <td>Поставщик</td>
-                    <td class="r">vs рынок</td>
+                    <td>{{ t("Компания") }}</td>
+                    <td class="r">{{ t("Цена") }}</td>
+                    <td class="r">{{ t("Объём") }}</td>
+                    <td>{{ t("Поставщик") }}</td>
+                    <td class="r">{{ t("vs рынок") }}</td>
                   </tr>
                 </thead>
                 <tbody>
@@ -421,7 +434,7 @@ function excludedCount(cat: CategoryMeta): { kept: number; raw: number; excluded
                 </tbody>
               </table>
               <div class="pa-acc-foot">
-                {{ coCountFor(cat.id) }}{{ coCountFor(cat.id) === 1 ? " компания" : " компаний" }} · клик по строке — детализация
+                {{ coLabel(cat.id) }} · {{ t("клик по строке — детализация") }}
               </div>
             </template>
           </div>

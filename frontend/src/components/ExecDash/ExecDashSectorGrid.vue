@@ -8,12 +8,14 @@
  * компании» внутри модалки делает фактический router.push.
  */
 import { computed, ref } from "vue";
+import { useI18n } from "@/composables/useI18n";
 import { useExecutiveDashboard } from "@/composables/useExecutiveDashboard";
 import { useNumberTween } from "@/composables/useNumberTween";
 import ExecDashSectorCard from "./ExecDashSectorCard.vue";
 import CompanyDrillModal from "@/components/UZA/CompanyDrillModal.vue";
 import ExecCopilot from "./ExecCopilot.vue";
 
+const { t } = useI18n();
 const exec = useExecutiveDashboard();
 
 const sectors = computed(() => exec.data.value?.sectors || []);
@@ -30,7 +32,11 @@ const headerSub = computed(() => {
   const d = exec.data.value;
   if (!d) return "";
   if (!bm.value) return d.row1_subtitle;
-  return `${Math.round(tTaskCount.value)} задач · ${Math.round(tDoneTasks.value)} завершено · ${Math.round(tAvgProgress.value)}% средний прогресс`;
+  return t("{a} задач · {b} завершено · {c}% средний прогресс", {
+    a: Math.round(tTaskCount.value),
+    b: Math.round(tDoneTasks.value),
+    c: Math.round(tAvgProgress.value),
+  });
 });
 
 // ─── Modal state ───
@@ -59,7 +65,7 @@ function closeDrill() {
     <!-- Header -->
     <div class="ed-card-ttl">
       <span>
-        <span>{{ exec.data.value?.row1_title || 'Исполнение задач Ожиданий Акционера' }}</span>
+        <span>{{ exec.data.value?.row1_title || t('Исполнение задач Ожиданий Акционера') }}</span>
         · {{ exec.year.value }}
       </span>
       <span class="sub">{{ headerSub }}</span>
@@ -77,7 +83,7 @@ function closeDrill() {
       />
     </div>
     <div v-else class="ed-empty">
-      Нет данных о задачах для FY {{ exec.year.value }}
+      {{ t("Нет данных о задачах для FY {y}", { y: exec.year.value }) }}
     </div>
 
     <!-- Drill-down modal (Pack 7.29) -->

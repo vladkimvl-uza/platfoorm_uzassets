@@ -21,7 +21,9 @@ import { useFormatters } from "@/composables/useFormatters";
 import FinanceDrillModal, { type FinKpiKind } from "@/components/UZA/FinanceDrillModal.vue";
 import Odometer from "@/components/Odometer.vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
+import { useI18n } from "@/composables/useI18n";
 
+const { t } = useI18n();
 const fmt = useFormatters();
 
 // Pack 7.23: inject fin animation kit (finKpiCardIn / finKpi2DrawIn /
@@ -222,12 +224,12 @@ const unitScale = computed(() => {
   return 1_000_000_000;
 });
 const unitLabel = computed(() => {
-  if (fin.unit.value === "ths") return "тыс.";
-  if (fin.unit.value === "mln") return "млн";
-  return "млрд";
+  if (fin.unit.value === "ths") return t("тыс.");
+  if (fin.unit.value === "mln") return t("млн");
+  return t("млрд");
 });
 const currencyLabel = computed(() => fin.currency.value);
-const standardLabel = computed(() => fin.standard.value === "IFRS" ? "МСФО" : "НСБУ");
+const standardLabel = computed(() => fin.standard.value === "IFRS" ? t("МСФО") : t("НСБУ"));
 
 function fmtNum(value: number | null | undefined): string {
   if (value == null || isNaN(value)) return "—";
@@ -243,9 +245,10 @@ function fmtNum(value: number | null | undefined): string {
 function setBriefing() { fin.setViewMode("company"); }
 function setAnalytics() { fin.setViewMode("summary"); }
 
-// Опции единых фильтров (UzaSegment / UzaSelect)
-const FIN_VIEW_OPTS = [{ value: "summary", label: "Аналитика" }, { value: "company", label: "Брифинг" }];
-const FIN_STD_OPTS = [{ value: "IFRS", label: "МСФО" }, { value: "NSBU", label: "НСБУ" }];
+// Опции единых фильтров (UzaSegment / UzaSelect) — computed, чтобы label
+// перерисовывался при смене языка.
+const FIN_VIEW_OPTS = computed(() => [{ value: "summary", label: t("Аналитика") }, { value: "company", label: t("Брифинг") }]);
+const FIN_STD_OPTS = computed(() => [{ value: "IFRS", label: t("МСФО") }, { value: "NSBU", label: t("НСБУ") }]);
 const finYearOpts = computed(() => availableYears.value.map((y) => ({ value: y, label: String(y) })));
 
 // Pack 7.32: список компаний свёрнут по умолчанию — пользователь видит
@@ -574,39 +577,39 @@ function buildBriefMetrics(): BriefMetric[] | null {
   };
 
   const revenue = buildOne(
-    "Совокупная выручка", "violet", "revenue", true,
+    t("Совокупная выручка"), "violet", "revenue", true,
     (m) => {
       if (m.real5y == null) return "—";
-      if (m.real5y > 5) return "Номинальный рост уверенно опережает инфляцию — реальное расширение портфеля.";
-      if (m.real5y > 0) return "Номинальный рост незначительно опережает инфляцию.";
-      if (m.real5y > -5) return "Номинальный рост близок к инфляции — реальная стагнация.";
-      return "Номинальный рост отстаёт от инфляции — реальное сжатие выручки.";
+      if (m.real5y > 5) return t("Номинальный рост уверенно опережает инфляцию — реальное расширение портфеля.");
+      if (m.real5y > 0) return t("Номинальный рост незначительно опережает инфляцию.");
+      if (m.real5y > -5) return t("Номинальный рост близок к инфляции — реальная стагнация.");
+      return t("Номинальный рост отстаёт от инфляции — реальное сжатие выручки.");
     }
   );
 
   const profit = buildOne(
-    "Чистая прибыль", "teal", "profit", true,
+    t("Чистая прибыль"), "teal", "profit", true,
     (m) => {
-      if (m.current < 0) return "Портфель в убытке.";
+      if (m.current < 0) return t("Портфель в убытке.");
       const margin = (extKpis.value && extKpis.value.totalRevenue > 0)
         ? (m.current * unitScale.value / extKpis.value.totalRevenue) * 100 : 0;
-      if (m.real5y == null) return `Чистая маржа ${Math.round(margin)}%.`;
-      if (m.real5y > 20) return `Существенный рост прибыли; чистая маржа ${Math.round(margin)}%.`;
-      if (m.real5y > 0)  return `Прибыль растёт; чистая маржа ${Math.round(margin)}%.`;
-      return `Прибыль снижается в реальном выражении; маржа ${Math.round(margin)}%.`;
+      if (m.real5y == null) return t("Чистая маржа {n}%.", { n: Math.round(margin) });
+      if (m.real5y > 20) return t("Существенный рост прибыли; чистая маржа {n}%.", { n: Math.round(margin) });
+      if (m.real5y > 0)  return t("Прибыль растёт; чистая маржа {n}%.", { n: Math.round(margin) });
+      return t("Прибыль снижается в реальном выражении; маржа {n}%.", { n: Math.round(margin) });
     }
   );
 
   const debt = buildOne(
-    "Чистый долг", "red", "debt", false,
+    t("Чистый долг"), "red", "debt", false,
     (m) => {
       const ratio = (extKpis.value && extKpis.value.ebitda > 0)
         ? (m.current * unitScale.value) / extKpis.value.ebitda : null;
       const ratioStr = ratio != null ? `Debt/EBITDA ${ratio.toFixed(1)}x` : "";
       if (m.real5y == null) return ratioStr || "—";
-      if (m.real5y < 0)   return `Долг сокращается в реальном выражении. ${ratioStr}`.trim();
-      if (m.real5y < 10)  return `Умеренный рост долга; ${ratioStr}`.trim();
-      return `Долг растёт быстрее инфляции; ${ratioStr}`.trim();
+      if (m.real5y < 0)   return `${t("Долг сокращается в реальном выражении.")} ${ratioStr}`.trim();
+      if (m.real5y < 10)  return `${t("Умеренный рост долга;")} ${ratioStr}`.trim();
+      return `${t("Долг растёт быстрее инфляции;")} ${ratioStr}`.trim();
     },
     "debt"  // alt-fallback ltBorrowings+stBorrowings
   );
@@ -692,7 +695,7 @@ onBeforeUnmount(() => {
     <!-- Header -->
     <header class="ed-fin-hdr">
       <div class="ed-fin-hdr-l">
-        <div class="ed-fin-eyebrow">ФИНАНСЫ · {{ standardLabel }}</div>
+        <div class="ed-fin-eyebrow">{{ t("Финансы") }} · {{ standardLabel }}</div>
         <div class="ed-fin-sub">
           <span>FY {{ fin.year.value }}</span>
           <span class="ed-fin-sep">·</span>
@@ -700,19 +703,19 @@ onBeforeUnmount(() => {
           <span class="ed-fin-sep">·</span>
           <span class="ed-fin-cov-pill">
             <span class="ed-fin-cov-dot"></span>
-            <span v-count-up="cosWithRevenue">0</span> из <span v-count-up="totalCos">0</span>
+            <span v-count-up="cosWithRevenue">0</span> {{ t("из") }} <span v-count-up="totalCos">0</span>
           </span>
           <span v-if="cosMissing > 0" class="ed-fin-warn">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-            {{ cosMissing }} без данных
+            {{ t("{n} без данных", { n: cosMissing }) }}
           </span>
           <span class="ed-fin-sep">·</span>
           <span>{{ unitLabel }} {{ currencyLabel }}</span>
           <span class="ed-fin-sep">·</span>
-          <span class="ed-fin-amber">финансы FY{{ fin.year.value }} (задачи FY{{ tasksYear }})</span>
+          <span class="ed-fin-amber">{{ t("финансы FY{y} (задачи FY{ty})", { y: fin.year.value, ty: tasksYear }) }}</span>
           <template v-if="isFallbackYear">
             <span class="ed-fin-sep">·</span>
-            <span class="ed-fin-fallback" :title="`За FY${fin.year.value} нет данных — показан последний доступный год`">данные за FY{{ effectiveFinYear }}</span>
+            <span class="ed-fin-fallback" :title="t('За FY{year} нет данных — показан последний доступный год', { year: fin.year.value })">{{ t("данные за FY{year}", { year: effectiveFinYear }) }}</span>
           </template>
         </div>
       </div>
@@ -733,11 +736,11 @@ onBeforeUnmount(() => {
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
           <div v-show="pdropOpen" class="ed-fin-pdrop-menu" role="menu">
-            <div class="ed-fin-pdrop-grp">Единица</div>
-            <button :class="{ on: fin.unit.value === 'bln' }" @click="fin.setUnit('bln')">млрд</button>
-            <button :class="{ on: fin.unit.value === 'mln' }" @click="fin.setUnit('mln')">млн</button>
-            <button :class="{ on: fin.unit.value === 'ths' }" @click="fin.setUnit('ths')">тыс.</button>
-            <div class="ed-fin-pdrop-grp">Валюта</div>
+            <div class="ed-fin-pdrop-grp">{{ t("Единица") }}</div>
+            <button :class="{ on: fin.unit.value === 'bln' }" @click="fin.setUnit('bln')">{{ t("млрд") }}</button>
+            <button :class="{ on: fin.unit.value === 'mln' }" @click="fin.setUnit('mln')">{{ t("млн") }}</button>
+            <button :class="{ on: fin.unit.value === 'ths' }" @click="fin.setUnit('ths')">{{ t("тыс.") }}</button>
+            <div class="ed-fin-pdrop-grp">{{ t("Валюта") }}</div>
             <button :class="{ on: fin.currency.value === 'UZS' }" @click="fin.setCurrency('UZS')">UZS</button>
             <button :class="{ on: fin.currency.value === 'USD' }" @click="fin.setCurrency('USD')">USD</button>
             <button :class="{ on: fin.currency.value === 'EUR' }" @click="fin.setCurrency('EUR')">EUR</button>
@@ -746,7 +749,7 @@ onBeforeUnmount(() => {
       </div>
     </header>
 
-    <UzaStateBlock v-if="fin.loading.data && !fin.summary.value" state="loading" variant="spinner" text="Загрузка финансовых данных…" min-height="300px" />
+    <UzaStateBlock v-if="fin.loading.data && !fin.summary.value" state="loading" variant="spinner" :text="t('Загрузка финансовых данных…')" min-height="300px" />
     <UzaStateBlock v-else-if="fin.error.value" state="error" variant="block" :text="fin.error.value" retry @retry="fin.loadData()" />
 
     <template v-else-if="fin.viewMode.value === 'summary' && extKpis">
@@ -760,12 +763,12 @@ onBeforeUnmount(() => {
           tabindex="0"
           @click="openDrill('revenue')"
           @keydown="onKpiKeydown($event, 'revenue')"
-          title="Подробнее: Совокупная выручка"
+          :title="t('Подробнее: Совокупная выручка')"
         >
           <div class="ed-fin-kpi-bar"></div>
-          <div class="ed-fin-kpi-lbl">Совокупная выручка</div>
+          <div class="ed-fin-kpi-lbl">{{ t("Совокупная выручка") }}</div>
           <div class="ed-fin-kpi-val">{{ fmtNum(tRevenue) }}<span>{{ unitLabel }} {{ currencyLabel }}</span></div>
-          <div class="ed-fin-kpi-d" :class="extKpis.revenueYoYPct >= 0 ? 'p' : 'n'">{{ fmtPctSigned(tRevenueYoY, 0) }} к пред. году</div>
+          <div class="ed-fin-kpi-d" :class="extKpis.revenueYoYPct >= 0 ? 'p' : 'n'">{{ fmtPctSigned(tRevenueYoY, 0) }} {{ t("к пред. году") }}</div>
         </div>
         <div
           class="ed-fin-kpi-card ed-fin-kpi-card--clickable"
@@ -775,12 +778,12 @@ onBeforeUnmount(() => {
           tabindex="0"
           @click="openDrill('net_profit')"
           @keydown="onKpiKeydown($event, 'net_profit')"
-          title="Подробнее: Чистая прибыль"
+          :title="t('Подробнее: Чистая прибыль')"
         >
           <div class="ed-fin-kpi-bar"></div>
-          <div class="ed-fin-kpi-lbl">Чистая прибыль</div>
+          <div class="ed-fin-kpi-lbl">{{ t("Чистая прибыль") }}</div>
           <div class="ed-fin-kpi-val">{{ fmtNum(tNetProfit) }}<span>{{ unitLabel }} {{ currencyLabel }}</span></div>
-          <div class="ed-fin-kpi-d">Маржа <strong>{{ fmtPct(tNetMargin, 0) }}</strong></div>
+          <div class="ed-fin-kpi-d">{{ t("Маржа") }} <strong>{{ fmtPct(tNetMargin, 0) }}</strong></div>
         </div>
         <div
           class="ed-fin-kpi-card ed-fin-kpi-card--clickable"
@@ -790,12 +793,12 @@ onBeforeUnmount(() => {
           tabindex="0"
           @click="openDrill('ebitda')"
           @keydown="onKpiKeydown($event, 'ebitda')"
-          title="Подробнее: EBITDA"
+          :title="t('Подробнее: EBITDA')"
         >
           <div class="ed-fin-kpi-bar"></div>
           <div class="ed-fin-kpi-lbl">EBITDA</div>
           <div class="ed-fin-kpi-val">{{ fmtNum(tEbitda) }}<span>{{ unitLabel }} {{ currencyLabel }}</span></div>
-          <div class="ed-fin-kpi-d">Маржа <strong>{{ fmtPct(tEbitdaMargin, 0) }}</strong></div>
+          <div class="ed-fin-kpi-d">{{ t("Маржа") }} <strong>{{ fmtPct(tEbitdaMargin, 0) }}</strong></div>
         </div>
         <div
           class="ed-fin-kpi-card ed-fin-kpi-card--clickable"
@@ -805,12 +808,12 @@ onBeforeUnmount(() => {
           tabindex="0"
           @click="openDrill('assets')"
           @keydown="onKpiKeydown($event, 'assets')"
-          title="Подробнее: Совокупные активы"
+          :title="t('Подробнее: Совокупные активы')"
         >
           <div class="ed-fin-kpi-bar"></div>
-          <div class="ed-fin-kpi-lbl">Совокупные активы</div>
+          <div class="ed-fin-kpi-lbl">{{ t("Совокупные активы") }}</div>
           <div class="ed-fin-kpi-val">{{ fmtNum(tAssets) }}<span>{{ unitLabel }} {{ currencyLabel }}</span></div>
-          <div class="ed-fin-kpi-d">{{ Math.round(tCosWithData) }} компаний с данными</div>
+          <div class="ed-fin-kpi-d">{{ t("{n} компаний с данными", { n: Math.round(tCosWithData) }) }}</div>
         </div>
         <div
           class="ed-fin-kpi-card ed-fin-kpi-card--clickable"
@@ -820,10 +823,10 @@ onBeforeUnmount(() => {
           tabindex="0"
           @click="openDrill('net_debt')"
           @keydown="onKpiKeydown($event, 'net_debt')"
-          title="Подробнее: Чистый долг"
+          :title="t('Подробнее: Чистый долг')"
         >
           <div class="ed-fin-kpi-bar"></div>
-          <div class="ed-fin-kpi-lbl">Чистый долг</div>
+          <div class="ed-fin-kpi-lbl">{{ t("Чистый долг") }}</div>
           <div class="ed-fin-kpi-val">{{ fmtNum(tDebt) }}<span>{{ unitLabel }} {{ currencyLabel }}</span></div>
           <div class="ed-fin-kpi-d">
             <span v-if="extKpis.debtToEquity != null">D/E <strong>{{ tDebtToEquity.toFixed(1) }}x</strong></span>
@@ -838,7 +841,7 @@ onBeforeUnmount(() => {
           tabindex="0"
           @click="openDrill('fcf')"
           @keydown="onKpiKeydown($event, 'fcf')"
-          title="Подробнее: Free Cash Flow"
+          :title="t('Подробнее: Free Cash Flow')"
         >
           <div class="ed-fin-kpi-bar"></div>
           <div class="ed-fin-kpi-lbl">Free Cash Flow</div>
@@ -848,22 +851,22 @@ onBeforeUnmount(() => {
         <!-- Дебиторская / Кредиторская — только НСБУ (под МСФО это tradeReceivables, остатков нет) -->
         <div v-if="fin.standard.value === 'NSBU'" class="ed-fin-kpi-card" data-accent="violet" style="--d: 480ms;">
           <div class="ed-fin-kpi-bar"></div>
-          <div class="ed-fin-kpi-lbl">Дебиторская задолженность</div>
+          <div class="ed-fin-kpi-lbl">{{ t("Дебиторская задолженность") }}</div>
           <div class="ed-fin-kpi-val">{{ fmtNum(tAccountsReceivable) }}<span>{{ unitLabel }} {{ currencyLabel }}</span></div>
-          <div class="ed-fin-kpi-d">Средства к получению</div>
+          <div class="ed-fin-kpi-d">{{ t("Средства к получению") }}</div>
         </div>
         <div v-if="fin.standard.value === 'NSBU'" class="ed-fin-kpi-card" data-accent="amber" style="--d: 560ms;">
           <div class="ed-fin-kpi-bar"></div>
-          <div class="ed-fin-kpi-lbl">Кредиторская задолженность</div>
+          <div class="ed-fin-kpi-lbl">{{ t("Кредиторская задолженность") }}</div>
           <div class="ed-fin-kpi-val">{{ fmtNum(tAccountsPayable) }}<span>{{ unitLabel }} {{ currencyLabel }}</span></div>
-          <div class="ed-fin-kpi-d">Обязательства к оплате</div>
+          <div class="ed-fin-kpi-d">{{ t("Обязательства к оплате") }}</div>
         </div>
       </div>
 
       <!-- Sector filter -->
       <div class="ed-fin-secflt">
-        <span class="ed-fin-secflt-lbl">СЕКТОР:</span>
-        <button class="ed-fin-secflt-pill" :class="{ on: finSectorFilter === 'all' }" @click="setSector('all')">Все</button>
+        <span class="ed-fin-secflt-lbl">{{ t("Сектор") }}:</span>
+        <button class="ed-fin-secflt-pill" :class="{ on: finSectorFilter === 'all' }" @click="setSector('all')">{{ t("Все") }}</button>
         <button v-for="s in availableSectors" :key="s" class="ed-fin-secflt-pill" :class="{ on: finSectorFilter === s }" @click="setSector(s)">
           <span class="ed-fin-secflt-dot" :style="{ background: sectorMeta[s].color }"></span>
           {{ sectorMeta[s].label }}
@@ -874,8 +877,8 @@ onBeforeUnmount(() => {
       <div v-if="focusedCompanyCode" class="ed-fin-stmt">
         <button class="ed-fin-stmt-hd" :aria-expanded="showStatement" @click="showStatement = !showStatement">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" :style="{ transform: showStatement ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }"><polyline points="6 9 12 15 18 9"/></svg>
-          <span class="ed-fin-stmt-t">Отчётность: {{ focusedCompanyName }}</span>
-          <span class="ed-fin-stmt-hint">KEY METRICS + полный отчёт</span>
+          <span class="ed-fin-stmt-t">{{ t("Отчётность: {name}", { name: focusedCompanyName }) }}</span>
+          <span class="ed-fin-stmt-hint">{{ t("KEY METRICS + полный отчёт") }}</span>
         </button>
         <div v-if="showStatement" class="ed-fin-stmt-body">
           <HighLevelFinancials :key="focusedCompanyCode" :companies="hlfCompanies" :initial-code="focusedCompanyCode || undefined" />
@@ -884,7 +887,7 @@ onBeforeUnmount(() => {
 
       <!-- Accordion -->
       <button class="ed-fin-acc" @click="listExpanded = !listExpanded">
-        {{ listExpanded ? 'Свернуть список' : 'Показать компаний с разбивкой' }}
+        {{ listExpanded ? t('Свернуть список') : t('Показать компаний с разбивкой') }}
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" :style="{ transform: listExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }">
           <polyline points="6 9 12 15 18 9"/>
         </svg>
@@ -895,19 +898,19 @@ onBeforeUnmount(() => {
         <div class="ed-fin-tbl-hdr">
           <div class="c-idx">#</div>
           <div class="c-name sortable" role="button" tabindex="0" :aria-sort="ariaSort('name')" @click="setSort('name')" @keydown="onSortKeydown($event, 'name')">
-            КОМПАНИЯ <span v-if="sortBy === 'name'" class="sort-arr">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+            {{ t("Компания") }} <span v-if="sortBy === 'name'" class="sort-arr">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
           </div>
           <div class="c-sec sortable" role="button" tabindex="0" :aria-sort="ariaSort('sector')" @click="setSort('sector')" @keydown="onSortKeydown($event, 'sector')">
-            СЕКТОР <span v-if="sortBy === 'sector'" class="sort-arr">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+            {{ t("Сектор") }} <span v-if="sortBy === 'sector'" class="sort-arr">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
           </div>
-          <div class="c-num sortable" role="button" tabindex="0" :aria-sort="ariaSort('revenue')" @click="setSort('revenue')" @keydown="onSortKeydown($event, 'revenue')">ВЫРУЧКА <span v-if="sortBy === 'revenue'" class="sort-arr">{{ sortDir === 'asc' ? '↑' : '↓' }}</span></div>
-          <div class="c-num sortable" role="button" tabindex="0" :aria-sort="ariaSort('profit')" @click="setSort('profit')" @keydown="onSortKeydown($event, 'profit')">ПРИБЫЛЬ <span v-if="sortBy === 'profit'" class="sort-arr">{{ sortDir === 'asc' ? '↑' : '↓' }}</span></div>
-          <div class="c-num sortable" role="button" tabindex="0" :aria-sort="ariaSort('assets')" @click="setSort('assets')" @keydown="onSortKeydown($event, 'assets')">АКТИВЫ <span v-if="sortBy === 'assets'" class="sort-arr">{{ sortDir === 'asc' ? '↑' : '↓' }}</span></div>
-          <div class="c-num sortable" role="button" tabindex="0" :aria-sort="ariaSort('debt')" @click="setSort('debt')" @keydown="onSortKeydown($event, 'debt')">ДОЛГ <span v-if="sortBy === 'debt'" class="sort-arr">{{ sortDir === 'asc' ? '↑' : '↓' }}</span></div>
+          <div class="c-num sortable" role="button" tabindex="0" :aria-sort="ariaSort('revenue')" @click="setSort('revenue')" @keydown="onSortKeydown($event, 'revenue')">{{ t("Выручка") }} <span v-if="sortBy === 'revenue'" class="sort-arr">{{ sortDir === 'asc' ? '↑' : '↓' }}</span></div>
+          <div class="c-num sortable" role="button" tabindex="0" :aria-sort="ariaSort('profit')" @click="setSort('profit')" @keydown="onSortKeydown($event, 'profit')">{{ t("Прибыль") }} <span v-if="sortBy === 'profit'" class="sort-arr">{{ sortDir === 'asc' ? '↑' : '↓' }}</span></div>
+          <div class="c-num sortable" role="button" tabindex="0" :aria-sort="ariaSort('assets')" @click="setSort('assets')" @keydown="onSortKeydown($event, 'assets')">{{ t("Активы") }} <span v-if="sortBy === 'assets'" class="sort-arr">{{ sortDir === 'asc' ? '↑' : '↓' }}</span></div>
+          <div class="c-num sortable" role="button" tabindex="0" :aria-sort="ariaSort('debt')" @click="setSort('debt')" @keydown="onSortKeydown($event, 'debt')">{{ t("Долг") }} <span v-if="sortBy === 'debt'" class="sort-arr">{{ sortDir === 'asc' ? '↑' : '↓' }}</span></div>
           <div class="c-num sortable" role="button" tabindex="0" :aria-sort="ariaSort('cfo')" @click="setSort('cfo')" @keydown="onSortKeydown($event, 'cfo')">CFO <span v-if="sortBy === 'cfo'" class="sort-arr">{{ sortDir === 'asc' ? '↑' : '↓' }}</span></div>
           <div class="c-num sortable" role="button" tabindex="0" :aria-sort="ariaSort('ebitdaPct')" @click="setSort('ebitdaPct')" @keydown="onSortKeydown($event, 'ebitdaPct')">EBITDA % <span v-if="sortBy === 'ebitdaPct'" class="sort-arr">{{ sortDir === 'asc' ? '↑' : '↓' }}</span></div>
           <div class="c-num sortable" role="button" tabindex="0" :aria-sort="ariaSort('yoy')" @click="setSort('yoy')" @keydown="onSortKeydown($event, 'yoy')">YOY <span v-if="sortBy === 'yoy'" class="sort-arr">{{ sortDir === 'asc' ? '↑' : '↓' }}</span></div>
-          <div class="c-trend">ТРЕНД 5Л</div>
+          <div class="c-trend">{{ t("Тренд 5Л") }}</div>
         </div>
 
         <template v-for="r in tableRows" :key="r.id">
@@ -953,13 +956,13 @@ onBeforeUnmount(() => {
               </div>
             </div>
             <div class="ed-fin-tbl-exp-grid">
-              <div class="ed-fin-exp-cell ed-fin-exp-lbl">ВЫРУЧКА</div>
+              <div class="ed-fin-exp-cell ed-fin-exp-lbl">{{ t("Выручка") }}</div>
               <div v-for="b in r.breakdown" :key="'rv-' + b.year" class="ed-fin-exp-cell ed-fin-exp-num">
                 {{ fmtNum(b.revenue) }}
               </div>
             </div>
             <div class="ed-fin-tbl-exp-grid">
-              <div class="ed-fin-exp-cell ed-fin-exp-lbl">ПРИБЫЛЬ</div>
+              <div class="ed-fin-exp-cell ed-fin-exp-lbl">{{ t("Прибыль") }}</div>
               <div
                 v-for="b in r.breakdown" :key="'pr-' + b.year"
                 class="ed-fin-exp-cell ed-fin-exp-num"
@@ -971,7 +974,7 @@ onBeforeUnmount(() => {
           </div>
         </template>
 
-        <UzaStateBlock v-if="tableRows.length === 0" state="empty" variant="inline" text="Нет компаний с данными в выборке" />
+        <UzaStateBlock v-if="tableRows.length === 0" state="empty" variant="inline" :text="t('Нет компаний с данными в выборке')" />
       </div>
     </template>
 
@@ -990,15 +993,15 @@ onBeforeUnmount(() => {
               <template v-if="m.yoy != null">{{ m.yoy >= 0 ? '+' : '' }}{{ Math.round(m.yoy) }}%</template>
               <template v-else>—</template>
             </span>
-            <span class="ed-brief-deltalbl">к {{ fin.year.value - 1 }}</span>
+            <span class="ed-brief-deltalbl">{{ t("к {year}", { year: fin.year.value - 1 }) }}</span>
             <span class="ed-brief-sep">—</span>
-            <span class="ed-brief-deltalbl">за 5 лет</span>
+            <span class="ed-brief-deltalbl">{{ t("за 5 лет") }}</span>
           </div>
           <div class="ed-brief-real">
             <template v-if="m.nominal5y != null && m.real5y != null">
-              номинально <strong :class="deltaClass(m.nominal5y, m.positiveDelta)">{{ m.nominal5y >= 0 ? '+' : '' }}{{ Math.round(m.nominal5y) }}%</strong>
+              {{ t("номинально") }} <strong :class="deltaClass(m.nominal5y, m.positiveDelta)">{{ m.nominal5y >= 0 ? '+' : '' }}{{ Math.round(m.nominal5y) }}%</strong>
               <span class="ed-brief-mid">·</span>
-              реально <strong :class="deltaClass(m.real5y, m.positiveDelta)">{{ m.real5y >= 0 ? '+' : '' }}{{ Math.round(m.real5y) }}%</strong>
+              {{ t("реально") }} <strong :class="deltaClass(m.real5y, m.positiveDelta)">{{ m.real5y >= 0 ? '+' : '' }}{{ Math.round(m.real5y) }}%</strong>
             </template>
             <template v-else>—</template>
           </div>
@@ -1028,15 +1031,15 @@ onBeforeUnmount(() => {
         </div>
       </div>
       <div class="ed-brief-footer">
-        Реальная динамика рассчитана с учётом ИПЦ Центрального Банка Республики Узбекистан
+        {{ t("Реальная динамика рассчитана с учётом ИПЦ Центрального Банка Республики Узбекистан") }}
       </div>
     </template>
 
     <div v-else-if="fin.viewMode.value === 'company'" class="ed-fin-state">
-      Недостаточно данных для брифинга
+      {{ t("Недостаточно данных для брифинга") }}
     </div>
 
-    <div v-else class="ed-fin-state">Нет данных</div>
+    <div v-else class="ed-fin-state">{{ t("Нет данных") }}</div>
 
     <!-- Pack 7.32: KPI drill-down modal -->
     <FinanceDrillModal

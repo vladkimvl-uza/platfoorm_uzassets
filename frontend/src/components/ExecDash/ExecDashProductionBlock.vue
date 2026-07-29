@@ -4,10 +4,12 @@
  *  исполнение, план→ожидаемое, лидеры/отстающие, покрытие. Клик → вкладка БП. */
 import { computed, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
+import { useI18n } from "@/composables/useI18n";
 import { useExecutiveDashboard } from "@/composables/useExecutiveDashboard";
 import { useNumberTween } from "@/composables/useNumberTween";
 import { productionApi, type ProdOverview, type ProdCompany } from "@/api/production";
 
+const { t } = useI18n();
 const exec = useExecutiveDashboard();
 const router = useRouter();
 
@@ -44,8 +46,8 @@ function pctCol(p: number | null): string {
   if (p > 110) return "#7C3AED"; if (p >= 90) return "#1D9E75"; if (p >= 75) return "#EF9F27"; return "#E24B4A";
 }
 function pctZone(p: number | null): string {
-  if (p == null) return "нет данных";
-  if (p > 110) return "переисполнение"; if (p >= 90) return "в норме"; if (p >= 75) return "отставание"; return "критично";
+  if (p == null) return t("нет данных");
+  if (p > 110) return t("переисполнение"); if (p >= 90) return t("в норме"); if (p >= 75) return t("отставание"); return t("критично");
 }
 const withPct = computed(() => (data.value?.companies || []).filter((c) => c.execPct != null && c.has_data));
 const leaders = computed(() => withPct.value.slice().sort((a, b) => (b.execPct || 0) - (a.execPct || 0)).slice(0, 3));
@@ -57,18 +59,18 @@ function coLabel(c: ProdCompany) { return c.n; }
 </script>
 
 <template>
-  <section class="edp" :style="{ '--edp-accent': pctCol(execPct) }" @click="go" title="Открыть вкладку «Производственные показатели»">
+  <section class="edp" :style="{ '--edp-accent': pctCol(execPct) }" @click="go" :title="t('Открыть вкладку «Производственные показатели»')">
     <div class="edp-head">
       <div>
-        <div class="edp-eyebrow">Производственный план · FY {{ exec.year.value }} · 1 полугодие</div>
-        <div class="edp-title">Исполнение производственного плана</div>
+        <div class="edp-eyebrow">{{ t("Производственный план · FY {y} · 1 полугодие", { y: exec.year.value }) }}</div>
+        <div class="edp-title">{{ t("Исполнение производственного плана") }}</div>
       </div>
       <svg class="edp-go" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
     </div>
 
-    <div v-if="loading && !data" class="edp-state">Загрузка…</div>
-    <div v-else-if="failed" class="edp-state">Нет доступа к производственным данным</div>
-    <div v-else-if="!hasData" class="edp-state">Производственные данные не заведены — импортируйте «Свод» во вкладке БП</div>
+    <div v-if="loading && !data" class="edp-state">{{ t("Загрузка…") }}</div>
+    <div v-else-if="failed" class="edp-state">{{ t("Нет доступа к производственным данным") }}</div>
+    <div v-else-if="!hasData" class="edp-state">{{ t("Производственные данные не заведены — импортируйте «Свод» во вкладке БП") }}</div>
 
     <template v-else>
       <div class="edp-hero">
@@ -78,19 +80,19 @@ function coLabel(c: ProdCompany) { return c.n; }
         <div class="edp-hero-r">
           <div class="edp-zone" :style="{ color: pctCol(execPct) }">{{ pctZone(execPct) }}</div>
           <div class="edp-flow">
-            <span class="edp-flow-v">{{ fmt1(tPlan) }}</span><span class="edp-flow-u"> трлн план</span>
+            <span class="edp-flow-v">{{ fmt1(tPlan) }}</span><span class="edp-flow-u"> {{ t("трлн план") }}</span>
             <svg width="16" height="12" viewBox="0 0 24 16" fill="none" stroke="#94A3B8" stroke-width="2" stroke-linecap="round"><path d="M3 8h16M14 3l5 5-5 5"/></svg>
-            <span class="edp-flow-v" :style="{ color: pctCol(execPct) }">{{ fmt1(tExp) }}</span><span class="edp-flow-u"> ожид.</span>
+            <span class="edp-flow-v" :style="{ color: pctCol(execPct) }">{{ fmt1(tExp) }}</span><span class="edp-flow-u"> {{ t("ожид.") }}</span>
           </div>
-          <div class="edp-cov">Покрытие: <b>{{ kpis!.with_data }}</b> / {{ kpis!.present }} компаний
-            <span v-if="kpis!.overpar" class="edp-overpar">· ⚑ переисполнение: {{ kpis!.overpar }}</span>
+          <div class="edp-cov">{{ t("Покрытие:") }} <b>{{ kpis!.with_data }}</b> / {{ kpis!.present }} {{ t("компаний") }}
+            <span v-if="kpis!.overpar" class="edp-overpar">· ⚑ {{ t("переисполнение") }}: {{ kpis!.overpar }}</span>
           </div>
         </div>
       </div>
 
       <div class="edp-leaders">
         <div class="edp-col">
-          <div class="edp-col-l">Лидеры</div>
+          <div class="edp-col-l">{{ t("Лидеры") }}</div>
           <div v-for="c in leaders" :key="c.k" class="edp-lrow">
             <span class="edp-dot" :style="{ background: c.sector_color }" />
             <span class="edp-lname">{{ coLabel(c) }}</span>
@@ -98,7 +100,7 @@ function coLabel(c: ProdCompany) { return c.n; }
           </div>
         </div>
         <div class="edp-col">
-          <div class="edp-col-l">Отстающие</div>
+          <div class="edp-col-l">{{ t("Отстающие") }}</div>
           <div v-for="c in laggards" :key="c.k" class="edp-lrow">
             <span class="edp-dot" :style="{ background: c.sector_color }" />
             <span class="edp-lname">{{ coLabel(c) }}</span>

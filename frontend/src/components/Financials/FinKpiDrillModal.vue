@@ -26,7 +26,9 @@ import type {
 import type { CompanyListItem, SectorBrief } from "@/api/companies";
 import { fmtBigNumber } from "./financialsHelpers";
 import { useFormatters } from "@/composables/useFormatters";
+import { useI18n } from "@/composables/useI18n";
 const fmt = useFormatters();
+const { t } = useI18n();
 
 type KpiId = "revenue" | "opMargin" | "ebitda" | "netMargin" | "loss";
 
@@ -118,24 +120,25 @@ const heroValue = computed<number>(() => {
 });
 
 const heroUnit = computed(() => {
-  const u = props.unit === "bln" ? "млрд" : "млн";
+  const u = t(props.unit === "bln" ? "млрд" : "млн");
   switch (cfg.value.heroUnit) {
     case "value": return `${u} ${props.currency}`;
     case "pct":   return "%";
-    case "count": return "компаний";
+    case "count": return t("компаний");
   }
   return "";
 });
 
 // EBITDA / op margin / net margin shown as sub-text
 const marginText = computed(() => {
-  const t = totalsForYear.value;
-  const r = t.revenue || 0;
+  const tot = totalsForYear.value;
+  const r = tot.revenue || 0;
   const m = cfg.value.showMargin;
   if (!m || !r) return "";
-  if (m === "ebitdaMargin") return `маржа ${fmt.fmtPercent(((t.ebitda || 0) / r * 100), { decimals: 0 })}`;
-  if (m === "opMargin")     return `опер. прибыль ${fmtBigNumber(t.opProfit || 0, props.unit)} ${props.unit === "bln" ? "млрд" : "млн"}`;
-  if (m === "netMargin")    return `чистая прибыль ${fmtBigNumber(t.profit || 0, props.unit)} ${props.unit === "bln" ? "млрд" : "млн"}`;
+  const u = t(props.unit === "bln" ? "млрд" : "млн");
+  if (m === "ebitdaMargin") return t("маржа {v}", { v: fmt.fmtPercent(((tot.ebitda || 0) / r * 100), { decimals: 0 }) });
+  if (m === "opMargin")     return t("опер. прибыль {v} {u}", { v: fmtBigNumber(tot.opProfit || 0, props.unit), u });
+  if (m === "netMargin")    return t("чистая прибыль {v} {u}", { v: fmtBigNumber(tot.profit || 0, props.unit), u });
   return "";
 });
 
@@ -236,10 +239,10 @@ function fmtBucketValue(b: SectorBucket): string {
   return fmtBigNumber(b.sum, props.unit);
 }
 function fmtBucketSub(b: SectorBucket): string {
-  if (cfg.value.heroUnit === "pct") return "ср.-взв. маржа";
+  if (cfg.value.heroUnit === "pct") return t("ср.-взв. маржа");
   const pct = portfolioTotal.value ? (b.sum / portfolioTotal.value * 100) : 0;
-  const u = props.unit === "bln" ? "млрд" : "млн";
-  return `${u} · ${fmt.fmtPercent(pct, { decimals: 0 })} портф.`;
+  const u = t(props.unit === "bln" ? "млрд" : "млн");
+  return `${u} · ${fmt.fmtPercent(pct, { decimals: 0 })} ${t("портф.")}`;
 }
 
 // ─── Yearly time-series (financial mode) ───
@@ -392,17 +395,17 @@ function fmtHero(v: number): string {
 function fmtSigned(v: number, pp = false): string {
   if (pp) {
     const signed = fmt.fmtNumber(v, { decimals: 0 });
-    return `${v >= 0 ? "+" : ""}${signed} п.п.`;
+    return t("{v} п.п.", { v: `${v >= 0 ? "+" : ""}${signed}` });
   }
   return fmt.fmtPercent(v, { decimals: 0, signed: true });
 }
 function fmtRowValue(r: CompanyRow): string {
   if (mode.value === "financial") {
     if (cfg.value.heroUnit === "pct") return fmt.fmtPercent(r.value, { decimals: 0 });
-    return `${fmtBigNumber(r.value, props.unit)} ${props.unit === "bln" ? "млрд" : "млн"}`;
+    return `${fmtBigNumber(r.value, props.unit)} ${t(props.unit === "bln" ? "млрд" : "млн")}`;
   }
   if (props.kpi === "loss") {
-    return `${fmtBigNumber(r.loss || 0, props.unit)} ${props.unit === "bln" ? "млрд" : "млн"}`;
+    return `${fmtBigNumber(r.loss || 0, props.unit)} ${t(props.unit === "bln" ? "млрд" : "млн")}`;
   }
   return "";
 }
@@ -410,11 +413,11 @@ function fmtRowValue(r: CompanyRow): string {
 const summaryChip = computed(() => {
   if (mode.value === "financial") {
     const yoy = yoyPct.value;
-    const yoyStr = yoy != null ? `${fmtSigned(yoy, yoyIsPp.value)} к ${props.year - 1} году · ` : "";
-    return `${yoyStr}${countWithData.value} из ${props.summary.coverage.companies_total} компаний с данными`;
+    const yoyStr = yoy != null ? t("{v} к {y} году", { v: fmtSigned(yoy, yoyIsPp.value), y: props.year - 1 }) + " · " : "";
+    return `${yoyStr}${t("{n} из {m} компаний с данными", { n: countWithData.value, m: props.summary.coverage.companies_total })}`;
   }
   if (props.kpi === "loss") {
-    return `${heroValue.value} убыточных · ${countWithData.value} прибыльных · YoY к ${props.year - 1}`;
+    return t("{a} убыточных · {b} прибыльных · YoY к {y}", { a: heroValue.value, b: countWithData.value, y: props.year - 1 });
   }
   return "";
 });
@@ -438,7 +441,7 @@ const countWithData = computed(() => {
           <div class="ddm-shim" aria-hidden="true" />
           <div class="ddm-glow" aria-hidden="true" />
 
-          <button class="ddm-x" @click="close" aria-label="Закрыть">
+          <button class="ddm-x" @click="close" :aria-label="t('Закрыть')">
             <svg viewBox="0 0 14 14" class="svg-ic" width="13" height="13"><path d="M3.5 3.5l7 7M10.5 3.5l-7 7"/></svg>
           </button>
 
@@ -446,8 +449,8 @@ const countWithData = computed(() => {
           <div class="ddm-sect ddm-row" style="--si:0; padding-top:20px;">
             <div class="ddm-h-top">
               <div>
-                <div class="ddm-h-l">{{ cfg.label }} · {{ standard }} · FY{{ year }}</div>
-                <div class="ddm-h-title">{{ cfg.title }}</div>
+                <div class="ddm-h-l">{{ t(cfg.label) }} · {{ standard }} · FY{{ year }}</div>
+                <div class="ddm-h-title">{{ t(cfg.title) }}</div>
                 <div class="ddm-h-v">
                   <span class="num" :style="{ color: cfg.accent }">{{ fmtHero(heroValue) }}</span>
                   <span class="unit">{{ heroUnit }}</span>
@@ -458,12 +461,12 @@ const countWithData = computed(() => {
               <div class="ddm-h-right">
                 <template v-if="mode === 'financial' && yoyPct != null">
                   <div :style="{ color: yoyPct >= 0 ? '#0F6E56' : '#A32D2D' }">
-                    {{ fmtSigned(yoyPct, yoyIsPp) }} к прошлому году
+                    {{ t("{v} к прошлому году", { v: fmtSigned(yoyPct, yoyIsPp) }) }}
                   </div>
                 </template>
                 <template v-else-if="kpi === 'loss'">
                   <div :style="{ color: heroValue > 0 ? '#A32D2D' : '#0F6E56' }">
-                    {{ heroValue > 0 ? "требуется внимание" : "все прибыльные" }}
+                    {{ heroValue > 0 ? t("требуется внимание") : t("все прибыльные") }}
                   </div>
                 </template>
                 <div class="ddm-h-year">{{ year }} · FY · {{ standard }}</div>
@@ -488,20 +491,20 @@ const countWithData = computed(() => {
             <div class="ddm-mini-grid">
               <template v-if="kpi === 'loss'">
                 <div class="ddm-mini" style="--kc:#E24B4A; --ki:0;">
-                  <div class="ddm-mk-l">Убыточных компаний</div>
-                  <div class="ddm-mk-v">{{ countLossMakers }}<span class="ddm-mk-u">из {{ countWithData }} с данными</span></div>
+                  <div class="ddm-mk-l">{{ t("Убыточных компаний") }}</div>
+                  <div class="ddm-mk-v">{{ countLossMakers }}<span class="ddm-mk-u">{{ t("из {n} с данными", { n: countWithData }) }}</span></div>
                 </div>
                 <div class="ddm-mini" style="--kc:#1D9E75; --ki:1;">
-                  <div class="ddm-mk-l">Прибыльных</div>
-                  <div class="ddm-mk-v">{{ countWithData - countLossMakers }}<span class="ddm-mk-u">компаний</span></div>
+                  <div class="ddm-mk-l">{{ t("Прибыльных") }}</div>
+                  <div class="ddm-mk-v">{{ countWithData - countLossMakers }}<span class="ddm-mk-u">{{ t("компаний") }}</span></div>
                 </div>
                 <div class="ddm-mini" style="--kc:#888780; --ki:2;">
-                  <div class="ddm-mk-l">Без данных</div>
-                  <div class="ddm-mk-v">{{ summary.coverage.companies_total - countWithData }}<span class="ddm-mk-u">компаний</span></div>
+                  <div class="ddm-mk-l">{{ t("Без данных") }}</div>
+                  <div class="ddm-mk-v">{{ summary.coverage.companies_total - countWithData }}<span class="ddm-mk-u">{{ t("компаний") }}</span></div>
                 </div>
                 <div class="ddm-mini" style="--kc:#534AB7; --ki:3;">
-                  <div class="ddm-mk-l">Всего портфель</div>
-                  <div class="ddm-mk-v">{{ summary.coverage.companies_total }}<span class="ddm-mk-u">компаний</span></div>
+                  <div class="ddm-mk-l">{{ t("Всего портфель") }}</div>
+                  <div class="ddm-mk-v">{{ summary.coverage.companies_total }}<span class="ddm-mk-u">{{ t("компаний") }}</span></div>
                 </div>
               </template>
             </div>
@@ -510,8 +513,8 @@ const countWithData = computed(() => {
           <!-- ─── Financial mode: trend chart ─── -->
           <div v-if="mode === 'financial' && trendPoints.length > 1" class="ddm-sect ddm-row" style="--si:2;">
             <div class="ddm-l-sec">
-              <span>Динамика · {{ trendYears[0] }}–{{ trendYears[trendYears.length-1] }}</span>
-              <span class="side">{{ cfg.heroUnit === "pct" ? "%" : (unit === "bln" ? "млрд" : "млн") + " " + currency }}</span>
+              <span>{{ t("Динамика") }} · {{ trendYears[0] }}–{{ trendYears[trendYears.length-1] }}</span>
+              <span class="side">{{ cfg.heroUnit === "pct" ? "%" : t(unit === "bln" ? "млрд" : "млн") + " " + currency }}</span>
             </div>
             <div class="ddm-trend">
               <div v-for="p in trendPoints" :key="p.year" class="ddm-trend-col">
@@ -530,15 +533,15 @@ const countWithData = computed(() => {
           <div class="ddm-sect ddm-row" :style="`--si:${mode === 'financial' ? 3 : 2};`">
             <div class="ddm-l-sec">
               <span>
-                <template v-if="kpi === 'loss'">Убыточные компании · {{ filteredRows.length }}</template>
-                <template v-else>Топ компаний по {{ cfg.heroUnit === "pct" ? "марже" : "значению" }}</template>
+                <template v-if="kpi === 'loss'">{{ t("Убыточные компании") }} · {{ filteredRows.length }}</template>
+                <template v-else>{{ cfg.heroUnit === "pct" ? t("Топ компаний по марже") : t("Топ компаний по значению") }}</template>
               </span>
-              <span class="side">{{ filteredRows.length }} компаний</span>
+              <span class="side">{{ t("{n} компаний", { n: filteredRows.length }) }}</span>
             </div>
 
             <div v-if="!visibleRows.length" class="ddm-empty">
-              <template v-if="kpi === 'loss'">Нет убыточных компаний в {{ year }} году</template>
-              <template v-else>Нет данных по фильтрам</template>
+              <template v-if="kpi === 'loss'">{{ t("Нет убыточных компаний в {y} году", { y: year }) }}</template>
+              <template v-else>{{ t("Нет данных по фильтрам") }}</template>
             </div>
 
             <div v-else class="ddm-items">
@@ -549,7 +552,7 @@ const countWithData = computed(() => {
                 :class="`grid-${kpi}`"
                 :style="{ '--stripe-color': rowSectorColor(r) }"
                 @click="gotoCompany(r.code)"
-                :title="'Открыть карточку — ' + r.name"
+                :title="t('Открыть карточку — {name}', { name: r.name })"
               >
                 <span class="ddm-code-pill">{{ r.code.toUpperCase() }}</span>
                 <span class="ddm-itm-name">{{ r.name }}</span>
@@ -558,10 +561,10 @@ const countWithData = computed(() => {
                 <template v-if="mode === 'financial'">
                   <span class="ddm-itm-val">{{ fmtRowValue(r) }}</span>
                   <span v-if="r.marginPct != null" class="ddm-itm-meta" :style="{ color: r.marginPct >= 30 ? '#0F6E56' : r.marginPct >= 10 ? '#854F0B' : '#A32D2D' }">
-                    маржа {{ fmt.fmtPercent(r.marginPct, { decimals: 0 }) }}
+                    {{ t("маржа {v}", { v: fmt.fmtPercent(r.marginPct, { decimals: 0 }) }) }}
                   </span>
                   <span v-else class="ddm-itm-meta">{{ sectorLabel(r.sector) }}</span>
-                  <span v-if="r.sharePct != null" class="ddm-itm-share">{{ fmt.fmtPercent(r.sharePct, { decimals: 0 }) }} портф.</span>
+                  <span v-if="r.sharePct != null" class="ddm-itm-share">{{ fmt.fmtPercent(r.sharePct, { decimals: 0 }) }} {{ t("портф.") }}</span>
                   <span v-else></span>
                 </template>
 
@@ -569,33 +572,33 @@ const countWithData = computed(() => {
                 <template v-else-if="kpi === 'loss'">
                   <span class="ddm-itm-val" style="color:#A32D2D">{{ fmtRowValue(r) }}</span>
                   <span class="ddm-itm-meta">{{ sectorLabel(r.sector) }}</span>
-                  <span class="ddm-itm-status" style="color:#A32D2D">убыток</span>
+                  <span class="ddm-itm-status" style="color:#A32D2D">{{ t("убыток") }}</span>
                 </template>
               </div>
             </div>
 
             <div v-if="!fullyShown && filteredRows.length > TOP_VISIBLE"
                  class="ddm-show-more" @click="fullyShown = true">
-              показать ещё {{ filteredRows.length - TOP_VISIBLE }} компаний →
+              {{ t("показать ещё {n} компаний", { n: filteredRows.length - TOP_VISIBLE }) }} →
             </div>
           </div>
 
           <!-- ─── Footer ─── -->
           <div class="ddm-ftr ddm-row" style="--si:4;">
-            <button class="ddm-btn ddm-btn-g" @click="close">Закрыть</button>
+            <button class="ddm-btn ddm-btn-g" @click="close">{{ t("Закрыть") }}</button>
             <template v-if="mode === 'financial'">
               <button class="ddm-btn ddm-btn-w" @click="gotoDetailed">
-                Высокоуровневые показатели
+                {{ t("Высокоуровневые показатели") }}
                 <svg viewBox="0 0 14 14" class="svg-ic" width="12" height="12"><path d="M3 7h8M7.5 3.5L11 7l-3.5 3.5"/></svg>
               </button>
               <button class="ddm-btn ddm-btn-p" @click="gotoFinModel">
-                Финмодель портфеля
+                {{ t("Финмодель портфеля") }}
                 <svg viewBox="0 0 14 14" class="svg-ic" width="12" height="12"><path d="M3 7h8M7.5 3.5L11 7l-3.5 3.5"/></svg>
               </button>
             </template>
             <template v-else>
               <button class="ddm-btn ddm-btn-p" @click="gotoForensic">
-                Высокоуровневые показатели
+                {{ t("Высокоуровневые показатели") }}
                 <svg viewBox="0 0 14 14" class="svg-ic" width="12" height="12"><path d="M3 7h8M7.5 3.5L11 7l-3.5 3.5"/></svg>
               </button>
             </template>

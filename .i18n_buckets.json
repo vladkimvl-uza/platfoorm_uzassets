@@ -1,0 +1,597 @@
+{
+ "shell": {
+  "files": [
+   "src/App.vue",
+   "src/components/BottomNav.vue",
+   "src/components/CommandPalette.vue",
+   "src/components/PasswordExpiryBanner.vue",
+   "src/components/SidebarCompaniesSection.vue",
+   "src/components/WelcomeModal.vue",
+   "src/directives/reveal.ts",
+   "src/main.ts",
+   "src/router/index.ts",
+   "src/views/AppShell.vue"
+  ],
+  "chars": 12875
+ },
+ "auth": {
+  "files": [
+   "src/components/security/StepUpModal.vue",
+   "src/views/ChangePasswordPage.vue",
+   "src/views/ForgotPasswordPage.vue",
+   "src/views/Login.vue",
+   "src/views/LoginMfaStep.vue",
+   "src/views/MfaOnboarding.vue"
+  ],
+  "chars": 5289
+ },
+ "companyws": {
+  "files": [
+   "src/views/CompanyWorkspace.vue"
+  ],
+  "chars": 13500
+ },
+ "dashboard": {
+  "files": [
+   "src/components/Dashboard/CompanyTileDrillModal.vue",
+   "src/components/Dashboard/KpiTileDrillModal.vue",
+   "src/components/Home/CurrenciesWidget.vue",
+   "src/components/Home/FlagSeparator.vue",
+   "src/components/Home/MeshGradient.vue",
+   "src/components/Home/TomorrowHolidayWidget.vue",
+   "src/components/Home/WeatherWidget.vue",
+   "src/views/Dashboard.vue",
+   "src/views/Home.vue"
+  ],
+  "chars": 7175
+ },
+ "execdash_a": {
+  "files": [
+   "src/components/ExecDash/ExecCopilot.vue",
+   "src/components/ExecDash/ExecDashBPTrackerBlock.vue",
+   "src/components/ExecDash/ExecDashBenchmark.vue",
+   "src/components/ExecDash/ExecDashBottomMetrics.vue",
+   "src/components/ExecDash/ExecDashDirectionsBlock.vue",
+   "src/components/ExecDash/ExecDashExecutionChart.vue",
+   "src/components/ExecDash/ExecDashFinanceBlock.vue",
+   "src/components/ExecDash/ExecDashGovernanceBlock.vue",
+   "src/components/ExecDash/ExecDashHealthBlock.vue"
+  ],
+  "chars": 11030
+ },
+ "execdash_b": {
+  "files": [
+   "src/components/ExecDash/ExecDashKpiBlock.vue",
+   "src/components/ExecDash/ExecDashKpiForecastBlock.vue",
+   "src/components/ExecDash/ExecDashProductionBlock.vue",
+   "src/components/ExecDash/ExecDashRatings.vue",
+   "src/components/ExecDash/ExecDashRingCard.vue",
+   "src/components/ExecDash/ExecDashSectorCard.vue",
+   "src/components/ExecDash/ExecDashSectorCompanyRow.vue",
+   "src/components/ExecDash/ExecDashSectorGrid.vue",
+   "src/components/ExecDash/ExecDashStandardsBlock.vue",
+   "src/components/ExecDash/ExecDashTaxContributionBlock.vue",
+   "src/components/ExecDash/ExecDashTopbar.vue",
+   "src/views/ExecutiveDashboard.vue"
+  ],
+  "chars": 7844
+ },
+ "controltower": {
+  "files": [
+   "src/components/ControlTower/CtCompanyModal.vue",
+   "src/components/ControlTower/CtPeriodDrill.vue",
+   "src/views/ControlTower.vue",
+   "src/views/ExecOverview.vue"
+  ],
+  "chars": 9987
+ },
+ "bp_a": {
+  "files": [
+   "src/components/BusinessPlan/BpCompanyDashboard.vue",
+   "src/components/BusinessPlan/BpDrillModal.vue",
+   "src/components/BusinessPlan/BpProductionDashboard.vue",
+   "src/components/BusinessPlan/BpQuarterDrillModal.vue",
+   "src/components/BusinessPlan/BpQuarterlyChart.vue",
+   "src/components/BusinessPlan/BpSummaryDashboard.vue",
+   "src/components/BusinessPlan/CwProductionSection.vue",
+   "src/components/BusinessPlan/ProductionDrillModal.vue",
+   "src/components/BusinessPlan/ProductionEditModal.vue"
+  ],
+  "chars": 16088
+ },
+ "bp_b": {
+  "files": [
+   "src/components/BusinessPlan/BpAiAnalysis.vue",
+   "src/components/BusinessPlan/BpEditor.vue",
+   "src/views/BusinessPlan.vue"
+  ],
+  "chars": 7764
+ },
+ "kpi": {
+  "files": [
+   "src/components/KPI/KpiAiAnalysis.vue",
+   "src/components/KPI/KpiCompanyDashboard.vue",
+   "src/components/KPI/KpiDrillModal.vue",
+   "src/components/KPI/KpiEditor.vue",
+   "src/components/KPI/KpiSummaryDashboard.vue",
+   "src/views/KPI.vue"
+  ],
+  "chars": 12514
+ },
+ "fin_a": {
+  "files": [
+   "src/components/Financials/CompanyDrilldown.vue",
+   "src/components/Financials/HighLevelFinancials.vue"
+  ],
+  "chars": 12162
+ },
+ "fin_b": {
+  "files": [
+   "src/components/Financials/FinCopilot.vue",
+   "src/components/Financials/FinFiscalBand.vue",
+   "src/components/Financials/FinForecastModal.vue",
+   "src/components/Financials/FinKpiBand.vue",
+   "src/components/Financials/FinKpiDrillModal.vue",
+   "src/components/Financials/FinMetricTabs.vue",
+   "src/components/Financials/FinReportUpload.vue",
+   "src/components/Financials/FinScoreboard.vue",
+   "src/components/Financials/FinSectorTable.vue",
+   "src/components/Financials/FinSubsidiesModal.vue",
+   "src/components/Financials/FinTopFilters.vue",
+   "src/components/Financials/IfrsReportHistory.vue",
+   "src/components/Financials/SoeHealthBoard.vue",
+   "src/components/Financials/SoeHealthDrillModal.vue",
+   "src/components/Financials/SoeHealthParamsModal.vue",
+   "src/components/Financials/financialsHelpers.ts"
+  ],
+  "chars": 16569
+ },
+ "fin_views": {
+  "files": [
+   "src/components/UnitCost/FuelIcon.vue",
+   "src/components/UnitCost/UnitCostCompanyModal.vue",
+   "src/components/UnitCost/UnitCostCompanyPanel.vue",
+   "src/components/UnitCost/UnitCostPricesModal.vue",
+   "src/views/Financials.vue",
+   "src/views/IfrsEditor.vue",
+   "src/views/NsbuEditor.vue",
+   "src/views/UnitCostDashboard.vue"
+  ],
+  "chars": 14809
+ },
+ "proc_a": {
+  "files": [
+   "src/components/Procurement/CategoryCompareTable.vue",
+   "src/components/Procurement/CompanyProfileModal.vue",
+   "src/components/Procurement/ForensicEditModal.vue",
+   "src/components/Procurement/ForensicUploadModal.vue",
+   "src/components/Procurement/PaCategoryDeviationBars.vue",
+   "src/components/Procurement/PaCategoryGrid.vue",
+   "src/components/Procurement/PaEditTableModal.vue",
+   "src/components/Procurement/PaLeaders.vue"
+  ],
+  "chars": 5564
+ },
+ "proc_b": {
+  "files": [
+   "src/components/Procurement/PaMethodsPanel.vue",
+   "src/components/Procurement/PaModalShell.vue",
+   "src/components/Procurement/PaPainPoints.vue",
+   "src/components/Procurement/PaProductDrillModal.vue",
+   "src/components/Procurement/PaProductsPanel.vue",
+   "src/components/Procurement/PaPurchaseDrillModal.vue",
+   "src/components/Procurement/PaRatingPanel.vue",
+   "src/components/Procurement/PaSidePanel.vue",
+   "src/components/Procurement/PaSpendBreakdown.vue",
+   "src/components/Procurement/PaSupplierDrillModal.vue",
+   "src/components/Procurement/PaSuppliersPanel.vue",
+   "src/components/Procurement/PaTornado.vue",
+   "src/components/Procurement/PaWorksServicesChart.vue",
+   "src/utils/procurementExport.ts",
+   "src/views/ForensicAudit.vue",
+   "src/views/ProcurementAnalysis.vue"
+  ],
+  "chars": 21911
+ },
+ "tasks_a": {
+  "files": [
+   "src/components/CompanyBoardList.vue",
+   "src/components/Kanban/KanbanCard.vue",
+   "src/components/TaskProjectEditor.vue"
+  ],
+  "chars": 10643
+ },
+ "tasks_b": {
+  "files": [
+   "src/views/BoardKanban.vue",
+   "src/views/Boards.vue",
+   "src/views/FollowedView.vue",
+   "src/views/ProjectBuilder.vue",
+   "src/views/Projects.vue"
+  ],
+  "chars": 4901
+ },
+ "pmo": {
+  "files": [
+   "src/components/PMO/PmoAgile.vue",
+   "src/components/PMO/PmoCharter.vue",
+   "src/components/PMO/PmoEvm.vue",
+   "src/components/PMO/PmoHealth.vue",
+   "src/components/PMO/PmoLog.vue",
+   "src/components/PMO/PmoRaid.vue",
+   "src/components/PMO/PmoStakeholders.vue",
+   "src/components/PMO/PmoTab.vue",
+   "src/components/PMO/PmoTeam.vue"
+  ],
+  "chars": 11441
+ },
+ "esg": {
+  "files": [
+   "src/components/ESG/ESGCompanyDetailModal.vue",
+   "src/components/ESG/ESGCompanyDetailPanel.vue",
+   "src/components/ESG/ESGDrillModal.vue",
+   "src/components/ESG/ESGEditor.vue",
+   "src/components/ESG/ESGFunnel.vue",
+   "src/components/ESG/ESGMaturityMatrix.vue",
+   "src/components/ESG/ESGMaturityProfileModal.vue",
+   "src/components/ESG/ESGMaturityProfilePanel.vue",
+   "src/components/ESG/ESGReportRatingModal.vue",
+   "src/components/ESG/ESGReportsTable.vue",
+   "src/components/ESG/ESGSwotEditor.vue",
+   "src/components/ESG/ESGSwotPanel.vue",
+   "src/views/ESG.vue"
+  ],
+  "chars": 14668
+ },
+ "gov_ratings": {
+  "files": [
+   "src/components/Governance/BoardMemberHoverCard.vue",
+   "src/components/Governance/BoardMemberProfileModal.vue",
+   "src/components/Governance/GovCompanyDetailModal.vue",
+   "src/components/Governance/GovernanceEditor.vue",
+   "src/components/Ratings/RatingEditModal.vue",
+   "src/components/Ratings/RatingTile.vue",
+   "src/components/Ratings/RatingsKeyIndicators.vue",
+   "src/components/Ratings/RatingsKpiBand.vue",
+   "src/components/Ratings/RatingsNoRatingPanel.vue",
+   "src/components/Ratings/RatingsRecentChanges.vue",
+   "src/components/Ratings/RatingsSectorTable.vue",
+   "src/components/Ratings/ratingsHelpers.ts",
+   "src/views/Governance.vue",
+   "src/views/Ratings.vue"
+  ],
+  "chars": 9564
+ },
+ "company_a": {
+  "files": [
+   "src/components/Company/CompanyCalendar.vue",
+   "src/components/Company/CompanyCardHost.vue",
+   "src/components/Company/CompanyDocumentsCard.vue",
+   "src/components/Company/CompanyEmployeesSummary.vue",
+   "src/components/Company/CompanyEmployeesTab.vue",
+   "src/components/Company/CompanyHeader.vue",
+   "src/components/Company/CompanyTabBar.vue",
+   "src/components/Company/CompanyViewModal.vue",
+   "src/components/Company/companyNavConfig.ts",
+   "src/components/CompanyOverviewExtras.vue",
+   "src/views/CompanyDetail.vue"
+  ],
+  "chars": 9804
+ },
+ "company_b": {
+  "files": [
+   "src/components/AddCompanyModal.vue",
+   "src/components/library/ActivityFeed.vue",
+   "src/components/library/ApiPanel.vue",
+   "src/components/library/ColumnManagerModal.vue",
+   "src/components/library/CompanyApiTab.vue",
+   "src/components/library/CustomFieldBuilder.vue",
+   "src/components/library/CustomTabBuilder.vue",
+   "src/components/library/EndpointCard.vue",
+   "src/components/library/SyncIndicator.vue",
+   "src/components/library/TryItOutModal.vue",
+   "src/views/CompaniesAdmin.vue",
+   "src/views/library/CompanyLibraryDetail.vue",
+   "src/views/library/CompanyLibraryIndex.vue"
+  ],
+  "chars": 6088
+ },
+ "ai": {
+  "files": [
+   "src/components/Ai/AiBubble.vue",
+   "src/components/Ai/AiChart.vue",
+   "src/components/Ai/AiInput.vue",
+   "src/components/Ai/AiMessage.vue",
+   "src/components/Ai/AiSettings.vue",
+   "src/components/Ai/AiSidebar.vue",
+   "src/components/Ai/KnowledgeBaseModal.vue",
+   "src/views/AiChat.vue"
+  ],
+  "chars": 9351
+ },
+ "notif": {
+  "files": [
+   "src/api/notifications.ts",
+   "src/components/notifications/NotificationBell.vue",
+   "src/components/notifications/NotificationDetailModal.vue",
+   "src/components/notifications/NotificationToast.vue",
+   "src/composables/useNotificationDetail.ts",
+   "src/composables/useNotificationMeta.ts",
+   "src/stores/notifications.ts",
+   "src/views/CalendarView.vue",
+   "src/views/NotificationSettings.vue",
+   "src/views/NotificationsView.vue"
+  ],
+  "chars": 6675
+ },
+ "admin_a": {
+  "files": [
+   "src/components/rbac-v3/AccessCard.vue",
+   "src/components/rbac-v3/BulkRolePickerModal.vue",
+   "src/components/rbac-v3/CreateRoleModal.vue",
+   "src/components/rbac-v3/ImpersonateBanner.vue",
+   "src/components/rbac-v3/InviteUserModal.vue",
+   "src/components/rbac-v3/ModuleSelectGrid.vue",
+   "src/components/rbac-v3/UserAffiliationBadge.vue",
+   "src/components/rbac-v3/UserAvatar.vue",
+   "src/views/rbac-v3/AuditFeedPage.vue",
+   "src/views/rbac-v3/GroupsPage.vue",
+   "src/views/rbac-v3/RBACShell.vue",
+   "src/views/rbac-v3/RolesPage.vue",
+   "src/views/rbac-v3/UserDetailDrawer.vue",
+   "src/views/rbac-v3/UsersPage.vue"
+  ],
+  "chars": 15488
+ },
+ "admin_b": {
+  "files": [
+   "src/components/audit/AuditChart.vue",
+   "src/components/broadcasts/BIcon.vue",
+   "src/components/broadcasts/BroadcastAnalytics.vue",
+   "src/components/broadcasts/BroadcastComposer.vue",
+   "src/components/broadcasts/StickyAckModal.vue",
+   "src/components/moderation/ModerationModerators.vue",
+   "src/components/moderation/ModerationQueue.vue",
+   "src/components/moderation/ModerationReviewModal.vue",
+   "src/components/moderation/ModerationRulesEditor.vue",
+   "src/components/moderation/ModerationSubmittedUsers.vue",
+   "src/components/moderation/ModerationTab.vue",
+   "src/components/user/ActorLine.vue",
+   "src/components/user/SocialLinks.vue",
+   "src/components/user/UserCardAnchor.vue",
+   "src/components/user/UserCardHost.vue",
+   "src/components/user/UserViewModal.vue",
+   "src/views/AdminBroadcasts.vue",
+   "src/views/AuditLog.vue",
+   "src/views/DatabaseAdmin.vue",
+   "src/views/EmailSettings.vue"
+  ],
+  "chars": 7695
+ },
+ "sysconfig": {
+  "files": [
+   "src/components/SystemConfig/CreditNagruzkaTab.vue",
+   "src/components/SystemConfig/ElasticityProjectsTab.vue",
+   "src/components/SystemConfig/InfoTooltip.vue",
+   "src/components/SystemConfig/ScenariosTab.vue",
+   "src/components/api/ApiKeysManager.vue",
+   "src/components/api/AuditLogView.vue",
+   "src/components/api/CatalogBrowser.vue",
+   "src/components/api/CustomApiBuilder.vue",
+   "src/components/api/ExternalApisManager.vue",
+   "src/components/api/PartnersManager.vue",
+   "src/components/api/WebhooksManager.vue",
+   "src/views/ApiCatalog.vue",
+   "src/views/SystemConfig.vue",
+   "src/views/TlsAdmin.vue"
+  ],
+  "chars": 17139
+ },
+ "uza_ui": {
+  "files": [
+   "src/components/UZA/BusinessPlanDrillModal.vue",
+   "src/components/UZA/CompanyDrillModal.vue",
+   "src/components/UZA/CompanyTicker.vue",
+   "src/components/UZA/CurrencyToggle.vue",
+   "src/components/UZA/DirectionDrillModal.vue",
+   "src/components/UZA/EditableField.vue",
+   "src/components/UZA/EntityDrillShell.vue",
+   "src/components/UZA/FinanceDrillModal.vue",
+   "src/components/UZA/KpiDrillModal.vue",
+   "src/components/UZA/SectorChip.vue",
+   "src/components/UZA/Sparkline.vue",
+   "src/components/UZA/TaxContributionDrillModal.vue",
+   "src/components/UZA/UzaDataTable.vue",
+   "src/components/UZA/UzaProgressBar.vue",
+   "src/components/UZA/UzaSegment.vue",
+   "src/components/UZA/UzaSelect.vue",
+   "src/components/UZA/UzaSkeleton.vue",
+   "src/components/UZA/UzaStateBlock.vue",
+   "src/components/UZA/UzaYearStepper.vue"
+  ],
+  "chars": 12610
+ },
+ "reporting": {
+  "files": [
+   "src/components/reporting/MatrixEditor.vue",
+   "src/components/reporting/ProjectsStatusReport.vue",
+   "src/components/reporting/ReportAppendix.vue",
+   "src/components/reporting/ReportingWizard.vue"
+  ],
+  "chars": 9883
+ },
+ "composables_a": {
+  "files": [
+   "src/composables/useAiActivation.ts",
+   "src/composables/useAiChat.ts",
+   "src/composables/useAiConfig.ts",
+   "src/composables/useAiPageContext.ts",
+   "src/composables/useAiVoice.ts",
+   "src/composables/useBusinessPlanData.ts",
+   "src/composables/useCompanyCard.ts",
+   "src/composables/useCompanyModal.ts",
+   "src/composables/useConfirm.ts",
+   "src/composables/useCountUp.ts",
+   "src/composables/useCreditScenario.ts",
+   "src/composables/useCurrencyConverter.ts",
+   "src/composables/useEntityEditor.ts",
+   "src/composables/useExecutiveDashboard.ts",
+   "src/composables/useExecutiveDashboardFinance.ts",
+   "src/composables/useFocusTrap.ts",
+   "src/composables/useFormatters.ts",
+   "src/composables/useI18n.ts",
+   "src/composables/useIfrsSchema.ts",
+   "src/composables/useInlineEdit.ts",
+   "src/composables/useIsAdmin.ts",
+   "src/composables/useKpiData.ts"
+  ],
+  "chars": 10561
+ },
+ "composables_b": {
+  "files": [
+   "src/composables/useNsbuCalculator.ts",
+   "src/composables/useNsbuSchema.ts",
+   "src/composables/useNumberTween.ts",
+   "src/composables/usePaRecommendation.ts",
+   "src/composables/usePermissions.ts",
+   "src/composables/usePresence.ts",
+   "src/composables/useProductionData.ts",
+   "src/composables/useScenarios.ts",
+   "src/composables/useStepUp.ts",
+   "src/composables/useToast.ts",
+   "src/composables/useUserCard.ts",
+   "src/composables/useUserModal.ts",
+   "src/composables/useVersionCheck.ts"
+  ],
+  "chars": 6353
+ },
+ "api_layer": {
+  "files": [
+   "src/api/admin_broadcasts.ts",
+   "src/api/aiClient.ts",
+   "src/api/api_catalog.ts",
+   "src/api/attachments.ts",
+   "src/api/audit.ts",
+   "src/api/auth.ts",
+   "src/api/bpKpi.ts",
+   "src/api/calendar.ts",
+   "src/api/client.ts",
+   "src/api/companies.ts",
+   "src/api/companiesAdminV2.ts",
+   "src/api/companyLibrary.ts",
+   "src/api/consultants.ts",
+   "src/api/credit.ts",
+   "src/api/dbAdmin.ts",
+   "src/api/directions.ts",
+   "src/api/directory.ts",
+   "src/api/elasticity.ts",
+   "src/api/emailSettings.ts",
+   "src/api/esg.ts",
+   "src/api/execOverview.ts",
+   "src/api/executiveDashboard.ts",
+   "src/api/external_apis.ts",
+   "src/api/governance.ts",
+   "src/api/holidays.ts",
+   "src/api/ifrsReportHistory.ts",
+   "src/api/moderation.ts",
+   "src/api/notes.ts",
+   "src/api/overviewMatrix.ts",
+   "src/api/partners.ts",
+   "src/api/pmo.ts",
+   "src/api/procurement_analysis.ts",
+   "src/api/production.ts",
+   "src/api/rbacV3.ts",
+   "src/api/reportWizard.ts",
+   "src/api/scenarios.ts",
+   "src/api/statusUpdates.ts",
+   "src/api/subsidies.ts",
+   "src/api/systemConfig.ts",
+   "src/api/tasks.ts",
+   "src/api/tlsAdmin.ts",
+   "src/api/unitCost.ts"
+  ],
+  "chars": 11732
+ },
+ "stores_utils": {
+  "files": [
+   "src/stores/apiCatalog.ts",
+   "src/stores/auth.ts",
+   "src/stores/companies.ts",
+   "src/stores/companyLibrary.ts",
+   "src/utils/chartjsRegister.ts",
+   "src/utils/codeGenerator.ts",
+   "src/utils/countUp.ts",
+   "src/utils/displayNames.ts",
+   "src/utils/execBand.ts",
+   "src/utils/forecast.ts",
+   "src/utils/forensicTemplate.ts",
+   "src/utils/hlfHeadline.ts",
+   "src/utils/kpiRatio.ts",
+   "src/utils/passwordGuard.ts",
+   "src/utils/pctColor.ts",
+   "src/utils/permissions.ts",
+   "src/utils/progress.ts",
+   "src/utils/renderMarkdown.ts",
+   "src/utils/sectorMeta.ts"
+  ],
+  "chars": 7249
+ },
+ "ui_shared": {
+  "files": [
+   "src/components/ActorAvatar.vue",
+   "src/components/AppTopbar.vue",
+   "src/components/BadgeDeferred.vue",
+   "src/components/BadgeOverdue.vue",
+   "src/components/BadgePriority.vue",
+   "src/components/BadgeStatus.vue",
+   "src/components/ChipFilter.vue",
+   "src/components/CompanyAvatar.vue",
+   "src/components/CompanyNotesTab.vue",
+   "src/components/ConfirmHost.vue",
+   "src/components/DirectionBadge.vue",
+   "src/components/EptLogo.vue",
+   "src/components/GlobalEntityEditor.vue",
+   "src/components/LangSwitcher.vue",
+   "src/components/MentionableTextarea.vue",
+   "src/components/ModalShell.vue",
+   "src/components/NoteAssigneePicker.vue",
+   "src/components/NumMixed.vue",
+   "src/components/Odometer.vue",
+   "src/components/ScrollToTopButton.vue",
+   "src/components/SidebarBurger.vue",
+   "src/components/StatusTracker.vue",
+   "src/components/TaskModal.vue",
+   "src/components/ToastContainer.vue",
+   "src/components/UserAutocomplete.vue",
+   "src/components/UserHover.vue",
+   "src/components/UserProfileModal.vue",
+   "src/components/VersionUpdateBanner.vue"
+  ],
+  "chars": 11095
+ },
+ "views_misc": {
+  "files": [
+   "src/components/Attachments/AttachmentDenyModal.vue",
+   "src/components/Attachments/AttachmentsPanel.vue",
+   "src/components/Consultants/ConsultantsDrillModal.vue",
+   "src/components/CreditPortfolio/CreditDonut.vue",
+   "src/views/Consultants.vue",
+   "src/views/NotFound.vue",
+   "src/views/SecuritySettings.vue",
+   "src/views/SoeHealthDashboard.vue",
+   "src/views/admin/CatalogsPage.vue",
+   "src/views/admin/StoragePage.vue",
+   "src/views/devdocs/AuthPage.vue",
+   "src/views/devdocs/DevDocsFooter.vue",
+   "src/views/devdocs/DevDocsHero.vue",
+   "src/views/devdocs/DevDocsSidebar.vue",
+   "src/views/devdocs/EndpointPage.vue",
+   "src/views/devdocs/ModulePage.vue",
+   "src/views/devdocs/QuickstartPage.vue",
+   "src/views/devdocs/RateLimitsPage.vue",
+   "src/views/devdocs/SdkPage.vue",
+   "src/views/devdocs/WebhooksPage.vue"
+  ],
+  "chars": 11742
+ }
+}

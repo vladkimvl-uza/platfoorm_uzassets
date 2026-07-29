@@ -8,6 +8,9 @@
  */
 import { ref } from "vue";
 import { api } from "@/api/client";
+import { useI18n } from "@/composables/useI18n";
+
+const { t } = useI18n();
 
 const props = withDefaults(
   defineProps<{
@@ -21,14 +24,17 @@ const props = withDefaults(
     /** Sheet name to look for in xlsx for the preview (regex). */
     sheetMatch?: RegExp | null;
     /** Format the backend response into a user-facing success line. */
-    formatResult?: (data: unknown) => string;
+    formatResult?: ((data: unknown) => string) | null;
   }>(),
   {
     endpoint:    "/forensic/import-excel",
     title:       "Импорт плана/факта закупок · Excel",
     description: "3-листовой файл: Инструкция · Компании · Данные. Скачайте шаблон ниже если ещё нет.",
     sheetMatch:  () => /данные/i,
-    formatResult: () => (data: unknown) => `Загружено: ${(data as { inserted?: number })?.inserted ?? "?"} строк`,
+    // Дефолты defineProps хойстятся ВНЕ setup() — вызывать здесь t() нельзя
+    // (компилятор Vue падает). Строки-дефолты хранятся по-русски и
+    // переводятся в точке отображения; formatResult по умолчанию null.
+    formatResult: null,
   },
 );
 const emit = defineEmits<{
@@ -43,6 +49,7 @@ const previewHeaders = ref<string[]>([]);
 const parseError = ref<string | null>(null);
 const uploading = ref(false);
 const uploadResult = ref<string | null>(null);
+const uploadErr = ref(false);
 const fileInputRef = ref<HTMLInputElement | null>(null);
 
 function onDragOver(e: DragEvent) {
@@ -75,7 +82,7 @@ async function handleFile(file: File) {
     const matcher = props.sheetMatch;
     const sheetName = (matcher && wb.SheetNames.find(n => matcher.test(n))) || wb.SheetNames[0];
     if (!sheetName) {
-      parseError.value = "В файле нет листов.";
+      parseError.value = t("В файле нет листов.");
       return;
     }
     const sheet = wb.Sheets[sheetName!];
@@ -85,13 +92,13 @@ async function handleFile(file: File) {
       i === 0 ? r.map(c => String(c ?? "").trim()) : r,
     );
     if (!rows.length) {
-      parseError.value = "Лист пуст.";
+      parseError.value = t("Лист пуст.");
       return;
     }
     previewHeaders.value = rows[0].map(c => String(c ?? ""));
     previewRows.value = rows.slice(1, 6) as unknown[][];
   } catch (e) {
-    parseError.value = (e as Error).message || "Не удалось распарсить файл.";
+    parseError.value = (e as Error).message || t("Не удалось распарсить файл.");
   }
 }
 
@@ -99,21 +106,27 @@ async function submit() {
   if (!selectedFile.value) return;
   uploading.value = true;
   uploadResult.value = null;
+  uploadErr.value = false;
   try {
     const fd = new FormData();
     fd.append("file", selectedFile.value);
     const r = await api.post(props.endpoint, fd, {
       headers: { "Content-Type": "multipart/form-data" },
     });
-    uploadResult.value = props.formatResult(r.data);
+    uploadResult.value = props.formatResult
+      ? props.formatResult(r.data)
+      : t("Загружено: {n} строк", {
+          n: (r.data as { inserted?: number })?.inserted ?? "?",
+        });
     emit("uploaded");
     setTimeout(() => emit("close"), 1800);
   } catch (e: unknown) {
     const err = e as { response?: { status?: number; data?: { detail?: string } }; message?: string };
+    uploadErr.value = true;
     if (err?.response?.status === 404) {
-      uploadResult.value = `⚠ Backend-эндпоинт ${props.endpoint} не найден. Файл валиден и распарсен.`;
+      uploadResult.value = "⚠ " + t("Backend-эндпоинт {ep} не найден. Файл валиден и распарсен.", { ep: props.endpoint });
     } else {
-      uploadResult.value = "Ошибка: " + (err?.response?.data?.detail || err?.message || "—");
+      uploadResult.value = t("Ошибка: {msg}", { msg: err?.response?.data?.detail || err?.message || "—" });
     }
   } finally {
     uploading.value = false;
@@ -127,8 +140,8 @@ async function submit() {
       <div class="pa-modal-card">
         <div class="pa-mh">
           <div class="pa-mh-l">
-            <div class="pa-mh-t">{{ title }}</div>
-            <div class="pa-mh-s">{{ description }}</div>
+            <div class="pa-mh-t">{{ t(title) }}</div>
+            <div class="pa-mh-s">{{ t(description) }}</div>
           </div>
           <button class="pa-mh-x" @click="emit('close')">✕</button>
         </div>
@@ -156,8 +169,8 @@ async function submit() {
                 <polyline points="17 8 12 3 7 8"/>
                 <line x1="12" y1="3" x2="12" y2="15"/>
               </svg>
-              <div class="up-drop-t">Перетащите Excel-файл сюда</div>
-              <div class="up-drop-s">или кликните чтобы выбрать (.xlsx / .xls)</div>
+              <div class="up-drop-t">{{ t("Перетащите Excel-файл сюда") }}</div>
+              <div class="up-drop-s">{{ t("или кликните чтобы выбрать (.xlsx / .xls)") }}</div>
             </template>
             <template v-else>
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#1D9E75" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -166,7 +179,7 @@ async function submit() {
                 <polyline points="9 15 11 17 15 13"/>
               </svg>
               <div class="up-drop-t">{{ selectedFile.name }}</div>
-              <div class="up-drop-s">{{ (selectedFile.size / 1024).toFixed(0) }} KB · клик чтобы заменить</div>
+              <div class="up-drop-s">{{ t("{kb} KB · клик чтобы заменить", { kb: (selectedFile.size / 1024).toFixed(0) }) }}</div>
             </template>
           </div>
 
@@ -175,7 +188,7 @@ async function submit() {
           <!-- Preview -->
           <div v-if="previewHeaders.length && !parseError" class="up-preview">
             <div class="up-prev-h">
-              Предпросмотр · первые {{ previewRows.length }} {{ previewRows.length === 1 ? 'строка' : 'строк' }}
+              {{ previewRows.length === 1 ? t("Предпросмотр · первая строка") : t("Предпросмотр · первые {n} строк", { n: previewRows.length }) }}
             </div>
             <div class="up-prev-wrap">
               <table class="up-prev-tbl">
@@ -197,25 +210,25 @@ async function submit() {
             </div>
           </div>
 
-          <div v-if="uploadResult" class="up-result" :class="{ err: uploadResult.startsWith('⚠') || uploadResult.startsWith('Ошибка') }">
+          <div v-if="uploadResult" class="up-result" :class="{ err: uploadErr }">
             {{ uploadResult }}
           </div>
         </div>
 
         <div class="pa-mf">
           <div class="pa-mf-meta">
-            <span v-if="!selectedFile">Выберите файл</span>
-            <span v-else-if="parseError">Файл невалиден</span>
-            <span v-else-if="!uploadResult">Готов к загрузке</span>
+            <span v-if="!selectedFile">{{ t("Выберите файл") }}</span>
+            <span v-else-if="parseError">{{ t("Файл невалиден") }}</span>
+            <span v-else-if="!uploadResult">{{ t("Готов к загрузке") }}</span>
           </div>
           <div class="pa-mf-actions">
-            <button class="pa-mf-btn" @click="emit('close')">Отмена</button>
+            <button class="pa-mf-btn" @click="emit('close')">{{ t("Отмена") }}</button>
             <button
               class="pa-mf-btn primary"
               :disabled="!selectedFile || !!parseError || uploading"
               @click="submit"
             >
-              {{ uploading ? 'Загрузка…' : 'Загрузить' }}
+              {{ uploading ? t('Загрузка…') : t('Загрузить') }}
             </button>
           </div>
         </div>

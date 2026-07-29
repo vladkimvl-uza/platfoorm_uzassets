@@ -19,6 +19,7 @@ import { useRouter } from "vue-router";
 import EntityDrillShell from "@/components/UZA/EntityDrillShell.vue";
 import { useToast } from "@/composables/useToast";
 import { usePermissions } from "@/composables/usePermissions";
+import { useI18n } from "@/composables/useI18n";
 import { useAuthStore } from "@/stores/auth";
 import type { CompanyListItem, SectorBrief } from "@/api/companies";
 
@@ -40,6 +41,7 @@ const emit = defineEmits<{ (e: "close"): void; }>();
 
 const router = useRouter();
 const toast = useToast();
+const { t } = useI18n();
 const auth = useAuthStore();
 const finPerm = usePermissions("financials");
 const canEdit = computed(() => finPerm.canEdit.value);
@@ -61,8 +63,8 @@ function fmtDateTime(iso: string | null): string {
 }
 const lastEditedText = computed(() =>
   lastEdit.value
-    ? `Изменено: ${lastEdit.value.by} · ${fmtDateTime(lastEdit.value.at)}`
-    : "Изменений ещё не было",
+    ? t("Изменено: {by} · {at}", { by: lastEdit.value.by, at: fmtDateTime(lastEdit.value.at) })
+    : t("Изменений ещё не было"),
 );
 
 // Локальный выбор стандарта и года — селекторы в шапке модалки (как в обзоре
@@ -306,7 +308,7 @@ async function loadData() {
     activeSection.value = "pnl";
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    fetchError.value = err?.response?.data?.detail || err?.message || "Не удалось загрузить данные";
+    fetchError.value = err?.response?.data?.detail || err?.message || t("Не удалось загрузить данные");
     values.value = {};
     notes.value = {};
     auditMeta.value = null;
@@ -475,7 +477,7 @@ const kpiCards = computed<KpiCardData[]>(() => {
       return {
         id: kpi.id, src: "fin" as const, label: kpi.label,
         value: ratio == null ? "—" : ratio.toFixed(1) + "%",
-        raw: ratio, subtext: "COGS / выручка", subColor: "#534AB7",
+        raw: ratio, subtext: t("COGS / выручка"), subColor: "#534AB7",
       };
     }
     const indCurr = curRaw(kpi.id, localYear.value);
@@ -488,30 +490,30 @@ const kpiCards = computed<KpiCardData[]>(() => {
     let subtext = `${yoy.text} vs ${localYear.value - 1}`;
     let subColor = yoy.color;
     if (curr == null) {
-      subtext = "нет данных";
+      subtext = t("нет данных");
       subColor = "#94A3B8";
     }
     if (usingEmpFallback) {
-      subtext = "штат компании";
+      subtext = t("штат компании");
       subColor = "#94A3B8";
     }
     // Special: EBITDA → show margin instead of YoY
     if (kpi.id === "ebitda") {
       const rev = getValue("revenue", localYear.value);
       if (curr != null && rev != null && rev > 0) {
-        subtext = `маржа ${((curr / rev) * 100).toFixed(1)}%`;
+        subtext = t("маржа {v}%", { v: ((curr / rev) * 100).toFixed(1) });
       }
     }
     if (kpi.id === "totalAssets" && localStandard.value === "IFRS") {
       // Show debt-to-assets ratio
       const debt = getValue("debt", localYear.value);
       if (curr != null && debt != null && curr > 0) {
-        subtext = `долг ${((debt / curr) * 100).toFixed(0)}% от активов`;
+        subtext = t("долг {v}% от активов", { v: ((debt / curr) * 100).toFixed(0) });
         subColor = "#534AB7";
       }
     }
     const value = kpi.unit === "people"
-      ? (curr == null ? "—" : `${fmtNum(curr)} чел.`)
+      ? (curr == null ? "—" : t("{n} чел.", { n: fmtNum(curr) }))
       : fmtNum(curr);
     return {
       id: kpi.id, src: (kpi.src || "fin"), label: kpi.label,
@@ -523,7 +525,7 @@ const kpiCards = computed<KpiCardData[]>(() => {
 // ─── Инлайн-редактирование (значения KPI/таблицы + ИНН) ───────────────────
 function errMsg(e: unknown): string {
   const err = e as { response?: { data?: { detail?: string } }; message?: string };
-  return err?.response?.data?.detail || err?.message || "ошибка";
+  return err?.response?.data?.detail || err?.message || t("ошибка");
 }
 function parseNum(raw: string): number | null {
   const cleaned = raw.replace(/\s/g, "").replace(",", ".").trim();
@@ -577,10 +579,10 @@ async function saveInn(v: string) {
     const { api } = await import("@/api/client");
     await api.put(`/financials/companies/${props.companyCode}/indicators`, { set_inn: true, inn: v });
     markEdited();
-    toast.success(v ? "ИНН сохранён" : "ИНН очищен");
+    toast.success(v ? t("ИНН сохранён") : t("ИНН очищен"));
   } catch (e: unknown) {
     inn.value = prev;
-    toast.error("Не удалось сохранить ИНН: " + errMsg(e));
+    toast.error(t("Не удалось сохранить ИНН: {e}", { e: errMsg(e) }));
   } finally { saving.value = false; }
 }
 
@@ -597,10 +599,10 @@ async function saveIndicator(field: string, year: number, num: number | null) {
       indicators: { [field]: { [ys]: num } },
     });
     markEdited();
-    toast.success("Сохранено");
+    toast.success(t("Сохранено"));
   } catch (e: unknown) {
     indicators.value = { ...indicators.value, [field]: prevMap };
-    toast.error("Не сохранено: " + errMsg(e));
+    toast.error(t("Не сохранено: {e}", { e: errMsg(e) }));
   } finally { saving.value = false; }
 }
 
@@ -635,10 +637,10 @@ async function saveFinancial(field: string, year: number, num: number | null) {
     }
     await api.put(url, payload);
     markEdited();
-    toast.success("Сохранено");
+    toast.success(t("Сохранено"));
   } catch (e: unknown) {
     values.value = { ...values.value, [field]: prevMap };
-    toast.error("Не сохранено: " + errMsg(e));
+    toast.error(t("Не сохранено: {e}", { e: errMsg(e) }));
   } finally { saving.value = false; }
 }
 
@@ -652,7 +654,7 @@ const sectionNotes = computed<Array<{ field: string; label: string; text: string
     if (!fieldIds.has(fieldId)) continue;
     if (!text || !text.trim()) continue;
     const rowDef = currentRows.find(r => r.id === fieldId);
-    result.push({ field: fieldId, label: renames.value[fieldId] || rowDef?.label || fieldId, text });
+    result.push({ field: fieldId, label: renames.value[fieldId] || (rowDef?.label ? t(rowDef.label) : fieldId), text });
   }
   return result;
 });
@@ -674,7 +676,7 @@ const auditLine = computed<string>(() => {
   if (a.signed_at) {
     try {
       const d = new Date(a.signed_at);
-      parts.push(`подписан ${d.toLocaleDateString("ru")}`);
+      parts.push(t("подписан {d}", { d: d.toLocaleDateString("ru") }));
     } catch { /* noop */ }
   }
   return parts.join(" · ");
@@ -705,7 +707,7 @@ function close() {
           <div class="cdrl-badges">
             <span class="cdrl-badge" :class="localStandard === 'IFRS' ? 'badge-ifrs' : 'badge-nsbu'">
               <svg viewBox="0 0 12 12" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 6h8M2 4h8M2 8h6" /><path v-if="localStandard === 'IFRS'" d="M9 2v8" /></svg>
-              {{ localStandard === 'IFRS' ? 'МСФО · 4 секции' : 'НСБУ · форма 2 + 1' }}
+              {{ localStandard === 'IFRS' ? t('МСФО · 4 секции') : t('НСБУ · форма 2 + 1') }}
             </span>
             <span v-if="auditLine" class="cdrl-badge badge-audit">{{ auditLine }}</span>
             <span v-if="auditMeta?.is_restated" class="cdrl-badge badge-restated">
@@ -715,7 +717,7 @@ function close() {
           </div>
           <!-- ИНН компании — inline-редактируемый -->
           <div class="cdrl-inn">
-            <span class="cdrl-inn-lbl">ИНН</span>
+            <span class="cdrl-inn-lbl">{{ t("ИНН") }}</span>
             <input v-if="isEditing('inn', '__inn__', 0)"
                    :ref="onEditMounted" v-model="editVal"
                    class="cdrl-inn-inp" type="text" inputmode="numeric" maxlength="14"
@@ -725,18 +727,18 @@ function close() {
                    @blur="commitEdit" />
             <button v-else type="button" class="cdrl-inn-val"
                     :class="{ editable: canEdit }" :disabled="!canEdit"
-                    :title="canEdit ? 'Нажмите, чтобы изменить ИНН' : ''"
+                    :title="canEdit ? t('Нажмите, чтобы изменить ИНН') : ''"
                     @click="startEditInn">{{ inn || "—" }}</button>
           </div>
         </div>
         <!-- В embedded стандарт задаёт вкладка (ifrs/nsbu), год — степпер воркспейса,
              поэтому свои селекторы прячем; в модалке — как было. -->
         <div v-if="!isEmbedded" class="cdrl-hdr-right">
-          <div class="cdrl-seg" role="group" aria-label="Стандарт">
-            <button type="button" :class="{ on: localStandard === 'IFRS' }" @click="localStandard = 'IFRS'">МСФО</button>
-            <button type="button" :class="{ on: localStandard === 'NSBU' }" @click="localStandard = 'NSBU'">НСБУ</button>
+          <div class="cdrl-seg" role="group" :aria-label="t('Стандарт')">
+            <button type="button" :class="{ on: localStandard === 'IFRS' }" @click="localStandard = 'IFRS'">{{ t("МСФО") }}</button>
+            <button type="button" :class="{ on: localStandard === 'NSBU' }" @click="localStandard = 'NSBU'">{{ t("НСБУ") }}</button>
           </div>
-          <select v-model.number="localYear" class="cdrl-sel" title="Финансовый год">
+          <select v-model.number="localYear" class="cdrl-sel" :title="t('Финансовый год')">
             <option v-for="y in yearOptions" :key="y" :value="y">FY {{ y }}</option>
           </select>
           <span class="cdrl-pill-static">{{ currency }}</span>
@@ -760,7 +762,7 @@ function close() {
       <div v-else class="cdrl-kpis" :class="{ 'cdrl-kpis-many': kpiCards.length >= 7 }"
            :style="{ gridTemplateColumns: `repeat(${kpiCards.length}, minmax(0, 1fr))` }">
         <div v-for="(kpi, idx) in kpiCards" :key="idx" class="cdrl-kpi" :class="{ 'cdrl-kpi-ind': kpi.src === 'ind' }">
-          <div class="cdrl-kpi-lbl">{{ kpi.label }}</div>
+          <div class="cdrl-kpi-lbl">{{ t(kpi.label) }}</div>
           <div class="cdrl-kpi-val">
             <template v-if="loading">…</template>
             <input v-else-if="isEditing('kpi', kpi.id, localYear)"
@@ -782,10 +784,10 @@ function close() {
         <div class="cdrl-tabs-left">
           <button v-for="sec in sections" :key="sec.id"
                   class="cdrl-tab" :class="{ on: activeSection === sec.id }"
-                  @click="activeSection = sec.id">{{ sec.label }}</button>
+                  @click="activeSection = sec.id">{{ t(sec.label) }}</button>
         </div>
-        <select v-model="fcModel" class="cdrl-fc-select" title="Прогноз будущих лет">
-          <option v-for="o in FC_OPTS" :key="o.id" :value="o.id">{{ o.label }}</option>
+        <select v-model="fcModel" class="cdrl-fc-select" :title="t('Прогноз будущих лет')">
+          <option v-for="o in FC_OPTS" :key="o.id" :value="o.id">{{ t(o.label) }}</option>
         </select>
       </div>
 
@@ -794,9 +796,9 @@ function close() {
         <table class="cdrl-table">
           <thead>
             <tr>
-              <th v-if="localStandard === 'NSBU'" class="cdrl-th-code">КОД</th>
-              <th class="cdrl-th-name">ПОКАЗАТЕЛЬ</th>
-              <th v-for="y in displayYears" :key="y" class="cdrl-th-num" :class="{ current: y === localYear, fc: isFcYear(y) }">{{ y }}<span v-if="isFcYear(y)" class="cdrl-fc-tag">П</span></th>
+              <th v-if="localStandard === 'NSBU'" class="cdrl-th-code">{{ t("Код") }}</th>
+              <th class="cdrl-th-name">{{ t("Показатель") }}</th>
+              <th v-for="y in displayYears" :key="y" class="cdrl-th-num" :class="{ current: y === localYear, fc: isFcYear(y) }">{{ y }}<span v-if="isFcYear(y)" class="cdrl-fc-tag">{{ t("П") }}</span></th>
               <th class="cdrl-th-yoy">YoY</th>
               <th v-if="localStandard === 'IFRS'" class="cdrl-th-note"></th>
             </tr>
@@ -804,11 +806,11 @@ function close() {
           <tbody>
             <template v-for="row in sections.find(s => s.id === activeSection)?.rows || []" :key="row.id">
               <tr v-if="row.groupHeader" class="cdrl-group">
-                <td :colspan="displayYears.length + 3">{{ row.groupHeader }}</td>
+                <td :colspan="displayYears.length + 3">{{ t(row.groupHeader) }}</td>
               </tr>
               <tr :class="{ 'cdrl-sub': row.isSubtotal, 'cdrl-highlight': row.isHighlight }">
                 <td v-if="localStandard === 'NSBU'" class="cdrl-td-code">{{ row.code || "" }}</td>
-                <td class="cdrl-td-name">{{ renames[row.id] || row.label }}</td>
+                <td class="cdrl-td-name">{{ renames[row.id] || t(row.label) }}</td>
                 <td v-for="y in displayYears" :key="y"
                     class="cdrl-td-num"
                     :class="{ current: y === localYear, fc: isFcYear(y), editable: canEdit && !isFcYear(y), on: isEditing('cell', row.id, y) }">
@@ -829,7 +831,7 @@ function close() {
               </tr>
             </template>
             <tr v-if="loading">
-              <td :colspan="displayYears.length + 3" class="cdrl-loading">Загрузка…</td>
+              <td :colspan="displayYears.length + 3" class="cdrl-loading">{{ t("Загрузка…") }}</td>
             </tr>
           </tbody>
         </table>
@@ -851,7 +853,7 @@ function close() {
         <span class="cdrl-ftr-info">{{ lastEditedText }}</span>
         <div class="cdrl-ftr-actions">
           <button class="cdrl-btn-cta" :class="localStandard === 'IFRS' ? 'cta-ifrs' : 'cta-nsbu'" @click="onOpenEditor">
-            Открыть в редакторе {{ localStandard === 'IFRS' ? 'МСФО' : 'НСБУ' }}
+            {{ t("Открыть в редакторе {std}", { std: localStandard === 'IFRS' ? t('МСФО') : t('НСБУ') }) }}
           </button>
         </div>
       </div>

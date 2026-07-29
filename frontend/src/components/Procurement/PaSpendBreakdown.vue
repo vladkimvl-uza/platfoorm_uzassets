@@ -5,6 +5,9 @@
  */
 import { computed } from "vue";
 import { paFmtMoneyShort } from "@/api/procurement_analysis";
+import { useI18n } from "@/composables/useI18n";
+
+const { t } = useI18n();
 
 const props = defineProps<{
   total: number;
@@ -27,21 +30,21 @@ function pct(v: number): number {
   <div class="psb">
     <div class="psb-head">
       <div class="psb-total">
-        {{ paFmtMoneyShort(tot) }}<span class="psb-cur"> сум</span>
+        {{ paFmtMoneyShort(tot) }}<span class="psb-cur"> {{ t("сум") }}</span>
       </div>
       <div class="psb-lbl">
-        Общий объём закупок<template v-if="lots"> · {{ lots }} лот.</template>
+        {{ t("Общий объём закупок") }}<template v-if="lots"> · {{ lots }} {{ t("лот.") }}</template>
       </div>
     </div>
     <div class="psb-bar">
-      <span class="psb-seg goods" :style="{ width: pct(g) + '%' }" :title="`Товары: ${paFmtMoneyShort(g)}`" />
-      <span class="psb-seg serv" :style="{ width: pct(s) + '%' }" :title="`Услуги: ${paFmtMoneyShort(s)}`" />
-      <span class="psb-seg work" :style="{ width: pct(w) + '%' }" :title="`Работы: ${paFmtMoneyShort(w)}`" />
+      <span class="psb-seg goods" :style="{ width: pct(g) + '%' }" :title="t('Товары') + ': ' + paFmtMoneyShort(g)" />
+      <span class="psb-seg serv" :style="{ width: pct(s) + '%' }" :title="t('Услуги') + ': ' + paFmtMoneyShort(s)" />
+      <span class="psb-seg work" :style="{ width: pct(w) + '%' }" :title="t('Работы') + ': ' + paFmtMoneyShort(w)" />
     </div>
     <div class="psb-leg">
-      <span class="psb-li"><i class="goods" />Товары <b>{{ paFmtMoneyShort(g) }}</b> · {{ pct(g).toFixed(0) }}%</span>
-      <span class="psb-li"><i class="serv" />Услуги <b>{{ paFmtMoneyShort(s) }}</b> · {{ pct(s).toFixed(0) }}%</span>
-      <span class="psb-li"><i class="work" />Работы <b>{{ paFmtMoneyShort(w) }}</b> · {{ pct(w).toFixed(0) }}%</span>
+      <span class="psb-li"><i class="goods" />{{ t("Товары") }} <b>{{ paFmtMoneyShort(g) }}</b> · {{ pct(g).toFixed(0) }}%</span>
+      <span class="psb-li"><i class="serv" />{{ t("Услуги") }} <b>{{ paFmtMoneyShort(s) }}</b> · {{ pct(s).toFixed(0) }}%</span>
+      <span class="psb-li"><i class="work" />{{ t("Работы") }} <b>{{ paFmtMoneyShort(w) }}</b> · {{ pct(w).toFixed(0) }}%</span>
     </div>
   </div>
 </template>

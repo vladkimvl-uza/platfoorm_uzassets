@@ -14,9 +14,11 @@ import { mfaApi } from "@/api/mfa";
 import { authApi } from "@/api/auth";
 import { api } from "@/api/client";
 import { AxiosError } from "axios";
+import { useI18n } from "@/composables/useI18n";
 import minfinLogoUrl from "@/assets/minfin-logo-eng.png";
 import uzassetsLogoUrl from "@/assets/uzassets-logo-wide.png";
 
+const { t } = useI18n();
 const router = useRouter();
 const auth = useAuthStore();
 
@@ -105,7 +107,7 @@ async function submitInit() {
     initMessage.value = data.message;
     step.value = 2;
   } catch (e) {
-    error.value = parseErr(e, "Не удалось отправить код");
+    error.value = parseErr(e, t("Не удалось отправить код"));
   } finally {
     busy.value = false;
   }
@@ -120,7 +122,7 @@ async function submitVerify() {
       "/auth/forgot-password/verify",
       { reset_id: resetId.value, code: code.value.trim(), new_password: newPwd.value },
     );
-    if (!data.ok) throw new Error("Не удалось сбросить пароль");
+    if (!data.ok) throw new Error(t("Не удалось сбросить пароль"));
     step.value = 3;
 
     // Auto-login attempt
@@ -156,7 +158,7 @@ async function submitVerify() {
       }
     }, 1400);
   } catch (e) {
-    error.value = parseErr(e, "Неверный код или истёк срок действия");
+    error.value = parseErr(e, t("Неверный код или истёк срок действия"));
   } finally {
     busy.value = false;
   }
@@ -174,7 +176,7 @@ function parseErr(e: unknown, fallback: string): string {
   if (e instanceof AxiosError) {
     const status = e.response?.status;
     const detail = e.response?.data?.detail;
-    if (status === 429) return "Слишком много попыток. Попробуйте через час.";
+    if (status === 429) return t("Слишком много попыток. Попробуйте через час.");
     if (typeof detail === "string") return detail;
   }
   if (e instanceof Error) return e.message || fallback;
@@ -208,64 +210,66 @@ function parseErr(e: unknown, fallback: string): string {
 
       <!-- RIGHT form panel -->
       <div class="fp-card">
-        <h1 class="fp-title">Восстановление пароля</h1>
+        <h1 class="fp-title">{{ t("Восстановление пароля") }}</h1>
 
         <!-- ─── Step 1: email ─── -->
         <form v-if="step === 1" @submit.prevent="submitInit" class="fp-form">
-          <p class="fp-sub">Введите email или логин и выберите, куда прислать код подтверждения.</p>
+          <p class="fp-sub">{{ t("Введите email или логин и выберите, куда прислать код подтверждения.") }}</p>
           <div class="fp-field">
-            <label class="fp-label">Email или логин</label>
+            <label class="fp-label">{{ t("Email или логин") }}</label>
             <input v-model="login" type="text" autocomplete="username" :disabled="busy" class="fp-input" @input="onLoginInput"/>
           </div>
 
           <!-- Выбор канала: показываем только доступные -->
           <div v-if="chTelegram || chEmail" class="fp-field">
-            <label class="fp-label">Куда отправить код</label>
+            <label class="fp-label">{{ t("Куда отправить код") }}</label>
             <div class="fp-channels">
               <button
                 v-if="chTelegram" type="button" class="fp-ch" :class="{ on: channel === 'telegram' }"
                 @click="channel = 'telegram'"
               >
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M21.94 4.5L18.7 19.78c-.24 1.08-.88 1.35-1.78.84l-4.92-3.63-2.37 2.28c-.26.26-.48.48-.99.48l.35-5.02 9.13-8.25c.4-.35-.09-.55-.62-.2L4.93 13.14l-4.86-1.52c-1.06-.33-1.08-1.06.22-1.57L20.58 2.9c.88-.33 1.65.2 1.36 1.6z"/></svg>
-                <span><b>Telegram-бот</b><i>{{ chMaskedTg || "привязанный бот" }}</i></span>
+                <span><b>{{ t("Telegram-бот") }}</b><i>{{ chMaskedTg || t("привязанный бот") }}</i></span>
               </button>
               <button
                 v-if="chEmail" type="button" class="fp-ch" :class="{ on: channel === 'email' }"
                 @click="channel = 'email'"
               >
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 6 10-6"/></svg>
-                <span><b>Электронная почта</b><i>{{ chMaskedEmail || "ваш email" }}</i></span>
+                <span><b>{{ t("Электронная почта") }}</b><i>{{ chMaskedEmail || t("ваш email") }}</i></span>
               </button>
             </div>
           </div>
           <div v-else-if="noChannels" class="fp-warn">
-            К аккаунту не привязан Telegram-бот и недоступна почта. Обратитесь к администратору для сброса пароля.
+            {{ t("К аккаунту не привязан Telegram-бот и недоступна почта. Обратитесь к администратору для сброса пароля.") }}
           </div>
 
           <button type="submit" :disabled="!canInit" class="fp-btn">
             <span v-if="busy" class="fp-spinner"></span>
-            {{ busy ? "Отправка…" : "Получить код" }}
+            {{ busy ? t("Отправка…") : t("Получить код") }}
           </button>
-          <RouterLink to="/login" class="fp-link">← К входу</RouterLink>
+          <RouterLink to="/login" class="fp-link">← {{ t("К входу") }}</RouterLink>
         </form>
 
         <!-- ─── Step 2: code + new password ─── -->
         <form v-else-if="step === 2" @submit.prevent="submitVerify" class="fp-form">
           <p class="fp-sub">
-            Код отправлен <template v-if="sentVia === 'email'">на <strong>{{ maskedEmail ?? "вашу почту" }}</strong></template><template v-else>в <strong>{{ maskedTg ?? "Telegram-бот" }}</strong></template>.
-            Действителен <strong>{{ ttlMin }} мин</strong>.
+            {{ sentVia === 'email'
+              ? t("Код отправлен на {dest}.", { dest: maskedEmail ?? t("вашу почту") })
+              : t("Код отправлен в {dest}.", { dest: maskedTg ?? t("Telegram-бот") }) }}
+            <strong>{{ t("Действителен {n} мин", { n: ttlMin }) }}</strong>.
           </p>
           <div class="fp-field">
-            <label class="fp-label">Код подтверждения (6 цифр)</label>
+            <label class="fp-label">{{ t("Код подтверждения (6 цифр)") }}</label>
             <input v-model="code" type="text" inputmode="numeric" pattern="[0-9]{6}" maxlength="6"
                    class="fp-input fp-input-code" autofocus :disabled="busy"/>
           </div>
           <div class="fp-field">
-            <label class="fp-label">Новый пароль</label>
+            <label class="fp-label">{{ t("Новый пароль") }}</label>
             <div class="fp-input-wrap">
               <input v-model="newPwd" :type="showPwd ? 'text' : 'password'" autocomplete="new-password"
                      :disabled="busy" class="fp-input fp-input-with-eye"/>
-              <button type="button" class="fp-eye" :aria-label="showPwd ? 'Скрыть' : 'Показать'" @click="showPwd = !showPwd">
+              <button type="button" class="fp-eye" :aria-label="showPwd ? t('Скрыть') : t('Показать')" @click="showPwd = !showPwd">
                 <svg v-if="!showPwd" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
                 </svg>
@@ -274,20 +278,20 @@ function parseErr(e: unknown, fallback: string): string {
                 </svg>
               </button>
             </div>
-            <div class="fp-hint">Минимум 12 символов</div>
+            <div class="fp-hint">{{ t("Минимум 12 символов") }}</div>
           </div>
           <div class="fp-field">
-            <label class="fp-label">Повтор нового пароля</label>
+            <label class="fp-label">{{ t("Повтор нового пароля") }}</label>
             <input v-model="confirmPwd" type="password" autocomplete="new-password" :disabled="busy"
                    class="fp-input"
                    :class="{ 'fp-input-err': confirmPwd.length > 0 && confirmPwd !== newPwd }"/>
-            <div v-if="confirmPwd.length > 0 && confirmPwd !== newPwd" class="fp-hint fp-hint-err">Пароли не совпадают</div>
+            <div v-if="confirmPwd.length > 0 && confirmPwd !== newPwd" class="fp-hint fp-hint-err">{{ t("Пароли не совпадают") }}</div>
           </div>
           <button type="submit" :disabled="!canVerify" class="fp-btn">
             <span v-if="busy" class="fp-spinner"></span>
-            {{ busy ? "Сохраняем…" : "Сменить пароль" }}
+            {{ busy ? t("Сохраняем…") : t("Сменить пароль") }}
           </button>
-          <button type="button" @click="backToStep1" class="fp-link" :disabled="busy">← Запросить новый код</button>
+          <button type="button" @click="backToStep1" class="fp-link" :disabled="busy">← {{ t("Запросить новый код") }}</button>
         </form>
 
         <!-- ─── Step 3: success ─── -->
@@ -297,8 +301,8 @@ function parseErr(e: unknown, fallback: string): string {
               <polyline points="20 6 9 17 4 12"/>
             </svg>
           </div>
-          <h2 class="fp-success-title">Пароль изменён</h2>
-          <p class="fp-sub">Выполняем вход…</p>
+          <h2 class="fp-success-title">{{ t("Пароль изменён") }}</h2>
+          <p class="fp-sub">{{ t("Выполняем вход…") }}</p>
         </div>
 
         <transition name="uza-fade">

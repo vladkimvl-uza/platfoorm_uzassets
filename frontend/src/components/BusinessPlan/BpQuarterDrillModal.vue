@@ -6,6 +6,9 @@
  */
 import { computed } from "vue";
 import ModalShell from "@/components/ModalShell.vue";
+import { useI18n } from "@/composables/useI18n";
+
+const { t } = useI18n();
 
 const props = defineProps<{
   q: string;
@@ -59,8 +62,8 @@ const tone = computed(() => {
       <div class="bqd-hd">
         <span class="bqd-q">{{ q.toUpperCase() }}</span>
         <div>
-          <div class="bqd-t">Разбор квартала<span v-if="label"> · {{ label }}</span></div>
-          <div class="bqd-sub" :style="{ color: tone.c }">{{ tone.t }}</div>
+          <div class="bqd-t">{{ t("Разбор квартала") }}<span v-if="label"> · {{ label }}</span></div>
+          <div class="bqd-sub" :style="{ color: tone.c }">{{ t(tone.t) }}</div>
         </div>
         <span v-if="pct != null" class="bqd-badge" :style="{ color: tone.c, background: tone.bg }">{{ pct }}%</span>
       </div>
@@ -70,28 +73,28 @@ const tone = computed(() => {
     <div class="bqd-gauge">
       <div class="bqd-gauge-track">
         <div class="bqd-gauge-fill" :style="{ width: (fillPct / 140 * 100) + '%', background: tone.c }"></div>
-        <div class="bqd-gauge-100" :style="{ left: (100 / 140 * 100) + '%' }" title="План = 100%"></div>
+        <div class="bqd-gauge-100" :style="{ left: (100 / 140 * 100) + '%' }" :title="t('План = 100%')"></div>
       </div>
-      <div class="bqd-gauge-cap"><span>0</span><span>исполнение с начала года · план = 100%</span><span>140%</span></div>
+      <div class="bqd-gauge-cap"><span>0</span><span>{{ t("исполнение с начала года · план = 100%") }}</span><span>140%</span></div>
     </div>
 
     <!-- Секция 1: только этот квартал (дельты) -->
-    <div class="bqd-sec">За квартал {{ q.toUpperCase() }}</div>
+    <div class="bqd-sec">{{ t("За квартал {q}", { q: q.toUpperCase() }) }}</div>
     <div class="bqd-rows">
-      <div class="bqd-row"><span>План</span><b>{{ planDelta != null ? signed(planDelta) : '—' }} <i>{{ unit }}</i></b></div>
-      <div class="bqd-row"><span>Факт</span><b>{{ factDelta != null ? signed(factDelta) : '—' }} <i>{{ unit }}</i></b></div>
-      <div v-if="factDelta == null && fact != null" class="bqd-row-note">за квартал не вычислимо: нет данных предыдущего квартала</div>
-      <div v-if="pctQ != null" class="bqd-row"><span>Исполнение за квартал</span><b :style="{ color: pctColor(pctQ) }">{{ pctQ }}%</b></div>
+      <div class="bqd-row"><span>{{ t("План") }}</span><b>{{ planDelta != null ? signed(planDelta) : '—' }} <i>{{ unit }}</i></b></div>
+      <div class="bqd-row"><span>{{ t("Факт") }}</span><b>{{ factDelta != null ? signed(factDelta) : '—' }} <i>{{ unit }}</i></b></div>
+      <div v-if="factDelta == null && fact != null" class="bqd-row-note">{{ t("за квартал не вычислимо: нет данных предыдущего квартала") }}</div>
+      <div v-if="pctQ != null" class="bqd-row"><span>{{ t("Исполнение за квартал") }}</span><b :style="{ color: pctColor(pctQ) }">{{ pctQ }}%</b></div>
     </div>
 
     <!-- Секция 2: с начала года (как хранится в отчётности НСБУ) -->
-    <div class="bqd-sec">С начала года · нарастающим итогом</div>
+    <div class="bqd-sec">{{ t("С начала года · нарастающим итогом") }}</div>
     <div class="bqd-rows">
-      <div class="bqd-row"><span>План</span><b>{{ plan != null ? fmt(plan) : '—' }} <i>{{ unit }}</i></b></div>
-      <div class="bqd-row"><span>Факт</span><b>{{ fact != null ? fmt(fact) : '—' }} <i>{{ unit }}</i></b></div>
-      <div v-if="expect != null && expect !== fact" class="bqd-row"><span>Ожидание</span><b>{{ fmt(expect) }} <i>{{ unit }}</i></b></div>
-      <div v-if="delta != null" class="bqd-row"><span>Дельта факт−план</span><b :style="{ color: delta >= 0 ? '#0F6E56' : '#C5352F' }">{{ delta >= 0 ? '+' : '' }}{{ fmt(delta) }} <i>{{ unit }}</i></b></div>
-      <div v-if="pct != null" class="bqd-row"><span>Исполнение с начала года</span><b :style="{ color: tone.c }">{{ pct }}%</b></div>
+      <div class="bqd-row"><span>{{ t("План") }}</span><b>{{ plan != null ? fmt(plan) : '—' }} <i>{{ unit }}</i></b></div>
+      <div class="bqd-row"><span>{{ t("Факт") }}</span><b>{{ fact != null ? fmt(fact) : '—' }} <i>{{ unit }}</i></b></div>
+      <div v-if="expect != null && expect !== fact" class="bqd-row"><span>{{ t("Ожидание") }}</span><b>{{ fmt(expect) }} <i>{{ unit }}</i></b></div>
+      <div v-if="delta != null" class="bqd-row"><span>{{ t("Дельта факт−план") }}</span><b :style="{ color: delta >= 0 ? '#0F6E56' : '#C5352F' }">{{ delta >= 0 ? '+' : '' }}{{ fmt(delta) }} <i>{{ unit }}</i></b></div>
+      <div v-if="pct != null" class="bqd-row"><span>{{ t("Исполнение с начала года") }}</span><b :style="{ color: tone.c }">{{ pct }}%</b></div>
     </div>
   </ModalShell>
 </template>

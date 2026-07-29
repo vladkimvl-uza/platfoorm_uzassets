@@ -9,7 +9,9 @@
 import { ref, computed, onMounted } from "vue";
 import { authApi, type User } from "@/api/auth";
 import { useAuthStore } from "@/stores/auth";
+import { useI18n } from "@/composables/useI18n";
 
+const { t } = useI18n();
 const emit = defineEmits<{ (e: "close"): void }>();
 const auth = useAuthStore();
 
@@ -27,7 +29,7 @@ const firstName = computed(() => {
   const n = (auth.user?.full_name || "").trim();
   if (n) return n.split(/\s+/)[0];
   const e = auth.user?.email || "";
-  return e.split("@")[0] || "коллега";
+  return e.split("@")[0] || t("коллега");
 });
 
 const initials = computed(() => {
@@ -56,7 +58,7 @@ async function finish(save: boolean) {
     try { await authApi.dismissWelcome(); } catch { /* best-effort */ }
     close();
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || "Не удалось сохранить профиль";
+    error.value = e?.response?.data?.detail || t("Не удалось сохранить профиль");
   } finally {
     saving.value = false;
   }
@@ -75,30 +77,29 @@ function close() {
       <div class="wlc-hero">
         <div class="wlc-hero-glow" />
         <div class="wlc-avatar">{{ initials }}</div>
-        <div class="wlc-eyebrow">UzAssets · Единая платформа трансформации</div>
-        <div class="wlc-title">Добро пожаловать, {{ firstName }}</div>
-        <div class="wlc-sub">Рады видеть вас на платформе. Давайте заполним профиль —
-          это займёт меньше минуты и поможет коллегам узнавать вас.</div>
+        <div class="wlc-eyebrow">{{ t("UzAssets · Единая платформа трансформации") }}</div>
+        <div class="wlc-title">{{ t("Добро пожаловать, {name}", { name: firstName }) }}</div>
+        <div class="wlc-sub">{{ t("Рады видеть вас на платформе. Давайте заполним профиль — это займёт меньше минуты и поможет коллегам узнавать вас.") }}</div>
       </div>
 
       <!-- Форма профиля -->
       <div class="wlc-body">
         <div class="wlc-field" style="--d: 0ms">
-          <label>ФИО</label>
-          <input v-model="fullName" type="text" placeholder="Фамилия Имя Отчество" />
+          <label>{{ t("ФИО") }}</label>
+          <input v-model="fullName" type="text" :placeholder="t('Фамилия Имя Отчество')" />
         </div>
         <div class="wlc-row">
           <div class="wlc-field" style="--d: 60ms">
-            <label>Должность</label>
-            <input v-model="jobTitle" type="text" placeholder="напр. Финансовый аналитик" />
+            <label>{{ t("Должность") }}</label>
+            <input v-model="jobTitle" type="text" :placeholder="t('напр. Финансовый аналитик')" />
           </div>
           <div class="wlc-field" style="--d: 120ms">
-            <label>Отдел</label>
-            <input v-model="department" type="text" placeholder="напр. Финансовый блок" />
+            <label>{{ t("Отдел") }}</label>
+            <input v-model="department" type="text" :placeholder="t('напр. Финансовый блок')" />
           </div>
         </div>
         <div class="wlc-field" style="--d: 180ms">
-          <label>Телефон</label>
+          <label>{{ t("Телефон") }}</label>
           <input v-model="phone" type="tel" placeholder="+998 ..." />
         </div>
 
@@ -106,10 +107,10 @@ function close() {
 
         <div class="wlc-actions">
           <button class="wlc-btn-ghost" :disabled="saving" @click="finish(false)">
-            Заполнить позже
+            {{ t("Заполнить позже") }}
           </button>
           <button class="wlc-btn-primary" :disabled="saving" @click="finish(true)">
-            {{ saving ? "Сохраняю…" : "Сохранить и продолжить" }}
+            {{ saving ? t("Сохраняю…") : t("Сохранить и продолжить") }}
           </button>
         </div>
       </div>

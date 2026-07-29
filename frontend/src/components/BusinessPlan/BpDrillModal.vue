@@ -23,8 +23,10 @@ import {
 } from "@/api/bpKpi";
 import { useCompaniesStore } from "@/stores/companies";
 import { useFormatters } from "@/composables/useFormatters";
+import { useI18n } from "@/composables/useI18n";
 import Odometer from "@/components/Odometer.vue";
 const fmt2 = useFormatters();
+const { t } = useI18n();
 
 const companies = useCompaniesStore();
 onMounted(() => { void companies.ensureLoaded(); });
@@ -361,7 +363,7 @@ const treemapTiles = computed<TreemapTile[]>(() => {
     const head = items.slice(0, TOP);
     const tail = items.slice(TOP);
     const tailSum = tail.reduce((s, i) => s + Number(i.value), 0);
-    main = [...head, { name: `${tail.length} прочих`, value: tailSum, ratio: null }];
+    main = [...head, { name: t("{n} прочих", { n: tail.length }), value: tailSum, ratio: null }];
   }
   return partitionTreemap(main, 0, 0, 680, 260, true);
 });
@@ -421,9 +423,9 @@ const kpiHeroes = computed<KpiHero[]>(() => {
     };
   };
   return [
-    build("revenue",  "Выручка",             "#7F77DD"),
-    build("opProfit", "Операционная прибыль", "#1D9E75"),
-    build("profit",   "Чистая прибыль",       "#378ADD"),
+    build("revenue",  t("Выручка"),             "#7F77DD"),
+    build("opProfit", t("Операционная прибыль"), "#1D9E75"),
+    build("profit",   t("Чистая прибыль"),       "#378ADD"),
     build("opProfit", "EBITDA (≈ opProfit)",  "#EF9F27"),
   ];
 });
@@ -538,17 +540,17 @@ const donutSegments = computed<DonutSeg[]>(() => {
 // ──────────────────────────────────────────────────────────────────
 
 const headerEyebrow = computed(() => {
-  if (props.mode === "kpi") return "KPI · детализация по портфелю";
-  if (props.mode === "pnl-line") return "Строка P&L · декомпозиция по компаниям";
-  if (props.mode === "company") return "Бизнес-план компании · полный профиль";
-  if (props.mode === "sector") return "Сектор · профиль и компании";
+  if (props.mode === "kpi") return t("KPI · детализация по портфелю");
+  if (props.mode === "pnl-line") return t("Строка P&L · декомпозиция по компаниям");
+  if (props.mode === "company") return t("Бизнес-план компании · полный профиль");
+  if (props.mode === "sector") return t("Сектор · профиль и компании");
   return "";
 });
 
 const headerTitle = computed(() => {
   if (props.mode === "kpi" || props.mode === "pnl-line") {
     const f = BP_FIELDS.find(x => x.key === activeMetric.value);
-    return f?.label ?? activeMetric.value ?? "—";
+    return f?.label ? t(f.label) : (activeMetric.value ?? "—");
   }
   if (props.mode === "company") return props.companyName ?? "—";
   if (props.mode === "sector") return props.sectorLabel ?? props.sectorCode ?? "—";
@@ -559,21 +561,21 @@ const periodLabel = computed(() => {
   // Квартальный срез = величины ЗА квартал (дельты YTD-хранения);
   // пустой пред. квартал → YTD-фолбэк с честным ярлыком.
   const p = props.period === "annual"
-    ? "годовой итог"
+    ? t("годовой итог")
     : ytdFallback.value
-      ? `нарастающим итогом за ${props.period.toUpperCase()} (пред. квартал не заполнен)`
-      : `за квартал ${props.period.toUpperCase()}`;
+      ? t("нарастающим итогом за {q} (пред. квартал не заполнен)", { q: props.period.toUpperCase() })
+      : t("за квартал {q}", { q: props.period.toUpperCase() });
   return `FY ${props.year} · ${p}`;
 });
 
 const headerSub = computed(() => {
   if (props.mode === "kpi" || props.mode === "pnl-line") {
-    return `${periodLabel.value} · ${coRows.value.length} компаний · млрд UZS`;
+    return `${periodLabel.value} · ${t("{n} компаний", { n: coRows.value.length })} · ${t("млрд UZS")}`;
   }
   if (props.mode === "sector") {
-    return `${periodLabel.value} · ${sectorRows.value.length} компаний сектора · млрд UZS`;
+    return `${periodLabel.value} · ${t("{n} компаний сектора", { n: sectorRows.value.length })} · ${t("млрд UZS")}`;
   }
-  return `${periodLabel.value} · млрд UZS`;
+  return `${periodLabel.value} · ${t("млрд UZS")}`;
 });
 
 function fmt(v: number | null | undefined): string {
@@ -615,41 +617,41 @@ watch(
               {{ headerSub }}
               <span v-if="mode === 'company' && nsbuAutoCount > 0" class="bpd-h-nsbu">
                 <svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 5l2.5 2.5L8.5 2.5"/></svg>
-                авто из НСБУ: {{ nsbuAutoCount }}
+                {{ t("авто из НСБУ: {n}", { n: nsbuAutoCount }) }}
               </span>
             </div>
           </div>
-          <button class="bpd-h-close" @click="$emit('close')" aria-label="Закрыть">×</button>
+          <button class="bpd-h-close" @click="$emit('close')" :aria-label="t('Закрыть')">×</button>
         </div>
 
         <!-- ════════════════ Variant 1: Ranked Bars (kpi mode) ════════════════ -->
         <div v-if="mode === 'kpi'" class="bpd-body bpd-body-ranked">
-          <div v-if="coRows.length === 0" class="bpd-empty">Загрузка данных по компаниям…</div>
+          <div v-if="coRows.length === 0" class="bpd-empty">{{ t("Загрузка данных по компаниям…") }}</div>
           <template v-else>
             <div class="bpd-stat-band">
               <div class="bpd-stat" style="--sc:#7F77DD">
-                <div class="bpd-stat-lbl">Сумма факт</div>
+                <div class="bpd-stat-lbl">{{ t("Сумма факт") }}</div>
                 <div class="bpd-stat-val"><Odometer :value="fmt(totalFact)" /></div>
-                <div class="bpd-stat-sub">млрд UZS</div>
+                <div class="bpd-stat-sub">{{ t("млрд UZS") }}</div>
               </div>
               <div class="bpd-stat" style="--sc:#888780">
-                <div class="bpd-stat-lbl">Сумма план</div>
+                <div class="bpd-stat-lbl">{{ t("Сумма план") }}</div>
                 <div class="bpd-stat-val"><Odometer :value="fmt(totalPlan)" /></div>
-                <div class="bpd-stat-sub">млрд UZS</div>
+                <div class="bpd-stat-sub">{{ t("млрд UZS") }}</div>
               </div>
               <div class="bpd-stat bpd-stat-status" :class="overallPct != null ? (overallPct >= 1 ? 'ok' : overallPct >= 0.9 ? 'warn' : 'bad') : 'neutral'">
-                <div class="bpd-stat-lbl">Выполнение</div>
+                <div class="bpd-stat-lbl">{{ t("Выполнение") }}</div>
                 <div class="bpd-stat-val"><Odometer :value="overallPct != null ? fmt2.fmtPercent(overallPct * 100, { decimals: 1 }) : '—'" /></div>
-                <div class="bpd-stat-sub">{{ overallPct != null ? ((overallPct - 1) * 100 >= 0 ? '▲ ' : '▼ ') + fmt2.fmtPercent(Math.abs((overallPct - 1) * 100), { decimals: 1 }) + ' к плану' : '' }}</div>
+                <div class="bpd-stat-sub">{{ overallPct != null ? ((overallPct - 1) * 100 >= 0 ? '▲ ' : '▼ ') + fmt2.fmtPercent(Math.abs((overallPct - 1) * 100), { decimals: 1 }) + ' ' + t('к плану') : '' }}</div>
               </div>
             </div>
 
             <div class="bpd-toolbar">
-              <button class="bpd-pill" :class="{ active: sortKey === 'fact' }" @click="sortKey = 'fact'">По факту</button>
-              <button class="bpd-pill" :class="{ active: sortKey === 'pct' }" @click="sortKey = 'pct'">По % плана</button>
-              <button class="bpd-pill" :class="{ active: sortKey === 'delta' }" @click="sortKey = 'delta'">По отклонению</button>
+              <button class="bpd-pill" :class="{ active: sortKey === 'fact' }" @click="sortKey = 'fact'">{{ t("По факту") }}</button>
+              <button class="bpd-pill" :class="{ active: sortKey === 'pct' }" @click="sortKey = 'pct'">{{ t("По % плана") }}</button>
+              <button class="bpd-pill" :class="{ active: sortKey === 'delta' }" @click="sortKey = 'delta'">{{ t("По отклонению") }}</button>
               <div class="bpd-tb-spacer"></div>
-              <button class="bpd-pill" :class="{ active: filterLow }" @click="filterLow = !filterLow">Только &lt;90%</button>
+              <button class="bpd-pill" :class="{ active: filterLow }" @click="filterLow = !filterLow">{{ t("Только <90%") }}</button>
             </div>
 
             <div class="bpd-ranked-list">
@@ -664,7 +666,7 @@ watch(
                 </div>
                 <div class="bpd-rr-vals">
                   <div class="bpd-rr-fact">{{ fmt(r.fact) }}</div>
-                  <div class="bpd-rr-plan">план {{ fmt(r.plan) }}</div>
+                  <div class="bpd-rr-plan">{{ t("план") }} {{ fmt(r.plan) }}</div>
                 </div>
                 <div class="bpd-rr-pill" :style="{ background: ratioBg(r.ratio), color: ratioColor(r.ratio) }">
                   {{ r.ratio != null ? fmt2.fmtPercent(r.ratio * 100, { decimals: 1 }) : '—' }}
@@ -676,28 +678,28 @@ watch(
 
         <!-- ════════════════ Variant 4: Treemap (pnl-line mode) ════════════════ -->
         <div v-else-if="mode === 'pnl-line'" class="bpd-body bpd-body-treemap">
-          <div v-if="coRows.length === 0" class="bpd-empty">Загрузка декомпозиции по компаниям…</div>
+          <div v-if="coRows.length === 0" class="bpd-empty">{{ t("Загрузка декомпозиции по компаниям…") }}</div>
           <template v-else>
             <div class="bpd-stat-band">
               <div class="bpd-stat" style="--sc:#378ADD">
-                <div class="bpd-stat-lbl">Итого факт</div>
+                <div class="bpd-stat-lbl">{{ t("Итого факт") }}</div>
                 <div class="bpd-stat-val"><Odometer :value="fmt(treemapTotal)" /></div>
-                <div class="bpd-stat-sub">млрд UZS</div>
+                <div class="bpd-stat-sub">{{ t("млрд UZS") }}</div>
               </div>
               <div class="bpd-stat" style="--sc:#7F77DD; background:rgba(127,119,221,.06)">
-                <div class="bpd-stat-lbl" style="color:#534AB7">Топ-3 доля</div>
+                <div class="bpd-stat-lbl" style="color:#534AB7">{{ t("Топ-3 доля") }}</div>
                 <div class="bpd-stat-val"><Odometer :value="fmt2.fmtPercent(treemapTop3Share, { decimals: 1 })" /></div>
                 <div class="bpd-stat-sub" style="color:#534AB7">{{ treemapTop3Names }}</div>
               </div>
               <div class="bpd-stat bpd-stat-status" :class="overallPct != null ? (overallPct >= 1 ? 'ok' : overallPct >= 0.9 ? 'warn' : 'bad') : 'neutral'">
-                <div class="bpd-stat-lbl">% плана</div>
+                <div class="bpd-stat-lbl">{{ t("% плана") }}</div>
                 <div class="bpd-stat-val"><Odometer :value="overallPct != null ? fmt2.fmtPercent(overallPct * 100, { decimals: 1 }) : '—'" /></div>
-                <div class="bpd-stat-sub">из плана {{ fmt(totalPlan) }}</div>
+                <div class="bpd-stat-sub">{{ t("из плана {v}", { v: fmt(totalPlan) }) }}</div>
               </div>
             </div>
 
             <div class="bpd-tm-header">
-              <span class="bpd-tm-h-l">Декомпозиция по компаниям · клик по столбцу — сортировка</span>
+              <span class="bpd-tm-h-l">{{ t("Декомпозиция по компаниям · клик по столбцу — сортировка") }}</span>
               <span class="bpd-tm-legend">
                 <span><span class="dot" style="background:#0F6E56"></span>≥100%</span>
                 <span><span class="dot" style="background:#A36500"></span>90-100%</span>
@@ -709,11 +711,11 @@ watch(
               <table class="bpd-tbl">
                 <thead>
                   <tr>
-                    <th class="bpd-th name" :class="{ on: tblSort.key === 'name' }" @click="setTblSort('name')">Компания <span class="bpd-sort">{{ sortArrow('name') }}</span></th>
-                    <th class="bpd-th num" :class="{ on: tblSort.key === 'fact' }" @click="setTblSort('fact')">Факт <span class="bpd-sort">{{ sortArrow('fact') }}</span></th>
-                    <th class="bpd-th num" :class="{ on: tblSort.key === 'plan' }" @click="setTblSort('plan')">План <span class="bpd-sort">{{ sortArrow('plan') }}</span></th>
-                    <th class="bpd-th num" :class="{ on: tblSort.key === 'pct' }" @click="setTblSort('pct')">% плана <span class="bpd-sort">{{ sortArrow('pct') }}</span></th>
-                    <th class="bpd-th share" :class="{ on: tblSort.key === 'share' }" @click="setTblSort('share')">Доля <span class="bpd-sort">{{ sortArrow('share') }}</span></th>
+                    <th class="bpd-th name" :class="{ on: tblSort.key === 'name' }" @click="setTblSort('name')">{{ t("Компания") }} <span class="bpd-sort">{{ sortArrow('name') }}</span></th>
+                    <th class="bpd-th num" :class="{ on: tblSort.key === 'fact' }" @click="setTblSort('fact')">{{ t("Факт") }} <span class="bpd-sort">{{ sortArrow('fact') }}</span></th>
+                    <th class="bpd-th num" :class="{ on: tblSort.key === 'plan' }" @click="setTblSort('plan')">{{ t("План") }} <span class="bpd-sort">{{ sortArrow('plan') }}</span></th>
+                    <th class="bpd-th num" :class="{ on: tblSort.key === 'pct' }" @click="setTblSort('pct')">{{ t("% плана") }} <span class="bpd-sort">{{ sortArrow('pct') }}</span></th>
+                    <th class="bpd-th share" :class="{ on: tblSort.key === 'share' }" @click="setTblSort('share')">{{ t("Доля") }} <span class="bpd-sort">{{ sortArrow('share') }}</span></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -730,7 +732,7 @@ watch(
                 </tbody>
                 <tfoot>
                   <tr>
-                    <td class="bpd-td-name">ИТОГО · {{ coRows.length }} комп.</td>
+                    <td class="bpd-td-name">{{ t("ИТОГО · {n} комп.", { n: coRows.length }) }}</td>
                     <td class="num strong">{{ fmt(totalFact) }}</td>
                     <td class="num muted">{{ fmt(totalPlan) }}</td>
                     <td class="num"><span :style="{ color: pctColor(overallPct) }">{{ overallPct != null ? Math.round(overallPct * 100) + '%' : '—' }}</span></td>
@@ -744,19 +746,19 @@ watch(
 
         <!-- ════════════════ Variant 2: Executive Dashboard (company mode) ════════════════ -->
         <div v-else-if="mode === 'company'" class="bpd-body bpd-body-dashboard">
-          <div v-if="!computedData" class="bpd-empty">Загрузка профиля компании…</div>
+          <div v-if="!computedData" class="bpd-empty">{{ t("Загрузка профиля компании…") }}</div>
           <template v-else>
             <div class="bpd-kpi-cluster kpi-rail">
               <div v-for="k in kpiHeroes" :key="k.key + k.label" class="bpd-kpi" :style="{ '--ac': k.accent }">
                 <span v-if="k.factAuto" class="bpd-kpi-auto">
                   <svg width="7" height="7" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M1.5 5l2.5 2.5L8.5 2.5"/></svg>
-                  НСБУ
+                  {{ t("НСБУ") }}
                 </span>
                 <div class="bpd-kpi-lbl">{{ k.label }}</div>
                 <div class="bpd-kpi-val"><Odometer :value="fmt(k.fact)" /></div>
                 <div class="bpd-kpi-foot">
                   <span v-if="k.pctOfPlan != null" :style="{ color: k.pctOfPlan >= 1 ? '#0F6E56' : k.pctOfPlan >= 0.9 ? '#A36500' : '#A32D2D' }">
-                    {{ k.pctOfPlan >= 1 ? '▲' : '●' }} {{ Math.round(k.pctOfPlan * 100) }}% плана
+                    {{ k.pctOfPlan >= 1 ? '▲' : '●' }} {{ t("{n}% плана", { n: Math.round(k.pctOfPlan * 100) }) }}
                   </span>
                 </div>
               </div>
@@ -764,8 +766,8 @@ watch(
 
             <div class="bpd-row2">
               <div class="bpd-row2-card">
-                <div class="bpd-row2-ttl">Динамика кварталов · выручка</div>
-                <div v-if="!hasQuarterly" class="bpd-empty-mini">Квартальные данные не введены</div>
+                <div class="bpd-row2-ttl">{{ t("Динамика кварталов · выручка") }}</div>
+                <div v-if="!hasQuarterly" class="bpd-empty-mini">{{ t("Квартальные данные не введены") }}</div>
                 <svg v-else viewBox="0 0 320 130" style="width:100%;height:130px" preserveAspectRatio="xMidYMid meet">
                   <line v-for="(g, gi) in [0, 0.25, 0.5, 0.75]" :key="gi" :x1="28" :y1="14 + (1 - g) * 92" :x2="312" :y2="14 + (1 - g) * 92" stroke="#E2E8F0" stroke-width="0.5" stroke-dasharray="2 3"/>
                   <line x1="28" :y1="qBaseY" x2="312" :y2="qBaseY" stroke="#1E2A4A" stroke-width="0.8"/>
@@ -777,20 +779,20 @@ watch(
                   </g>
                 </svg>
                 <div class="bpd-chart-lgd">
-                  <span><span class="dot" style="background:#CECBF6"></span>План</span>
-                  <span><span class="dot" style="background:#FAC775"></span>Ожидание</span>
-                  <span><span class="dot" style="background:#5DC093"></span>Факт</span>
+                  <span><span class="dot" style="background:#CECBF6"></span>{{ t("План") }}</span>
+                  <span><span class="dot" style="background:#FAC775"></span>{{ t("Ожидание") }}</span>
+                  <span><span class="dot" style="background:#5DC093"></span>{{ t("Факт") }}</span>
                 </div>
               </div>
 
               <div class="bpd-row2-card">
-                <div class="bpd-row2-ttl">Достижения периода</div>
-                <div v-if="!achievements.length" class="bpd-empty-mini">Нет показателей ≥100% плана</div>
+                <div class="bpd-row2-ttl">{{ t("Достижения периода") }}</div>
+                <div v-if="!achievements.length" class="bpd-empty-mini">{{ t("Нет показателей ≥100% плана") }}</div>
                 <div v-else>
                   <div v-for="a in achievements" :key="a.title" class="bpd-ach">
                     <div>
-                      <div class="bpd-ach-ttl">{{ a.title }}</div>
-                      <div class="bpd-ach-d">факт {{ fmt(a.fact) }} · план {{ fmt(a.plan) }}</div>
+                      <div class="bpd-ach-ttl">{{ t(a.title) }}</div>
+                      <div class="bpd-ach-d">{{ t("факт") }} {{ fmt(a.fact) }} · {{ t("план") }} {{ fmt(a.plan) }}</div>
                     </div>
                     <div class="bpd-ach-val">{{ Math.round(a.ratio * 100) }}%</div>
                   </div>
@@ -801,22 +803,22 @@ watch(
             <div class="bpd-pnl">
               <div class="bpd-pnl-hd">
                 <div>
-                  <div class="bpd-pnl-ttl">Структура ОФР</div>
-                  <div class="bpd-pnl-sub">{{ visibleFields.length }} из {{ BP_FIELDS.filter(f => !f.sub).length }} строк</div>
+                  <div class="bpd-pnl-ttl">{{ t("Структура ОФР") }}</div>
+                  <div class="bpd-pnl-sub">{{ t("{a} из {b} строк", { a: visibleFields.length, b: BP_FIELDS.filter(f => !f.sub).length }) }}</div>
                 </div>
                 <button class="bpd-pnl-tgl" @click="detailsExpanded = !detailsExpanded">
-                  {{ detailsExpanded ? 'Свернуть' : 'Раскрыть все' }}
+                  {{ detailsExpanded ? t('Свернуть') : t('Раскрыть все') }}
                 </button>
               </div>
               <div class="bpd-pnl-tbl-wrap">
                 <table class="bpd-pnl-tbl">
-                  <thead><tr><th class="lbl">Показатель</th><th class="r">План</th><th class="r">Ожидание</th><th class="r">Факт</th><th class="r">%</th></tr></thead>
+                  <thead><tr><th class="lbl">{{ t("Показатель") }}</th><th class="r">{{ t("План") }}</th><th class="r">{{ t("Ожидание") }}</th><th class="r">{{ t("Факт") }}</th><th class="r">%</th></tr></thead>
                   <tbody>
                     <tr v-for="f in visibleFields" :key="f.key" :class="{ tot: ['grossProfit','opProfit','hhProfit','pbt','profit'].includes(f.key) }">
                       <td class="lbl">
-                        <span v-if="f.auto" class="bpd-auto-tag">∑ расчёт</span>
-                        {{ f.label }}
-                        <span v-if="drillYtdKeys.has(f.key) && !ytdFallback" class="bpd-ytd-tag" title="Показано нарастающим итогом: в предыдущем квартале нет факта — «за квартал» не вычислить">нараст.</span>
+                        <span v-if="f.auto" class="bpd-auto-tag">{{ t("∑ расчёт") }}</span>
+                        {{ t(f.label) }}
+                        <span v-if="drillYtdKeys.has(f.key) && !ytdFallback" class="bpd-ytd-tag" :title="t('Показано нарастающим итогом: в предыдущем квартале нет факта — «за квартал» не вычислить')">{{ t("нараст.") }}</span>
                       </td>
                       <td class="r">{{ fmt(computedData.metrics[f.key]?.plan != null ? num(computedData.metrics[f.key].plan) : null) }}</td>
                       <td class="r">{{ fmt(computedData.metrics[f.key]?.expect != null ? num(computedData.metrics[f.key].expect) : null) }}</td>
@@ -839,7 +841,7 @@ watch(
 
         <!-- ════════════════ Variant 3: Sector Profile (sector mode) ════════════════ -->
         <div v-else-if="mode === 'sector'" class="bpd-body bpd-body-sector">
-          <div v-if="!sectorRows.length" class="bpd-empty">В выбранном секторе нет компаний с данными</div>
+          <div v-if="!sectorRows.length" class="bpd-empty">{{ t("В выбранном секторе нет компаний с данными") }}</div>
           <template v-else>
             <div class="bpd-sector-grid">
               <div class="bpd-sector-left">
@@ -855,16 +857,16 @@ watch(
                       transform="rotate(-90 90 90)"/>
                   </svg>
                   <div class="bpd-donut-center">
-                    <div class="bpd-donut-lbl">Выручка</div>
+                    <div class="bpd-donut-lbl">{{ t("Выручка") }}</div>
                     <div class="bpd-donut-val"><Odometer :value="fmt(sectorTotalRevenue)" /></div>
-                    <div class="bpd-donut-sub">млрд UZS</div>
+                    <div class="bpd-donut-sub">{{ t("млрд UZS") }}</div>
                   </div>
                 </div>
                 <div class="bpd-share-card">
-                  <div class="bpd-share-lbl">Доля сектора в портфеле</div>
+                  <div class="bpd-share-lbl">{{ t("Доля сектора в портфеле") }}</div>
                   <div class="bpd-share-row">
                     <div class="bpd-share-val"><Odometer :value="fmt2.fmtPercent(sectorShare, { decimals: 1 })" /></div>
-                    <div class="bpd-share-of">от {{ fmt(portfolioTotalRevenue) }}</div>
+                    <div class="bpd-share-of">{{ t("от {v}", { v: fmt(portfolioTotalRevenue) }) }}</div>
                   </div>
                   <div class="bpd-share-bar">
                     <div class="bpd-share-bar-fill" :style="{ width: sectorShare + '%' }"></div>
@@ -873,7 +875,7 @@ watch(
               </div>
 
               <div class="bpd-sector-right">
-                <div class="bpd-sector-rh">Компании сектора</div>
+                <div class="bpd-sector-rh">{{ t("Компании сектора") }}</div>
                 <div v-for="(c, ci) in sectorRows" :key="c.company_id" class="bpd-sec-co" :style="{ '--d': (ci * 40) + 'ms' }">
                   <div class="bpd-sec-co-body">
                     <div class="bpd-sec-co-name">{{ c.company_name_ru }}</div>
@@ -893,19 +895,19 @@ watch(
 
             <div v-if="sectorBenchmarks" class="bpd-bench-grid">
               <div class="bpd-bench">
-                <div class="bpd-bench-lbl">Средн. % плана</div>
+                <div class="bpd-bench-lbl">{{ t("Средн. % плана") }}</div>
                 <div class="bpd-bench-val"><Odometer :value="fmt2.fmtPercent(sectorBenchmarks.avgPct, { decimals: 1 })" /></div>
               </div>
               <div class="bpd-bench">
-                <div class="bpd-bench-lbl">Компаний</div>
+                <div class="bpd-bench-lbl">{{ t("Компаний") }}</div>
                 <div class="bpd-bench-val"><Odometer :value="sectorBenchmarks.coCount" /></div>
               </div>
               <div class="bpd-bench">
-                <div class="bpd-bench-lbl">Лидер сектора</div>
+                <div class="bpd-bench-lbl">{{ t("Лидер сектора") }}</div>
                 <div class="bpd-bench-val bpd-bench-val-sm">{{ sectorBenchmarks.leaderName }}</div>
               </div>
               <div class="bpd-bench">
-                <div class="bpd-bench-lbl">Доля портфеля</div>
+                <div class="bpd-bench-lbl">{{ t("Доля портфеля") }}</div>
                 <div class="bpd-bench-val"><Odometer :value="sectorShare.toFixed(1)" />%</div>
               </div>
             </div>

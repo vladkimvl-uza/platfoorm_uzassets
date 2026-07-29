@@ -1,7 +1,7 @@
 <template>
   <!-- Source: paRatingPanelHtml line 22177-22221 -->
   <div class="pa-rate-panel">
-    <div v-if="!rating.length" class="pa-rate-empty">Нет данных по рейтингу</div>
+    <div v-if="!rating.length" class="pa-rate-empty">{{ t("Нет данных по рейтингу") }}</div>
 
     <template v-else>
       <template v-for="(c, i) in sortedRating" :key="c.company_id">
@@ -10,7 +10,7 @@
           v-if="i === firstSaverIdx && firstSaverIdx > 0"
           class="pa-rate-divider"
         >
-          ▾ лидеры портфеля — торгуются ниже рынка
+          ▾ {{ t("лидеры портфеля — торгуются ниже рынка") }}
         </div>
 
         <!-- Row — line 22202-22217 -->
@@ -29,8 +29,8 @@
               <span
                 v-if="c.low_sample"
                 class="pa-rate-lowsample"
-                title="Мало сопоставимых позиций — отклонение и % красных статистически недостоверны"
-              >мало данных</span>
+                :title="t('Мало сопоставимых позиций — отклонение и % красных статистически недостоверны')"
+              >{{ t("мало данных") }}</span>
             </div>
             <!-- 3-color stripe bar — line 22206 -->
             <div class="pa-rate-bar">
@@ -51,7 +51,7 @@
           <!-- Red pct — line 22213-22215 -->
           <div class="pa-rate-redpct">
             <div class="pa-rate-redpct-v" :style="{ color: redColor(stripeOf(c).red) }">{{ stripeOf(c).red.toFixed(0) }}%</div>
-            <div class="pa-rate-redpct-l">красных</div>
+            <div class="pa-rate-redpct-l">{{ t("красных") }}</div>
           </div>
 
           <!-- Problem cats badge — line 22216 -->
@@ -78,6 +78,9 @@
  */
 import { computed } from "vue";
 import { paFmtMoneyShort, type CompanyRatingRow } from "@/api/procurement_analysis";
+import { useI18n } from "@/composables/useI18n";
+
+const { t } = useI18n();
 
 const props = defineProps<{
   rating: CompanyRatingRow[];
@@ -146,7 +149,7 @@ function sumColor(c: CompanyRatingRow): string {
   return "#0F6E56";
 }
 function sumLabel(c: CompanyRatingRow): string {
-  return netSum(c) >= 0 ? "сум переплаты" : "сум экономии";
+  return netSum(c) >= 0 ? t("сум переплаты") : t("сум экономии");
 }
 function sumPrefix(c: CompanyRatingRow): string {
   return netSum(c) >= 0 ? "+" : "−";

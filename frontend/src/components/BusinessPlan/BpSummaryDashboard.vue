@@ -9,29 +9,29 @@
           class="kpi2 fin-shimmer bps-kpi-click"
           :style="kpiStyle(cfg.ac, i * 80)"
           @click="$emit('open-kpi', cfg.m)"
-          :title="`Открыть детализацию · ${cfg.l}`"
+          :title="t('Открыть детализацию') + ' · ' + t(cfg.l)"
         >
-          <div class="kpi2-lbl">{{ cfg.l }}</div>
-          <div v-if="metric(cfg.m).fact == null" class="kpi2-val kpi2-val-na">— нет данных —</div>
+          <div class="kpi2-lbl">{{ t(cfg.l) }}</div>
+          <div v-if="metric(cfg.m).fact == null" class="kpi2-val kpi2-val-na">{{ t("— нет данных —") }}</div>
           <div v-else class="kpi2-val">
             <span><Odometer :value="fmtVal(metric(cfg.m).fact)" /></span>
           </div>
-          <div class="kpi2-sub">{{ unitLabel(metric(cfg.m).fact) }} · факт</div>
+          <div class="kpi2-sub">{{ t(unitLabel(metric(cfg.m).fact)) }} · {{ t("факт") }}</div>
 
           <div class="bps-row">
             <div class="bps-cell">
-              <span class="bps-cl">План</span>
+              <span class="bps-cl">{{ t("План") }}</span>
               <span class="bps-cv"><Odometer :value="fmtVal(metric(cfg.m).plan)" /></span>
             </div>
             <div class="bps-cell">
-              <span class="bps-cl">Прогноз</span>
+              <span class="bps-cl">{{ t("Прогноз") }}</span>
               <span class="bps-cv"><Odometer :value="fmtVal(metric(cfg.m).expect)" /></span>
             </div>
             <div class="bps-cell">
               <span
                 class="bps-cl"
                 :style="deltaPctValue(cfg.m) != null ? { color: deltaColor(deltaPctValue(cfg.m)!) } : {}"
-              >Δ план</span>
+              >{{ t("Δ план") }}</span>
               <span
                 class="bps-cv"
                 :style="deltaPctValue(cfg.m) != null ? { color: deltaColor(deltaPctValue(cfg.m)!) } : {}"
@@ -44,10 +44,10 @@
           </div>
 
           <!-- Нарастающим итогом — под разделителем (только квартальные срезы) -->
-          <div v-if="cum(cfg.m)" class="bps-cum" title="С начала года (нарастающим итогом). Сумма «за квартал» по кварталам может отличаться: в итог входят и компании без данных предыдущего квартала.">
-            <span class="bps-cum-l">Нараст. итогом</span>
+          <div v-if="cum(cfg.m)" class="bps-cum" :title="t('С начала года (нарастающим итогом). Сумма «за квартал» по кварталам может отличаться: в итог входят и компании без данных предыдущего квартала.')">
+            <span class="bps-cum-l">{{ t("Нараст. итогом") }}</span>
             <span class="bps-cum-v">
-              план {{ cumTxt(cum(cfg.m)!.plan) }} · факт {{ cumTxt(cum(cfg.m)!.fact) }}<template v-if="cumPct(cfg.m) != null"> · <b :style="{ color: cumPct(cfg.m)! >= 100 ? '#1D9E75' : cumPct(cfg.m)! >= 80 ? '#A36500' : '#C5352F' }">{{ cumPct(cfg.m) }}%</b></template>
+              {{ t("план") }} {{ cumTxt(cum(cfg.m)!.plan) }} · {{ t("факт") }} {{ cumTxt(cum(cfg.m)!.fact) }}<template v-if="cumPct(cfg.m) != null"> · <b :style="{ color: cumPct(cfg.m)! >= 100 ? '#1D9E75' : cumPct(cfg.m)! >= 80 ? '#A36500' : '#C5352F' }">{{ cumPct(cfg.m) }}%</b></template>
             </span>
           </div>
         </div>
@@ -57,12 +57,12 @@
       <div class="bps-bot">
         <!-- Quarterly combo chart (бары план/факт + линия нараст. итога + drill) -->
         <div class="bps-w">
-          <BpQuarterlyChart :quarters="(summary.by_quarter as any)" :label="headlineLabel" :fmt="fmtBn" :forecast="quarterOutlook" @drill="onQuarterDrill" />
+          <BpQuarterlyChart :quarters="(summary.by_quarter as any)" :label="t(headlineLabel)" :fmt="fmtBn" :forecast="quarterOutlook" @drill="onQuarterDrill" />
         </div>
 
         <!-- Top-3 leaders + laggards -->
         <div class="bps-w">
-          <div class="bps-w-t">Топ-3 лидеры</div>
+          <div class="bps-w-t">{{ t("Топ-3 лидеры") }}</div>
           <div class="bps-co-list">
             <div
               v-for="(c, i) in leaders"
@@ -76,10 +76,10 @@
                 {{ fmt.fmtPercent(c.pct, { decimals: 1 }) }}
               </span>
             </div>
-            <UzaStateBlock v-if="!leaders.length" state="empty" variant="inline" :text="`Нет данных по ${headlineGenitive}`" />
+            <UzaStateBlock v-if="!leaders.length" state="empty" variant="inline" :text="t('Нет данных по {m}', { m: t(headlineGenitive) })" />
           </div>
 
-          <div class="bps-w-t" style="margin-top: 14px">Топ-3 отстающие</div>
+          <div class="bps-w-t" style="margin-top: 14px">{{ t("Топ-3 отстающие") }}</div>
           <div class="bps-co-list">
             <div
               v-for="(c, i) in laggards"
@@ -93,17 +93,17 @@
                 {{ fmt.fmtPercent(c.pct, { decimals: 1 }) }}
               </span>
             </div>
-            <UzaStateBlock v-if="!laggards.length" state="empty" variant="inline" :text="`Нет данных по ${headlineGenitive}`" />
+            <UzaStateBlock v-if="!laggards.length" state="empty" variant="inline" :text="t('Нет данных по {m}', { m: t(headlineGenitive) })" />
           </div>
         </div>
 
         <!-- Sectors -->
         <div class="bps-w">
           <div class="bps-sec-hd">
-            <div class="bps-w-t" style="margin-bottom: 0">По секторам · {{ sectorMetricLabel }}</div>
+            <div class="bps-w-t" style="margin-bottom: 0">{{ t("По секторам") }} · {{ t(sectorMetricLabel) }}</div>
             <div class="bps-sec-toggle">
-              <button :class="{ on: sectorMetric === 'headline' }" @click="sectorMetric = 'headline'">{{ headlineLabel }}</button>
-              <button :class="{ on: sectorMetric === 'profit' }" @click="sectorMetric = 'profit'">Чистая прибыль</button>
+              <button :class="{ on: sectorMetric === 'headline' }" @click="sectorMetric = 'headline'">{{ t(headlineLabel) }}</button>
+              <button :class="{ on: sectorMetric === 'profit' }" @click="sectorMetric = 'profit'">{{ t("Чистая прибыль") }}</button>
             </div>
           </div>
           <UzaStateBlock v-if="sectorMetric === 'profit' && profitLoading && !sectors.length" state="loading" variant="text" />
@@ -114,30 +114,30 @@
               class="bps-sec-card bps-sec-click"
               :style="{ '--cl': s.color, '--bg': s.color + '12', animationDelay: `${s.idx * 80}ms` }"
               @click="$emit('open-sector', s.sector_code, s.label)"
-              :title="`Открыть сектор · ${s.label}`"
+              :title="t('Открыть сектор') + ' · ' + s.label"
             >
               <div class="bps-sec-card-l">{{ s.label }}</div>
               <div class="bps-sec-card-v">
-                <Odometer :value="fmtBn(s.sum_revenue)" /><span class="bps-sec-card-u">{{ unitLabel(s.sum_revenue) }}</span>
+                <Odometer :value="fmtBn(s.sum_revenue)" /><span class="bps-sec-card-u">{{ t(unitLabel(s.sum_revenue)) }}</span>
               </div>
-              <div class="bps-sec-card-d">{{ s.share != null ? fmt.fmtPercent(s.share, { decimals: 1 }) + " портфеля" : "—" }}</div>
+              <div class="bps-sec-card-d">{{ s.share != null ? t("{p} портфеля", { p: fmt.fmtPercent(s.share, { decimals: 1 }) }) : "—" }}</div>
               <div class="bps-sec-card-bar" :style="{ '--w': s.shareBar + '%' }" />
             </div>
-            <UzaStateBlock v-if="!sectors.length" state="empty" variant="inline" text="Нет данных по секторам" />
+            <UzaStateBlock v-if="!sectors.length" state="empty" variant="inline" :text="t('Нет данных по секторам')" />
           </div>
         </div>
       </div>
 
       <!-- P&L Waterfall -->
       <div class="bps-w bps-wf-wrap" style="--d: 560ms">
-        <div class="bps-w-t">P&amp;L каскад · от выручки до чистой прибыли</div>
+        <div class="bps-w-t">{{ t("P&L каскад · от выручки до чистой прибыли") }}</div>
         <div class="bps-wf">
           <div
             v-for="(b, i) in waterfall"
             :key="b.k"
             class="bps-wfc bps-wf-click"
             @click="$emit('open-pnl-line', b.k)"
-            :title="`Открыть строку P&amp;L · ${b.label}`"
+            :title="t('Открыть строку P&L') + ' · ' + t(b.label)"
           >
             <div
               v-if="b.h > 8"
@@ -154,13 +154,13 @@
             >
               {{ fmtBn(b.value) }}
             </div>
-            <div class="bps-wfl">{{ b.label }}</div>
+            <div class="bps-wfl">{{ t(b.label) }}</div>
           </div>
         </div>
         <div class="bps-wf-leg">
-          <span><span class="sw" style="background: #A39EE6" /> Доходы</span>
-          <span><span class="sw" style="background: #E89B9A" /> Расходы</span>
-          <span><span class="sw" style="background: #7DC4A0" /> Прибыль</span>
+          <span><span class="sw" style="background: #A39EE6" /> {{ t("Доходы") }}</span>
+          <span><span class="sw" style="background: #E89B9A" /> {{ t("Расходы") }}</span>
+          <span><span class="sw" style="background: #7DC4A0" /> {{ t("Прибыль") }}</span>
         </div>
       </div>
     </div>
@@ -186,6 +186,9 @@ import BpQuarterlyChart from "./BpQuarterlyChart.vue";
 import BpQuarterDrillModal from "./BpQuarterDrillModal.vue";
 import Odometer from "@/components/Odometer.vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
+import { useI18n } from "@/composables/useI18n";
+
+const { t } = useI18n();
 
 const fmt = useFormatters();
 
@@ -207,7 +210,7 @@ function onQuarterDrill(e: { row: any; index: number }) {
     plan: numOr(r.cum_plan ?? r.plan), fact: numOr(r.cum_fact ?? r.fact),
     expect: numOr(r.cum_expect ?? r.expect),
     planDelta: numOr(r.plan_delta), factDelta: numOr(r.fact_delta),
-    cum, label: headlineLabel.value, unit: unitLabel(cum),
+    cum, label: t(headlineLabel.value), unit: t(unitLabel(cum)),
   };
 }
 
@@ -276,7 +279,7 @@ function cum(key: string): { plan: number | null; fact: number | null } | null {
 function cumTxt(v: number | null): string {
   if (v == null) return "—";
   const s = bpFmtScaled(v);
-  return `${s.value} ${s.unit}`;
+  return `${s.value} ${t(s.unit)}`;
 }
 function cumPct(key: string): number | null {
   const c = cum(key);

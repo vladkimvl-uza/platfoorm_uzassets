@@ -9,7 +9,9 @@
 import { computed } from "vue";
 import { RouterLink, useRoute } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
+import { useI18n } from "@/composables/useI18n";
 
+const { t } = useI18n();
 const emit = defineEmits<{ (e: "menu"): void }>();
 const auth = useAuthStore();
 const route = useRoute();
@@ -49,14 +51,14 @@ function isActive(to: string): boolean {
         <svg v-else-if="it.icon === 'tasks'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11M9 12h11M9 18h11"/><path d="m4 6 1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/></svg>
         <svg v-else-if="it.icon === 'ai'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><path d="m6.3 6.3 2 2M15.7 15.7l2 2M17.7 6.3l-2 2M8.3 15.7l-2 2"/><circle cx="12" cy="12" r="3.2"/></svg>
       </span>
-      <span class="bnav-lbl">{{ it.label }}</span>
+      <span class="bnav-lbl">{{ t(it.label) }}</span>
     </RouterLink>
 
     <button class="bnav-item bnav-menu" @click="emit('menu')" type="button">
       <span class="bnav-ico">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
       </span>
-      <span class="bnav-lbl">Меню</span>
+      <span class="bnav-lbl">{{ t("Меню") }}</span>
     </button>
   </nav>
 </template>

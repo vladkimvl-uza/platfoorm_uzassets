@@ -5,8 +5,8 @@
     <div v-if="selectedCo" class="pa-radar-wrap">
       <!-- line 22225-22227 -->
       <div class="pa-radar-h">
-        <span class="pa-radar-co">{{ selectedCo.company_name }} · профиль</span>
-        <button class="pa-back" @click="$emit('select-co', null)">‹ к рейтингу</button>
+        <span class="pa-radar-co">{{ selectedCo.company_name }} · {{ t("профиль") }}</span>
+        <button class="pa-back" @click="$emit('select-co', null)">‹ {{ t("к рейтингу") }}</button>
       </div>
 
       <!-- Совокупный объём + разбивка товары/услуги/работы -->
@@ -19,34 +19,34 @@
       />
 
       <!-- Отклонение по категориям — дивержентные бары (заменили radar) -->
-      <div class="pa-cdb-h">Отклонение цен по категориям</div>
+      <div class="pa-cdb-h">{{ t("Отклонение цен по категориям") }}</div>
       <PaCategoryDeviationBars :cats="selectedCo.cat_dev" />
 
       <!-- line 22229-22234: 4 mini KPIs -->
       <div class="pa-mini-grid kpi-rail">
         <div class="pa-mini-kpi">
-          <div class="pa-mini-l">Отклонение</div>
+          <div class="pa-mini-l">{{ t("Отклонение") }}</div>
           <div class="pa-mini-v" :class="selectedCo.company_deviation >= 0 ? 'up' : 'dn'">
             {{ selectedCo.company_deviation >= 0 ? "+" : "" }}{{ selectedCo.company_deviation.toFixed(1) }}%
           </div>
         </div>
         <div class="pa-mini-kpi">
-          <div class="pa-mini-l">Потери от переплат</div>
+          <div class="pa-mini-l">{{ t("Потери от переплат") }}</div>
           <!-- Fix 2026-05-25: sum_dev signed (для savers < 0 → max(0,…) = 0
                и виджет всегда показывал 0). sum_overpay из Pack 7.9p —
                positive sum of overpays, ровно эта метрика. -->
-          <div class="pa-mini-v">{{ paFmtMoneyShort(Number(overpayUzs)) }}<small>сум</small></div>
+          <div class="pa-mini-v">{{ paFmtMoneyShort(Number(overpayUzs)) }}<small>{{ t("сум") }}</small></div>
         </div>
         <div class="pa-mini-kpi">
-          <div class="pa-mini-l">Закупок &gt; median</div>
+          <div class="pa-mini-l">{{ t("Закупок > median") }}</div>
           <!-- Fix 2026-05-25: лейбл сменили на «Закупок» т.к. above_count/
                total_count это closures, а cat_count — отдельная метрика
                (число категорий). -->
-          <div class="pa-mini-v">{{ selectedCo.above_count }}<small>из {{ selectedCo.total_count }}</small></div>
+          <div class="pa-mini-v">{{ selectedCo.above_count }}<small>{{ t("из") }} {{ selectedCo.total_count }}</small></div>
         </div>
         <div class="pa-mini-kpi">
-          <div class="pa-mini-l">Место в рейтинге</div>
-          <div class="pa-mini-v">{{ rank }}<small>из {{ rating.length }}</small></div>
+          <div class="pa-mini-l">{{ t("Место в рейтинге") }}</div>
+          <div class="pa-mini-v">{{ rank }}<small>{{ t("из") }} {{ rating.length }}</small></div>
         </div>
       </div>
     </div>
@@ -70,6 +70,9 @@ import {
 import PaRatingPanel from "./PaRatingPanel.vue";
 import PaCategoryDeviationBars from "./PaCategoryDeviationBars.vue";
 import PaSpendBreakdown from "./PaSpendBreakdown.vue";
+import { useI18n } from "@/composables/useI18n";
+
+const { t } = useI18n();
 
 const props = defineProps<{
   rating: CompanyRatingRow[];

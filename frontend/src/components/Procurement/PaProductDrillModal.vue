@@ -23,6 +23,9 @@ import {
   type ProcurementAggregate,
 } from "@/api/procurement_analysis";
 import PaModalShell from "./PaModalShell.vue";
+import { useI18n } from "@/composables/useI18n";
+
+const { t } = useI18n();
 
 const props = defineProps<{
   productCode: string;
@@ -67,7 +70,7 @@ const productMeta = computed(() => {
   return {
     name: first.product_name || props.productCode,
     code: props.productCode,
-    unit: first.category_unit || "ед",
+    unit: first.category_unit || t("ед"),
     categoryName: first.category_name,
   };
 });
@@ -122,20 +125,20 @@ const qualityBand = computed<"clean" | "wide" | "dirty">(() => {
 const qualityMeta = computed(() => {
   switch (qualityBand.value) {
     case "clean":
-      return { label: "Чистый benchmark", color: "#0F6E56", bg: "rgba(15,110,86,.12)" };
+      return { label: t("Чистый benchmark"), color: "#0F6E56", bg: "rgba(15,110,86,.12)" };
     case "wide":
-      return { label: "Большой разброс", color: "#B07415", bg: "rgba(176,116,21,.12)" };
+      return { label: t("Большой разброс"), color: "#B07415", bg: "rgba(176,116,21,.12)" };
     default:
-      return { label: "Подозрительный", color: "#A32D2D", bg: "rgba(163,45,45,.12)" };
+      return { label: t("Подозрительный"), color: "#A32D2D", bg: "rgba(163,45,45,.12)" };
   }
 });
 
 const warningText = computed(() => {
   if (qualityBand.value === "clean") return null;
   if (qualityBand.value === "wide") {
-    return "Цены различаются в >2× раз — benchmark median может быть искажён. Возможно разные размеры/спецификации товара.";
+    return t("Цены различаются в >2× раз — benchmark median может быть искажён. Возможно разные размеры/спецификации товара.");
   }
-  return "Цены различаются в >10× раз — почти наверняка разные продукты под одним кодом. Не используйте данные для аудита без проверки product spec.";
+  return t("Цены различаются в >10× раз — почти наверняка разные продукты под одним кодом. Не используйте данные для аудита без проверки product spec.");
 });
 
 const accentColor = computed(() => qualityMeta.value.color);
@@ -209,7 +212,7 @@ function supplierTxt(g: SoeGroup): string {
   const supSet = new Set(g.contracts.map(c => c.supplier).filter(s => s && s !== "—") as string[]);
   if (supSet.size === 0) return "—";
   if (supSet.size === 1) return [...supSet][0];
-  return `${supSet.size} разных`;
+  return t("{n} разных", { n: supSet.size });
 }
 
 function dateTxt(g: SoeGroup): string {
@@ -254,7 +257,7 @@ const flatContracts = computed<ClosureRow[]>(() =>
 
 <template>
   <PaModalShell
-    kind="Товар"
+    :kind="t('Товар')"
     :title="productMeta?.name || productCode"
     :accent="accentColor"
     max-width="1080px"
@@ -264,46 +267,46 @@ const flatContracts = computed<ClosureRow[]>(() =>
     <template #stats>
       <div class="pms-stat">
         <div class="pms-stat-lbl">Median</div>
-        <div class="pms-stat-val">{{ paFmtMoney(stats.avgPrice) }}<small>/{{ productMeta?.unit || 'ед' }}</small></div>
+        <div class="pms-stat-val">{{ paFmtMoney(stats.avgPrice) }}<small>/{{ productMeta?.unit || t('ед') }}</small></div>
       </div>
       <div class="pms-stat">
-        <div class="pms-stat-lbl">Минимум</div>
+        <div class="pms-stat-lbl">{{ t("Минимум") }}</div>
         <div class="pms-stat-val pos">{{ paFmtMoney(stats.minPrice) }}</div>
       </div>
       <div class="pms-stat">
-        <div class="pms-stat-lbl">Максимум</div>
+        <div class="pms-stat-lbl">{{ t("Максимум") }}</div>
         <div class="pms-stat-val neg">{{ paFmtMoney(stats.maxPrice) }}</div>
       </div>
       <div class="pms-stat">
-        <div class="pms-stat-lbl">Спред</div>
+        <div class="pms-stat-lbl">{{ t("Спред") }}</div>
         <div class="pms-stat-val" :style="{ color: accentColor }">{{ spreadShort(spreadPct) }}</div>
       </div>
       <div class="pms-stat">
-        <div class="pms-stat-lbl">Покупателей</div>
+        <div class="pms-stat-lbl">{{ t("Покупателей") }}</div>
         <div class="pms-stat-val">{{ stats.uniqueBuyers }}<small>SOE</small></div>
       </div>
       <div class="pms-stat">
-        <div class="pms-stat-lbl">Потенциал</div>
-        <div class="pms-stat-val neg">+{{ paFmtMoneyShort(stats.totalSaving) }}<small>сум</small></div>
+        <div class="pms-stat-lbl">{{ t("Потенциал") }}</div>
+        <div class="pms-stat-val neg">+{{ paFmtMoneyShort(stats.totalSaving) }}<small>{{ t("сум") }}</small></div>
       </div>
     </template>
 
     <!-- ─── Tabs ─── -->
     <template #tabs>
       <button class="pms-tab" :class="{ active: activeTab === 'buyers' }" @click="activeTab = 'buyers'">
-        Покупатели<span class="pms-tab-count">{{ soeGroups.length }}</span>
+        {{ t("Покупатели") }}<span class="pms-tab-count">{{ soeGroups.length }}</span>
       </button>
       <button class="pms-tab" :class="{ active: activeTab === 'contracts' }" @click="activeTab = 'contracts'">
-        Контракты<span class="pms-tab-count">{{ flatContracts.length }}</span>
+        {{ t("Контракты") }}<span class="pms-tab-count">{{ flatContracts.length }}</span>
       </button>
       <!-- Right-aligned controls -->
       <div class="ppd-tab-right">
         <span class="ppd-quality-badge"
               :style="{ background: qualityMeta.bg, color: qualityMeta.color }"
-              :title="`Полный разброс цен: ${displaySpreadShort}`">{{ qualityMeta.label }}</span>
+              :title="t('Полный разброс цен') + ': ' + displaySpreadShort">{{ qualityMeta.label }}</span>
         <label v-if="dirtyCount > 0" class="ppd-show-dirty">
           <input type="checkbox" v-model="showDirty" />
-          <span>Показать dirty ({{ dirtyCount }})</span>
+          <span>{{ t("Показать dirty") }} ({{ dirtyCount }})</span>
         </label>
       </div>
     </template>
@@ -318,7 +321,7 @@ const flatContracts = computed<ClosureRow[]>(() =>
           <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
         </svg>
         <div>
-          <div class="ppdv-warn-t"><b>{{ qualityMeta.label }}</b> · полный разброс {{ displaySpreadShort }}</div>
+          <div class="ppdv-warn-t"><b>{{ qualityMeta.label }}</b> · {{ t("полный разброс") }} {{ displaySpreadShort }}</div>
           <div class="ppdv-warn-s">{{ warningText }}</div>
         </div>
       </div>
@@ -326,7 +329,7 @@ const flatContracts = computed<ClosureRow[]>(() =>
       <!-- Distribution bar (only for non-dirty) -->
       <div v-if="distMarkers.length > 2 && qualityBand !== 'dirty'" class="ppdv-dist">
         <div class="ppdv-dist-l">
-          <span class="ppdv-dist-lbl">Распределение цен</span>
+          <span class="ppdv-dist-lbl">{{ t("Распределение цен") }}</span>
           <span class="ppdv-dist-rng">
             {{ paFmtMoneyShort(stats.minPrice) }}
             <span class="ppdv-dist-arrow">←—→</span>
@@ -354,31 +357,31 @@ const flatContracts = computed<ClosureRow[]>(() =>
           <thead>
             <tr>
               <th class="rk">#</th>
-              <th class="left">Покупатель</th>
-              <th class="right">Avg цена</th>
-              <th class="right">Объём</th>
-              <th class="left">Поставщик</th>
-              <th class="left">Период</th>
+              <th class="left">{{ t("Покупатель") }}</th>
+              <th class="right">{{ t("Avg цена") }}</th>
+              <th class="right">{{ t("Объём") }}</th>
+              <th class="left">{{ t("Поставщик") }}</th>
+              <th class="left">{{ t("Период") }}</th>
               <th class="right">vs median</th>
-              <th class="right">vs лидер</th>
+              <th class="right">{{ t("vs лидер") }}</th>
             </tr>
           </thead>
           <tbody>
             <template v-for="(g, i) in soeGroups" :key="g.companyId">
               <tr class="ppdv-row" :class="{ 'ppdv-row-clickable': true }"
                   @click="g.contracts.length > 1 ? toggleSoe(g.companyId) : emit('drill-purchase', g.contracts[0])"
-                  :title="g.contracts.length > 1 ? `${g.contracts.length} контрактов — кликни для раскрытия` : 'Открыть детали закупки'">
+                  :title="g.contracts.length > 1 ? t('{n} контрактов — кликни для раскрытия', { n: g.contracts.length }) : t('Открыть детали закупки')">
                 <td class="rk">{{ rowNum(i) }}</td>
                 <td class="left">
                   <span class="ppdv-strip" :style="{ background: g.companyColor || '#888' }"></span>
                   {{ g.companyName }}
-                  <span v-if="i === 0" class="ppdv-badge leader">лидер цены</span>
-                  <span v-else-if="i === soeGroups.length - 1 && soeGroups.length >= 3" class="ppdv-badge lagger">пик</span>
+                  <span v-if="i === 0" class="ppdv-badge leader">{{ t("лидер цены") }}</span>
+                  <span v-else-if="i === soeGroups.length - 1 && soeGroups.length >= 3" class="ppdv-badge lagger">{{ t("пик") }}</span>
                   <span v-if="g.contracts.length > 1" class="ppdv-expand" :class="{ open: expandedSoe.has(g.companyId) }">▾</span>
                 </td>
                 <td class="right">
                   <b>{{ paFmtMoney(g.avgPrice) }}</b>
-                  <div v-if="distFromBest(g.avgPrice) > 0" class="ppdv-dist-from">+{{ distFromBest(g.avgPrice).toFixed(0) }}% от лидера</div>
+                  <div v-if="distFromBest(g.avgPrice) > 0" class="ppdv-dist-from">+{{ distFromBest(g.avgPrice).toFixed(0) }}% {{ t("от лидера") }}</div>
                 </td>
                 <td class="right">{{ g.sumVol.toLocaleString('ru-RU') }}</td>
                 <td class="left supplier">{{ supplierTxt(g) }}</td>
@@ -409,14 +412,14 @@ const flatContracts = computed<ClosureRow[]>(() =>
                     {{ devPctVsAvg(c.unit_price) >= 0 ? '+' : '' }}{{ devPctVsAvg(c.unit_price).toFixed(1) }}%
                   </td>
                   <td class="right">
-                    <button class="ppdv-mini-btn" @click.stop="emit('drill-purchase', c)" title="Открыть детали">→</button>
+                    <button class="ppdv-mini-btn" @click.stop="emit('drill-purchase', c)" :title="t('Открыть детали')">→</button>
                   </td>
                 </tr>
               </template>
             </template>
           </tbody>
         </table>
-        <div v-else class="pms-empty">Нет данных по товару</div>
+        <div v-else class="pms-empty">{{ t("Нет данных по товару") }}</div>
       </div>
 
       <!-- Tab: Contracts (flat list) -->
@@ -424,11 +427,11 @@ const flatContracts = computed<ClosureRow[]>(() =>
         <table class="ppdv-tbl pa-stagger" v-if="flatContracts.length">
           <thead>
             <tr>
-              <th class="left">Покупатель</th>
-              <th class="left">Дата</th>
-              <th class="left">Поставщик</th>
-              <th class="right">Цена</th>
-              <th class="right">Объём</th>
+              <th class="left">{{ t("Покупатель") }}</th>
+              <th class="left">{{ t("Дата") }}</th>
+              <th class="left">{{ t("Поставщик") }}</th>
+              <th class="right">{{ t("Цена") }}</th>
+              <th class="right">{{ t("Объём") }}</th>
               <th class="right">vs median</th>
               <th class="right"></th>
             </tr>
@@ -438,7 +441,7 @@ const flatContracts = computed<ClosureRow[]>(() =>
                 class="ppdv-row ppdv-row-clickable"
                 :class="{ 'ppdv-row-dirty': c.is_dirty }"
                 @click="emit('drill-purchase', c)"
-                title="Открыть детали закупки">
+                :title="t('Открыть детали закупки')">
               <td class="left">
                 <span class="ppdv-strip" :style="{ background: c.company_color || '#888' }"></span>
                 {{ c.company_name || c.company_id }}
@@ -457,7 +460,7 @@ const flatContracts = computed<ClosureRow[]>(() =>
             </tr>
           </tbody>
         </table>
-        <div v-else class="pms-empty">Нет контрактов</div>
+        <div v-else class="pms-empty">{{ t("Нет контрактов") }}</div>
       </div>
       </div>
       </Transition>

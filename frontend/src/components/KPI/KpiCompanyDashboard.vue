@@ -22,11 +22,13 @@ import {
   type KpiManager,
 } from "@/api/bpKpi";
 import { useFormatters } from "@/composables/useFormatters";
+import { useI18n } from "@/composables/useI18n";
 import { useToast } from "@/composables/useToast";
 import ModalShell from "@/components/ModalShell.vue";
 import { kpiCompletionRatio, kpiWeightedRatio } from "@/utils/kpiRatio";
 
 const fmt = useFormatters();
+const { t } = useI18n();
 
 const props = defineProps<{
   managers: KpiManager[];
@@ -165,21 +167,21 @@ const statBand = computed<StatCell[]>(() => {
   const avg = companyOverallPct(period);
   const overallSev = avg == null ? "neutral" : avg >= 0.95 ? "ok" : avg >= 0.75 ? "warn" : "bad";
   const overallVal = avg == null ? "—" : Math.round(avg * 100) + "%";
-  const overallSub = avg == null ? "нет данных" : `взвешенно по KPI · ${cntP} руководит.`;
+  const overallSub = avg == null ? t("нет данных") : t("взвешенно по KPI · {n} руководит.", { n: cntP });
 
   const ontrackSev = cntP === 0 ? "neutral" : okMgrs / cntP >= 0.7 ? "ok" : okMgrs / cntP >= 0.4 ? "warn" : "bad";
-  const ontrackVal = cntP === 0 ? "—" : `${okMgrs} из ${cntP}`;
-  const ontrackSub = cntP === 0 ? "нет данных" : "руководителей";
+  const ontrackVal = cntP === 0 ? "—" : t("{a} из {b}", { a: okMgrs, b: cntP });
+  const ontrackSub = cntP === 0 ? t("нет данных") : t("руководителей");
 
   const critSev = critKpis === 0 ? "ok" : critKpis <= 2 ? "warn" : "bad";
 
   const totalSev = totalKpis === 0 ? "neutral" : "ok";
 
   return [
-    { id: "overall", severity: overallSev as StatCell["severity"], label: "Общий прогресс", value: overallVal, sub: overallSub, accent: "#7F77DD", delay: 40 },
-    { id: "ontrack", severity: ontrackSev as StatCell["severity"], label: "На цели (≥95%)", value: ontrackVal, sub: ontrackSub, accent: "#1D9E75", delay: 90 },
-    { id: "crit",    severity: critSev as StatCell["severity"],    label: "Критичных KPI", value: String(critKpis), sub: critKpis === 0 ? "всё в норме" : "<70% плана", accent: "#E24B4A", delay: 140 },
-    { id: "total",   severity: totalSev as StatCell["severity"],   label: "Всего KPI", value: String(totalKpis), sub: "отслеживается", accent: "#378ADD", delay: 190 },
+    { id: "overall", severity: overallSev as StatCell["severity"], label: t("Общий прогресс"), value: overallVal, sub: overallSub, accent: "#7F77DD", delay: 40 },
+    { id: "ontrack", severity: ontrackSev as StatCell["severity"], label: t("На цели (≥95%)"), value: ontrackVal, sub: ontrackSub, accent: "#1D9E75", delay: 90 },
+    { id: "crit",    severity: critSev as StatCell["severity"],    label: t("Критичных KPI"), value: String(critKpis), sub: critKpis === 0 ? t("всё в норме") : t("<70% плана"), accent: "#E24B4A", delay: 140 },
+    { id: "total",   severity: totalSev as StatCell["severity"],   label: t("Всего KPI"), value: String(totalKpis), sub: t("отслеживается"), accent: "#378ADD", delay: 190 },
   ];
 });
 
@@ -228,7 +230,7 @@ const managerCards = computed<ManagerCard[]>(() => {
 
     return {
       idx,
-      short_title: mgr.short_title || `Руководитель ${idx + 1}`,
+      short_title: mgr.short_title || t("Руководитель {n}", { n: idx + 1 }),
       role: mgr.role || "",
       accent,
       beads,
@@ -283,7 +285,7 @@ const achievements = computed<Achievement[]>(() => {
       const plan = planValue(ind, props.period);
       res.push({
         title: ind.name,
-        meta: `${mgr.short_title || mgr.title} · факт ${fmtNum(fact)} · план ${fmtNum(plan)}`,
+        meta: `${mgr.short_title || mgr.title} · ${t("факт")} ${fmtNum(fact)} · ${t("план")} ${fmtNum(plan)}`,
         ratio: r,
       });
     }
@@ -302,7 +304,7 @@ const belowTarget = computed<BelowItem[]>(() => {
       if (r == null || r >= 0.95) continue;
       res.push({
         title: ind.name,
-        meta: `${mgr.short_title || mgr.title} · ${Math.round(r * 100)}% плана · вес ${weightValue(ind, props.period)}`,
+        meta: `${mgr.short_title || mgr.title} · ${t("{p}% плана", { p: Math.round(r * 100) })} · ${t("вес")} ${weightValue(ind, props.period)}`,
         ratio: r,
       });
     }
@@ -348,7 +350,7 @@ async function saveComment() {
     editingComment.value = false;
   } catch (e) {
     console.error("[KPI] comment save failed:", e);
-    useToast().error("Не удалось сохранить комментарий");
+    useToast().error(t("Не удалось сохранить комментарий"));
   } finally {
     savingComment.value = false;
   }
@@ -410,7 +412,7 @@ const detailsMeta = computed(() => {
   const p = mgrOverallPct(m, props.period);
   return {
     title: m.short_title || m.title,
-    sub: `${m.indicators.length} KPI · взвешенно ${p != null ? Math.round(p * 100) + "%" : "—"} · ${props.period === "annual" ? "итог года" : "квартал " + props.period.toUpperCase()}`,
+    sub: `${m.indicators.length} KPI · ${t("взвешенно")} ${p != null ? Math.round(p * 100) + "%" : "—"} · ${props.period === "annual" ? t("итог года") : t("квартал {q}", { q: props.period.toUpperCase() })}`,
   };
 });
 
@@ -577,8 +579,8 @@ function fmtNum(v: number | null): string {
 
       <!-- ═══ 2. Manager cards (horizontal scroll) ═══ -->
       <div v-if="!managers.length" class="kpv-empty">
-        <div class="kpv-empty-ttl">Данные KPI не заполнены</div>
-        <div class="kpv-empty-sub">Импортируйте шаблон или введите показатели вручную<br>для всех руководителей (обычно 20-30 KPI на каждого)</div>
+        <div class="kpv-empty-ttl">{{ t("Данные KPI не заполнены") }}</div>
+        <div class="kpv-empty-sub">{{ t("Импортируйте шаблон или введите показатели вручную") }}<br>{{ t("для всех руководителей (обычно 20-30 KPI на каждого)") }}</div>
       </div>
 
       <div v-else class="kpv-mgrs">
@@ -588,7 +590,7 @@ function fmtNum(v: number | null): string {
           class="kpi2 fin-shimmer kpv-mgr"
           :class="{ active: card.active }"
           :style="{ '--kpi2-accent': card.accent, '--kpi2-d': card.delay + 'ms', '--d': card.delay + 'ms' }"
-          title="Открыть детализацию KPI по кварталам"
+          :title="t('Открыть детализацию KPI по кварталам')"
           @click="onCardClick(card.idx)"
         >
           <div class="kpv-mgr-zoom" aria-hidden="true">
@@ -609,7 +611,7 @@ function fmtNum(v: number | null): string {
               <span v-if="card.pct != null" class="kpv-mgr-pct-suffix" :style="{ color: card.pctColor }">%</span>
             </div>
             <div class="kpv-mgr-pct-side">
-              <span class="kpv-mgr-total-lbl">всего</span>
+              <span class="kpv-mgr-total-lbl">{{ t("всего") }}</span>
               <span class="kpv-mgr-total-v">{{ card.totalCount }}</span>
             </div>
           </div>
@@ -619,11 +621,11 @@ function fmtNum(v: number | null): string {
           </div>
 
           <div class="kpv-mgr-foot">
-            <template v-if="card.totalCount === 0">— · нет KPI</template>
+            <template v-if="card.totalCount === 0">— · {{ t("нет KPI") }}</template>
             <template v-else>
-              <span class="ok">{{ card.okCount }} на цели</span>
-              <template v-if="card.badCount > 0"> · <span class="bad">{{ card.badCount }} крит.</span></template>
-              <template v-else-if="card.warnCount > 0"> · <span class="warn">{{ card.warnCount }} внимание</span></template>
+              <span class="ok">{{ t("{n} на цели", { n: card.okCount }) }}</span>
+              <template v-if="card.badCount > 0"> · <span class="bad">{{ t("{n} крит.", { n: card.badCount }) }}</span></template>
+              <template v-else-if="card.warnCount > 0"> · <span class="warn">{{ t("{n} внимание", { n: card.warnCount }) }}</span></template>
             </template>
           </div>
         </div>
@@ -633,16 +635,16 @@ function fmtNum(v: number | null): string {
       <div class="kpv-split">
         <div class="kpv-card" style="--d:260ms">
           <div class="kpv-card-ttl">
-            <span><span class="kpv-att-dot" :style="{ background: attentionDotColor }"></span>Требуют решения</span>
+            <span><span class="kpv-att-dot" :style="{ background: attentionDotColor }"></span>{{ t("Требуют решения") }}</span>
           </div>
           <div v-if="!attention.length && !belowTarget.length" class="kpv-att-empty">
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#1D9E75" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:6px"><path d="M3 7l3 3 5-6"/></svg>
-            Критических отклонений нет — все KPI ≥95% плана
+            {{ t("Критических отклонений нет — все KPI ≥95% плана") }}
           </div>
           <div v-else-if="!attention.length">
             <div class="kpv-att-okline">
               <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="#1D9E75" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px"><path d="M3 7l3 3 5-6"/></svg>
-              Критических отклонений нет, но {{ belowTarget.length }} KPI ниже цели:
+              {{ t("Критических отклонений нет, но {n} KPI ниже цели:", { n: belowTarget.length }) }}
             </div>
             <div
               v-for="(b, i) in belowTarget"
@@ -676,9 +678,9 @@ function fmtNum(v: number | null): string {
 
         <div class="kpv-card" style="--d:300ms">
           <div class="kpv-card-ttl">
-            <span><span class="kpv-att-dot" style="background:#1D9E75"></span>Достижения периода</span>
+            <span><span class="kpv-att-dot" style="background:#1D9E75"></span>{{ t("Достижения периода") }}</span>
           </div>
-          <div v-if="!achievements.length" class="kpv-ach-empty">Нет показателей ≥105% плана</div>
+          <div v-if="!achievements.length" class="kpv-ach-empty">{{ t("Нет показателей ≥105% плана") }}</div>
           <div v-else>
             <div
               v-for="(a, i) in achievements"
@@ -689,11 +691,11 @@ function fmtNum(v: number | null): string {
               <div>
                 <div class="kpv-ach-ttl">{{ a.title }}</div>
                 <div class="kpv-ach-d">{{ a.meta }}</div>
-                <div v-if="a.ratio > 1.5" class="kpv-ach-flag" title="Перевыполнение выше 150% — вероятно низкая база или разовый эффект. Требуется пояснение.">⚠ требуется пояснение</div>
+                <div v-if="a.ratio > 1.5" class="kpv-ach-flag" :title="t('Перевыполнение выше 150% — вероятно низкая база или разовый эффект. Требуется пояснение.')">⚠ {{ t("требуется пояснение") }}</div>
               </div>
               <div class="kpv-ach-vals">
                 <div class="kpv-ach-val">{{ Math.round(a.ratio * 100) }}%</div>
-                <div v-if="a.ratio > 1.5" class="kpv-ach-cap" title="В индекс KPI идёт с ограничением 150%">в индексе 150%</div>
+                <div v-if="a.ratio > 1.5" class="kpv-ach-cap" :title="t('В индекс KPI идёт с ограничением 150%')">{{ t("в индексе {p}%", { p: 150 }) }}</div>
               </div>
             </div>
           </div>
@@ -703,28 +705,28 @@ function fmtNum(v: number | null): string {
       <!-- ═══ 4. Comment ═══ -->
       <div class="kpv-cmt" style="--d:340ms">
         <div class="kpv-cmt-hd">
-          <span class="kpv-cmt-ttl">Комментарий руководителя</span>
+          <span class="kpv-cmt-ttl">{{ t("Комментарий руководителя") }}</span>
           <span style="display:flex;align-items:center;gap:10px">
-            <span class="kpv-cmt-meta">{{ comment?.body ? 'обновлено' : '' }}</span>
+            <span class="kpv-cmt-meta">{{ comment?.body ? t('обновлено') : '' }}</span>
             <button v-if="canEdit && !editingComment" class="kpv-cmt-edit" @click="editingComment = true">
-              {{ comment?.body ? 'Редактировать' : 'Добавить' }}
+              {{ comment?.body ? t('Редактировать') : t('Добавить') }}
             </button>
           </span>
         </div>
         <div v-if="!editingComment">
           <div v-if="comment?.body" class="kpv-cmt-text">{{ comment.body }}</div>
-          <div v-else class="kpv-cmt-text empty">Комментарий не задан. Нажмите «{{ canEdit ? 'Добавить' : '—' }}» чтобы добавить пояснение для НС.</div>
+          <div v-else class="kpv-cmt-text empty">{{ t("Комментарий не задан. Нажмите «{btn}» чтобы добавить пояснение для НС.", { btn: canEdit ? t('Добавить') : '—' }) }}</div>
         </div>
         <div v-else>
           <textarea
             v-model="commentDraft"
             class="kpv-cmt-textarea"
-            placeholder="Например: В Q1 все 4 руководителя достигли целевых показателей. Отставание по IPO-направлению компенсируется опережением по инвестпрограмме..."
+            :placeholder="t('Например: В Q1 все 4 руководителя достигли целевых показателей. Отставание по IPO-направлению компенсируется опережением по инвестпрограмме...')"
           ></textarea>
           <div class="kpv-cmt-btns">
-            <button class="kpv-cmt-cancel" @click="cancelEdit">Отмена</button>
+            <button class="kpv-cmt-cancel" @click="cancelEdit">{{ t("Отмена") }}</button>
             <button class="kpv-cmt-save" @click="saveComment" :disabled="savingComment">
-              {{ savingComment ? 'Сохранение...' : 'Сохранить' }}
+              {{ savingComment ? t('Сохранение...') : t('Сохранить') }}
             </button>
           </div>
         </div>
@@ -733,11 +735,11 @@ function fmtNum(v: number | null): string {
       <!-- ═══ 5. Details ОФР ═══ -->
       <div class="kpv-card" style="--d:380ms">
         <div class="kpv-card-ttl">
-          <span>Детализация KPI</span>
+          <span>{{ t("Детализация KPI") }}</span>
         </div>
         <div v-if="!activeManager" class="kpv-empty">
-          <div class="kpv-empty-ttl">Выберите руководителя</div>
-          <div class="kpv-empty-sub">Нажмите на карточку выше чтобы увидеть детализацию по всем KPI</div>
+          <div class="kpv-empty-ttl">{{ t("Выберите руководителя") }}</div>
+          <div class="kpv-empty-sub">{{ t("Нажмите на карточку выше чтобы увидеть детализацию по всем KPI") }}</div>
         </div>
         <template v-else>
           <div v-if="detailsMeta" class="kpv-det-head">
@@ -747,18 +749,18 @@ function fmtNum(v: number | null): string {
             </div>
           </div>
           <div v-if="!detailsRows.length" class="kpv-empty">
-            <div class="kpv-empty-ttl">У руководителя ещё нет KPI</div>
-            <div class="kpv-empty-sub">Добавьте показатели через «Редактировать»</div>
+            <div class="kpv-empty-ttl">{{ t("У руководителя ещё нет KPI") }}</div>
+            <div class="kpv-empty-sub">{{ t("Добавьте показатели через «Редактировать»") }}</div>
           </div>
           <div v-else class="kpv-det-body">
             <table class="kpv-det-tbl">
               <thead>
                 <tr>
                   <th>KPI</th>
-                  <th>Вес</th>
-                  <th>План</th>
-                  <th>Факт</th>
-                  <th>Ед. изм.</th>
+                  <th>{{ t("Вес") }}</th>
+                  <th>{{ t("План") }}</th>
+                  <th>{{ t("Факт") }}</th>
+                  <th>{{ t("Ед. изм.") }}</th>
                   <th>%</th>
                   <th></th>
                 </tr>
@@ -808,7 +810,7 @@ function fmtNum(v: number | null): string {
           :class="s.cls"
           :style="{ '--d': (si * 50) + 'ms' }"
         >
-          <div class="kdm-sum-lbl">{{ s.label }}</div>
+          <div class="kdm-sum-lbl">{{ t(s.label) }}</div>
           <div class="kdm-sum-val">{{ s.pct != null ? s.pct + '%' : '—' }}</div>
           <div class="kdm-sum-bar">
             <div class="kdm-sum-bar-fill" :style="{ width: s.pct != null ? (Math.min(s.pct, 150) / 1.5) + '%' : '0%', '--bd': (si * 50 + 120) + 'ms' }"></div>
@@ -817,7 +819,7 @@ function fmtNum(v: number | null): string {
       </div>
 
       <div v-if="!detailIndicators.length" class="kdm-empty">
-        У этой должности ещё нет показателей KPI
+        {{ t("У этой должности ещё нет показателей KPI") }}
       </div>
 
       <!-- Показатели -->
@@ -831,10 +833,10 @@ function fmtNum(v: number | null): string {
           <div class="kdm-ind-head">
             <div class="kdm-ind-name">
               <span class="kdm-ind-t">{{ d.ind.name }}</span>
-              <span class="kdm-ind-meta">вес {{ d.weight || 0 }}<template v-if="d.unit"> · {{ d.unit }}</template></span>
+              <span class="kdm-ind-meta">{{ t("вес") }} {{ d.weight || 0 }}<template v-if="d.unit"> · {{ d.unit }}</template></span>
             </div>
             <div class="kdm-ind-year">
-              <span class="kdm-ind-year-lbl">Год</span>
+              <span class="kdm-ind-year-lbl">{{ t("Год") }}</span>
               <span class="kdm-ind-year-pf">{{ fmtNum(d.planYear) }} → {{ fmtNum(d.factYear) }}</span>
               <span class="kdm-ind-year-pct" :class="d.yearCls">{{ d.yearPct != null ? Math.round(d.yearPct) + '%' : '—' }}</span>
             </div>
@@ -877,10 +879,10 @@ function fmtNum(v: number | null): string {
 
     <template #footer>
       <div class="kdm-legend">
-        <span><i class="kdm-dot ok"></i>≥95% плана</span>
+        <span><i class="kdm-dot ok"></i>{{ t("≥95% плана") }}</span>
         <span><i class="kdm-dot warn"></i>75–95%</span>
         <span><i class="kdm-dot bad"></i>&lt;75%</span>
-        <span class="kdm-legend-note">план → факт</span>
+        <span class="kdm-legend-note">{{ t("план") }} → {{ t("факт") }}</span>
       </div>
     </template>
   </ModalShell>

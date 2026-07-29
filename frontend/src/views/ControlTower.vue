@@ -12,6 +12,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { api } from "@/api/client";
 import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
+import { useI18n } from "@/composables/useI18n";
 import EptLogo from "@/components/EptLogo.vue";
 import UzaSkeleton from "@/components/UZA/UzaSkeleton.vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
@@ -29,6 +30,7 @@ interface TrailItem { ts: string; actor: string; action: string; field: string |
 
 const toast = useToast();
 const { confirmDialog } = useConfirm();
+const { t } = useI18n();
 const digest = ref<Digest | null>(null);
 const loading = ref(true);
 const error = ref<string | null>(null);
@@ -59,7 +61,7 @@ async function load(silent = false) {
     const { data } = await api.get<Digest>(`/monitoring/digest/${year.value}`, { params });
     digest.value = data;
   } catch (e: any) {
-    if (!silent) error.value = e?.response?.data?.detail || e?.message || "Ошибка загрузки";
+    if (!silent) error.value = e?.response?.data?.detail || e?.message || t("Ошибка загрузки");
   } finally { if (!silent) loading.value = false; }
 }
 onMounted(() => load());
@@ -70,23 +72,23 @@ async function freeze() {
   freezing.value = true;
   try {
     const { data } = await api.post("/monitoring/snapshot", { year: year.value });
-    toast.success(`Срез зафиксирован · прогресс ${data.score}%`, 3500);
+    toast.success(t("Срез зафиксирован · прогресс {n}%", { n: data.score }), 3500);
     fromId.value = ""; toId.value = "";
     await load();
   } catch (e: any) {
-    toast.error("Не удалось зафиксировать: " + (e?.response?.data?.detail || e?.message || ""));
+    toast.error(t("Не удалось зафиксировать: {err}", { err: e?.response?.data?.detail || e?.message || "" }));
   } finally { freezing.value = false; }
 }
 async function delSnap(s: SnapRef) {
-  if (!(await confirmDialog({ message: `Удалить срез «${s.label}»?`, danger: true }))) return;
+  if (!(await confirmDialog({ message: t("Удалить срез «{label}»?", { label: s.label }), danger: true }))) return;
   try {
     await api.delete(`/monitoring/snapshot/${s.id}`);
-    toast.success("Срез удалён");
+    toast.success(t("Срез удалён"));
     if (fromId.value === s.id) fromId.value = "";
     if (toId.value === s.id) toId.value = "";
     await load();
   } catch (e: any) {
-    toast.error("Не удалось удалить: " + (e?.response?.data?.detail || e?.message || ""));
+    toast.error(t("Не удалось удалить: {err}", { err: e?.response?.data?.detail || e?.message || "" }));
   }
 }
 
@@ -103,7 +105,7 @@ async function generateBrief() {
     });
     brief.value = data.brief || "";
   } catch (e: any) {
-    briefError.value = e?.response?.data?.detail || e?.message || "Ошибка генерации брифа";
+    briefError.value = e?.response?.data?.detail || e?.message || t("Ошибка генерации брифа");
   } finally { briefLoading.value = false; }
 }
 // лёгкий рендер: **жирный** + абзацы
@@ -136,7 +138,7 @@ function coColor(c: { oblig?: number | null }): string { return bandColor(c.obli
 const PROG = "#7C6FF7";
 function progColor(_v?: number | null): string { return PROG; }
 function fmtDate(s: string | undefined): string {
-  if (!s) return "—"; if (s === "Сейчас") return s;
+  if (!s) return "—"; if (s === "Сейчас") return t("Сейчас");
   return new Date(s).toLocaleString("ru-RU", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 const cur = computed(() => digest.value?.current);
@@ -159,7 +161,7 @@ const obligUnmet = computed(() => cur.value ? Math.max(0, cur.value.due_total - 
 const periodLabel = computed(() => PERIODS.find(p => p.v === period.value)?.l || "");
 // Статус/подпись портфеля — по «исполнению обязательств» через единую band.
 const statusClass = computed(() => bandClass(cur.value?.fact_now));
-const statusWord = computed(() => BAND_WORD[bandClass(cur.value?.fact_now)]);
+const statusWord = computed(() => t(BAND_WORD[bandClass(cur.value?.fact_now)]));
 // «Зона риска» компании = исполнение обязательств ниже 60% (заметно позади).
 const RISK_OBLIG = 60;
 function isRisk(c: Co): boolean { return c.oblig != null && c.oblig < RISK_OBLIG; }
@@ -197,7 +199,7 @@ async function loadCumulative(silent = false) {
     });
     cumulative.value = data;
   } catch (e: any) {
-    if (!silent) { cumulative.value = null; toast.error("Не удалось загрузить динамику: " + (e?.response?.data?.detail || e?.message || "")); }
+    if (!silent) { cumulative.value = null; toast.error(t("Не удалось загрузить динамику: {err}", { err: e?.response?.data?.detail || e?.message || "" })); }
   } finally { if (!silent) tlLoading.value = false; }
 }
 const nowPeriodKey = computed(() => {
@@ -215,8 +217,8 @@ const cumPeriods = computed(() =>
 // линия «взлетала», хотя реальный % мог быть ничтожным).
 const maxPct = computed(() => 100);
 const dynName = computed(() => {
-  if (!dynCompany.value) return "Весь портфель";
-  return cur.value?.companies.find(c => c.company_id === dynCompany.value)?.name || "Компания";
+  if (!dynCompany.value) return t("Весь портфель");
+  return cur.value?.companies.find(c => c.company_id === dynCompany.value)?.name || t("Компания");
 });
 // тренд: прирост за последний прошедший/текущий период
 const trend = computed(() => {
@@ -225,7 +227,7 @@ const trend = computed(() => {
   const d = last?.delta ?? 0;
   return { dir: (d > 0 ? "up" : d < 0 ? "down" : "flat") as "up" | "down" | "flat", delta: d };
 });
-const trendWord = computed(() => ({ up: "прогресс растёт", down: "прогресс снижается", flat: "без прироста" }[trend.value.dir]));
+const trendWord = computed(() => t({ up: "прогресс растёт", down: "прогресс снижается", flat: "без прироста" }[trend.value.dir]));
 
 // Тренд для HERO — ВСЕГДА по всему портфелю, независимо от фильтра компании в
 // «Динамике» (иначе большое портфельное число сопровождалось трендом одной
@@ -244,7 +246,7 @@ const heroTrend = computed(() => {
   const d = past[past.length - 1]?.delta ?? 0;
   return { dir: (d > 0 ? "up" : d < 0 ? "down" : "flat") as "up" | "down" | "flat", delta: d };
 });
-const heroTrendWord = computed(() => ({ up: "прогресс растёт", down: "прогресс снижается", flat: "без прироста" }[heroTrend.value.dir]));
+const heroTrendWord = computed(() => t({ up: "прогресс растёт", down: "прогресс снижается", flat: "без прироста" }[heroTrend.value.dir]));
 
 // Sparkline накопительной линии (растущая траектория)
 const spark = computed(() => {
@@ -280,7 +282,7 @@ async function togglePeriod(key: number) {
     periodDetails.value = data;
   } catch (e: any) {
     periodDetails.value = { completed: [], overdue: [] };
-    toast.error("Не удалось загрузить детали периода: " + (e?.response?.data?.detail || e?.message || ""));
+    toast.error(t("Не удалось загрузить детали периода: {err}", { err: e?.response?.data?.detail || e?.message || "" }));
   } finally { detailsLoading.value = false; }
 }
 // группировка задач по направлению
@@ -302,7 +304,7 @@ async function openCompany(c: any) {
     const { data } = await api.get<{ items: TrailItem[] }>(`/companies/${c.code}/activity`, { params: { limit: 40, days: 120 } });
     trail.value = data.items || [];
   } catch (e: any) {
-    trailError.value = e?.response?.status === 403 ? "Нет доступа к ленте" : "Не удалось загрузить ленту";
+    trailError.value = e?.response?.status === 403 ? t("Нет доступа к ленте") : t("Не удалось загрузить ленту");
   } finally { trailLoading.value = false; }
 }
 function closeModal() { modalCo.value = null; }
@@ -323,11 +325,11 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
     <div class="ph-top">
       <div class="ph-brand">
         <div class="ph-logo"><EptLogo :size="22" /></div>
-        <div><div class="ph-eyebrow">ЕДИНЫЙ МОНИТОРИНГ</div><div class="ph-tt">Execution Summary</div></div>
+        <div><div class="ph-eyebrow">{{ t("ЕДИНЫЙ МОНИТОРИНГ") }}</div><div class="ph-tt">Execution Summary</div></div>
       </div>
       <div class="ph-top-r">
         <select v-model="period" class="ph-sel">
-          <option v-for="p in PERIODS" :key="p.v" :value="p.v">{{ p.l }}</option>
+          <option v-for="p in PERIODS" :key="p.v" :value="p.v">{{ t(p.l) }}</option>
         </select>
         <select v-model.number="year" class="ph-sel"><option v-for="y in years" :key="y" :value="y">FY {{ y }}</option></select>
       </div>
@@ -341,18 +343,18 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
         <!-- HERO: исполнение обязательств (из наступивших сроков сколько выполнено) -->
         <div class="ph-hero" :class="statusClass">
           <div class="ph-hero-l">
-            <div class="ph-hero-eyebrow">Исполнение обязательств · {{ periodLabel }} · FY {{ year }}</div>
+            <div class="ph-hero-eyebrow">{{ t("Исполнение обязательств") }} · {{ t(periodLabel) }} · FY {{ year }}</div>
             <div class="ph-hero-num">{{ cur.fact_now ?? '—' }}<small v-if="cur.fact_now != null">%</small>
               <span class="ph-hero-chip">{{ statusWord }}</span>
             </div>
             <div class="ph-hero-sub">
-              <template v-if="cur.due_total">выполнено {{ cur.due_done }} из {{ cur.due_total }} задач с наступившим сроком</template>
-              <template v-else>сроков ещё не наступало · {{ cur.tasks_total }} задач в работе</template>
-              <span v-if="obligUnmet > 0" class="ph-hero-muted">· {{ obligUnmet }} не в срок</span>
+              <template v-if="cur.due_total">{{ t("выполнено {done} из {total} задач с наступившим сроком", { done: cur.due_done, total: cur.due_total }) }}</template>
+              <template v-else>{{ t("сроков ещё не наступало · {n} задач в работе", { n: cur.tasks_total }) }}</template>
+              <span v-if="obligUnmet > 0" class="ph-hero-muted">· {{ t("{n} не в срок", { n: obligUnmet }) }}</span>
             </div>
           </div>
           <div class="ph-hero-r">
-            <div class="ph-hero-eyebrow alt">Взвешенный прогресс</div>
+            <div class="ph-hero-eyebrow alt">{{ t("Взвешенный прогресс") }}</div>
             <div class="ph-hero-num alt">{{ cur.progress_now }}<small>%</small>
               <span v-if="period === 'all'" class="ph-hero-trend" :class="heroTrend.dir">
                 {{ heroTrend.dir === 'up' ? '↑' : heroTrend.dir === 'down' ? '↓' : '→' }} {{ heroTrendWord }}
@@ -362,17 +364,17 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
               <div class="ph-gap-fill prog" :style="{ width: min100(cur.progress_now) + '%' }" />
             </div>
             <div class="ph-hero-sub alt">
-              учитывает задачи в работе (нач. 25% · в работе 50% · проверка 75%) · <b>{{ cur.overdue }}</b> просрочено
+              {{ t("учитывает задачи в работе (нач. 25% · в работе 50% · проверка 75%)") }} · <b>{{ cur.overdue }}</b> {{ t("просрочено") }}
             </div>
           </div>
         </div>
 
         <!-- KEY TILES -->
         <div class="ph-tiles">
-          <div class="ph-tile"><div class="ph-tile-n">{{ cur.tasks_done }}<em>/{{ cur.tasks_total }}</em></div><div class="ph-tile-l">задач полностью завершено</div></div>
-          <div class="ph-tile" :class="{ on: cur.overdue > 0 }" data-tone="danger"><div class="ph-tile-n">{{ cur.overdue }}</div><div class="ph-tile-l">просрочено сейчас</div></div>
-          <div class="ph-tile" :class="{ on: riskCount > 0 }" data-tone="warn"><div class="ph-tile-n">{{ riskCount }}</div><div class="ph-tile-l">компаний в зоне риска</div></div>
-          <div class="ph-tile"><div class="ph-tile-n">{{ cur.companies.length }}</div><div class="ph-tile-l">компаний в портфеле</div></div>
+          <div class="ph-tile"><div class="ph-tile-n">{{ cur.tasks_done }}<em>/{{ cur.tasks_total }}</em></div><div class="ph-tile-l">{{ t("задач полностью завершено") }}</div></div>
+          <div class="ph-tile" :class="{ on: cur.overdue > 0 }" data-tone="danger"><div class="ph-tile-n">{{ cur.overdue }}</div><div class="ph-tile-l">{{ t("просрочено сейчас") }}</div></div>
+          <div class="ph-tile" :class="{ on: riskCount > 0 }" data-tone="warn"><div class="ph-tile-n">{{ riskCount }}</div><div class="ph-tile-l">{{ t("компаний в зоне риска") }}</div></div>
+          <div class="ph-tile"><div class="ph-tile-n">{{ cur.companies.length }}</div><div class="ph-tile-l">{{ t("компаний в портфеле") }}</div></div>
         </div>
 
         <!-- AI EXECUTIVE BRIEF -->
@@ -384,32 +386,32 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
               </span>
               <div>
                 <div class="ph-brief-eyebrow">AI EXECUTIVE BRIEF</div>
-                <div class="ph-brief-sub">Сводка для Совета директоров на основе реальных цифр</div>
+                <div class="ph-brief-sub">{{ t("Сводка для Совета директоров на основе реальных цифр") }}</div>
               </div>
             </div>
             <button class="ph-brief-btn" @click="generateBrief" :disabled="briefLoading">
               <svg v-if="!briefLoading" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3l1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9z"/></svg>
-              {{ briefLoading ? 'Генерирую…' : (brief ? 'Обновить' : 'Сгенерировать') }}
+              {{ briefLoading ? t('Генерирую…') : (brief ? t('Обновить') : t('Сгенерировать')) }}
             </button>
           </div>
           <div v-if="briefError" class="ph-brief-err">{{ briefError }}</div>
-          <div v-else-if="briefLoading && !brief" class="ph-brief-empty">Анализирую исполнение портфеля…</div>
+          <div v-else-if="briefLoading && !brief" class="ph-brief-empty">{{ t("Анализирую исполнение портфеля…") }}</div>
           <div v-else-if="brief" class="ph-brief-body" v-html="'<p>' + briefHtml(brief) + '</p>'"></div>
-          <div v-else class="ph-brief-empty">Нажмите «Сгенерировать» — ИИ соберёт executive-бриф: статус, риски, траектория, рекомендации.</div>
+          <div v-else class="ph-brief-empty">{{ t("Нажмите «Сгенерировать» — ИИ соберёт executive-бриф: статус, риски, траектория, рекомендации.") }}</div>
         </div>
 
         <!-- ДИНАМИКА ИСПОЛНЕНИЯ (накопительная) -->
         <div class="ph-card">
           <div class="ph-card-h">
-            <div><span class="ph-eyebrow2">ДИНАМИКА ИСПОЛНЕНИЯ</span><span class="ph-card-cap">накопительный % выполнено от портфеля · стрелка — прирост за период · клик — детали</span></div>
+            <div><span class="ph-eyebrow2">{{ t("ДИНАМИКА ИСПОЛНЕНИЯ") }}</span><span class="ph-card-cap">{{ t("накопительный % выполнено от портфеля · стрелка — прирост за период · клик — детали") }}</span></div>
             <div class="ph-dyn-ctl">
               <select v-model="dynCompany" class="ph-dyn-co">
-                <option value="">Весь портфель</option>
+                <option value="">{{ t("Весь портфель") }}</option>
                 <option v-for="c in cur.companies" :key="c.company_id" :value="c.company_id">{{ c.name }}</option>
               </select>
               <div class="uza-seg">
-                <button class="uza-seg-btn" :class="{ on: granularity === 'quarter' }" @click="granularity = 'quarter'">Кварталы</button>
-                <button class="uza-seg-btn" :class="{ on: granularity === 'month' }" @click="granularity = 'month'">Месяцы</button>
+                <button class="uza-seg-btn" :class="{ on: granularity === 'quarter' }" @click="granularity = 'quarter'">{{ t("Кварталы") }}</button>
+                <button class="uza-seg-btn" :class="{ on: granularity === 'month' }" @click="granularity = 'month'">{{ t("Месяцы") }}</button>
               </div>
             </div>
           </div>
@@ -436,22 +438,22 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
               <div v-for="p in cumPeriods" :key="p.key" class="ph-dynp"
                    :class="{ now: p.isNow, fut: p.is_future, open: expandedPeriod === p.key }"
                    role="button" tabindex="0" :aria-expanded="expandedPeriod === p.key"
-                   :aria-label="'Детали периода ' + p.label_full"
+                   :aria-label="t('Детали периода {p}', { p: t(p.label_full) })"
                    @click="togglePeriod(p.key)" @keydown.enter="togglePeriod(p.key)" @keydown.space.prevent="togglePeriod(p.key)">
                 <div class="ph-dynp-top">
-                  <span v-if="p.is_future" class="ph-dynp-delta fl ph-dynp-first">не наступил</span>
+                  <span v-if="p.is_future" class="ph-dynp-delta fl ph-dynp-first">{{ t("не наступил") }}</span>
                   <span v-else-if="p.delta != null" class="ph-dynp-delta" :class="p.delta > 0 ? 'up' : p.delta < 0 ? 'dn' : 'fl'">
-                    {{ p.delta > 0 ? '↑+' + p.delta : p.delta < 0 ? '↓' + p.delta : '→ 0' }}<em>пп</em>
+                    {{ p.delta > 0 ? '↑+' + p.delta : p.delta < 0 ? '↓' + p.delta : '→ 0' }}<em>{{ t("пп") }}</em>
                   </span>
-                  <span v-else class="ph-dynp-delta fl ph-dynp-first">старт</span>
+                  <span v-else class="ph-dynp-delta fl ph-dynp-first">{{ t("старт") }}</span>
                 </div>
                 <div class="ph-dynp-track">
                   <span class="ph-dynp-fill" :style="{ height: Math.max(4, Math.round(p.cum_pct / maxPct * 100)) + '%', background: progColor(p.cum_pct) }" />
                 </div>
                 <div class="ph-dynp-pct" :style="{ color: progColor(p.cum_pct) }">{{ p.cum_pct }}%</div>
                 <div class="ph-dynp-cnt">{{ p.cum_done }}/{{ p.total }}</div>
-                <div class="ph-dynp-sub"><span v-if="p.is_future" class="fu">—</span><template v-else><span class="ok">+{{ p.done_in_period }}</span><span v-if="p.overdue" class="od">{{ p.overdue }} проср.</span></template></div>
-                <div class="ph-dynp-lbl" :class="{ now: p.isNow }">{{ granularity === 'quarter' ? p.label + ' кв' : p.label }}</div>
+                <div class="ph-dynp-sub"><span v-if="p.is_future" class="fu">—</span><template v-else><span class="ok">+{{ p.done_in_period }}</span><span v-if="p.overdue" class="od">{{ t("{n} проср.", { n: p.overdue }) }}</span></template></div>
+                <div class="ph-dynp-lbl" :class="{ now: p.isNow }">{{ granularity === 'quarter' ? t("{n} кв", { n: p.label }) : t(p.label) }}</div>
               </div>
             </div>
 
@@ -461,40 +463,40 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
           <div class="ph-dyn-foot">
             <span class="ph-dyn-trend" :class="trend.dir">
               {{ trend.dir === 'up' ? '↑' : trend.dir === 'down' ? '↓' : '→' }}
-              {{ dynName }} · {{ trendWord }}<template v-if="trend.delta"> ({{ trend.delta > 0 ? '+' : '' }}{{ trend.delta }} пп за период)</template>
+              {{ dynName }} · {{ trendWord }}<template v-if="trend.delta"> ({{ trend.delta > 0 ? '+' : '' }}{{ trend.delta }} {{ t("пп за период") }})</template>
             </span>
-            <span class="ph-dyn-hint">% = задач завершено накопительно / портфель (без ежемес./постоянных) · по дате завершения, для задач без неё — по плановому сроку · клик — детали</span>
+            <span class="ph-dyn-hint">{{ t("% = задач завершено накопительно / портфель (без ежемес./постоянных) · по дате завершения, для задач без неё — по плановому сроку · клик — детали") }}</span>
           </div>
         </div>
 
         <!-- ЧТО ИЗМЕНИЛОСЬ (если есть срез) -->
         <div v-if="cmp" class="ph-card ph-change">
           <div class="ph-card-h">
-            <div><span class="ph-eyebrow2">ЧТО ИЗМЕНИЛОСЬ</span><span class="ph-card-cap">{{ fmtDate(cmp.from.at) }} → {{ fmtDate(cmp.to.at) }}</span></div>
+            <div><span class="ph-eyebrow2">{{ t("ЧТО ИЗМЕНИЛОСЬ") }}</span><span class="ph-card-cap">{{ fmtDate(cmp.from.at) }} → {{ fmtDate(cmp.to.at) }}</span></div>
             <div class="ph-change-delta" :class="(cmp.portfolio_delta||0) > 0 ? 'up' : (cmp.portfolio_delta||0) < 0 ? 'dn' : 'fl'">
               {{ cmp.from.score }}% → {{ cmp.to.score }}%
-              <b>{{ (cmp.portfolio_delta||0) > 0 ? '+' : '' }}{{ cmp.portfolio_delta }} пп</b>
+              <b>{{ (cmp.portfolio_delta||0) > 0 ? '+' : '' }}{{ cmp.portfolio_delta }} {{ t("пп") }}</b>
             </div>
           </div>
           <div class="ph-cols">
             <div class="ph-col">
-              <div class="ph-col-h up">Улучшились<span>{{ cmp.improved.length }}</span></div>
+              <div class="ph-col-h up">{{ t("Улучшились") }}<span>{{ cmp.improved.length }}</span></div>
               <div v-if="cmp.improved.length" class="ph-col-list">
-                <div v-for="c in cmp.improved" :key="c.company_id" class="ph-co" role="button" tabindex="0" :aria-label="'Лента изменений: ' + c.name" @click="openCompany(c)" @keydown.enter="openCompany(c)" @keydown.space.prevent="openCompany(c)">
+                <div v-for="c in cmp.improved" :key="c.company_id" class="ph-co" role="button" tabindex="0" :aria-label="t('Лента изменений: {name}', { name: c.name })" @click="openCompany(c)" @keydown.enter="openCompany(c)" @keydown.space.prevent="openCompany(c)">
                   <div class="av" :style="{ background: c.color }">{{ c.badge }}</div>
                   <div class="ph-co-m">
-                    <div class="ph-co-n">{{ c.name }}<span v-if="(c.projects_closed || 0) > 0" class="ph-pc-chip" :title="c.projects_closed + ' проект(ов) закрыто'">+{{ c.projects_closed }} пр.</span></div>
+                    <div class="ph-co-n">{{ c.name }}<span v-if="(c.projects_closed || 0) > 0" class="ph-pc-chip" :title="t('{n} проект(ов) закрыто', { n: c.projects_closed })">{{ t("+{n} пр.", { n: c.projects_closed }) }}</span></div>
                     <div class="ph-co-s">{{ c.sector }}</div>
                   </div>
                   <div class="ph-co-p"><span class="f">{{ c.from }}</span><span class="t" :style="{ color: progColor(c.to) }">{{ c.to }}%</span></div>
                   <div class="ph-co-d up">+{{ c.delta }}</div>
                 </div>
               </div>
-              <div v-else-if="!closedProjects.length" class="ph-col-e">Никто не вырос</div>
+              <div v-else-if="!closedProjects.length" class="ph-col-e">{{ t("Никто не вырос") }}</div>
 
               <!-- Какие именно проекты закрыли в окне -->
               <div v-if="closedProjects.length" class="ph-closed">
-                <div class="ph-closed-h">Закрыто проектов<span>{{ projectsClosed }}</span></div>
+                <div class="ph-closed-h">{{ t("Закрыто проектов") }}<span>{{ projectsClosed }}</span></div>
                 <div v-for="(p, i) in closedProjects" :key="i" class="ph-closed-row">
                   <span class="ph-closed-dot" :style="{ background: p.color }" />
                   <span class="ph-closed-t"><b v-if="p.num">{{ p.num }}</b> {{ p.title }}</span>
@@ -503,55 +505,55 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
               </div>
             </div>
             <div class="ph-col">
-              <div class="ph-col-h dn">Провалились<span>{{ cmp.fell.length }}</span></div>
+              <div class="ph-col-h dn">{{ t("Провалились") }}<span>{{ cmp.fell.length }}</span></div>
               <div v-if="cmp.fell.length" class="ph-col-list">
-                <div v-for="c in cmp.fell" :key="c.company_id" class="ph-co" role="button" tabindex="0" :aria-label="'Лента изменений: ' + c.name" @click="openCompany(c)" @keydown.enter="openCompany(c)" @keydown.space.prevent="openCompany(c)">
+                <div v-for="c in cmp.fell" :key="c.company_id" class="ph-co" role="button" tabindex="0" :aria-label="t('Лента изменений: {name}', { name: c.name })" @click="openCompany(c)" @keydown.enter="openCompany(c)" @keydown.space.prevent="openCompany(c)">
                   <div class="av" :style="{ background: c.color }">{{ c.badge }}</div>
                   <div class="ph-co-m"><div class="ph-co-n">{{ c.name }}</div><div class="ph-co-s">{{ c.sector }}</div></div>
                   <div class="ph-co-p"><span class="f">{{ c.from }}</span><span class="t" :style="{ color: progColor(c.to) }">{{ c.to }}%</span></div>
                   <div class="ph-co-d dn">{{ c.delta }}</div>
                 </div>
               </div>
-              <div v-else class="ph-col-e">Никто не провалился — хорошо</div>
+              <div v-else class="ph-col-e">{{ t("Никто не провалился — хорошо") }}</div>
             </div>
           </div>
           <div class="ph-change-meta">
-            <span><b :style="{ color: cmp.tasks_closed>0 ? '#1D9E75' : '#1E2A4A' }">{{ cmp.tasks_closed>0 ? '+'+cmp.tasks_closed : cmp.tasks_closed }}</b> задач закрыто</span>
+            <span><b :style="{ color: cmp.tasks_closed>0 ? '#1D9E75' : '#1E2A4A' }">{{ cmp.tasks_closed>0 ? '+'+cmp.tasks_closed : cmp.tasks_closed }}</b> {{ t("задач закрыто") }}</span>
             <span class="dot">·</span>
-            <span><b :style="{ color: projectsClosed>0 ? '#1D9E75' : '#1E2A4A' }">{{ projectsClosed>0 ? '+'+projectsClosed : 0 }}</b> проектов закрыто</span>
+            <span><b :style="{ color: projectsClosed>0 ? '#1D9E75' : '#1E2A4A' }">{{ projectsClosed>0 ? '+'+projectsClosed : 0 }}</b> {{ t("проектов закрыто") }}</span>
             <span class="dot">·</span>
-            <span><b :style="{ color: cmp.comments_added ? '#7C6FF7' : '#1E2A4A' }">{{ cmp.comments_added }}</b> комментариев</span>
+            <span><b :style="{ color: cmp.comments_added ? '#7C6FF7' : '#1E2A4A' }">{{ cmp.comments_added }}</b> {{ t("комментариев") }}</span>
           </div>
         </div>
         <div v-else class="ph-hint">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></svg>
-          Зафиксируйте срез — и здесь появится «было → стало»: кто вырос, кто провалился. Срезы фиксируются и автоматически (раз в день).
+          {{ t("Зафиксируйте срез — и здесь появится «было → стало»: кто вырос, кто провалился. Срезы фиксируются и автоматически (раз в день).") }}
         </div>
 
         <!-- КОМПАНИИ (live, отсортированы по риску) -->
         <div class="ph-card">
           <div class="ph-card-h">
-            <div><span class="ph-eyebrow2">ПО КОМПАНИЯМ</span><span class="ph-card-cap">{{ cur.companies.length }} · клик — лента изменений</span></div>
+            <div><span class="ph-eyebrow2">{{ t("ПО КОМПАНИЯМ") }}</span><span class="ph-card-cap">{{ cur.companies.length }} · {{ t("клик — лента изменений") }}</span></div>
             <div class="uza-seg">
-              <button class="uza-seg-btn" :class="{ on: coSort === 'worst' }" @click="coSort = 'worst'">Сначала риск</button>
-              <button class="uza-seg-btn" :class="{ on: coSort === 'best' }" @click="coSort = 'best'">Лучшие</button>
-              <button class="uza-seg-btn" :class="{ on: coSort === 'name' }" @click="coSort = 'name'">По имени</button>
+              <button class="uza-seg-btn" :class="{ on: coSort === 'worst' }" @click="coSort = 'worst'">{{ t("Сначала риск") }}</button>
+              <button class="uza-seg-btn" :class="{ on: coSort === 'best' }" @click="coSort = 'best'">{{ t("Лучшие") }}</button>
+              <button class="uza-seg-btn" :class="{ on: coSort === 'name' }" @click="coSort = 'name'">{{ t("По имени") }}</button>
             </div>
           </div>
           <div class="ph-co-list2">
             <UzaStateBlock v-if="!sortedCompanies.length" state="empty" variant="inline"
-                           text="Нет компаний с данными за этот период." />
+                           :text="t('Нет компаний с данными за этот период.')" />
             <div v-for="c in sortedCompanies" :key="c.company_id" class="ph-co2"
                  :class="{ risk: isRisk(c) }" role="button" tabindex="0"
-                 :aria-label="'Лента изменений: ' + c.name"
+                 :aria-label="t('Лента изменений: {name}', { name: c.name })"
                  @click="openCompany(c)" @keydown.enter="openCompany(c)" @keydown.space.prevent="openCompany(c)">
               <div class="av" :style="{ background: c.color }">{{ c.badge }}</div>
               <div class="ph-co-m">
-                <div class="ph-co-n">{{ c.name }}<span v-if="isRisk(c)" class="ph-risk-tag">риск</span><span v-if="coDeltaMap[c.company_id]" class="ph-co-delta" :class="coDeltaMap[c.company_id] > 0 ? 'up' : 'dn'">{{ coDeltaMap[c.company_id] > 0 ? '+' : '' }}{{ coDeltaMap[c.company_id] }} пп</span></div>
+                <div class="ph-co-n">{{ c.name }}<span v-if="isRisk(c)" class="ph-risk-tag">{{ t("риск") }}</span><span v-if="coDeltaMap[c.company_id]" class="ph-co-delta" :class="coDeltaMap[c.company_id] > 0 ? 'up' : 'dn'">{{ coDeltaMap[c.company_id] > 0 ? '+' : '' }}{{ coDeltaMap[c.company_id] }} {{ t("пп") }}</span></div>
                 <div class="ph-co-nums">
-                  <span>задачи <b>{{ c.tasks_done }}</b>/{{ c.tasks_total }}<i v-if="hasSnap && (c.tasks_done - (c.tasks_done_snap||0)) > 0" class="up">+{{ c.tasks_done - (c.tasks_done_snap||0) }}</i></span>
-                  <span>проекты <b>{{ c.projects_done }}</b>/{{ c.projects_total }}<i v-if="hasSnap && (c.projects_done - (c.projects_done_snap||0)) > 0" class="up">+{{ c.projects_done - (c.projects_done_snap||0) }}</i></span>
-                  <span v-if="c.comments"><b>{{ c.comments }}</b> комм.<i v-if="hasSnap && (c.comments - (c.comments_snap||0)) > 0" class="up">+{{ c.comments - (c.comments_snap||0) }}</i></span>
+                  <span>{{ t("задачи") }} <b>{{ c.tasks_done }}</b>/{{ c.tasks_total }}<i v-if="hasSnap && (c.tasks_done - (c.tasks_done_snap||0)) > 0" class="up">+{{ c.tasks_done - (c.tasks_done_snap||0) }}</i></span>
+                  <span>{{ t("проекты") }} <b>{{ c.projects_done }}</b>/{{ c.projects_total }}<i v-if="hasSnap && (c.projects_done - (c.projects_done_snap||0)) > 0" class="up">+{{ c.projects_done - (c.projects_done_snap||0) }}</i></span>
+                  <span v-if="c.comments"><b>{{ c.comments }}</b> {{ t("комм.") }}<i v-if="hasSnap && (c.comments - (c.comments_snap||0)) > 0" class="up">+{{ c.comments - (c.comments_snap||0) }}</i></span>
                 </div>
               </div>
               <div class="ph-co-track"><span :style="{ width: Math.min(100, c.oblig ?? 0) + '%', background: coColor(c) }" /></div>
@@ -565,12 +567,12 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
           <div class="ph-snapcard-h">
             <div class="ph-snapbar-l">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 5h14a1 1 0 011 1v13a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1zM4 10h16M8 3v4M16 3v4"/></svg>
-              <span><b>{{ digest!.snapshots.length }}</b> срез{{ digest!.snapshots.length === 1 ? '' : digest!.snapshots.length < 5 && digest!.snapshots.length ? 'а' : 'ов' }} прогресса</span>
-              <button v-if="digest!.snapshots.length" class="ph-link" :aria-expanded="showSnaps" @click="showSnaps = !showSnaps">{{ showSnaps ? 'скрыть' : 'управлять' }}</button>
+              <span><b>{{ digest!.snapshots.length }}</b> {{ t(digest!.snapshots.length === 1 ? 'срез прогресса' : (digest!.snapshots.length < 5 && digest!.snapshots.length ? 'среза прогресса' : 'срезов прогресса')) }}</span>
+              <button v-if="digest!.snapshots.length" class="ph-link" :aria-expanded="showSnaps" @click="showSnaps = !showSnaps">{{ showSnaps ? t('скрыть') : t('управлять') }}</button>
             </div>
             <button class="ph-freeze sm" @click="freeze" :disabled="freezing">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-              {{ freezing ? "Фиксирую…" : "Зафиксировать срез" }}
+              {{ freezing ? t("Фиксирую…") : t("Зафиксировать срез") }}
             </button>
           </div>
           <div v-if="showSnaps && digest!.snapshots.length" class="ph-snaplist flat">
@@ -579,7 +581,7 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
               <span class="ph-snap-lbl">{{ s.label }}</span>
               <span class="ph-snap-score" :style="{ color: progColor(s.score) }">{{ s.score }}%</span>
               <span class="ph-snap-at">{{ fmtDate(s.at) }}</span>
-              <button class="ph-snap-del" @click="delSnap(s)" title="Удалить срез">
+              <button class="ph-snap-del" @click="delSnap(s)" :title="t('Удалить срез')">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
               </button>
             </div>

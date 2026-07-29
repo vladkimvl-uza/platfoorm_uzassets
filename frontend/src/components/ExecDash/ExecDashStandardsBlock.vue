@@ -9,10 +9,12 @@
  *   - Attention list: компании где есть gap (МСФО не начат / Forensic тендер / etc)
  */
 import { computed } from "vue";
+import { useI18n } from "@/composables/useI18n";
 import { useExecutiveDashboard } from "@/composables/useExecutiveDashboard";
 import { SECTOR_COLORS } from "@/utils/sectorMeta";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 
+const { t } = useI18n();
 const exec = useExecutiveDashboard();
 
 const block = computed(() => exec.data.value?.standards || null);
@@ -38,7 +40,7 @@ const forensicDash = computed(() => {
 const ifrsSubText = computed(() => {
   if (!block.value) return "";
   const a = block.value.ifrs.active;
-  return a > 0 ? `+${a} в процессе` : "";
+  return a > 0 ? t("+{n} в процессе", { n: a }) : "";
 });
 
 const forensicSubText = computed(() => {
@@ -46,16 +48,17 @@ const forensicSubText = computed(() => {
   const a = block.value.forensic.active;
   const i = block.value.forensic.init;
   const parts: string[] = [];
-  if (a > 0) parts.push(`+${a} процесс`);
-  if (i > 0) parts.push(`${i} тендер`);
+  if (a > 0) parts.push(t("+{n} процесс", { n: a }));
+  if (i > 0) parts.push(t("{n} тендер", { n: i }));
   return parts.join(" · ");
 });
 
 function statusLabel(status: string, kind: "МСФО" | "Forensic"): string {
-  if (status === "done") return `${kind} ✓`;
-  if (status === "active" || status === "review") return `${kind} в процессе`;
-  if (status === "init" && kind === "Forensic") return "Forensic тендер";
-  return `${kind} не начат`;
+  const k = t(kind);  // «МСФО» переводится (MHXS/IFRS), «Forensic» остаётся
+  if (status === "done") return `${k} ✓`;
+  if (status === "active" || status === "review") return t("{k} в процессе", { k });
+  if (status === "init" && kind === "Forensic") return t("Forensic тендер");
+  return t("{k} не начат", { k });
 }
 
 function statusColor(status: string): string {
@@ -70,16 +73,16 @@ function statusColor(status: string): string {
   <div class="ed-card eds-card">
     <!-- Header -->
     <div class="eds-hdr">
-      <span class="eds-eyebrow">Внедрение стандартов</span>
+      <span class="eds-eyebrow">{{ t("Внедрение стандартов") }}</span>
       <span
         v-if="stdYear"
         class="eds-badge"
-        title="Аудит проводится с лагом в год — показаны данные за предыдущий завершённый год"
+        :title="t('Аудит проводится с лагом в год — показаны данные за предыдущий завершённый год')"
       >
-        данные за FY {{ stdYear }}
+        {{ t("данные за FY {y}", { y: stdYear }) }}
       </span>
       <span v-if="block && block.total_companies" class="eds-count">
-        {{ block.total_companies }} компаний
+        {{ block.total_companies }} {{ t("компаний") }}
       </span>
     </div>
 
@@ -88,8 +91,8 @@ function statusColor(status: string): string {
       v-if="!block || block.total_companies === 0"
       state="empty"
       variant="block"
-      title="Нет данных по стандартам"
-      :desc="`Для FY ${exec.year.value} нет информации о внедрении МСФО / Forensic`"
+      :title="t('Нет данных по стандартам')"
+      :desc="t('Для FY {y} нет информации о внедрении МСФО / Forensic', { y: exec.year.value })"
     />
 
     <template v-else>
@@ -116,8 +119,8 @@ function statusColor(status: string): string {
             </div>
           </div>
           <div class="eds-ring-info">
-            <div class="eds-ring-label eds-ring-label-ifrs">МСФО</div>
-            <div class="eds-ring-sub">аудит завершён</div>
+            <div class="eds-ring-label eds-ring-label-ifrs">{{ t("МСФО") }}</div>
+            <div class="eds-ring-sub">{{ t("аудит завершён") }}</div>
             <div v-if="ifrsSubText" class="eds-ring-progress">{{ ifrsSubText }}</div>
           </div>
         </div>
@@ -144,7 +147,7 @@ function statusColor(status: string): string {
           </div>
           <div class="eds-ring-info">
             <div class="eds-ring-label eds-ring-label-forensic">Forensic</div>
-            <div class="eds-ring-sub">аудит завершён</div>
+            <div class="eds-ring-sub">{{ t("аудит завершён") }}</div>
             <div v-if="forensicSubText" class="eds-ring-progress">{{ forensicSubText }}</div>
           </div>
         </div>
@@ -152,13 +155,13 @@ function statusColor(status: string): string {
 
       <!-- Attention list label -->
       <div class="eds-att-hdr">
-        Требуют внимания · {{ block.attention_list.length }}
+        {{ t("Требуют внимания") }} · {{ block.attention_list.length }}
       </div>
 
       <!-- Attention list -->
       <div class="eds-att-wrap">
         <div v-if="!block.attention_list.length" class="eds-att-clean">
-          Все компании завершили МСФО и Forensic
+          {{ t("Все компании завершили МСФО и Forensic") }}
         </div>
         <div
           v-for="(a, i) in block.attention_list"

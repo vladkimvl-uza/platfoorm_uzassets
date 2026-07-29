@@ -26,6 +26,9 @@ import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import { useAuthStore } from "@/stores/auth";
 import { useToast } from "@/composables/useToast";
 import { isModerationQueued } from "@/api/client";
+import { useI18n } from "@/composables/useI18n";
+
+const { t } = useI18n();
 
 const props = withDefaults(defineProps<{
   companyId: string;
@@ -65,7 +68,7 @@ function cancelEdit() { editingId.value = null; }
 async function saveEdit(m: ESGMetricBrief) {
   const raw = editVal.value.trim();
   const num = raw === "" ? null : Number(raw);
-  if (raw !== "" && Number.isNaN(num)) { toast.error("Введите число"); return; }
+  if (raw !== "" && Number.isNaN(num)) { toast.error(t("Введите число")); return; }
   savingId.value = m.id;
   try {
     const res = await esgApi.upsertMetric({
@@ -75,12 +78,12 @@ async function saveEdit(m: ESGMetricBrief) {
       benchmark: m.benchmark, notes: m.notes,
     });
     editingId.value = null;
-    if (isModerationQueued(res)) toast.info("Изменение отправлено на модерацию");
-    else toast.success("Сохранено");
+    if (isModerationQueued(res)) toast.info(t("Изменение отправлено на модерацию"));
+    else toast.success(t("Сохранено"));
     await load();
     emit("changed");
   } catch (e: any) {
-    toast.error(e?.response?.data?.detail || "Не удалось сохранить");
+    toast.error(e?.response?.data?.detail || t("Не удалось сохранить"));
   } finally {
     savingId.value = null;
   }
@@ -107,7 +110,7 @@ async function load() {
     emit("year-shown", d.year);
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    error.value = err?.response?.data?.detail || err?.message || "Не удалось загрузить";
+    error.value = err?.response?.data?.detail || err?.message || t("Не удалось загрузить");
   } finally {
     loading.value = false;
   }
@@ -162,17 +165,17 @@ const isEmpty = computed(() => detail.value != null && _mc(detail.value) === 0 &
 
 <template>
   <div class="ec-panel" :class="`ec-panel--${variant}`">
-    <UzaStateBlock v-if="loading && !detail" state="loading" text="Загрузка ESG-данных…" />
+    <UzaStateBlock v-if="loading && !detail" state="loading" :text="t('Загрузка ESG-данных…')" />
     <UzaStateBlock v-else-if="error && !detail" state="error" variant="block" :text="error" retry @retry="load" />
 
     <UzaStateBlock
       v-else-if="isEmpty"
       state="empty" variant="block"
-      title="ESG-данные не введены"
-      :text="`Для ${detail?.company_name || detail?.company_code} в ${detail?.year} году метрики ESG отсутствуют.`"
+      :title="t('ESG-данные не введены')"
+      :text="t('Для {name} в {year} году метрики ESG отсутствуют.', { name: detail?.company_name || detail?.company_code, year: detail?.year })"
     >
       <template #actions>
-        <button v-if="canEditEsg" class="ec-edit-btn" type="button" @click="editorOpen = true">Ввести данные</button>
+        <button v-if="canEditEsg" class="ec-edit-btn" type="button" @click="editorOpen = true">{{ t("Ввести данные") }}</button>
       </template>
     </UzaStateBlock>
 
@@ -180,7 +183,7 @@ const isEmpty = computed(() => detail.value != null && _mc(detail.value) === 0 &
       <!-- Header -->
       <div class="ec-header">
         <div class="ec-header-l">
-          <div v-if="variant === 'modal'" class="ec-eyebrow">ESG · детали компании</div>
+          <div v-if="variant === 'modal'" class="ec-eyebrow">{{ t("ESG · детали компании") }}</div>
           <h2 v-if="variant === 'modal'" class="ec-title">{{ detail.company_name || detail.company_code }}</h2>
           <div class="ec-meta">
             <span class="ec-co-code">{{ detail.company_code }}</span>
@@ -197,7 +200,7 @@ const isEmpty = computed(() => detail.value != null && _mc(detail.value) === 0 &
             <option v-for="y in detail.available_years" :key="y" :value="y">{{ y }}</option>
           </select>
           <button v-if="canEditEsg" class="ec-edit-btn" type="button" @click="editorOpen = true">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>Редактировать
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>{{ t("Редактировать") }}
           </button>
           <button v-if="variant === 'modal'" class="ec-close" @click="$emit('close')">×</button>
         </div>
@@ -208,35 +211,35 @@ const isEmpty = computed(() => detail.value != null && _mc(detail.value) === 0 &
         <div v-for="p in PILLAR_META" :key="p.key" class="ec-pillar" :style="{ '--stripe-color': p.color }">
           <div class="ec-pillar-h">
             <span class="ec-pillar-letter" :style="{ background: p.color }">{{ p.key }}</span>
-            <span class="ec-pillar-l">{{ p.label }}</span>
+            <span class="ec-pillar-l">{{ t(p.label) }}</span>
           </div>
           <div class="ec-pillar-score" :style="{ color: scoreColor(scoreFor(p.key)) }">
             {{ scoreFor(p.key) != null ? scoreFor(p.key)!.toFixed(0) : '—' }}
             <span v-if="scoreFor(p.key) != null" class="ec-pillar-of">/100</span>
           </div>
-          <div class="ec-pillar-count">{{ metricsFor(p.key).length }} метрик</div>
+          <div class="ec-pillar-count">{{ t("{n} метрик", { n: metricsFor(p.key).length }) }}</div>
         </div>
         <div class="ec-pillar ec-pillar-overall">
           <div class="ec-pillar-h">
             <span class="ec-pillar-letter" style="background: #1e2a4a">Σ</span>
-            <span class="ec-pillar-l">Общий балл</span>
+            <span class="ec-pillar-l">{{ t("Общий балл") }}</span>
           </div>
           <div class="ec-pillar-score" :style="{ color: scoreColor(detail.overall_score) }">
             {{ detail.overall_score != null ? detail.overall_score.toFixed(0) : '—' }}
             <span v-if="detail.overall_score != null" class="ec-pillar-of">/100</span>
           </div>
-          <div class="ec-pillar-count">среднее E·S·G</div>
+          <div class="ec-pillar-count">{{ t("среднее E·S·G") }}</div>
         </div>
       </div>
 
       <!-- Body: 3-column metrics breakdown -->
       <div class="ec-body">
         <div class="ec-sec">
-          <div class="ec-sec-h">Метрики по столпам</div>
+          <div class="ec-sec-h">{{ t("Метрики по столпам") }}</div>
           <div class="ec-metrics-grid">
             <div v-for="p in PILLAR_META" :key="p.key" class="ec-pillar-col">
               <div class="ec-col-h" :style="{ color: p.color }">
-                <span class="ec-col-dot" :style="{ background: p.color }" />{{ p.label }}
+                <span class="ec-col-dot" :style="{ background: p.color }" />{{ t(p.label) }}
               </div>
               <div class="ec-metric-list">
                 <div v-for="m in metricsFor(p.key)" :key="m.id" class="ec-metric">

@@ -15,7 +15,9 @@ import DirectionDrillModal from "@/components/UZA/DirectionDrillModal.vue";
 import { pctColor as pctColorBase } from "@/utils/pctColor";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import { useDirectionsStore } from "@/stores/directions";
+import { useI18n } from "@/composables/useI18n";
 
+const { t } = useI18n();
 const exec = useExecutiveDashboard();
 // Цвет направления — из каталога (стор), чтобы совпадал с /admin (бэкенд-блок
 // шлёт легаси-хардкод). id направления = его код.
@@ -77,9 +79,9 @@ function fmtCell(done: number, total: number): { text: string; color: string } {
   <div class="ed-card edd-card">
     <!-- Header -->
     <div class="edd-hdr">
-      <span class="edd-eyebrow">По направлениям</span>
-      <span v-if="fallbackYear" class="edd-badge" :title="`За FY ${exec.year.value} данных нет — показан последний доступный год`">
-        данные за FY {{ fallbackYear }}
+      <span class="edd-eyebrow">{{ t("По направлениям") }}</span>
+      <span v-if="fallbackYear" class="edd-badge" :title="t('За FY {year} данных нет — показан последний доступный год', { year: exec.year.value })">
+        {{ t("данные за FY {year}", { year: fallbackYear }) }}
       </span>
     </div>
 
@@ -88,8 +90,8 @@ function fmtCell(done: number, total: number): { text: string; color: string } {
       v-if="!directions.length"
       state="empty"
       variant="block"
-      title="Нет направлений"
-      :desc="`Для FY ${exec.year.value} нет данных о направлениях`"
+      :title="t('Нет направлений')"
+      :desc="t('Для FY {year} нет данных о направлениях', { year: exec.year.value })"
     />
 
     <!-- Table -->
@@ -97,9 +99,9 @@ function fmtCell(done: number, total: number): { text: string; color: string } {
       <div class="edd-table-hdr edd-grid">
         <div class="edd-th-bar" />
         <div class="edd-th-label" />
-        <div class="edd-th-cell">Прогресс</div>
-        <div class="edd-th-cell">Проекты</div>
-        <div class="edd-th-cell">Задачи</div>
+        <div class="edd-th-cell">{{ t("Прогресс") }}</div>
+        <div class="edd-th-cell">{{ t("Проекты") }}</div>
+        <div class="edd-th-cell">{{ t("Задачи") }}</div>
       </div>
 
       <div class="edd-rows">
@@ -110,7 +112,7 @@ function fmtCell(done: number, total: number): { text: string; color: string } {
           :style="{ '--rd': `${i * 50}ms` }"
           role="button"
           tabindex="0"
-          :title="'Подробнее: ' + d.label"
+          :title="t('Подробнее: {name}', { name: d.label })"
           @click="openDrill(d)"
           @keydown="onRowKeydown($event, d)"
         >

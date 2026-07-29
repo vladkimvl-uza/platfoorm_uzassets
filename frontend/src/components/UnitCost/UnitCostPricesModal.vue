@@ -5,6 +5,7 @@
  * эффективная цена = USD × курс, пересчёт в реальном времени). Dirty-guard.
  */
 import { computed, ref, watch } from "vue";
+import { useI18n } from "@/composables/useI18n";
 import ModalShell from "@/components/ModalShell.vue";
 import { useToast } from "@/composables/useToast";
 import { unitCostApi, FUELS, type UCPrices, type UCWorld } from "@/api/unitCost";
@@ -14,6 +15,7 @@ const props = defineProps<{ open: boolean; prices: UCPrices; world: UCWorld | nu
   live: UCWorld | null; fuelLabels: Record<string, string>; year: number; quarter: string }>();
 const emit = defineEmits<{ (e: "close"): void; (e: "saved"): void }>();
 const toast = useToast();
+const { t } = useI18n();
 
 const FUEL_UNIT: Record<string, string> = {
   electricity: "сум/кВт·ч", gas: "сум/м³", diesel: "сум/т", mazut: "сум/т", coal: "сум/т", kerosene: "сум/т",
@@ -93,12 +95,12 @@ async function save() {
   saving.value = true;
   try {
     await unitCostApi.savePrices(prices, w, props.year, props.quarter);
-    toast.success("Цены и курсы сохранены");
+    toast.success(t("Цены и курсы сохранены"));
     initial = JSON.stringify({ p: pdraft.value, w: wdraft.value });
     emit("saved");
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    toast.error("Не сохранено: " + (err?.response?.data?.detail || err?.message || "ошибка"));
+    toast.error(t("Не сохранено: {msg}", { msg: err?.response?.data?.detail || err?.message || t("ошибка") }));
   } finally { saving.value = false; }
 }
 </script>
@@ -107,58 +109,58 @@ async function save() {
   <ModalShell :open="open" size="lg" :dirty="dirty" @close="emit('close')">
     <template #header>
       <div class="ucp-head">
-        <div class="ucp-eyebrow">Удельная себестоимость</div>
-        <h2 class="ucp-title">Курс, мировые цены и энергоносители</h2>
-        <div class="ucp-sub">курс USD влияет на все цены, заданные в долларах — пересчёт мгновенный</div>
+        <div class="ucp-eyebrow">{{ t("Удельная себестоимость") }}</div>
+        <h2 class="ucp-title">{{ t("Курс, мировые цены и энергоносители") }}</h2>
+        <div class="ucp-sub">{{ t("курс USD влияет на все цены, заданные в долларах — пересчёт мгновенный") }}</div>
       </div>
     </template>
 
     <div class="ucp-body">
       <!-- Мировые ориентиры -->
-      <div class="ucp-block-t">Курс и мировые ориентиры
+      <div class="ucp-block-t">{{ t("Курс и мировые ориентиры") }}
         <button v-if="live && live.source === 'live'" type="button" class="ucp-live-btn" @click="fillFromLive"
-                title="Подставить значения из живого фида">из живого фида</button>
+                :title="t('Подставить значения из живого фида')">{{ t("из живого фида") }}</button>
       </div>
       <div class="ucp-world">
         <div v-for="w in WORLD" :key="w.key" class="ucp-w">
           <div class="ucp-w-l">
-            <span>{{ w.label }}</span>
+            <span>{{ t(w.label) }}</span>
             <span class="ucp-w-badge" :class="isLive(w.key) ? 'live' : 'off'"
-                  :title="isLive(w.key) ? (w.key === 'usd_rate' ? 'Обновляется из курса ЦБ РУз' : 'Обновляется со спот-рынка') : 'Нет живого источника — значение задаётся вручную'">
-              <i v-if="isLive(w.key)" class="ucp-w-dot" />{{ isLive(w.key) ? 'live' : 'ориентир' }}
+                  :title="isLive(w.key) ? (w.key === 'usd_rate' ? t('Обновляется из курса ЦБ РУз') : t('Обновляется со спот-рынка')) : t('Нет живого источника — значение задаётся вручную')">
+              <i v-if="isLive(w.key)" class="ucp-w-dot" />{{ isLive(w.key) ? 'live' : t('ориентир') }}
             </span>
           </div>
           <input v-model="wdraft[w.key]" type="text" inputmode="decimal" class="ucp-inp ucp-inp-c" placeholder="—" />
-          <div class="ucp-w-u">{{ w.unit }}</div>
+          <div class="ucp-w-u">{{ t(w.unit) }}</div>
         </div>
       </div>
-      <div class="ucp-w-hint">«live» — берётся из источника (USD — ЦБ РУз, золото — спот-рынок); «ориентир» — Brent и медь без живого источника, задаются вручную.</div>
+      <div class="ucp-w-hint">{{ t("«live» — берётся из источника (USD — ЦБ РУз, золото — спот-рынок); «ориентир» — Brent и медь без живого источника, задаются вручную.") }}</div>
 
       <!-- Энергоносители -->
-      <div class="ucp-block-t">Цены энергоносителей <span>в сумах напрямую или в USD (тогда × курс)</span></div>
+      <div class="ucp-block-t">{{ t("Цены энергоносителей") }} <span>{{ t("в сумах напрямую или в USD (тогда × курс)") }}</span></div>
       <div class="ucp-head-row">
-        <span></span><span>Цена, сум</span><span>или USD</span><span>Итог, сум</span>
+        <span></span><span>{{ t("Цена, сум") }}</span><span>{{ t("или USD") }}</span><span>{{ t("Итог, сум") }}</span>
       </div>
       <div v-for="(f, i) in FUELS" :key="f" class="ucp-row" :class="{ err: priceErr(f) }" :style="{ '--d': (i * 45) + 'ms' }">
         <span class="ucp-label" :style="{ '--fc': FUEL_COLOR[f] }"><FuelIcon :fuel="f" :size="14" />{{ fuelLabels[f] || f }}</span>
         <div class="ucp-inwrap">
           <input v-model="pdraft[f].price" type="text" inputmode="decimal" class="ucp-inp ucp-inp-c"
                  :disabled="!!num(pdraft[f].usd)" placeholder="—" />
-          <span class="ucp-u">{{ FUEL_UNIT[f] }}</span>
+          <span class="ucp-u">{{ t(FUEL_UNIT[f]) }}</span>
         </div>
         <div class="ucp-inwrap">
           <input v-model="pdraft[f].usd" type="text" inputmode="decimal" class="ucp-inp ucp-inp-c" placeholder="—" />
-          <span class="ucp-u">{{ FUEL_USD_UNIT[f] }}</span>
+          <span class="ucp-u">{{ t(FUEL_USD_UNIT[f]) }}</span>
         </div>
         <span class="ucp-eff" :class="{ usd: !!num(pdraft[f].usd) }">{{ fmt(effective(f)) }}</span>
       </div>
-      <div class="ucp-note">Единицы: электроэнергия — кВт·ч, газ — м³, жидкое топливо и уголь — тонна. Задайте цену в USD, чтобы она автоматически пересчитывалась по курсу.</div>
+      <div class="ucp-note">{{ t("Единицы: электроэнергия — кВт·ч, газ — м³, жидкое топливо и уголь — тонна. Задайте цену в USD, чтобы она автоматически пересчитывалась по курсу.") }}</div>
     </div>
 
     <template #footer>
-      <button class="ucp-cancel" type="button" @click="emit('close')">Отмена</button>
+      <button class="ucp-cancel" type="button" @click="emit('close')">{{ t("Отмена") }}</button>
       <button class="ucp-save" type="button" :disabled="!dirty || hasErr || saving" @click="save">
-        {{ saving ? "Сохранение…" : "Сохранить" }}
+        {{ saving ? t("Сохранение…") : t("Сохранить") }}
       </button>
     </template>
   </ModalShell>

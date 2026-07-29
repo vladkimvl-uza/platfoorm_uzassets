@@ -2,8 +2,8 @@
   <!-- Trigger: pill button (parent gates with v-if=hasAccess) -->
   <button class="fcp-trigger" :class="{ open, 'fcp-off': aiOff }" :disabled="aiOff" type="button"
           @click="!aiOff && (open = !open)"
-          :title="aiOff ? 'ИИ-ассистент выключен владельцем' : 'ИИ-аналитик финансов'">
-    <span class="fcp-trigger-txt">{{ aiOff ? 'ИИ выключен' : 'ИИ-аналитик' }}</span>
+          :title="aiOff ? t('ИИ-ассистент выключен владельцем') : t('ИИ-аналитик финансов')">
+    <span class="fcp-trigger-txt">{{ aiOff ? t('ИИ выключен') : t('ИИ-аналитик') }}</span>
   </button>
 
   <Teleport to="body">
@@ -16,32 +16,31 @@
           <div class="fcp-head-l">
             <div class="fcp-icon">AI</div>
             <div>
-              <h3>ИИ-аналитик · Финансы</h3>
+              <h3>{{ t("ИИ-аналитик") }} · {{ t("Финансы") }}</h3>
               <p v-if="context">{{ context }}</p>
-              <p v-else>портфель · все компании</p>
+              <p v-else>{{ t("портфель · все компании") }}</p>
             </div>
           </div>
-          <button class="fcp-x" type="button" @click="open = false" aria-label="Закрыть">
+          <button class="fcp-x" type="button" @click="open = false" :aria-label="t('Закрыть')">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </header>
 
         <!-- Disclaimer -->
         <div class="fcp-disc">
-          Доступ к web-поиску. Таблицы из ответа можно скачать в Excel (кнопка под ответом).
-          ИИ может ошибаться — проверяйте важные цифры.
+          {{ t("Доступ к web-поиску. Таблицы из ответа можно скачать в Excel (кнопка под ответом). ИИ может ошибаться — проверяйте важные цифры.") }}
         </div>
 
         <button class="fcp-fc-btn" type="button" :disabled="chat.isStreaming.value" @click="genForecast">
-          Прогноз ИИ — выручка · EBITDA · прибыль на 2025–2027
+          {{ t("Прогноз ИИ — выручка · EBITDA · прибыль на 2025–2027") }}
         </button>
 
         <!-- Empty state: suggested prompts -->
         <section v-if="!chat.messages.value.length" class="fcp-suggest">
-          <h4>С чего начать</h4>
+          <h4>{{ t("С чего начать") }}</h4>
           <button v-for="(s, i) in SUGGESTIONS" :key="i" class="fcp-sg"
-                  :disabled="chat.isStreaming.value" @click="ask(s)">
-            {{ s }}
+                  :disabled="chat.isStreaming.value" @click="ask(t(s))">
+            {{ t(s) }}
           </button>
         </section>
 
@@ -60,24 +59,24 @@
 
           <!-- Follow-up chips -->
           <div v-if="!chat.isStreaming.value && chat.messages.value.length" class="fcp-followups">
-            <button v-for="(f, i) in FOLLOWUPS" :key="i" class="fcp-fu" @click="ask(f)">{{ f }}</button>
+            <button v-for="(f, i) in FOLLOWUPS" :key="i" class="fcp-fu" @click="ask(t(f))">{{ t(f) }}</button>
           </div>
         </section>
 
         <footer class="fcp-foot">
           <AiInput
             :disabled="chat.isStreaming.value"
-            placeholder="Спросите про финансы, прогноз, сравнение…"
+            :placeholder="t('Спросите про финансы, прогноз, сравнение…')"
             @submit="ask($event)"
           />
           <div class="fcp-foot-row">
             <button v-if="chat.isStreaming.value" class="fcp-stop" type="button" @click="chat.abort">
               <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
-              Остановить
+              {{ t("Остановить") }}
             </button>
             <button v-else-if="chat.messages.value.length" class="fcp-restart" type="button" @click="newChat">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
-              Новый чат
+              {{ t("Новый чат") }}
             </button>
           </div>
         </footer>
@@ -92,6 +91,9 @@ import AiMessage from "@/components/Ai/AiMessage.vue";
 import AiInput from "@/components/Ai/AiInput.vue";
 import { useAiChat } from "@/composables/useAiChat";
 import { useAiActivation } from "@/composables/useAiActivation";
+import { useI18n } from "@/composables/useI18n";
+
+const { t } = useI18n();
 
 const props = defineProps<{
   context?: string; // человекочитаемый контекст экрана (компания/год/стандарт/метрика)

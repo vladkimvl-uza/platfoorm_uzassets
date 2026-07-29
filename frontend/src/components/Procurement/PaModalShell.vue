@@ -26,6 +26,9 @@
  *   #aside — optional left side panel
  */
 import { ref, onMounted, onBeforeUnmount } from "vue";
+import { useI18n } from "@/composables/useI18n";
+
+const { t } = useI18n();
 
 defineProps<{
   kind: string;        // small pill in header ("Компания" / "Поставщик" / etc.)
@@ -69,7 +72,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
             <span class="pms-kind-pill">{{ kind }}</span>
             <h2 class="pms-title">{{ title }}</h2>
           </div>
-          <button class="pms-close" @click="requestClose" aria-label="Закрыть">
+          <button class="pms-close" @click="requestClose" :aria-label="t('Закрыть')">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M18 6L6 18M6 6l12 12"/>
             </svg>

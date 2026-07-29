@@ -9,7 +9,10 @@
  * Клик по карточке → полноценная модалка профиля (событие open).
  */
 import { computed, ref, watch, nextTick } from "vue";
+import { useI18n } from "@/composables/useI18n";
 import type { BoardMemberProfile } from "./BoardMemberProfileModal.vue";
+
+const { t } = useI18n();
 
 export interface HoverAnchor {
   top: number; left: number; bottom: number; right: number; width: number; height: number;
@@ -59,21 +62,22 @@ watch(() => [props.open, props.anchor], () => { if (props.open) reposition(); },
 const tenure = computed(() => {
   const iso = props.member?.appointedISO;
   if (!iso) return null;
-  const t = new Date(iso).getTime();
-  if (!isFinite(t)) return null;
-  const yrs = (Date.now() - t) / (365.25 * 24 * 3600 * 1000);
+  // ВАЖНО: не называть переменную `t` — она затенит функцию перевода t().
+  const ms = new Date(iso).getTime();
+  if (!isFinite(ms)) return null;
+  const yrs = (Date.now() - ms) / (365.25 * 24 * 3600 * 1000);
   if (yrs < 0) return null;
-  if (yrs < 1) return `${Math.max(1, Math.round(yrs * 12))} мес.`;
-  return `${yrs.toFixed(1)} лет`;
+  if (yrs < 1) return t("{n} мес.", { n: Math.max(1, Math.round(yrs * 12)) });
+  return t("{n} лет", { n: yrs.toFixed(1) });
 });
 
 const tags = computed(() => {
   const m = props.member;
   if (!m) return [];
   const out: { t: string; on: boolean }[] = [];
-  if (m.isIndependent) out.push({ t: "Независимый", on: true });
-  if (m.isWoman) out.push({ t: "Женщина", on: false });
-  if (m.isForeign) out.push({ t: "Иностранец", on: false });
+  if (m.isIndependent) out.push({ t: t("Независимый"), on: true });
+  if (m.isWoman) out.push({ t: t("Женщина"), on: false });
+  if (m.isForeign) out.push({ t: t("Иностранец"), on: false });
   return out;
 });
 </script>

@@ -62,6 +62,8 @@ class UserPublic(BaseModel):
     linkedin_url: Optional[str] = None
     website_url: Optional[str] = None
     telegram_username: Optional[str] = None
+    # Язык интерфейса (ru | uz-latn | uz-cyr | en) — фронт применяет при логине
+    ui_locale: str = "ru"
     last_login_at: Optional[datetime]
     welcome_seen: bool = False
     # Step-up / обяз. MFA: для привилегированных (owner/admin) без включённой MFA
@@ -80,6 +82,8 @@ class UpdateMeRequest(BaseModel):
     avatar_url: Optional[str] = None  # data-URL фото или "" для удаления
     linkedin_url: Optional[str] = None  # профиль LinkedIn ("" для удаления)
     website_url: Optional[str] = None   # личный сайт/портфолио
+    # Язык интерфейса — синхронизация переключателя (валидируется в роуте)
+    ui_locale: Optional[str] = None
     # Компания (organization_id) — юзер задаёт ОДИН раз при первой настройке;
     # повторно сервер игнорирует (org_profile_set=true). Меняет только admin.
     organization_id: Optional[UUID] = None

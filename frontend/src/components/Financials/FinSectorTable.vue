@@ -21,6 +21,9 @@ import CompanyAvatar from "@/components/CompanyAvatar.vue";
 import ModalShell from "@/components/ModalShell.vue";
 import { runForecast, type ForecastModel } from "@/utils/forecast";
 import { api } from "@/api/client";
+import { useI18n } from "@/composables/useI18n";
+
+const { t } = useI18n();
 
 type FcSel = ForecastModel | "off" | "ai";
 
@@ -241,7 +244,7 @@ async function fetchAiForecast() {
         }
         if (Object.keys(history).length) series.push({ code: c.company_code, history });
       }
-    if (!series.length || !fcY.length) { aiError.value = "Недостаточно истории для прогноза"; return; }
+    if (!series.length || !fcY.length) { aiError.value = t("Недостаточно истории для прогноза"); return; }
     const { data } = await api.post("/ai/forecast", {
       metric_label: props.metricLabel, target_years: fcY, series,
     }, { timeout: 230000 }); // web-поиск долгий — даём бэкенду досчитать
@@ -257,10 +260,10 @@ async function fetchAiForecast() {
     }
     aiForecastMap.value = map;
     aiRationale.value = String(data?.rationale || "").trim();
-    if (!map.size) aiError.value = "ИИ не вернул прогноз — попробуйте ещё раз";
+    if (!map.size) aiError.value = t("ИИ не вернул прогноз — попробуйте ещё раз");
     else await saveForecast(); // ← сохраняем на сервере (общее, до новой генерации)
   } catch (e: any) {
-    aiError.value = e?.response?.data?.detail || "Ошибка ИИ-прогноза";
+    aiError.value = e?.response?.data?.detail || t("Ошибка ИИ-прогноза");
     aiForecastMap.value = new Map();
   } finally {
     aiLoading.value = false;
@@ -397,13 +400,13 @@ function cellValue(c: SectorBucket["companies"][number], y: number): number | nu
   <div class="fst-card">
     <!-- Header -->
     <div class="fst-head">
-      <div class="fst-eyebrow">{{ years[0] }}–{{ years[years.length - 1] }}, {{ unit === 'bln' ? 'МЛРД' : 'МЛН' }} UZS</div>
+      <div class="fst-eyebrow">{{ years[0] }}–{{ years[years.length - 1] }}, {{ unit === 'bln' ? t('МЛРД') : t('МЛН') }} UZS</div>
       <div class="fst-fc-ctl">
         <span v-if="aiLoading" class="fst-ai-busy">
           <span class="fst-ai-orbit"><i></i></span>
           <span class="fst-ai-busy-stage">
             <Transition name="fst-ai-cyc" mode="out-in">
-              <span :key="busyIdx" class="fst-ai-busy-txt">{{ BUSY_PHRASES[busyIdx] }}</span>
+              <span :key="busyIdx" class="fst-ai-busy-txt">{{ t(BUSY_PHRASES[busyIdx]) }}</span>
             </Transition>
           </span>
           <span class="fst-ai-dots"><i></i><i></i><i></i></span>
@@ -411,20 +414,20 @@ function cellValue(c: SectorBucket["companies"][number], y: number): number | nu
         <template v-else>
           <span v-if="aiError" class="fst-fc-err">{{ aiError }}</span>
           <span v-else-if="forecastModel === 'ai' && aiForecastMap.size" class="fst-fc-aibadge">
-            Прогнозные данные ИИ
-            <button v-if="aiRationale" class="fst-fc-info" type="button" title="Что ИИ учёл при прогнозе" @click="rationaleOpen = true">i</button>
-            <button class="fst-fc-info" type="button" title="Перегенерировать прогноз ИИ" @click="fetchAiForecast">↻</button>
+            {{ t("Прогнозные данные ИИ") }}
+            <button v-if="aiRationale" class="fst-fc-info" type="button" :title="t('Что ИИ учёл при прогнозе')" @click="rationaleOpen = true">i</button>
+            <button class="fst-fc-info" type="button" :title="t('Перегенерировать прогноз ИИ')" @click="fetchAiForecast">↻</button>
           </span>
-          <select v-model="forecastModel" class="fst-fc-select" title="Прогноз будущих лет">
-            <option v-for="o in FORECAST_OPTS" :key="o.id" :value="o.id">{{ o.label }}</option>
+          <select v-model="forecastModel" class="fst-fc-select" :title="t('Прогноз будущих лет')">
+            <option v-for="o in FORECAST_OPTS" :key="o.id" :value="o.id">{{ t(o.label) }}</option>
           </select>
         </template>
       </div>
 
-      <ModalShell :open="rationaleOpen" size="md" title="Что ИИ учёл при прогнозе" @close="rationaleOpen = false">
+      <ModalShell :open="rationaleOpen" size="md" :title="t('Что ИИ учёл при прогнозе')" @close="rationaleOpen = false">
         <div class="fst-ra-body fst-ra-md" v-html="rationaleHtml"></div>
         <template #footer>
-          <div class="fst-ra-foot">Прогноз — расчётная оценка ИИ (история компаний + цены на сырьё, курсы, макропоказатели, геополитика через web). Проверяйте перед использованием.</div>
+          <div class="fst-ra-foot">{{ t("Прогноз — расчётная оценка ИИ (история компаний + цены на сырьё, курсы, макропоказатели, геополитика через web). Проверяйте перед использованием.") }}</div>
         </template>
       </ModalShell>
     </div>
@@ -434,19 +437,19 @@ function cellValue(c: SectorBucket["companies"][number], y: number): number | nu
     <div class="fst-scroll">
     <div v-if="isBalanceMetric" class="fst-bal-note">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-      Σ и %портф. — остаток <b>на конец {{ currentYear }} г.</b> (меняется с выбором года; баланс, не сумма за годы)
+      {{ t("Σ и %портф. — остаток") }} <b>{{ t("на конец {y} г.", { y: currentYear }) }}</b> {{ t("(меняется с выбором года; баланс, не сумма за годы)") }}
     </div>
     <!-- Column headers -->
     <div class="fst-col-row" :style="{ gridTemplateColumns: gridCols }">
-      <div class="fst-col fst-col-co">Компания</div>
+      <div class="fst-col fst-col-co">{{ t("Компания") }}</div>
       <div v-for="y in years" :key="y"
            class="fst-col fst-col-num fst-col-sortable"
            :class="{ 'fst-col-fc': cellIsForecast(y), 'fst-col-on': isSorted('year', y) }"
-           :title="`Сортировать по ${y}`"
-           @click="sortBy('year', y)">{{ y }}<span v-if="cellIsForecast(y)" class="fst-fc-tag">П</span><span class="fst-col-arrow" :class="{ on: isSorted('year', y), asc: isAsc('year', y) }">▲</span></div>
-      <div class="fst-col fst-col-yoy fst-col-sortable" :class="{ 'fst-col-on': isSorted('yoy') }" title="Сортировать по YoY" @click="sortBy('yoy')">YoY<span class="fst-col-arrow" :class="{ on: isSorted('yoy'), asc: isAsc('yoy') }">▲</span></div>
+           :title="t('Сортировать по {y}', { y })"
+           @click="sortBy('year', y)">{{ y }}<span v-if="cellIsForecast(y)" class="fst-fc-tag">{{ t("П") }}</span><span class="fst-col-arrow" :class="{ on: isSorted('year', y), asc: isAsc('year', y) }">▲</span></div>
+      <div class="fst-col fst-col-yoy fst-col-sortable" :class="{ 'fst-col-on': isSorted('yoy') }" :title="t('Сортировать по YoY')" @click="sortBy('yoy')">YoY<span class="fst-col-arrow" :class="{ on: isSorted('yoy'), asc: isAsc('yoy') }">▲</span></div>
       <div class="fst-col fst-col-bar"></div>
-      <div class="fst-col fst-col-share fst-col-sortable" :class="{ 'fst-col-on': isSorted('share') }" title="Сортировать по доле портфеля" @click="sortBy('share')">%портф.<span class="fst-col-arrow" :class="{ on: isSorted('share'), asc: isAsc('share') }">▲</span></div>
+      <div class="fst-col fst-col-share fst-col-sortable" :class="{ 'fst-col-on': isSorted('share') }" :title="t('Сортировать по доле портфеля')" @click="sortBy('share')">{{ t("%портф.") }}<span class="fst-col-arrow" :class="{ on: isSorted('share'), asc: isAsc('share') }">▲</span></div>
     </div>
 
     <!-- Sector groups -->
@@ -464,7 +467,7 @@ function cellValue(c: SectorBucket["companies"][number], y: number): number | nu
           </span>
           <div class="fst-sec-meta">
             <span class="fst-sec-tot">Σ {{ fmtCompact(bucketSumAllYears(b), unit) }}</span>
-            <span class="fst-sec-share">· {{ bucketShareOfPortfolio(b) }}% портф.</span>
+            <span class="fst-sec-share">· {{ bucketShareOfPortfolio(b) }}% {{ t("портф.") }}</span>
             <span class="fst-sec-pct" :style="{ color: b.color }">{{ bucketShareOfPortfolio(b) }}%</span>
           </div>
         </div>
@@ -512,10 +515,10 @@ function cellValue(c: SectorBucket["companies"][number], y: number): number | nu
       </template>
 
       <div v-if="!buckets.length" class="fst-empty">
-        Нет данных по выбранной метрике «{{ metricLabel }}»
+        {{ t("Нет данных по выбранной метрике «{m}»", { m: t(metricLabel) }) }}
       </div>
       <div v-else-if="!displayBuckets.length" class="fst-empty">
-        Не найдено компаний по запросу «{{ search }}»
+        {{ t("Не найдено компаний по запросу «{q}»", { q: search }) }}
       </div>
     </div>
     </div><!-- /.fst-scroll -->

@@ -12,6 +12,7 @@ import { computed, onMounted, ref } from "vue";
 import { ensureFinancialsCss } from "@/components/Financials/financialsHelpers";
 import Odometer from "@/components/Odometer.vue";
 import SoeHealthDrillModal from "@/components/Financials/SoeHealthDrillModal.vue";
+import { useI18n } from "@/composables/useI18n";
 
 export interface SoeRatio {
   key: string; label: string; group: string; formula: string;
@@ -69,6 +70,8 @@ export interface SoeHealthPayload {
 // Презентационный компонент: данные загружает страница-дашборд.
 const props = defineProps<{ data: SoeHealthPayload | null; search?: string }>();
 
+const { t } = useI18n();
+
 onMounted(() => { ensureFinancialsCss(); });
 
 const data = computed(() => props.data);
@@ -82,9 +85,9 @@ const ratiosMeta = computed(() => data.value?.ratios_meta || []);
 const pf = computed(() => data.value?.portfolio || null);
 
 function zoneByBand(band: number | null): { color: string; label: string } {
-  if (band == null) return { color: "#94A3B8", label: "н/д" };
+  if (band == null) return { color: "#94A3B8", label: t("н/д") };
   const z = zones.value[Math.min(band, 5) - 1];
-  return z ? { color: z.color, label: z.label } : { color: "#94A3B8", label: "н/д" };
+  return z ? { color: z.color, label: z.label } : { color: "#94A3B8", label: t("н/д") };
 }
 function fmtVal(r: SoeRatio): string {
   if (r.value == null) return r.note ? "!" : "—";
@@ -93,13 +96,13 @@ function fmtVal(r: SoeRatio): string {
   return r.value.toFixed(2);
 }
 function fmtThr(meta: { thresholds: number[]; fmt: string; direction: string }): string {
-  const f = (t: number) => meta.fmt === "pct" ? (t * 100) + "%" : String(t);
-  return (meta.direction === "gte" ? "лучше ≥ " : "лучше ≤ ") + meta.thresholds.map(f).join(" / ");
+  const f = (v: number) => meta.fmt === "pct" ? (v * 100) + "%" : String(v);
+  return (meta.direction === "gte" ? t("лучше ≥") : t("лучше ≤")) + " " + meta.thresholds.map(f).join(" / ");
 }
 function cellTitle(r: SoeRatio): string {
   const z = zoneByBand(r.band);
-  const parts = [r.label + ": " + (r.value == null ? (r.note || "нет данных") : fmtVal(r))];
-  if (r.band != null) parts.push("зона: " + z.label);
+  const parts = [r.label + ": " + (r.value == null ? (r.note || t("нет данных")) : fmtVal(r))];
+  if (r.band != null) parts.push(t("зона: {z}", { z: z.label }));
   parts.push(r.formula);
   parts.push(fmtThr(r));
   return parts.join("\n");
@@ -124,10 +127,10 @@ const drillCompany = ref<SoeCompany | null>(null);
       <!-- KPI-полоса (единая лента kpi-rail, как эталон Финансов) -->
       <div class="shb-band kpi-rail">
         <div class="shb-kpi" :style="{ '--accent': pf.zone?.color || '#7F77DD', '--d': '0ms' }">
-          <div class="shb-lbl">Средний балл портфеля</div>
+          <div class="shb-lbl">{{ t("Средний балл портфеля") }}</div>
           <div class="shb-val">
             <Odometer :value="pf.avg != null ? pf.avg.toFixed(2) : '—'" />
-            <span class="shb-u">из 5</span>
+            <span class="shb-u">{{ t("из 5") }}</span>
           </div>
           <div class="shb-sub">
             <span v-if="pf.zone" class="shb-zone-chip" :style="{ color: pf.zone.color, background: pf.zone.color + '1C' }">{{ pf.zone.label }}</span>
@@ -136,18 +139,18 @@ const drillCompany = ref<SoeCompany | null>(null);
         </div>
 
         <div class="shb-kpi" style="--accent:#7F77DD; --d:70ms">
-          <div class="shb-lbl">Зоны риска</div>
+          <div class="shb-lbl">{{ t("Зоны риска") }}</div>
           <div class="shb-zones">
             <span v-for="z in zones" :key="z.key" class="shb-zcount" :title="z.label"
                   :style="{ color: z.color, background: z.color + '16' }">
               <i :style="{ background: z.color }" />{{ pf.zone_counts[z.key] ?? 0 }}
             </span>
           </div>
-          <div class="shb-sub">оценено {{ pf.scored_count }} из {{ pf.total_companies }}</div>
+          <div class="shb-sub">{{ t("оценено {n} из {m}", { n: pf.scored_count, m: pf.total_companies }) }}</div>
         </div>
 
         <div class="shb-kpi" style="--accent:#E24B4A; --d:140ms">
-          <div class="shb-lbl">Требуют внимания</div>
+          <div class="shb-lbl">{{ t("Требуют внимания") }}</div>
           <div class="shb-names">
             <div v-for="w in pf.worst" :key="w.code" class="shb-name-row">
               <span class="shb-name">{{ w.name }}</span>
@@ -158,7 +161,7 @@ const drillCompany = ref<SoeCompany | null>(null);
         </div>
 
         <div class="shb-kpi" style="--accent:#1D9E75; --d:210ms">
-          <div class="shb-lbl">Наиболее устойчивые</div>
+          <div class="shb-lbl">{{ t("Наиболее устойчивые") }}</div>
           <div class="shb-names">
             <div v-for="b in pf.best" :key="b.code" class="shb-name-row">
               <span class="shb-name">{{ b.name }}</span>
@@ -182,21 +185,21 @@ const drillCompany = ref<SoeCompany | null>(null);
         <table class="shb-tbl">
           <thead>
             <tr>
-              <th class="shb-h-co">Компания</th>
+              <th class="shb-h-co">{{ t("Компания") }}</th>
               <th v-for="m in ratiosMeta" :key="m.key" class="shb-h" :title="m.formula + '\n' + fmtThr(m as never)">{{ m.label }}</th>
-              <th class="shb-h shb-h-ov" title="Altman Z-Score (модель развив. рынков): 6.56·WC/TA + 3.26·RE/TA + 6.72·EBIT/TA + 1.05·Кап/Обяз.&#10;>2.6 устойчивая · 1.1–2.6 серая · <1.1 зона риска">Z-Score</th>
-              <th class="shb-h shb-h-ov">Оценка</th>
+              <th class="shb-h shb-h-ov" :title="t('Altman Z-Score (модель развив. рынков): 6.56·WC/TA + 3.26·RE/TA + 6.72·EBIT/TA + 1.05·Кап/Обяз.') + '\n' + t('>2.6 устойчивая · 1.1–2.6 серая · <1.1 зона риска')">Z-Score</th>
+              <th class="shb-h shb-h-ov">{{ t("Оценка") }}</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="(c, ci) in companies" :key="c.code" class="shb-row"
                 :style="{ '--d': Math.min(ci * 26, 500) + 'ms' }"
-                @click="drillCompany = c" :title="'Открыть детали: ' + (c.name || c.code)">
+                @click="drillCompany = c" :title="t('Открыть детали: {name}', { name: c.name || c.code })">
               <td class="shb-co">
                 <span class="shb-co-dot" :style="{ background: c.sector_color || '#94A3B8' }" />
                 <span class="shb-co-name">{{ c.name || c.code }}</span>
                 <span v-if="deltaMeta(c)" class="shb-delta" :style="{ color: deltaMeta(c)!.color }"
-                      :title="'Изменение балла к ' + (data.year - 1) + ' (ниже = лучше)'">
+                      :title="t('Изменение балла к {y} (ниже = лучше)', { y: data.year - 1 })">
                   {{ deltaMeta(c)!.up ? '▲' : '▼' }}{{ deltaMeta(c)!.txt }}
                 </span>
               </td>
@@ -213,17 +216,17 @@ const drillCompany = ref<SoeCompany | null>(null);
                       :style="{ color: c.z_score.zone.color, background: c.z_score.zone.color + '14' }">
                   {{ c.z_score.z.toFixed(1) }}
                 </span>
-                <span v-else class="shb-dash">н/д</span>
+                <span v-else class="shb-dash">{{ t("н/д") }}</span>
               </td>
               <td class="shb-c shb-ov">
                 <span v-if="c.overall != null" class="shb-ov-chip"
                       :style="{ color: c.zone?.color || '#94A3B8', background: (c.zone?.color || '#94A3B8') + '14' }">
                   {{ c.overall.toFixed(1) }}
                 </span>
-                <span v-else class="shb-dash">н/д</span>
+                <span v-else class="shb-dash">{{ t("н/д") }}</span>
               </td>
             </tr>
-            <tr v-if="!companies.length"><td :colspan="ratiosMeta.length + 2" class="shb-empty">Нет данных за {{ data.year }} ({{ data.standard }})</td></tr>
+            <tr v-if="!companies.length"><td :colspan="ratiosMeta.length + 2" class="shb-empty">{{ t("Нет данных за {y} ({std})", { y: data.year, std: data.standard }) }}</td></tr>
           </tbody>
         </table>
       </div>

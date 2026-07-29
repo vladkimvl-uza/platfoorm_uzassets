@@ -8,6 +8,9 @@ import { computed, onMounted, ref } from "vue";
 import { useToast } from "@/composables/useToast";
 import type { CompanyListItem, SectorBrief } from "@/api/companies";
 import { ifrsReportHistoryApi, type IfrsHistoryLastChange } from "@/api/ifrsReportHistory";
+import { useI18n } from "@/composables/useI18n";
+
+const { t } = useI18n();
 
 const props = defineProps<{
   companies: CompanyListItem[];
@@ -95,12 +98,20 @@ function companyDelay(cid: string): DelayInfo {
 }
 function delayTip(cid: string): string {
   const d = companyDelay(cid);
-  if (d.lastY == null) return "Нет заполненных дат";
-  const base = `${d.lastY}: лаг ${d.lag} дн. от 31.12.${d.lastY}; дедлайн 15.06.${d.lastY + 1} — ` +
-    (d.status === "late" ? "опубликовано позже срока" : "в срок");
-  return d.improve != null
-    ? `${base}. К ${d.prevY}: ` + (d.improve > 0 ? `быстрее на ${d.improve} дн.` : d.improve < 0 ? `медленнее на ${-d.improve} дн.` : "без изменений")
-    : base;
+  if (d.lastY == null) return t("Нет заполненных дат");
+  const base = t(
+    d.status === "late"
+      ? "{y}: лаг {lag} дн. от 31.12.{y}; дедлайн 15.06.{next} — опубликовано позже срока"
+      : "{y}: лаг {lag} дн. от 31.12.{y}; дедлайн 15.06.{next} — в срок",
+    { y: d.lastY, lag: d.lag, next: d.lastY + 1 },
+  );
+  if (d.improve == null) return base;
+  const impr = d.improve > 0
+    ? t("К {y}: быстрее на {n} дн.", { y: d.prevY, n: d.improve })
+    : d.improve < 0
+      ? t("К {y}: медленнее на {n} дн.", { y: d.prevY, n: -d.improve })
+      : t("К {y}: без изменений", { y: d.prevY });
+  return `${base}. ${impr}`;
 }
 const delayMap = computed<Record<string, DelayInfo>>(() => {
   const out: Record<string, DelayInfo> = {};
@@ -116,7 +127,7 @@ const grouped = computed(() => {
     const key = String(c.sector_code || "—").toLowerCase();
     let g = map.get(key);
     if (!g) {
-      g = { code: key, name: c.sector_name || "Без сектора", color: c.sector_color || "#94A3B8", companies: [] };
+      g = { code: key, name: c.sector_name || t("Без сектора"), color: c.sector_color || "#94A3B8", companies: [] };
       map.set(key, g);
     }
     g.companies.push(c);
@@ -137,7 +148,7 @@ async function loadHistory() {
     lastChange.value = resp.last_change || { by_name: null, at: null };
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    toast.error("Не удалось загрузить историю МСФО: " + (err?.response?.data?.detail || err?.message || "ошибка"));
+    toast.error(t("Не удалось загрузить историю МСФО: {err}", { err: err?.response?.data?.detail || err?.message || t("ошибка") }));
   } finally {
     loading.value = false;
   }
@@ -160,10 +171,10 @@ function fmtDT(d: string | null): string {
 }
 function cellTip(cid: string, y: number): string {
   const c = cell(cid, y);
-  if (!c || (!c.published_on && !c.updated_by_name)) return props.canEdit ? "Нажмите, чтобы задать дату публикации" : "Нет данных";
+  if (!c || (!c.published_on && !c.updated_by_name)) return props.canEdit ? t("Нажмите, чтобы задать дату публикации") : t("Нет данных");
   const parts: string[] = [];
-  if (c.published_on) parts.push("Опубликовано: " + fmtDate(c.published_on));
-  if (c.updated_by_name) parts.push("Внёс: " + c.updated_by_name);
+  if (c.published_on) parts.push(t("Опубликовано: {d}", { d: fmtDate(c.published_on) }));
+  if (c.updated_by_name) parts.push(t("Внёс: {name}", { name: c.updated_by_name }));
   if (c.updated_at) parts.push(fmtDT(c.updated_at));
   return parts.join(" · ");
 }
@@ -222,7 +233,7 @@ async function commitEdit(cid: string, y: number, explicit = false) {
   if (v === editOrig.value.trim()) return;        // не изменилось — ничего не сохраняем
   if (v === "") { await saveCell(cid, y, null); return; }
   const iso = parseMasked(v);
-  if (!iso) { if (explicit) toast.error("Неверная дата. Формат: дд.мм.гггг"); return; }
+  if (!iso) { if (explicit) toast.error(t("Неверная дата. Формат: дд.мм.гггг")); return; }
   await saveCell(cid, y, iso);
 }
 
@@ -234,10 +245,10 @@ async function saveCell(cid: string, y: number, value: string | null) {
     co[y] = { published_on: row.published_on, updated_by_name: row.updated_by_name, updated_at: row.updated_at };
     histMap.value = { ...histMap.value, [cid]: co };
     lastChange.value = { by_name: row.updated_by_name, at: row.updated_at };
-    toast.success(value ? "Дата сохранена" : "Дата очищена");
+    toast.success(value ? t("Дата сохранена") : t("Дата очищена"));
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    toast.error("Не удалось сохранить: " + (err?.response?.data?.detail || err?.message || "ошибка"));
+    toast.error(t("Не удалось сохранить: {err}", { err: err?.response?.data?.detail || err?.message || t("ошибка") }));
   } finally {
     saving.value = false;
   }
@@ -256,22 +267,22 @@ const filledCount = computed(() => {
   <div class="ih">
     <div class="ih-head">
       <div>
-        <div class="ih-title">История отчётности МСФО</div>
+        <div class="ih-title">{{ t("История отчётности МСФО") }}</div>
       </div>
-      <button v-if="canEdit" class="ih-addyear" type="button" title="Добавить следующий год" @click="addYear">+ год</button>
+      <button v-if="canEdit" class="ih-addyear" type="button" :title="t('Добавить следующий год')" @click="addYear">{{ t("+ год") }}</button>
     </div>
 
-    <div v-if="loading" class="ih-state">Загрузка…</div>
+    <div v-if="loading" class="ih-state">{{ t("Загрузка…") }}</div>
 
     <div v-else class="ih-tbl-wrap">
       <table class="ih-tbl">
         <thead>
           <tr>
-            <th class="ih-th-co">Компания</th>
+            <th class="ih-th-co">{{ t("Компания") }}</th>
             <th v-for="y in years" :key="y" class="ih-th-y">{{ y }}</th>
-            <th class="ih-th-delay" title="Дни от 31.12 года отчёта до даты публикации (по последнему заполненному году)">Лаг<span class="ih-th-mon">от 31.12, дн</span></th>
-            <th class="ih-th-status" title="Относительно дедлайна 15.06 следующего года">Статус</th>
-            <th class="ih-th-impr" title="Улучшение лага к предыдущему заполненному году (раньше = быстрее)">Δ к пред.<span class="ih-th-mon">году, дн</span></th>
+            <th class="ih-th-delay" :title="t('Дни от 31.12 года отчёта до даты публикации (по последнему заполненному году)')">{{ t("Лаг") }}<span class="ih-th-mon">{{ t("от 31.12, дн") }}</span></th>
+            <th class="ih-th-status" :title="t('Относительно дедлайна 15.06 следующего года')">{{ t("Статус") }}</th>
+            <th class="ih-th-impr" :title="t('Улучшение лага к предыдущему заполненному году (раньше = быстрее)')">{{ t("Δ к пред.") }}<span class="ih-th-mon">{{ t("году, дн") }}</span></th>
           </tr>
         </thead>
         <tbody>
@@ -297,7 +308,7 @@ const filledCount = computed(() => {
                   type="text"
                   inputmode="numeric"
                   class="ih-date"
-                  placeholder="дд.мм.гггг"
+                  :placeholder="t('дд.мм.гггг')"
                   maxlength="10"
                   @input="onMaskInput"
                   @keydown.enter.prevent="commitEdit(c.id, y, true)"
@@ -314,16 +325,16 @@ const filledCount = computed(() => {
                 >{{ cellDate(c.id, y) ? fmtDate(cellDate(c.id, y)) : '—' }}</button>
               </td>
               <td class="ih-delay" :class="{ od: delayMap[c.id]?.status === 'late' }" :title="delayTip(c.id)">
-                <template v-if="delayMap[c.id]?.lag != null">{{ delayMap[c.id]?.lag }} дн</template>
+                <template v-if="delayMap[c.id]?.lag != null">{{ t("{n} дн", { n: delayMap[c.id]?.lag }) }}</template>
                 <span v-else class="ih-muted">—</span>
               </td>
               <td class="ih-status">
-                <span v-if="delayMap[c.id]?.status === 'late'" class="ih-badge ih-badge-od">с опозданием</span>
-                <span v-else-if="delayMap[c.id]?.status === 'ontime'" class="ih-badge ih-badge-ok">в срок</span>
+                <span v-if="delayMap[c.id]?.status === 'late'" class="ih-badge ih-badge-od">{{ t("с опозданием") }}</span>
+                <span v-else-if="delayMap[c.id]?.status === 'ontime'" class="ih-badge ih-badge-ok">{{ t("в срок") }}</span>
                 <span v-else class="ih-muted">—</span>
               </td>
               <td class="ih-impr" :class="{ up: (delayMap[c.id]?.improve ?? 0) > 0, down: (delayMap[c.id]?.improve ?? 0) < 0 }" :title="delayTip(c.id)">
-                <template v-if="delayMap[c.id]?.improve != null">{{ (delayMap[c.id]!.improve! > 0 ? '−' : delayMap[c.id]!.improve! < 0 ? '+' : '') }}{{ Math.abs(delayMap[c.id]!.improve!) }} дн</template>
+                <template v-if="delayMap[c.id]?.improve != null">{{ (delayMap[c.id]!.improve! > 0 ? '−' : delayMap[c.id]!.improve! < 0 ? '+' : '') }}{{ t("{n} дн", { n: Math.abs(delayMap[c.id]!.improve!) }) }}</template>
                 <span v-else class="ih-muted">—</span>
               </td>
             </tr>
@@ -333,11 +344,11 @@ const filledCount = computed(() => {
     </div>
 
     <div class="ih-foot">
-      <span class="ih-foot-l">Заполнено дат: <b>{{ filledCount }}</b></span>
+      <span class="ih-foot-l">{{ t("Заполнено дат:") }} <b>{{ filledCount }}</b></span>
       <span v-if="lastChange.by_name || lastChange.at" class="ih-foot-r">
-        Последнее изменение: <b>{{ lastChange.by_name || '—' }}</b><template v-if="lastChange.at"> · {{ fmtDT(lastChange.at) }}</template>
+        {{ t("Последнее изменение:") }} <b>{{ lastChange.by_name || '—' }}</b><template v-if="lastChange.at"> · {{ fmtDT(lastChange.at) }}</template>
       </span>
-      <span v-else class="ih-foot-r ih-foot-empty">Изменений пока не было</span>
+      <span v-else class="ih-foot-r ih-foot-empty">{{ t("Изменений пока не было") }}</span>
     </div>
   </div>
 </template>

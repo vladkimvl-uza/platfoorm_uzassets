@@ -21,6 +21,9 @@ import {
   type SupplierAgg,
   type SupplierConcentration,
 } from "@/api/procurement_analysis";
+import { useI18n } from "@/composables/useI18n";
+
+const { t } = useI18n();
 
 const props = defineProps<{ data: ProcurementAggregate }>();
 
@@ -91,9 +94,9 @@ const fmtPct1 = (v: number | null | undefined): string =>
   v == null || isNaN(Number(v)) ? "—" : Number(v).toFixed(1) + "%";
 
 function hhiBand(hhi: number): { cls: string; label: string } {
-  if (hhi > 2500) return { cls: "hhi-high", label: "высокая" };
-  if (hhi >= 1500) return { cls: "hhi-mid", label: "умеренная" };
-  return { cls: "hhi-low", label: "низкая" };
+  if (hhi > 2500) return { cls: "hhi-high", label: t("высокая") };
+  if (hhi >= 1500) return { cls: "hhi-mid", label: t("умеренная") };
+  return { cls: "hhi-low", label: t("низкая") };
 }
 
 // Чипы кодов компаний — до 12 видимых, остаток «+N».
@@ -116,19 +119,19 @@ function premiumClass(p: number): string {
   <div class="psp">
     <!-- ═══ Секция 1 · Сводка сверху ═══ -->
     <header class="psp-summary card" :style="{ '--i': 0 }">
-      <div class="psp-eyebrow">Поставщики · обзор</div>
+      <div class="psp-eyebrow">{{ t("Поставщики · обзор") }}</div>
       <div class="psp-summary-grid">
         <div class="psp-sum-cell">
           <div class="psp-sum-val">{{ fmtN(kpiSupplierCount) }}</div>
-          <div class="psp-sum-lbl">всего поставщиков</div>
+          <div class="psp-sum-lbl">{{ t("всего поставщиков") }}</div>
         </div>
         <div class="psp-sum-cell">
           <div class="psp-sum-val">{{ fmtPct1(kpiDisclosedPct) }}</div>
-          <div class="psp-sum-lbl">раскрытого спенда</div>
+          <div class="psp-sum-lbl">{{ t("раскрытого спенда") }}</div>
         </div>
         <div class="psp-sum-cell">
           <div class="psp-sum-val">{{ fmtPct1(crossSharePct) }}</div>
-          <div class="psp-sum-lbl">спенда у сквозных</div>
+          <div class="psp-sum-lbl">{{ t("спенда у сквозных") }}</div>
         </div>
       </div>
     </header>
@@ -136,7 +139,7 @@ function premiumClass(p: number): string {
     <!-- ═══ Секция 2 · Списки поставщиков ═══ -->
     <section class="psp-suppliers card" :style="{ '--i': 1 }">
       <div class="psp-head-row">
-        <div class="psp-eyebrow">Поставщики</div>
+        <div class="psp-eyebrow">{{ t("Поставщики") }}</div>
         <div class="psp-seg" role="tablist">
           <button
             v-for="s in segs"
@@ -146,10 +149,10 @@ function premiumClass(p: number): string {
             :class="{ active: seg === s.key }"
             role="tab"
             :aria-selected="seg === s.key"
-            :title="s.hint"
+            :title="t(s.hint)"
             @click="seg = s.key"
           >
-            {{ s.label }}
+            {{ t(s.label) }}
             <span class="psp-seg-cnt">{{ segCount(s.key) }}</span>
           </button>
         </div>
@@ -160,7 +163,7 @@ function premiumClass(p: number): string {
           <rect x="3" y="4" width="18" height="16" rx="2" />
           <path d="M3 9h18M8 4v16" />
         </svg>
-        <span>Нет данных по поставщикам в этом сегменте</span>
+        <span>{{ t("Нет данных по поставщикам в этом сегменте") }}</span>
       </div>
 
       <ul v-else class="psp-list">
@@ -169,19 +172,19 @@ function premiumClass(p: number): string {
           :key="(s.supplier_inn || s.supplier_name) + ':' + i"
           class="psp-row"
           :style="{ '--i': i }"
-          :title="'Открыть детализацию: ' + s.supplier_name"
+          :title="t('Открыть детализацию') + ': ' + s.supplier_name"
           @click="emit('drill-supplier', s)"
         >
           <!-- Левая колонка: имя + ИНН + бар спенда -->
           <div class="psp-main">
             <div class="psp-name-line">
               <span class="psp-name" :title="s.supplier_name">{{ s.supplier_name }}</span>
-              <span v-if="s.is_cross" class="psp-cross-badge" title="Сквозной поставщик (≥2 компаний)">
-                сквозной
+              <span v-if="s.is_cross" class="psp-cross-badge" :title="t('Сквозной поставщик (≥2 компаний)')">
+                {{ t("сквозной") }}
               </span>
             </div>
-            <div class="psp-inn" v-if="s.supplier_inn">ИНН {{ s.supplier_inn }}</div>
-            <div class="psp-inn psp-inn-muted" v-else>ИНН не раскрыт</div>
+            <div class="psp-inn" v-if="s.supplier_inn">{{ t("ИНН") }} {{ s.supplier_inn }}</div>
+            <div class="psp-inn psp-inn-muted" v-else>{{ t("ИНН не раскрыт") }}</div>
 
             <div class="psp-bar-track">
               <div class="psp-bar-fill" :style="{ width: barWidth(s) }" />
@@ -199,22 +202,22 @@ function premiumClass(p: number): string {
           <div class="psp-metrics">
             <div class="psp-spend">{{ paFmtMoneyShort(s.spend) }}</div>
             <div class="psp-sub">
-              <span class="psp-sub-it">{{ fmtN(s.lot_count) }} лот.</span>
+              <span class="psp-sub-it">{{ fmtN(s.lot_count) }} {{ t("лот.") }}</span>
               <span class="psp-dot">·</span>
               <span class="psp-sub-it">
                 <span class="psp-co-badge" :class="{ hot: s.is_cross }">{{ fmtN(s.company_count) }}</span>
-                комп.
+                {{ t("комп.") }}
               </span>
             </div>
             <div class="psp-sub psp-sub-2">
               <span class="psp-saved" :class="{ pos: (Number(s.saved_rate_pct) || 0) > 0 }">
-                экономия {{ fmtPct1(s.saved_rate_pct) }}
+                {{ t("экономия") }} {{ fmtPct1(s.saved_rate_pct) }}
               </span>
             </div>
             <!-- Премия — только для «Дорогих» -->
             <div v-if="seg === 'expensive'" class="psp-prem-line">
               <span class="psp-prem-badge" :class="premiumClass(Number(s.premium_pct) || 0)">
-                +{{ fmtPct1(s.premium_pct) }} к рынку
+                +{{ fmtPct1(s.premium_pct) }} {{ t("к рынку") }}
               </span>
               <span class="psp-excess">+{{ paFmtMoneyShort(s.excess_uzs) }}</span>
             </div>
@@ -225,23 +228,23 @@ function premiumClass(p: number): string {
 
     <!-- ═══ Секция 3 · Концентрация ═══ -->
     <section class="psp-conc card" :style="{ '--i': 2 }">
-      <div class="psp-eyebrow">Концентрация поставщиков по компаниям</div>
+      <div class="psp-eyebrow">{{ t("Концентрация поставщиков по компаниям") }}</div>
 
       <div v-if="!concentration.length" class="psp-empty">
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
           <path d="M3 3v18h18" />
           <path d="M7 14l4-4 4 3 4-6" />
         </svg>
-        <span>Нет данных о концентрации</span>
+        <span>{{ t("Нет данных о концентрации") }}</span>
       </div>
 
       <table v-else class="psp-table">
         <thead>
           <tr>
-            <th class="ta-l">Компания</th>
-            <th class="ta-r">Поставщ.</th>
-            <th class="ta-l">Крупнейший поставщик</th>
-            <th class="ta-r">Топ-3</th>
+            <th class="ta-l">{{ t("Компания") }}</th>
+            <th class="ta-r">{{ t("Поставщ.") }}</th>
+            <th class="ta-l">{{ t("Крупнейший поставщик") }}</th>
+            <th class="ta-r">{{ t("Топ-3") }}</th>
             <th class="ta-r">HHI</th>
           </tr>
         </thead>
@@ -251,7 +254,7 @@ function premiumClass(p: number): string {
             :key="c.company_id"
             class="psp-trow"
             :style="{ '--i': i }"
-            :title="'Открыть профиль: ' + c.company_name"
+            :title="t('Открыть профиль') + ': ' + c.company_name"
             @click="emit('select-company', c.company_id)"
           >
             <td class="ta-l">

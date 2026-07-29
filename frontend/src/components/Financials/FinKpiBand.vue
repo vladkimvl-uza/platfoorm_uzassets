@@ -17,8 +17,10 @@ import { fmtBigNumber, fmtPctSigned, ensureFinancialsCss } from "./financialsHel
 import { fmtSubsidySum } from "@/api/subsidies";
 import { useFormatters } from "@/composables/useFormatters";
 import Odometer from "@/components/Odometer.vue";
+import { useI18n } from "@/composables/useI18n";
 
 const fmt = useFormatters();
+const { t } = useI18n();
 
 const props = defineProps<{
   kpis: PortfolioKpis | null;
@@ -46,20 +48,21 @@ const subsidiesFmt = computed(() => fmtSubsidySum(props.subsidiesTotal ?? null))
 
 onMounted(ensureFinancialsCss);
 
-const unitSuffix = computed(() => `${props.unit === "bln" ? "млрд" : "млн"} ${props.currency}`);
+const unitSuffix = computed(() => `${t(props.unit === "bln" ? "млрд" : "млн")} ${props.currency}`);
 
 const opProfitTxt = computed(() =>
-  props.kpis ? `Опер. прибыль ${fmtBigNumber(props.kpis.totalOpProfit, props.unit)}` : "—",
+  props.kpis ? t("Опер. прибыль {v}", { v: fmtBigNumber(props.kpis.totalOpProfit, props.unit) }) : "—",
 );
 const netProfitTxt = computed(() =>
   props.kpis
-    ? `Чистая прибыль ${fmtBigNumber(props.kpis.totalNetProfit, props.unit)} ${
-        fmt.fmtNumber(props.kpis.netProfitDeltaPp, { decimals: 0, signed: true })
-      } п.п.`
+    ? t("Чистая прибыль {v} {pp} п.п.", {
+        v: fmtBigNumber(props.kpis.totalNetProfit, props.unit),
+        pp: fmt.fmtNumber(props.kpis.netProfitDeltaPp, { decimals: 0, signed: true }),
+      })
     : "",
 );
 const lossOutOf = computed(() =>
-  props.kpis ? `из ${props.kpis.companiesWithProfit} с данными по прибыли` : "",
+  props.kpis ? t("из {n} с данными по прибыли", { n: props.kpis.companiesWithProfit }) : "",
 );
 </script>
 
@@ -67,7 +70,7 @@ const lossOutOf = computed(() =>
   <!-- Coverage indicator strip (above cards) -->
   <div class="fkb-cover">
     <span class="fkb-cover-pill fkb-cover-ok">
-      <span class="fkb-dot" /> {{ inYear }} из {{ totalCompanies }}
+      <span class="fkb-dot" /> {{ t("{n} из {m}", { n: inYear, m: totalCompanies }) }}
     </span>
     <span v-if="noDataCount > 0" class="fkb-cover-pill fkb-cover-warn">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -76,29 +79,29 @@ const lossOutOf = computed(() =>
         <line x1="12" y1="8" x2="12" y2="12"/>
         <line x1="12" y1="16" x2="12.01" y2="16"/>
       </svg>
-      {{ noDataCount }} без данных
+      {{ t("{n} без данных", { n: noDataCount }) }}
     </span>
-    <span class="fkb-cover-note">YoY рассчитан по like-for-like basket (только компании с данными в обоих годах)</span>
+    <span class="fkb-cover-note">{{ t("YoY рассчитан по like-for-like basket (только компании с данными в обоих годах)") }}</span>
   </div>
 
   <div class="fkb-grid kpi-rail">
     <!-- 1. Совокупная выручка -->
     <div class="fkb-card fkb-card-clickable" style="--accent:#1D9E75; --d:0ms;"
          @click="drill('revenue')">
-      <div class="fkb-lbl">Совокупная выручка</div>
+      <div class="fkb-lbl">{{ t("Совокупная выручка") }}</div>
       <div class="fkb-val">
         <span class="fkb-num"><Odometer :value="kpis ? fmtBigNumber(kpis.totalRevenue, unit) : '—'" /></span>
         <span class="fkb-unit">{{ unitSuffix }}</span>
       </div>
       <div class="fkb-sub" :style="{ color: (kpis?.revenueYoYPct ?? 0) >= 0 ? '#1D9E75' : '#E24B4A' }">
-        {{ kpis ? fmtPctSigned(kpis.revenueYoYPct) + ' к пред. году' : '' }}
+        {{ kpis ? t("{v} к пред. году", { v: fmtPctSigned(kpis.revenueYoYPct) }) : '' }}
       </div>
     </div>
 
     <!-- 2. Операционная маржа -->
     <div class="fkb-card fkb-card-clickable" style="--accent:#7F77DD; --d:80ms;"
          @click="drill('opMargin')">
-      <div class="fkb-lbl">Операционная маржа</div>
+      <div class="fkb-lbl">{{ t("Операционная маржа") }}</div>
       <div class="fkb-val">
         <span class="fkb-num"><Odometer :value="kpis ? fmt.fmtNumber(kpis.opMargin, { decimals: 0 }) : '—'" /></span>
         <span class="fkb-unit fkb-unit-pct">%</span>
@@ -115,7 +118,7 @@ const lossOutOf = computed(() =>
         <span class="fkb-unit">{{ unitSuffix }}</span>
       </div>
       <div class="fkb-sub">
-        <span style="color: var(--t1, #1E2A4A);">Маржа </span>
+        <span style="color: var(--t1, #1E2A4A);">{{ t("Маржа") }} </span>
         <span style="color: #EF9F27; font-weight: 600;">{{ kpis ? fmt.fmtPercent(kpis.ebitdaMargin, { decimals: 0 }) : '' }}</span>
       </div>
     </div>
@@ -123,7 +126,7 @@ const lossOutOf = computed(() =>
     <!-- 4. Чистая маржа -->
     <div class="fkb-card fkb-card-clickable" style="--accent:#378ADD; --d:240ms;"
          @click="drill('netMargin')">
-      <div class="fkb-lbl">Чистая маржа</div>
+      <div class="fkb-lbl">{{ t("Чистая маржа") }}</div>
       <div class="fkb-val">
         <span class="fkb-num"><Odometer :value="kpis ? fmt.fmtNumber(kpis.netMargin, { decimals: 0 }) : '—'" /></span>
         <span class="fkb-unit fkb-unit-pct">%</span>
@@ -134,7 +137,7 @@ const lossOutOf = computed(() =>
     <!-- 5. Убыточные -->
     <div class="fkb-card fkb-card-clickable" style="--accent:#E24B4A; --d:320ms;"
          @click="drill('loss')">
-      <div class="fkb-lbl">Убыточные</div>
+      <div class="fkb-lbl">{{ t("Убыточные") }}</div>
       <div class="fkb-val">
         <span class="fkb-num" :style="{ color: (kpis?.lossMakingCount ?? 0) > 0 ? '#E24B4A' : 'var(--t1, #1E2A4A)' }"><Odometer :value="kpis ? kpis.lossMakingCount : '—'" /></span>
       </div>
@@ -144,19 +147,19 @@ const lossOutOf = computed(() =>
     <!-- 6. Дебиторская / Кредиторская задолженность (2-в-1) — только НСБУ.
          Под МСФО этих остатков нет (там tradeReceivables), карточка была бы пустой → скрываем. -->
     <div v-if="standard === 'NSBU'" class="fkb-card fkb-card-arap" style="--accent:#534AB7; --d:400ms;">
-      <div class="fkb-lbl">Деб. / Кред. задолженность</div>
+      <div class="fkb-lbl">{{ t("Деб. / Кред. задолженность") }}</div>
       <div class="fkb-dual">
         <div class="fkb-dual-half">
           <div class="fkb-dual-v"><Odometer :value="kpis ? fmtBigNumber(kpis.totalAccountsReceivable, unit) : '—'" /></div>
-          <div class="fkb-dual-l">Дебиторская</div>
+          <div class="fkb-dual-l">{{ t("Дебиторская") }}</div>
         </div>
         <div class="fkb-dual-sep"></div>
         <div class="fkb-dual-half">
           <div class="fkb-dual-v"><Odometer :value="kpis ? fmtBigNumber(kpis.totalAccountsPayable, unit) : '—'" /></div>
-          <div class="fkb-dual-l">Кредиторская</div>
+          <div class="fkb-dual-l">{{ t("Кредиторская") }}</div>
         </div>
       </div>
-      <div class="fkb-sub">остаток на конец {{ kpis ? kpis.accountsYear : '' }} г. · {{ unitSuffix }}</div>
+      <div class="fkb-sub">{{ t("остаток на конец {y} г.", { y: kpis ? kpis.accountsYear : '' }) }} · {{ unitSuffix }}</div>
     </div>
 
     <!-- Субсидии переехали в фискальный ряд (FinFiscalBand) под полосой -->

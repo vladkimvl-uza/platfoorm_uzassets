@@ -15,6 +15,9 @@ import {
   paFmtMoneyShort,
   type CategoryDeviation,
 } from "@/api/procurement_analysis";
+import { useI18n } from "@/composables/useI18n";
+
+const { t } = useI18n();
 
 const props = defineProps<{
   cats: CategoryDeviation[];
@@ -72,13 +75,13 @@ function fmtDev(dev: number): string {
 
 <template>
   <div class="cdb">
-    <div v-if="!rows.length" class="cdb-empty">Нет сопоставимых категорий</div>
+    <div v-if="!rows.length" class="cdb-empty">{{ t("Нет сопоставимых категорий") }}</div>
     <div
       v-for="(r, i) in rows"
       :key="String(r.id) + r.name"
       class="cdb-row"
       :style="{ animationDelay: i * 30 + 'ms' }"
-      :title="`${r.name}: ${fmtDev(r.dev)} · ${paFmtMoneyShort(r.sumDev)} сум · ${r.count} закуп.`"
+      :title="t('{name}: {dev} · {sum} сум · {n} закуп.', { name: r.name, dev: fmtDev(r.dev), sum: paFmtMoneyShort(r.sumDev), n: r.count })"
     >
       <div class="cdb-name">{{ r.name }}</div>
       <div class="cdb-track">
@@ -88,9 +91,9 @@ function fmtDev(dev: number): string {
       <div class="cdb-val" :style="{ color: devColor(r.dev) }">{{ fmtDev(r.dev) }}</div>
     </div>
     <div v-if="rows.length" class="cdb-legend">
-      <span class="cdb-lg"><i style="background:#7DBFA1" /> экономия</span>
+      <span class="cdb-lg"><i style="background:#7DBFA1" /> {{ t("экономия") }}</span>
       <span class="cdb-lg-axis">0</span>
-      <span class="cdb-lg"><i style="background:#E89B9A" /> переплата</span>
+      <span class="cdb-lg"><i style="background:#E89B9A" /> {{ t("переплата") }}</span>
     </div>
   </div>
 </template>

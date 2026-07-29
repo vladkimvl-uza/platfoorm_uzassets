@@ -1,6 +1,6 @@
 <template>
-  <button class="bpai-btn" @click="openModal" :disabled="loading" title="ИИ-анализ бизнес-плана">
-    <span class="bpai-btn-ai">Ai</span>{{ loading ? "Анализирую…" : "Анализ ИИ" }}
+  <button class="bpai-btn" @click="openModal" :disabled="loading" :title="t('ИИ-анализ бизнес-плана')">
+    <span class="bpai-btn-ai">Ai</span>{{ loading ? t("Анализирую…") : t("Анализ ИИ") }}
   </button>
 
   <Teleport to="body">
@@ -8,35 +8,35 @@
       <div class="bpai-card" :class="{ 'bpai-wide': mode === 'forecast' && html }">
         <header class="bpai-hd">
           <div class="bpai-hd-txt">
-            <div class="bpai-eyebrow">ИИ-АНАЛИЗ БИЗНЕС-ПЛАНА · {{ scope === 'company' ? 'КОМПАНИЯ' : 'ПОРТФЕЛЬ' }}</div>
+            <div class="bpai-eyebrow">{{ t("ИИ-АНАЛИЗ БИЗНЕС-ПЛАНА") }} · {{ scope === 'company' ? t('КОМПАНИЯ') : t('ПОРТФЕЛЬ') }}</div>
             <h2 class="bpai-title">{{ titleText }}</h2>
-            <div v-if="doneAt && !loading && html" class="bpai-sub">{{ MODE_LABEL[mode] }} · FY {{ year }} · {{ doneAt }}</div>
+            <div v-if="doneAt && !loading && html" class="bpai-sub">{{ t(MODE_LABEL[mode]) }} · FY {{ year }} · {{ doneAt }}</div>
           </div>
           <div class="bpai-hd-actions">
-            <button v-if="html && !loading" class="bpai-act" @click="copyAnswer" title="Скопировать ответ">Копировать</button>
-            <button v-if="html && !loading" class="bpai-act bpai-act-xls" @click="exportExcel" title="Выгрузить таблицы в Excel">Excel</button>
-            <button class="bpai-x" @click="open = false" aria-label="Закрыть">×</button>
+            <button v-if="html && !loading" class="bpai-act" @click="copyAnswer" :title="t('Скопировать ответ')">{{ t("Копировать") }}</button>
+            <button v-if="html && !loading" class="bpai-act bpai-act-xls" @click="exportExcel" :title="t('Выгрузить таблицы в Excel')">Excel</button>
+            <button class="bpai-x" @click="open = false" :aria-label="t('Закрыть')">×</button>
           </div>
         </header>
 
         <div class="bpai-ctrls">
           <div class="bpai-seg-row">
-            <span class="bpai-seg-lbl">Охват</span>
+            <span class="bpai-seg-lbl">{{ t("Охват") }}</span>
             <div class="bpai-seg">
-              <button :class="{ on: scope === 'portfolio' }" :disabled="loading" @click="setScope('portfolio')">Весь портфель</button>
-              <button :class="{ on: scope === 'company' }" :disabled="loading" @click="setScope('company')">Одна компания</button>
+              <button :class="{ on: scope === 'portfolio' }" :disabled="loading" @click="setScope('portfolio')">{{ t("Весь портфель") }}</button>
+              <button :class="{ on: scope === 'company' }" :disabled="loading" @click="setScope('company')">{{ t("Одна компания") }}</button>
             </div>
             <select v-if="scope === 'company'" v-model="pickedId" :disabled="loading" @change="onPickCompany" class="bpai-co-select">
               <option v-for="c in companies" :key="c.company_id" :value="c.company_id">{{ c.company_name_ru }}</option>
             </select>
           </div>
           <div class="bpai-seg-row">
-            <span class="bpai-seg-lbl">Режим</span>
+            <span class="bpai-seg-lbl">{{ t("Режим") }}</span>
             <div class="bpai-seg">
-              <button v-for="m in MODES" :key="m.id" :class="{ on: mode === m.id }" :disabled="loading" @click="setMode(m.id)" :title="m.hint">{{ m.label }}</button>
+              <button v-for="m in MODES" :key="m.id" :class="{ on: mode === m.id }" :disabled="loading" @click="setMode(m.id)" :title="t(m.hint)">{{ t(m.label) }}</button>
             </div>
             <button class="bpai-run" :disabled="loading" @click="run">
-              {{ loading ? "Анализирую…" : (html ? "Пересчитать" : "Запустить анализ") }}
+              {{ loading ? t("Анализирую…") : (html ? t("Пересчитать") : t("Запустить анализ")) }}
             </button>
           </div>
         </div>
@@ -47,46 +47,46 @@
           <template v-else-if="html">
             <template v-if="mode === 'forecast'">
               <div v-if="fcTrend.length" class="bpai-chart">
-                <div class="bpai-chart-title">Прогноз выручки «{{ fcScopeName }}» (история → прогноз), млрд сум</div>
-                <div v-for="(t, i) in fcTrend" :key="i" class="bpai-bar-row">
-                  <span class="bpai-bar-lbl">{{ t.label }}<span v-if="t.projected" class="bpai-fc-tag">прогноз</span></span>
+                <div class="bpai-chart-title">{{ t("Прогноз выручки «{name}» (история → прогноз), млрд сум", { name: fcScopeName }) }}</div>
+                <div v-for="(tr, i) in fcTrend" :key="i" class="bpai-bar-row">
+                  <span class="bpai-bar-lbl">{{ tr.label }}<span v-if="tr.projected" class="bpai-fc-tag">{{ t("прогноз") }}</span></span>
                   <div class="bpai-bar-track">
-                    <div class="bpai-bar-fill" :class="{ proj: t.projected }"
-                         :style="{ width: Math.min(t.value / fcTrendMax * 100, 100) + '%', background: '#6355E0' }"></div>
+                    <div class="bpai-bar-fill" :class="{ proj: tr.projected }"
+                         :style="{ width: Math.min(tr.value / fcTrendMax * 100, 100) + '%', background: '#6355E0' }"></div>
                   </div>
-                  <span class="bpai-bar-val">{{ fcCell(t.value, null) }}</span>
+                  <span class="bpai-bar-val">{{ fcCell(tr.value, null) }}</span>
                 </div>
               </div>
               <div v-if="fcView.length" class="bpai-fc">
                 <div class="bpai-fc-head">
-                  <div class="bpai-chart-title">Модельный прогноз БП (движок){{ fcScopeName ? ' · ' + fcScopeName : '' }}</div>
+                  <div class="bpai-chart-title">{{ t("Модельный прогноз БП (движок)") }}{{ fcScopeName ? ' · ' + t(fcScopeName) : '' }}</div>
                   <div v-if="hasFcQuarters" class="bpai-fc-toggle">
                     <div class="bpai-seg bpai-seg-sm">
-                      <button :class="{ on: fcTblMode === 'years' }" @click="setFcTblMode('years')">По годам</button>
-                      <button :class="{ on: fcTblMode === 'quarters' }" @click="setFcTblMode('quarters')">По кварталам</button>
+                      <button :class="{ on: fcTblMode === 'years' }" @click="setFcTblMode('years')">{{ t("По годам") }}</button>
+                      <button :class="{ on: fcTblMode === 'quarters' }" @click="setFcTblMode('quarters')">{{ t("По кварталам") }}</button>
                     </div>
                     <select v-if="fcTblMode === 'quarters'" v-model="fcQYear" class="bpai-co-select bpai-fc-yr">
-                      <option v-for="y in fcYears" :key="y" :value="y">{{ y }} г.</option>
+                      <option v-for="y in fcYears" :key="y" :value="y">{{ t("{y} г.", { y }) }}</option>
                     </select>
                   </div>
                 </div>
                 <div class="bpai-fc-scroll">
                   <table class="bpai-fc-tbl">
                     <thead><tr>
-                      <th>{{ fcScopeName === 'Портфель' ? 'Компания' : 'Метрика' }}</th>
-                      <th>Тек. факт</th>
+                      <th>{{ fcScopeName === 'Портфель' ? t('Компания') : t('Метрика') }}</th>
+                      <th>{{ t("Тек. факт") }}</th>
                       <template v-if="fcTblMode === 'quarters'">
                         <th v-for="q in FC_Q" :key="q">{{ q }} · {{ fcQYear }}</th>
                       </template>
                       <template v-else>
-                        <th>Ожид. {{ fcBaseYear }}</th>
+                        <th>{{ t("Ожид. {y}", { y: fcBaseYear }) }}</th>
                         <th v-for="y in fcYears" :key="y">{{ y }}</th>
                       </template>
-                      <th>Метод</th>
+                      <th>{{ t("Метод") }}</th>
                     </tr></thead>
                     <tbody>
                       <tr v-for="(r, i) in fcView" :key="i">
-                        <td class="bpai-fc-nm">{{ r.name }}</td>
+                        <td class="bpai-fc-nm">{{ t(r.name) }}</td>
                         <td>{{ fcCell(r.fact, null) }}</td>
                         <template v-if="fcTblMode === 'quarters'">
                           <td v-for="(q, qi) in FC_Q" :key="q">{{ fcCell(r.byYear[fcQYear]?.quarters?.[qi] ?? null, null) }}</td>
@@ -107,16 +107,16 @@
                   </table>
                 </div>
                 <div class="bpai-fc-note">
-                  Числа — детерминированный движок (воспроизводимо, деньги млрд сум); коридор [low…high] — неопределённость.
-                  <template v-if="fcTblMode === 'quarters'">Кварталы будущих лет — разбивка годового прогноза по сезонности плана.</template>
-                  ИИ ниже накладывает факторы (цены на сырьё, курс, санкции, макро) и корректирует.
+                  {{ t("Числа — детерминированный движок (воспроизводимо, деньги млрд сум); коридор [low…high] — неопределённость.") }}
+                  <template v-if="fcTblMode === 'quarters'">{{ t("Кварталы будущих лет — разбивка годового прогноза по сезонности плана.") }}</template>
+                  {{ t("ИИ ниже накладывает факторы (цены на сырьё, курс, санкции, макро) и корректирует.") }}
                 </div>
               </div>
             </template>
             <div v-else-if="chartRows.length" class="bpai-chart">
-              <div class="bpai-chart-title">Исполнение{{ scope === 'company' ? ' по метрикам' : ' по компаниям (выручка)' }}, факт/план %</div>
+              <div class="bpai-chart-title">{{ scope === 'company' ? t("Исполнение по метрикам, факт/план %") : t("Исполнение по компаниям (выручка), факт/план %") }}</div>
               <div v-for="(r, i) in chartRows" :key="i" class="bpai-bar-row">
-                <span class="bpai-bar-lbl" :title="r.label">{{ r.label }}</span>
+                <span class="bpai-bar-lbl" :title="t(r.label)">{{ t(r.label) }}</span>
                 <div class="bpai-bar-track">
                   <div class="bpai-bar-fill" :style="{ width: Math.min(r.value, 150) / 1.5 + '%', background: barColor(r.value) }"></div>
                 </div>
@@ -126,8 +126,8 @@
             <div class="bpai-md" v-html="html"></div>
           </template>
           <div v-else class="bpai-empty">
-            <b>Выберите охват и режим, затем запустите анализ.</b>
-            <span>ИИ разберёт исполнение плана (план / ожидаемое / факт по ОФР и производству), свяжет производство с финансами и — в режиме «Прогноз» — предскажет будущие цели БП с учётом цен на сырьё, курса и санкций.</span>
+            <b>{{ t("Выберите охват и режим, затем запустите анализ.") }}</b>
+            <span>{{ t("ИИ разберёт исполнение плана (план / ожидаемое / факт по ОФР и производству), свяжет производство с финансами и — в режиме «Прогноз» — предскажет будущие цели БП с учётом цен на сырьё, курса и санкций.") }}</span>
           </div>
         </div>
       </div>
@@ -143,6 +143,7 @@ import type { BpCompanyForecast, AvailableCompany } from "@/api/bpKpi";
 import { productionApi } from "@/api/production";
 import { renderMarkdown } from "@/utils/renderMarkdown";
 import { useToast } from "@/composables/useToast";
+import { useI18n } from "@/composables/useI18n";
 
 type Mode = "performance" | "linkage" | "forecast";
 type FcCell = { value: number | null; low: number | null; high: number | null; quarters?: (number | null)[] | null };
@@ -155,6 +156,7 @@ type SavedRec = { raw: string; doneAt: string; year: number; chart?: ChartRow[];
 const props = defineProps<{ companies: AvailableCompany[]; year: number; period: string; selectedId: string | null }>();
 
 const toast = useToast();
+const { t } = useI18n();
 const open = ref(false);
 const loading = ref(false);
 const error = ref("");
@@ -189,8 +191,8 @@ const MODE_LABEL: Record<Mode, string> = { performance: "Исполнение", 
 const pickedId = ref<string | null>(props.selectedId || (props.companies[0]?.company_id ?? null));
 const selectedCompany = computed(() => props.companies.find(c => c.company_id === pickedId.value) || null);
 const titleText = computed(() => scope.value === "company"
-  ? (selectedCompany.value?.company_name_ru || "Компания")
-  : "Все компании портфеля");
+  ? (selectedCompany.value?.company_name_ru || t("Компания"))
+  : t("Все компании портфеля"));
 
 const num = (v: unknown): number | null =>
   (v === null || v === undefined || v === "") ? null : Number(v);
@@ -211,7 +213,7 @@ const FC_METHOD: Record<string, string> = {
   pace: "темп", seasonal: "сезон", run_rate: "run-rate", plan: "план",
   actual: "факт", ols: "тренд", cagr: "CAGR", none: "нет данных",
 };
-function fcMethodLabel(m: string): string { return FC_METHOD[m] || m; }
+function fcMethodLabel(m: string): string { return t(FC_METHOD[m] || m); }
 
 function savedKey(m: Mode = mode.value): string {
   return scope.value === "company" && pickedId.value ? `${m}__${pickedId.value}` : m;
@@ -262,18 +264,18 @@ async function openModal(): Promise<void> {
 
 async function copyAnswer(): Promise<void> {
   if (!rawMd.value) return;
-  try { await navigator.clipboard.writeText(rawMd.value); toast.success("Анализ скопирован"); }
-  catch { toast.error("Не удалось скопировать"); }
+  try { await navigator.clipboard.writeText(rawMd.value); toast.success(t("Анализ скопирован")); }
+  catch { toast.error(t("Не удалось скопировать")); }
 }
 
 function exportExcel(): void {
   if (!rawMd.value) return;
   const wb = XLSX.utils.book_new();
   if (mode.value === "forecast" && fcView.value.length) {
-    const head = [fcScopeName.value === "Портфель" ? "Компания" : "Метрика", "Тек. факт", `Ожид. ${fcBaseYear.value}`, ...fcYears.value, "Метод"];
+    const head = [fcScopeName.value === "Портфель" ? t("Компания") : t("Метрика"), t("Тек. факт"), t("Ожид. {y}", { y: fcBaseYear.value }), ...fcYears.value, t("Метод")];
     const aoa: (string | number)[][] = [head];
     for (const r of fcView.value) {
-      const row: (string | number)[] = [r.name, fcCell(r.fact, null), fcCell(r.expected, null)];
+      const row: (string | number)[] = [t(r.name), fcCell(r.fact, null), fcCell(r.expected, null)];
       for (const y of fcYears.value) {
         const c = r.byYear[y];
         row.push(c ? (c.low != null ? `${fcCell(c.value, null)} [${fcCell(c.low, null)}…${fcCell(c.high, null)}]` : fcCell(c.value, null)) : "—");
@@ -281,7 +283,7 @@ function exportExcel(): void {
       row.push(fcMethodLabel(r.method));
       aoa.push(row);
     }
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), "Модель прогноза");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), t("Модель прогноза"));
   }
   const lines = rawMd.value.replace(/\r\n/g, "\n").split("\n");
   const tables: string[][][] = [];
@@ -295,16 +297,16 @@ function exportExcel(): void {
     } else { cur = null; }
   }
   let sheetN = 0;
-  for (const t of tables) {
-    if (t.length < 2) continue;
+  for (const tbl of tables) {
+    if (tbl.length < 2) continue;
     sheetN++;
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(t), `Таблица ${sheetN}`.slice(0, 31));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(tbl), t("Таблица {n}", { n: sheetN }).slice(0, 31));
   }
   const textWs = XLSX.utils.aoa_to_sheet(lines.map(l => [l]));
   textWs["!cols"] = [{ wch: 120 }];
-  XLSX.utils.book_append_sheet(wb, textWs, "Полный текст");
-  const scopeName = scope.value === "company" ? (selectedCompany.value?.company_name_ru || "company") : "портфель";
-  XLSX.writeFile(wb, `БП_${MODE_LABEL[mode.value]}_${scopeName}_${props.year}.xlsx`);
+  XLSX.utils.book_append_sheet(wb, textWs, t("Полный текст"));
+  const scopeName = scope.value === "company" ? (selectedCompany.value?.company_name_ru || "company") : t("портфель");
+  XLSX.writeFile(wb, `БП_${t(MODE_LABEL[mode.value])}_${scopeName}_${props.year}.xlsx`);
 }
 
 async function saveResult(raw: string): Promise<void> {
@@ -317,7 +319,7 @@ async function saveResult(raw: string): Promise<void> {
   try {
     const { api } = await import("@/api/client");
     await api.put(`/ai/saved/bp/${key}`, { payload: rec });
-  } catch { toast.error("Анализ не сохранён на сервере — исчезнет при обновлении. Повторите."); }
+  } catch { toast.error(t("Анализ не сохранён на сервере — исчезнет при обновлении. Повторите.")); }
 }
 
 function buildForecastView(fc: BpCompanyForecast): void {
@@ -357,7 +359,7 @@ async function run(): Promise<void> {
   if (loading.value) return;
   loading.value = true; error.value = ""; html.value = "";
   const single = scope.value === "company" && selectedCompany.value ? selectedCompany.value : null;
-  step.value = single ? `Загружаю БП: ${single.company_name_ru}…` : "Загружаю бизнес-план всех компаний…";
+  step.value = single ? t("Загружаю БП: {name}…", { name: single.company_name_ru }) : t("Загружаю бизнес-план всех компаний…");
   try {
     const { api } = await import("@/api/client");
     const cos: AvailableCompany[] = single ? [single] : props.companies;
@@ -385,7 +387,7 @@ async function run(): Promise<void> {
     }))).filter((r): r is NonNullable<typeof r> => r != null);
 
     if (!bp_rows.length && mode.value !== "linkage") {
-      error.value = "Нет данных бизнес-плана за этот год. Заведите показатели в редакторе.";
+      error.value = t("Нет данных бизнес-плана за этот год. Заведите показатели в редакторе.");
       loading.value = false; return;
     }
 
@@ -405,7 +407,7 @@ async function run(): Promise<void> {
     chartRows.value = cr.sort((a, b) => b.value - a.value).slice(0, 20);
 
     // Производство (best-effort): свежий доступный период года.
-    step.value = "Подтягиваю производственный план…";
+    step.value = t("Подтягиваю производственный план…");
     let prod_rows: unknown[] = [];
     try {
       const avail = await productionApi.available();
@@ -428,7 +430,7 @@ async function run(): Promise<void> {
     // Прогноз (детерминированный движок) — режим «Прогноз».
     let forecastPayload: unknown = null;
     if (mode.value === "forecast") {
-      step.value = "Считаю модельный прогноз БП (годы + кварталы)…";
+      step.value = t("Считаю модельный прогноз БП (годы + кварталы)…");
       try {
         if (single) {
           const fc = await bpApi.getForecast(single.company_id, props.year, 3);
@@ -445,21 +447,21 @@ async function run(): Promise<void> {
       resetForecastView();
     }
 
-    step.value = "ИИ анализирует бизнес-план…";
+    step.value = t("ИИ анализирует бизнес-план…");
     const resp = await api.post("/ai/bp-analysis", {
       year: props.year, period: "annual", mode: mode.value,
       focus: single ? single.company_name_ru : null,
       bp_rows, prod_rows, forecast: forecastPayload,
     }, { timeout: 235000 });
     const raw = (resp.data?.analysis || "") as string;
-    if (!raw) { error.value = "ИИ вернул пустой ответ."; loading.value = false; return; }
+    if (!raw) { error.value = t("ИИ вернул пустой ответ."); loading.value = false; return; }
     rawMd.value = raw;
     html.value = renderMarkdown(raw);
     doneAt.value = new Date().toLocaleString("ru-RU");
     await saveResult(raw);
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    error.value = err?.response?.data?.detail || err?.message || "Ошибка анализа";
+    error.value = err?.response?.data?.detail || err?.message || t("Ошибка анализа");
   } finally {
     loading.value = false;
   }

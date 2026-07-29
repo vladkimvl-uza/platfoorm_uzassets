@@ -7,7 +7,10 @@
  */
 import { useId } from "vue";
 import type { ExecRingCard } from "@/api/executiveDashboard";
+import { useI18n } from "@/composables/useI18n";
 import { useNumberTween } from "@/composables/useNumberTween";
+
+const { t } = useI18n();
 
 const props = defineProps<{
   card: ExecRingCard;
@@ -57,18 +60,18 @@ const tRingPct     = useNumberTween(
       <div class="ed-ring-lbl">{{ card.label }}</div>
       <div class="ed-ring-cnt">
         <strong>{{ Math.round(tRatedCount) }}</strong>
-        <span class="ed-ring-dim">из {{ Math.round(tTotal) }}</span>
+        <span class="ed-ring-dim">{{ t("из") }} {{ Math.round(tTotal) }}</span>
         <span
           v-if="card.delta_2024 > 0"
           class="ed-ring-delta"
           :style="{ color: card.accent }"
-        >+{{ Math.round(tDelta2024) }} к 2024</span>
+        >{{ t("+{n} к 2024", { n: Math.round(tDelta2024) }) }}</span>
         <span v-else-if="card.delta_2024 === 0" class="ed-ring-delta-nochange">
-          = к 2024
+          {{ t("= к 2024") }}
         </span>
       </div>
       <div class="ed-ring-gap">
-        {{ card.not_covered > 0 ? card.not_covered + ' не охвачено' : 'полное покрытие' }}
+        {{ card.not_covered > 0 ? t("{n} не охвачено", { n: card.not_covered }) : t("полное покрытие") }}
       </div>
     </div>
   </div>

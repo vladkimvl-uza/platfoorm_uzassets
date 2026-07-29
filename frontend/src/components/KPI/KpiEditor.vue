@@ -3,14 +3,14 @@
     <div class="kpe-modal">
       <div class="kpe-header">
         <div>
-          <div class="kpe-eyebrow">UzAssets · KPI редактор</div>
+          <div class="kpe-eyebrow">UzAssets · {{ t("KPI редактор") }}</div>
           <h2 class="kpe-title">{{ companyName }} · FY {{ year }}</h2>
         </div>
         <div class="kpe-hd-actions">
           <button v-if="perm.canEdit" class="kpe-draft-btn" :disabled="kpiDraftLoading" @click="openKpiDraft"
-                  title="Черновик планов из истории фактов (CAGR/OLS + сезонность кварталов). Заполняет только пустые планы; связанные с БП строки не трогает; ничего не сохраняет сам.">
+                  :title="t('Черновик планов из истории фактов (CAGR/OLS + сезонность кварталов). Заполняет только пустые планы; связанные с БП строки не трогает; ничего не сохраняет сам.')">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l3-3 3 3 5-6"/></svg>
-            {{ kpiDraftLoading ? "Расчёт…" : "Рассчитать план" }}
+            {{ kpiDraftLoading ? t("Расчёт…") : t("Рассчитать план") }}
           </button>
           <button class="kpe-close" @click="requestClose">×</button>
         </div>
@@ -21,11 +21,11 @@
         <div class="kpe-draft">
           <div class="kpe-draft-hd">
             <div>
-              <h3>Черновик планов KPI · FY {{ year }}</h3>
+              <h3>{{ t("Черновик планов KPI") }} · FY {{ year }}</h3>
               <div class="kpe-draft-sub">
-                Из истории {{ kpiDraft.base_years.join(", ") }} · движок CAGR/OLS + сезонность кварталов ·
-                применяется только в <b>пустые</b> планы · связанные с БП строки — из Бизнес-плана ·
-                ничего не сохраняется до «Сохранить всё»
+                {{ t("Из истории {years} · движок CAGR/OLS + сезонность кварталов · применяется только в", { years: kpiDraft.base_years.join(", ") }) }}
+                <b>{{ t("пустые") }}</b>
+                {{ t("планы · связанные с БП строки — из Бизнес-плана · ничего не сохраняется до «Сохранить всё»") }}
               </div>
             </div>
             <button class="kpe-close" @click="kpiDraftOpen = false">×</button>
@@ -34,14 +34,14 @@
             <div v-if="!kpiDraft.indicators.length" class="kpe-draft-empty">{{ kpiDraft.note }}</div>
             <table v-else class="kpe-draft-tbl">
               <thead>
-                <tr><th class="lbl">KPI · руководитель</th><th>Текущий план</th><th>Предложение</th><th>Коридор</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th><th>Метод</th></tr>
+                <tr><th class="lbl">{{ t("KPI · руководитель") }}</th><th>{{ t("Текущий план") }}</th><th>{{ t("Предложение") }}</th><th>{{ t("Коридор") }}</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th><th>{{ t("Метод") }}</th></tr>
               </thead>
               <tbody>
                 <tr v-for="(r, ri) in kpiDraft.indicators" :key="ri" :class="{ 'is-empty': r.proposed_plan_year == null }">
                   <td class="lbl">
                     {{ r.name }}<span class="kpe-draft-mgr"> · {{ r.manager }}</span>
-                    <span v-if="r.linked" class="kpe-draft-chip">из БП</span>
-                    <span v-else-if="r.proposed_plan_year != null && r.current_plan_year != null" class="kpe-draft-chip busy" title="План уже введён — черновик его не тронет">занято</span>
+                    <span v-if="r.linked" class="kpe-draft-chip">{{ t("из БП") }}</span>
+                    <span v-else-if="r.proposed_plan_year != null && r.current_plan_year != null" class="kpe-draft-chip busy" :title="t('План уже введён — черновик его не тронет')">{{ t("занято") }}</span>
                   </td>
                   <td class="num">{{ r.current_plan_year != null ? r.current_plan_year.toLocaleString("ru-RU") : "—" }}</td>
                   <template v-if="r.proposed_plan_year != null">
@@ -50,11 +50,11 @@
                     <template v-if="r.proposed_q">
                       <td v-for="(v, i) in r.proposed_q" :key="i" class="num">{{ v != null ? v.toLocaleString("ru-RU") : "—" }}</td>
                     </template>
-                    <td v-else colspan="4" class="kpe-draft-noq">сезонности нет — только год</td>
-                    <td class="kpe-draft-m" :title="r.note">{{ KPI_DRAFT_METHOD_RU[r.method] || r.method }} · {{ KPI_DRAFT_CONF_RU[r.confidence] || r.confidence }}</td>
+                    <td v-else colspan="4" class="kpe-draft-noq">{{ t("сезонности нет — только год") }}</td>
+                    <td class="kpe-draft-m" :title="r.note">{{ t(KPI_DRAFT_METHOD_RU[r.method] || r.method) }} · {{ t(KPI_DRAFT_CONF_RU[r.confidence] || r.confidence) }}</td>
                   </template>
                   <template v-else>
-                    <td colspan="7" class="kpe-draft-noq">{{ r.note || "нет данных" }}</td>
+                    <td colspan="7" class="kpe-draft-noq">{{ r.note || t("нет данных") }}</td>
                   </template>
                 </tr>
               </tbody>
@@ -62,11 +62,11 @@
           </div>
           <div class="kpe-draft-ft">
             <span class="kpe-draft-cnt">
-              {{ kpiDraftFillCount > 0 ? `Заполнит ${kpiDraftFillCount} пустых ячеек плана` : "Пустых ячеек плана нет — всё уже введено" }}
+              {{ kpiDraftFillCount > 0 ? t("Заполнит {n} пустых ячеек плана", { n: kpiDraftFillCount }) : t("Пустых ячеек плана нет — всё уже введено") }}
             </span>
             <div style="display:flex; gap:8px;">
-              <button class="kpe-btn kpe-btn-ghost" @click="kpiDraftOpen = false">Отмена</button>
-              <button class="kpe-btn kpe-btn-primary" :disabled="!kpiDraftFillCount" @click="applyKpiDraft">Заполнить пустые планы</button>
+              <button class="kpe-btn kpe-btn-ghost" @click="kpiDraftOpen = false">{{ t("Отмена") }}</button>
+              <button class="kpe-btn kpe-btn-primary" :disabled="!kpiDraftFillCount" @click="applyKpiDraft">{{ t("Заполнить пустые планы") }}</button>
             </div>
           </div>
         </div>
@@ -74,21 +74,21 @@
 
       <!-- Сбой загрузки → запрет сохранения (иначе пустой список затрёт данные) -->
       <div v-if="loadError" class="kpe-banner err">
-        ⚠ Не удалось загрузить KPI за {{ year }}. Сохранение отключено — иначе пустой список перезапишет реальные данные. Закройте и откройте редактор заново.
+        ⚠ {{ t("Не удалось загрузить KPI за {year}. Сохранение отключено — иначе пустой список перезапишет реальные данные. Закройте и откройте редактор заново.", { year }) }}
       </div>
       <!-- Validation banner -->
       <div v-else-if="weightTotal !== 100" class="kpe-banner" :class="weightTotal === 100 ? 'ok' : 'warn'">
-        Сумма годовых весов {{ weightTotal }}% (должна быть 100%)
+        {{ t("Сумма годовых весов {n}% (должна быть 100%)", { n: weightTotal }) }}
       </div>
 
       <div class="kpe-body" :data-readonly="!perm.canEdit">
         <div v-if="!managers.length" class="kpe-empty">
-          Нет руководителей.
+          {{ t("Нет руководителей.") }}
           <button v-if="perm.canEdit" class="kpe-btn kpe-btn-primary" @click="addManager" style="margin-top: 14px">
-            + Добавить руководителя
+            + {{ t("Добавить руководителя") }}
           </button>
           <div v-else style="margin-top: 14px; font-size: 12px; color: var(--t3, #888780);">
-            У вас нет прав на редактирование KPI.
+            {{ t("У вас нет прав на редактирование KPI.") }}
           </div>
         </div>
 
@@ -102,45 +102,45 @@
             @click="activeIdx = i"
           >
             {{ m.short_title || m.title || `№${i + 1}` }}
-            <span v-if="perm.canDelete" class="kpe-tab-rm" @click.stop="removeManager(i)" title="Удалить">×</span>
+            <span v-if="perm.canDelete" class="kpe-tab-rm" @click.stop="removeManager(i)" :title="t('Удалить')">×</span>
           </button>
-          <button class="kpe-tab-add" @click="addManager" title="Добавить руководителя">+</button>
+          <button class="kpe-tab-add" @click="addManager" :title="t('Добавить руководителя')">+</button>
         </div>
 
         <div v-if="activeManager" class="kpe-mgr">
           <!-- Manager fields -->
           <div class="kpe-mgr-fields">
             <div class="kpe-fld">
-              <label>Должность (полное название)</label>
+              <label>{{ t("Должность (полное название)") }}</label>
               <input v-model="activeManager.title" type="text" class="kpe-in" />
             </div>
             <div class="kpe-fld">
-              <label>Краткое название</label>
+              <label>{{ t("Краткое название") }}</label>
               <input v-model="activeManager.short_title" type="text" class="kpe-in" />
             </div>
             <div class="kpe-fld">
-              <label>Ответственность (роль)</label>
+              <label>{{ t("Ответственность (роль)") }}</label>
               <input v-model="activeManager.role" type="text" class="kpe-in" />
             </div>
           </div>
 
           <!-- Indicators table -->
           <div class="kpe-ind-h">
-            <span>Индикаторы ({{ activeManager.indicators.length }})</span>
-            <button class="kpe-mini-btn" @click="addIndicator">+ Добавить индикатор</button>
+            <span>{{ t("Индикаторы") }} ({{ activeManager.indicators.length }})</span>
+            <button class="kpe-mini-btn" @click="addIndicator">+ {{ t("Добавить индикатор") }}</button>
           </div>
 
           <table v-if="activeManager.indicators.length" class="kpe-tbl">
             <thead>
               <tr>
-                <th class="lbl">Название</th>
-                <th>Ед.</th>
-                <th title="Направление метрики: больше=лучше или меньше=лучше">Напр.</th>
-                <th title="Связь с метрикой Бизнес-плана: план/факт зеркалятся из БП/НСБУ">BP</th>
-                <th title="Как заведены кварталы этой строки: суммы за квартал или нарастающим итогом (Q4 = год)">Кварталы</th>
-                <th>Вес год</th>
-                <th>План год</th>
-                <th>Факт год</th>
+                <th class="lbl">{{ t("Название") }}</th>
+                <th>{{ t("Ед.") }}</th>
+                <th :title="t('Направление метрики: больше=лучше или меньше=лучше')">{{ t("Напр.") }}</th>
+                <th :title="t('Связь с метрикой Бизнес-плана: план/факт зеркалятся из БП/НСБУ')">BP</th>
+                <th :title="t('Как заведены кварталы этой строки: суммы за квартал или нарастающим итогом (Q4 = год)')">{{ t("Кварталы") }}</th>
+                <th>{{ t("Вес год") }}</th>
+                <th>{{ t("План год") }}</th>
+                <th>{{ t("Факт год") }}</th>
                 <th>Q1 W</th>
                 <th>Q1 P</th>
                 <th>Q1 F</th>
@@ -158,18 +158,18 @@
             </thead>
             <tbody>
               <tr v-for="(ind, i) in activeManager.indicators" :key="i">
-                <td class="lbl"><input v-model="ind.name" class="kpe-in" type="text" placeholder="Название KPI" /></td>
-                <td><input v-model="ind.unit" class="kpe-in kpe-in-s" type="text" placeholder="ед" /></td>
+                <td class="lbl"><input v-model="ind.name" class="kpe-in" type="text" :placeholder="t('Название KPI')" /></td>
+                <td><input v-model="ind.unit" class="kpe-in kpe-in-s" type="text" :placeholder="t('ед')" /></td>
                 <td>
-                  <select v-model="ind.direction" class="kpe-in kpe-in-dir" :disabled="isLinked(ind)" :title="isLinked(ind) ? 'Направление задано связью с БП' : '↑ больше=лучше · ↓ меньше=лучше (себестоимость, просрочка)'">
-                    <option value="up">↑ больше</option>
-                    <option value="down">↓ меньше</option>
+                  <select v-model="ind.direction" class="kpe-in kpe-in-dir" :disabled="isLinked(ind)" :title="isLinked(ind) ? t('Направление задано связью с БП') : t('↑ больше=лучше · ↓ меньше=лучше (себестоимость, просрочка)')">
+                    <option value="up">↑ {{ t("больше") }}</option>
+                    <option value="down">↓ {{ t("меньше") }}</option>
                   </select>
                 </td>
                 <td>
-                  <select v-model="ind.bp_metric_key" class="kpe-in kpe-in-bp" :class="{ on: isLinked(ind) }" @change="onBpLinkChange(ind)" title="Связать с метрикой Бизнес-плана — план/факт будут зеркалиться из БП/НСБУ">
-                    <option :value="null">— свободный</option>
-                    <option v-for="o in bpOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
+                  <select v-model="ind.bp_metric_key" class="kpe-in kpe-in-bp" :class="{ on: isLinked(ind) }" @change="onBpLinkChange(ind)" :title="t('Связать с метрикой Бизнес-плана — план/факт будут зеркалиться из БП/НСБУ')">
+                    <option :value="null">{{ t("— свободный") }}</option>
+                    <option v-for="o in bpOptions" :key="o.value" :value="o.value">{{ t(o.label) }}</option>
                   </select>
                 </td>
                 <td>
@@ -177,23 +177,23 @@
                     v-model="ind.quarters_mode"
                     class="kpe-in kpe-in-qm"
                     :class="{ cum: ind.quarters_mode === 'cumulative' }"
-                    title="За квартал — Q1..Q4 суммы за каждый квартал, год = их сумма. Нарастающим итогом — Q2 = полугодие, Q3 = 9 мес., Q4 = год (конвенция НСБУ)"
+                    :title="t('За квартал — Q1..Q4 суммы за каждый квартал, год = их сумма. Нарастающим итогом — Q2 = полугодие, Q3 = 9 мес., Q4 = год (конвенция НСБУ)')"
                   >
-                    <option value="per_quarter">за квартал</option>
-                    <option value="cumulative">нараст. итог</option>
+                    <option value="per_quarter">{{ t("за квартал") }}</option>
+                    <option value="cumulative">{{ t("нараст. итог") }}</option>
                   </select>
                 </td>
                 <td><input v-model.number="ind.weight" class="kpe-in kpe-in-n" type="number" step="0.5" min="0" max="100" /></td>
                 <td>
-                  <span v-if="isLinked(ind)" class="kpe-bp-val" :title="'Ведётся в Бизнес-плане' + (ind.bp_resolved ? ' · ' + bpProvLabel(ind) : ', значение появится после сохранения')">
-                    {{ ind.bp_resolved ? bpVal(ind.bp_plan_resolved) : "↻ БП" }}
+                  <span v-if="isLinked(ind)" class="kpe-bp-val" :title="ind.bp_resolved ? t('Ведётся в Бизнес-плане') + ' · ' + t(bpProvLabel(ind)) : t('Ведётся в Бизнес-плане, значение появится после сохранения')">
+                    {{ ind.bp_resolved ? bpVal(ind.bp_plan_resolved) : "↻ " + t("БП") }}
                   </span>
                   <input v-else v-model.number="ind.plan_year" class="kpe-in kpe-in-m" type="number" step="0.001" />
                 </td>
                 <td>
-                  <span v-if="isLinked(ind)" class="kpe-bp-val" :title="'Ведётся в Бизнес-плане' + (ind.bp_resolved ? ' · ' + bpProvLabel(ind) : ', значение появится после сохранения')">
-                    {{ ind.bp_resolved ? bpVal(ind.bp_fact_resolved) : "↻ БП" }}
-                    <span v-if="ind.bp_resolved" class="kpe-bp-badge">{{ bpProvLabel(ind) }}</span>
+                  <span v-if="isLinked(ind)" class="kpe-bp-val" :title="ind.bp_resolved ? t('Ведётся в Бизнес-плане') + ' · ' + t(bpProvLabel(ind)) : t('Ведётся в Бизнес-плане, значение появится после сохранения')">
+                    {{ ind.bp_resolved ? bpVal(ind.bp_fact_resolved) : "↻ " + t("БП") }}
+                    <span v-if="ind.bp_resolved" class="kpe-bp-badge">{{ t(bpProvLabel(ind)) }}</span>
                   </span>
                   <input v-else v-model.number="ind.fact_year" class="kpe-in kpe-in-m" type="number" step="0.001" />
                 </td>
@@ -210,31 +210,31 @@
                 <td><input v-model.number="ind.q4_plan" class="kpe-in kpe-in-m" type="number" step="0.001" /></td>
                 <td><input v-model.number="ind.q4_fact" class="kpe-in kpe-in-m" type="number" step="0.001" /></td>
                 <td>
-                  <button v-if="perm.canDelete" class="kpe-rm" @click="removeIndicator(i)" title="Удалить">×</button>
+                  <button v-if="perm.canDelete" class="kpe-rm" @click="removeIndicator(i)" :title="t('Удалить')">×</button>
                 </td>
               </tr>
             </tbody>
           </table>
 
           <div v-else class="kpe-empty-ind">
-            Нет индикаторов. Добавьте через кнопку выше.
+            {{ t("Нет индикаторов. Добавьте через кнопку выше.") }}
           </div>
         </div>
       </div>
 
       <div class="kpe-footer">
         <span class="kpe-status">
-          {{ managers.length }} руководителей · {{ totalIndicators }} индикаторов · сумма весов {{ weightTotal }}%
+          {{ t("{m} руководителей · {i} индикаторов · сумма весов {w}%", { m: managers.length, i: totalIndicators, w: weightTotal }) }}
         </span>
         <div class="kpe-actions">
-          <button class="kpe-btn kpe-btn-ghost" @click="requestClose">{{ perm.canEdit ? "Отмена" : "Закрыть" }}</button>
+          <button class="kpe-btn kpe-btn-ghost" @click="requestClose">{{ perm.canEdit ? t("Отмена") : t("Закрыть") }}</button>
           <button
             v-if="perm.canEdit"
             class="kpe-btn kpe-btn-primary"
             @click="save"
             :disabled="saving || loadError"
           >
-            {{ saving ? "Сохранение..." : "Сохранить всё" }}
+            {{ saving ? t("Сохранение...") : t("Сохранить всё") }}
           </button>
         </div>
       </div>
@@ -254,10 +254,12 @@ import {
 } from "@/api/bpKpi";
 import { isModerationQueued } from "@/api/client";
 import { usePermissions } from "@/composables/usePermissions";
+import { useI18n } from "@/composables/useI18n";
 import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
 
 const { confirmDialog } = useConfirm();
+const { t } = useI18n();
 
 const perm = usePermissions("kpi");
 
@@ -313,7 +315,7 @@ const dirty = computed(() => snapshot.value !== "" && JSON.stringify(managers.va
 function markSaved() { snapshot.value = JSON.stringify(managers.value); }
 async function requestClose() {
   if (perm.canEdit.value && dirty.value) {
-    const ok = await confirmDialog({ message: "Есть несохранённые изменения KPI. Закрыть без сохранения?", danger: true });
+    const ok = await confirmDialog({ message: t("Есть несохранённые изменения KPI. Закрыть без сохранения?"), danger: true });
     if (!ok) return;
   }
   emit("close");
@@ -350,7 +352,7 @@ function addManager() {
 }
 
 async function removeManager(idx: number) {
-  if (!(await confirmDialog({ message: `Удалить руководителя «${managers.value[idx].short_title || managers.value[idx].title}»?`, danger: true }))) return;
+  if (!(await confirmDialog({ message: t("Удалить руководителя «{name}»?", { name: managers.value[idx].short_title || managers.value[idx].title }), danger: true }))) return;
   managers.value.splice(idx, 1);
   if (activeIdx.value >= managers.value.length) activeIdx.value = Math.max(0, managers.value.length - 1);
 }
@@ -401,8 +403,8 @@ async function openKpiDraft() {
     kpiDraft.value = await kpiApi.getPlanDraft(props.companyId, props.year);
     kpiDraftOpen.value = true;
   } catch (e: any) {
-    const reason = e?.response?.data?.detail || e?.message || "неизвестная ошибка";
-    useToast().error(`Не удалось построить черновик планов: ${reason}`);
+    const reason = e?.response?.data?.detail || e?.message || t("неизвестная ошибка");
+    useToast().error(t("Не удалось построить черновик планов: {reason}", { reason }));
   } finally {
     kpiDraftLoading.value = false;
   }
@@ -461,8 +463,8 @@ function applyKpiDraft() {
   }
   kpiDraftOpen.value = false;
   useToast().info(n > 0
-    ? `Черновик применён: заполнено ${n} ячеек плана — проверьте и сохраните`
-    : "Пустых планов нет — черновик ничего не менял");
+    ? t("Черновик применён: заполнено {n} ячеек плана — проверьте и сохраните", { n })
+    : t("Пустых планов нет — черновик ничего не менял"));
 }
 
 /** Жёсткие ошибки данных (блокируют сохранение). Возвращает текст или null. */
@@ -470,16 +472,16 @@ function hardValidate(): string | null {
   for (const m of managers.value) {
     for (const ind of m.indicators) {
       const nm = String(ind.name || "").trim();
-      if (!nm) return `У руководителя «${m.short_title || m.title}» есть KPI без названия`;
+      if (!nm) return t("У руководителя «{name}» есть KPI без названия", { name: m.short_title || m.title });
       const w = num(ind.weight ?? 0);
-      if (w < 0 || w > 100) return `Вес «${nm}» вне диапазона 0–100`;
+      if (w < 0 || w > 100) return t("Вес «{name}» вне диапазона 0–100", { name: nm });
       for (const qw of [ind.q1_weight, ind.q2_weight, ind.q3_weight, ind.q4_weight]) {
         const x = num(qw ?? 0);
-        if (x < 0 || x > 100) return `Квартальный вес «${nm}» вне диапазона 0–100`;
+        if (x < 0 || x > 100) return t("Квартальный вес «{name}» вне диапазона 0–100", { name: nm });
       }
       for (const v of [ind.plan_year, ind.fact_year, ind.q1_plan, ind.q1_fact,
                        ind.q2_plan, ind.q2_fact, ind.q3_plan, ind.q3_fact, ind.q4_plan, ind.q4_fact]) {
-        if (v != null && num(v) < 0) return `Отрицательное значение план/факт в «${nm}»`;
+        if (v != null && num(v) < 0) return t("Отрицательное значение план/факт в «{name}»", { name: nm });
       }
     }
   }
@@ -498,7 +500,7 @@ function notMonotonic(): string | null {
           const raw = (ind as any)[`${q}_${f}`];
           if (raw == null || raw === "") continue;
           const v = num(raw);
-          if (prev != null && v < prev) return ind.name || "Без названия";
+          if (prev != null && v < prev) return ind.name || t("Без названия");
           prev = v;
         }
       }
@@ -512,7 +514,7 @@ async function save() {
   // Анти-затирание: при сбое загрузки дерево пустое не потому что данных нет, а
   // потому что GET упал — сохранять нельзя (PUT replace_year сотрёт реальные KPI).
   if (loadError.value) {
-    useToast().error("Сохранение заблокировано: KPI не загрузились. Закройте и откройте редактор заново.");
+    useToast().error(t("Сохранение заблокировано: KPI не загрузились. Закройте и откройте редактор заново."));
     return;
   }
   // P1: жёсткая валидация диапазонов → блок с тостом.
@@ -523,8 +525,7 @@ async function save() {
   const nonMono = notMonotonic();
   if (nonMono) {
     const ok = await confirmDialog({
-      message: `«${nonMono}» помечен как «нараст. итог», но квартальные значения убывают. `
-        + "Похоже, кварталы заведены за квартал. Сохранить всё равно?",
+      message: t("«{name}» помечен как «нараст. итог», но квартальные значения убывают. Похоже, кварталы заведены за квартал. Сохранить всё равно?", { name: nonMono }),
     });
     if (!ok) return;
   }
@@ -532,7 +533,7 @@ async function save() {
   // правку легаси-данных, но явно предупредить.
   if (weightTotal.value !== 100) {
     const ok = await confirmDialog({
-      message: `Сумма годовых весов = ${weightTotal.value}% (рекомендуется 100%). Сохранить всё равно?`,
+      message: t("Сумма годовых весов = {n}% (рекомендуется 100%). Сохранить всё равно?", { n: weightTotal.value }),
     });
     if (!ok) return;
   }
@@ -556,7 +557,7 @@ async function save() {
       emit("close");
     } else {
       // Успех = бэкенд закоммитил (API 2xx). Подтверждаем визуально.
-      useToast().success("KPI сохранён");
+      useToast().success(t("KPI сохранён"));
       markSaved();   // правки сохранены → обновляем снимок dirty-guard
       emit("saved");
     }
@@ -567,14 +568,14 @@ async function save() {
     const errCode = e?.response?.data?.error;
     if (status === 409 && errCode === "EditorConflict") {
       const detail = e?.response?.data?.detail
-        ?? "Другой пользователь сохранил KPI пока вы редактировали. Перезагрузить?";
-      if (await confirmDialog({ message: detail + "\n\nOK — перезагрузить и потерять текущие правки.\nОтмена — остаться, чтобы скопировать значения.", danger: true })) {
+        ?? t("Другой пользователь сохранил KPI пока вы редактировали. Перезагрузить?");
+      if (await confirmDialog({ message: detail + "\n\n" + t("OK — перезагрузить и потерять текущие правки.") + "\n" + t("Отмена — остаться, чтобы скопировать значения."), danger: true })) {
         emit("close");
       }
     } else {
       console.error("[KPI editor] save failed:", e);
-      const reason = e?.response?.data?.detail || e?.message || "неизвестная ошибка";
-      useToast().error(`KPI не сохранён: ${reason}`);
+      const reason = e?.response?.data?.detail || e?.message || t("неизвестная ошибка");
+      useToast().error(t("KPI не сохранён: {reason}", { reason }));
     }
   } finally {
     saving.value = false;
@@ -630,7 +631,7 @@ onMounted(async () => {
     // НЕ markSaved(): сохранение заблокировано (loadError) — пустое дерево здесь
     // это артефакт сбоя, а не реальное состояние; PUT replace_year стёр бы данные.
     useToast().error(
-      "Не удалось загрузить KPI. НЕ сохраняйте — данные за год перезапишутся пустыми. Закройте и откройте редактор заново.",
+      t("Не удалось загрузить KPI. НЕ сохраняйте — данные за год перезапишутся пустыми. Закройте и откройте редактор заново."),
     );
   }
 });

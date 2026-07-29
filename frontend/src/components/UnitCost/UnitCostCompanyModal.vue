@@ -6,6 +6,7 @@
  * dirty-guard. Та же панель встроена во вкладку воркспейса (1:1, общий бэкенд).
  */
 import { ref } from "vue";
+import { useI18n } from "@/composables/useI18n";
 import ModalShell from "@/components/ModalShell.vue";
 import UnitCostCompanyPanel from "@/components/UnitCost/UnitCostCompanyPanel.vue";
 import { type UCCompany, type UCPrices, type UCWorld } from "@/api/unitCost";
@@ -16,6 +17,7 @@ defineProps<{
   year: number; quarter: string;
 }>();
 const emit = defineEmits<{ (e: "close"): void; (e: "saved"): void }>();
+const { t } = useI18n();
 
 const panel = ref<InstanceType<typeof UnitCostCompanyPanel> | null>(null);
 const dirty = ref(false);
@@ -27,7 +29,7 @@ function doSave() { panel.value?.save(); }
   <ModalShell :open="open && !!company" size="lg" :dirty="dirty" @close="emit('close')">
     <template v-if="company" #header>
       <div class="ucm-head">
-        <div class="ucm-eyebrow">Удельная себестоимость</div>
+        <div class="ucm-eyebrow">{{ t("Удельная себестоимость") }}</div>
         <h2 class="ucm-title"><span class="ucm-dot" :style="{ background: company.color }" />{{ company.name }}</h2>
         <div class="ucm-meta">{{ company.sector }}</div>
       </div>
@@ -39,10 +41,10 @@ function doSave() { panel.value?.save(); }
       @update:dirty="dirty = $event" @update:saving="saving = $event" @saved="emit('saved')" />
 
     <template #footer>
-      <span class="ucm-hint">энергонормы предзаполнены из отчёта энергоёмкости · остальное — вручную</span>
-      <button class="ucm-cancel" type="button" @click="emit('close')">Отмена</button>
+      <span class="ucm-hint">{{ t("энергонормы предзаполнены из отчёта энергоёмкости · остальное — вручную") }}</span>
+      <button class="ucm-cancel" type="button" @click="emit('close')">{{ t("Отмена") }}</button>
       <button class="ucm-save" type="button" :disabled="!dirty || saving" @click="doSave">
-        {{ saving ? "Сохранение…" : "Сохранить" }}
+        {{ saving ? t("Сохранение…") : t("Сохранить") }}
       </button>
     </template>
   </ModalShell>

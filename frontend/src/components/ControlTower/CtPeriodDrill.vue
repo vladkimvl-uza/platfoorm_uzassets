@@ -7,6 +7,9 @@
  */
 import { ref, watch } from "vue";
 import UzaSkeleton from "@/components/UZA/UzaSkeleton.vue";
+import { useI18n } from "@/composables/useI18n";
+
+const { t } = useI18n();
 
 interface PTask { num: string | null; title: string; due_date: string | null; company: string; direction: string }
 
@@ -36,8 +39,8 @@ watch(() => props.details, () => { expandedGroups.value = new Set(); });
     <template v-else-if="details">
       <div class="ph-pdrill-cols">
         <div class="ph-pdrill-col">
-          <div class="ph-pdrill-h ok">Завершено в периоде<span>{{ details.completed.length }}</span></div>
-          <div v-if="!details.completed.length" class="ph-pdrill-e">нет завершённых</div>
+          <div class="ph-pdrill-h ok">{{ t("Завершено в периоде") }}<span>{{ details.completed.length }}</span></div>
+          <div v-if="!details.completed.length" class="ph-pdrill-e">{{ t("нет завершённых") }}</div>
           <div v-for="g in byDirection(details.completed)" :key="'c'+g.dir" class="ph-pdrill-g">
             <div class="ph-pdrill-dir">{{ g.dir }}<span>{{ g.items.length }}</span></div>
             <div v-for="(t,i) in (expandedGroups.has('c-'+g.dir) ? g.items : g.items.slice(0,8))" :key="i" class="ph-pdrill-t">
@@ -46,13 +49,13 @@ watch(() => props.details, () => { expandedGroups.value = new Set(); });
               <span class="ph-pdrill-co">{{ t.company }}</span>
             </div>
             <button v-if="g.items.length > 8" class="ph-pdrill-more" @click="toggleGroup('c-'+g.dir)">
-              {{ expandedGroups.has('c-'+g.dir) ? 'свернуть' : '+' + (g.items.length - 8) + ' ещё' }}
+              {{ expandedGroups.has('c-'+g.dir) ? t("свернуть") : t("+{n} ещё", { n: g.items.length - 8 }) }}
             </button>
           </div>
         </div>
         <div class="ph-pdrill-col">
-          <div class="ph-pdrill-h od">Просрочено в периоде<span>{{ details.overdue.length }}</span></div>
-          <div v-if="!details.overdue.length" class="ph-pdrill-e">нет просроченных</div>
+          <div class="ph-pdrill-h od">{{ t("Просрочено в периоде") }}<span>{{ details.overdue.length }}</span></div>
+          <div v-if="!details.overdue.length" class="ph-pdrill-e">{{ t("нет просроченных") }}</div>
           <div v-for="g in byDirection(details.overdue)" :key="'o'+g.dir" class="ph-pdrill-g">
             <div class="ph-pdrill-dir">{{ g.dir }}<span>{{ g.items.length }}</span></div>
             <div v-for="(t,i) in (expandedGroups.has('o-'+g.dir) ? g.items : g.items.slice(0,8))" :key="i" class="ph-pdrill-t">
@@ -61,7 +64,7 @@ watch(() => props.details, () => { expandedGroups.value = new Set(); });
               <span class="ph-pdrill-co">{{ t.company }}</span>
             </div>
             <button v-if="g.items.length > 8" class="ph-pdrill-more" @click="toggleGroup('o-'+g.dir)">
-              {{ expandedGroups.has('o-'+g.dir) ? 'свернуть' : '+' + (g.items.length - 8) + ' ещё' }}
+              {{ expandedGroups.has('o-'+g.dir) ? t("свернуть") : t("+{n} ещё", { n: g.items.length - 8 }) }}
             </button>
           </div>
         </div>

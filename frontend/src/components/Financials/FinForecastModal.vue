@@ -13,6 +13,9 @@ import {
   FORECAST_MODELS, runForecast, lastYoY,
   type ForecastModel, type HistPoint,
 } from "@/utils/forecast";
+import { useI18n } from "@/composables/useI18n";
+
+const { t } = useI18n();
 
 const props = defineProps<{
   summary: PortfolioSummaryResponse;
@@ -114,24 +117,24 @@ function fmt(v: number | null): string {
   <ModalShell :open="true" size="lg" @close="emit('close')">
     <template #header>
       <div>
-        <div class="ffc-eyebrow">Инструмент прогнозирования</div>
-        <h2 class="ffc-title">Прогноз финансовых показателей</h2>
+        <div class="ffc-eyebrow">{{ t("Инструмент прогнозирования") }}</div>
+        <h2 class="ffc-title">{{ t("Прогноз финансовых показателей") }}</h2>
       </div>
     </template>
 
     <div class="ffc-body">
         <!-- Авто-прогноз с помощью ИИ -->
         <button v-if="aiEnabled" class="ffc-ai-btn" type="button" @click="emit('ai-generate')">
-          Сгенерировать с помощью ИИ
-          <span class="ffc-ai-sub">по данным модуля + web</span>
+          {{ t("Сгенерировать с помощью ИИ") }}
+          <span class="ffc-ai-sub">{{ t("по данным модуля + web") }}</span>
         </button>
-        <div v-if="aiEnabled" class="ffc-ai-or">или настройте модель вручную</div>
+        <div v-if="aiEnabled" class="ffc-ai-or">{{ t("или настройте модель вручную") }}</div>
 
         <!-- Шаг 1: объект -->
         <div class="ffc-field">
-          <label class="ffc-lbl">1 · Объект прогноза</label>
+          <label class="ffc-lbl">{{ t("1 · Объект прогноза") }}</label>
           <select v-model="companyCode" class="ffc-select">
-            <option :value="PORTFOLIO">Весь портфель</option>
+            <option :value="PORTFOLIO">{{ t("Весь портфель") }}</option>
             <option v-for="c in companies" :key="c.company_code" :value="c.company_code">
               {{ c.company_name_short || c.company_name || c.company_code }}
             </option>
@@ -140,46 +143,46 @@ function fmt(v: number | null): string {
 
         <!-- Шаг 2: модель -->
         <div class="ffc-field">
-          <label class="ffc-lbl">2 · Модель прогнозирования</label>
+          <label class="ffc-lbl">{{ t("2 · Модель прогнозирования") }}</label>
           <div class="ffc-models">
             <button v-for="m in FORECAST_MODELS" :key="m.id"
                     class="ffc-model" :class="{ on: model === m.id }" @click="model = m.id">
-              {{ m.label }}
+              {{ t(m.label) }}
             </button>
           </div>
-          <div class="ffc-model-desc">{{ modelMeta.desc }}</div>
+          <div class="ffc-model-desc">{{ t(modelMeta.desc) }}</div>
         </div>
 
         <!-- Шаг 3: входные данные модели -->
         <div v-if="modelMeta.inputs.length" class="ffc-field">
-          <label class="ffc-lbl">3 · Данные для расчёта</label>
+          <label class="ffc-lbl">{{ t("3 · Данные для расчёта") }}</label>
 
           <div v-if="modelMeta.inputs.includes('cagrRange')" class="ffc-inputs">
             <div class="ffc-in">
-              <span>Базовый год (от)</span>
+              <span>{{ t("Базовый год (от)") }}</span>
               <select v-model.number="cagrFrom" class="ffc-select sm">
                 <option v-for="y in histYears" :key="y" :value="y">{{ y }}</option>
               </select>
             </div>
             <div class="ffc-in">
-              <span>Базовый год (до)</span>
+              <span>{{ t("Базовый год (до)") }}</span>
               <select v-model.number="cagrTo" class="ffc-select sm">
                 <option v-for="y in histYears" :key="y" :value="y">{{ y }}</option>
               </select>
             </div>
-            <div v-if="revYoYHint != null" class="ffc-hint">Реализованный YoY выручки: {{ revYoYHint }}%</div>
+            <div v-if="revYoYHint != null" class="ffc-hint">{{ t("Реализованный YoY выручки: {n}%", { n: revYoYHint }) }}</div>
           </div>
 
           <div v-if="modelMeta.inputs.includes('linearWindow')" class="ffc-inputs">
             <div class="ffc-in">
-              <span>Глубина истории, лет</span>
+              <span>{{ t("Глубина истории, лет") }}</span>
               <input type="number" min="2" max="10" v-model.number="linearWindow" class="ffc-num" />
             </div>
           </div>
 
           <div v-if="modelMeta.inputs.includes('growthPct')" class="ffc-inputs">
             <div v-for="(y, i) in targetYears" :key="y" class="ffc-in">
-              <span>Рост {{ y }}, %</span>
+              <span>{{ t("Рост {y}, %", { y }) }}</span>
               <input type="number" v-model.number="growthPct[i]" class="ffc-num" />
             </div>
           </div>
@@ -187,20 +190,20 @@ function fmt(v: number | null): string {
 
         <!-- Результат -->
         <div class="ffc-field">
-          <label class="ffc-lbl">Результат <span class="ffc-fc-badge">прогноз</span></label>
+          <label class="ffc-lbl">{{ t("Результат") }} <span class="ffc-fc-badge">{{ t("прогноз") }}</span></label>
           <div class="ffc-table-wrap">
             <table class="ffc-table">
               <thead>
                 <tr>
-                  <th class="ffc-th-name">Показатель</th>
+                  <th class="ffc-th-name">{{ t("Показатель") }}</th>
                   <th v-for="y in allYears" :key="y" class="ffc-th-num" :class="{ fc: y > lastActualYear }">
-                    {{ y }}<span v-if="y > lastActualYear" class="ffc-th-fc">П</span>
+                    {{ y }}<span v-if="y > lastActualYear" class="ffc-th-fc">{{ t("П") }}</span>
                   </th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-for="(m, mi) in METRICS" :key="m.id">
-                  <td class="ffc-td-name">{{ m.label }}</td>
+                  <td class="ffc-td-name">{{ t(m.label) }}</td>
                   <td v-for="y in allYears" :key="y" class="ffc-td-num"
                       :class="{ fc: cellFor(mi, y).forecast }">
                     {{ fmt(cellFor(mi, y).value) }}
@@ -210,8 +213,8 @@ function fmt(v: number | null): string {
             </table>
           </div>
           <div class="ffc-note">
-            Прогнозные колонки выделены пунктиром и буквой «П». Метод: <b>{{ modelMeta.label }}</b>.
-            Это расчётная оценка, не факт — проверяйте допущения.
+            {{ t("Прогнозные колонки выделены пунктиром и буквой «П». Метод:") }} <b>{{ t(modelMeta.label) }}</b>.
+            {{ t("Это расчётная оценка, не факт — проверяйте допущения.") }}
           </div>
         </div>
       </div>

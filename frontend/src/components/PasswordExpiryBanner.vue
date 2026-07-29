@@ -2,7 +2,9 @@
 import { computed, ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
+import { useI18n } from "@/composables/useI18n";
 
+const { t } = useI18n();
 const auth = useAuthStore();
 const router = useRouter();
 
@@ -56,10 +58,10 @@ const severity = computed<"warn" | "crit">(() => {
 const message = computed(() => {
   const d = daysLeft.value;
   if (d === null) return "";
-  if (d < 0) return `Срок пароля истёк ${Math.abs(d)} дн. назад — смените сейчас, иначе доступ к API будет закрыт.`;
-  if (d === 0) return "Срок пароля истекает сегодня — смените прямо сейчас.";
-  if (d === 1) return "Срок пароля истекает завтра — смените сейчас.";
-  return `Срок пароля истекает через ${d} дн. — рекомендуем сменить заранее.`;
+  if (d < 0) return t("Срок пароля истёк {n} дн. назад — смените сейчас, иначе доступ к API будет закрыт.", { n: Math.abs(d) });
+  if (d === 0) return t("Срок пароля истекает сегодня — смените прямо сейчас.");
+  if (d === 1) return t("Срок пароля истекает завтра — смените сейчас.");
+  return t("Срок пароля истекает через {n} дн. — рекомендуем сменить заранее.", { n: d });
 });
 
 function goChange() {
@@ -82,8 +84,8 @@ function dismiss() {
       <path d="M7 11V7a5 5 0 0 1 10 0v4" />
     </svg>
     <span class="uz-pwd-banner-msg">{{ message }}</span>
-    <button class="uz-pwd-banner-cta" @click="goChange">Сменить пароль →</button>
-    <button v-if="(daysLeft ?? 0) >= 0" class="uz-pwd-banner-x" title="Скрыть до завтра" @click="dismiss">✕</button>
+    <button class="uz-pwd-banner-cta" @click="goChange">{{ t("Сменить пароль →") }}</button>
+    <button v-if="(daysLeft ?? 0) >= 0" class="uz-pwd-banner-x" :title="t('Скрыть до завтра')" @click="dismiss">✕</button>
   </div>
 </template>
 

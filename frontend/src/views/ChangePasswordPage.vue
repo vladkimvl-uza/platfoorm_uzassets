@@ -15,7 +15,9 @@ import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { authApi } from "@/api/auth";
+import { useI18n } from "@/composables/useI18n";
 
+const { t } = useI18n();
 const router = useRouter();
 const auth = useAuthStore();
 
@@ -55,10 +57,10 @@ const strength = computed(() => {
 });
 const strengthLabel = computed(() => {
   if (strength.value === 0) return "—";
-  if (strength.value < 50) return "слабый";
-  if (strength.value < 80) return "средний";
-  if (strength.value < 100) return "хороший";
-  return "сильный";
+  if (strength.value < 50) return t("слабый");
+  if (strength.value < 80) return t("средний");
+  if (strength.value < 100) return t("хороший");
+  return t("сильный");
 });
 const strengthColor = computed(() => {
   if (strength.value < 50) return "#E24B4A";
@@ -96,7 +98,7 @@ async function submit() {
     // Voluntary → back where they came from.
     await router.replace(wasForced ? "/" : (router.options.history.state?.back as string) || "/");
   } catch (e: any) {
-    submitError.value = e?.response?.data?.detail || e?.message || "Не удалось сменить пароль";
+    submitError.value = e?.response?.data?.detail || e?.message || t("Не удалось сменить пароль");
   } finally {
     submitting.value = false;
   }
@@ -118,20 +120,19 @@ const CHECK_LABELS: { key: keyof ReturnType<typeof checks.value.valueOf>; label:
   <div class="cpw-page">
     <div class="cpw-card">
       <header class="cpw-head">
-        <div class="cpw-eyebrow">Безопасность</div>
-        <h1 class="cpw-title">{{ isForced ? "Требуется смена пароля" : "Смена пароля" }}</h1>
+        <div class="cpw-eyebrow">{{ t("Безопасность") }}</div>
+        <h1 class="cpw-title">{{ isForced ? t("Требуется смена пароля") : t("Смена пароля") }}</h1>
         <p class="cpw-sub" v-if="isForced">
-          Администратор требует обновить ваш пароль либо срок действия пароля истёк.
-          Доступ к платформе восстановится сразу после смены.
+          {{ t("Администратор требует обновить ваш пароль либо срок действия пароля истёк. Доступ к платформе восстановится сразу после смены.") }}
         </p>
         <p class="cpw-sub" v-else>
-          Новый пароль вступит в силу немедленно. Все активные сессии на других устройствах будут завершены.
+          {{ t("Новый пароль вступит в силу немедленно. Все активные сессии на других устройствах будут завершены.") }}
         </p>
       </header>
 
       <form class="cpw-form" @submit.prevent="submit">
         <label class="cpw-fld">
-          <span class="cpw-fld-lbl">Текущий пароль</span>
+          <span class="cpw-fld-lbl">{{ t("Текущий пароль") }}</span>
           <div class="cpw-input-wrap">
             <input
               :type="showCurrent ? 'text' : 'password'"
@@ -141,7 +142,7 @@ const CHECK_LABELS: { key: keyof ReturnType<typeof checks.value.valueOf>; label:
               required
               autofocus
             />
-            <button type="button" class="cpw-eye" :aria-label="showCurrent ? 'Скрыть пароль' : 'Показать пароль'" @click="showCurrent = !showCurrent">
+            <button type="button" class="cpw-eye" :aria-label="showCurrent ? t('Скрыть пароль') : t('Показать пароль')" @click="showCurrent = !showCurrent">
               <svg v-if="!showCurrent" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
               </svg>
@@ -153,7 +154,7 @@ const CHECK_LABELS: { key: keyof ReturnType<typeof checks.value.valueOf>; label:
         </label>
 
         <label class="cpw-fld">
-          <span class="cpw-fld-lbl">Новый пароль</span>
+          <span class="cpw-fld-lbl">{{ t("Новый пароль") }}</span>
           <div class="cpw-input-wrap">
             <input
               :type="showNew ? 'text' : 'password'"
@@ -162,7 +163,7 @@ const CHECK_LABELS: { key: keyof ReturnType<typeof checks.value.valueOf>; label:
               autocomplete="new-password"
               required
             />
-            <button type="button" class="cpw-eye" :aria-label="showNew ? 'Скрыть пароль' : 'Показать пароль'" @click="showNew = !showNew">
+            <button type="button" class="cpw-eye" :aria-label="showNew ? t('Скрыть пароль') : t('Показать пароль')" @click="showNew = !showNew">
               <svg v-if="!showNew" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
               </svg>
@@ -182,12 +183,12 @@ const CHECK_LABELS: { key: keyof ReturnType<typeof checks.value.valueOf>; label:
         <ul class="cpw-checks">
           <li v-for="c in CHECK_LABELS" :key="c.key" :class="{ ok: (checks as any)[c.key] }">
             <span class="cpw-check-icon">{{ (checks as any)[c.key] ? "✓" : "✗" }}</span>
-            {{ c.label }}
+            {{ t(c.label) }}
           </li>
         </ul>
 
         <label class="cpw-fld">
-          <span class="cpw-fld-lbl">Повтор нового пароля</span>
+          <span class="cpw-fld-lbl">{{ t("Повтор нового пароля") }}</span>
           <div class="cpw-input-wrap">
             <input
               :type="showConfirm ? 'text' : 'password'"
@@ -197,7 +198,7 @@ const CHECK_LABELS: { key: keyof ReturnType<typeof checks.value.valueOf>; label:
               autocomplete="new-password"
               required
             />
-            <button type="button" class="cpw-eye" :aria-label="showConfirm ? 'Скрыть пароль' : 'Показать пароль'" @click="showConfirm = !showConfirm">
+            <button type="button" class="cpw-eye" :aria-label="showConfirm ? t('Скрыть пароль') : t('Показать пароль')" @click="showConfirm = !showConfirm">
               <svg v-if="!showConfirm" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
               </svg>
@@ -207,7 +208,7 @@ const CHECK_LABELS: { key: keyof ReturnType<typeof checks.value.valueOf>; label:
             </button>
           </div>
           <div v-if="confirmPwd.length > 0" class="cpw-confirm-status" :class="{ ok: confirmOk }">
-            <span>{{ confirmOk ? "✓ Совпадает" : "✗ Не совпадает" }}</span>
+            <span>{{ confirmOk ? t("✓ Совпадает") : t("✗ Не совпадает") }}</span>
           </div>
         </label>
 
@@ -215,10 +216,10 @@ const CHECK_LABELS: { key: keyof ReturnType<typeof checks.value.valueOf>; label:
 
         <div class="cpw-actions">
           <button v-if="!isForced" type="button" class="cpw-btn-cancel" @click="router.back()" :disabled="submitting">
-            Отмена
+            {{ t("Отмена") }}
           </button>
           <button type="submit" class="cpw-btn-submit" :disabled="!canSubmit">
-            {{ submitting ? "Сохраняем…" : "Сменить пароль" }}
+            {{ submitting ? t("Сохраняем…") : t("Сменить пароль") }}
           </button>
         </div>
       </form>

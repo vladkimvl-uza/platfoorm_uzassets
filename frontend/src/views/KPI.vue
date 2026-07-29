@@ -12,11 +12,11 @@
       </div>
       <div class="kpi-tb-right">
         <!-- Единые чипы + дропдаун года -->
-        <UzaSegment tone="dark" label="Вид" :options="KPI_VIEW_OPTS"
+        <UzaSegment tone="dark" :label="t('Вид')" :options="kpiViewOpts"
                     :model-value="state.viewMode.value" @update:model-value="(v) => state.setViewMode(v as any)" />
-        <UzaSegment tone="dark" label="Период" :options="kpiPeriodOpts"
+        <UzaSegment tone="dark" :label="t('Период')" :options="kpiPeriodOpts"
                     :model-value="state.selectedPeriod.value" @update:model-value="(v) => state.setPeriod(v as any)" />
-        <UzaYearStepper tone="dark" label="Год" :years="state.availableYears.value"
+        <UzaYearStepper tone="dark" :label="t('Год')" :years="state.availableYears.value"
                         :model-value="state.selectedYear.value" @update:model-value="(v) => state.setYear(v)" />
 
         <!-- ИИ-анализ KPI (исполнение / связь с финансами / прогноз) -->
@@ -33,11 +33,11 @@
           <div v-if="menuOpen" class="kpi-menu" @click="menuOpen = false">
             <button v-if="canEdit" @click="openEditor">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
-              Редактировать
+              {{ t("Редактировать") }}
             </button>
             <button v-if="canDelete" @click="confirmDelete">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
-              Удалить год
+              {{ t("Удалить год") }}
             </button>
           </div>
         </div>
@@ -51,21 +51,21 @@
         @change="onCompanyChange"
         class="kpi-co-select"
       >
-        <option value="">— выберите компанию —</option>
+        <option value="">{{ t("— выберите компанию —") }}</option>
         <option v-for="co in state.companies.value" :key="co.company_id" :value="co.company_id">
           {{ co.company_name_ru }}
         </option>
       </select>
-      <button v-if="canCreateCompany" class="kpi-co-add" @click="addCompanyOpen = true" title="Добавить новую компанию">
+      <button v-if="canCreateCompany" class="kpi-co-add" @click="addCompanyOpen = true" :title="t('Добавить новую компанию')">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        Компания
+        {{ t("Компания") }}
       </button>
     </div>
 
     <!-- Body -->
     <div class="kpi-body" :class="{ 'is-loading': state.loading.summary || state.loading.company }">
       <!-- P2-1: индикатор обновления — старые числа не висят молча при смене периода/года/компании -->
-      <div v-if="state.loading.summary || state.loading.company" class="kpi-loading-pill">Обновление…</div>
+      <div v-if="state.loading.summary || state.loading.company" class="kpi-loading-pill">{{ t("Обновление…") }}</div>
       <div v-if="state.error.value" class="kpi-err">{{ state.error.value }}</div>
 
       <!-- Summary -->
@@ -83,11 +83,10 @@
         v-else-if="state.viewMode.value === 'summary' && state.summary.value && !state.summary.value.has_plan"
         class="kpi-empty"
       >
-        План KPI за этот период не заведён. Введите плановые значения в редакторе —
-        без плана выполнение не рассчитывается (это не «0%», а отсутствие плана).
+        {{ t("План KPI за этот период не заведён. Введите плановые значения в редакторе — без плана выполнение не рассчитывается (это не «0%», а отсутствие плана).") }}
       </div>
       <div v-else-if="state.viewMode.value === 'summary' && state.summary.value" class="kpi-empty">
-        Нет данных KPI. Загрузите шаблон НГМК или заведите данные через редактор.
+        {{ t("Нет данных KPI. Загрузите шаблон НГМК или заведите данные через редактор.") }}
       </div>
 
       <!-- Company -->
@@ -103,7 +102,7 @@
         @set-manager="state.setManager"
       />
       <div v-else-if="state.viewMode.value === 'company' && !state.selectedCompany.value" class="kpi-empty">
-        Выберите компанию.
+        {{ t("Выберите компанию.") }}
       </div>
     </div>
 
@@ -151,12 +150,14 @@ import AddCompanyModal from "@/components/AddCompanyModal.vue";
 import UzaSegment from "@/components/UZA/UzaSegment.vue";
 import UzaYearStepper from "@/components/UZA/UzaYearStepper.vue";
 import { usePermissions } from "@/composables/usePermissions";
+import { useI18n } from "@/composables/useI18n";
 import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
 import { useAuthStore } from "@/stores/auth";
 import type { CompanyDetail } from "@/api/companies";
 
 const _perm = usePermissions("kpi");
+const { t } = useI18n();
 const toast = useToast();
 const { confirmDialog } = useConfirm();
 const canEdit = _perm.canEdit;
@@ -196,21 +197,24 @@ const PERIODS = [
   { key: "q4" as const, label: "Q4" },
 ];
 
-// Опции единых фильтров
-const KPI_VIEW_OPTS = [{ value: "summary", label: "Сводка" }, { value: "company", label: "По компании" }];
+// Опции единых фильтров (computed: подписи t() реактивны к смене языка)
+const kpiViewOpts = computed(() => [
+  { value: "summary", label: t("Сводка") },
+  { value: "company", label: t("По компании") },
+]);
 const kpiPeriodOpts = computed(() => PERIODS.map((p) => ({ value: p.key, label: p.label })));
 const kpiYearOpts = computed(() => state.availableYears.value.map((y) => ({ value: y, label: String(y) })));
 
 const headerTitle = computed(() =>
   state.viewMode.value === "summary"
-    ? "Сводка по портфелю"
-    : state.selectedCompany.value?.company_name_ru ?? "Выберите компанию",
+    ? t("Сводка по портфелю")
+    : state.selectedCompany.value?.company_name_ru ?? t("Выберите компанию"),
 );
 
 const headerSub = computed(() => {
   const p = PERIODS.find((x) => x.key === state.selectedPeriod.value);
   if (state.viewMode.value === "summary" && state.summary.value) {
-    return `FY ${state.selectedYear.value} · ${p?.label} · ${state.summary.value.co_count} компаний`;
+    return `FY ${state.selectedYear.value} · ${p?.label} · ${t("{n} компаний", { n: state.summary.value.co_count })}`;
   }
   return `FY ${state.selectedYear.value} · ${p?.label}`;
 });
@@ -221,7 +225,7 @@ function onCompanyChange(e: Event) {
 
 function openEditor() {
   if (!state.selectedCompany.value) {
-    toast.info("Сначала выберите компанию");
+    toast.info(t("Сначала выберите компанию"));
     return;
   }
   editorOpen.value = true;
@@ -236,11 +240,14 @@ async function onEditorSaved() {
 
 async function confirmDelete() {
   if (!state.selectedCompany.value) {
-    toast.info("Выберите компанию");
+    toast.info(t("Выберите компанию"));
     return;
   }
   if (!(await confirmDialog({
-    message: `Удалить весь KPI ${state.selectedCompany.value.company_name_ru} за ${state.selectedYear.value}?`,
+    message: t("Удалить весь KPI {name} за {year}?", {
+      name: state.selectedCompany.value.company_name_ru,
+      year: state.selectedYear.value,
+    }),
     danger: true,
   }))) return;
   try {
@@ -250,7 +257,7 @@ async function confirmDelete() {
     else await state.loadCompanyData();
   } catch (e) {
     console.error("[KPI] delete failed:", e);
-    toast.error("Не удалось удалить");
+    toast.error(t("Не удалось удалить"));
   }
 }
 

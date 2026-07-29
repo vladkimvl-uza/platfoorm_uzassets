@@ -9,6 +9,9 @@ import ModalShell from "@/components/ModalShell.vue";
 import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
 import { productionApi, type ProdCompany, type ProdLine } from "@/api/production";
+import { useI18n } from "@/composables/useI18n";
+
+const { t } = useI18n();
 
 const props = defineProps<{ company: ProdCompany; year: number; period: string }>();
 const emit = defineEmits<{ (e: "close"): void; (e: "saved"): void }>();
@@ -88,7 +91,7 @@ function addChild(idx: number) {
   reindexParents();
 }
 function delRow(idx: number) {
-  if (working.value[idx].total) { toast.info("Строку-итог удалить нельзя"); return; }
+  if (working.value[idx].total) { toast.info(t("Строку-итог удалить нельзя")); return; }
   working.value.splice(idx, 1);
   reindexParents();
 }
@@ -108,7 +111,7 @@ function reindexParents() {
 
 async function requestClose() {
   if (dirty.value) {
-    const ok = await confirmDialog({ message: "Есть несохранённые изменения. Закрыть без сохранения?", danger: true });
+    const ok = await confirmDialog({ message: t("Есть несохранённые изменения. Закрыть без сохранения?"), danger: true });
     if (!ok) return;
   }
   emit("close");
@@ -117,7 +120,7 @@ async function requestClose() {
 async function save() {
   if (saving.value) return;
   const lines = working.value.filter((l) => l.total || l.name.trim() !== "");
-  if (!lines.length) { toast.error("Нет строк для сохранения"); return; }
+  if (!lines.length) { toast.error(t("Нет строк для сохранения")); return; }
   saving.value = true;
   try {
     const payloadLines: ProdLine[] = lines.map((l) => ({
@@ -128,13 +131,13 @@ async function save() {
     const r: unknown = await productionApi.upsertCompany(props.company.k, {
       year: props.year, period: props.period, lines: payloadLines,
     });
-    if ((r as { queued?: boolean })?.queued) toast.info("Отправлено на модерацию");
-    else toast.success("Производственные данные сохранены");
+    if ((r as { queued?: boolean })?.queued) toast.info(t("Отправлено на модерацию"));
+    else toast.success(t("Производственные данные сохранены"));
     snapshot.value = JSON.stringify(working.value);
     emit("saved");
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    toast.error("Не сохранено: " + (err?.response?.data?.detail || err?.message || "ошибка"));
+    toast.error(t("Не сохранено: {e}", { e: err?.response?.data?.detail || err?.message || t("ошибка") }));
   } finally {
     saving.value = false;
   }
@@ -148,42 +151,41 @@ const periodLabel = computed(() => ({ h1: "1 полугодие", h2: "2 пол�
     <template #header>
       <div class="pe-hd">
         <div>
-          <div class="pe-eyebrow">Редактирование производства · FY{{ year }} · {{ periodLabel }}</div>
+          <div class="pe-eyebrow">{{ t("Редактирование производства") }} · FY{{ year }} · {{ t(periodLabel) }}</div>
           <div class="pe-title">{{ company.n }}</div>
         </div>
-        <span v-if="dirty" class="pe-dirty">● не сохранено</span>
+        <span v-if="dirty" class="pe-dirty">● {{ t("не сохранено") }}</span>
       </div>
     </template>
 
     <div class="pe-hint">
-      Темп роста и исполнение считаются автоматически (по деньгам, при отсутствии — по натуре). Введите <b>Факт</b> для реального
-      исполнения (факт / план); без факта показывается прогнозное (ожид. / план). Объёмы — неотрицательные.
+      {{ t("Темп роста и исполнение считаются автоматически (по деньгам, при отсутствии — по натуре). Введите «Факт» для реального исполнения (факт / план); без факта показывается прогнозное (ожид. / план). Объёмы — неотрицательные.") }}
     </div>
 
     <div class="pe-tbl-wrap">
       <table class="pe-tbl">
         <thead>
           <tr>
-            <th class="lt">Наименование</th><th>Ед.</th>
-            <th colspan="2">База (2025 факт)</th>
-            <th colspan="2">План</th>
-            <th colspan="2">Ожидаемое</th>
-            <th colspan="2" class="pe-fact-h">Факт</th>
-            <th class="rt">Исп.</th><th></th>
+            <th class="lt">{{ t("Наименование") }}</th><th>{{ t("Ед.") }}</th>
+            <th colspan="2">{{ t("База (2025 факт)") }}</th>
+            <th colspan="2">{{ t("План") }}</th>
+            <th colspan="2">{{ t("Ожидаемое") }}</th>
+            <th colspan="2" class="pe-fact-h">{{ t("Факт") }}</th>
+            <th class="rt">{{ t("Исп.") }}</th><th></th>
           </tr>
           <tr class="pe-sub">
             <th></th><th></th>
-            <th>натура</th><th>млрд</th><th>натура</th><th>млрд</th><th>натура</th><th>млрд</th>
-            <th class="pe-fact-h">натура</th><th class="pe-fact-h">млрд</th><th></th><th></th>
+            <th>{{ t("натура") }}</th><th>{{ t("млрд") }}</th><th>{{ t("натура") }}</th><th>{{ t("млрд") }}</th><th>{{ t("натура") }}</th><th>{{ t("млрд") }}</th>
+            <th class="pe-fact-h">{{ t("натура") }}</th><th class="pe-fact-h">{{ t("млрд") }}</th><th></th><th></th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="(l, i) in working" :key="i" :class="{ total: l.total, child: l.parent != null }">
             <td class="lt">
               <input class="pe-in name" :class="{ 'is-child': l.parent != null }" v-model="l.name"
-                     :placeholder="l.total ? 'Итог компании' : 'Продукт'" />
+                     :placeholder="l.total ? t('Итог компании') : t('Продукт')" />
             </td>
-            <td><input class="pe-in unit" v-model="l.unit" placeholder="ед." /></td>
+            <td><input class="pe-in unit" v-model="l.unit" :placeholder="t('ед.')" /></td>
             <td><input class="pe-in num" type="number" min="0" step="any" :value="l.baseN ?? ''" @input="setNum(l,'baseN',($event.target as HTMLInputElement).value)" /></td>
             <td><input class="pe-in num" type="number" min="0" step="any" :value="l.baseM ?? ''" @input="setNum(l,'baseM',($event.target as HTMLInputElement).value)" /></td>
             <td><input class="pe-in num" type="number" min="0" step="any" :value="l.planN ?? ''" @input="setNum(l,'planN',($event.target as HTMLInputElement).value)" /></td>
@@ -193,13 +195,13 @@ const periodLabel = computed(() => ({ h1: "1 полугодие", h2: "2 пол�
             <td><input class="pe-in num pe-fact" type="number" min="0" step="any" :value="l.factN ?? ''" @input="setNum(l,'factN',($event.target as HTMLInputElement).value)" /></td>
             <td><input class="pe-in num pe-fact" type="number" min="0" step="any" :value="l.factM ?? ''" @input="setNum(l,'factM',($event.target as HTMLInputElement).value)" /></td>
             <td class="rt pe-exec" :style="{ color: pctCol(rowExec(l).pct) }">
-              {{ rowExec(l).pct != null ? rowExec(l).pct + '%' : (rowExec(l).state === 'nofact' ? 'факт —' : '—') }}
+              {{ rowExec(l).pct != null ? rowExec(l).pct + '%' : (rowExec(l).state === 'nofact' ? t('факт —') : '—') }}
             </td>
             <td class="pe-acts">
-              <button class="pe-act" title="Добавить «в т.ч.»" @click="addChild(i)">﹢</button>
-              <button class="pe-act" title="Вверх" :disabled="i <= 1" @click="move(i,-1)">↑</button>
-              <button class="pe-act" title="Вниз" :disabled="i >= working.length - 1" @click="move(i,1)">↓</button>
-              <button v-if="!l.total" class="pe-act del" title="Удалить" @click="delRow(i)">✕</button>
+              <button class="pe-act" :title="t('Добавить «в т.ч.»')" @click="addChild(i)">﹢</button>
+              <button class="pe-act" :title="t('Вверх')" :disabled="i <= 1" @click="move(i,-1)">↑</button>
+              <button class="pe-act" :title="t('Вниз')" :disabled="i >= working.length - 1" @click="move(i,1)">↓</button>
+              <button v-if="!l.total" class="pe-act del" :title="t('Удалить')" @click="delRow(i)">✕</button>
             </td>
           </tr>
         </tbody>
@@ -207,11 +209,11 @@ const periodLabel = computed(() => ({ h1: "1 полугодие", h2: "2 пол�
     </div>
 
     <div class="pe-foot">
-      <button class="pe-add" @click="addProduct">＋ Добавить продукт</button>
+      <button class="pe-add" @click="addProduct">＋ {{ t("Добавить продукт") }}</button>
       <div class="pe-foot-sp" />
-      <button class="pe-btn ghost" @click="requestClose">Отмена</button>
+      <button class="pe-btn ghost" @click="requestClose">{{ t("Отмена") }}</button>
       <button class="pe-btn save" :disabled="saving || !dirty" @click="save">
-        {{ saving ? "Сохранение…" : "Сохранить" }}
+        {{ saving ? t("Сохранение…") : t("Сохранить") }}
       </button>
     </div>
   </ModalShell>

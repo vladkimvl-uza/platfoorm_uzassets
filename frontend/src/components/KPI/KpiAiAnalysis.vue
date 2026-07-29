@@ -1,6 +1,6 @@
 <template>
-  <button class="kpai-btn" @click="openModal" :disabled="loading" title="ИИ-анализ KPI">
-    <span class="kpai-btn-ai">Ai</span>{{ loading ? "Анализирую…" : "Анализ ИИ" }}
+  <button class="kpai-btn" @click="openModal" :disabled="loading" :title="t('ИИ-анализ KPI')">
+    <span class="kpai-btn-ai">Ai</span>{{ loading ? t("Анализирую…") : t("Анализ ИИ") }}
   </button>
 
   <Teleport to="body">
@@ -8,35 +8,35 @@
       <div class="kpai-card" :class="{ 'kpai-wide': mode === 'forecast' && html }">
         <header class="kpai-hd">
           <div class="kpai-hd-txt">
-            <div class="kpai-eyebrow">ИИ-АНАЛИЗ KPI · {{ scope === 'company' ? 'КОМПАНИЯ' : 'ПОРТФЕЛЬ' }}</div>
+            <div class="kpai-eyebrow">{{ t("ИИ-АНАЛИЗ KPI") }} · {{ scope === 'company' ? t('КОМПАНИЯ') : t('ПОРТФЕЛЬ') }}</div>
             <h2 class="kpai-title">{{ titleText }}</h2>
-            <div v-if="doneAt && !loading && html" class="kpai-sub">{{ MODE_LABEL[mode] }} · FY {{ year }} · {{ doneAt }}</div>
+            <div v-if="doneAt && !loading && html" class="kpai-sub">{{ t(MODE_LABEL[mode]) }} · FY {{ year }} · {{ doneAt }}</div>
           </div>
           <div class="kpai-hd-actions">
-            <button v-if="html && !loading" class="kpai-act" @click="copyAnswer" title="Скопировать ответ">Копировать</button>
-            <button v-if="html && !loading" class="kpai-act kpai-act-xls" @click="exportExcel" title="Выгрузить таблицы в Excel">Excel</button>
-            <button class="kpai-x" @click="open = false" aria-label="Закрыть">×</button>
+            <button v-if="html && !loading" class="kpai-act" @click="copyAnswer" :title="t('Скопировать ответ')">{{ t("Копировать") }}</button>
+            <button v-if="html && !loading" class="kpai-act kpai-act-xls" @click="exportExcel" :title="t('Выгрузить таблицы в Excel')">Excel</button>
+            <button class="kpai-x" @click="open = false" :aria-label="t('Закрыть')">×</button>
           </div>
         </header>
 
         <div class="kpai-ctrls">
           <div class="kpai-seg-row">
-            <span class="kpai-seg-lbl">Охват</span>
+            <span class="kpai-seg-lbl">{{ t("Охват") }}</span>
             <div class="kpai-seg">
-              <button :class="{ on: scope === 'portfolio' }" :disabled="loading" @click="setScope('portfolio')">Весь портфель</button>
-              <button :class="{ on: scope === 'company' }" :disabled="loading" @click="setScope('company')">Одна компания</button>
+              <button :class="{ on: scope === 'portfolio' }" :disabled="loading" @click="setScope('portfolio')">{{ t("Весь портфель") }}</button>
+              <button :class="{ on: scope === 'company' }" :disabled="loading" @click="setScope('company')">{{ t("Одна компания") }}</button>
             </div>
             <select v-if="scope === 'company'" v-model="pickedId" :disabled="loading" @change="onPickCompany" class="kpai-co-select">
               <option v-for="c in companies" :key="c.company_id" :value="c.company_id">{{ c.company_name_ru }}</option>
             </select>
           </div>
           <div class="kpai-seg-row">
-            <span class="kpai-seg-lbl">Режим</span>
+            <span class="kpai-seg-lbl">{{ t("Режим") }}</span>
             <div class="kpai-seg">
-              <button v-for="m in MODES" :key="m.id" :class="{ on: mode === m.id }" :disabled="loading" @click="setMode(m.id)" :title="m.hint">{{ m.label }}</button>
+              <button v-for="m in MODES" :key="m.id" :class="{ on: mode === m.id }" :disabled="loading" @click="setMode(m.id)" :title="t(m.hint)">{{ t(m.label) }}</button>
             </div>
             <button class="kpai-run" :disabled="loading" @click="run">
-              {{ loading ? "Анализирую…" : (html ? "Пересчитать" : "Запустить анализ") }}
+              {{ loading ? t("Анализирую…") : (html ? t("Пересчитать") : t("Запустить анализ")) }}
             </button>
           </div>
         </div>
@@ -48,42 +48,42 @@
             <!-- Режим «Прогноз»: траектория выполнения + модельная таблица движка -->
             <template v-if="mode === 'forecast'">
               <div v-if="fcTrend.length" class="kpai-chart">
-                <div class="kpai-chart-title">Прогноз сводного выполнения «{{ fcScopeName }}», % (история → прогноз)</div>
-                <div v-for="(t, i) in fcTrend" :key="i" class="kpai-bar-row">
-                  <span class="kpai-bar-lbl">{{ t.label }}<span v-if="t.projected" class="kpai-fc-tag">прогноз</span></span>
+                <div class="kpai-chart-title">{{ t("Прогноз сводного выполнения «{name}», % (история → прогноз)", { name: fcScopeName === 'Портфель' ? t('Портфель') : fcScopeName }) }}</div>
+                <div v-for="(tr, i) in fcTrend" :key="i" class="kpai-bar-row">
+                  <span class="kpai-bar-lbl">{{ tr.label }}<span v-if="tr.projected" class="kpai-fc-tag">{{ t("прогноз") }}</span></span>
                   <div class="kpai-bar-track">
-                    <div class="kpai-bar-fill" :class="{ proj: t.projected }"
-                         :style="{ width: Math.min(t.value / fcTrendMax * 100, 100) + '%', background: barColor(t.value) }"></div>
+                    <div class="kpai-bar-fill" :class="{ proj: tr.projected }"
+                         :style="{ width: Math.min(tr.value / fcTrendMax * 100, 100) + '%', background: barColor(tr.value) }"></div>
                   </div>
-                  <span class="kpai-bar-val">{{ t.value }}%</span>
+                  <span class="kpai-bar-val">{{ tr.value }}%</span>
                 </div>
               </div>
               <div v-if="fcView.length" class="kpai-fc">
                 <div class="kpai-fc-head">
-                  <div class="kpai-chart-title">Модельный прогноз (движок){{ fcScopeName ? ' · ' + fcScopeName : '' }}</div>
+                  <div class="kpai-chart-title">{{ t("Модельный прогноз (движок)") }}{{ fcScopeName ? ' · ' + (fcScopeName === 'Портфель' ? t('Портфель') : fcScopeName) : '' }}</div>
                   <div v-if="hasFcQuarters" class="kpai-fc-toggle">
                     <div class="kpai-seg kpai-seg-sm">
-                      <button :class="{ on: fcTblMode === 'years' }" @click="setFcTblMode('years')">По годам</button>
-                      <button :class="{ on: fcTblMode === 'quarters' }" @click="setFcTblMode('quarters')">По кварталам</button>
+                      <button :class="{ on: fcTblMode === 'years' }" @click="setFcTblMode('years')">{{ t("По годам") }}</button>
+                      <button :class="{ on: fcTblMode === 'quarters' }" @click="setFcTblMode('quarters')">{{ t("По кварталам") }}</button>
                     </div>
-                    <select v-if="fcTblMode === 'quarters'" v-model="fcQYear" class="kpai-co-select kpai-fc-yr" aria-label="Год для квартальной разбивки">
-                      <option v-for="y in fcYears" :key="y" :value="y">{{ y }} г.</option>
+                    <select v-if="fcTblMode === 'quarters'" v-model="fcQYear" class="kpai-co-select kpai-fc-yr" :aria-label="t('Год для квартальной разбивки')">
+                      <option v-for="y in fcYears" :key="y" :value="y">{{ t("{y} г.", { y }) }}</option>
                     </select>
                   </div>
                 </div>
                 <div class="kpai-fc-scroll">
                   <table class="kpai-fc-tbl">
                     <thead><tr>
-                      <th>{{ fcScopeName === 'Портфель' ? 'Компания' : 'Показатель' }}</th>
-                      <th>Тек. факт</th>
+                      <th>{{ fcScopeName === 'Портфель' ? t('Компания') : t('Показатель') }}</th>
+                      <th>{{ t("Тек. факт") }}</th>
                       <template v-if="fcTblMode === 'quarters'">
                         <th v-for="q in FC_Q" :key="q">{{ q }} · {{ fcQYear }}</th>
                       </template>
                       <template v-else>
-                        <th v-if="fcScopeName !== 'Портфель'">Ожид. {{ fcBaseYear }}</th>
+                        <th v-if="fcScopeName !== 'Портфель'">{{ t("Ожид. {y}", { y: fcBaseYear }) }}</th>
                         <th v-for="y in fcYears" :key="y">{{ y }}</th>
                       </template>
-                      <th>Метод</th>
+                      <th>{{ t("Метод") }}</th>
                     </tr></thead>
                     <tbody>
                       <tr v-for="(r, i) in fcView" :key="i">
@@ -107,21 +107,21 @@
                             <template v-else>—</template>
                           </td>
                         </template>
-                        <td><span class="kpai-fc-conf" :class="'c-' + r.confidence">{{ fcMethodLabel(r.method) }}</span></td>
+                        <td><span class="kpai-fc-conf" :class="'c-' + r.confidence">{{ t(fcMethodLabel(r.method)) }}</span></td>
                       </tr>
                     </tbody>
                   </table>
                 </div>
                 <div class="kpai-fc-note">
-                  Числа — детерминированный движок (воспроизводимо); коридор [low…high] — неопределённость прогноза.
-                  <template v-if="fcTblMode === 'quarters'">Кварталы будущих лет — разбивка годового прогноза по сезонности показателя (план/факт прошлых лет).</template>
-                  ИИ ниже интерпретирует и корректирует их.
+                  {{ t("Числа — детерминированный движок (воспроизводимо); коридор [low…high] — неопределённость прогноза.") }}
+                  <template v-if="fcTblMode === 'quarters'">{{ t("Кварталы будущих лет — разбивка годового прогноза по сезонности показателя (план/факт прошлых лет).") }}</template>
+                  {{ t("ИИ ниже интерпретирует и корректирует их.") }}
                 </div>
               </div>
             </template>
             <!-- Прочие режимы: график выполнения -->
             <div v-else-if="chartRows.length" class="kpai-chart">
-              <div class="kpai-chart-title">Выполнение{{ scope === 'company' ? ' по показателям' : ' по компаниям' }}, %</div>
+              <div class="kpai-chart-title">{{ scope === 'company' ? t("Выполнение по показателям, %") : t("Выполнение по компаниям, %") }}</div>
               <div v-for="(r, i) in chartRows" :key="i" class="kpai-bar-row">
                 <span class="kpai-bar-lbl" :title="r.label">{{ r.label }}</span>
                 <div class="kpai-bar-track">
@@ -133,8 +133,8 @@
             <div class="kpai-md" v-html="html"></div>
           </template>
           <div v-else class="kpai-empty">
-            <b>Выберите охват и режим, затем запустите анализ.</b>
-            <span>ИИ разберёт исполнение KPI, свяжет их с финансовыми показателями (через привязку к строкам ОФР) и — в режиме «Прогноз» — предскажет будущие KPI и предложит новые.</span>
+            <b>{{ t("Выберите охват и режим, затем запустите анализ.") }}</b>
+            <span>{{ t("ИИ разберёт исполнение KPI, свяжет их с финансовыми показателями (через привязку к строкам ОФР) и — в режиме «Прогноз» — предскажет будущие KPI и предложит новые.") }}</span>
           </div>
         </div>
       </div>
@@ -150,6 +150,7 @@ import type { CompanyForecast } from "@/api/bpKpi";
 import { kpiCompletionRatio } from "@/utils/kpiRatio";
 import { renderMarkdown } from "@/utils/renderMarkdown";
 import { extractHlfHeadline, HLF_LABELS } from "@/utils/hlfHeadline";
+import { useI18n } from "@/composables/useI18n";
 import { useToast } from "@/composables/useToast";
 
 type Mode = "performance" | "correlation" | "forecast";
@@ -176,6 +177,7 @@ type SavedRec = { raw: string; doneAt: string; year: number; chart?: ChartRow[];
 
 const props = defineProps<{ companies: Co[]; year: number; period: string; selectedId: string | null }>();
 
+const { t } = useI18n();
 const toast = useToast();
 const open = ref(false);
 const loading = ref(false);
@@ -296,8 +298,8 @@ const MODE_LABEL: Record<Mode, string> = { performance: "Исполнение", 
 const pickedId = ref<string | null>(props.selectedId || (props.companies[0]?.company_id ?? null));
 const selectedCompany = computed(() => props.companies.find(c => c.company_id === pickedId.value) || null);
 const titleText = computed(() => scope.value === "company"
-  ? (selectedCompany.value?.company_name_ru || "Компания")
-  : "Все компании портфеля");
+  ? (selectedCompany.value?.company_name_ru || t("Компания"))
+  : t("Все компании портфеля"));
 
 function savedKey(m: Mode = mode.value): string {
   return scope.value === "company" && pickedId.value ? `${m}__${pickedId.value}` : m;
@@ -330,8 +332,8 @@ function applyMode(m: Mode): void {
 // Копировать ответ (Markdown) в буфер обмена.
 async function copyAnswer(): Promise<void> {
   if (!rawMd.value) return;
-  try { await navigator.clipboard.writeText(rawMd.value); toast.success("Анализ скопирован"); }
-  catch { toast.error("Не удалось скопировать"); }
+  try { await navigator.clipboard.writeText(rawMd.value); toast.success(t("Анализ скопирован")); }
+  catch { toast.error(t("Не удалось скопировать")); }
 }
 
 // Выгрузка в Excel: каждая Markdown-таблица ответа → отдельный лист + лист с
@@ -342,8 +344,8 @@ function exportExcel(): void {
   // Лист «Модель прогноза» — детерминированные проекции движка (первым листом).
   if (mode.value === "forecast" && fcView.value.length) {
     const isPort = fcScopeName.value === "Портфель";
-    const head = [isPort ? "Компания" : "Показатель", ...(isPort ? [] : ["Руководитель"]),
-      "Тек. факт", ...(isPort ? [] : [`Ожид. ${fcBaseYear.value}`]), ...fcYears.value, "Метод", "Надёжность"];
+    const head = [isPort ? t("Компания") : t("Показатель"), ...(isPort ? [] : [t("Руководитель")]),
+      t("Тек. факт"), ...(isPort ? [] : [t("Ожид. {y}", { y: fcBaseYear.value })]), ...fcYears.value, t("Метод"), t("Надёжность")];
     const aoa: (string | number)[][] = [head];
     for (const r of fcView.value) {
       const row: (string | number)[] = [r.name];
@@ -354,10 +356,10 @@ function exportExcel(): void {
         const c = r.byYear[y];
         row.push(c ? (c.low != null ? `${fcFmt(c.value, r.unit)} [${fcFmt(c.low, r.unit)}…${fcFmt(c.high, r.unit)}]` : fcFmt(c.value, r.unit)) : "—");
       }
-      row.push(fcMethodLabel(r.method), r.confidence);
+      row.push(t(fcMethodLabel(r.method)), r.confidence);
       aoa.push(row);
     }
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), "Модель прогноза");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), t("Модель прогноза"));
   }
   const lines = rawMd.value.replace(/\r\n/g, "\n").split("\n");
   const tables: string[][][] = [];
@@ -372,16 +374,16 @@ function exportExcel(): void {
     } else { cur = null; }
   }
   let sheetN = 0;
-  for (const t of tables) {
-    if (t.length < 2) continue;
+  for (const tbl of tables) {
+    if (tbl.length < 2) continue;
     sheetN++;
-    const ws = XLSX.utils.aoa_to_sheet(t);
-    XLSX.utils.book_append_sheet(wb, ws, `Таблица ${sheetN}`.slice(0, 31));
+    const ws = XLSX.utils.aoa_to_sheet(tbl);
+    XLSX.utils.book_append_sheet(wb, ws, `${t("Таблица")} ${sheetN}`.slice(0, 31));
   }
   // Полный текст ответа отдельным листом (по строкам).
   const textWs = XLSX.utils.aoa_to_sheet(lines.map(l => [l]));
   textWs["!cols"] = [{ wch: 120 }];
-  XLSX.utils.book_append_sheet(wb, textWs, "Полный текст");
+  XLSX.utils.book_append_sheet(wb, textWs, t("Полный текст"));
   const scopeName = scope.value === "company" ? (selectedCompany.value?.company_name_ru || "company") : "портфель";
   XLSX.writeFile(wb, `KPI_${MODE_LABEL[mode.value]}_${scopeName}_${props.year}.xlsx`);
 }
@@ -412,14 +414,14 @@ async function saveResult(raw: string): Promise<void> {
   try {
     const { api } = await import("@/api/client");
     await api.put(`/ai/saved/kpi/${key}`, { payload: rec });
-  } catch { toast.error("Анализ не сохранён на сервере — исчезнет при обновлении. Повторите."); }
+  } catch { toast.error(t("Анализ не сохранён на сервере — исчезнет при обновлении. Повторите.")); }
 }
 
 async function run(): Promise<void> {
   if (loading.value) return;
   loading.value = true; error.value = ""; html.value = "";
   const single = scope.value === "company" && selectedCompany.value ? selectedCompany.value : null;
-  step.value = single ? `Загружаю KPI: ${single.company_name_ru}…` : "Загружаю KPI всех компаний…";
+  step.value = single ? t("Загружаю KPI: {name}…", { name: single.company_name_ru }) : t("Загружаю KPI всех компаний…");
   try {
     const { api } = await import("@/api/client");
     const cos: Co[] = single ? [single] : props.companies;
@@ -457,7 +459,7 @@ async function run(): Promise<void> {
     }));
     const kpi_rows = built.filter((r): r is NonNullable<typeof r> => r != null);
     if (!kpi_rows.length) {
-      error.value = "Нет KPI-данных за этот год. Заведите показатели в редакторе.";
+      error.value = t("Нет KPI-данных за этот год. Заведите показатели в редакторе.");
       loading.value = false; return;
     }
     // График выполнения: по показателям (компания) или взвешенно по компаниям (портфель)
@@ -474,7 +476,7 @@ async function run(): Promise<void> {
       }
     }
     chartRows.value = cr.sort((a, b) => b.value - a.value).slice(0, 20);
-    step.value = "Подтягиваю финансы (HLF) для связки KPI↔финансы…";
+    step.value = t("Подтягиваю финансы (HLF) для связки KPI↔финансы…");
     const fin_rows = (await Promise.all(cos.map(async (co) => {
       if (!co.company_code) return null;
       try {
@@ -487,7 +489,7 @@ async function run(): Promise<void> {
     // Модельный прогноз (детерминированный движок) — опора для режима «Прогноз».
     let forecastPayload: unknown = null;
     if (mode.value === "forecast") {
-      step.value = "Считаю модельный прогноз (кварталы + будущие годы)…";
+      step.value = t("Считаю модельный прогноз (кварталы + будущие годы)…");
       try {
         if (single) {
           const fc = await kpiApi.getForecast(single.company_id, props.year, 3);
@@ -513,21 +515,21 @@ async function run(): Promise<void> {
       resetForecastView();
     }
 
-    step.value = "ИИ анализирует KPI и связь с финансами…";
+    step.value = t("ИИ анализирует KPI и связь с финансами…");
     const resp = await api.post("/ai/kpi-analysis", {
       year: props.year, period: props.period, mode: mode.value,
       focus: single ? single.company_name_ru : null,
       kpi_rows, fin_rows, fin_labels: HLF_LABELS, forecast: forecastPayload,
     }, { timeout: 235000 });
     const raw = (resp.data?.analysis || "") as string;
-    if (!raw) { error.value = "ИИ вернул пустой ответ."; loading.value = false; return; }
+    if (!raw) { error.value = t("ИИ вернул пустой ответ."); loading.value = false; return; }
     rawMd.value = raw;
     html.value = renderMarkdown(raw);
     doneAt.value = new Date().toLocaleString("ru-RU");
     await saveResult(raw);
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    error.value = err?.response?.data?.detail || err?.message || "Ошибка анализа";
+    error.value = err?.response?.data?.detail || err?.message || t("Ошибка анализа");
   } finally {
     loading.value = false;
   }

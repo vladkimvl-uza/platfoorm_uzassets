@@ -10,10 +10,12 @@ import ModalShell from "@/components/ModalShell.vue";
 import { api } from "@/api/client";
 import { useToast } from "@/composables/useToast";
 import type { SoeRatioMeta } from "@/components/Financials/SoeHealthBoard.vue";
+import { useI18n } from "@/composables/useI18n";
 
 const props = defineProps<{ open: boolean; ratios: SoeRatioMeta[] }>();
 const emit = defineEmits<{ (e: "close"): void; (e: "saved"): void }>();
 const toast = useToast();
+const { t } = useI18n();
 
 interface RowDraft { thr: string[]; enabled: boolean; weight: string }
 const draft = ref<Record<string, RowDraft>>({});
@@ -69,14 +71,14 @@ function rowError(r: SoeRatioMeta): string | null {
   const d = draft.value[r.key];
   if (!d) return null;
   const vals = d.thr.map((s) => fromInput(r, s));
-  if (vals.some((v) => v == null)) return "все 4 порога — числа";
-  const t = vals as number[];
+  if (vals.some((v) => v == null)) return t("все 4 порога — числа");
+  const nums = vals as number[];
   const mono = r.direction === "gte"
-    ? t.every((v, i) => i === 0 || t[i - 1] > v)
-    : t.every((v, i) => i === 0 || t[i - 1] < v);
-  if (!mono) return r.direction === "gte" ? "нужны строго убывающие" : "нужны строго возрастающие";
+    ? nums.every((v, i) => i === 0 || nums[i - 1] > v)
+    : nums.every((v, i) => i === 0 || nums[i - 1] < v);
+  if (!mono) return r.direction === "gte" ? t("нужны строго убывающие") : t("нужны строго возрастающие");
   const w = Number(String(d.weight).replace(",", "."));
-  if (!isFinite(w) || w < 0) return "вес — число ≥ 0";
+  if (!isFinite(w) || w < 0) return t("вес — число ≥ 0");
   return null;
 }
 const hasErrors = computed(() => props.ratios.some((r) => rowError(r) !== null));
@@ -120,13 +122,13 @@ async function save() {
   try {
     await api.put("/financials/soe-health/params", { overrides });
     toast.success(Object.keys(overrides).length
-      ? "Показатели сохранены (" + Object.keys(overrides).length + " настроено)"
-      : "Сброшено к методике");
+      ? t("Показатели сохранены ({n} настроено)", { n: Object.keys(overrides).length })
+      : t("Сброшено к методике"));
     initial = JSON.stringify(draft.value);
     emit("saved");
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    toast.error("Не сохранено: " + (err?.response?.data?.detail || err?.message || "ошибка"));
+    toast.error(t("Не сохранено: {e}", { e: err?.response?.data?.detail || err?.message || t("ошибка") }));
   } finally { saving.value = false; }
 }
 
@@ -138,17 +140,17 @@ const BAND_COLORS = ["#1D9E75", "#7DC4A0", "#EF9F27", "#E8590C"];
     <template #header>
       <div class="spm-head">
         <div class="spm-eyebrow">SOE Health Check Tool</div>
-        <h2 class="spm-title">Показатели риска</h2>
-        <div class="spm-sub">пороги бендов 1→5 · выбор индикаторов в Overall · веса</div>
+        <h2 class="spm-title">{{ t("Показатели риска") }}</h2>
+        <div class="spm-sub">{{ t("пороги бендов 1→5 · выбор индикаторов в Overall · веса") }}</div>
       </div>
     </template>
 
     <div class="spm-body">
       <div class="spm-legend">
         <span v-for="(c, i) in BAND_COLORS" :key="i" class="spm-leg" :style="{ color: c, background: c + '16' }">
-          порог {{ i + 1 }}
+          {{ t("порог {n}", { n: i + 1 }) }}
         </span>
-        <span class="spm-leg-note">☑ — в оценке Overall · вес — доля индикатора · лучше ≥ убыв. · лучше ≤ возр.</span>
+        <span class="spm-leg-note">{{ t("☑ — в оценке Overall · вес — доля индикатора · лучше ≥ убыв. · лучше ≤ возр.") }}</span>
       </div>
 
       <div v-for="g in groups" :key="g.name" class="spm-group">
@@ -157,24 +159,24 @@ const BAND_COLORS = ["#1D9E75", "#7DC4A0", "#EF9F27", "#E8590C"];
              :class="{ err: rowError(r), off: draft[r.key] && !draft[r.key].enabled }">
           <div class="spm-r-info">
             <input v-if="draft[r.key]" type="checkbox" class="spm-chk" v-model="draft[r.key].enabled"
-                   :title="draft[r.key].enabled ? 'Учитывается в Overall' : 'Исключён из Overall'" />
+                   :title="draft[r.key].enabled ? t('Учитывается в Overall') : t('Исключён из Overall')" />
             <span class="spm-r-label" :title="r.formula">{{ r.label }}</span>
-            <span class="spm-r-dir">{{ r.direction === 'gte' ? 'лучше ≥' : 'лучше ≤' }}</span>
-            <span v-if="isRowOverridden(r)" class="spm-r-ovr">настроено</span>
+            <span class="spm-r-dir">{{ r.direction === 'gte' ? t('лучше ≥') : t('лучше ≤') }}</span>
+            <span v-if="isRowOverridden(r)" class="spm-r-ovr">{{ t("настроено") }}</span>
             <span v-if="draft[r.key]" class="spm-wwrap" :class="{ off: !draft[r.key].enabled }">
-              вес
+              {{ t("вес") }}
               <input type="text" inputmode="decimal" class="spm-w" v-model="draft[r.key].weight"
-                     :disabled="!draft[r.key].enabled" :aria-label="r.label + ' вес'" />
+                     :disabled="!draft[r.key].enabled" :aria-label="r.label + ' ' + t('вес')" />
             </span>
           </div>
           <div class="spm-r-inputs">
             <input v-for="(s, i) in draft[r.key].thr" :key="i" v-model="draft[r.key].thr[i]"
                    type="text" inputmode="decimal" class="spm-inp"
                    :style="{ borderColor: BAND_COLORS[i] + '66' }"
-                   :aria-label="r.label + ' порог ' + (i + 1)" />
+                   :aria-label="r.label + ' ' + t('порог {n}', { n: i + 1 })" />
             <span v-if="r.fmt === 'pct'" class="spm-unit">%</span>
-            <span v-else-if="r.fmt === 'days'" class="spm-unit">дн</span>
-            <button type="button" class="spm-reset" title="Сбросить к методике"
+            <span v-else-if="r.fmt === 'days'" class="spm-unit">{{ t("дн") }}</span>
+            <button type="button" class="spm-reset" :title="t('Сбросить к методике')"
                     :disabled="!isRowOverridden(r)" @click="resetRow(r)">↺</button>
           </div>
           <div v-if="rowError(r)" class="spm-r-err">{{ rowError(r) }}</div>
@@ -183,11 +185,11 @@ const BAND_COLORS = ["#1D9E75", "#7DC4A0", "#EF9F27", "#E8590C"];
     </div>
 
     <template #footer>
-      <span class="spm-summary">в оценке {{ enabledCount }} · Σ весов {{ activeWeightSum.toFixed(1) }}</span>
-      <button class="spm-resetall" type="button" @click="resetAll">Сбросить к методике</button>
-      <button class="spm-cancel" type="button" @click="emit('close')">Отмена</button>
+      <span class="spm-summary">{{ t("в оценке {n} · Σ весов {s}", { n: enabledCount, s: activeWeightSum.toFixed(1) }) }}</span>
+      <button class="spm-resetall" type="button" @click="resetAll">{{ t("Сбросить к методике") }}</button>
+      <button class="spm-cancel" type="button" @click="emit('close')">{{ t("Отмена") }}</button>
       <button class="spm-save" type="button" :disabled="!dirty || hasErrors || saving" @click="save">
-        {{ saving ? "Сохранение…" : "Сохранить" }}
+        {{ saving ? t("Сохранение…") : t("Сохранить") }}
       </button>
     </template>
   </ModalShell>

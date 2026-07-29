@@ -13,6 +13,7 @@
  *   - YoY badges
  */
 import { computed, onMounted, ref } from "vue";
+import { useI18n } from "@/composables/useI18n";
 import { useExecutiveDashboard } from "@/composables/useExecutiveDashboard";
 import { useNumberTween } from "@/composables/useNumberTween";
 import { ensureFinancialsCss } from "@/components/Financials/financialsHelpers";
@@ -22,6 +23,7 @@ import { useCurrencyConverter } from "@/composables/useCurrencyConverter";
 import CurrencyToggle from "@/components/UZA/CurrencyToggle.vue";
 import Odometer from "@/components/Odometer.vue";
 
+const { t } = useI18n();
 const exec = useExecutiveDashboard();
 const secMeta = useSectorMeta();
 const conv = useCurrencyConverter();
@@ -115,20 +117,20 @@ const tYoYTotal     = useNumberTween(() => Number(kpi.value?.yoy_total_pct) || 0
   <section class="ed-card etx-card">
     <header class="etx-hdr">
       <div class="etx-hdr-l">
-        <div class="etx-eyebrow">Налоговый вклад портфеля
-          <span v-if="isFallback" class="etx-fallback">данные за FY {{ block?.year }}</span>
+        <div class="etx-eyebrow">{{ t("Налоговый вклад портфеля") }}
+          <span v-if="isFallback" class="etx-fallback">{{ t("данные за FY {y}", { y: block?.year }) }}</span>
         </div>
-        <div class="etx-sub">FY {{ block?.year || exec.year.value }} · вклад в бюджет Республики Узбекистан</div>
+        <div class="etx-sub">FY {{ block?.year || exec.year.value }} · {{ t("вклад в бюджет Республики Узбекистан") }}</div>
       </div>
       <div v-if="block && block.has_data" class="etx-hdr-r">
         <CurrencyToggle :year="block.year" :compact="true" :show-rate="false" />
         <span
           class="etx-stat"
           :title="block.missing_companies && block.missing_companies.length
-            ? `Без NSBU PL за ${block.year}:\n• ` + block.missing_companies.join('\n• ')
-            : 'Все компании портфеля учтены'"
+            ? t('Без NSBU PL за {y}:', { y: block.year }) + '\n• ' + block.missing_companies.join('\n• ')
+            : t('Все компании портфеля учтены')"
         >
-          {{ block.cos_count }} компаний · {{ block.standard }}
+          {{ block.cos_count }} {{ t("компаний") }} · {{ block.standard }}
           <sup
             v-if="block.missing_companies && block.missing_companies.length"
             class="etx-missing"
@@ -145,10 +147,10 @@ const tYoYTotal     = useNumberTween(() => Number(kpi.value?.yoy_total_pct) || 0
         <path d="M2 12l10 5 10-5" />
         <path d="M12 2L2 7l10 5 10-5-10-5z" />
       </svg>
-      <div class="etx-empty-title">Нет налоговых данных за FY {{ exec.year.value }}</div>
+      <div class="etx-empty-title">{{ t("Нет налоговых данных за FY {y}", { y: exec.year.value }) }}</div>
       <div class="etx-empty-text">
-        Заполните поля «Выручка» и «Налог на прибыль»<br>
-        в финансовой отчётности портфеля (IFRS / NSBU PL).
+        {{ t("Заполните поля «Выручка» и «Налог на прибыль»") }}<br>
+        {{ t("в финансовой отчётности портфеля (IFRS / NSBU PL).") }}
       </div>
     </div>
 
@@ -163,14 +165,14 @@ const tYoYTotal     = useNumberTween(() => Number(kpi.value?.yoy_total_pct) || 0
           tabindex="0"
           @click="openDrill('income_tax')"
           @keydown="onKpiKeydown($event, 'income_tax')"
-          title="Подробнее: Налог на прибыль"
+          :title="t('Подробнее: Налог на прибыль')"
         >
-          <div class="etx-kpi-lbl">Налог на прибыль</div>
+          <div class="etx-kpi-lbl">{{ t("Налог на прибыль") }}</div>
           <div class="etx-kpi-val">
             {{ fmtMoney(tIncomeTax).value }}<span class="etx-kpi-u">{{ fmtMoney(tIncomeTax).unit }}</span>
           </div>
           <div class="etx-kpi-yoy" :style="{ color: yoyColor(kpi.yoy_income_tax_pct) }">
-            <span v-if="kpi.yoy_income_tax_pct != null">{{ fmtYoY(tYoYIncTax) }} к {{ block.prev_year }}</span>
+            <span v-if="kpi.yoy_income_tax_pct != null">{{ t("{v} к {y}", { v: fmtYoY(tYoYIncTax), y: block.prev_year }) }}</span>
             <span v-else>—</span>
           </div>
         </div>
@@ -182,14 +184,14 @@ const tYoYTotal     = useNumberTween(() => Number(kpi.value?.yoy_total_pct) || 0
           tabindex="0"
           @click="openDrill('vat')"
           @keydown="onKpiKeydown($event, 'vat')"
-          title="Расчётная оценка: 12% × выручка (НСБУ). Не учитывает нулевую ставку НДС на экспорт и зачёт входящего НДС — фактический НДС к уплате ниже."
+          :title="t('Расчётная оценка: 12% × выручка (НСБУ). Не учитывает нулевую ставку НДС на экспорт и зачёт входящего НДС — фактический НДС к уплате ниже.')"
         >
-          <div class="etx-kpi-lbl">НДС (12% от выручки) <span class="etx-est">оценка</span></div>
+          <div class="etx-kpi-lbl">{{ t("НДС (12% от выручки)") }} <span class="etx-est">{{ t("оценка") }}</span></div>
           <div class="etx-kpi-val">
             ≈{{ fmtMoney(tVat).value }}<span class="etx-kpi-u">{{ fmtMoney(tVat).unit }}</span>
           </div>
           <div class="etx-kpi-yoy" :style="{ color: yoyColor(kpi.yoy_vat_pct) }">
-            <span v-if="kpi.yoy_vat_pct != null">{{ fmtYoY(tYoYVat) }} к {{ block.prev_year }}</span>
+            <span v-if="kpi.yoy_vat_pct != null">{{ t("{v} к {y}", { v: fmtYoY(tYoYVat), y: block.prev_year }) }}</span>
             <span v-else>—</span>
           </div>
         </div>
@@ -201,14 +203,14 @@ const tYoYTotal     = useNumberTween(() => Number(kpi.value?.yoy_total_pct) || 0
           tabindex="0"
           @click="openDrill('total')"
           @keydown="onKpiKeydown($event, 'total')"
-          title="Налог на прибыль (факт по отчётности НСБУ) + НДС (расчётная оценка). Не включает НДПИ, акцизы, роялти и дивиденды — итог является оценкой."
+          :title="t('Налог на прибыль (факт по отчётности НСБУ) + НДС (расчётная оценка). Не включает НДПИ, акцизы, роялти и дивиденды — итог является оценкой.')"
         >
-          <div class="etx-kpi-lbl">Итоговый налоговый вклад <span class="etx-est">оценка</span></div>
+          <div class="etx-kpi-lbl">{{ t("Итоговый налоговый вклад") }} <span class="etx-est">{{ t("оценка") }}</span></div>
           <div class="etx-kpi-val">
             ≈{{ fmtMoney(tTotal).value }}<span class="etx-kpi-u">{{ fmtMoney(tTotal).unit }}</span>
           </div>
           <div class="etx-kpi-yoy" :style="{ color: yoyColor(kpi.yoy_total_pct) }">
-            <span v-if="kpi.yoy_total_pct != null">{{ fmtYoY(tYoYTotal) }} к {{ block.prev_year }}</span>
+            <span v-if="kpi.yoy_total_pct != null">{{ t("{v} к {y}", { v: fmtYoY(tYoYTotal), y: block.prev_year }) }}</span>
             <span v-else>—</span>
           </div>
         </div>
@@ -220,15 +222,15 @@ const tYoYTotal     = useNumberTween(() => Number(kpi.value?.yoy_total_pct) || 0
           tabindex="0"
           @click="openDrill('budget_share')"
           @keydown="onKpiKeydown($event, 'budget_share')"
-          title="Подробнее: Доля портфеля в бюджете Республики"
+          :title="t('Подробнее: Доля портфеля в бюджете Республики')"
         >
-          <div class="etx-kpi-lbl">Процент бюджета Республики Узбекистан</div>
+          <div class="etx-kpi-lbl">{{ t("Процент бюджета Республики Узбекистан") }}</div>
           <div class="etx-kpi-val">
             <span v-if="kpi.budget_share_pct != null"><Odometer :value="fmt3(kpi.budget_share_pct)" /><span class="etx-kpi-u">%</span></span>
             <span v-else>—</span>
           </div>
           <div class="etx-kpi-yoy">
-            <span v-if="kpi.budget != null">из {{ fmtMoney(kpi.budget).value }} {{ fmtMoney(kpi.budget).unit }}</span>
+            <span v-if="kpi.budget != null">{{ t("из {v} {u}", { v: fmtMoney(kpi.budget).value, u: fmtMoney(kpi.budget).unit }) }}</span>
             <span v-else>—</span>
           </div>
         </div>
@@ -238,7 +240,7 @@ const tYoYTotal     = useNumberTween(() => Number(kpi.value?.yoy_total_pct) || 0
            All progress bars start from the same vertical line regardless of
            name length. Bar width = amount / max_amount * 100 (relative scale). -->
       <div v-if="topPayersWithBar.length" class="etx-payers">
-        <div class="etx-payers-hdr">Топ-5 плательщиков · {{ block.year }}</div>
+        <div class="etx-payers-hdr">{{ t("Топ-5 плательщиков") }} · {{ block.year }}</div>
         <div class="etx-grid">
           <template v-for="(p, i) in topPayersWithBar" :key="p.company_id">
             <div class="etx-cell etx-c-rank"><div class="etx-rank">{{ i + 1 }}</div></div>

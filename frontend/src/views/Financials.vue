@@ -12,6 +12,7 @@
 // ============================================================================
 
 import { computed, onMounted, onBeforeUnmount, ref, watch } from "vue";
+import { useI18n } from "@/composables/useI18n";
 import { useSavedFilter } from "@/composables/useSavedFilter";
 import { useAiPageContext } from "@/composables/useAiPageContext";
 import { usePermissions } from "@/composables/usePermissions";
@@ -44,6 +45,7 @@ import {
   ensureFinancialsCss,
 } from "@/components/Financials/financialsHelpers";
 
+const { t } = useI18n();
 const conv = useCurrencyConverter();
 const toast = useToast();
 // Поиск компании по названию — фильтрует обе таблицы (KPI остаются портфельными)
@@ -77,16 +79,16 @@ const copilotContext = computed(() =>
 // Pack 7.9e: AI Bubble context
 useAiPageContext({
   key: "financials",
-  label: "Финансовая отчётность",
+  label: t("Финансовая отчётность"),
   describeState: () => `${standard.value} · ${year.value} · ${currency.value} · ${unit.value} · ${viewTab.value}`,
   quickActions: [
-    { label: "Сводка по портфелю",
+    { label: t("Сводка по портфелю"),
       prompt: "Дай сводку финансовых результатов портфеля за выбранный год: revenue, EBITDA, net profit топ-5 компаний. Используй get_financials." },
-    { label: "EBITDA-margin тренд",
+    { label: t("EBITDA-margin тренд"),
       prompt: "Проанализируй EBITDA-margin по портфелю: лидеры и отстающие, сравнение с отраслевыми бенчмарками (mining 25-45%, energy 15-25%, transport 10-20%, telecom 30-45%)." },
-    { label: "Сравни 2025 vs 2026",
+    { label: t("Сравни 2025 vs 2026"),
       prompt: "Сравни ключевые финметрики 2025 vs 2026 по портфелю (revenue, EBITDA, net profit). Что выросло, что упало? Учитывай макро (gold +15%, oil -5%)." },
-    { label: "Ковенант-чек",
+    { label: t("Ковенант-чек"),
       prompt: "Проверь кредитные ковенанты: Debt/EBITDA, ICR, current ratio по каждой компании. Где близко к breach? Используй get_financials + get_credit_portfolio." },
   ],
 });
@@ -124,7 +126,7 @@ async function loadSubsidies() {
   } catch {
     subsidiesSummary.value = null;
     // Не глотаем сбой молча: показываем тост (отличать «0 субсидий» от «не загрузилось»)
-    if (!subsidiesError.value) toast.error("Не удалось загрузить данные по субсидиям");
+    if (!subsidiesError.value) toast.error(t("Не удалось загрузить данные по субсидиям"));
     subsidiesError.value = true;
   }
 }
@@ -180,7 +182,7 @@ async function loadAll() {
     summary.value   = sumResp;
   } catch (e: any) {
     errorMsg.value =
-      e?.response?.data?.detail || e?.message || "Не удалось загрузить данные";
+      e?.response?.data?.detail || e?.message || t("Не удалось загрузить данные");
     console.error("Financials portfolio-summary load failed:", e);
   } finally {
     loading.value = false;
@@ -374,19 +376,19 @@ function onModalClose() {
       v-model:view-tab="viewTab"
       :available-years="yearScope"
       :sectors="sectors"
-      page-eyebrow="ФИНАНСЫ · ОБЗОР ПОРТФЕЛЯ"
-      page-title="Финансовый портфель">
+      :page-eyebrow="t('ФИНАНСЫ · ОБЗОР ПОРТФЕЛЯ')"
+      :page-title="t('Финансовый портфель')">
       <template #subtitle>
-        Сводная отчётность по {{ totalCount }} компаниям портфеля ·
-        стандарт <strong>{{ standard }}</strong> ·
-        валюта <strong>{{ currency }}</strong> ·
-        {{ year }} финансовый год
+        {{ t("Сводная отчётность по {n} компаниям портфеля", { n: totalCount }) }} ·
+        {{ t("стандарт") }} <strong>{{ standard }}</strong> ·
+        {{ t("валюта") }} <strong>{{ currency }}</strong> ·
+        {{ t("{year} финансовый год", { year }) }}
       </template>
       <template #actions>
-        <button class="fd-forecast-btn" type="button" @click="forecastOpen = true" title="Прогноз показателей">Прогноз</button>
+        <button class="fd-forecast-btn" type="button" @click="forecastOpen = true" :title="t('Прогноз показателей')">{{ t("Прогноз") }}</button>
         <FinCopilot v-if="aiAccess.state.hasAccess" :context="copilotContext" />
         <div class="fd-menu-wrap">
-          <button class="fd-menu-trig" :class="{ on: menuOpen }" @click.stop="menuOpen = !menuOpen" title="Действия">
+          <button class="fd-menu-trig" :class="{ on: menuOpen }" @click.stop="menuOpen = !menuOpen" :title="t('Действия')">
             <svg viewBox="0 0 14 14" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
               <circle cx="7" cy="3" r="0.8" fill="currentColor" stroke="none"/>
               <circle cx="7" cy="7" r="0.8" fill="currentColor" stroke="none"/>
@@ -397,11 +399,11 @@ function onModalClose() {
           <div v-if="menuOpen" class="fd-menu">
             <router-link to="/financials-edit/nsbu" class="fd-menu-item" @click="menuOpen = false">
               <svg viewBox="0 0 14 14" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 11L9 4l3 3-7 7H2v-3zM8 5l3 3"/></svg>
-              Редактировать НСБУ показатели
+              {{ t("Редактировать НСБУ показатели") }}
             </router-link>
             <router-link to="/financials-edit/ifrs" class="fd-menu-item" @click="menuOpen = false">
               <svg viewBox="0 0 14 14" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 11L9 4l3 3-7 7H2v-3zM8 5l3 3"/></svg>
-              Редактировать МСФО показатели
+              {{ t("Редактировать МСФО показатели") }}
             </router-link>
           </div>
         </div>
@@ -411,7 +413,7 @@ function onModalClose() {
     <div class="fd-content">
 
     <!-- Skeleton-загрузка: имитирует KPI-ленту + чипы + две таблицы -->
-    <div v-if="loading" class="fd-skel" aria-busy="true" aria-label="Загрузка финансовых данных">
+    <div v-if="loading" class="fd-skel" aria-busy="true" :aria-label="t('Загрузка финансовых данных')">
       <div class="fd-skel-kpis">
         <div v-for="i in 6" :key="i" class="sk fd-skel-kpi"></div>
       </div>
@@ -433,7 +435,7 @@ function onModalClose() {
         <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
       </svg>
       <span>{{ errorMsg }}</span>
-      <button class="fd-state-btn" @click="loadAll">Повторить</button>
+      <button class="fd-state-btn" @click="loadAll">{{ t("Повторить") }}</button>
     </div>
 
     <template v-else>
@@ -478,13 +480,13 @@ function onModalClose() {
               <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
             <input v-model="companySearch" type="search" class="fd-search-inp"
-                   placeholder="Поиск компании по названию…" aria-label="Поиск компании" />
+                   :placeholder="t('Поиск компании по названию…')" :aria-label="t('Поиск компании')" />
             <button v-if="companySearch" class="fd-search-clear" type="button"
-                    @click="companySearch = ''" aria-label="Очистить">
+                    @click="companySearch = ''" :aria-label="t('Очистить')">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
-          <span v-if="companySearch" class="fd-search-hint">фильтр обеих таблиц · KPI остаются по портфелю</span>
+          <span v-if="companySearch" class="fd-search-hint">{{ t("фильтр обеих таблиц · KPI остаются по портфелю") }}</span>
         </div>
 
         <div class="fd-body">
@@ -532,10 +534,10 @@ function onModalClose() {
       class="fd-fab"
       type="button"
       @click="onFabClick"
-      :title="hlfVisible ? 'К началу страницы' : 'К блоку «Высокоуровневые показатели»'"
+      :title="hlfVisible ? t('К началу страницы') : t('К блоку «Высокоуровневые показатели»')"
     >
       <span class="fd-fab-pulse"></span>
-      <span class="fd-fab-label">{{ hlfVisible ? "Наверх" : "К сводке" }}</span>
+      <span class="fd-fab-label">{{ hlfVisible ? t("Наверх") : t("К сводке") }}</span>
       <span class="fd-fab-icon" aria-hidden="true">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
              stroke="currentColor" stroke-width="2.2"

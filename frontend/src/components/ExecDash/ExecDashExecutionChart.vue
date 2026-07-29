@@ -12,7 +12,9 @@ import { useExecutiveDashboard } from "@/composables/useExecutiveDashboard";
 import { useCompaniesStore } from "@/stores/companies";
 import { resolveCompanyDisplayName } from "@/utils/displayNames";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
+import { useI18n } from "@/composables/useI18n";
 
+const { t } = useI18n();
 const exec = useExecutiveDashboard();
 const companiesStore = useCompaniesStore();
 
@@ -37,7 +39,7 @@ function onBarLeave() { hoveredIdx.value = null; }
 
 const subTitle = computed(() => {
   if (!rows.value.length) return "";
-  return `${rows.value.length} компаний · ранжирование по % задач`;
+  return t("{n} компаний · ранжирование по % задач", { n: rows.value.length });
 });
 
 function barColor(pct: number): string {
@@ -95,8 +97,16 @@ function companyFullName(row: { company_id: string; name: string }): string {
  */
 function barDataText(c: { company_id: string; name: string; pct: number; plan_pct?: number | null }, i: number): string {
   const g = planGap(c);
-  const gapStr = g === null ? "" : ` · к плану ${g > 0 ? "+" : ""}${g} пп (${g >= 0 ? "опережение" : "отставание"})`;
-  return `${companyFullName(c)} · факт ${c.pct}% · план ${c.plan_pct ?? 0}%${gapStr} · ${i + 1} из ${rows.value.length}`;
+  const gapStr = g === null
+    ? ""
+    : " · " + t("к плану {g} пп ({dir})", {
+        g: `${g > 0 ? "+" : ""}${g}`,
+        dir: g >= 0 ? t("опережение") : t("отставание"),
+      });
+  const base = t("{name} · факт {fact}% · план {plan}%", {
+    name: companyFullName(c), fact: c.pct, plan: c.plan_pct ?? 0,
+  });
+  return `${base}${gapStr} · ` + t("{i} из {n}", { i: i + 1, n: rows.value.length });
 }
 </script>
 
@@ -104,19 +114,19 @@ function barDataText(c: { company_id: string; name: string; pct: number; plan_pc
   <div class="ed-card">
     <!-- Header (with inline legend) -->
     <div class="ed-card-ttl">
-      <span>Рейтинг компаний по исполнению</span>
+      <span>{{ t("Рейтинг компаний по исполнению") }}</span>
       <span class="ed-card-meta">
         <span class="sub">{{ subTitle }}</span>
         <span class="vc-legend">
           <span class="vc-leg-item"><span class="vc-leg-dot" style="background: #5DC093" />≥60%</span>
           <span class="vc-leg-item"><span class="vc-leg-dot" style="background: #EFB373" />30–59%</span>
           <span class="vc-leg-item"><span class="vc-leg-dot" style="background: #E2807F" />&lt;30%</span>
-          <span class="vc-leg-item"><span class="vc-leg-ghost" />план</span>
+          <span class="vc-leg-item"><span class="vc-leg-ghost" />{{ t("план") }}</span>
         </span>
       </span>
     </div>
 
-    <UzaStateBlock v-if="!rows.length" state="empty" variant="inline" :text="`Нет данных о компаниях с задачами для FY ${exec.year.value}`" />
+    <UzaStateBlock v-if="!rows.length" state="empty" variant="inline" :text="t('Нет данных о компаниях с задачами для FY {year}', { year: exec.year.value })" />
 
     <div v-else class="vc-wrap">
       <!-- Chart area: y-grid + bars (without labels) -->
@@ -150,7 +160,9 @@ function barDataText(c: { company_id: string; name: string; pct: number; plan_pc
               v-if="planGap(c) !== null"
               class="vc-bar-over"
               :class="gapClass(c)"
-              :title="`${(planGap(c) as number) >= 0 ? 'Опережение' : 'Отставание'} собственного плана: ${Math.abs(planGap(c) as number)} пп`"
+              :title="(planGap(c) as number) >= 0
+                ? t('Опережение собственного плана: {n} пп', { n: Math.abs(planGap(c) as number) })
+                : t('Отставание собственного плана: {n} пп', { n: Math.abs(planGap(c) as number) })"
             >{{ gapText(c) }}</div>
             <div class="vc-bar-val">{{ c.pct }}%</div>
             <!-- План (прозрачный бар по дедлайнам) — позади факт-бара -->
@@ -171,7 +183,7 @@ function barDataText(c: { company_id: string; name: string; pct: number; plan_pc
           class="vc-plan-line"
           :style="{ bottom: `${avgPlanPct}%` }"
         >
-          <span class="vc-plan-lbl">Ср. план {{ avgPlanPct }}%</span>
+          <span class="vc-plan-lbl">{{ t("Ср. план") }} {{ avgPlanPct }}%</span>
         </div>
 
         <!-- Average FACT line -->
@@ -179,7 +191,7 @@ function barDataText(c: { company_id: string; name: string; pct: number; plan_pc
           class="vc-avg-line"
           :style="{ bottom: `${avgPct}%` }"
         >
-          <span class="vc-avg-lbl">Ср. факт {{ avgPct }}%</span>
+          <span class="vc-avg-lbl">{{ t("Ср. факт") }} {{ avgPct }}%</span>
         </div>
       </div>
 

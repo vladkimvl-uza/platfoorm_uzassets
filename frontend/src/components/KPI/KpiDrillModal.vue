@@ -12,15 +12,15 @@
         <div v-if="mode === 'status' && summary && statusKey">
           <div class="kpd-summary">
             <div class="kpd-stat">
-              <span class="kpd-stat-l">Индикаторов</span>
+              <span class="kpd-stat-l">{{ t("Индикаторов") }}</span>
               <span class="kpd-stat-v">{{ statusItems.length }}</span>
             </div>
             <div class="kpd-stat">
-              <span class="kpd-stat-l">Компаний</span>
+              <span class="kpd-stat-l">{{ t("Компаний") }}</span>
               <span class="kpd-stat-v">{{ uniqueCompanies(statusItems).length }}</span>
             </div>
             <div class="kpd-stat">
-              <span class="kpd-stat-l">Средний %</span>
+              <span class="kpd-stat-l">{{ t("Средний %") }}</span>
               <span class="kpd-stat-v" :style="{ color: kpiStatusColor(avgStatusPct) }">
                 {{ avgStatusPct.toFixed(1) }}%
               </span>
@@ -30,11 +30,11 @@
           <table class="kpd-tbl">
             <thead>
               <tr>
-                <th class="lbl srt" :class="{ active: sort.key === 'name' }" @click="sortBy('name')">Индикатор{{ arrow('name') }}</th>
-                <th class="lbl srt" :class="{ active: sort.key === 'co' }" @click="sortBy('co')">Компания{{ arrow('co') }}</th>
-                <th class="srt" :class="{ active: sort.key === 'weight' }" @click="sortBy('weight')">Вес{{ arrow('weight') }}</th>
-                <th class="srt" :class="{ active: sort.key === 'plan' }" @click="sortBy('plan')">План{{ arrow('plan') }}</th>
-                <th class="srt" :class="{ active: sort.key === 'fact' }" @click="sortBy('fact')">Факт{{ arrow('fact') }}</th>
+                <th class="lbl srt" :class="{ active: sort.key === 'name' }" @click="sortBy('name')">{{ t("Индикатор") }}{{ arrow('name') }}</th>
+                <th class="lbl srt" :class="{ active: sort.key === 'co' }" @click="sortBy('co')">{{ t("Компания") }}{{ arrow('co') }}</th>
+                <th class="srt" :class="{ active: sort.key === 'weight' }" @click="sortBy('weight')">{{ t("Вес") }}{{ arrow('weight') }}</th>
+                <th class="srt" :class="{ active: sort.key === 'plan' }" @click="sortBy('plan')">{{ t("План") }}{{ arrow('plan') }}</th>
+                <th class="srt" :class="{ active: sort.key === 'fact' }" @click="sortBy('fact')">{{ t("Факт") }}{{ arrow('fact') }}</th>
                 <th class="srt" :class="{ active: sort.key === 'pct' }" @click="sortBy('pct')">%{{ arrow('pct') }}</th>
               </tr>
             </thead>
@@ -50,15 +50,15 @@
                 <td class="num">{{ fmtNum(ind.plan) }}</td>
                 <td class="num">
                   {{ fmtNum(ind.fact) }}
-                  <span v-if="ind.source && !['annual', 'quarter'].includes(ind.source)" class="kpd-src" :title="srcTitle(ind.source)">{{ srcShort(ind.source) }}</span>
+                  <span v-if="ind.source && !['annual', 'quarter'].includes(ind.source)" class="kpd-src" :title="t(srcTitle(ind.source))">{{ t(srcShort(ind.source)) }}</span>
                 </td>
                 <td class="pct" :style="{ color: kpiStatusColor(ind.pct ?? 0) }">
                   {{ ind.pct != null ? ind.pct.toFixed(1) + "%" : "—" }}
-                  <span v-if="ind.is_anomaly" class="kpd-anom" title="Аномальное значение (вероятная ошибка данных) — показано в пределах [0;150%]">⚠</span>
+                  <span v-if="ind.is_anomaly" class="kpd-anom" :title="t('Аномальное значение (вероятная ошибка данных) — показано в пределах [0;150%]')">⚠</span>
                 </td>
               </tr>
               <tr v-if="!statusItems.length">
-                <td colspan="6" class="kpd-empty">В этой группе нет индикаторов</td>
+                <td colspan="6" class="kpd-empty">{{ t("В этой группе нет индикаторов") }}</td>
               </tr>
             </tbody>
           </table>
@@ -69,11 +69,11 @@
           <table class="kpd-tbl">
             <thead>
               <tr>
-                <th class="lbl srt" :class="{ active: sort.key === 'co' }" @click="sortBy('co')">Компания{{ arrow('co') }}</th>
-                <th class="srt" :class="{ active: sort.key === 'count' }" @click="sortBy('count')">Индикаторов{{ arrow('count') }}</th>
-                <th class="srt" :class="{ active: sort.key === 'hit' }" @click="sortBy('hit')">На цели{{ arrow('hit') }}</th>
-                <th class="srt" :class="{ active: sort.key === 'risk' }" @click="sortBy('risk')">В риске{{ arrow('risk') }}</th>
-                <th class="srt" :class="{ active: sort.key === 'crit' }" @click="sortBy('crit')">Критично{{ arrow('crit') }}</th>
+                <th class="lbl srt" :class="{ active: sort.key === 'co' }" @click="sortBy('co')">{{ t("Компания") }}{{ arrow('co') }}</th>
+                <th class="srt" :class="{ active: sort.key === 'count' }" @click="sortBy('count')">{{ t("Индикаторов") }}{{ arrow('count') }}</th>
+                <th class="srt" :class="{ active: sort.key === 'hit' }" @click="sortBy('hit')">{{ t("На цели") }}{{ arrow('hit') }}</th>
+                <th class="srt" :class="{ active: sort.key === 'risk' }" @click="sortBy('risk')">{{ t("В риске") }}{{ arrow('risk') }}</th>
+                <th class="srt" :class="{ active: sort.key === 'crit' }" @click="sortBy('crit')">{{ t("Критично") }}{{ arrow('crit') }}</th>
                 <th class="srt" :class="{ active: sort.key === 'pct' }" @click="sortBy('pct')">%{{ arrow('pct') }}</th>
               </tr>
             </thead>
@@ -91,7 +91,7 @@
                 <td class="pct" :style="{ color: kpiStatusColor(c.pct) }">{{ c.pct.toFixed(1) }}%</td>
               </tr>
               <tr v-if="!sortedSectorCompanies.length">
-                <td colspan="6" class="kpd-empty">В этом секторе нет компаний с KPI</td>
+                <td colspan="6" class="kpd-empty">{{ t("В этом секторе нет компаний с KPI") }}</td>
               </tr>
             </tbody>
           </table>
@@ -103,6 +103,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import ModalShell from "@/components/ModalShell.vue";
+import { useI18n } from "@/composables/useI18n";
 import {
   kpiStatusColor,
   kpiStatusLabel,
@@ -121,6 +122,8 @@ const props = defineProps<{
 }>();
 
 defineEmits<{ (e: "close"): void }>();
+
+const { t } = useI18n();
 
 const statusItems = computed<KpiIndPayload[]>(() => {
   if (props.mode !== "status" || !props.statusKey) return [];
@@ -225,13 +228,13 @@ const sortedSectorCompanies = computed(() => {
 });
 
 const headerEyebrow = computed(() => {
-  if (props.mode === "status") return "Группа индикаторов";
-  if (props.mode === "sector") return "Компании сектора";
+  if (props.mode === "status") return t("Группа индикаторов");
+  if (props.mode === "sector") return t("Компании сектора");
   return "";
 });
 
 const headerTitle = computed(() => {
-  if (props.mode === "status" && props.statusKey) return kpiStatusLabel(props.statusKey);
+  if (props.mode === "status" && props.statusKey) return t(kpiStatusLabel(props.statusKey));
   if (props.mode === "sector") return props.sectorLabel ?? props.sectorCode ?? "—";
   return "—";
 });
