@@ -53,6 +53,8 @@ import ForensicUploadModal from "@/components/Procurement/ForensicUploadModal.vu
 import { api } from "@/api/client";
 import { useFormatters } from "@/composables/useFormatters";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 const { t } = useI18n();
 
 
@@ -73,11 +75,11 @@ const fmtMode = useSavedFilter<Fmt>("procurement.fmtMode", "pct");
 const selectedCoId = useSavedFilter<string | null>("procurement.selectedCoId", null);
 
 const ALL_TABS: Array<{ id: Tab; label: string }> = [
-  { id: "overview", label: "Обзор" },
-  { id: "suppliers", label: "Поставщики" },
-  { id: "methods", label: "Способы · Площадки" },
-  { id: "products", label: "Товары · Услуги · Работы" },
-  { id: "compare", label: "Сравнение" },
+  { id: "overview", label: i18nKey("Обзор") },
+  { id: "suppliers", label: i18nKey("Поставщики") },
+  { id: "methods", label: i18nKey("Способы · Площадки") },
+  { id: "products", label: i18nKey("Товары · Услуги · Работы") },
+  { id: "compare", label: i18nKey("Сравнение") },
 ];
 // «Сравнение» — портфельный срез (компания × категория по всем компаниям):
 // ограниченному пользователю вкладка не показывается.
@@ -104,12 +106,12 @@ const heroZoom = ref(false);
 type HeroMode = "products" | "services" | "works";
 const heroMode = useSavedFilter<HeroMode>("procurement.heroMode", "products");
 const heroTitle = computed(() =>
-  heroMode.value === "products" ? "Рейтинг компаний по отклонению цен от рынка"
-  : heroMode.value === "services" ? "Расход на услуги по компаниям"
-  : "Расход на работы по компаниям");
+  heroMode.value === "products" ? i18nKey("Рейтинг компаний по отклонению цен от рынка")
+  : heroMode.value === "services" ? i18nKey("Расход на услуги по компаниям")
+  : i18nKey("Расход на работы по компаниям"));
 const heroSub = computed(() =>
-  heroMode.value === "products" ? "экономия ◀ │ ▶ переплата · клик — детализация"
-  : "цена за условную единицу несравнима — ранжируем по расходу · клик — профиль");
+  heroMode.value === "products" ? t("экономия ◀ │ ▶ переплата · клик — детализация")
+  : t("цена за условную единицу несравнима — ранжируем по расходу · клик — профиль"));
 
 function onDrillProduct(code: string) { productDrillCode.value = code; }
 function onDrillSupplier(s: SupplierAgg) {
@@ -156,15 +158,15 @@ function onConclusionUpdated(p: {
 }
 
 const SECTOR_META: Array<{ id: string; label: string; color: string }> = [
-  { id: "mining",    label: "Горно-металлургический", color: "#9B8EC4" },
-  { id: "oilgas",    label: "Нефтегазовый",           color: "#1D9E75" },
-  { id: "energy",    label: "Энергетика",             color: "#EF9F27" },
-  { id: "transport", label: "Транспорт и связь",      color: "#378ADD" },
-  { id: "chemistry", label: "Химия",                  color: "#7F77DD" },
-  { id: "other",     label: "Прочие",                 color: "#888780" },
+  { id: "mining",    label: i18nKey("Горно-металлургический"), color: "#9B8EC4" },
+  { id: "oilgas",    label: i18nKey("Нефтегазовый"),           color: "#1D9E75" },
+  { id: "energy",    label: i18nKey("Энергетика"),             color: "#EF9F27" },
+  { id: "transport", label: i18nKey("Транспорт и связь"),      color: "#378ADD" },
+  { id: "chemistry", label: i18nKey("Химия"),                  color: "#7F77DD" },
+  { id: "other",     label: i18nKey("Прочие"),                 color: "#888780" },
 ];
 const sectorMeta = computed(() => sectorCode.value ? SECTOR_META.find(s => s.id === sectorCode.value) : null);
-const sectorLabel = computed(() => sectorMeta.value?.label || "Все секторы");
+const sectorLabel = computed(() => sectorMeta.value?.label || i18nKey("Все секторы"));
 // «Все секторы» → нейтральный белый (как остальные контролы тёмной шапки), не золотой.
 const sectorColor = computed(() => sectorMeta.value?.color || "#fff");
 
@@ -180,34 +182,34 @@ const kpiCards = computed<KpiCard[]>(() => {
   if (!kp) return [];
   return [
     {
-      id: "spend", eyebrow: "Совокупный расход",
+      id: "spend", eyebrow: t("Совокупный расход"),
       value: paFmtMoneyShort(kp.total_spend),
-      sub: `${fmt.fmtNumber(kp.total_lots)} уникальных лотов · ${kp.total_companies} компаний`,
+      sub: t("{lots} уникальных лотов · {companies} компаний", { lots: fmt.fmtNumber(kp.total_lots), companies: kp.total_companies }),
       accent: "#7F77DD",
     },
     {
-      id: "potential", eyebrow: "Потенциал экономии",
+      id: "potential", eyebrow: t("Потенциал экономии"),
       value: paFmtMoneyShort(kp.potential_saving_uzs),
-      sub: "только товары · к лучшей сопоставимой цене",
+      sub: t("только товары · к лучшей сопоставимой цене"),
       accent: "#5DC093", tab: "products",
-      hint: "Если бы товары закупались по лучшей достигнутой среди компаний цене (в полосе сопоставимости). Услуги, работы и несопоставимые «грязные» коды (разные товары под одним кодом) НЕ учитываются.",
+      hint: i18nKey("Если бы товары закупались по лучшей достигнутой среди компаний цене (в полосе сопоставимости). Услуги, работы и несопоставимые «грязные» коды (разные товары под одним кодом) НЕ учитываются."),
     },
     {
-      id: "notender", eyebrow: "Без конкурентной процедуры",
+      id: "notender", eyebrow: t("Без конкурентной процедуры"),
       value: kp.no_tender_pct.toFixed(0) + "%",
-      sub: `${paFmtMoneyShort(kp.no_tender_spend)} · каталог/e-shop`,
+      sub: t("{amount} · каталог/e-shop", { amount: paFmtMoneyShort(kp.no_tender_spend) }),
       accent: "#E2807F", tab: "methods",
       bar: kp.no_tender_pct, barColor: "#E2807F",
-      hint: `Доля спенда через НЕКОНКУРЕНТНЫЕ методы (электронный магазин/каталог), где торга нет по определению. Отдельно: ${kp.competitive_no_saving_pct.toFixed(0)}% (${paFmtMoneyShort(kp.competitive_no_saving_spend)}) — конкурентные процедуры, закрывшиеся с НУЛЕВОЙ экономией (возможная имитация торга).`,
+      hint: t("Доля спенда через НЕКОНКУРЕНТНЫЕ методы (электронный магазин/каталог), где торга нет по определению. Отдельно: {percent}% ({amount}) — конкурентные процедуры, закрывшиеся с НУЛЕВОЙ экономией (возможная имитация торга).", { percent: kp.competitive_no_saving_pct.toFixed(0), amount: paFmtMoneyShort(kp.competitive_no_saving_spend) }),
     },
     {
-      id: "suppliers", eyebrow: "Поставщиков",
+      id: "suppliers", eyebrow: t("Поставщиков"),
       value: fmt.fmtNumber(kp.supplier_count),
-      sub: `${kp.disclosed_supplier_pct.toFixed(0)}% спенда раскрыто`,
+      sub: t("{percent}% спенда раскрыто", { percent: kp.disclosed_supplier_pct.toFixed(0) }),
       accent: "#EFB373", tab: "suppliers",
     },
     {
-      id: "split", eyebrow: "Товары / Услуги / Работы",
+      id: "split", eyebrow: t("Товары / Услуги / Работы"),
       value: `${(100 - kp.services_pct - kp.works_pct).toFixed(0)}/${kp.services_pct.toFixed(0)}/${kp.works_pct.toFixed(0)}%`,
       sub: `${paFmtMoneyShort(kp.goods_spend)} · ${paFmtMoneyShort(kp.services_spend)} · ${paFmtMoneyShort(kp.works_spend)}`,
       accent: "#378ADD", tab: "products",
@@ -226,16 +228,16 @@ const redFlags = computed<RedFlag[]>(() => {
   if (exp && exp.excess_uzs > 0) {
     out.push({
       id: "exp", tone: "red", tab: "suppliers",
-      title: `${exp.supplier_name}: цена +${exp.premium_pct.toFixed(0)}% к рынку`,
-      detail: `переплата ${paFmtMoneyShort(exp.excess_uzs)} · ${exp.company_count} компани${exp.company_count === 1 ? "я" : "й"}`,
+      title: t("{supplier}: цена +{percent}% к рынку", { supplier: exp.supplier_name, percent: exp.premium_pct.toFixed(0) }),
+      detail: t("переплата {amount} · компаний: {count}", { amount: paFmtMoneyShort(exp.excess_uzs), count: exp.company_count }),
     });
   }
   const cat = (a.methods || []).find(m => !m.is_competitive && m.spend > 0 && m.saved_rate_pct < 0.5);
   if (cat) {
     out.push({
       id: "cat", tone: "amber", tab: "methods",
-      title: `${cat.label}: экономия 0%`,
-      detail: `${paFmtMoneyShort(cat.spend)} закуплено без торга по каталогу`,
+      title: t("{category}: экономия 0%", { category: t(cat.label) }),
+      detail: t("{amount} закуплено без торга по каталогу", { amount: paFmtMoneyShort(cat.spend) }),
     });
   }
   // Главный сигнал качества торгов: конкурентные процедуры с нулевой экономией
@@ -243,23 +245,23 @@ const redFlags = computed<RedFlag[]>(() => {
   if (a.kpis && a.kpis.competitive_no_saving_pct >= 30) {
     out.push({
       id: "cns", tone: "amber", tab: "methods",
-      title: `${a.kpis.competitive_no_saving_pct.toFixed(0)}% спенда: конкурентные процедуры без экономии`,
-      detail: `${paFmtMoneyShort(a.kpis.competitive_no_saving_spend)} — торг состоялся, но эффект нулевой (возможна имитация)`,
+      title: t("{percent}% спенда: конкурентные процедуры без экономии", { percent: a.kpis.competitive_no_saving_pct.toFixed(0) }),
+      detail: t("{amount} — торг состоялся, но эффект нулевой (возможна имитация)", { amount: paFmtMoneyShort(a.kpis.competitive_no_saving_spend) }),
     });
   }
   // Концентрация: нераскрытый «поставщик» — это один контракт без раскрытия, а не
   // зависимость от вендора → отдельная формулировка (прозрачность), тон amber.
   const conc = (a.supplier_concentration || []).find(c => c.top1_pct >= 60);
   if (conc) {
-    const undisclosed = !conc.top1_name || conc.top1_name === "(не указан)";
+    const undisclosed = !conc.top1_name || conc.top1_name === "(не указан)"; // i18n-exempt -- canonical API sentinel
     out.push(undisclosed ? {
       id: "conc", tone: "amber", tab: "suppliers",
-      title: `${conc.company_name}: ${conc.top1_pct.toFixed(0)}% спенда в одном нераскрытом контракте`,
-      detail: `поставщик не раскрыт — требуется проверка прозрачности`,
+      title: t("{company}: {percent}% спенда в одном нераскрытом контракте", { company: conc.company_name, percent: conc.top1_pct.toFixed(0) }),
+      detail: t("поставщик не раскрыт — требуется проверка прозрачности"),
     } : {
       id: "conc", tone: "red", tab: "suppliers",
-      title: `${conc.company_name}: ${conc.top1_pct.toFixed(0)}% закупок у одного поставщика`,
-      detail: `${conc.top1_name} · индекс концентрации HHI ${Math.round(conc.hhi)}`,
+      title: t("{company}: {percent}% закупок у одного поставщика", { company: conc.company_name, percent: conc.top1_pct.toFixed(0) }),
+      detail: t("{supplier} · индекс концентрации HHI {hhi}", { supplier: conc.top1_name, hhi: Math.round(conc.hhi) }),
     });
   }
   return out.slice(0, 4);
@@ -286,7 +288,7 @@ async function load() {
     }
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
-    error.value = err?.response?.data?.detail || err?.message || "Не удалось загрузить анализ";
+    error.value = err?.response?.data?.detail || err?.message || t('Не удалось загрузить анализ');
   } finally {
     loading.value = false;
   }
@@ -299,7 +301,7 @@ const showUploadModal = ref(false);
 const editTableOpen = ref(false);
 function fmtPaUploadResult(data: unknown): string {
   const r = data as { inserted?: number; sheets_processed?: number; benchmark_rows?: number };
-  return `Загружено: ${r?.inserted ?? "?"} закупок · ${r?.sheets_processed ?? "?"} листов · ${r?.benchmark_rows ?? "?"} с benchmark`;
+  return t('Загружено: {value0} закупок · {value1} листов · {value2} с benchmark', { value0: r?.inserted ?? "?", value1: r?.sheets_processed ?? "?", value2: r?.benchmark_rows ?? "?" });
 }
 async function editAction(action: "import-contracts" | "template" | "edit" | "export" | "clear") {
   editMenuOpen.value = false;
@@ -307,19 +309,19 @@ async function editAction(action: "import-contracts" | "template" | "edit" | "ex
     case "import-contracts":
       showUploadModal.value = true; return;
     case "template":
-      downloadProcurementTemplate().catch((e) => toast.error("Не удалось сгенерировать шаблон: " + (e?.message || "—")));
+      downloadProcurementTemplate().catch((e) => toast.error(t('Не удалось сгенерировать шаблон: {value0}', { value0: (e?.message || "—") })));
       return;
     case "edit":
-      if (!aggregate.value?.purchases?.length) { toast.info("Нет загруженных закупок для редактирования."); return; }
+      if (!aggregate.value?.purchases?.length) { toast.info(t('Нет загруженных закупок для редактирования.')); return; }
       editTableOpen.value = true; return;
     case "export":
-      exportProcurementYear(aggregate.value, year.value).catch((e) => toast.error("Ошибка экспорта: " + (e?.message || "—")));
+      exportProcurementYear(aggregate.value, year.value).catch((e) => toast.error(t('Ошибка экспорта: {value0}', { value0: (e?.message || "—") })));
       return;
     case "clear":
-      if (await confirmDialog({ message: `Удалить загруженные вручную закупки за ${year.value || "выбранный год"}? Сидовые данные сохранятся.`, danger: true })) {
+      if (await confirmDialog({ message: t('Удалить загруженные вручную закупки за {value0}? Сидовые данные сохранятся.', { value0: year.value || i18nKey("выбранный год") }), danger: true })) {
         api.delete("/procurement/closures", { params: year.value ? { year: year.value, source: "manual-upload" } : { source: "manual-upload" } })
-          .then(r => { const c = (r.data as { cleared?: number })?.cleared ?? 0; toast.success(`Удалено ${c} закупок (manual-upload).`); load(); })
-          .catch((e: { response?: { data?: { detail?: string } }; message?: string }) => toast.error("Ошибка: " + (e?.response?.data?.detail || e?.message || "—")));
+          .then(r => { const c = (r.data as { cleared?: number })?.cleared ?? 0; toast.success(t('Удалено {value0} закупок (manual-upload).', { value0: c })); load(); })
+          .catch((e: { response?: { data?: { detail?: string } }; message?: string }) => toast.error(t('Ошибка: {value0}', { value0: (e?.response?.data?.detail || e?.message || "—") })));
       }
       return;
   }
@@ -350,9 +352,9 @@ onMounted(() => {
           <span class="pa-dot">·</span>
           <span><b>{{ paFmtMoneyShort(k.total_spend) }}</b></span>
           <span class="pa-dot">·</span>
-          <span>{{ year ? `${year} · Q1` : 'все годы' }}</span>
+          <span>{{ year ? `${year} · Q1` : t('все годы') }}</span>
           <span v-if="sectorCode" class="pa-dot">·</span>
-          <span v-if="sectorCode">{{ sectorLabel }}</span>
+          <span v-if="sectorCode">{{ t(sectorLabel) }}</span>
         </div>
       </div>
 
@@ -361,13 +363,13 @@ onMounted(() => {
         <div v-if="scope.showSectorPicker.value" class="pa-badge-wrap" @click.stop>
           <button class="pa-badge" @click="sectorOpen = !sectorOpen" :title="t('Фильтр по сектору')">
             <span class="pa-sec-icon" :style="{ background: sectorColor + '33', borderColor: sectorColor }"></span>
-            <span :style="{ color: sectorColor }">{{ sectorLabel }}</span>
+            <span :style="{ color: sectorColor }">{{ t(sectorLabel) }}</span>
             <svg class="pa-chev" width="10" height="10" viewBox="0 0 10 10" fill="none" :stroke="sectorColor" stroke-width="1.6"><path d="M2 4l3 3 3-3"/></svg>
           </button>
           <div v-if="sectorOpen" class="pa-dd">
             <div class="pa-dd-item" :class="{ active: !sectorCode }" @click="setSector(null)">{{ t('Все секторы') }}</div>
             <div v-for="s in SECTOR_META" :key="s.id" class="pa-dd-item" :class="{ active: sectorCode === s.id }" @click="setSector(s.id)">
-              <span class="pa-sec-dot" :style="{ background: s.color }"></span>{{ s.label }}
+              <span class="pa-sec-dot" :style="{ background: s.color }"></span>{{ t(s.label) }}
             </div>
           </div>
         </div>
@@ -376,7 +378,7 @@ onMounted(() => {
         <div class="pa-badge-wrap" @click.stop>
           <button class="pa-badge" @click="yearOpen = !yearOpen" :title="t('Год')">
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M2 7h12M5 1.5v3M11 1.5v3" stroke-linecap="round"/></svg>
-            <span>{{ year ? `${year} · Q1` : 'Все годы' }}</span>
+            <span>{{ year ? `${year} · Q1` : t('Все годы') }}</span>
             <svg class="pa-chev" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 4l3 3 3-3"/></svg>
           </button>
           <div v-if="yearOpen" class="pa-dd">
@@ -392,7 +394,7 @@ onMounted(() => {
 
     <!-- ═══ Tabs strip ═══ -->
     <div class="pa-tabstrip" @click.stop>
-      <button v-for="t in TABS" :key="t.id" class="pa-tab" :class="{ on: tab === t.id }" @click="tab = t.id">{{ t.label }}</button>
+      <button v-for="tb in TABS" :key="tb.id" class="pa-tab" :class="{ on: tab === tb.id }" @click="tab = tb.id">{{ t(tb.label) }}</button>
     </div>
 
     <!-- ═══ States ═══ -->
@@ -425,7 +427,7 @@ onMounted(() => {
         <div class="pa-empty-icon">
           <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="#7F77DD" stroke-width="1.5"><rect x="8" y="10" width="32" height="32" rx="3"/><path d="M8 18h32M16 4v8M32 4v8"/><path d="M16 26h16M16 32h12"/></svg>
         </div>
-        <h3>{{ t('Анализ закупок · нет данных за') }} {{ year || 'выбранный год' }}</h3>
+        <h3>{{ t('Анализ закупок · нет данных за') }} {{ year || t('выбранный год') }}</h3>
         <p v-if="year || sectorCode">{{ t('Активные фильтры могут скрывать данные. Попробуйте сбросить.') }}</p>
         <p v-else>{{ t('Загрузите контракты Q1 2026 (xarid, 22 листа) или прайс-лист Excel.') }}</p>
         <div class="pa-empty-actions">
@@ -465,7 +467,7 @@ onMounted(() => {
                       <button :class="{ on: fmtMode === 'pct' }" @click="fmtMode = 'pct'">%</button>
                       <button :class="{ on: fmtMode === 'rub' }" @click="fmtMode = 'rub'">{{ t('сум') }}</button>
                     </div>
-                    <button class="pa-zoom-btn" @click="heroZoom = !heroZoom" :title="heroZoom ? 'Свернуть' : 'Развернуть'">
+                    <button class="pa-zoom-btn" @click="heroZoom = !heroZoom" :title="heroZoom ? t('Свернуть') : t('Развернуть')">
                       <svg v-if="!heroZoom" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                       <svg v-else width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6 2v4H2M10 6h4V2M10 14v-4h4M6 10H2v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     </button>
@@ -528,7 +530,7 @@ onMounted(() => {
     <PaPurchaseDrillModal v-if="purchaseDrill && aggregate" :purchase="purchaseDrill" :data="aggregate" :can-edit="_perm.canEdit.value" @close="purchaseDrill = null" @select-co="onChainSelectCo" @updated="onConclusionUpdated" />
     <PaProductDrillModal v-if="productDrillCode && aggregate" :product-code="productDrillCode" :data="aggregate" @close="productDrillCode = null" @drill-purchase="onPurchaseDrill" />
     <PaSupplierDrillModal v-if="supplierDrill && aggregate" :supplier-key="supplierDrill.key" :supplier-name="supplierDrill.name" :purchases="aggregate.purchases" :companies="aggregate.rating" :categories="aggregate.categories" @close="supplierDrill = null" @drill-closure="(c: ClosureRow) => { supplierDrill = null; onPurchaseDrill(c); }" @select-company="onSupplierSelectCompany" />
-    <ForensicUploadModal v-if="showUploadModal" :year="year" endpoint="/procurement/closures/import-excel" :title="t('Импорт закупок · Excel')" description="Формат xarid_corporate_contracts: 22 листа (1 per SOE). Headers: lotId / organ / vendor / Unit price / amount / Category / productCode. Median per productCode → benchmark." :sheet-match="null" :format-result="fmtPaUploadResult" @close="showUploadModal = false" @uploaded="load" />
+    <ForensicUploadModal v-if="showUploadModal" :year="year" endpoint="/procurement/closures/import-excel" :title="t('Импорт закупок · Excel')" :description="t('Формат xarid_corporate_contracts: 22 листа (1 per SOE). Headers: lotId / organ / vendor / Unit price / amount / Category / productCode. Median per productCode → benchmark.')" :sheet-match="null" :format-result="fmtPaUploadResult" @close="showUploadModal = false" @uploaded="load" />
     <PaEditTableModal v-model="editTableOpen" :rows="aggregate?.purchases || []" :year="year" :can-edit="_perm.canEdit.value" @saved="load" />
   </div>
 </template>

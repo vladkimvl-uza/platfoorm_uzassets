@@ -195,25 +195,25 @@ function secVal(c: Charter, k: keyof Charter): string {
         <!-- tiles -->
         <div class="pc-tiles">
           <button
-            v-for="(t, i) in tiles"
-            :key="t.key"
+            v-for="(tile, i) in tiles"
+            :key="tile.key"
             class="pc-tile"
-            :class="{ 'pc-tile-on': t.charter && selectedId === t.charter.id, 'pc-tile-empty': !t.charter, 'pc-tile-program': t.projectId === null }"
+            :class="{ 'pc-tile-on': tile.charter && selectedId === tile.charter.id, 'pc-tile-empty': !tile.charter, 'pc-tile-program': tile.projectId === null }"
             :style="{ animationDelay: Math.min(i * 0.03, 0.4) + 's' }"
-            @click="t.charter ? (selectedId = t.charter.id) : (canEdit && openCreate(t))"
+            @click="tile.charter ? (selectedId = tile.charter.id) : (canEdit && openCreate(tile))"
           >
             <div class="pc-tile-top">
-              <span class="pc-tile-title">{{ t.title }}</span>
+              <span class="pc-tile-title">{{ tile.title }}</span>
               <span
-                v-if="t.charter"
+                v-if="tile.charter"
                 class="pc-badge"
-                :class="t.charter.status === 'approved' ? 'pc-badge-ok' : 'pc-badge-draft'"
-              >{{ t.charter.status === "approved" ? t('Утверждён') : t('Черновик') }}</span>
+                :class="tile.charter.status === 'approved' ? 'pc-badge-ok' : 'pc-badge-draft'"
+              >{{ tile.charter.status === "approved" ? t('Утверждён') : t('Черновик') }}</span>
               <span v-else class="pc-badge pc-badge-none">{{ t('Нет устава') }}</span>
             </div>
-            <div v-if="t.charter" class="pc-tile-meta">
-              <span v-if="t.charter.manager_name" class="pc-tile-m">{{ t('РП:') }} {{ t.charter.manager_name }}</span>
-              <span v-if="t.charter.budget_amount != null" class="pc-tile-m">{{ fmtMoney(t.charter.budget_amount) }}</span>
+            <div v-if="tile.charter" class="pc-tile-meta">
+              <span v-if="tile.charter.manager_name" class="pc-tile-m">{{ t('РП:') }} {{ tile.charter.manager_name }}</span>
+              <span v-if="tile.charter.budget_amount != null" class="pc-tile-m">{{ fmtMoney(tile.charter.budget_amount) }}</span>
             </div>
             <div v-else-if="canEdit" class="pc-tile-cta">{{ t('+ Создать устав') }}</div>
             <div v-else class="pc-tile-cta pc-tile-cta-muted">—</div>

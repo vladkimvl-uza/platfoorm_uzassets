@@ -8,9 +8,6 @@
  */
 
 import { useToast } from "@/composables/useToast";
-import { useI18n } from "@/composables/useI18n";
-const { t } = useI18n();
-
 
 const { toasts, remove } = useToast();
 
@@ -21,16 +18,16 @@ const { toasts, remove } = useToast();
     <div class="uza-toast-container">
       <TransitionGroup name="uza-toast">
         <div
-          v-for="t in toasts"
-          :key="t.id"
+          v-for="ts in toasts"
+          :key="ts.id"
           class="uza-toast"
-          :class="`uza-toast-${t.kind}`"
-          @click="remove(t.id)"
+          :class="`uza-toast-${ts.kind}`"
+          @click="remove(ts.id)"
           role="alert"
         >
           <span class="uza-toast-icon">
             <svg
-              v-if="t.kind === 'ok'"
+              v-if="ts.kind === 'ok'"
               width="18"
               height="18"
               viewBox="0 0 24 24"
@@ -43,7 +40,7 @@ const { toasts, remove } = useToast();
               <path d="M5 12 L10 17 L19 8" />
             </svg>
             <svg
-              v-else-if="t.kind === 'err'"
+              v-else-if="ts.kind === 'err'"
               width="18"
               height="18"
               viewBox="0 0 24 24"
@@ -69,10 +66,10 @@ const { toasts, remove } = useToast();
               <path d="M12 8 L12 13 M12 16 L12 16.5" stroke-width="2.4" />
             </svg>
           </span>
-          <span class="uza-toast-msg">{{ t.message }}</span>
+          <span class="uza-toast-msg">{{ ts.message }}</span>
           <button
             class="uza-toast-close"
-            @click.stop="remove(t.id)"
+            @click.stop="remove(ts.id)"
             :aria-label="t('Закрыть')"
           >
             <svg

@@ -130,7 +130,7 @@ function typesIn(category: string): NotificationType[] {
       </div>
       <div class="np-tb-r">
         <button class="np-btn np-btn-ghost" @click="sendTest">{{ t('Отправить тест') }}</button>
-        <button class="np-btn np-btn-primary" :disabled="saving" @click="saveAll">{{ saving ? "Сохраняем..." : "Сохранить" }}</button>
+        <button class="np-btn np-btn-primary" :disabled="saving" @click="saveAll">{{ saving ? t('Сохраняем...') : t('Сохранить') }}</button>
       </div>
     </div>
 
@@ -153,47 +153,47 @@ function typesIn(category: string): NotificationType[] {
           <div class="np-row-mute">Mute</div>
         </div>
 
-        <div v-for="t in typesIn(cat)" :key="t.code" class="np-row">
+        <div v-for="nt in typesIn(cat)" :key="nt.code" class="np-row">
           <div class="np-row-l">
-            <div class="np-type-label">{{ t.label }}</div>
-            <div class="np-type-code">{{ t.code }}</div>
+            <div class="np-type-label">{{ t(nt.label) }}</div>
+            <div class="np-type-code">{{ nt.code }}</div>
           </div>
           <div class="np-row-prio">
-            <span class="np-prio-pill" :class="`prio-${t.priority}`">{{ t.priority }}</span>
+            <span class="np-prio-pill" :class="`prio-${nt.priority}`">{{ nt.priority }}</span>
           </div>
           <div class="np-row-ch">
             <label class="np-switch">
               <input type="checkbox"
-                     :checked="getPref(t.code).channels.in_app !== false"
-                     :disabled="getPref(t.code).is_muted"
-                     @change="toggleChannel(t.code, 'in_app')"/>
+                     :checked="getPref(nt.code).channels.in_app !== false"
+                     :disabled="getPref(nt.code).is_muted"
+                     @change="toggleChannel(nt.code, 'in_app')"/>
               <span class="np-switch-tr"></span>
             </label>
           </div>
           <div class="np-row-ch">
             <label class="np-switch">
               <input type="checkbox"
-                     :checked="emailEnabled(t.code)"
-                     :disabled="getPref(t.code).is_muted"
-                     @change="toggleEmail(t.code)"/>
+                     :checked="emailEnabled(nt.code)"
+                     :disabled="getPref(nt.code).is_muted"
+                     @change="toggleEmail(nt.code)"/>
               <span class="np-switch-tr"></span>
             </label>
           </div>
           <div class="np-row-ch">
             <label class="np-switch">
               <input type="checkbox"
-                     :checked="telegramEnabled(t.code)"
-                     :disabled="getPref(t.code).is_muted"
-                     @change="toggleTelegram(t.code)"/>
+                     :checked="telegramEnabled(nt.code)"
+                     :disabled="getPref(nt.code).is_muted"
+                     @change="toggleTelegram(nt.code)"/>
               <span class="np-switch-tr"></span>
             </label>
           </div>
           <div class="np-row-mute">
             <button class="np-mute-btn"
-                    :class="{ active: getPref(t.code).is_muted }"
-                    @click="toggleMute(t.code)"
-                    :title="getPref(t.code).is_muted ? 'Включить' : 'Mute'">
-              <svg v-if="!getPref(t.code).is_muted" width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 6.5a3 3 0 0 0-6 0v3l-1.5 1.5h9L11 9.5v-3z"/><path d="M6 12.5a2 2 0 0 0 4 0"/></svg>
+                    :class="{ active: getPref(nt.code).is_muted }"
+                    @click="toggleMute(nt.code)"
+                    :title="getPref(nt.code).is_muted ? t('Включить') : 'Mute'">
+              <svg v-if="!getPref(nt.code).is_muted" width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 6.5a3 3 0 0 0-6 0v3l-1.5 1.5h9L11 9.5v-3z"/><path d="M6 12.5a2 2 0 0 0 4 0"/></svg>
               <svg v-else width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 6.5a3 3 0 0 0-6 0v3l-1.5 1.5h9L11 9.5v-3z"/><path d="M2 2l12 12"/></svg>
             </button>
           </div>
@@ -207,7 +207,7 @@ function typesIn(category: string): NotificationType[] {
 .np-wrap { background: #F4F3F9; min-height: 100%; font-family: var(--font, system-ui); }
 
 .np-topbar {
-  background: linear-gradient(95deg, #1E2A4A 0%, #2D3760 60%, #4B477E 100%);
+  background: linear-gradiet(95deg, #1E2A4A 0%, #2D3760 60%, #4B477E 100%);
   padding: 14px 22px;
   display: flex; align-items: center; justify-content: space-between;
 }

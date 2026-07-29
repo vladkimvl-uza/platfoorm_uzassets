@@ -14,6 +14,8 @@ import ModalShell from "@/components/ModalShell.vue";
 import EptLogo from "@/components/EptLogo.vue";
 import { useCompanyScope } from "@/composables/useCompanyScope";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 const { t } = useI18n();
 
 
@@ -36,10 +38,10 @@ const submitting = ref(false);
 const common = ref({ portfolio_year: new Date().getFullYear(), direction_id: "", due_date: "" });
 
 const STATUSES = [
-  { v: "new", l: "Не начато" }, { v: "init", l: "Инициирование" }, { v: "active", l: "В процессе" },
-  { v: "quarterly", l: "Ежеквартально" }, { v: "monthly", l: "Ежемесячно" }, { v: "ongoing", l: "Постоянно" },
+  { v: "new", l: i18nKey("Не начато") }, { v: "init", l: i18nKey("Инициирование") }, { v: "active", l: i18nKey("В процессе") },
+  { v: "quarterly", l: i18nKey("Ежеквартально") }, { v: "monthly", l: i18nKey("Ежемесячно") }, { v: "ongoing", l: i18nKey("Постоянно") },
 ];
-const PRIOS = [{ v: "high", l: "Высокий" }, { v: "medium", l: "Средний" }, { v: "low", l: "Низкий" }];
+const PRIOS = [{ v: "high", l: i18nKey("Высокий") }, { v: "medium", l: i18nKey("Средний") }, { v: "low", l: i18nKey("Низкий") }];
 
 const projects = ref<BProject[]>([]);
 const standalone = ref<BTask[]>([]);
@@ -64,7 +66,7 @@ function applyPaste() {
   const tasks = lines.map((l) => ({ ...newTask(), title: l }));
   if (pasteFor.value.kind === "project") projects.value[pasteFor.value.idx].tasks.push(...tasks);
   else standalone.value.push(...tasks);
-  toast.success(`Добавлено задач: ${tasks.length}`);
+  toast.success(t('Добавлено задач: {value0}', { value0: tasks.length }));
   pasteFor.value = null;
 }
 
@@ -124,12 +126,12 @@ async function createKpi() {
       manager_title: kpiManager.value || "Импорт KPI",
       rows: previewRows.value.rows,
     });
-    let msg = `Создано KPI: ${data.indicators_created} показателей в ${data.companies} комп.`;
-    if (data.unresolved?.length) msg += ` Не сопоставлены: ${data.unresolved.join(", ")}`;
+    let msg = t('Создано KPI: {value0} показателей в {value1} комп.', { value0: data.indicators_created, value1: data.companies });
+    if (data.unresolved?.length) msg += " " + t('Не сопоставлены: {value0}', { value0: data.unresolved.join(", ") });
     toast.success(msg, 6000);
     previewRows.value = null;
   } catch (e: any) {
-    toast.error(e?.response?.data?.detail || "Ошибка создания KPI");
+    toast.error(e?.response?.data?.detail || t('Ошибка создания KPI'));
   } finally {
     creatingKpi.value = false;
   }
@@ -152,12 +154,12 @@ async function createFin() {
       default_currency: "UZS",
       rows: previewRows.value.rows,
     });
-    let msg = `Создано строк финотчётов: ${data.lines_created} в ${data.reports} отчётах.`;
-    if (data.unresolved?.length) msg += ` Не сопоставлены: ${data.unresolved.join(", ")}`;
+    let msg = t('Создано строк финотчётов: {value0} в {value1} отчётах.', { value0: data.lines_created, value1: data.reports });
+    if (data.unresolved?.length) msg += " " + t('Не сопоставлены: {value0}', { value0: data.unresolved.join(", ") });
     toast.success(msg, 6000);
     previewRows.value = null;
   } catch (e: any) {
-    toast.error(e?.response?.data?.detail || "Ошибка создания финотчётов");
+    toast.error(e?.response?.data?.detail || t('Ошибка создания финотчётов'));
   } finally {
     creatingFin.value = false;
   }
@@ -190,20 +192,20 @@ async function onFile(e: Event) {
         title: t.title || "", status: t.status || "new", priority: t.priority || "medium",
         due_date: t.due_date || "", assignee_email: t.assignee_email || "", comment: t.comment || "",
       }));
-      toast.success(`Распознано: ${totalProjects.value} проектов · ${totalTasks.value} задач. Проверьте и создайте.`, 5000);
+      toast.success(t('Распознано: {value0} проектов · {value1} задач. Проверьте и создайте.', { value0: totalProjects.value, value1: totalTasks.value }), 5000);
     } else {
       // другой дашборд — авто-создание не подключено: показываем превью
       previewRows.value = data;
     }
   } catch (err: any) {
-    toast.error(err?.response?.data?.detail || "Не удалось распознать файл");
+    toast.error(err?.response?.data?.detail || t('Не удалось распознать файл'));
   } finally {
     importing.value = false;
   }
 }
 
 async function submit() {
-  if (!canSubmit.value) { toast.error("Заполните названия проектов/задач"); return; }
+  if (!canSubmit.value) { toast.error(t('Заполните названия проектов/задач')); return; }
   submitting.value = true;
   try {
     const clean = (t: BTask) => ({ title: t.title, status: t.status, priority: t.priority, due_date: t.due_date || null, assignee_email: t.assignee_email || null, comment: t.comment || null });
@@ -214,12 +216,12 @@ async function submit() {
       standalone_tasks: standalone.value.map(clean),
     };
     const { data } = await api.post("/builder/bulk", body);
-    let okMsg = `Создано: ${data.projects_created} проектов · ${data.tasks_created} задач в ${data.companies} компаниях`;
-    if (data.comments_created) okMsg += ` · ${data.comments_created} комментариев`;
+    let okMsg = t('Создано: {value0} проектов · {value1} задач в {value2} компаниях', { value0: data.projects_created, value1: data.tasks_created, value2: data.companies });
+    if (data.comments_created) okMsg += " " + t('· {value0} комментариев', { value0: data.comments_created });
     toast.success(okMsg, 5000);
     projects.value = []; standalone.value = [];
   } catch (e: any) {
-    toast.error(e?.response?.data?.detail || "Ошибка создания");
+    toast.error(e?.response?.data?.detail || t('Ошибка создания'));
   } finally { submitting.value = false; }
 }
 </script>
@@ -235,10 +237,10 @@ async function submit() {
         <input ref="fileInput" type="file" accept=".xlsx,.xlsm,.xls,.csv,.tsv,.txt,.pdf,.docx" class="pb-file" @change="onFile" />
         <button class="pb-import" :disabled="importing" @click="pickFile" :title="t('Excel / CSV / PDF — ИИ распознает и заполнит')">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-          {{ importing ? "Распознаю…" : "Импорт из файла" }}
+          {{ importing ? t('Распознаю…') : t('Импорт из файла') }}
         </button>
         <button class="pb-create" :disabled="!canSubmit || submitting || !selected.size" @click="submit">
-          {{ submitting ? "Создаю…" : `Создать всё → ${selected.size || 0} комп.` }}
+          {{ submitting ? t('Создаю…') : t('Создать всё → {value0} комп.', { value0: selected.size || 0 }) }}
         </button>
       </div>
     </div>
@@ -248,7 +250,7 @@ async function submit() {
       <div v-if="ingest && ingest.target === 'projects_tasks'" class="pb-ai-banner ok">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
         <div class="pb-ai-txt">
-          <b>{{ t('ИИ распознал дашборд: «') }}{{ ingest.target_label }}»</b>
+          <b>{{ t('ИИ распознал дашборд: «') }}{{ t(ingest.target_label) }}»</b>
           <span v-if="ingest.confidence"> {{ t('· уверенность') }} {{ Math.round(ingest.confidence * 100) }}%</span>
           <div v-if="ingest.notes" class="pb-ai-notes">{{ ingest.notes }}</div>
           <div class="pb-ai-hint">{{ t('Данные подставлены в шаги ниже — отредактируйте при необходимости, выберите компании и нажмите «Создать всё».') }}</div>
@@ -301,17 +303,17 @@ async function submit() {
             <textarea v-model="p.comment" class="pb-cmt" rows="2" :placeholder="t('Комментарий из документа')"></textarea>
           </div>
           <div class="pb-tasks">
-            <div v-for="(t, ti) in p.tasks" :key="ti" class="pb-task-wrap">
+            <div v-for="(tsk, ti) in p.tasks" :key="ti" class="pb-task-wrap">
               <div class="pb-task">
                 <span class="pb-task-dot" />
-                <input v-model="t.title" class="pb-in" :placeholder="t('Задача')" />
-                <select v-model="t.status" class="pb-in sm"><option v-for="s in STATUSES" :key="s.v" :value="s.v">{{ s.l }}</option></select>
-                <input type="date" v-model="t.due_date" class="pb-in sm" />
+                <input v-model="tsk.title" class="pb-in" :placeholder="t('Задача')" />
+                <select v-model="tsk.status" class="pb-in sm"><option v-for="s in STATUSES" :key="s.v" :value="s.v">{{ s.l }}</option></select>
+                <input type="date" v-model="tsk.due_date" class="pb-in sm" />
                 <button class="pb-del" @click="rmTask(p, ti)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg></button>
               </div>
-              <div v-if="t.comment" class="pb-cmt-row sub">
+              <div v-if="tsk.comment" class="pb-cmt-row sub">
                 <span class="pb-cmt-tag">{{ t('Комментарий') }}</span>
-                <textarea v-model="t.comment" class="pb-cmt" rows="2" :placeholder="t('Комментарий из документа')"></textarea>
+                <textarea v-model="tsk.comment" class="pb-cmt" rows="2" :placeholder="t('Комментарий из документа')"></textarea>
               </div>
             </div>
             <div class="pb-task-actions">
@@ -324,21 +326,21 @@ async function submit() {
 
       <!-- 4. ОТДЕЛЬНЫЕ ЗАДАЧИ -->
       <div class="pb-card">
-        <div class="pb-card-h"><span class="pb-step">{{ stepNo(4) }}</span><span class="pb-card-t">{{ t('Отдельные задачи') }}</span><span class="pb-card-cap">{{ standalone.length }}</span>
+        <div class="pb-card-h"><span class="pb-step">{{ stepNo(4) }}</span><span class="pb-card-tsk">{{ t('Отдельные задачи') }}</span><span class="pb-card-cap">{{ standalone.length }}</span>
           <div class="pb-card-r"><button class="pb-add" @click="addStandalone">{{ t('＋ Задача') }}</button><button class="pb-paste" @click="openPaste('standalone', 0)">{{ t('⤓ Вставить списком') }}</button></div>
         </div>
-        <div v-for="(t, ti) in standalone" :key="ti" class="pb-task-wrap">
+        <div v-for="(tsk, ti) in standalone" :key="ti" class="pb-task-wrap">
           <div class="pb-task">
             <span class="pb-task-dot" />
-            <input v-model="t.title" class="pb-in" :placeholder="t('Задача')" />
-            <select v-model="t.status" class="pb-in sm"><option v-for="s in STATUSES" :key="s.v" :value="s.v">{{ s.l }}</option></select>
-            <select v-model="t.priority" class="pb-in sm"><option v-for="p in PRIOS" :key="p.v" :value="p.v">{{ p.l }}</option></select>
-            <input type="date" v-model="t.due_date" class="pb-in sm" />
+            <input v-model="tsk.title" class="pb-in" :placeholder="t('Задача')" />
+            <select v-model="tsk.status" class="pb-in sm"><option v-for="s in STATUSES" :key="s.v" :value="s.v">{{ s.l }}</option></select>
+            <select v-model="tsk.priority" class="pb-in sm"><option v-for="p in PRIOS" :key="p.v" :value="p.v">{{ p.l }}</option></select>
+            <input type="date" v-model="tsk.due_date" class="pb-in sm" />
             <button class="pb-del" @click="rmStandalone(ti)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg></button>
           </div>
-          <div v-if="t.comment" class="pb-cmt-row sub">
+          <div v-if="tsk.comment" class="pb-cmt-row sub">
             <span class="pb-cmt-tag">{{ t('Комментарий') }}</span>
-            <textarea v-model="t.comment" class="pb-cmt" rows="2" :placeholder="t('Комментарий из документа')"></textarea>
+            <textarea v-model="tsk.comment" class="pb-cmt" rows="2" :placeholder="t('Комментарий из документа')"></textarea>
           </div>
         </div>
       </div>
@@ -351,23 +353,23 @@ async function submit() {
     <!-- ПРЕВЬЮ для других дашбордов (распознано, авто-создание пока не подключено) -->
     <ModalShell :open="!!previewRows" size="xl" @close="previewRows = null">
       <template v-if="previewRows" #header>
-        <div class="pb-mod-t">{{ t('Распознан дашборд: «') }}{{ previewRows.target_label }}»
+        <div class="pb-mod-t">{{ t('Распознан дашборд: «') }}{{ t(previewRows.target_label) }}»
           <span v-if="previewRows.confidence" class="pb-conf">{{ Math.round(previewRows.confidence * 100) }}%</span>
         </div>
       </template>
       <template v-if="previewRows">
               <p v-if="previewRows.supported" class="pb-mod-hint">
-                {{ t('ИИ отнёс документ к дашборду') }} <b>«{{ previewRows.target_label }}»</b> {{ t('и распознал') }}
+                {{ t('ИИ отнёс документ к дашборду') }} <b>«{{ t(previewRows.target_label) }}»</b> {{ t('и распознал') }}
                 <b>{{ previewRows.rows.length }}</b> {{ t('строк. Проверьте/отредактируйте и нажмите «Создать» — показатели добавятся в компании') }} <b>{{ t('по имени') }}</b> {{ t('за выбранный год,') }}
                 <b>{{ t('не затирая') }}</b> {{ t('существующие.') }} <span v-if="previewRows.notes">{{ previewRows.notes }}</span>
               </p>
               <p v-else class="pb-mod-hint">
-                {{ t('ИИ отнёс документ к дашборду') }} <b>«{{ previewRows.target_label }}»</b> {{ t('и распознал') }}
+                {{ t('ИИ отнёс документ к дашборду') }} <b>«{{ t(previewRows.target_label) }}»</b> {{ t('и распознал') }}
                 <b>{{ previewRows.rows.length }}</b> {{ t('строк. Авто-создание для этого дашборда ещё не подключено — ниже распознанные данные.') }} <span v-if="previewRows.notes">{{ previewRows.notes }}</span>
               </p>
               <div class="pb-tbl-wrap">
                 <table class="pb-tbl edit">
-                  <thead><tr><th v-for="f in previewRows.fields" :key="f.name" :title="f.desc">{{ f.name }}</th><th class="pb-tbl-act"></th></tr></thead>
+                  <thead><tr><th v-for="f in previewRows.fields" :key="f.name" :title="t(f.desc)">{{ f.name }}</th><th class="pb-tbl-act"></th></tr></thead>
                   <tbody>
                     <tr v-for="(r, ri) in previewRows.rows" :key="ri">
                       <td v-for="f in previewRows.fields" :key="f.name"><input v-model="r[f.name]" class="pb-cell" :placeholder="f.type" /></td>
@@ -384,7 +386,7 @@ async function submit() {
                 <label class="pb-kpi-fld">{{ t('Год') }} <input type="number" v-model.number="kpiYear" class="pb-in sm" /></label>
                 <label class="pb-kpi-fld">{{ t('Менеджер') }} <input v-model="kpiManager" class="pb-in sm wide" /></label>
                 <button class="pb-save" :disabled="creatingKpi || !previewRows.rows.length" @click="createKpi">
-                  {{ creatingKpi ? "Создаю…" : `Создать в KPI → ${previewRows.rows.length}` }}
+                  {{ creatingKpi ? t('Создаю…') : t('Создать в KPI → {value0}', { value0: previewRows.rows.length }) }}
                 </button>
               </template>
               <template v-else-if="previewRows.supported && previewRows.target === 'financials'">
@@ -396,7 +398,7 @@ async function submit() {
                   <select v-model="finReportType" class="pb-in sm"><option value="PL">{{ t('ОПУ') }}</option><option value="BS">{{ t('Баланс') }}</option><option value="CF">{{ t('ДДС') }}</option></select>
                 </label>
                 <button class="pb-save" :disabled="creatingFin || !previewRows.rows.length" @click="createFin">
-                  {{ creatingFin ? "Создаю…" : `Создать в Финансы → ${previewRows.rows.length}` }}
+                  {{ creatingFin ? t('Создаю…') : t('Создать в Финансы → {value0}', { value0: previewRows.rows.length }) }}
                 </button>
               </template>
               <button class="pb-cancel" @click="previewRows = null">{{ t('Закрыть') }}</button>

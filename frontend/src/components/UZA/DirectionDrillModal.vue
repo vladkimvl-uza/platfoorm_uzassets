@@ -32,6 +32,8 @@ import {
   type ExecDirectionDrillTask,
 } from "@/api/executiveDashboard";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 const { t } = useI18n();
 
 
@@ -86,15 +88,15 @@ function statusIcon(item: ExecDirectionDrillProject | ExecDirectionDrillTask): {
   label: string;
 } {
   if (item.is_overdue) {
-    return { symbol: "warn", color: "#E24B4A", label: "просрочено" };
+    return { symbol: "warn", color: "#E24B4A", label: i18nKey("просрочено") };
   }
   if (item.status === "done") {
-    return { symbol: "check", color: "#1D9E75", label: "завершено" };
+    return { symbol: "check", color: "#1D9E75", label: i18nKey("завершено") };
   }
   if (item.status === "active" || item.status === "review") {
-    return { symbol: "clock", color: "#EF9F27", label: "в работе" };
+    return { symbol: "clock", color: "#EF9F27", label: i18nKey("в работе") };
   }
-  return { symbol: "circle", color: "#888780", label: "не начат" };
+  return { symbol: "circle", color: "#888780", label: i18nKey("не начат") };
 }
 
 function statusTextColor(item: ExecDirectionDrillProject | ExecDirectionDrillTask): string {
@@ -112,8 +114,7 @@ async function load() {
     data.value = await fetchDirectionDrill(props.directionCode, props.year);
   } catch (err: any) {
     errorMsg.value = err?.response?.data?.detail
-      || err?.message
-      || "Не удалось загрузить данные направления";
+      || err?.message || t('Не удалось загрузить данные направления');
   } finally {
     loading.value = false;
   }
@@ -163,7 +164,7 @@ function overdueLabel(p: ExecDirectionDrillTask | ExecDirectionDrillProject): st
   const today = new Date();
   const due = new Date(p.due_date);
   const days = Math.floor((today.getTime() - due.getTime()) / 86400000);
-  if (days > 0) return `просрочено ${days} ${pluralDays(days)}`;
+  if (days > 0) return t('просрочено {value0} {value1}', { value0: days, value1: pluralDays(days) });
   return p.due_date;
 }
 function pluralDays(n: number): string {
@@ -194,7 +195,7 @@ function pluralDays(n: number): string {
             <div class="ddm-h-top">
               <div>
                 <div class="ddm-h-l">{{ t('Направление') }}</div>
-                <div class="ddm-h-title">{{ directionLabel }}</div>
+                <div class="ddm-h-title">{{ t(directionLabel) }}</div>
                 <div v-if="data" class="ddm-h-v">
                   <span class="num">{{ data.progress_pct }}</span>
                   <span class="unit">{{ t('процентов выполнения · по задачам') }}</span>
@@ -215,7 +216,7 @@ function pluralDays(n: number): string {
           </div>
 
           <!-- Loading -->
-          <UzaStateBlock v-if="loading" class="ddm-sect" state="loading" text="Загрузка данных направления…" />
+          <UzaStateBlock v-if="loading" class="ddm-sect" state="loading" :text="t('Загрузка данных направления…')" />
 
           <!-- Error -->
           <div v-else-if="errorMsg" class="ddm-sect">
@@ -256,7 +257,7 @@ function pluralDays(n: number): string {
                 v-if="!visibleCompanies.length"
                 state="empty"
                 variant="inline"
-                text="Нет компаний с проектами или задачами в этом направлении"
+                :text="t('Нет компаний с проектами или задачами в этом направлении')"
               />
 
               <div v-else class="ddm-co-list">
@@ -272,15 +273,15 @@ function pluralDays(n: number): string {
                     </span>
                     <span class="ddm-co-tick" :style="{ background: sectorColor[c.sector] || '#888780' }" />
                     <span class="ddm-co-name" :title="c.company_name">{{ c.company_name }}</span>
-                    <span class="ddm-co-stat" :title="'Проекты: ' + c.projects_done + ' завершено из ' + c.projects_total">
+                    <span class="ddm-co-stat" :title="t('Проекты: {value0} завершено из {value1}', { value0: c.projects_done, value1: c.projects_total })">
                       <svg viewBox="0 0 14 14" class="ddm-co-stat-ico"><path d="M2.5 11V4l5-1.5 5 1.5v7M5 7h4M5 9.5h4"/></svg>
                       <span class="ddm-co-stat-num">{{ c.projects_done }}</span><span class="ddm-co-stat-tot">/{{ c.projects_total }}</span>
                     </span>
-                    <span class="ddm-co-stat" :title="'Задачи: ' + c.tasks_done + ' завершено из ' + c.tasks_total">
+                    <span class="ddm-co-stat" :title="t('Задачи: {value0} завершено из {value1}', { value0: c.tasks_done, value1: c.tasks_total })">
                       <svg viewBox="0 0 14 14" class="ddm-co-stat-ico"><path d="M3 7l3 3 5-6"/></svg>
                       <span class="ddm-co-stat-num">{{ c.tasks_done }}</span><span class="ddm-co-stat-tot">/{{ c.tasks_total }}</span>
                     </span>
-                    <span class="ddm-co-overdue" v-if="c.tasks_overdue > 0" :title="c.tasks_overdue + ' просроченных задач'">
+                    <span class="ddm-co-overdue" v-if="c.tasks_overdue > 0" :title="t('{value0} просроченных задач', { value0: c.tasks_overdue })">
                       ⚠ {{ c.tasks_overdue }}
                     </span>
                     <span v-else></span>
@@ -298,7 +299,7 @@ function pluralDays(n: number): string {
                         :key="p.id"
                         class="ddm-itm-row"
                         @click="gotoProject(p.id)"
-                        :title="'Открыть проект «' + p.title + '»'"
+                        :title="t('Открыть проект «{value0}»', { value0: p.title })"
                       >
                         <span class="ddm-itm-ico" :style="{ color: statusIcon(p).color }">
                           <svg v-if="statusIcon(p).symbol === 'check'" viewBox="0 0 14 14" class="svg-ic" width="10" height="10"><path d="M3 7l2.5 2.5L11 4.5"/></svg>
@@ -308,9 +309,9 @@ function pluralDays(n: number): string {
                         </span>
                         <span class="ddm-itm-name">{{ p.title }}</span>
                         <span class="ddm-itm-meta" :style="p.is_overdue ? { color: '#A32D2D' } : undefined">
-                          {{ p.is_overdue ? overdueLabel(p) : formatDate(p.due_date) }}
+                          {{ p.is_overdue ? t(overdueLabel(p)) : formatDate(p.due_date) }}
                         </span>
-                        <span class="ddm-itm-status" :style="{ color: statusTextColor(p) }">{{ statusIcon(p).label }}</span>
+                        <span class="ddm-itm-status" :style="{ color: statusTextColor(p) }">{{ t(statusIcon(p).label) }}</span>
                       </div>
                     </div>
                     <div v-else class="ddm-co-empty">{{ t('Проектов в этом направлении нет') }}</div>
@@ -333,21 +334,21 @@ function pluralDays(n: number): string {
                         </span>
                       </div>
                       <div
-                        v-for="t in tasksFullyShown.has(c.company_id) ? c.tasks : c.tasks.slice(0, TASKS_VISIBLE)"
-                        :key="t.id"
+                        v-for="tk in tasksFullyShown.has(c.company_id) ? c.tasks : c.tasks.slice(0, TASKS_VISIBLE)"
+                        :key="tk.id"
                         class="ddm-itm-row"
                       >
-                        <span class="ddm-itm-ico" :style="{ color: statusIcon(t).color }">
-                          <svg v-if="statusIcon(t).symbol === 'check'" viewBox="0 0 14 14" class="svg-ic" width="10" height="10"><path d="M3 7l2.5 2.5L11 4.5"/></svg>
-                          <svg v-else-if="statusIcon(t).symbol === 'clock'" viewBox="0 0 14 14" class="svg-ic" width="10" height="10"><circle cx="7" cy="7" r="4"/><path d="M7 5v2l1.5 1"/></svg>
-                          <svg v-else-if="statusIcon(t).symbol === 'warn'" viewBox="0 0 14 14" class="svg-ic" width="10" height="10"><circle cx="7" cy="7" r="4"/><path d="M7 4v3M7 9.5h.01"/></svg>
+                        <span class="ddm-itm-ico" :style="{ color: statusIcon(tk).color }">
+                          <svg v-if="statusIcon(tk).symbol === 'check'" viewBox="0 0 14 14" class="svg-ic" width="10" height="10"><path d="M3 7l2.5 2.5L11 4.5"/></svg>
+                          <svg v-else-if="statusIcon(tk).symbol === 'clock'" viewBox="0 0 14 14" class="svg-ic" width="10" height="10"><circle cx="7" cy="7" r="4"/><path d="M7 5v2l1.5 1"/></svg>
+                          <svg v-else-if="statusIcon(tk).symbol === 'warn'" viewBox="0 0 14 14" class="svg-ic" width="10" height="10"><circle cx="7" cy="7" r="4"/><path d="M7 4v3M7 9.5h.01"/></svg>
                           <svg v-else viewBox="0 0 14 14" class="svg-ic" width="10" height="10"><circle cx="7" cy="7" r="4"/></svg>
                         </span>
-                        <span class="ddm-itm-name">{{ t.title }}</span>
-                        <span class="ddm-itm-meta" :style="t.is_overdue ? { color: '#A32D2D' } : undefined">
-                          {{ t.assignee_name || (t.is_overdue ? overdueLabel(t) : formatDate(t.due_date)) }}
+                        <span class="ddm-itm-name">{{ tk.title }}</span>
+                        <span class="ddm-itm-meta" :style="tk.is_overdue ? { color: '#A32D2D' } : undefined">
+                          {{ tk.assignee_name || (tk.is_overdue ? overdueLabel(tk) : formatDate(tk.due_date)) }}
                         </span>
-                        <span class="ddm-itm-status" :style="{ color: statusTextColor(t) }">{{ statusIcon(t).label }}</span>
+                        <span class="ddm-itm-status" :style="{ color: statusTextColor(tk) }">{{ t(statusIcon(tk).label) }}</span>
                       </div>
                     </div>
                     <div v-else class="ddm-co-empty">{{ t('Задач в этом направлении нет') }}</div>
