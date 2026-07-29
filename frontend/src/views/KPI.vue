@@ -21,6 +21,7 @@
 
         <!-- ИИ-анализ KPI (исполнение / связь с финансами / прогноз) -->
         <KpiAiAnalysis
+          v-if="canUseAi"
           :companies="state.companies.value"
           :year="state.selectedYear.value"
           :period="state.selectedPeriod.value"
@@ -153,6 +154,7 @@ import UzaYearStepper from "@/components/UZA/UzaYearStepper.vue";
 import { usePermissions } from "@/composables/usePermissions";
 import { useI18n } from "@/composables/useI18n";
 import { useCompanyScope } from "@/composables/useCompanyScope";
+import { useAiFeatureAccess } from "@/composables/useAiFeatureAccess";
 import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
 import { useAuthStore } from "@/stores/auth";
@@ -164,6 +166,7 @@ const toast = useToast();
 const { confirmDialog } = useConfirm();
 const canEdit = _perm.canEdit;
 const canDelete = _perm.canDelete;
+const { canUseAi } = useAiFeatureAccess();
 
 const auth = useAuthStore();
 const canCreateCompany = computed(() => auth.hasPermission("companies.create"));

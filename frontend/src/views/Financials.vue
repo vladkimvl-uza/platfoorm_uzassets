@@ -37,7 +37,7 @@ import IfrsReportHistory from "@/components/Financials/IfrsReportHistory.vue";
 import HighLevelFinancials from "@/components/Financials/HighLevelFinancials.vue";
 import FinCopilot from "@/components/Financials/FinCopilot.vue";
 import FinForecastModal from "@/components/Financials/FinForecastModal.vue";
-import { useAiActivation } from "@/composables/useAiActivation";
+import { useAiFeatureAccess } from "@/composables/useAiFeatureAccess";
 
 import {
   computePortfolioKpis, filterBySector,
@@ -68,8 +68,7 @@ const viewTab    = useSavedFilter<string>("financials.viewTab", "PL");
 const activeMetric = useSavedFilter<string>("financials.activeMetric", "revenue");
 
 // Финансовый ИИ-копилот: доступ (скрыт для тех, у кого нет) + контекст экрана
-const aiAccess = useAiActivation();
-aiAccess.load();
+const { canUseAi } = useAiFeatureAccess();
 const forecastOpen = ref(false);
 const copilotContext = computed(() =>
   t("FY {year} · {standard} · {currency} · {unit} · {view} · метрика {metric}", {
@@ -388,7 +387,7 @@ function onModalClose() {
       </template>
       <template #actions>
         <button class="fd-forecast-btn" type="button" @click="forecastOpen = true" :title="t('Прогноз показателей')">{{ t("Прогноз") }}</button>
-        <FinCopilot v-if="aiAccess.state.hasAccess" :context="copilotContext" />
+        <FinCopilot v-if="canUseAi" :context="copilotContext" />
         <div class="fd-menu-wrap">
           <button class="fd-menu-trig" :class="{ on: menuOpen }" @click.stop="menuOpen = !menuOpen" :title="t('Действия')">
             <svg viewBox="0 0 14 14" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">

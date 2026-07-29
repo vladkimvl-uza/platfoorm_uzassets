@@ -107,11 +107,13 @@ export const uz: Record<string, string> = {
   "назначения": "tayinlovlar",
   "консультант": "maslahatchi",
   "включён": "yoqilgan",
+  "включены": "yoqilgan",
 
   // ── Системные детали ленты активности ──
   "Статус: {from} → {to}": "Holat: {from} → {to}",
   "Режим доступа к ИИ: {from} → {to}": "AI kirish rejimi: {from} → {to}",
   "Ассистент: {from} → {to}": "Assistent: {from} → {to}",
+  "ИИ-инструменты: {from} → {to}": "AI vositalari: {from} → {to}",
   "Обновлено {count} показателей за {year}": "{year}-yil uchun {count} ta koʻrsatkich yangilandi",
   "Обновлено KPI за {year} · {count} руководителей": "{year}-yil KPI yangilandi · {count} ta rahbar",
   "Удалён срез прогресса «{label}» ({year})": "«{label}» jarayon kesimi oʻchirildi ({year})",
@@ -319,11 +321,13 @@ export const en: Record<string, string> = {
   "назначения": "assignments",
   "консультант": "consultant",
   "включён": "enabled",
+  "включены": "enabled",
 
   // ── System activity details ──
   "Статус: {from} → {to}": "Status: {from} → {to}",
   "Режим доступа к ИИ: {from} → {to}": "AI access mode: {from} → {to}",
   "Ассистент: {from} → {to}": "Assistant: {from} → {to}",
+  "ИИ-инструменты: {from} → {to}": "AI tools: {from} → {to}",
   "Обновлено {count} показателей за {year}": "Updated {count} indicators for {year}",
   "Обновлено KPI за {year} · {count} руководителей": "Updated KPI for {year} · {count} managers",
   "Удалён срез прогресса «{label}» ({year})": "Deleted progress snapshot “{label}” ({year})",

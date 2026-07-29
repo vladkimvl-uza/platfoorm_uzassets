@@ -241,7 +241,7 @@ export const MODULE_REGISTRY = [
   { code: 'pmo',          label: i18nKey('PMO (расписание/Гантт)'),      hasExport: true,  hasEdit: true,  hasImport: false },
   { code: 'reports',      label: i18nKey('Отчёты'),                      hasExport: true,  hasEdit: false, hasImport: false },
   { code: 'monitoring',   label: i18nKey('Мониторинг (Execution Summary)'), hasExport: true, hasEdit: true, hasImport: false },
-  { code: 'ai',           label: i18nKey('AI-чат'),                      hasExport: false, hasEdit: false, hasImport: false },
+  { code: 'ai',           label: i18nKey('ИИ: чат и аналитика'),         hasExport: false, hasEdit: false, hasImport: false },
 ] as const satisfies readonly ModuleDef[];
 
 export type ModuleCode = typeof MODULE_REGISTRY[number]['code'];

@@ -21,7 +21,7 @@ from typing import Any, Optional
 from uuid import UUID
 
 import httpx
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -246,6 +246,7 @@ class IngestOut(BaseModel):
 
 @router.post("/ingest", response_model=IngestOut)
 async def ingest_document(
+    request: Request,
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(require_permission("tasks.edit")),
@@ -258,6 +259,9 @@ async def ingest_document(
     подтверждение идёт через /builder/bulk; прочие цели — пока только распознавание.
     """
     from app.services import ingest_registry as reg
+    from app.api.routes.ai import require_ai_feature_access
+
+    await require_ai_feature_access(request, user, db)
 
     if not ai_service.is_enabled():
         raise HTTPException(503, "ИИ-импорт недоступен: ИИ-движок не настроен.")

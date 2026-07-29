@@ -155,6 +155,7 @@ const ACTIVITY_STATUS_LABELS: Record<string, string> = {
   "только владелец": i18nKey("только владелец"),
   "по правам (ai.view)": i18nKey("по правам (ai.view)"),
   "включён": i18nKey("включён"), "выключен": i18nKey("выключен"),
+  "включены": i18nKey("включены"), "выключены": i18nKey("выключены"),
 };
 
 function translateActivityValue(value: string): string {
@@ -176,6 +177,10 @@ export function translateActivityDetail(rawValue: unknown): string {
   });
   match = raw.match(/^Ассистент:\s*(.*?)\s*→\s*(.*?)$/);
   if (match) return translateUi("Ассистент: {from} → {to}", {
+    from: translateActivityValue(match[1]), to: translateActivityValue(match[2]),
+  });
+  match = raw.match(/^ИИ-инструменты:\s*(.*?)\s*→\s*(.*?)$/);
+  if (match) return translateUi("ИИ-инструменты: {from} → {to}", {
     from: translateActivityValue(match[1]), to: translateActivityValue(match[2]),
   });
   match = raw.match(/^Обновлено (\d+) показателей за (\d{4})$/);

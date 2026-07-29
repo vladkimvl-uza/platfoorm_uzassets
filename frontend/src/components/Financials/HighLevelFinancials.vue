@@ -25,11 +25,13 @@ import { useConfirm } from "@/composables/useConfirm";
 import { useI18n } from "@/composables/useI18n";
 import { useCompanyScope } from "@/composables/useCompanyScope";
 import { i18nKey } from "@/locale/keys";
+import { useAiFeatureAccess } from "@/composables/useAiFeatureAccess";
 
 
 const toast = useToast();
 const { confirmDialog } = useConfirm();
 const { t } = useI18n();
+const { canUseAi } = useAiFeatureAccess();
 // Область доступа: пользователю с одной компанией селектор не нужен,
 // портфельный охват ИИ-анализа ограниченным пользователям не показываем.
 const scope = useCompanyScope();
@@ -315,6 +317,7 @@ type AnSavedRec = {
 const anSaved = ref<Record<string, AnSavedRec>>({});
 
 async function fetchSaved(): Promise<void> {
+  if (!canUseAi.value) return;
   try {
     const { api } = await import("@/api/client");
     const resp = await api.get("/ai/saved/hlf");
@@ -369,6 +372,7 @@ async function saveAnalysis(): Promise<void> {
   }
 }
 async function openAnalysis() {
+  if (!canUseAi.value) return;
   anOpen.value = true;
   // Подставляем компанию, выбранную на странице, как компанию анализа по умолчанию.
   if (selectedCode.value && displayCompanies.value.some(c => c.code === selectedCode.value))
@@ -516,7 +520,7 @@ function exportPrint() {
 }
 
 async function runAnalysis() {
-  if (anLoading.value) return;
+  if (anLoading.value || !canUseAi.value) return;
   anOpen.value = true;
   anLoading.value = true;
   anError.value = "";
@@ -1306,7 +1310,7 @@ const kpiCards = computed(() => kpis.value.map(k => ({
                  fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5L6 7.5l3-3"/></svg>
           </button>
         </div>
-        <button class="hlf-btn-analyze" @click="openAnalysis" :disabled="anLoading">
+        <button v-if="canUseAi" class="hlf-btn-analyze" @click="openAnalysis" :disabled="anLoading">
           <svg viewBox="0 0 14 14" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9l3-3 2.5 2.5L12 4M12 4H8.5M12 4v3.5"/></svg>
           {{ anLoading ? t("Анализирую…") : t("Анализ ИИ") }}
         </button>
@@ -1548,7 +1552,7 @@ const kpiCards = computed(() => kpis.value.map(k => ({
 
   <!-- Модалка ИИ-анализа высокоуровневых показателей -->
   <Teleport to="body">
-    <div v-if="anOpen" class="hlf-an-back" @click.self="anOpen = false" role="dialog" aria-modal="true">
+    <div v-if="anOpen && canUseAi" class="hlf-an-back" @click.self="anOpen = false" role="dialog" aria-modal="true">
       <div class="hlf-an-card">
         <header class="hlf-an-hd">
           <div class="hlf-an-hd-txt">

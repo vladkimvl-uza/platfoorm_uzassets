@@ -40,7 +40,7 @@
           </div>
         </div>
         </template>
-        <div class="bp-tb-ai">
+        <div v-if="canUseAi" class="bp-tb-ai">
           <BpAiAnalysis :companies="state.companies.value" :year="state.selectedYear.value"
                         :period="state.selectedPeriod.value" :selected-id="state.selectedCompanyId.value" />
         </div>
@@ -202,11 +202,13 @@ import { usePermissions } from "@/composables/usePermissions";
 import { useAuthStore } from "@/stores/auth";
 import { useI18n } from "@/composables/useI18n";
 import { useCompanyScope } from "@/composables/useCompanyScope";
+import { useAiFeatureAccess } from "@/composables/useAiFeatureAccess";
 import type { CompanyDetail } from "@/api/companies";
 
 const perm = usePermissions("bp");
 const canEdit = perm.canEdit;
 const canDelete = perm.canDelete;
+const { canUseAi } = useAiFeatureAccess();
 
 const auth = useAuthStore();
 const canCreateCompany = computed(() => auth.hasPermission("companies.create"));

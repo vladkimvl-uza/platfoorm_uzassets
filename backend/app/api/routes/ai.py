@@ -10,6 +10,7 @@ mid-stream event capture for persistence is transport-specific).
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import re
@@ -180,7 +181,7 @@ async def require_ai_access(
     if not await _has_ai_access(user, db):
         raise HTTPException(
             status.HTTP_403_FORBIDDEN,
-            "Нет доступа к ИИ-ассистенту",
+            "Нет доступа к ИИ-инструментам",
         )
     api_key = getattr(request.state, "api_key", None)
     if api_key is not None:
@@ -267,6 +268,21 @@ async def _assistant_active(db: AsyncSession) -> bool:
     return bool((row.value or {}).get("active", True))
 
 
+async def require_ai_feature_access(
+    request: Request,
+    user: User,
+    db: AsyncSession,
+) -> User:
+    """Единый гейт для AI-функций, размещённых вне роутера `/ai`."""
+    await require_ai_access(request=request, user=user, db=db)
+    if not await _assistant_active(db) and not getattr(user, "is_owner", False):
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "ИИ-инструменты выключены владельцем",
+        )
+    return user
+
+
 @router.get("/activation")
 async def get_ai_activation(
     db: AsyncSession = Depends(get_db),
@@ -304,7 +320,7 @@ async def set_ai_access_mode(
     # — разобрать инцидент «почему ИИ был открыт всем три недели» было нельзя.
     # Пишем СТАРОЕ → НОВОЕ значение (аудит-мидлварь заберёт из request.state).
     _RU = {"owner_only": "только владелец", "rbac": "по правам (ai.view)"}
-    request.state.activity_entity = "ИИ-ассистент"
+    request.state.activity_entity = "ИИ-инструменты"
     request.state.activity_summary = (
         f"Режим доступа к ИИ: {_RU.get(prev, prev)} → {_RU.get(mode, mode)}"
     )
@@ -329,10 +345,10 @@ async def set_ai_activation(
         row.value = {"active": active}
     await db.commit()
     # P2 аудита: старое → новое значение в журнале (см. /access-mode).
-    request.state.activity_entity = "ИИ-ассистент"
+    request.state.activity_entity = "ИИ-инструменты"
     request.state.activity_summary = (
-        f"Ассистент: {'включён' if prev else 'выключен'} → "
-        f"{'включён' if active else 'выключен'}"
+        f"ИИ-инструменты: {'включены' if prev else 'выключены'} → "
+        f"{'включены' if active else 'выключены'}"
     )
     return {"active": active, "can_toggle": True}
 
@@ -352,7 +368,7 @@ async def ai_forecast(
     # управляет) доступа не теряет — иначе режим owner_only при выкл. тумблере
     # запирал бы и самого владельца.
     if not await _assistant_active(db) and not getattr(user, "is_owner", False):
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "ИИ-ассистент деактивирован владельцем")
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "ИИ-инструменты выключены владельцем")
     metric = str((payload or {}).get("metric_label") or "показатель")
     try:
         target_years = [int(y) for y in (payload.get("target_years") or [])][:5]
@@ -568,7 +584,7 @@ async def ai_hlf_analysis(
     if not is_enabled():
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "AI is not configured")
     if not await _assistant_active(db) and not getattr(user, "is_owner", False):
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "ИИ-ассистент деактивирован владельцем")
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "ИИ-инструменты выключены владельцем")
     year = payload.get("year")
     labels: dict = payload.get("metric_labels") or {}
     units: dict = payload.get("metric_units") or {}
@@ -694,7 +710,7 @@ async def ai_kpi_analysis(
     if not is_enabled():
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "AI is not configured")
     if not await _assistant_active(db) and not getattr(user, "is_owner", False):
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "ИИ-ассистент деактивирован владельцем")
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "ИИ-инструменты выключены владельцем")
     year = payload.get("year")
     period = str(payload.get("period") or "year")
     mode = str(payload.get("mode") or "performance").lower()
@@ -951,7 +967,7 @@ async def ai_bp_analysis(
     if not is_enabled():
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "AI is not configured")
     if not await _assistant_active(db) and not getattr(user, "is_owner", False):
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "ИИ-ассистент деактивирован владельцем")
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "ИИ-инструменты выключены владельцем")
     year = payload.get("year")
     period = str(payload.get("period") or "annual")
     mode = str(payload.get("mode") or "performance").lower()
@@ -1156,6 +1172,31 @@ EXEC_BRIEF_INSTRUCTIONS = (
 )
 
 
+async def _exec_brief_saved_key(
+    db: AsyncSession,
+    user: User,
+    *,
+    year: int,
+    focus: str | None,
+    sectors: list[str] | None = None,
+    company_id: UUID | None = None,
+) -> str:
+    """Build a user- and data-scope-specific key for saved executive briefs."""
+    allowed = await allowed_company_ids(db, user)
+    scope = "*" if allowed is None else sorted(str(value) for value in allowed)
+    payload = {
+        "user_id": str(user.id),
+        "scope": scope,
+        "sectors": sorted({str(value).strip() for value in (sectors or []) if str(value).strip()}),
+        "company_id": str(company_id) if company_id else None,
+    }
+    digest = hashlib.sha256(
+        json.dumps(payload, ensure_ascii=True, sort_keys=True).encode("utf-8")
+    ).hexdigest()[:24]
+    normalized_focus = focus if focus in {"risks", "delays"} else "overview"
+    return f"ai_saved:exec_brief:v2:{year}:{normalized_focus}:{digest}"
+
+
 @router.post("/exec-sector-brief", dependencies=[Depends(_RL_HEAVY)])
 async def exec_sector_brief(
     payload: ExecBriefRequest,
@@ -1168,10 +1209,8 @@ async def exec_sector_brief(
     (RBAC-scope), затем Opus даёт краткую сводку: причины, взаимосвязи, советы."""
     if not is_enabled():
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "AI is not configured")
-    if not getattr(user, "is_owner", False):
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "ИИ-аналитик исполнения доступен только владельцу")
-    if not await _assistant_active(db):
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "ИИ-ассистент деактивирован владельцем")
+    if not await _assistant_active(db) and not getattr(user, "is_owner", False):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "ИИ-инструменты выключены владельцем")
     try:
         context, scope = await build_exec_brief_context(
             db, user, year=payload.year, sectors=payload.sectors, company_id=payload.company_id,
@@ -1204,7 +1243,14 @@ async def exec_sector_brief(
         "scope": scope,
         "generated_at": datetime.now(UTC).isoformat(),
     }
-    key = f"ai_saved:exec_brief:{payload.year}:{payload.focus or 'overview'}"
+    key = await _exec_brief_saved_key(
+        db,
+        user,
+        year=payload.year,
+        focus=payload.focus,
+        sectors=payload.sectors,
+        company_id=payload.company_id,
+    )
     row = (await db.execute(select(SystemConfig).where(SystemConfig.key == key))).scalar_one_or_none()
     if row:
         row.value = saved
@@ -1218,13 +1264,21 @@ async def exec_sector_brief(
 async def exec_sector_brief_saved(
     year: int,
     focus: str | None = None,
+    sectors: str | None = None,
+    company_id: UUID | None = None,
     user: User = Depends(require_ai_access),
     db: AsyncSession = Depends(get_db),
 ):
-    """Последняя сохранённая ИИ-сводка исполнения по секторам (owner-only)."""
-    if not getattr(user, "is_owner", False):
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Доступно только владельцу")
-    key = f"ai_saved:exec_brief:{year}:{focus or 'overview'}"
+    """Последняя сохранённая ИИ-сводка в текущей RBAC-области пользователя."""
+    sector_values = [value.strip() for value in (sectors or "").split(",") if value.strip()]
+    key = await _exec_brief_saved_key(
+        db,
+        user,
+        year=year,
+        focus=focus,
+        sectors=sector_values,
+        company_id=company_id,
+    )
     row = (await db.execute(select(SystemConfig).where(SystemConfig.key == key))).scalar_one_or_none()
     return row.value if (row and row.value) else {}
 
@@ -1338,7 +1392,7 @@ async def chat(
     if not await _assistant_active(db) and not getattr(user, "is_owner", False):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="ИИ-ассистент деактивирован владельцем",
+            detail="ИИ-инструменты выключены владельцем",
         )
     # Атрибуция action-инструментов (notify_user) — кто отправитель
     set_current_user_id(user.id)

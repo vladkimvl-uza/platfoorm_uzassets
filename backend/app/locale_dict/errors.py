@@ -2,13 +2,12 @@
 
 UZ: dict[str, str] = {
     # AI and document ingestion
-    "Нет доступа к ИИ-ассистенту": "AI assistentga kirish huquqi yo'q",
+    "Нет доступа к ИИ-инструментам": "AI vositalariga kirish huquqi yo'q",
     "Только владелец может менять доступ к ассистенту": "Assistentga kirish huquqini faqat platforma egasi o'zgartira oladi",
     "mode должен быть 'owner_only' или 'rbac'": "mode qiymati 'owner_only' yoki 'rbac' bo'lishi kerak",
     "Только владелец может управлять ассистентом": "Assistentni faqat platforma egasi boshqara oladi",
     "Нет KPI-данных для анализа": "Tahlil uchun KPI ma'lumotlari yo'q",
     "Нет данных бизнес-плана для анализа": "Tahlil uchun biznes-reja ma'lumotlari yo'q",
-    "ИИ-аналитик исполнения доступен только владельцу": "Ijro bo'yicha AI tahlilchi faqat platforma egasi uchun mavjud",
     "Доступно только владельцу": "Faqat platforma egasi uchun mavjud",
     "Портфельный анализ может сохранять только пользователь с доступом ко всем компаниям": "Portfel tahlilini faqat barcha kompaniyalarga kirish huquqi bor foydalanuvchi saqlashi mumkin",
     "Неизвестная компания в ключе": "Kalitda noma'lum kompaniya ko'rsatilgan",
@@ -303,13 +302,12 @@ UZ: dict[str, str] = {
 
 EN: dict[str, str] = {
     # AI and document ingestion
-    "Нет доступа к ИИ-ассистенту": "You do not have access to the AI assistant",
+    "Нет доступа к ИИ-инструментам": "You do not have access to AI tools",
     "Только владелец может менять доступ к ассистенту": "Only the platform owner can change access to the assistant",
     "mode должен быть 'owner_only' или 'rbac'": "mode must be 'owner_only' or 'rbac'",
     "Только владелец может управлять ассистентом": "Only the platform owner can manage the assistant",
     "Нет KPI-данных для анализа": "No KPI data is available for analysis",
     "Нет данных бизнес-плана для анализа": "No business plan data is available for analysis",
-    "ИИ-аналитик исполнения доступен только владельцу": "The AI execution analyst is available only to the platform owner",
     "Доступно только владельцу": "Available only to the platform owner",
     "Портфельный анализ может сохранять только пользователь с доступом ко всем компаниям": "Portfolio analysis can be saved only by a user with access to all companies",
     "Неизвестная компания в ключе": "The key contains an unknown company",

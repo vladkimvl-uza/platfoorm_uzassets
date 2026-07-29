@@ -1750,8 +1750,8 @@ async def _patch_rbac_module_permissions(conn) -> None:
         ("monitoring.edit", "monitoring", "edit", "Edit monitoring"),
         ("monitoring.export", "monitoring", "export", "Export monitoring"),
         ("monitoring.manage", "monitoring", "manage", "Manage monitoring"),
-        ("ai.view", "ai", "view", "Use AI assistant"),
-        ("ai.manage", "ai", "manage", "Manage AI assistant"),
+        ("ai.view", "ai", "view", "Use AI chat and analytics"),
+        ("ai.manage", "ai", "manage", "Manage AI chat and analytics"),
     )
     # Коды, которых в каталоге ещё нет, фиксируем ДО вставки: раздавать права
     # ролям можно только за них. Иначе self-heal при каждом рестарте бэкенда
@@ -1770,7 +1770,8 @@ async def _patch_rbac_module_permissions(conn) -> None:
                 INSERT INTO permissions (id, code, name, module, action, created_at, updated_at)
                 VALUES (gen_random_uuid(), :code, :name, :module, :action, now(), now())
                 ON CONFLICT (code) DO UPDATE
-                SET module = EXCLUDED.module,
+                SET name = EXCLUDED.name,
+                    module = EXCLUDED.module,
                     action = EXCLUDED.action,
                     updated_at = now()
                 """

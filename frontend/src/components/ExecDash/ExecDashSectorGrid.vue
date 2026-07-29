@@ -14,9 +14,11 @@ import { useNumberTween } from "@/composables/useNumberTween";
 import ExecDashSectorCard from "./ExecDashSectorCard.vue";
 import CompanyDrillModal from "@/components/UZA/CompanyDrillModal.vue";
 import ExecCopilot from "./ExecCopilot.vue";
+import { useAiFeatureAccess } from "@/composables/useAiFeatureAccess";
 
 const { t } = useI18n();
 const exec = useExecutiveDashboard();
+const { canUseAi } = useAiFeatureAccess();
 
 const sectors = computed(() => exec.data.value?.sectors || []);
 
@@ -69,7 +71,7 @@ function closeDrill() {
         · {{ exec.year.value }}
       </span>
       <span class="sub">{{ headerSub }}</span>
-      <ExecCopilot :year="exec.year.value" />
+      <ExecCopilot v-if="canUseAi" :year="exec.year.value" />
     </div>
 
     <!-- Grid -->

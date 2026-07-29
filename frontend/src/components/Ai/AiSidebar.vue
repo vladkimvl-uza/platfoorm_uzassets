@@ -104,7 +104,7 @@
       <div v-if="canToggle" class="ai-sb-act" :class="{ off: !aiActive }">
         <span class="ai-sb-act-l">
           <span class="ai-sb-act-dot" :class="{ on: aiActive }" />
-          {{ t('ИИ-ассистент') }} {{ aiActive ? t('активен') : t('выключен') }}
+          {{ aiActive ? t('ИИ-инструменты активны') : t('ИИ-инструменты выключены') }}
         </span>
         <button class="ai-sb-switch" :class="{ on: aiActive }" :disabled="toggling"
                 @click="toggleActive" :title="aiActive ? t('Деактивировать') : t('Активировать')">
@@ -122,7 +122,7 @@
         </button>
       </div>
       <div v-else-if="!aiActive" class="ai-sb-act off">
-        <span class="ai-sb-act-l"><span class="ai-sb-act-dot" /> {{ t('ИИ-ассистент выключен владельцем') }}</span>
+        <span class="ai-sb-act-l"><span class="ai-sb-act-dot" /> {{ t('ИИ-инструменты выключены владельцем') }}</span>
       </div>
       <button v-if="canToggle" class="ai-sb-set" type="button" @click="kbOpen = true">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"

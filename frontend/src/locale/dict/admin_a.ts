@@ -45,7 +45,7 @@ export const uz: Record<string, string> = {
   "Анализ закупок": "Xaridlar tahlili",
   "PMO (расписание/Гантт)": "PMO (jadval/Gantt)",
   "Мониторинг (Execution Summary)": "Monitoring (Execution Summary)",
-  "AI-чат": "AI-chat",
+  "ИИ: чат и аналитика": "AI: chat va tahlil",
 
   // ── Фидбэк сохранения ──
   "Доступ к модулям сохранён": "Modullarga ruxsat saqlandi",
@@ -161,7 +161,7 @@ export const en: Record<string, string> = {
   "Анализ закупок": "Procurement analysis",
   "PMO (расписание/Гантт)": "PMO (schedule/Gantt)",
   "Мониторинг (Execution Summary)": "Monitoring (Execution Summary)",
-  "AI-чат": "AI chat",
+  "ИИ: чат и аналитика": "AI: chat and analytics",
 
   "Доступ к модулям сохранён": "Module access saved",
   "Не удалось сохранить доступ к модулям": "Could not save module access",

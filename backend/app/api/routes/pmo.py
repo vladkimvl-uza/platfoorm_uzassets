@@ -12,7 +12,7 @@ from datetime import date, datetime, timezone
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi import status as http_status
 from fastapi.responses import JSONResponse
 from sqlalchemy import select
@@ -687,6 +687,7 @@ async def list_status_reports(
 async def create_status_report(
     code: str,
     payload: StatusReportCreate,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -694,6 +695,9 @@ async def create_status_report(
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Нет права формировать отчёт (pmo.edit)")
     company = await _company_or_404(db, code)
     await ensure_company_access(db, user, company.id)
+    if payload.use_ai:
+        from app.api.routes.ai import require_ai_feature_access
+        await require_ai_feature_access(request, user, db)
     try:
         rep = await generate_status_report(db, code, payload.project_id, payload.use_ai, user.id, date.today())
     except Exception:

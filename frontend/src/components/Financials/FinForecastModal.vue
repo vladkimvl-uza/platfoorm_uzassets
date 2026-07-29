@@ -15,9 +15,11 @@ import {
 } from "@/utils/forecast";
 import { useI18n } from "@/composables/useI18n";
 import { i18nKey } from "@/locale/keys";
+import { useAiFeatureAccess } from "@/composables/useAiFeatureAccess";
 
 
 const { t } = useI18n();
+const { canUseAi } = useAiFeatureAccess();
 
 const props = defineProps<{
   summary: PortfolioSummaryResponse;
@@ -25,6 +27,7 @@ const props = defineProps<{
   aiEnabled?: boolean;
 }>();
 const emit = defineEmits<{ (e: "close"): void; (e: "ai-generate"): void }>();
+const showAiGenerate = computed(() => !!props.aiEnabled && canUseAi.value);
 
 const METRICS = [
   { id: "revenue", label: i18nKey("Выручка") },
@@ -126,11 +129,11 @@ function fmt(v: number | null): string {
 
     <div class="ffc-body">
         <!-- Авто-прогноз с помощью ИИ -->
-        <button v-if="aiEnabled" class="ffc-ai-btn" type="button" @click="emit('ai-generate')">
+        <button v-if="showAiGenerate" class="ffc-ai-btn" type="button" @click="emit('ai-generate')">
           {{ t("Сгенерировать с помощью ИИ") }}
           <span class="ffc-ai-sub">{{ t("по данным модуля + web") }}</span>
         </button>
-        <div v-if="aiEnabled" class="ffc-ai-or">{{ t("или настройте модель вручную") }}</div>
+        <div v-if="showAiGenerate" class="ffc-ai-or">{{ t("или настройте модель вручную") }}</div>
 
         <!-- Шаг 1: объект -->
         <div class="ffc-field">

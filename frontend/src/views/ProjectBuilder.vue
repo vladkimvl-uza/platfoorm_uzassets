@@ -7,7 +7,7 @@
  * задача), вложенные задачи под проектами + отдельные задачи. Один вызов
  * /builder/bulk создаёт всё.
  */
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { api } from "@/api/client";
 import { useToast } from "@/composables/useToast";
 import ModalShell from "@/components/ModalShell.vue";
@@ -15,6 +15,7 @@ import EptLogo from "@/components/EptLogo.vue";
 import { useCompanyScope } from "@/composables/useCompanyScope";
 import { useI18n } from "@/composables/useI18n";
 import { i18nKey } from "@/locale/keys";
+import { useAiFeatureAccess } from "@/composables/useAiFeatureAccess";
 
 const { t } = useI18n();
 
@@ -28,6 +29,7 @@ const toast = useToast();
 // Область доступа: при единственной доступной компании шаг «Компании» не
 // показываем — выбирать не из чего, компания проставляется сама.
 const scope = useCompanyScope();
+const { canUseAi } = useAiFeatureAccess();
 /** Номер шага в мастере: без шага «Компании» нумерация сдвигается на один. */
 function stepNo(n: number): number { return scope.showCompanyPicker.value ? n : n - 1; }
 const companies = ref<Co[]>([]);
@@ -103,7 +105,15 @@ const importing = ref(false);
 const ingest = ref<IngestRes | null>(null);       // последний результат (для баннера)
 const previewRows = ref<IngestRes | null>(null);   // модал превью для неподдержанных целей
 
-function pickFile() { fileInput.value?.click(); }
+function pickFile() {
+  if (canUseAi.value) fileInput.value?.click();
+}
+
+watch(canUseAi, (allowed) => {
+  if (allowed) return;
+  ingest.value = null;
+  previewRows.value = null;
+});
 
 function addPreviewRow() {
   if (!previewRows.value) return;
@@ -166,6 +176,7 @@ async function createFin() {
 }
 
 async function onFile(e: Event) {
+  if (!canUseAi.value) return;
   const input = e.target as HTMLInputElement;
   const f = input.files?.[0];
   input.value = "";
@@ -234,8 +245,8 @@ async function submit() {
         <div><div class="pb-eyebrow">{{ t('МАССОВОЕ ЗАВЕДЕНИЕ') }}</div><div class="pb-tt">{{ t('Конструктор проектов и задач') }}</div></div>
       </div>
       <div class="pb-top-r">
-        <input ref="fileInput" type="file" accept=".xlsx,.xlsm,.xls,.csv,.tsv,.txt,.pdf,.docx" class="pb-file" @change="onFile" />
-        <button class="pb-import" :disabled="importing" @click="pickFile" :title="t('Excel / CSV / PDF — ИИ распознает и заполнит')">
+        <input v-if="canUseAi" ref="fileInput" type="file" accept=".xlsx,.xlsm,.xls,.csv,.tsv,.txt,.pdf,.docx" class="pb-file" @change="onFile" />
+        <button v-if="canUseAi" class="pb-import" :disabled="importing" @click="pickFile" :title="t('Excel / CSV / PDF — ИИ распознает и заполнит')">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
           {{ importing ? t('Распознаю…') : t('Импорт из файла') }}
         </button>
@@ -247,7 +258,7 @@ async function submit() {
 
     <!-- ИИ-баннер: какой дашборд распознан -->
     <Transition name="pb-modal">
-      <div v-if="ingest && ingest.target === 'projects_tasks'" class="pb-ai-banner ok">
+      <div v-if="canUseAi && ingest && ingest.target === 'projects_tasks'" class="pb-ai-banner ok">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
         <div class="pb-ai-txt">
           <b>{{ t('ИИ распознал дашборд: «') }}{{ t(ingest.target_label) }}»</b>

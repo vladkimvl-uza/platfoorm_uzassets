@@ -25,7 +25,7 @@ export const uz: Record<string, string> = {
   "Нажми «Сводка» — ИИ соберёт причины, взаимосвязи и советы по исполнению.": "«Xulosa» tugmasini bosing — AI ijro boʻyicha sabablar, bogʻliqliklar va tavsiyalarni yigʻadi.",
   "Сводка опирается на реальные данные карточек. Проверяйте критичные выводы.": "Xulosa kartochkalarning real maʼlumotlariga tayanadi. Muhim xulosalarni tekshiring.",
   "ИИ вернул пустой ответ.": "AI boʻsh javob qaytardi.",
-  "ИИ-аналитик исполнения доступен только владельцу (или ассистент выключен).": "Ijro AI-tahlilchisi faqat egasiga ochiq (yoki assistent oʻchirilgan).",
+  "Нет доступа к ИИ-аналитику исполнения или ИИ-инструменты выключены.": "Ijro AI-tahlilchisiga ruxsat yoʻq yoki AI vositalari oʻchirilgan.",
   "ИИ-ассистент не сконфигурирован.": "AI assistent sozlanmagan.",
   "Не удалось получить сводку.": "Xulosani olib boʻlmadi.",
 
@@ -228,7 +228,7 @@ export const en: Record<string, string> = {
   "Нажми «Сводка» — ИИ соберёт причины, взаимосвязи и советы по исполнению.": "Press \"Summary\" — the AI will compile causes, links and advice on execution.",
   "Сводка опирается на реальные данные карточек. Проверяйте критичные выводы.": "The summary is based on real card data. Verify critical conclusions.",
   
-  "ИИ-аналитик исполнения доступен только владельцу (или ассистент выключен).": "The execution AI analyst is available to the owner only (or the assistant is off).",
+  "Нет доступа к ИИ-аналитику исполнения или ИИ-инструменты выключены.": "You do not have access to the execution AI analyst, or AI tools are disabled.",
   "ИИ-ассистент не сконфигурирован.": "AI assistant is not configured.",
   "Не удалось получить сводку.": "Failed to get the summary.",
 

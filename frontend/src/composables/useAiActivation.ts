@@ -1,4 +1,4 @@
-// useAiActivation — глобальное состояние активации ИИ-ассистента (singleton).
+// useAiActivation — глобальное состояние активации всех ИИ-инструментов (singleton).
 //
 // Owner может включать/выключать ассистента; флаг хранится на бэке
 // (GET/PUT /ai/activation). Все места UI (карточка в сайдбаре, заголовок
@@ -52,9 +52,9 @@ async function setActive(v: boolean): Promise<void> {
   try {
     const { data } = await api.put("/ai/activation", { active: v });
     state.active = !!data.active;
-    useToast().success(state.active ? t("ИИ-ассистент включён") : t("ИИ-ассистент выключен"));
+    useToast().success(state.active ? t("ИИ-инструменты включены") : t("ИИ-инструменты выключены"));
   } catch (e) {
-    useToast().error(t("Не удалось изменить состояние ассистента: {reason}", { reason: _reason(e) }));
+    useToast().error(t("Не удалось изменить состояние ИИ-инструментов: {reason}", { reason: _reason(e) }));
     await load(true);   // вернуть UI к РЕАЛЬНОМУ состоянию сервера
   }
 }

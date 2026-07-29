@@ -14,6 +14,7 @@ import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
 import { useI18n } from "@/composables/useI18n";
 import { useCompanyScope } from "@/composables/useCompanyScope";
+import { useAiFeatureAccess } from "@/composables/useAiFeatureAccess";
 import EptLogo from "@/components/EptLogo.vue";
 import UzaSkeleton from "@/components/UZA/UzaSkeleton.vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
@@ -36,6 +37,7 @@ const { confirmDialog } = useConfirm();
 const { t } = useI18n();
 // Область доступа: при единственной компании селектор компаний в «Динамике» не нужен.
 const scope = useCompanyScope();
+const { canUseAi } = useAiFeatureAccess();
 const digest = ref<Digest | null>(null);
 const loading = ref(true);
 const error = ref<string | null>(null);
@@ -102,7 +104,7 @@ const brief = ref("");
 const briefLoading = ref(false);
 const briefError = ref("");
 async function generateBrief() {
-  if (briefLoading.value) return;
+  if (briefLoading.value || !canUseAi.value) return;
   briefLoading.value = true; briefError.value = "";
   try {
     const { data } = await api.post(`/monitoring/brief/${year.value}`, undefined, {
@@ -386,7 +388,7 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
         </div>
 
         <!-- AI EXECUTIVE BRIEF -->
-        <div class="ph-brief">
+        <div v-if="canUseAi" class="ph-brief">
           <div class="ph-brief-h">
             <div class="ph-brief-tl">
               <span class="ph-brief-spark">

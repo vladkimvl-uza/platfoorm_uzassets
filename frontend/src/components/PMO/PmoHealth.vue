@@ -8,7 +8,9 @@ import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import { pmoApi, type HealthResponse, type StatusReport } from "@/api/pmo";
 import { useI18n } from "@/composables/useI18n";
 import { i18nKey } from "@/locale/keys";
+import { useAiFeatureAccess } from "@/composables/useAiFeatureAccess";
 const { t } = useI18n();
+const { canUseAi } = useAiFeatureAccess();
 
 
 const props = defineProps<{ companyCode: string; canEdit?: boolean; refreshTick?: number }>();
@@ -46,11 +48,17 @@ async function load() {
 }
 onMounted(load);
 watch(() => [props.companyCode, props.refreshTick], load);
+watch(canUseAi, (allowed) => {
+  if (!allowed) useAi.value = false;
+});
 
 async function generate() {
   genBusy.value = true;
   try {
-    const rep = await pmoApi.createStatusReport(props.companyCode, { project_id: null, use_ai: useAi.value });
+    const rep = await pmoApi.createStatusReport(props.companyCode, {
+      project_id: null,
+      use_ai: canUseAi.value && useAi.value,
+    });
     reports.value = [rep, ...reports.value];
     showHistory.value = true;
   } catch (e: any) {
@@ -87,7 +95,7 @@ const latest = computed(() => reports.value[0] || null);
           <span class="ph-cnt" style="--c:#E24B4A"><b>{{ data.high_risks }}</b> {{ t('высоких') }}</span>
         </div>
         <div class="ph-gen">
-          <label class="ph-ai"><input type="checkbox" v-model="useAi" :disabled="!canEdit" /> {{ t('AI-резюме') }}</label>
+          <label v-if="canUseAi" class="ph-ai"><input type="checkbox" v-model="useAi" :disabled="!canEdit" /> {{ t('AI-резюме') }}</label>
           <button class="ph-gen-btn" :disabled="!canEdit || genBusy" @click="generate">
             {{ genBusy ? t('Формирую…') : t('Сформировать статус-отчёт') }}
           </button>

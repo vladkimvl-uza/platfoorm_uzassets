@@ -988,19 +988,19 @@ async def delete_snapshot(
 @router.post("/brief/{year}")
 async def exec_brief(
     year: int,
+    request: Request,
     period: str = Query("all", pattern="^(all|q[1-4]|m([1-9]|1[0-2]))$"),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(_require_monitoring),
 ):
     """Сгенерировать executive-бриф по исполнению портфеля (AI engine, grounded в
     реальных цифрах). Уважает is_enabled + owner-активацию ассистента + scope."""
-    from app.api.routes.ai import _assistant_active
+    from app.api.routes.ai import require_ai_feature_access
     from app.services.ai_service import complete_once, is_enabled
 
+    await require_ai_feature_access(request, user, db)
     if not is_enabled():
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "AI не настроен")
-    if not await _assistant_active(db):
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "ИИ-ассистент деактивирован владельцем")
 
     scope = await _scope_ids(db, user)
     bounds = _period_bounds(year, period)

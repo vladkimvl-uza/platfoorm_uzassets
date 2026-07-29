@@ -23,9 +23,11 @@ import { runForecast, type ForecastModel } from "@/utils/forecast";
 import { api } from "@/api/client";
 import { useI18n } from "@/composables/useI18n";
 import { i18nKey } from "@/locale/keys";
+import { useAiFeatureAccess } from "@/composables/useAiFeatureAccess";
 
 
 const { t } = useI18n();
+const { canUseAi } = useAiFeatureAccess();
 
 type FcSel = ForecastModel | "off" | "ai";
 
@@ -192,6 +194,9 @@ const FORECAST_OPTS: { id: FcSel; label: string }[] = [
   { id: "cagr", label: i18nKey("Прогноз: CAGR") },
   { id: "linear", label: i18nKey("Прогноз: линейный") },
 ];
+const visibleForecastOpts = computed(() => (
+  canUseAi.value ? FORECAST_OPTS : FORECAST_OPTS.filter((option) => option.id !== "ai")
+));
 const forecastModel = ref<FcSel>("off");
 
 // Последний год факта = макс. год с ненулевыми данными по любой компании.
@@ -229,6 +234,7 @@ const aiRationale = ref("");
 const rationaleOpen = ref(false);
 const norm = (s: string) => String(s ?? "").trim().toUpperCase();
 async function fetchAiForecast() {
+  if (!canUseAi.value) return;
   aiLoading.value = true;
   aiError.value = "";
   aiRationale.value = "";
@@ -300,6 +306,7 @@ async function saveForecast(): Promise<void> {
   } catch { /* кэш на клиенте уже есть — игнор сетевой ошибки */ }
 }
 async function loadSavedForecast(): Promise<boolean> {
+  if (!canUseAi.value) return false;
   try {
     const { data } = await api.get("/ai/saved/forecast");
     const saved = (data?.saved || {})[_fcScope()];
@@ -312,9 +319,16 @@ async function loadSavedForecast(): Promise<boolean> {
 // Выбор «ИИ» (или смена метрики на «ИИ») → показываем СОХРАНЁННЫЙ прогноз без
 // нового вызова; если сохранённого нет — генерируем впервые.
 watch([forecastModel, () => props.metricKey], async ([m]) => {
-  if (m !== "ai") return;
+  if (m !== "ai" || !canUseAi.value) return;
   const had = await loadSavedForecast();
   if (!had) await fetchAiForecast();
+});
+watch(canUseAi, (allowed) => {
+  if (allowed || forecastModel.value !== "ai") return;
+  forecastModel.value = "off";
+  aiForecastMap.value = new Map();
+  aiRationale.value = "";
+  rationaleOpen.value = false;
 });
 
 // Сменяющийся статус: что именно сейчас «делает» ИИ.
@@ -415,18 +429,18 @@ function cellValue(c: SectorBucket["companies"][number], y: number): number | nu
         </span>
         <template v-else>
           <span v-if="aiError" class="fst-fc-err">{{ aiError }}</span>
-          <span v-else-if="forecastModel === 'ai' && aiForecastMap.size" class="fst-fc-aibadge">
+          <span v-else-if="canUseAi && forecastModel === 'ai' && aiForecastMap.size" class="fst-fc-aibadge">
             {{ t("Прогнозные данные ИИ") }}
             <button v-if="aiRationale" class="fst-fc-info" type="button" :title="t('Что ИИ учёл при прогнозе')" @click="rationaleOpen = true">i</button>
             <button class="fst-fc-info" type="button" :title="t('Перегенерировать прогноз ИИ')" @click="fetchAiForecast">↻</button>
           </span>
           <select v-model="forecastModel" class="fst-fc-select" :title="t('Прогноз будущих лет')">
-            <option v-for="o in FORECAST_OPTS" :key="o.id" :value="o.id">{{ t(o.label) }}</option>
+            <option v-for="o in visibleForecastOpts" :key="o.id" :value="o.id">{{ t(o.label) }}</option>
           </select>
         </template>
       </div>
 
-      <ModalShell :open="rationaleOpen" size="md" :title="t('Что ИИ учёл при прогнозе')" @close="rationaleOpen = false">
+      <ModalShell :open="rationaleOpen && canUseAi" size="md" :title="t('Что ИИ учёл при прогнозе')" @close="rationaleOpen = false">
         <div class="fst-ra-body fst-ra-md" v-html="rationaleHtml"></div>
         <template #footer>
           <div class="fst-ra-foot">{{ t("Прогноз — расчётная оценка ИИ (история компаний + цены на сырьё, курсы, макропоказатели, геополитика через web). Проверяйте перед использованием.") }}</div>

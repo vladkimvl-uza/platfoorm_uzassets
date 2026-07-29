@@ -4,14 +4,13 @@
  * акционера» + выезжающая панель. ИИ (Opus) собирает на сервере проекты/прогресс/
  * просрочку + комментарии по проблемным (POST /ai/exec-sector-brief) и выдаёт
  * краткую сводку: причины, взаимосвязи, советы (markdown+таблицы/чарты через AiMessage).
- * Доступ — ТОЛЬКО владелец (owner). Результаты СОХРАНЯЮТСЯ на сервере (system_config)
+ * Доступ определяется единым правом ai.view. Результаты СОХРАНЯЮТСЯ на сервере (system_config)
  * и подгружаются при открытии; «Обновить» перегенерирует.
  */
 import { computed, ref } from "vue";
 import { api } from "@/api/client";
 import { useFocusTrap } from "@/composables/useFocusTrap";
 import AiMessage from "@/components/Ai/AiMessage.vue";
-import { useAuthStore } from "@/stores/auth";
 import { useAiActivation } from "@/composables/useAiActivation";
 import { useI18n } from "@/composables/useI18n";
 
@@ -23,13 +22,10 @@ const props = defineProps<{
   companyId?: string | null;
 }>();
 
-const auth = useAuthStore();
-// Видимость — только владельцу (как и раньше). Но если ИИ-движок ВЫКЛЮЧЕН
-// глобально (тумблер владельца), кнопка переходит в выключенное состояние —
-// единообразно с остальными ИИ-кнопками платформы.
+// The parent applies the shared ai.view gate. This component only reflects the
+// organization-wide activation switch.
 const aiAct = useAiActivation();
 aiAct.load();
-const enabled = computed(() => auth.user?.is_owner === true);
 const aiOff = computed(() => aiAct.state.loaded && !aiAct.state.active);
 
 const open = ref(false);
@@ -56,7 +52,12 @@ function fmtTs(iso: string): string {
 async function loadSaved(focus: string): Promise<boolean> {
   try {
     const { data } = await api.get("/ai/exec-sector-brief/saved", {
-      params: { year: props.year, focus },
+      params: {
+        year: props.year,
+        focus,
+        sectors: props.sectors?.length ? props.sectors.join(",") : undefined,
+        company_id: props.companyId || undefined,
+      },
     });
     if (data && data.analysis) {
       brief.value = data.analysis;
@@ -84,7 +85,7 @@ async function run(focus: string) {
   } catch (e: any) {
     const code = e?.response?.status;
     error.value =
-      code === 403 ? t("ИИ-аналитик исполнения доступен только владельцу (или ассистент выключен).")
+      code === 403 ? t("Нет доступа к ИИ-аналитику исполнения или ИИ-инструменты выключены.")
       : code === 503 ? t("ИИ-ассистент не сконфигурирован.")
       : e?.response?.data?.detail || e?.message || t("Не удалось получить сводку.");
   } finally {
@@ -110,7 +111,7 @@ function openPanel() {
 </script>
 
 <template>
-  <button v-if="enabled" class="ec-trigger" :class="{ 'ec-off': aiOff }" :disabled="aiOff"
+  <button class="ec-trigger" :class="{ 'ec-off': aiOff }" :disabled="aiOff"
           type="button" :title="aiOff ? t('ИИ-ассистент выключен владельцем') : t('ИИ-аналитик исполнения')"
           @click="openPanel">
     <span class="ec-spark" aria-hidden="true">AI</span>
