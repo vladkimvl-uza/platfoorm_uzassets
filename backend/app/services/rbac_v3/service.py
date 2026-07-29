@@ -18,7 +18,8 @@ from uuid import UUID
 
 from fastapi import HTTPException
 from fastapi import status as http_status
-from sqlalchemy import func, or_
+from sqlalchemy import false as sa_false
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit_chain import append_audit_entry
@@ -80,6 +81,61 @@ _GRID_PERMISSION_SUFFIXES = ("view", "edit", "export", "manage")
 _GRID_MANAGEABLE_CODES = frozenset(
     f"{m}.{s}" for m in _GRID_MODULE_CODES for s in _GRID_PERMISSION_SUFFIXES
 )
+
+
+async def _scope_users_query(db: AsyncSession, actor: User, q):
+    """Сузить выборку пользователей до сотрудников компаний актора.
+
+    Владелец и платформенный super-admin видят всех (возврат без изменений).
+    Остальным (роль «Администратор компании» с правом admin.users) остаются
+    только те, кто привязан к их компаниям — через User.organization_id ЛИБО
+    через членство в группе такой компании. Пустая область → пустой список:
+    fail-closed, чтобы сбой резолва не открывал весь справочник.
+    """
+    from app.core.access import allowed_company_ids, has_unrestricted_view
+    if actor.is_owner or is_super_admin(actor) or has_unrestricted_view(actor):
+        return q
+    allowed = await allowed_company_ids(db, actor)
+    if allowed is None:
+        return q
+    if not allowed:
+        return q.where(sa_false())
+    member_of_my_companies = (
+        select(UserGroupRole.user_id)
+        .join(Group, Group.id == UserGroupRole.group_id)
+        .where(Group.company_id.in_(allowed))
+    )
+    return q.where(or_(
+        User.organization_id.in_(allowed),
+        User.id.in_(member_of_my_companies),
+    ))
+
+
+async def _ensure_target_in_scope(db: AsyncSession, actor: User, target: User) -> None:
+    """Целевой пользователь должен быть в компаниях актора.
+
+    Парная защита к _scope_users_query: список сужен, но чтение/правку по
+    прямому UUID это не закрывает. Владелец и платформенный super-admin — без
+    ограничений. Отвечаем 404, а не 403: существование чужого аккаунта не
+    подтверждаем.
+    """
+    from app.core.access import allowed_company_ids, has_unrestricted_view
+    if actor.is_owner or is_super_admin(actor) or has_unrestricted_view(actor):
+        return
+    allowed = await allowed_company_ids(db, actor)
+    if allowed is None:
+        return
+    allowed_set = {str(x) for x in allowed}
+    if str(getattr(target, "organization_id", "") or "") in allowed_set:
+        return
+    rows = (await db.execute(
+        select(Group.company_id)
+        .join(UserGroupRole, UserGroupRole.group_id == Group.id)
+        .where(UserGroupRole.user_id == target.id, Group.company_id.is_not(None))
+    )).scalars().all()
+    if any(str(c) in allowed_set for c in rows):
+        return
+    raise HTTPException(http_status.HTTP_404_NOT_FOUND, "User not found")
 
 
 async def _require_admin(db: AsyncSession, user: User) -> None:
@@ -608,6 +664,11 @@ class RbacV3Service:
         await _require_admin(db, user)
         repo = self._repo(db)
         q = repo.base_user_query()
+        # Область: администратор КОМПАНИИ видит только сотрудников своих компаний.
+        # Раньше список отдавался целиком любому носителю admin.users — то есть
+        # справочник всех 22 организаций с их людьми, должностями и контактами.
+        # Владелец и платформенный админ (super-admin) видят всех.
+        q = await _scope_users_query(db, user, q)
         if is_active is not None:
             q = q.where(User.is_active.is_(is_active))
         if role_code:
@@ -649,6 +710,8 @@ class RbacV3Service:
         u = await repo.get_user_by_id(user_id)
         if not u:
             raise HTTPException(http_status.HTTP_404_NOT_FOUND, "User not found")
+        # Чтение по прямому UUID тоже ограничено областью актора.
+        await _ensure_target_in_scope(db, user, u)
 
         base = await self._hydrate_user(db, u)
         perms = await repo.effective_permission_codes(u.id)
@@ -848,6 +911,8 @@ class RbacV3Service:
         u = await repo.get_user_by_id(user_id)
         if not u:
             raise HTTPException(http_status.HTTP_404_NOT_FOUND, "User not found")
+        # Чтение по прямому UUID тоже ограничено областью актора.
+        await _ensure_target_in_scope(db, user, u)
         if u.id == user.id and payload.is_active is False:
             raise HTTPException(
                 http_status.HTTP_400_BAD_REQUEST,
@@ -976,6 +1041,8 @@ class RbacV3Service:
         u = await repo.get_user_by_id(user_id)
         if not u:
             raise HTTPException(http_status.HTTP_404_NOT_FOUND, "User not found")
+        # Чтение по прямому UUID тоже ограничено областью актора.
+        await _ensure_target_in_scope(db, user, u)
         g = await repo.get_group(group_id)
         if not g:
             raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Group not found")
@@ -1051,6 +1118,8 @@ class RbacV3Service:
         u = await repo.get_user_by_id(user_id)
         if not u:
             raise HTTPException(http_status.HTTP_404_NOT_FOUND, "User not found")
+        # Чтение по прямому UUID тоже ограничено областью актора.
+        await _ensure_target_in_scope(db, user, u)
         rowcount = await repo.delete_membership(user_id, group_id)
         await db.commit()
         if rowcount:
@@ -1070,6 +1139,8 @@ class RbacV3Service:
         u = await repo.get_user_by_id(user_id)
         if not u:
             raise HTTPException(http_status.HTTP_404_NOT_FOUND, "User not found")
+        # Чтение по прямому UUID тоже ограничено областью актора.
+        await _ensure_target_in_scope(db, user, u)
         if u.is_owner and not user.is_owner:
             raise HTTPException(
                 http_status.HTTP_403_FORBIDDEN,
@@ -1094,6 +1165,8 @@ class RbacV3Service:
         u = await repo.get_user_by_id(user_id)
         if not u:
             raise HTTPException(http_status.HTTP_404_NOT_FOUND, "User not found")
+        # Чтение по прямому UUID тоже ограничено областью актора.
+        await _ensure_target_in_scope(db, user, u)
         _ensure_can_manage_target(user, u)   # P0: не дать не-owner сбросить пароль OWNER
         try:
             validate_password_policy(payload.new_password)
@@ -1124,6 +1197,8 @@ class RbacV3Service:
         u = await repo.get_user_by_id(user_id)
         if not u:
             raise HTTPException(http_status.HTTP_404_NOT_FOUND, "User not found")
+        # Чтение по прямому UUID тоже ограничено областью актора.
+        await _ensure_target_in_scope(db, user, u)
         _ensure_can_manage_target(user, u)   # P0: не дать не-owner деактивировать OWNER
         u.is_active = False
         revoked = await revoke_all_sessions(db, u.id)
@@ -1145,6 +1220,8 @@ class RbacV3Service:
         u = await repo.get_user_by_id(user_id)
         if not u:
             raise HTTPException(http_status.HTTP_404_NOT_FOUND, "User not found")
+        # Чтение по прямому UUID тоже ограничено областью актора.
+        await _ensure_target_in_scope(db, user, u)
         was_inactive = not u.is_active
         was_locked = u.locked_until is not None
         u.is_active = True
@@ -1168,6 +1245,8 @@ class RbacV3Service:
         u = await repo.get_user_by_id(user_id)
         if not u:
             raise HTTPException(http_status.HTTP_404_NOT_FOUND, "User not found")
+        # Чтение по прямому UUID тоже ограничено областью актора.
+        await _ensure_target_in_scope(db, user, u)
         # Нельзя снять статус с самого себя (защита от случайной потери
         # единственного владельца) — снять может только другой OWNER.
         if not is_owner and user_id == user.id:
@@ -1193,6 +1272,8 @@ class RbacV3Service:
         u = await repo.get_user_by_id(user_id)
         if not u:
             raise HTTPException(http_status.HTTP_404_NOT_FOUND, "User not found")
+        # Чтение по прямому UUID тоже ограничено областью актора.
+        await _ensure_target_in_scope(db, user, u)
         if u.id == user.id:
             raise HTTPException(
                 http_status.HTTP_400_BAD_REQUEST,
@@ -1280,6 +1361,20 @@ class RbacV3Service:
     async def list_groups(self, db: AsyncSession, user: User) -> list[GroupBrief]:
         await _require_admin(db, user)
         rows = await self._repo(db).list_groups()
+        # Область: администратор КОМПАНИИ видит только группы своих компаний.
+        # Группы без company_id (общеплатформенные) остаются видимыми — они не
+        # раскрывают чужую организацию, а членство в них всё равно ограничено
+        # потолком области при попытке кого-то туда добавить.
+        from app.core.access import allowed_company_ids, has_unrestricted_view
+        if not (user.is_owner or is_super_admin(user) or has_unrestricted_view(user)):
+            allowed = await allowed_company_ids(db, user)
+            if allowed is not None:
+                allowed_set = {str(x) for x in allowed}
+                rows = [
+                    g for g in rows
+                    if getattr(g, "company_id", None) is None
+                    or str(g.company_id) in allowed_set
+                ]
         return [await self._group_to_brief(db, g) for g in rows]
 
     async def get_group(
