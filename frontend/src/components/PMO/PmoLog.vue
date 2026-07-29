@@ -15,6 +15,11 @@ import {
   pmoApi, type Lesson, type LessonPayload, type LessonKind,
   type ChangeItem, type ChangePayload, type ChangeKind, type ChangeStatus,
 } from "@/api/pmo";
+import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
+const { t } = useI18n();
+
 
 const props = defineProps<{
   companyCode: string;
@@ -28,22 +33,22 @@ const { confirmDialog } = useConfirm();
 const tab = ref<"lessons" | "changes">("lessons");
 
 const L_KINDS: { v: LessonKind; l: string; c: string }[] = [
-  { v: "success", l: "Сработало", c: "#1D9E75" },
-  { v: "problem", l: "Проблема", c: "#E24B4A" },
-  { v: "recommendation", l: "Рекомендация", c: "#7C6FF7" },
+  { v: "success", l: i18nKey("Сработало"), c: "#1D9E75" },
+  { v: "problem", l: i18nKey("Проблема"), c: "#E24B4A" },
+  { v: "recommendation", l: i18nKey("Рекомендация"), c: "#7C6FF7" },
 ];
 const LK = Object.fromEntries(L_KINDS.map(k => [k.v, k]));
 
 const C_KINDS: { v: ChangeKind; l: string }[] = [
-  { v: "scope", l: "Содержание" }, { v: "schedule", l: "Сроки" },
-  { v: "cost", l: "Стоимость" }, { v: "quality", l: "Качество" }, { v: "other", l: "Прочее" },
+  { v: "scope", l: i18nKey("Содержание") }, { v: "schedule", l: i18nKey("Сроки") },
+  { v: "cost", l: i18nKey("Стоимость") }, { v: "quality", l: i18nKey("Качество") }, { v: "other", l: i18nKey("Прочее") },
 ];
 const CK = Object.fromEntries(C_KINDS.map(k => [k.v, k]));
 const C_STATUSES: { v: ChangeStatus; l: string; c: string }[] = [
-  { v: "proposed", l: "Предложено", c: "#D97706" },
-  { v: "approved", l: "Одобрено", c: "#1D9E75" },
-  { v: "rejected", l: "Отклонено", c: "#E24B4A" },
-  { v: "implemented", l: "Внедрено", c: "#534AB7" },
+  { v: "proposed", l: i18nKey("Предложено"), c: "#D97706" },
+  { v: "approved", l: i18nKey("Одобрено"), c: "#1D9E75" },
+  { v: "rejected", l: i18nKey("Отклонено"), c: "#E24B4A" },
+  { v: "implemented", l: i18nKey("Внедрено"), c: "#534AB7" },
 ];
 const CS = Object.fromEntries(C_STATUSES.map(s => [s.v, s]));
 
@@ -55,7 +60,7 @@ const changes = ref<ChangeItem[]>([]);
 const projectMap = computed(() => new Map((props.projects || []).map(p => [p.id, p.title])));
 function projTitle(id: string | null): string | null {
   if (!id) return null;
-  return projectMap.value.get(id) || "Проект";
+  return projectMap.value.get(id) || t('Проект');
 }
 function avInitials(name?: string | null): string {
   const n = (name || "").trim();
@@ -73,7 +78,7 @@ async function load() {
     ]);
     lessons.value = ls; changes.value = ch;
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить журнал";
+    error.value = e?.response?.data?.detail || e?.message || t('Не удалось загрузить журнал');
   } finally { loading.value = false; }
 }
 onMounted(load);
@@ -154,20 +159,20 @@ function lEdit(it: Lesson) {
   lEditId.value = it.id; lOpen.value = true;
 }
 async function lSave() {
-  if (!lForm.value.title?.trim()) { toast.error("Название урока обязательно"); return; }
+  if (!lForm.value.title?.trim()) { toast.error(t('Название урока обязательно')); return; }
   saving.value = true; error.value = null;
   try {
     if (lEditId.value) await pmoApi.updateLesson(lEditId.value, lForm.value);
     else await pmoApi.createLesson(props.companyCode, lForm.value);
     lOpen.value = false; await load();
-    toast.success(lEditId.value ? "Урок сохранён" : "Урок добавлен");
-  } catch (e: any) { toast.error(e?.response?.data?.detail || "Не удалось сохранить урок"); }
+    toast.success(lEditId.value ? t('Урок сохранён') : t('Урок добавлен'));
+  } catch (e: any) { toast.error(e?.response?.data?.detail || t('Не удалось сохранить урок')); }
   finally { saving.value = false; }
 }
 async function lRemove(it: Lesson) {
-  if (!(await confirmDialog({ message: `Удалить урок «${it.title}»?`, danger: true }))) return;
-  try { await pmoApi.deleteLesson(it.id); await load(); toast.success("Урок удалён"); }
-  catch (e: any) { toast.error(e?.response?.data?.detail || "Не удалось удалить"); }
+  if (!(await confirmDialog({ message: t('Удалить урок «{value0}»?', { value0: it.title }), danger: true }))) return;
+  try { await pmoApi.deleteLesson(it.id); await load(); toast.success(t('Урок удалён')); }
+  catch (e: any) { toast.error(e?.response?.data?.detail || t('Не удалось удалить')); }
 }
 
 // ── Изменение: форма ──
@@ -182,20 +187,20 @@ function cEdit(it: ChangeItem) {
   cEditId.value = it.id; cOpen.value = true;
 }
 async function cSave() {
-  if (!cForm.value.title?.trim()) { toast.error("Название изменения обязательно"); return; }
+  if (!cForm.value.title?.trim()) { toast.error(t('Название изменения обязательно')); return; }
   saving.value = true; error.value = null;
   try {
     if (cEditId.value) await pmoApi.updateChange(cEditId.value, cForm.value);
     else await pmoApi.createChange(props.companyCode, cForm.value);
     cOpen.value = false; await load();
-    toast.success(cEditId.value ? "Изменение сохранено" : "Изменение добавлено");
-  } catch (e: any) { toast.error(e?.response?.data?.detail || "Не удалось сохранить"); }
+    toast.success(cEditId.value ? t('Изменение сохранено') : t('Изменение добавлено'));
+  } catch (e: any) { toast.error(e?.response?.data?.detail || t('Не удалось сохранить')); }
   finally { saving.value = false; }
 }
 async function cRemove(it: ChangeItem) {
-  if (!(await confirmDialog({ message: `Удалить изменение «${it.title}»?`, danger: true }))) return;
-  try { await pmoApi.deleteChange(it.id); await load(); toast.success("Изменение удалено"); }
-  catch (e: any) { toast.error(e?.response?.data?.detail || "Не удалось удалить"); }
+  if (!(await confirmDialog({ message: t('Удалить изменение «{value0}»?', { value0: it.title }), danger: true }))) return;
+  try { await pmoApi.deleteChange(it.id); await load(); toast.success(t('Изменение удалено')); }
+  catch (e: any) { toast.error(e?.response?.data?.detail || t('Не удалось удалить')); }
 }
 
 const fmtDt = (s: string | null) => s ? new Date(s).toLocaleDateString("ru-RU", { day: "numeric", month: "short", year: "2-digit" }) : "—";
@@ -207,24 +212,24 @@ const fmtDt = (s: string | null) => s ? new Date(s).toLocaleDateString("ru-RU", 
 
     <div class="pl-bar">
       <div class="pl-seg">
-        <button :class="{ on: tab === 'lessons' }" @click="tab = 'lessons'">Уроки <span class="pl-n">{{ lessons.length }}</span></button>
-        <button :class="{ on: tab === 'changes' }" @click="tab = 'changes'">Изменения <span class="pl-n">{{ changes.length }}</span></button>
+        <button :class="{ on: tab === 'lessons' }" @click="tab = 'lessons'">{{ t('Уроки') }} <span class="pl-n">{{ lessons.length }}</span></button>
+        <button :class="{ on: tab === 'changes' }" @click="tab = 'changes'">{{ t('Изменения') }} <span class="pl-n">{{ changes.length }}</span></button>
       </div>
-      <button v-if="canEdit && tab === 'lessons'" class="pl-add" @click="lCreate">+ Урок</button>
-      <button v-if="canEdit && tab === 'changes'" class="pl-add" @click="cCreate">+ Изменение</button>
+      <button v-if="canEdit && tab === 'lessons'" class="pl-add" @click="lCreate">{{ t('+ Урок') }}</button>
+      <button v-if="canEdit && tab === 'changes'" class="pl-add" @click="cCreate">{{ t('+ Изменение') }}</button>
     </div>
 
     <!-- Toolbar: поиск + фильтры + сортировка -->
     <div v-if="!loading" class="pl-tools">
       <div class="pl-search">
         <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.6" /><path d="M11 11 L14 14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" /></svg>
-        <input v-model="search" type="text" placeholder="Поиск…" />
+        <input v-model="search" type="text" :placeholder="t('Поиск…')" />
         <button v-if="search" class="pl-sx" @click="search = ''">×</button>
       </div>
 
       <!-- kind chips -->
       <div class="pl-fchips">
-        <button class="pl-fchip" :class="{ on: !filterKind }" @click="filterKind = ''">Все</button>
+        <button class="pl-fchip" :class="{ on: !filterKind }" @click="filterKind = ''">{{ t('Все') }}</button>
         <template v-if="tab === 'lessons'">
           <button v-for="k in L_KINDS" :key="k.v" class="pl-fchip" :class="{ on: filterKind === k.v }" :style="filterKind === k.v ? { background: k.c + '1a', color: k.c, borderColor: k.c + '55' } : {}" @click="filterKind = k.v">{{ k.l }}</button>
         </template>
@@ -240,38 +245,38 @@ const fmtDt = (s: string | null) => s ? new Date(s).toLocaleDateString("ru-RU", 
 
       <!-- project filter -->
       <select v-if="projects && projects.length" v-model="filterProject" class="pl-psel">
-        <option value="">Все проекты</option>
-        <option value="__none__">Без проекта</option>
+        <option value="">{{ t('Все проекты') }}</option>
+        <option value="__none__">{{ t('Без проекта') }}</option>
         <option v-for="p in projects" :key="p.id" :value="p.id">{{ p.title }}</option>
       </select>
 
       <!-- sort -->
       <div class="pl-sort">
-        <span class="pl-sort-l">Сортировка</span>
-        <button class="pl-sbtn" :class="{ on: sortKey === 'date' }" @click="toggleSort('date')">Дата <span v-if="sortKey === 'date'">{{ sortDir === 'asc' ? '↑' : '↓' }}</span></button>
-        <button class="pl-sbtn" :class="{ on: sortKey === 'title' }" @click="toggleSort('title')">Название <span v-if="sortKey === 'title'">{{ sortDir === 'asc' ? '↑' : '↓' }}</span></button>
-        <button class="pl-sbtn" :class="{ on: sortKey === 'kind' }" @click="toggleSort('kind')">Тип <span v-if="sortKey === 'kind'">{{ sortDir === 'asc' ? '↑' : '↓' }}</span></button>
-        <button v-if="tab === 'changes'" class="pl-sbtn" :class="{ on: sortKey === 'status' }" @click="toggleSort('status')">Статус <span v-if="sortKey === 'status'">{{ sortDir === 'asc' ? '↑' : '↓' }}</span></button>
+        <span class="pl-sort-l">{{ t('Сортировка') }}</span>
+        <button class="pl-sbtn" :class="{ on: sortKey === 'date' }" @click="toggleSort('date')">{{ t('Дата') }} <span v-if="sortKey === 'date'">{{ sortDir === 'asc' ? '↑' : '↓' }}</span></button>
+        <button class="pl-sbtn" :class="{ on: sortKey === 'title' }" @click="toggleSort('title')">{{ t('Название') }} <span v-if="sortKey === 'title'">{{ sortDir === 'asc' ? '↑' : '↓' }}</span></button>
+        <button class="pl-sbtn" :class="{ on: sortKey === 'kind' }" @click="toggleSort('kind')">{{ t('Тип') }} <span v-if="sortKey === 'kind'">{{ sortDir === 'asc' ? '↑' : '↓' }}</span></button>
+        <button v-if="tab === 'changes'" class="pl-sbtn" :class="{ on: sortKey === 'status' }" @click="toggleSort('status')">{{ t('Статус') }} <span v-if="sortKey === 'status'">{{ sortDir === 'asc' ? '↑' : '↓' }}</span></button>
       </div>
 
-      <button v-if="hasFilters" class="pl-reset" @click="resetFilters">Сбросить</button>
+      <button v-if="hasFilters" class="pl-reset" @click="resetFilters">{{ t('Сбросить') }}</button>
     </div>
 
-    <UzaStateBlock v-if="loading" state="loading" text="Загрузка журнала…" />
+    <UzaStateBlock v-if="loading" state="loading" :text="t('Загрузка журнала…')" />
 
     <template v-else>
       <!-- ── Уроки ── -->
       <div v-if="tab === 'lessons'" class="pl-wrap">
-        <UzaStateBlock v-if="!lessons.length" state="empty" variant="block" title="Уроков пока нет" text="Фиксируйте, что сработало, что пошло не так и какие рекомендации на будущее." />
-        <UzaStateBlock v-else-if="!shownLessons.length" state="empty" variant="block" title="Ничего не найдено" text="Измените фильтры или поисковый запрос." />
+        <UzaStateBlock v-if="!lessons.length" state="empty" variant="block" :title="t('Уроков пока нет')" :text="t('Фиксируйте, что сработало, что пошло не так и какие рекомендации на будущее.')" />
+        <UzaStateBlock v-else-if="!shownLessons.length" state="empty" variant="block" :title="t('Ничего не найдено')" :text="t('Измените фильтры или поисковый запрос.')" />
         <table v-else class="uza-table pl-tbl">
-          <thead><tr><th>Тип</th><th>Урок</th><th>Проект</th><th>Ответственный</th><th>Дата</th><th></th></tr></thead>
+          <thead><tr><th>{{ t('Тип') }}</th><th>{{ t('Урок') }}</th><th>{{ t('Проект') }}</th><th>{{ t('Ответственный') }}</th><th>{{ t('Дата') }}</th><th></th></tr></thead>
           <tbody>
             <tr v-for="(it, i) in shownLessons" :key="it.id" class="pl-row" :style="{ animationDelay: Math.min(i*0.025, 0.35)+'s' }">
               <td><span class="pl-kind" :style="{ color: LK[it.kind]?.c, background: LK[it.kind]?.c + '1a' }">{{ LK[it.kind]?.l }}</span></td>
               <td>
                 <div class="pl-title">{{ it.title }}</div>
-                <div v-if="it.description" class="pl-sub">{{ it.description }}</div>
+                <div v-if="it.description" class="pl-sub">{{ t(it.description) }}</div>
                 <div v-if="it.recommendation" class="pl-rec">→ {{ it.recommendation }}</div>
               </td>
               <td><span v-if="projTitle(it.project_id)" class="pl-proj">{{ projTitle(it.project_id) }}</span><span v-else class="pl-dash">—</span></td>
@@ -281,8 +286,8 @@ const fmtDt = (s: string | null) => s ? new Date(s).toLocaleDateString("ru-RU", 
               </td>
               <td class="is-mono">{{ fmtDt(it.created_at) }}</td>
               <td style="text-align:right; white-space:nowrap">
-                <button v-if="canEdit" class="pl-ia" title="Править" @click="lEdit(it)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
-                <button v-if="canEdit" class="pl-ia pl-ia-del" title="Удалить" @click="lRemove(it)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+                <button v-if="canEdit" class="pl-ia" :title="t('Править')" @click="lEdit(it)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+                <button v-if="canEdit" class="pl-ia pl-ia-del" :title="t('Удалить')" @click="lRemove(it)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
               </td>
             </tr>
           </tbody>
@@ -291,25 +296,25 @@ const fmtDt = (s: string | null) => s ? new Date(s).toLocaleDateString("ru-RU", 
 
       <!-- ── Изменения ── -->
       <div v-else class="pl-wrap">
-        <UzaStateBlock v-if="!changes.length" state="empty" variant="block" title="Запросов на изменение нет" text="Фиксируйте изменения содержания/сроков/стоимости и решения по ним." />
-        <UzaStateBlock v-else-if="!shownChanges.length" state="empty" variant="block" title="Ничего не найдено" text="Измените фильтры или поисковый запрос." />
+        <UzaStateBlock v-if="!changes.length" state="empty" variant="block" :title="t('Запросов на изменение нет')" :text="t('Фиксируйте изменения содержания/сроков/стоимости и решения по ним.')" />
+        <UzaStateBlock v-else-if="!shownChanges.length" state="empty" variant="block" :title="t('Ничего не найдено')" :text="t('Измените фильтры или поисковый запрос.')" />
         <table v-else class="uza-table pl-tbl">
-          <thead><tr><th>Тип</th><th>Изменение</th><th>Проект</th><th>Инициатор</th><th>Статус</th><th>Решение</th><th></th></tr></thead>
+          <thead><tr><th>{{ t('Тип') }}</th><th>{{ t('Изменение') }}</th><th>{{ t('Проект') }}</th><th>{{ t('Инициатор') }}</th><th>{{ t('Статус') }}</th><th>{{ t('Решение') }}</th><th></th></tr></thead>
           <tbody>
             <tr v-for="(it, i) in shownChanges" :key="it.id" class="pl-row" :style="{ animationDelay: Math.min(i*0.025, 0.35)+'s' }">
               <td><span class="pl-ck">{{ CK[it.kind]?.l }}</span></td>
               <td>
                 <div class="pl-title">{{ it.title }}</div>
-                <div v-if="it.description" class="pl-sub">{{ it.description }}</div>
-                <div v-if="it.impact" class="pl-rec">Влияние: {{ it.impact }}</div>
+                <div v-if="it.description" class="pl-sub">{{ t(it.description) }}</div>
+                <div v-if="it.impact" class="pl-rec">{{ t('Влияние:') }} {{ it.impact }}</div>
               </td>
               <td><span v-if="projTitle(it.project_id)" class="pl-proj">{{ projTitle(it.project_id) }}</span><span v-else class="pl-dash">—</span></td>
               <td><span v-if="it.requested_by" class="pl-owner"><span class="pl-av">{{ avInitials(it.requested_by) }}</span>{{ it.requested_by }}</span><span v-else class="pl-dash">—</span></td>
               <td><span class="pl-stat" :style="{ color: CS[it.status]?.c, background: CS[it.status]?.c + '1a' }">{{ CS[it.status]?.l }}</span></td>
               <td class="pl-dec">{{ it.decided_by || "—" }}<template v-if="it.decided_at"><br><span class="is-mono pl-decdt">{{ fmtDt(it.decided_at) }}</span></template></td>
               <td style="text-align:right; white-space:nowrap">
-                <button v-if="canEdit" class="pl-ia" title="Править" @click="cEdit(it)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
-                <button v-if="canEdit" class="pl-ia pl-ia-del" title="Удалить" @click="cRemove(it)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+                <button v-if="canEdit" class="pl-ia" :title="t('Править')" @click="cEdit(it)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+                <button v-if="canEdit" class="pl-ia pl-ia-del" :title="t('Удалить')" @click="cRemove(it)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
               </td>
             </tr>
           </tbody>
@@ -321,26 +326,27 @@ const fmtDt = (s: string | null) => s ? new Date(s).toLocaleDateString("ru-RU", 
     <Transition name="pl-modal">
       <div v-if="lOpen" class="pl-ov" @click.self="lOpen = false">
         <div class="pl-modal">
-          <div class="pl-mh">{{ lEditId ? "Правка урока" : "Новый урок" }}</div>
+          <div class="pl-mh">{{ lEditId ? t('Правка урока') : t('Новый урок') }}</div>
           <div class="pl-mb">
             <div class="pl-f2">
-              <div class="pl-f"><label>Тип</label><select v-model="lForm.kind"><option v-for="k in L_KINDS" :key="k.v" :value="k.v">{{ k.l }}</option></select></div>
-              <div class="pl-f"><label>Проект</label>
+              <div class="pl-f"><label>{{ t('Тип') }}</label><select v-model="lForm.kind"><option v-for="k in L_KINDS" :key="k.v" :value="k.v">{{ k.l }}</option></select></div>
+              <div class="pl-f"><label>{{ t('Проект') }}</label>
                 <select v-model="lForm.project_id">
-                  <option :value="null">— без проекта —</option>
+                  <option :value="null">{{ t('— без проекта —') }}</option>
                   <option v-for="p in projects" :key="p.id" :value="p.id">{{ p.title }}</option>
                 </select>
               </div>
             </div>
-            <div class="pl-f"><label>Название</label><input v-model="lForm.title" placeholder="Кратко суть" /></div>
-            <div class="pl-f"><label>Описание / ситуация</label><textarea v-model="lForm.description" rows="2"></textarea></div>
-            <div class="pl-f"><label>Рекомендация на будущее</label><textarea v-model="lForm.recommendation" rows="2"></textarea></div>
-            <div class="pl-f"><label>Ответственный</label>
-              <NoteAssigneePicker :id="lForm.owner_id || null" :name="lForm.owner_name || null" placeholder="Упомянуть пользователя"
+            <div class="pl-f"><label>{{ t('Название') }}</label><input v-model="lForm.title" :placeholder="t('Кратко суть')" /></div>
+            <div class="pl-f"><label>{{ t('Описание / ситуация') }}</label><textarea v-model="lForm.description" rows="2"></textarea></div>
+            <div class="pl-f"><label>{{ t('Рекомендация на будущее') }}</label><textarea v-model="lForm.recommendation" rows="2"></textarea></div>
+            <div class="pl-f"><label>{{ t('Ответственный') }}</label>
+              <NoteAssigneePicker :id="lForm.owner_id || null" :name="lForm.owner_name || null" :placeholder="t('Упомянуть пользователя')"
+                :company-code="companyCode" allow-custom
                 @update:id="lForm.owner_id = $event" @update:name="lForm.owner_name = $event || ''" />
             </div>
           </div>
-          <div class="pl-mf"><button class="pl-bg" @click="lOpen = false">Отмена</button><button class="pl-b" :disabled="saving" @click="lSave">{{ saving ? "Сохраняю…" : "Сохранить" }}</button></div>
+          <div class="pl-mf"><button class="pl-bg" @click="lOpen = false">{{ t('Отмена') }}</button><button class="pl-b" :disabled="saving" @click="lSave">{{ saving ? t('Сохраняю…') : t('Сохранить') }}</button></div>
         </div>
       </div>
     </Transition>
@@ -349,31 +355,33 @@ const fmtDt = (s: string | null) => s ? new Date(s).toLocaleDateString("ru-RU", 
     <Transition name="pl-modal">
       <div v-if="cOpen" class="pl-ov" @click.self="cOpen = false">
         <div class="pl-modal">
-          <div class="pl-mh">{{ cEditId ? "Правка изменения" : "Новый запрос на изменение" }}</div>
+          <div class="pl-mh">{{ cEditId ? t('Правка изменения') : t('Новый запрос на изменение') }}</div>
           <div class="pl-mb">
             <div class="pl-f2">
-              <div class="pl-f"><label>Тип</label><select v-model="cForm.kind"><option v-for="k in C_KINDS" :key="k.v" :value="k.v">{{ k.l }}</option></select></div>
-              <div class="pl-f"><label>Статус</label><select v-model="cForm.status"><option v-for="s in C_STATUSES" :key="s.v" :value="s.v">{{ s.l }}</option></select></div>
+              <div class="pl-f"><label>{{ t('Тип') }}</label><select v-model="cForm.kind"><option v-for="k in C_KINDS" :key="k.v" :value="k.v">{{ k.l }}</option></select></div>
+              <div class="pl-f"><label>{{ t('Статус') }}</label><select v-model="cForm.status"><option v-for="s in C_STATUSES" :key="s.v" :value="s.v">{{ s.l }}</option></select></div>
             </div>
-            <div class="pl-f"><label>Проект</label>
+            <div class="pl-f"><label>{{ t('Проект') }}</label>
               <select v-model="cForm.project_id">
-                <option :value="null">— без проекта —</option>
+                <option :value="null">{{ t('— без проекта —') }}</option>
                 <option v-for="p in projects" :key="p.id" :value="p.id">{{ p.title }}</option>
               </select>
             </div>
-            <div class="pl-f"><label>Название</label><input v-model="cForm.title" placeholder="Что меняется" /></div>
-            <div class="pl-f"><label>Описание</label><textarea v-model="cForm.description" rows="2"></textarea></div>
-            <div class="pl-f"><label>Влияние (сроки/стоимость/риски)</label><textarea v-model="cForm.impact" rows="2"></textarea></div>
+            <div class="pl-f"><label>{{ t('Название') }}</label><input v-model="cForm.title" :placeholder="t('Что меняется')" /></div>
+            <div class="pl-f"><label>{{ t('Описание') }}</label><textarea v-model="cForm.description" rows="2"></textarea></div>
+            <div class="pl-f"><label>{{ t('Влияние (сроки/стоимость/риски)') }}</label><textarea v-model="cForm.impact" rows="2"></textarea></div>
             <div class="pl-f2">
-              <div class="pl-f"><label>Инициатор</label>
-                <NoteAssigneePicker :id="null" :name="cForm.requested_by || null" placeholder="Упомянуть" @update:name="cForm.requested_by = $event || ''" />
+              <div class="pl-f"><label>{{ t('Инициатор') }}</label>
+                <NoteAssigneePicker :id="null" :name="cForm.requested_by || null" :placeholder="t('Упомянуть')"
+                  :company-code="companyCode" allow-custom @update:name="cForm.requested_by = $event || ''" />
               </div>
-              <div class="pl-f"><label>Решение принял</label>
-                <NoteAssigneePicker :id="null" :name="cForm.decided_by || null" placeholder="Упомянуть" @update:name="cForm.decided_by = $event || ''" />
+              <div class="pl-f"><label>{{ t('Решение принял') }}</label>
+                <NoteAssigneePicker :id="null" :name="cForm.decided_by || null" :placeholder="t('Упомянуть')"
+                  :company-code="companyCode" allow-custom @update:name="cForm.decided_by = $event || ''" />
               </div>
             </div>
           </div>
-          <div class="pl-mf"><button class="pl-bg" @click="cOpen = false">Отмена</button><button class="pl-b" :disabled="saving" @click="cSave">{{ saving ? "Сохраняю…" : "Сохранить" }}</button></div>
+          <div class="pl-mf"><button class="pl-bg" @click="cOpen = false">{{ t('Отмена') }}</button><button class="pl-b" :disabled="saving" @click="cSave">{{ saving ? t('Сохраняю…') : t('Сохранить') }}</button></div>
         </div>
       </div>
     </Transition>

@@ -44,12 +44,20 @@ import {
   toIsoDate,
   HOLIDAY_KIND_COLORS,
   HOLIDAY_KIND_LABELS,
+  holidayTitle,
   type UzHoliday,
 } from "@/api/holidays";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
 import NoteAssigneePicker from "@/components/NoteAssigneePicker.vue";
 import ModalShell from "@/components/ModalShell.vue";
+import { useI18n } from "@/composables/useI18n";
+import { useFormatters } from "@/composables/useFormatters";
+import { APP_TIMEZONE, INTL_LOCALE } from "@/locale/locales";
+import { i18nKey } from "@/locale/keys";
+
+const { t: tr, locale } = useI18n();
+const fmt = useFormatters();
 
 const { confirmDialog } = useConfirm();
 const toast = useToast();
@@ -64,11 +72,14 @@ interface ChecklistDraft {
   due_date: string | null; // yyyy-mm-dd
 }
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   companyId: string;
   companyCode?: string;
   year?: number;
-}>();
+  /** Право на изменение заметок (tasks.edit). Без него интерфейс
+   *  read-only: наблюдатель не должен видеть кнопки, которые упрутся в 403. */
+  canEdit?: boolean;
+}>(), { canEdit: false });
 
 // ============================================================
 // STATE
@@ -208,7 +219,7 @@ async function toggleChecklistItem(n: Note, item: ChecklistItem) {
     if (idx >= 0) notes.value[idx] = updated;
   } catch (e: any) {
     item.is_done = !next; // откат
-    toast.error(e?.response?.data?.detail || "Не удалось сохранить пункт");
+    toast.error(e?.response?.data?.detail || tr('Не удалось сохранить пункт'));
   } finally {
     togglingItem.value.delete(item.id);
   }
@@ -236,7 +247,7 @@ async function load() {
     notes.value = resp.items;
     tagCounts.value = resp.tag_counts;
   } catch (e: any) {
-    error.value = e?.message || "Не удалось загрузить заметки";
+    error.value = e?.message || tr('Не удалось загрузить заметки');
     notes.value = [];
   } finally {
     loading.value = false;
@@ -312,13 +323,13 @@ const timelineGroups = computed<TimelineGroup[]>(() => {
   function _groupKeyAndLabel(iso: string): { key: string; label: string } {
     const d = new Date(iso);
     const diff = daysUntil(d, today);
-    if (iso === todayIso) return { key: "today", label: "Сегодня" };
-    if (diff === -1) return { key: "yesterday", label: "Вчера" };
-    if (diff === 1) return { key: "tomorrow", label: "Завтра" };
+    if (iso === todayIso) return { key: "today", label: i18nKey("Сегодня") };
+    if (diff === -1) return { key: "yesterday", label: i18nKey("Вчера") };
+    if (diff === 1) return { key: "tomorrow", label: i18nKey("Завтра") };
     if (diff > 1 && diff <= 7)
-      return { key: "this_week", label: "На этой неделе" };
+      return { key: "this_week", label: i18nKey("На этой неделе") };
     if (diff < -1 && diff >= -7)
-      return { key: "last_week", label: "На прошлой неделе" };
+      return { key: "last_week", label: i18nKey("На прошлой неделе") };
     // Иначе -- по месяцам
     const months = [
       "Январь",
@@ -445,10 +456,10 @@ async function togglePin(n: Note) {
   try {
     await notesApi.update(n.id, { is_pinned: !n.is_pinned });
     await load();
-    toast.success(n.is_pinned ? "Откреплено" : "Закреплено вверху");
+    toast.success(n.is_pinned ? tr('Откреплено') : tr('Закреплено вверху'));
   } catch (e: any) {
-    error.value = e?.message || "Ошибка при закреплении";
-    toast.error("Не удалось изменить закрепление");
+    error.value = e?.message || tr('Ошибка при закреплении');
+    toast.error(tr('Не удалось изменить закрепление'));
   }
 }
 
@@ -456,17 +467,17 @@ async function toggleResolve(n: Note) {
   try {
     await notesApi.update(n.id, { is_resolved: !n.is_resolved });
     await load();
-    toast.success(n.is_resolved ? "Снова открыто" : "Отмечено закрытым");
+    toast.success(n.is_resolved ? tr('Снова открыто') : tr('Отмечено закрытым'));
   } catch (e: any) {
-    error.value = e?.message || "Ошибка при изменении статуса";
-    toast.error("Не удалось изменить статус");
+    error.value = e?.message || tr('Ошибка при изменении статуса');
+    toast.error(tr('Не удалось изменить статус'));
   }
 }
 
 async function removeNote(n: Note) {
   if (
     !(await confirmDialog({
-      message: `Удалить заметку «${n.title || n.body.slice(0, 40)}»? Действие необратимо.`,
+      message: tr('Удалить заметку «{value0}»? Действие необратимо.', { value0: n.title || n.body.slice(0, 40) }),
       danger: true,
     }))
   )
@@ -474,10 +485,10 @@ async function removeNote(n: Note) {
   try {
     await notesApi.delete(n.id);
     await load();
-    toast.success("Запись удалена");
+    toast.success(tr('Запись удалена'));
   } catch (e: any) {
-    error.value = e?.message || "Ошибка при удалении";
-    toast.error("Не удалось удалить запись");
+    error.value = e?.message || tr('Ошибка при удалении');
+    toast.error(tr('Не удалось удалить запись'));
   }
 }
 
@@ -570,7 +581,7 @@ function removeTag(t: string) {
 
 function addLink() {
   if (!form.linkLabel.trim()) {
-    modalError.value = "Укажите название связанной сущности";
+    modalError.value = tr('Укажите название связанной сущности');
     return;
   }
   form.links.push({
@@ -614,7 +625,7 @@ function applyDueSuggestion() {
 async function submit() {
   modalError.value = null;
   if (!form.body.trim()) {
-    modalError.value = "Заполните содержание заметки";
+    modalError.value = tr('Заполните содержание заметки');
     return;
   }
   // подхватываем недобавленный пункт из поля ввода
@@ -663,10 +674,10 @@ async function submit() {
     }
     closeModal();
     await load();
-    toast.success(isCreate ? "Запись создана" : "Изменения сохранены");
+    toast.success(isCreate ? tr('Запись создана') : tr('Изменения сохранены'));
   } catch (e: any) {
-    modalError.value = e?.response?.data?.detail || e?.message || "Ошибка сохранения";
-    toast.error("Не удалось сохранить запись");
+    modalError.value = e?.response?.data?.detail || e?.message || tr('Ошибка сохранения');
+    toast.error(tr('Не удалось сохранить запись'));
   } finally {
     modalSubmitting.value = false;
   }
@@ -676,27 +687,29 @@ async function submit() {
 // UI HELPERS
 // ============================================================
 function formatTimeAgo(iso: string): string {
-  const d = new Date(iso);
-  const diffMin = Math.floor((Date.now() - d.getTime()) / 60000);
-  if (diffMin < 1) return "только что";
-  if (diffMin < 60) return `${diffMin} мин назад`;
-  const h = Math.floor(diffMin / 60);
-  if (h < 24) return `${h} ч назад`;
-  const days = Math.floor(h / 24);
-  if (days < 7) return `${days} дн назад`;
-  return d.toLocaleDateString("ru-RU", {
-    day: "numeric",
-    month: "short",
-    year: d.getFullYear() !== new Date().getFullYear() ? "numeric" : undefined,
-  });
+  return fmt.fmtRelativeTime(iso);
 }
 
 function formatDateShort(iso: string): string {
+  return fmt.fmtDate(iso, { includeYear: false });
+}
+
+/** «1 сентября 2026 г.» — полная дата праздника. */
+function formatDateFull(iso: string): string {
+  return fmt.fmtDate(iso, { long: true });
+}
+/** Число месяца для «календарного» блока слева. */
+function holidayDay(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleDateString("ru-RU", {
-    day: "numeric",
-    month: "short",
-  });
+  return Number.isNaN(d.getTime()) ? "—" : String(d.getDate());
+}
+/** Сокращённый день недели («пн», «вт») — сразу видно, попадает ли на выходной. */
+function holidayDow(iso: string): string {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? "" : new Intl.DateTimeFormat(INTL_LOCALE[locale.value], {
+    weekday: "short",
+    timeZone: APP_TIMEZONE,
+  }).format(d);
 }
 
 function formatDateGroup(g: TimelineGroup): string {
@@ -767,20 +780,20 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
           <input
             v-model="search"
             type="text"
-            placeholder="Поиск по заголовку и тексту..."
+            :placeholder="tr('Поиск по заголовку и тексту...')"
           />
           <button
             v-if="search"
             class="cn-search-clear"
             @click="search = ''"
-            title="Очистить"
+            :title="tr('Очистить')"
           >
             ×
           </button>
         </div>
       </div>
       <div class="cn-top-right">
-        <button class="cn-btn-primary" @click="openCreate()">
+        <button v-if="canEdit" class="cn-btn-primary" @click="openCreate()">
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
             <path
               d="M6 1 V11 M1 6 H11"
@@ -789,7 +802,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
               stroke-linecap="round"
             />
           </svg>
-          <span>Добавить запись</span>
+          <span>{{ tr('Добавить запись') }}</span>
         </button>
       </div>
     </div>
@@ -817,7 +830,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
             fill="none"
             v-html="NOTE_KIND_ICONS[k]"
           />
-          <span class="cn-chip-label">{{ NOTE_KIND_LABELS[k] }}</span>
+          <span class="cn-chip-label">{{ tr(NOTE_KIND_LABELS[k]) }}</span>
           <span class="cn-chip-count">{{ kindCount(k) }}</span>
         </button>
       </div>
@@ -827,14 +840,14 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
             type="checkbox"
             v-model="onlyUnresolved"
           />
-          <span>Только незакрытые</span>
+          <span>{{ tr('Только незакрытые') }}</span>
         </label>
         <label class="cn-toggle">
           <input
             type="checkbox"
             v-model="includeHolidays"
           />
-          <span>Включая праздники</span>
+          <span>{{ tr('Включая праздники') }}</span>
         </label>
       </div>
     </div>
@@ -843,7 +856,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
     <!-- TAG CLOUD -->
     <!-- ============================================================ -->
     <div v-if="tagCounts.length" class="cn-tag-cloud">
-      <span class="cn-tag-cloud-label">Теги:</span>
+      <span class="cn-tag-cloud-label">{{ tr('Теги:') }}</span>
       <button
         v-for="tc in tagCounts.slice(0, 20)"
         :key="tc.tag"
@@ -885,7 +898,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
             stroke-linecap="round"
           />
         </svg>
-        <span>Предстоящие праздники (14 дней)</span>
+        <span>{{ tr('Предстоящие праздники (14 дней)') }}</span>
       </div>
       <div class="cn-hw-items">
         <div
@@ -896,12 +909,12 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
         >
           <div class="cn-hw-date">{{ formatDateShort(h.date) }}</div>
           <div class="cn-hw-info">
-            <div class="cn-hw-title-text">{{ h.title_ru }}</div>
+            <div class="cn-hw-title-text">{{ holidayTitle(h) }}</div>
             <div class="cn-hw-meta">
-              <span class="cn-hw-kind">{{ HOLIDAY_KIND_LABELS[h.kind] }}</span>
-              <span v-if="h.is_dayoff" class="cn-hw-dayoff">нерабочий</span>
+              <span class="cn-hw-kind">{{ tr(HOLIDAY_KIND_LABELS[h.kind]) }}</span>
+              <span v-if="h.is_dayoff" class="cn-hw-dayoff">{{ tr('нерабочий') }}</span>
               <span class="cn-hw-countdown">
-                {{ daysUntil(h.date) === 0 ? "сегодня" : daysUntil(h.date) === 1 ? "завтра" : `через ${daysUntil(h.date)} дн.` }}
+                {{ daysUntil(h.date) === 0 ? tr('сегодня') : daysUntil(h.date) === 1 ? tr('завтра') : tr('через {value0} дн.', { value0: daysUntil(h.date) }) }}
               </span>
             </div>
           </div>
@@ -916,7 +929,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
 
     <div v-if="loading" class="cn-loading">
       <div class="cn-spinner"></div>
-      <span>Загрузка журнала...</span>
+      <span>{{ tr('Загрузка журнала...') }}</span>
     </div>
 
     <!-- ============================================================ -->
@@ -930,7 +943,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
             fill="currentColor"
           />
         </svg>
-        Закреплённые
+        {{ tr('Закреплённые') }}
       </div>
       <div class="cn-cards-grid">
         <div
@@ -954,13 +967,13 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
                 fill="none"
                 v-html="NOTE_KIND_ICONS[n.kind]"
               />
-              <span>{{ NOTE_KIND_LABELS[n.kind] }}</span>
+              <span>{{ tr(NOTE_KIND_LABELS[n.kind]) }}</span>
             </div>
-            <div class="cn-card-actions" @click.stop>
+            <div v-if="canEdit" class="cn-card-actions" @click.stop>
               <button
                 class="cn-icon-btn"
                 @click="togglePin(n)"
-                title="Открепить"
+                :title="tr('Открепить')"
               >
                 <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
                   <path
@@ -974,7 +987,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
               <button
                 class="cn-icon-btn"
                 @click="openEdit(n)"
-                title="Редактировать"
+                :title="tr('Редактировать')"
               >
                 <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
                   <path
@@ -988,7 +1001,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
               <button
                 class="cn-icon-btn cn-icon-btn-danger"
                 @click="removeNote(n)"
-                title="Удалить"
+                :title="tr('Удалить')"
               >
                 <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
                   <path
@@ -1038,9 +1051,9 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
                 <span class="cn-card-cl-text">{{ ci.text }}</span>
                 <span v-if="itemDue(ci)" class="cn-card-cl-due" :data-state="itemDue(ci)!.state">
                   <svg width="9" height="9" viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="12" height="11" rx="1.5" stroke="currentColor" stroke-width="1.6" /><path d="M2 6 H14 M5 1 V4 M11 1 V4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" /></svg>
-                  {{ itemDue(ci)!.label }}
+                  {{ tr(itemDue(ci)!.label) }}
                 </span>
-                <span v-if="ci.assignee_name" class="cn-card-cl-av" :title="'Ответственный: ' + ci.assignee_name">{{ avInitials(ci.assignee_name) }}</span>
+                <span v-if="ci.assignee_name" class="cn-card-cl-av" :title="tr('Ответственный: {value0}', { value0: ci.assignee_name })">{{ avInitials(ci.assignee_name) }}</span>
               </div>
             </div>
           </div>
@@ -1050,7 +1063,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
           </div>
           <div class="cn-card-foot">
             <span class="cn-card-time">{{ formatTimeAgo(n.event_date || n.created_at) }}</span>
-            <span v-if="n.assignee_name" class="cn-card-assignee" :title="'Ответственный: ' + n.assignee_name">
+            <span v-if="n.assignee_name" class="cn-card-assignee" :title="tr('Ответственный: {value0}', { value0: n.assignee_name })">
               <span class="cn-card-assignee-av">{{ avInitials(n.assignee_name) }}</span>
               <span class="cn-card-assignee-name">{{ n.assignee_name }}</span>
             </span>
@@ -1060,7 +1073,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
               :class="{ 'cn-resolve-pill-active': n.is_resolved }"
               @click.stop="toggleResolve(n)"
             >
-              {{ n.is_resolved ? "✓ Закрыто" : "○ Открыто" }}
+              {{ n.is_resolved ? tr('✓ Закрыто') : tr('○ Открыто') }}
             </span>
           </div>
         </div>
@@ -1087,8 +1100,9 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
             :title="grp.holiday.description || ''"
           >
             <span class="cn-holiday-dot"></span>
-            {{ grp.holiday.title_ru }}
-            <span v-if="grp.holiday.is_dayoff" class="cn-holiday-flag">нерабочий</span>
+            <b class="cn-holiday-chip-date">{{ formatDateShort(grp.holiday.date) }}</b>
+            {{ holidayTitle(grp.holiday) }}
+            <span v-if="grp.holiday.is_dayoff" class="cn-holiday-flag">{{ tr('нерабочий') }}</span>
           </span>
         </div>
 
@@ -1111,13 +1125,21 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
                   />
                 </svg>
               </div>
+              <!-- Дата праздника: в шапке группы стоит только месяц, и «какого
+                   именно числа» из карточки было не понять. -->
+              <div class="cn-holiday-date" :title="formatDateFull(item.holiday.date)">
+                <span class="cn-holiday-day">{{ holidayDay(item.holiday.date) }}</span>
+                <span class="cn-holiday-dow">{{ holidayDow(item.holiday.date) }}</span>
+              </div>
               <div class="cn-holiday-item-text">
-                <div class="cn-holiday-item-title">{{ item.holiday.title_ru }}</div>
+                <div class="cn-holiday-item-title">{{ holidayTitle(item.holiday) }}</div>
                 <div class="cn-holiday-item-meta">
-                  {{ HOLIDAY_KIND_LABELS[item.holiday.kind] }}
-                  <span v-if="item.holiday.is_dayoff"> · нерабочий</span>
+                  <span class="cn-holiday-full">{{ formatDateFull(item.holiday.date) }}</span>
+                  <span class="cn-holiday-sep">·</span>
+                  {{ tr(HOLIDAY_KIND_LABELS[item.holiday.kind]) }}
+                  <span v-if="item.holiday.is_dayoff"> {{ tr('· нерабочий') }}</span>
                   <span v-if="item.holiday.transferred_from">
-                    · перенос с {{ formatDateShort(item.holiday.transferred_from) }}
+                    {{ tr('· перенос с') }} {{ formatDateShort(item.holiday.transferred_from) }}
                   </span>
                 </div>
               </div>
@@ -1144,13 +1166,13 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
                     fill="none"
                     v-html="NOTE_KIND_ICONS[item.note.kind]"
                   />
-                  <span>{{ NOTE_KIND_LABELS[item.note.kind] }}</span>
+                  <span>{{ tr(NOTE_KIND_LABELS[item.note.kind]) }}</span>
                 </div>
-                <div class="cn-card-actions" @click.stop>
+                <div v-if="canEdit" class="cn-card-actions" @click.stop>
                   <button
                     class="cn-icon-btn"
                     @click="item.note && togglePin(item.note)"
-                    :title="item.note.is_pinned ? 'Открепить' : 'Закрепить'"
+                    :title="item.note.is_pinned ? tr('Открепить') : tr('Закрепить')"
                   >
                     <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
                       <path
@@ -1164,7 +1186,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
                   <button
                     class="cn-icon-btn"
                     @click="item.note && openEdit(item.note)"
-                    title="Редактировать"
+                    :title="tr('Редактировать')"
                   >
                     <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
                       <path
@@ -1178,7 +1200,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
                   <button
                     class="cn-icon-btn cn-icon-btn-danger"
                     @click="item.note && removeNote(item.note)"
-                    title="Удалить"
+                    :title="tr('Удалить')"
                   >
                     <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
                       <path
@@ -1213,13 +1235,13 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
                 ></div>
                 <div class="cn-due-bar-label">
                   <template v-if="dueProgress(item.note)?.state === 'overdue'">
-                    Просрочено на {{ Math.abs(dueProgress(item.note)!.daysLeft) }} дн.
+                    {{ tr('Просрочено на') }} {{ Math.abs(dueProgress(item.note)!.daysLeft) }} {{ tr('дн.') }}
                   </template>
                   <template v-else-if="dueProgress(item.note)?.daysLeft === 0">
-                    Сегодня дедлайн
+                    {{ tr('Сегодня дедлайн') }}
                   </template>
                   <template v-else>
-                    Осталось {{ dueProgress(item.note)?.daysLeft }} дн.
+                    {{ tr('Осталось') }} {{ dueProgress(item.note)?.daysLeft }} {{ tr('дн.') }}
                   </template>
                 </div>
               </div>
@@ -1238,7 +1260,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
                     stroke-linecap="round"
                   />
                 </svg>
-                Дедлайн попадает на {{ isHolidayDayoff(item.note.due_date)?.title_ru }} (нерабочий)
+                {{ tr('Дедлайн попадает на') }} {{ holidayTitle(isHolidayDayoff(item.note.due_date)) }} {{ tr('(нерабочий)') }}
               </div>
 
               <!-- Checklist (interactive) -->
@@ -1268,7 +1290,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
                       </svg>
                     </button>
                     <span class="cn-card-cl-text">{{ ci.text }}</span>
-                    <span v-if="ci.assignee_name" class="cn-card-cl-av" :title="'Ответственный: ' + ci.assignee_name">{{ avInitials(ci.assignee_name) }}</span>
+                    <span v-if="ci.assignee_name" class="cn-card-cl-av" :title="tr('Ответственный: {value0}', { value0: ci.assignee_name })">{{ avInitials(ci.assignee_name) }}</span>
                   </div>
                 </div>
               </div>
@@ -1286,9 +1308,9 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
                   v-for="l in item.note.links"
                   :key="(l.entity_type || '') + (l.entity_label || l.entity_key)"
                   class="cn-card-link"
-                  :title="LINK_ENTITY_LABELS[l.entity_type as LinkEntityType] || l.entity_type"
+                  :title="tr(LINK_ENTITY_LABELS[l.entity_type as LinkEntityType] || l.entity_type)"
                 >
-                  <span class="cn-card-link-type">{{ LINK_ENTITY_LABELS[l.entity_type as LinkEntityType] || l.entity_type }}</span>
+                  <span class="cn-card-link-type">{{ tr(LINK_ENTITY_LABELS[l.entity_type as LinkEntityType] || l.entity_type) }}</span>
                   <span class="cn-card-link-label">{{ l.entity_label || l.entity_key }}</span>
                 </span>
               </div>
@@ -1296,7 +1318,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
               <!-- Foot -->
               <div class="cn-card-foot">
                 <span class="cn-card-time">{{ formatTimeAgo(item.note.event_date || item.note.created_at) }}</span>
-                <span v-if="item.note.assignee_name" class="cn-card-assignee" :title="'Ответственный: ' + item.note.assignee_name">
+                <span v-if="item.note.assignee_name" class="cn-card-assignee" :title="tr('Ответственный: {value0}', { value0: item.note.assignee_name })">
                   <span class="cn-card-assignee-av">{{ avInitials(item.note.assignee_name) }}</span>
                   <span class="cn-card-assignee-name">{{ item.note.assignee_name }}</span>
                 </span>
@@ -1306,7 +1328,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
                   :class="{ 'cn-resolve-pill-active': item.note.is_resolved }"
                   @click.stop="item.note && toggleResolve(item.note)"
                 >
-                  {{ item.note.is_resolved ? "✓ Закрыто" : "○ Открыто" }}
+                  {{ item.note.is_resolved ? tr('✓ Закрыто') : tr('○ Открыто') }}
                 </span>
               </div>
             </div>
@@ -1352,12 +1374,12 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
           />
         </svg>
       </div>
-      <div class="cn-empty-title">Журнал пуст</div>
+      <div class="cn-empty-title">{{ tr('Журнал пуст') }}</div>
       <div class="cn-empty-desc">
-        Фиксируйте события, решения, задачи, риски и наблюдения по компании в одном месте.
+        {{ tr('Фиксируйте события, решения, задачи, риски и наблюдения по компании в одном месте.') }}
       </div>
-      <button class="cn-btn-primary cn-empty-cta" @click="openCreate('event')">
-        Создать первую запись
+      <button v-if="canEdit" class="cn-btn-primary cn-empty-cta" @click="openCreate('event')">
+        {{ tr('Создать первую запись') }}
       </button>
     </div>
 
@@ -1365,12 +1387,12 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
     <!-- MODAL -->
     <!-- ============================================================ -->
     <ModalShell :open="modalOpen" size="lg"
-                :title="modalMode === 'create' ? 'Новая запись' : 'Редактирование записи'"
+                :title="modalMode === 'create' ? tr('Новая запись') : tr('Редактирование записи')"
                 @close="closeModal">
             <div class="cn-modal-body">
               <!-- Kind chips -->
               <div class="cn-field">
-                <label class="cn-field-label">Тип записи</label>
+                <label class="cn-field-label">{{ tr('Тип записи') }}</label>
                 <div class="cn-kind-chips">
                   <button
                     v-for="k in NOTE_KINDS"
@@ -1388,41 +1410,41 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
                       fill="none"
                       v-html="NOTE_KIND_ICONS[k]"
                     />
-                    <span>{{ NOTE_KIND_LABELS[k] }}</span>
+                    <span>{{ tr(NOTE_KIND_LABELS[k]) }}</span>
                   </button>
                 </div>
               </div>
 
               <!-- Title -->
               <div class="cn-field">
-                <label class="cn-field-label">Заголовок</label>
+                <label class="cn-field-label">{{ tr('Заголовок') }}</label>
                 <input
                   v-model="form.title"
                   type="text"
                   class="cn-input"
-                  placeholder="Краткое описание (опционально)"
+                  :placeholder="tr('Краткое описание (опционально)')"
                   maxlength="255"
                 />
               </div>
 
               <!-- Body -->
               <div class="cn-field">
-                <label class="cn-field-label">Содержание <span class="cn-req">*</span></label>
+                <label class="cn-field-label">{{ tr('Содержание') }} <span class="cn-req">*</span></label>
                 <textarea
                   v-model="form.body"
                   class="cn-textarea"
                   rows="5"
-                  placeholder="Что произошло, что решено, что нужно сделать..."
+                  :placeholder="tr('Что произошло, что решено, что нужно сделать...')"
                 ></textarea>
               </div>
 
               <!-- Responsible (note-level) -->
               <div class="cn-field">
-                <label class="cn-field-label">Ответственный</label>
+                <label class="cn-field-label">{{ tr('Ответственный') }}</label>
                 <NoteAssigneePicker
                   :id="form.assignee_id"
                   :name="form.assignee_name"
-                  placeholder="Назначить ответственного"
+                  :placeholder="tr('Назначить ответственного')"
                   @update:id="form.assignee_id = $event"
                   @update:name="form.assignee_name = $event"
                 />
@@ -1431,7 +1453,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
               <!-- Checklist -->
               <div class="cn-field">
                 <label class="cn-field-label cn-cl-label">
-                  <span>Чек-лист</span>
+                  <span>{{ tr('Чек-лист') }}</span>
                   <span v-if="form.checklist.length" class="cn-cl-progress-mini">
                     <span class="cn-cl-progress-track">
                       <span class="cn-cl-progress-fill" :style="{ width: formChecklistPct + '%' }"></span>
@@ -1452,7 +1474,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
                       class="cn-cl-check"
                       :class="{ 'cn-cl-check-on': ci.is_done }"
                       @click="ci.is_done = !ci.is_done"
-                      :title="ci.is_done ? 'Снять отметку' : 'Отметить выполненным'"
+                      :title="ci.is_done ? tr('Снять отметку') : tr('Отметить выполненным')"
                     >
                       <svg v-if="ci.is_done" width="11" height="11" viewBox="0 0 16 16" fill="none">
                         <path d="M3 8.5 L6.5 12 L13 4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
@@ -1462,10 +1484,10 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
                       v-model="ci.text"
                       type="text"
                       class="cn-cl-text"
-                      placeholder="Что нужно сделать…"
+                      :placeholder="tr('Что нужно сделать…')"
                       @keydown.enter.prevent="addChecklistItem"
                     />
-                    <label class="cn-cl-date" :class="{ 'cn-cl-date-set': ci.due_date }" title="Срок пункта">
+                    <label class="cn-cl-date" :class="{ 'cn-cl-date-set': ci.due_date }" :title="tr('Срок пункта')">
                       <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
                         <rect x="2" y="3" width="12" height="11" rx="1.5" stroke="currentColor" stroke-width="1.5" />
                         <path d="M2 6 H14 M5 1 V4 M11 1 V4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
@@ -1476,18 +1498,18 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
                       size="sm"
                       :id="ci.assignee_id"
                       :name="ci.assignee_name"
-                      placeholder="Кто"
+                      :placeholder="tr('Кто')"
                       @update:id="ci.assignee_id = $event"
                       @update:name="ci.assignee_name = $event"
                     />
                     <div class="cn-cl-row-actions">
-                      <button type="button" class="cn-cl-mini" :disabled="idx === 0" @click="moveChecklistItem(idx, -1)" title="Выше">
+                      <button type="button" class="cn-cl-mini" :disabled="idx === 0" @click="moveChecklistItem(idx, -1)" :title="tr('Выше')">
                         <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M4 10 L8 6 L12 10" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" /></svg>
                       </button>
-                      <button type="button" class="cn-cl-mini" :disabled="idx === form.checklist.length - 1" @click="moveChecklistItem(idx, 1)" title="Ниже">
+                      <button type="button" class="cn-cl-mini" :disabled="idx === form.checklist.length - 1" @click="moveChecklistItem(idx, 1)" :title="tr('Ниже')">
                         <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M4 6 L8 10 L12 6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" /></svg>
                       </button>
-                      <button type="button" class="cn-cl-mini cn-cl-mini-danger" @click="removeChecklistItem(idx)" title="Удалить пункт">
+                      <button type="button" class="cn-cl-mini cn-cl-mini-danger" @click="removeChecklistItem(idx)" :title="tr('Удалить пункт')">
                         <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M3 3 L13 13 M13 3 L3 13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /></svg>
                       </button>
                     </div>
@@ -1502,7 +1524,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
                     v-model="form.checklistInput"
                     type="text"
                     class="cn-cl-add-input"
-                    placeholder="Добавить пункт и Enter"
+                    :placeholder="tr('Добавить пункт и Enter')"
                     @keydown.enter.prevent="addChecklistItem"
                   />
                   <button
@@ -1511,14 +1533,14 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
                     class="cn-cl-add-btn"
                     @click="addChecklistItem"
                   >
-                    Добавить
+                    {{ tr('Добавить') }}
                   </button>
                 </div>
               </div>
 
               <!-- Tags -->
               <div class="cn-field">
-                <label class="cn-field-label">Теги</label>
+                <label class="cn-field-label">{{ tr('Теги') }}</label>
                 <div class="cn-tags-editor">
                   <span
                     v-for="t in form.tags"
@@ -1538,7 +1560,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
                     v-model="form.tagInput"
                     type="text"
                     class="cn-tag-input"
-                    placeholder="Добавить тег и Enter"
+                    :placeholder="tr('Добавить тег и Enter')"
                     @keydown.enter.prevent="addTagFromInput"
                     @keydown.,.prevent="addTagFromInput"
                     @blur="addTagFromInput"
@@ -1563,7 +1585,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
               <div class="cn-field-row">
                 <div class="cn-field">
                   <label class="cn-field-label">
-                    {{ form.kind === "task" ? "Создано" : "Дата события" }}
+                    {{ form.kind === "task" ? tr('Создано') : tr('Дата события') }}
                   </label>
                   <input
                     v-model="form.event_date"
@@ -1583,18 +1605,18 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
                         stroke-linecap="round"
                       />
                     </svg>
-                    {{ eventConflict.holiday?.title_ru }} -- нерабочий день
+                    {{ holidayTitle(eventConflict.holiday) }} {{ tr('-- нерабочий день') }}
                     <button
                       type="button"
                       class="cn-date-warn-cta"
                       @click="applyEventSuggestion"
                     >
-                      Сдвинуть на {{ formatDateShort(toIsoDate(eventConflict.suggested!)) }}
+                      {{ tr('Сдвинуть на') }} {{ formatDateShort(toIsoDate(eventConflict.suggested!)) }}
                     </button>
                   </div>
                 </div>
                 <div v-if="form.kind === 'task'" class="cn-field">
-                  <label class="cn-field-label">Дедлайн</label>
+                  <label class="cn-field-label">{{ tr('Дедлайн') }}</label>
                   <input
                     v-model="form.due_date"
                     type="date"
@@ -1613,13 +1635,13 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
                         stroke-linecap="round"
                       />
                     </svg>
-                    {{ dueConflict.holiday?.title_ru }} -- нерабочий день
+                    {{ holidayTitle(dueConflict.holiday) }} {{ tr('-- нерабочий день') }}
                     <button
                       type="button"
                       class="cn-date-warn-cta"
                       @click="applyDueSuggestion"
                     >
-                      Сдвинуть на {{ formatDateShort(toIsoDate(dueConflict.suggested!)) }}
+                      {{ tr('Сдвинуть на') }} {{ formatDateShort(toIsoDate(dueConflict.suggested!)) }}
                     </button>
                   </div>
                 </div>
@@ -1629,13 +1651,13 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
               <div class="cn-field">
                 <label class="cn-toggle">
                   <input v-model="form.is_pinned" type="checkbox" />
-                  <span>Закрепить вверху списка</span>
+                  <span>{{ tr('Закрепить вверху списка') }}</span>
                 </label>
               </div>
 
               <!-- Entity links -->
               <div class="cn-field">
-                <label class="cn-field-label">Связанные сущности</label>
+                <label class="cn-field-label">{{ tr('Связанные сущности') }}</label>
                 <div v-if="form.links.length" class="cn-links-list">
                   <div
                     v-for="(l, idx) in form.links"
@@ -1643,7 +1665,7 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
                     class="cn-link-item"
                   >
                     <span class="cn-link-item-type">
-                      {{ LINK_ENTITY_LABELS[l.entity_type as LinkEntityType] || l.entity_type }}
+                      {{ tr(LINK_ENTITY_LABELS[l.entity_type as LinkEntityType] || l.entity_type) }}
                     </span>
                     <span class="cn-link-item-label">{{ l.entity_label }}</span>
                     <button
@@ -1665,14 +1687,14 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
                       :key="key"
                       :value="key"
                     >
-                      {{ label }}
+                      {{ tr(label) }}
                     </option>
                   </select>
                   <input
                     v-model="form.linkLabel"
                     type="text"
                     class="cn-input"
-                    placeholder="Название (e.g. Проект ERP-2026)"
+                    :placeholder="tr('Название (e.g. Проект ERP-2026)')"
                   />
                   <button
                     type="button"
@@ -1690,16 +1712,16 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
 
       <template #footer>
         <button class="cn-btn-secondary" @click="closeModal">
-          Отмена
+          {{ tr('Отмена') }}
         </button>
         <button
           class="cn-btn-primary"
           :disabled="modalSubmitting || !form.body.trim()"
           @click="submit"
         >
-          <span v-if="modalSubmitting">Сохраняем...</span>
-          <span v-else-if="modalMode === 'create'">Создать</span>
-          <span v-else>Сохранить</span>
+          <span v-if="modalSubmitting">{{ tr('Сохраняем...') }}</span>
+          <span v-else-if="modalMode === 'create'">{{ tr('Создать') }}</span>
+          <span v-else>{{ tr('Сохранить') }}</span>
         </button>
       </template>
     </ModalShell>
@@ -2219,6 +2241,17 @@ function isHolidayDayoff(dateStr: string | null | undefined): UzHoliday | null {
   --h-color: var(--green);
   animation: cnFadeUp 0.4s both;
 }
+.cn-holiday-date {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-width: 40px; padding: 4px 6px; border-radius: 10px;
+  background: color-mix(in srgb, var(--h-color, #7C6FF7) 12%, #fff);
+  color: var(--h-color, #7C6FF7); flex-shrink: 0;
+}
+.cn-holiday-day { font-size: 16px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
+.cn-holiday-dow { font-size: 8.5px; text-transform: uppercase; letter-spacing: .05em; opacity: .8; margin-top: 2px; }
+.cn-holiday-full { font-weight: 600; color: var(--t2, #4B5468); }
+.cn-holiday-sep { opacity: .45; margin: 0 3px; }
+.cn-holiday-chip-date { font-variant-numeric: tabular-nums; margin-right: 5px; }
 .cn-holiday-item-icon {
   color: var(--h-color);
   flex-shrink: 0;

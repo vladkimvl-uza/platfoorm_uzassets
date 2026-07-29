@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Optional
+from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -31,10 +32,12 @@ class UserSearchService:
         q: str,
         active_only: bool,
         limit: int,
+        company_id: Optional[UUID] = None,
     ) -> dict:
         needle = q.strip().lower()
         rows = await UserSearchRepository(db).search(
             needle=needle, active_only=active_only, limit=limit,
+            company_id=company_id,
         )
         return {
             "items": [
@@ -45,6 +48,7 @@ class UserSearchService:
                     "username": u.username,
                     "initials": _make_initials(u.full_name, u.email),
                     "department": u.department,
+                    "job_title": getattr(u, "job_title", None),
                     "is_active": bool(u.is_active),
                 }
                 for u in rows

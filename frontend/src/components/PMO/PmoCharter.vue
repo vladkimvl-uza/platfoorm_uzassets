@@ -12,6 +12,8 @@ import NoteAssigneePicker from "@/components/NoteAssigneePicker.vue";
 import { useToast } from "@/composables/useToast";
 import { pmoApi, type Charter, type CharterPayload } from "@/api/pmo";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 const { t } = useI18n();
 
 
@@ -34,7 +36,7 @@ async function load() {
   try {
     charters.value = await pmoApi.listCharters(props.companyCode);
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить уставы";
+    error.value = e?.response?.data?.detail || e?.message || t('Не удалось загрузить уставы');
   } finally { loading.value = false; }
 }
 onMounted(load);
@@ -52,7 +54,7 @@ const programCharter = computed(() => charters.value.find(c => !c.project_id) ||
 interface Tile { key: string; projectId: string | null; title: string; charter: Charter | null; }
 const tiles = computed<Tile[]>(() => {
   const out: Tile[] = [
-    { key: "__program__", projectId: null, title: "Программа / портфель", charter: programCharter.value },
+    { key: "__program__", projectId: null, title: i18nKey("Программа / портфель"), charter: programCharter.value },
   ];
   for (const p of (props.projects || [])) {
     out.push({ key: p.id, projectId: p.id, title: p.title, charter: byProject.value.get(p.id) || null });
@@ -120,10 +122,10 @@ async function save() {
     modalOpen.value = false;
     await load();
     selectedId.value = saved.id;
-    toast.success(editId.value ? "Устав сохранён" : "Устав создан");
+    toast.success(editId.value ? t('Устав сохранён') : t('Устав создан'));
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || "Не удалось сохранить устав";
-    toast.error("Не удалось сохранить устав");
+    error.value = e?.response?.data?.detail || t('Не удалось сохранить устав');
+    toast.error(t('Не удалось сохранить устав'));
   } finally { saving.value = false; }
 }
 
@@ -133,9 +135,9 @@ async function toggleApprove(c: Charter) {
     const next = c.status === "approved" ? "draft" : "approved";
     await pmoApi.updateCharter(c.id, { status: next });
     await load();
-    toast.success(next === "approved" ? "Устав утверждён" : "Возвращён в черновик");
+    toast.success(next === "approved" ? t('Устав утверждён') : t('Возвращён в черновик'));
   } catch (e: any) {
-    toast.error(e?.response?.data?.detail || "Не удалось изменить статус");
+    toast.error(e?.response?.data?.detail || t('Не удалось изменить статус'));
   } finally { saving.value = false; }
 }
 
@@ -145,9 +147,9 @@ async function remove(c: Charter) {
     await pmoApi.deleteCharter(c.id);
     if (selectedId.value === c.id) selectedId.value = null;
     await load();
-    toast.success("Устав удалён");
+    toast.success(t('Устав удалён'));
   } catch (e: any) {
-    toast.error(e?.response?.data?.detail || "Не удалось удалить");
+    toast.error(e?.response?.data?.detail || t('Не удалось удалить'));
   }
 }
 
@@ -158,15 +160,15 @@ const fmtMoney = (n: number | null) => n == null ? "—" : new Intl.NumberFormat
 
 // Разделы документа для рендера
 const DOC_SECTIONS: { key: keyof Charter; label: string }[] = [
-  { key: "purpose", label: "Обоснование и назначение" },
-  { key: "objectives", label: "Цели проекта" },
-  { key: "scope_in", label: "В границах (scope in)" },
-  { key: "scope_out", label: "Вне границ (scope out)" },
-  { key: "success_criteria", label: "Критерии успеха" },
-  { key: "deliverables", label: "Ключевые результаты" },
-  { key: "milestones", label: "Вехи" },
-  { key: "assumptions", label: "Допущения" },
-  { key: "constraints", label: "Ограничения" },
+  { key: "purpose", label: i18nKey("Обоснование и назначение") },
+  { key: "objectives", label: i18nKey("Цели проекта") },
+  { key: "scope_in", label: i18nKey("В границах (scope in)") },
+  { key: "scope_out", label: i18nKey("Вне границ (scope out)") },
+  { key: "success_criteria", label: i18nKey("Критерии успеха") },
+  { key: "deliverables", label: i18nKey("Ключевые результаты") },
+  { key: "milestones", label: i18nKey("Вехи") },
+  { key: "assumptions", label: i18nKey("Допущения") },
+  { key: "constraints", label: i18nKey("Ограничения") },
 ];
 function secVal(c: Charter, k: keyof Charter): string {
   return (c[k] as string) || "";
@@ -186,7 +188,7 @@ function secVal(c: Charter, k: keyof Charter): string {
       </div>
     </div>
 
-    <UzaStateBlock v-if="loading" state="loading" text="Загрузка уставов…" />
+    <UzaStateBlock v-if="loading" state="loading" :text="t('Загрузка уставов…')" />
 
     <template v-else>
       <div class="pc-grid">
@@ -206,7 +208,7 @@ function secVal(c: Charter, k: keyof Charter): string {
                 v-if="t.charter"
                 class="pc-badge"
                 :class="t.charter.status === 'approved' ? 'pc-badge-ok' : 'pc-badge-draft'"
-              >{{ t.charter.status === "approved" ? "Утверждён" : "Черновик" }}</span>
+              >{{ t.charter.status === "approved" ? t('Утверждён') : t('Черновик') }}</span>
               <span v-else class="pc-badge pc-badge-none">{{ t('Нет устава') }}</span>
             </div>
             <div v-if="t.charter" class="pc-tile-meta">
@@ -225,18 +227,18 @@ function secVal(c: Charter, k: keyof Charter): string {
             state="empty"
             variant="block"
             :title="t('Выберите устав')"
-            text="Слева — проекты портфеля. Откройте существующий устав или создайте новый для формальной инициации проекта."
+            :text="t('Слева — проекты портфеля. Откройте существующий устав или создайте новый для формальной инициации проекта.')"
           />
           <div v-else class="pc-doc" :key="selected.id">
             <div class="pc-doc-head">
               <div>
                 <div class="pc-doc-eyebrow">{{ t('Устав проекта') }}</div>
-                <div class="pc-doc-title">{{ selected.project_title || "Программа / портфель" }}</div>
+                <div class="pc-doc-title">{{ selected.project_title || t('Программа / портфель') }}</div>
               </div>
               <span
                 class="pc-badge pc-badge-lg"
                 :class="selected.status === 'approved' ? 'pc-badge-ok' : 'pc-badge-draft'"
-              >{{ selected.status === "approved" ? "Утверждён" : "Черновик" }}</span>
+              >{{ selected.status === "approved" ? t('Утверждён') : t('Черновик') }}</span>
             </div>
 
             <!-- key facts -->
@@ -251,8 +253,8 @@ function secVal(c: Charter, k: keyof Charter): string {
             <!-- sections -->
             <div class="pc-sections">
               <div v-for="s in DOC_SECTIONS" :key="s.key" class="pc-sec" :class="{ 'pc-sec-empty': !secVal(selected, s.key) }">
-                <div class="pc-sec-l">{{ s.label }}</div>
-                <div class="pc-sec-v">{{ secVal(selected, s.key) || "— не заполнено —" }}</div>
+                <div class="pc-sec-l">{{ t(s.label) }}</div>
+                <div class="pc-sec-v">{{ secVal(selected, s.key) || t('— не заполнено —') }}</div>
               </div>
             </div>
 
@@ -269,7 +271,7 @@ function secVal(c: Charter, k: keyof Charter): string {
                 :class="selected.status === 'approved' ? 'pc-btn-ghost' : 'pc-btn-ok'"
                 :disabled="saving"
                 @click="toggleApprove(selected)"
-              >{{ selected.status === "approved" ? "Вернуть в черновик" : "Утвердить" }}</button>
+              >{{ selected.status === "approved" ? t('Вернуть в черновик') : t('Утвердить') }}</button>
               <button class="pc-btn pc-btn-del" @click="remove(selected)">{{ t('Удалить') }}</button>
             </div>
           </div>
@@ -282,17 +284,19 @@ function secVal(c: Charter, k: keyof Charter): string {
       <div v-if="modalOpen" class="pc-ov" @click.self="modalOpen = false">
         <div class="pc-modal">
           <div class="pc-mh">
-            {{ editId ? "Правка устава" : "Новый устав" }}
+            {{ editId ? t('Правка устава') : t('Новый устав') }}
             <span v-if="form.project_title" class="pc-mh-proj">· {{ form.project_title }}</span>
           </div>
           <div class="pc-mb">
             <div class="pc-row3">
               <div class="pc-f"><label>{{ t('Спонсор') }}</label>
                 <NoteAssigneePicker :id="sponsorId" :name="form.sponsor_name || null" :placeholder="t('Спонсор')"
+                  :company-code="companyCode" allow-custom
                   @update:id="sponsorId = $event" @update:name="form.sponsor_name = $event || ''" />
               </div>
               <div class="pc-f"><label>{{ t('Руководитель') }}</label>
                 <NoteAssigneePicker :id="managerId" :name="form.manager_name || null" :placeholder="t('РП')"
+                  :company-code="companyCode" allow-custom
                   @update:id="managerId = $event" @update:name="form.manager_name = $event || ''" />
               </div>
             </div>
@@ -317,7 +321,7 @@ function secVal(c: Charter, k: keyof Charter): string {
           </div>
           <div class="pc-mf">
             <button class="pc-btn pc-btn-ghost" @click="modalOpen = false">{{ t('Отмена') }}</button>
-            <button class="pc-btn pc-btn-primary" :disabled="saving" @click="save">{{ saving ? "Сохраняю…" : "Сохранить" }}</button>
+            <button class="pc-btn pc-btn-primary" :disabled="saving" @click="save">{{ saving ? t('Сохраняю…') : t('Сохранить') }}</button>
           </div>
         </div>
       </div>

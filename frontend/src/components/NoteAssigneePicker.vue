@@ -14,6 +14,8 @@
 import { ref, computed, nextTick, onBeforeUnmount } from "vue";
 import { api } from "@/api/client";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 const { t } = useI18n();
 
 
@@ -24,6 +26,7 @@ interface UserSearchItem {
   username: string | null;
   initials: string;
   department: string | null;
+  job_title?: string | null;
   is_active: boolean;
 }
 
@@ -33,7 +36,12 @@ const props = withDefaults(defineProps<{
   disabled?: boolean;
   size?: "sm" | "md";
   placeholder?: string;
-}>(), { size: "md", placeholder: "Ответственный" });
+  /** Код компании: при нём список сотрудников ЭТОЙ компании показывается сразу,
+   *  без ввода, и поиск не выходит за её пределы. */
+  companyCode?: string | null;
+  /** Разрешить ввести произвольное ФИО (человек не заведён в платформе). */
+  allowCustom?: boolean;
+}>(), { size: "md", placeholder: i18nKey("Ответственный"), allowCustom: false });
 
 const emit = defineEmits<{
   (e: "update:id", v: string | null): void;
@@ -60,11 +68,18 @@ const initials = computed(() => {
 });
 
 async function runSearch(text: string) {
-  if (text.trim().length < 1) { results.value = []; return; }
+  const scoped = !!props.companyCode;
+  // Без компании пустой запрос не шлём (бэкенд требует 2 символа — защита от
+  // перечисления каталога). С компанией — наоборот, показываем её сотрудников
+  // сразу: это ожидаемое поведение пикера внутри карточки компании.
+  if (!scoped && text.trim().length < 1) { results.value = []; return; }
   loading.value = true;
   try {
     const { data } = await api.get<{ items: UserSearchItem[] }>("/users/search", {
-      params: { q: text, limit: 8, active_only: true },
+      params: {
+        q: text, limit: scoped ? 25 : 8, active_only: true,
+        ...(scoped ? { company_code: props.companyCode } : {}),
+      },
     });
     results.value = data.items || [];
     highlight.value = results.value.length ? 0 : -1;
@@ -89,6 +104,9 @@ async function openPanel() {
   document.addEventListener("mousedown", onDocClick, true);
   await nextTick();
   inputEl.value?.focus();
+  // Сотрудники компании подгружаются сразу — пользователю не нужно угадывать,
+  // кто заведён в системе.
+  if (props.companyCode) void runSearch("");
 }
 
 function closePanel() {
@@ -107,6 +125,22 @@ function pick(u: UserSearchItem) {
   closePanel();
 }
 
+/** Произвольное ФИО: человек не заведён в платформе (внешний консультант,
+ *  сотрудник без учётной записи). Сохраняем только имя, без user_id. */
+function pickCustom() {
+  const name = q.value.trim();
+  if (!name) return;
+  emit("update:id", null);
+  emit("update:name", name);
+  closePanel();
+}
+
+const canAddCustom = computed(() =>
+  !!props.allowCustom
+  && q.value.trim().length >= 2
+  && !results.value.some(u => (u.full_name || u.email).toLowerCase() === q.value.trim().toLowerCase()),
+);
+
 function clearAssignee(e?: Event) {
   e?.stopPropagation();
   emit("update:id", null);
@@ -120,7 +154,11 @@ function onKeydown(e: KeyboardEvent) {
   }
   if (e.key === "ArrowDown") { e.preventDefault(); highlight.value = (highlight.value + 1) % results.value.length; }
   else if (e.key === "ArrowUp") { e.preventDefault(); highlight.value = (highlight.value - 1 + results.value.length) % results.value.length; }
-  else if (e.key === "Enter") { e.preventDefault(); if (highlight.value >= 0) pick(results.value[highlight.value]); }
+  else if (e.key === "Enter") {
+    e.preventDefault();
+    if (highlight.value >= 0) pick(results.value[highlight.value]);
+    else if (canAddCustom.value) pickCustom();
+  }
   else if (e.key === "Escape") { closePanel(); }
 }
 
@@ -162,7 +200,7 @@ onBeforeUnmount(() => {
         <circle cx="8" cy="5.5" r="2.6" stroke="currentColor" stroke-width="1.5" />
         <path d="M3.2 13 C3.6 10.4 5.6 9 8 9 C10.4 9 12.4 10.4 12.8 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
       </svg>
-      <span>{{ placeholder }}</span>
+      <span>{{ t(placeholder) }}</span>
     </button>
 
     <!-- Dropdown -->
@@ -196,11 +234,25 @@ onBeforeUnmount(() => {
             <span class="ap-avatar ap-avatar-sm">{{ u.initials }}</span>
             <span class="ap-item-info">
               <span class="ap-item-name">{{ u.full_name || u.email }}</span>
-              <span class="ap-item-meta">{{ u.email }}<span v-if="u.department"> · {{ u.department }}</span></span>
+              <span class="ap-item-meta">{{ u.job_title || u.email }}<span v-if="u.department"> · {{ u.department }}</span></span>
             </span>
           </button>
-          <div v-if="!loading && q && results.length === 0" class="ap-hint">{{ t('Никого не найдено') }}</div>
-          <div v-if="!loading && !q" class="ap-hint ap-hint-muted">{{ t('Начните вводить имя') }}</div>
+          <!-- Произвольное ФИО — для тех, кого нет в платформе -->
+          <button
+            v-if="canAddCustom"
+            type="button"
+            class="ap-item ap-item-custom"
+            @mousedown.prevent="pickCustom"
+          >
+            <span class="ap-avatar ap-avatar-sm ap-avatar-custom">+</span>
+            <span class="ap-item-info">
+              <span class="ap-item-name">{{ q.trim() }}</span>
+              <span class="ap-item-meta">{{ t('добавить как есть — нет учётной записи') }}</span>
+            </span>
+          </button>
+          <div v-if="!loading && q && results.length === 0 && !canAddCustom" class="ap-hint">{{ t('Никого не найдено') }}</div>
+          <div v-if="!loading && !q && !companyCode" class="ap-hint ap-hint-muted">{{ t('Начните вводить имя') }}</div>
+          <div v-if="!loading && !q && companyCode && results.length === 0" class="ap-hint ap-hint-muted">{{ t('В этой компании пока нет заведённых сотрудников') }}</div>
         </div>
       </div>
     </Transition>
@@ -305,6 +357,8 @@ onBeforeUnmount(() => {
   font-size: 10.5px; color: var(--t3, #94a3b8);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+.ap-item-custom { border-top: 1px solid rgba(30,42,74,.07); margin-top: 3px; padding-top: 8px; }
+.ap-avatar-custom { background: linear-gradient(135deg, #B9C7EE, #8FA6DA); font-size: 14px; font-weight: 500; }
 .ap-hint { padding: 9px 10px; font-size: 11.5px; color: var(--t3, #94a3b8); text-align: center; }
 .ap-hint-muted { opacity: .8; }
 

@@ -19,6 +19,7 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy import func
 
 from app.api.deps import get_current_user, get_db
+from app.core.access import ensure_company_access
 from app.config import settings
 from app.core.rate_limit import limiter
 from app.dependencies.user_search import UserSearchServiceDep
@@ -133,20 +134,38 @@ async def search_users(
     service: UserSearchServiceDep,
     q: str = Query("", max_length=128,
                    description="Подстрока для поиска (минимум 2 символа)"),
+    company_code: Optional[str] = Query(
+        None, max_length=32,
+        description="Ограничить сотрудниками компании (её код). Тогда пустой q "
+                    "разрешён — возвращается список сотрудников этой компании.",
+    ),
     limit: int = Query(10, ge=1, le=25),
     active_only: bool = True,
     db: AsyncSession = Depends(get_db),
-    _u: User = Depends(get_current_user),
+    user: User = Depends(get_current_user),
 ):
-    # 2026-05-26: defensive — пустой `q` или 1 символ позволяет enumeration
-    # всего user-каталога. Минимум 2 символа = ~676 combinations при ASCII,
-    # ~3M при кириллице → достаточно ограничивает scraping.
     q_clean = (q or "").strip()
-    if len(q_clean) < 2:
+    company_id = None
+    if company_code:
+        row = (await db.execute(
+            select(Company.id).where(Company.code == company_code.lower())
+        )).first()
+        if row is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Company not found")
+        company_id = row[0]
+        # Область запроса — своя компания, поэтому список её сотрудников без
+        # поисковой строки НЕ является перечислением каталога платформы.
+        # Но доступ к самой компании обязателен.
+        await ensure_company_access(db, user, company_id)
+    elif len(q_clean) < 2:
+        # 2026-05-26: defensive — пустой `q` или 1 символ позволяет enumeration
+        # всего user-каталога. Минимум 2 символа = ~676 combinations при ASCII,
+        # ~3M при кириллице → достаточно ограничивает scraping.
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
             "Минимум 2 символа для поиска пользователей",
         )
     return await service.search(
         db, q=q_clean, active_only=active_only, limit=limit,
+        company_id=company_id,
     )

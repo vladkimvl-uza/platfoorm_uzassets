@@ -17,6 +17,8 @@ import {
   type RaciEntry, type RaciRole,
 } from "@/api/pmo";
 import { useI18n } from "@/composables/useI18n";
+import { i18nKey } from "@/locale/keys";
+
 const { t } = useI18n();
 
 
@@ -46,7 +48,7 @@ async function load() {
     ]);
     wl.value = w; raci.value = r;
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || e?.message || "Не удалось загрузить данные команды";
+    error.value = e?.response?.data?.detail || e?.message || t('Не удалось загрузить данные команды');
   } finally { loading.value = false; }
 }
 onMounted(load);
@@ -60,10 +62,10 @@ function avInitials(name?: string | null): string {
 }
 
 const CAP: Record<Capacity, { l: string; c: string }> = {
-  free: { l: "Свободен", c: "#94a3b8" },
-  normal: { l: "В норме", c: "#1D9E75" },
-  high: { l: "Высокая", c: "#D97706" },
-  overload: { l: "Перегрузка", c: "#E24B4A" },
+  free: { l: i18nKey("Свободен"), c: "#94a3b8" },
+  normal: { l: i18nKey("В норме"), c: "#1D9E75" },
+  high: { l: i18nKey("Высокая"), c: "#D97706" },
+  overload: { l: i18nKey("Перегрузка"), c: "#E24B4A" },
 };
 function loadPct(p: WorkloadPerson): number {
   const max = wl.value?.max_load || 1;
@@ -72,10 +74,10 @@ function loadPct(p: WorkloadPerson): number {
 
 // ── RACI ──
 const RACI_ROLES: { v: RaciRole; l: string; c: string }[] = [
-  { v: "A", l: "Ответственный (Accountable)", c: "#1D9E75" },
-  { v: "R", l: "Исполнитель (Responsible)", c: "#534AB7" },
-  { v: "C", l: "Консультируемый (Consulted)", c: "#D97706" },
-  { v: "I", l: "Информируемый (Informed)", c: "#378ADD" },
+  { v: "A", l: i18nKey("Ответственный (Accountable)"), c: "#1D9E75" },
+  { v: "R", l: i18nKey("Исполнитель (Responsible)"), c: "#534AB7" },
+  { v: "C", l: i18nKey("Консультируемый (Consulted)"), c: "#D97706" },
+  { v: "I", l: i18nKey("Информируемый (Informed)"), c: "#378ADD" },
 ];
 const RR = Object.fromEntries(RACI_ROLES.map(r => [r.v, r]));
 
@@ -108,8 +110,8 @@ function openAdd(presetItem?: string) {
   addOpen.value = true;
 }
 async function addRaci() {
-  if (!fItem.value.trim()) { toast.error("Укажите активность/результат"); return; }
-  if (!fPersonName.value?.trim()) { toast.error("Укажите человека"); return; }
+  if (!fItem.value.trim()) { toast.error(t('Укажите активность/результат')); return; }
+  if (!fPersonName.value?.trim()) { toast.error(t('Укажите человека')); return; }
   saving.value = true;
   try {
     await pmoApi.createRaci(props.companyCode, {
@@ -121,19 +123,19 @@ async function addRaci() {
     });
     addOpen.value = false;
     await load();
-    toast.success("Назначение добавлено");
-  } catch (e: any) { toast.error(e?.response?.data?.detail || "Не удалось добавить"); }
+    toast.success(t('Назначение добавлено'));
+  } catch (e: any) { toast.error(e?.response?.data?.detail || t('Не удалось добавить')); }
   finally { saving.value = false; }
 }
 async function removeEntry(e: RaciEntry) {
   try { await pmoApi.deleteRaci(e.id); await load(); }
-  catch (err: any) { toast.error(err?.response?.data?.detail || "Не удалось удалить"); }
+  catch (err: any) { toast.error(err?.response?.data?.detail || t('Не удалось удалить')); }
 }
 async function clearItem(item: string) {
-  if (!(await confirmDialog({ message: `Удалить все назначения по «${item}»?`, danger: true }))) return;
+  if (!(await confirmDialog({ message: t('Удалить все назначения по «{value0}»?', { value0: item }), danger: true }))) return;
   const ids = raci.value.filter(e => e.item_label === item).map(e => e.id);
-  try { for (const id of ids) await pmoApi.deleteRaci(id); await load(); toast.success("Строка удалена"); }
-  catch (e: any) { toast.error("Не удалось удалить"); }
+  try { for (const id of ids) await pmoApi.deleteRaci(id); await load(); toast.success(t('Строка удалена')); }
+  catch (e: any) { toast.error(t('Не удалось удалить')); }
 }
 </script>
 
@@ -149,7 +151,7 @@ async function clearItem(item: string) {
       <button v-if="canEdit && view === 'raci'" class="tm-add" @click="openAdd()">{{ t('+ Назначение') }}</button>
     </div>
 
-    <UzaStateBlock v-if="loading" state="loading" text="Загрузка данных команды…" />
+    <UzaStateBlock v-if="loading" state="loading" :text="t('Загрузка данных команды…')" />
 
     <template v-else>
       <!-- ── Загрузка ── -->
@@ -160,7 +162,7 @@ async function clearItem(item: string) {
           <div class="tm-stat" :class="{ 'tm-stat-warn': wl.unassigned_open > 0 }"><span class="tm-stat-n">{{ wl.unassigned_open }}</span><span class="tm-stat-l">{{ t('без исполнителя') }}</span></div>
         </div>
 
-        <UzaStateBlock v-if="!wl || !wl.people.length" state="empty" variant="block" :title="t('Нет назначений')" text="Назначьте исполнителей на задачи — здесь появится их загрузка и сигналы перегрузки." />
+        <UzaStateBlock v-if="!wl || !wl.people.length" state="empty" variant="block" :title="t('Нет назначений')" :text="t('Назначьте исполнителей на задачи — здесь появится их загрузка и сигналы перегрузки.')" />
         <div v-else class="tm-people">
           <div v-for="(p, i) in wl.people" :key="p.person_id || p.name" class="tm-person" :style="{ animationDelay: Math.min(i*0.03, 0.4)+'s' }">
             <div class="tm-av" :style="{ background: 'linear-gradient(135deg, ' + CAP[p.capacity].c + ', ' + CAP[p.capacity].c + 'cc)' }">{{ avInitials(p.name) }}</div>
@@ -184,7 +186,7 @@ async function clearItem(item: string) {
 
       <!-- ── RACI ── -->
       <div v-else>
-        <UzaStateBlock v-if="!raci.length" state="empty" variant="block" :title="t('Матрица RACI пуста')" text="Добавьте назначения: для каждой активности укажите, кто Ответственный (A), Исполнитель (R), Консультируемый (C), Информируемый (I)." />
+        <UzaStateBlock v-if="!raci.length" state="empty" variant="block" :title="t('Матрица RACI пуста')" :text="t('Добавьте назначения: для каждой активности укажите, кто Ответственный (A), Исполнитель (R), Консультируемый (C), Информируемый (I).')" />
         <template v-else>
           <div class="tm-legend">
             <span v-for="r in RACI_ROLES" :key="r.v" class="tm-leg"><span class="tm-leg-b" :style="{ color: r.c, background: r.c + '1a' }">{{ r.v }}</span>{{ r.l }}</span>
@@ -205,7 +207,7 @@ async function clearItem(item: string) {
                     <span
                       v-for="e in cellEntries(item, pn)" :key="e.id"
                       class="tm-rb" :style="{ color: RR[e.role]?.c, background: RR[e.role]?.c + '1a' }"
-                      :title="canEdit ? RR[e.role]?.l + ' — клик чтобы убрать' : RR[e.role]?.l"
+                      :title="canEdit ? t('{value0} — клик чтобы убрать', { value0: RR[e.role]?.l }) : RR[e.role]?.l"
                       @click="canEdit && removeEntry(e)"
                     >{{ e.role }}</span>
                   </td>
@@ -230,6 +232,7 @@ async function clearItem(item: string) {
             <div class="tm-f"><label>{{ t('Активность / результат') }}</label><input v-model="fItem" :placeholder="t('Например: Утверждение бюджета')" /></div>
             <div class="tm-f"><label>{{ t('Человек') }}</label>
               <NoteAssigneePicker :id="fPersonId" :name="fPersonName" :placeholder="t('Выбрать пользователя')"
+                :company-code="companyCode" allow-custom
                 @update:id="fPersonId = $event" @update:name="fPersonName = $event" />
             </div>
             <div class="tm-f"><label>{{ t('Роль') }}</label>
@@ -243,7 +246,7 @@ async function clearItem(item: string) {
               <select v-model="fProject"><option :value="null">{{ t('— без проекта —') }}</option><option v-for="p in projects" :key="p.id" :value="p.id">{{ p.title }}</option></select>
             </div>
           </div>
-          <div class="tm-mf"><button class="tm-bg" @click="addOpen = false">{{ t('Отмена') }}</button><button class="tm-b" :disabled="saving" @click="addRaci">{{ saving ? "Сохраняю…" : "Добавить" }}</button></div>
+          <div class="tm-mf"><button class="tm-bg" @click="addOpen = false">{{ t('Отмена') }}</button><button class="tm-b" :disabled="saving" @click="addRaci">{{ saving ? t('Сохраняю…') : t('Добавить') }}</button></div>
         </div>
       </div>
     </Transition>

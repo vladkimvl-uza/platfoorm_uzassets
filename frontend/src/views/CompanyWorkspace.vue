@@ -105,6 +105,8 @@ import ProjectsStatusReport from "@/components/reporting/ProjectsStatusReport.vu
 import CompanyDocuments from "@/components/Documents/CompanyDocuments.vue";
 import ExecOverview from "@/views/ExecOverview.vue";
 import { useSavedFilter } from "@/composables/useSavedFilter";
+import { i18nKey } from "@/locale/keys";
+
 
 const route = useRoute();
 const router = useRouter();
@@ -152,6 +154,10 @@ const activeKpiMgrIdx = ref(0);
 const kpiEditorOpen = ref(false);
 const kpiPerm = usePermissions("kpi");
 const pmoPerm = usePermissions("pmo");
+// Заметки/календарь — часть работы по задачам, поэтому право то же (tasks.edit).
+// Без него вкладка «Календарь» read-only: наблюдателю не показываем кнопки,
+// которые упрутся в 403 на бэкенде.
+const tasksPerm = usePermissions("tasks");
 // Сводный обзор внутри вкладки «Отчёт» — тот же экран, что /executive-overview,
 // поэтому и право одно (exec_overview.view); иначе подвкладка была бы обходом.
 const execOverviewPerm = usePermissions("exec_overview");
@@ -329,24 +335,24 @@ interface TabDef {
 
 const TABS: TabDef[] = [
   // Управление
-  { key: "overview",    label: "Обзор",        group: "manage" },
-  { key: "people",      label: "Сотрудники",   group: "manage" },
-  { key: "work",        label: "Работа",       group: "manage" },
+  { key: "overview",    label: i18nKey("Обзор"),        group: "manage" },
+  { key: "people",      label: i18nKey("Сотрудники"),   group: "manage" },
+  { key: "work",        label: i18nKey("Работа"),       group: "manage" },
   { key: "pmo",         label: "PMO",          group: "manage" },
-  { key: "notes",       label: "Календарь",    group: "manage" },
-  { key: "reporting",   label: "Отчёт",        group: "manage" },
+  { key: "notes",       label: i18nKey("Календарь"),    group: "manage" },
+  { key: "reporting",   label: i18nKey("Отчёт"),        group: "manage" },
   // Финансы
-  { key: "ifrs",        label: "МСФО",         group: "finance",  fullPageRoute: "/financials" },
-  { key: "nsbu",        label: "НСБУ",         group: "finance",  fullPageRoute: "/financials" },
-  { key: "hlf",         label: "Фин. отчётность", group: "finance", fullPageRoute: "/financials" },
-  { key: "bp",          label: "Бизнес-план",  group: "finance",  fullPageRoute: "/business-plan" },
-  { key: "unitcost",    label: "Себестоимость", group: "finance", fullPageRoute: "/unit-cost" },
+  { key: "ifrs",        label: i18nKey("МСФО"),         group: "finance",  fullPageRoute: "/financials" },
+  { key: "nsbu",        label: i18nKey("НСБУ"),         group: "finance",  fullPageRoute: "/financials" },
+  { key: "hlf",         label: i18nKey("Фин. отчётность"), group: "finance", fullPageRoute: "/financials" },
+  { key: "bp",          label: i18nKey("Бизнес-план"),  group: "finance",  fullPageRoute: "/business-plan" },
+  { key: "unitcost",    label: i18nKey("Себестоимость"), group: "finance", fullPageRoute: "/unit-cost" },
   // Операции
   { key: "kpi",         label: "KPI",          group: "ops",      fullPageRoute: "/kpi" },
-  { key: "procurement", label: "Закупки",      group: "ops",      fullPageRoute: "/procurement/analysis" },
+  { key: "procurement", label: i18nKey("Закупки"),      group: "ops",      fullPageRoute: "/procurement/analysis" },
   // Стратегия
-  { key: "governance",  label: "Корп. упр.",   group: "strategy", fullPageRoute: "/governance" },
-  { key: "consultants", label: "Консультанты", group: "strategy", fullPageRoute: "/consultants" },
+  { key: "governance",  label: i18nKey("Корп. упр."),   group: "strategy", fullPageRoute: "/governance" },
+  { key: "consultants", label: i18nKey("Консультанты"), group: "strategy", fullPageRoute: "/consultants" },
   { key: "esg",         label: "ESG",          group: "strategy", fullPageRoute: "/esg" },
 ];
 
@@ -537,11 +543,11 @@ interface KanbanColumn {
 
 // Order + palette 1:1 с легасиом const COLS (index.html:6743)
 const KANBAN_STATUSES: { id: string; label: string; color: string; bgAccent: string }[] = [
-  { id: "init",   label: "Инициирование",  color: "#64748B", bgAccent: "#E2E8F0" },
-  { id: "new",    label: "Не начато",      color: "#94A3B8", bgAccent: "#F1F5F9" },
-  { id: "active", label: "В процессе",     color: "#3B82F6", bgAccent: "rgba(55,138,221,.10)" },
-  { id: "review", label: "На согласовании", color: "#F59E0B", bgAccent: "#FEF9C3" },
-  { id: "done",   label: "Завершено",      color: "#10B981", bgAccent: "#D1FAE5" },
+  { id: "init",   label: i18nKey("Инициирование"),  color: "#64748B", bgAccent: "#E2E8F0" },
+  { id: "new",    label: i18nKey("Не начато"),      color: "#94A3B8", bgAccent: "#F1F5F9" },
+  { id: "active", label: i18nKey("В процессе"),     color: "#3B82F6", bgAccent: "rgba(55,138,221,.10)" },
+  { id: "review", label: i18nKey("На согласовании"), color: "#F59E0B", bgAccent: "#FEF9C3" },
+  { id: "done",   label: i18nKey("Завершено"),      color: "#10B981", bgAccent: "#D1FAE5" },
 ];
 
 const kanbanColumns = computed<KanbanColumn[]>(() => {
@@ -564,17 +570,17 @@ const overdueTasks = computed(() =>
 
 // Direction meta (1:1 from legacy DIRS const)
 const _DIRS_META: Record<string, { label: string; color: string }> = {
-  strategy:    { label: "Стратегическое управление",  color: "#6B7FD7" },
-  finance:     { label: "Финансы / риски / аудит",    color: "#E0A458" },
-  procurement: { label: "Система закупок",            color: "#7BA05B" },
-  orgdev:      { label: "Организационное развитие",   color: "#A78BC7" },
-  digital:     { label: "Цифровизация",               color: "#5FB3C4" },
-  operations:  { label: "Операционная эффективность", color: "#E08A7B" },
-  governance:  { label: "Корпоративное управление",   color: "#C77B96" },
+  strategy:    { label: i18nKey("Стратегическое управление"),  color: "#6B7FD7" },
+  finance:     { label: i18nKey("Финансы / риски / аудит"),    color: "#E0A458" },
+  procurement: { label: i18nKey("Система закупок"),            color: "#7BA05B" },
+  orgdev:      { label: i18nKey("Организационное развитие"),   color: "#A78BC7" },
+  digital:     { label: i18nKey("Цифровизация"),               color: "#5FB3C4" },
+  operations:  { label: i18nKey("Операционная эффективность"), color: "#E08A7B" },
+  governance:  { label: i18nKey("Корпоративное управление"),   color: "#C77B96" },
   esg:         { label: "ESG",                        color: "#5FA98A" },
-  pr:          { label: "Связи с общественностью",    color: "#D89BB5" },
+  pr:          { label: i18nKey("Связи с общественностью"),    color: "#D89BB5" },
   pmo:         { label: "PMO",                        color: "#7B9BD1" },
-  analytics:   { label: "Сводный отдел",              color: "#9B8EC4" },
+  analytics:   { label: i18nKey("Сводный отдел"),              color: "#9B8EC4" },
 };
 // =====================================================================
 // List view helpers
@@ -2713,30 +2719,30 @@ type StatusDrillKey =
   | "quarterly" | "monthly" | "ongoing" | "overdue";
 interface StatusDrillDef { key: StatusDrillKey; label: string; color: string; sub: string }
 const STATUS_DRILLS: Record<StatusDrillKey, StatusDrillDef> = {
-  new:       { key: "new",       label: "Не начато",       color: "#94A3B8", sub: "ожидают старта" },
-  init:      { key: "init",      label: "Инициирование",   color: "#7F77DD", sub: "в инициации" },
-  active:    { key: "active",    label: "В процессе",      color: "#378ADD", sub: "в работе" },
-  review:    { key: "review",    label: "На согласовании", color: "#EF9F27", sub: "на согласовании" },
-  deferred:  { key: "deferred",  label: "Перенесено",      color: "#B08CE0", sub: "перенесены на др. год" },
-  done:      { key: "done",      label: "Завершено",       color: "#1D9E75", sub: "работы завершены" },
-  quarterly: { key: "quarterly", label: "Ежеквартально",   color: "#7E22CE", sub: "регулярные · квартал" },
-  monthly:   { key: "monthly",   label: "Ежемесячно",      color: "#4338CA", sub: "регулярные · месяц" },
-  ongoing:   { key: "ongoing",   label: "Постоянно",       color: "#0E7490", sub: "регулярные · постоянно" },
-  overdue:   { key: "overdue",   label: "Просрочено",      color: "#E24B4A", sub: "срок истёк" },
+  new:       { key: "new",       label: i18nKey("Не начато"),       color: "#94A3B8", sub: i18nKey("ожидают старта") },
+  init:      { key: "init",      label: i18nKey("Инициирование"),   color: "#7F77DD", sub: i18nKey("в инициации") },
+  active:    { key: "active",    label: i18nKey("В процессе"),      color: "#378ADD", sub: i18nKey("в работе") },
+  review:    { key: "review",    label: i18nKey("На согласовании"), color: "#EF9F27", sub: i18nKey("на согласовании") },
+  deferred:  { key: "deferred",  label: i18nKey("Перенесено"),      color: "#B08CE0", sub: i18nKey("перенесены на др. год") },
+  done:      { key: "done",      label: i18nKey("Завершено"),       color: "#1D9E75", sub: i18nKey("работы завершены") },
+  quarterly: { key: "quarterly", label: i18nKey("Ежеквартально"),   color: "#7E22CE", sub: i18nKey("регулярные · квартал") },
+  monthly:   { key: "monthly",   label: i18nKey("Ежемесячно"),      color: "#4338CA", sub: i18nKey("регулярные · месяц") },
+  ongoing:   { key: "ongoing",   label: i18nKey("Постоянно"),       color: "#0E7490", sub: i18nKey("регулярные · постоянно") },
+  overdue:   { key: "overdue",   label: i18nKey("Просрочено"),      color: "#E24B4A", sub: i18nKey("срок истёк") },
 };
 
 // Полный набор статус-плиток (порядок = пайплайн работ). Считаем проекты+задачи
 // каждого статуса; в шаблоне показываем только ненулевые (скрытие 0). Короткий
 // лейбл — для компактной плитки; полный — в модалке (STATUS_DRILLS).
 const STATUS_TILE_ORDER: { key: StatusDrillKey; short: string }[] = [
-  { key: "new",       short: "Не начато" },
-  { key: "init",      short: "Иниц." },
-  { key: "active",    short: "В процессе" },
-  { key: "review",    short: "Согл." },
-  { key: "deferred",  short: "Перенес." },
-  { key: "quarterly", short: "Ежекв." },
-  { key: "monthly",   short: "Ежемес." },
-  { key: "ongoing",   short: "Постоянно" },
+  { key: "new",       short: i18nKey("Не начато") },
+  { key: "init",      short: i18nKey("Иниц.") },
+  { key: "active",    short: i18nKey("В процессе") },
+  { key: "review",    short: i18nKey("Согл.") },
+  { key: "deferred",  short: i18nKey("Перенес.") },
+  { key: "quarterly", short: i18nKey("Ежекв.") },
+  { key: "monthly",   short: i18nKey("Ежемес.") },
+  { key: "ongoing",   short: i18nKey("Постоянно") },
 ];
 function _statusPred(key: StatusDrillKey) {
   return key === "deferred"
@@ -3401,6 +3407,7 @@ function onEditorClose() {
                 :company-id="company.id"
                 :company-code="(route.params.code as string) || code"
                 :year="year"
+                :can-edit="tasksPerm.canEdit.value"
               />
             </div>
           </div>
@@ -3464,7 +3471,7 @@ function onEditorClose() {
                 class="cw-bp-period-btn"
                 :class="{ active: kpiPeriod === p.key }"
                 @click="kpiPeriod = (p.key as WsKpiPeriod)"
-              >{{ p.label }}</button>
+              >{{ t(p.label) }}</button>
               <button
                 v-if="kpiPerm.canEdit"
                 class="cw-bp-edit-btn"
@@ -3594,7 +3601,7 @@ function onEditorClose() {
               </div>
 
               <template v-for="grp in bpGroups" :key="grp.id">
-                <div class="cw-bp-group-header">{{ grp.label }}</div>
+                <div class="cw-bp-group-header">{{ t(grp.label) }}</div>
 
                 <div
                   v-for="row in grp.items"
@@ -3659,7 +3666,7 @@ function onEditorClose() {
                 class="cw-gov-kpi-card"
                 :style="`--accent: ${kpi.color}; --d: ${ki}`"
               >
-                <div class="cw-gov-kpi-label">{{ kpi.label }}</div>
+                <div class="cw-gov-kpi-label">{{ t(kpi.label) }}</div>
                 <div class="cw-gov-kpi-value">{{ kpi.value }}</div>
                 <div v-if="kpi.unit" class="cw-gov-kpi-unit">{{ kpi.unit }}</div>
               </div>
@@ -3676,7 +3683,7 @@ function onEditorClose() {
                   :style="`--d: ${bi}`"
                 >
                   <div class="cw-gov-comp-hd">
-                    <span class="cw-gov-comp-l">{{ b.label }}</span>
+                    <span class="cw-gov-comp-l">{{ t(b.label) }}</span>
                     <span class="cw-gov-comp-v" :style="`color: ${b.color}`">
                       {{ b.pct }}<span class="cw-gov-comp-pc">%</span>
                       <span class="cw-gov-comp-cnt">· {{ b.count }} {{ t("из") }} {{ boardComposition.total }}</span>
@@ -3705,7 +3712,7 @@ function onEditorClose() {
                   :class="{ 'cw-gov-committee-on': c.present, 'cw-gov-committee-off': !c.present }"
                 >
                   <span class="cw-gov-committee-icon"><svg v-if="c.present" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><svg v-else width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="8"/></svg></span>
-                  <span>{{ c.label }}</span>
+                  <span>{{ t(c.label) }}</span>
                   <span v-if="c.meetings != null" class="cw-gov-committee-mtg" :title="t('Заседаний за {year} год', { year })">{{ c.meetings }}</span>
                 </div>
               </div>
@@ -3740,7 +3747,7 @@ function onEditorClose() {
                     <div class="cw-gov-member-pos" v-if="m.position">{{ m.position }}</div>
                     <div class="cw-gov-member-meta">
                       <span class="cw-gov-role-pill" :style="`background: ${m.roleColor}22; color: ${m.roleColor}`">
-                        {{ m.roleLabel }}
+                        {{ t(m.roleLabel) }}
                       </span>
                       <span v-if="m.isIndependent && m.roleType !== 'independent'" class="cw-gov-badge">{{ t("Независимый") }}</span>
                       <span v-if="m.isWoman" class="cw-gov-badge">♀</span>
@@ -3962,7 +3969,7 @@ function onEditorClose() {
                 >
                   <div class="cw-cred-bucket-row">
                     <span class="cw-cred-bucket-dot" :style="`background: ${b.color}`"></span>
-                    <span class="cw-cred-bucket-label">{{ b.label }}</span>
+                    <span class="cw-cred-bucket-label">{{ t(b.label) }}</span>
                     <span class="cw-cred-bucket-count">{{ b.count }}</span>
                     <span class="cw-cred-bucket-debt">{{ fmtUsd(b.debt) }}</span>
                     <span class="cw-cred-bucket-pct">{{ b.pct }}%</span>
@@ -3984,7 +3991,7 @@ function onEditorClose() {
                   class="cw-cred-currency"
                   :style="`--accent: ${c.color}`"
                 >
-                  <div class="cw-cred-currency-code" :style="`color: ${c.color}`">{{ c.label }}</div>
+                  <div class="cw-cred-currency-code" :style="`color: ${c.color}`">{{ t(c.label) }}</div>
                   <div class="cw-cred-currency-debt">{{ fmtUsd(c.debt) }}</div>
                   <div class="cw-cred-currency-meta">{{ c.count }} {{ c.count === 1 ? t('кредит') : t('кредитов') }} · {{ c.pct }}%</div>
                 </div>
@@ -4002,7 +4009,7 @@ function onEditorClose() {
                   :style="`--accent: ${b.color}`"
                   :title="t('{label}: {n} {u} · {debt}', { label: b.label, n: b.count, u: b.count === 1 ? t('кредит') : t('кредитов'), debt: fmtUsd(b.debt) })"
                 >
-                  <div class="cw-cred-ladder-label">{{ b.label }}</div>
+                  <div class="cw-cred-ladder-label">{{ t(b.label) }}</div>
                   <div class="cw-cred-ladder-bar-track">
                     <div
                       class="cw-cred-ladder-bar-fill"
@@ -4042,7 +4049,7 @@ function onEditorClose() {
                   </div>
                   <div class="cw-cred-cell cw-cred-cell-bank" :title="l.bank">
                     <span class="cw-cred-lender-pill" :style="`background: ${l.lender_color}22; color: ${l.lender_color}`">
-                      {{ l.lender_label }}
+                      {{ t(l.lender_label) }}
                     </span>
                     <span class="cw-cred-bank-name">{{ l.bank_short }}</span>
                   </div>
