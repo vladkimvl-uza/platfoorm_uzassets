@@ -30,7 +30,7 @@
               <button :class="{ on: scope === 'company' }" :disabled="loading" @click="setScope('company')">{{ t("Одна компания") }}</button>
             </div>
             <select v-if="scope === 'company' && coScope.showCompanyPicker.value" v-model="pickedId" :disabled="loading" @change="onPickCompany" class="bpai-co-select">
-              <option v-for="c in companies" :key="c.company_id" :value="c.company_id">{{ c.company_name_ru }}</option>
+              <option v-for="c in companies" :key="c.company_id" :value="c.company_id">{{ companyName(c) }}</option>
             </select>
           </div>
           <div class="bpai-seg-row">
@@ -50,7 +50,7 @@
           <template v-else-if="html">
             <template v-if="mode === 'forecast'">
               <div v-if="fcTrend.length" class="bpai-chart">
-                <div class="bpai-chart-title">{{ t("Прогноз выручки «{name}» (история → прогноз), млрд сум", { name: fcScopeName }) }}</div>
+                <div class="bpai-chart-title">{{ t("Прогноз выручки «{name}» (история → прогноз), млрд сум", { name: fcScopeDisplayName }) }}</div>
                 <div v-for="(tr, i) in fcTrend" :key="i" class="bpai-bar-row">
                   <span class="bpai-bar-lbl">{{ t(tr.label) }}<span v-if="tr.projected" class="bpai-fc-tag">{{ t("прогноз") }}</span></span>
                   <div class="bpai-bar-track">
@@ -62,7 +62,7 @@
               </div>
               <div v-if="fcView.length" class="bpai-fc">
                 <div class="bpai-fc-head">
-                  <div class="bpai-chart-title">{{ t("Модельный прогноз БП (движок)") }}{{ fcScopeName ? ' · ' + t(fcScopeName) : '' }}</div>
+                  <div class="bpai-chart-title">{{ t("Модельный прогноз БП (движок)") }}{{ fcScopeDisplayName ? ' · ' + fcScopeDisplayName : '' }}</div>
                   <div v-if="hasFcQuarters" class="bpai-fc-toggle">
                     <div class="bpai-seg bpai-seg-sm">
                       <button :class="{ on: fcTblMode === 'years' }" @click="setFcTblMode('years')">{{ t("По годам") }}</button>
@@ -148,7 +148,9 @@ import { renderMarkdown } from "@/utils/renderMarkdown";
 import { useToast } from "@/composables/useToast";
 import { useCompanyScope } from "@/composables/useCompanyScope";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 import { i18nKey } from "@/locale/keys";
+import { resolveCompanyDisplayName } from "@/utils/displayNames";
 
 
 type Mode = "performance" | "linkage" | "forecast";
@@ -160,6 +162,12 @@ type FcSaved = { view: FcRow[]; years: string[]; trend: FcTrend[]; baseYear: num
 type SavedRec = { raw: string; doneAt: string; year: number; chart?: ChartRow[]; fc?: FcSaved };
 
 const props = defineProps<{ companies: AvailableCompany[]; year: number; period: string; selectedId: string | null }>();
+
+function companyName(company: AvailableCompany | null | undefined): string {
+  return company
+    ? resolveCompanyDisplayName(company.company_name_ru, company.company_id || company.company_code)
+    : "";
+}
 
 const toast = useToast();
 const { t } = useI18n();
@@ -200,7 +208,7 @@ const MODE_LABEL: Record<Mode, string> = { performance: i18nKey("Исполне�
 const pickedId = ref<string | null>(props.selectedId || (props.companies[0]?.company_id ?? null));
 const selectedCompany = computed(() => props.companies.find(c => c.company_id === pickedId.value) || null);
 const titleText = computed(() => scope.value === "company"
-  ? (selectedCompany.value?.company_name_ru || t("Компания"))
+  ? (companyName(selectedCompany.value) || t("Компания"))
   : t("Все компании портфеля"));
 
 const num = (v: unknown): number | null =>
@@ -215,7 +223,7 @@ function fcCell(v: number | null | undefined, unit: string | null): string {
   if (v == null) return "—";
   if ((unit || "") === "%") return `${Math.round(v)}%`;
   const a = Math.abs(v);
-  return a >= 1000 ? Math.round(v).toLocaleString("ru-RU").replace(/,/g, " ")
+  return a >= 1000 ? Math.round(v).toLocaleString(getCurrentIntlLocale())
     : a >= 10 ? v.toFixed(0) : v.toFixed(1).replace(/\.0$/, "");
 }
 const FC_METHOD: Record<string, string> = {
@@ -223,6 +231,12 @@ const FC_METHOD: Record<string, string> = {
   actual: i18nKey("факт"), ols: i18nKey("тренд"), cagr: "CAGR", none: i18nKey("нет данных"),
 };
 const PORTFOLIO_SCOPE = i18nKey("Портфель");
+const fcScopeDisplayName = computed(() => {
+  if (!fcScopeName.value) return "";
+  return fcScopeName.value === PORTFOLIO_SCOPE
+    ? t(PORTFOLIO_SCOPE)
+    : resolveCompanyDisplayName(fcScopeName.value) || fcScopeName.value;
+});
 function fcMethodLabel(m: string): string { return t(FC_METHOD[m] || m); }
 
 function savedKey(m: Mode = mode.value): string {
@@ -241,7 +255,9 @@ function resetForecastView(): void { fcView.value = []; fcYears.value = []; fcTr
 function forecastRowName(name: string): string {
   // Portfolio rows are company names from the DB; company-mode rows are
   // canonical metric labels produced by the forecast engine.
-  return fcScopeName.value === PORTFOLIO_SCOPE ? name : t(name);
+  return fcScopeName.value === PORTFOLIO_SCOPE
+    ? resolveCompanyDisplayName(name) || name
+    : t(name);
 }
 function applyMode(m: Mode): void {
   mode.value = m;
@@ -325,7 +341,7 @@ function exportExcel(): void {
   const textWs = XLSX.utils.aoa_to_sheet(lines.map(l => [l]));
   textWs["!cols"] = [{ wch: 120 }];
   XLSX.utils.book_append_sheet(wb, textWs, t("Полный текст"));
-  const scopeName = scope.value === "company" ? (selectedCompany.value?.company_name_ru || "company") : t("портфель");
+  const scopeName = scope.value === "company" ? (companyName(selectedCompany.value) || "company") : t("портфель");
   XLSX.writeFile(wb, `BP_${t(MODE_LABEL[mode.value])}_${scopeName}_${props.year}.xlsx`);
 }
 
@@ -379,7 +395,7 @@ async function run(): Promise<void> {
   if (loading.value) return;
   loading.value = true; error.value = ""; html.value = "";
   const single = scope.value === "company" && selectedCompany.value ? selectedCompany.value : null;
-  step.value = single ? t("Загружаю БП: {name}…", { name: single.company_name_ru }) : t("Загружаю бизнес-план всех компаний…");
+  step.value = single ? t("Загружаю БП: {name}…", { name: companyName(single) }) : t("Загружаю бизнес-план всех компаний…");
   try {
     const { api } = await import("@/api/client");
     const cos: AvailableCompany[] = single ? [single] : props.companies;
@@ -402,7 +418,7 @@ async function run(): Promise<void> {
             fact_source: cell.fact_source || null,
           };
         }).filter(mt => mt.plan != null || mt.expect != null || mt.fact != null);
-        return metrics.length ? { code: co.company_code, name: co.company_name_ru, metrics } : null;
+        return metrics.length ? { code: co.company_code, name: companyName(co), metrics } : null;
       } catch { return null; }
     }))).filter((r): r is NonNullable<typeof r> => r != null);
 
@@ -454,13 +470,22 @@ async function run(): Promise<void> {
       try {
         if (single) {
           const fc = await bpApi.getForecast(single.company_id, props.year, 3);
-          buildForecastView(fc); forecastPayload = fc;
+          buildForecastView(fc);
+          forecastPayload = {
+            ...fc,
+            company_name: resolveCompanyDisplayName(fc.company_name, fc.company_id || fc.company_code),
+          };
         } else {
           const fcs = (await Promise.all(props.companies.map(async (c) => {
             try { return await bpApi.getForecast(c.company_id, props.year, 3); } catch { return null; }
           }))).filter((x): x is BpCompanyForecast => x != null);
           buildPortfolioForecastView(fcs, props.year);
-          forecastPayload = { portfolio: fcs };
+          forecastPayload = {
+            portfolio: fcs.map(fc => ({
+              ...fc,
+              company_name: resolveCompanyDisplayName(fc.company_name, fc.company_id || fc.company_code),
+            })),
+          };
         }
       } catch { resetForecastView(); }
     } else {
@@ -470,14 +495,14 @@ async function run(): Promise<void> {
     step.value = t("ИИ анализирует бизнес-план…");
     const resp = await api.post("/ai/bp-analysis", {
       year: props.year, period: "annual", mode: mode.value,
-      focus: single ? single.company_name_ru : null,
+      focus: single ? companyName(single) : null,
       bp_rows, prod_rows, forecast: forecastPayload,
     }, { timeout: 235000 });
     const raw = (resp.data?.analysis || "") as string;
     if (!raw) { error.value = t("ИИ вернул пустой ответ."); loading.value = false; return; }
     rawMd.value = raw;
     html.value = renderMarkdown(raw);
-    doneAt.value = new Date().toLocaleString("ru-RU");
+    doneAt.value = new Date().toLocaleString(getCurrentIntlLocale());
     await saveResult(raw);
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };

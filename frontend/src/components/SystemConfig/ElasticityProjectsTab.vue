@@ -76,7 +76,7 @@
           <select v-model="filterMetric" class="ep-input">
             <option :value="null">{{ t('Все метрики') }}</option>
             <option v-for="m in constants?.target_metrics || []" :key="m.code" :value="m.code">
-              {{ m.label_ru }}
+              {{ t(metricLabel(m.code)) }}
             </option>
           </select>
         </label>
@@ -152,7 +152,7 @@
           <span class="ep-field-l">{{ t('Метрика') }}</span>
           <select v-model="effectMetric" class="ep-input">
             <option v-for="m in constants?.target_metrics || []" :key="m.code" :value="m.code">
-              {{ m.label_ru }}
+              {{ t(metricLabel(m.code)) }}
             </option>
           </select>
         </label>
@@ -244,7 +244,7 @@
           <span class="ep-field-l">{{ t('Метрика *') }}</span>
           <select v-model="decMetric" class="ep-input">
             <option v-for="m in constants?.target_metrics || []" :key="m.code" :value="m.code">
-              {{ m.label_ru }}
+              {{ t(metricLabel(m.code)) }}
             </option>
           </select>
         </label>
@@ -261,7 +261,7 @@
           <select v-model="decCompany" class="ep-input">
             <!-- Портфельный агрегат — только для тех, кто видит весь портфель. -->
             <option v-if="scope.showPortfolioViews.value" :value="null">{{ t('Все 22 SOE (агрегат)') }}</option>
-            <option v-for="co in companies" :key="co.id" :value="co.id">{{ co.name_ru }}</option>
+            <option v-for="co in companies" :key="co.id" :value="co.id">{{ companyDisplayName(co) }}</option>
           </select>
           <span v-if="companiesTruncated" class="ep-trunc">
             {{ t('Показаны первые') }} {{ companies.length }} {{ t('— список усечён.') }}
@@ -276,8 +276,8 @@
 
       <div v-if="decomposition" class="ep-card ep-dec">
         <div class="ep-dec-h">
-          <h3>{{ decomposition.company_name || t('Все 22 SOE') }}: {{ t(metricLabel(decomposition.target_metric)) }} → {{ decomposition.year }}</h3>
-          <p class="ep-dec-expl">{{ decomposition.explanation }}</p>
+          <h3>{{ resolveCompanyDisplayName(decomposition.company_name, decomposition.company_id) || t('Все 22 SOE') }}: {{ t(metricLabel(decomposition.target_metric)) }} → {{ decomposition.year }}</h3>
+          <p class="ep-dec-expl">{{ decompositionExplanation(decomposition) }}</p>
         </div>
 
         <!-- Waterfall -->
@@ -286,10 +286,10 @@
                class="ep-wf-bar"
                :class="`ep-wf-${c.kind}`"
                :style="{ width: `${Math.max(3, Math.abs(Number(c.contribution_pct)))}%` }">
-            <div class="ep-wf-l">{{ c.label_ru }}</div>
+            <div class="ep-wf-l">{{ decompositionComponentLabel(c) }}</div>
             <div class="ep-wf-v">
               {{ Number(c.contribution_uzs_mln) > 0 ? '+' : '' }}{{ formatMln(c.contribution_uzs_mln) }}
-              <small>{{ Number(c.contribution_pct).toFixed(1) }}%</small>
+              <small>{{ fmt.fmtPercent(Number(c.contribution_pct), { decimals: 1 }) }}</small>
             </div>
           </div>
         </div>
@@ -316,7 +316,7 @@
               <span class="ep-field-l">{{ t('Макрофактор *') }}</span>
               <select v-model="newCoef.macro_factor" class="ep-input">
                 <option v-for="f in constants?.macro_factors || []" :key="f.code" :value="f.code">
-                  {{ f.label_ru }}
+                  {{ t(macroLabel(f.code)) }}
                 </option>
               </select>
             </label>
@@ -324,7 +324,7 @@
               <span class="ep-field-l">{{ t('Влияет на *') }}</span>
               <select v-model="newCoef.target_metric" class="ep-input">
                 <option v-for="m in constants?.target_metrics || []" :key="m.code" :value="m.code">
-                  {{ m.label_ru }}
+                  {{ t(metricLabel(m.code)) }}
                 </option>
               </select>
             </label>
@@ -343,7 +343,7 @@
               <span class="ep-field-l">{{ t('Компания (опц.)') }}</span>
               <select v-model="newCoef.company_id" class="ep-input">
                 <option :value="null">{{ t('— все компании —') }}</option>
-                <option v-for="co in companies" :key="co.id" :value="co.id">{{ co.name_ru }}</option>
+                <option v-for="co in companies" :key="co.id" :value="co.id">{{ companyDisplayName(co) }}</option>
               </select>
               <span v-if="companiesTruncated" class="ep-trunc">
                 {{ t('Показаны первые') }} {{ companies.length }} {{ t('— список усечён.') }}
@@ -382,7 +382,7 @@
               <span class="ep-field-l">{{ t('Метрика *') }}</span>
               <select v-model="newEffect.target_metric" class="ep-input">
                 <option v-for="m in constants?.target_metrics || []" :key="m.code" :value="m.code">
-                  {{ m.label_ru }}
+                  {{ t(metricLabel(m.code)) }}
                 </option>
               </select>
             </label>
@@ -428,9 +428,14 @@ import { getAuthHeaders } from "@/api/_base"
 import { useConfirm } from "@/composables/useConfirm"
 import { useCompanyScope } from "@/composables/useCompanyScope"
 import { useI18n } from "@/composables/useI18n";
+import { useFormatters } from "@/composables/useFormatters";
 import { i18nKey } from "@/locale/keys";
+import { companyDisplayName, resolveCompanyDisplayName } from "@/utils/displayNames";
+import { useCompaniesStore } from "@/stores/companies";
 
 const { t } = useI18n();
+const fmt = useFormatters();
+const companiesStore = useCompaniesStore();
 
 
 const { confirmDialog } = useConfirm()
@@ -446,7 +451,7 @@ const error = ref<string | null>(null)
 
 const constants = ref<api.Constants | null>(null)
 const scenarios = ref<Array<{ id: string; name_ru?: string; code: string }>>([])
-const companies = ref<Array<{ id: string; name_ru: string }>>([])
+const companies = ref<Array<{ id: string; code?: string; name_ru: string; name_uz?: string | null; name_en?: string | null; name_short?: string | null }>>([])
 const companiesTruncated = ref(false)
 const projects = ref<Array<{ id: string; title: string; num?: string }>>([])
 const projectsTruncated = ref(false)
@@ -674,6 +679,44 @@ function macroLabel(code: string) {
 function metricLabel(code: string) {
   return constants.value?.target_metrics.find((m) => m.code === code)?.label_ru || code
 }
+const DECOMPOSITION_EXPLANATION_KEY = i18nKey("Прогноз {metric} на {year}: {forecast}. База ({baseYear}): {base}. Эффект макроэкономики: {macro} ({macroPct}). Эффект проектов: {projects}.")
+function decompositionComponentLabel(c: api.DecompositionComponent): string {
+  if (c.kind === "base") {
+    return t("База ({year})", { year: (decomposition.value?.year || decYear.value) - 1 })
+  }
+  if (c.kind === "total") {
+    return t("Прогноз {year}", { year: decomposition.value?.year || decYear.value })
+  }
+  if (c.kind === "project") {
+    const id = String(c.detail?.project_id || "").slice(0, 8)
+    return id ? t("проект {id}…", { id }) : t("проект")
+  }
+  if (c.kind === "macro") {
+    const factor = String(c.detail?.factor || "")
+    const beta = fmt.fmtNumber(Number(c.detail?.beta), { decimals: 2, minDecimals: 2 })
+    const delta = fmt.fmtNumber(Number(c.detail?.delta) * 100, { decimals: 1, minDecimals: 1 })
+    return `${t(macroLabel(factor))} (β=${beta}, Δ=${delta}%)`
+  }
+  return t(c.label_ru)
+}
+function decompositionExplanation(d: api.DecompositionResult): string {
+  const base = Number(d.base_value_uzs_mln)
+  const macro = Number(d.macro_effect_uzs_mln)
+  const macroPct = base ? (macro / base) * 100 : 0
+  return t(
+    DECOMPOSITION_EXPLANATION_KEY,
+    {
+      metric: t(metricLabel(d.target_metric)),
+      year: d.year,
+      forecast: formatMln(d.forecast_value_uzs_mln),
+      baseYear: d.year - 1,
+      base: formatMln(d.base_value_uzs_mln),
+      macro: formatMlnSigned(d.macro_effect_uzs_mln),
+      macroPct: fmt.fmtPercent(macroPct, { decimals: 1, signed: true }),
+      projects: formatMlnSigned(d.projects_effect_uzs_mln),
+    },
+  )
+}
 function scopeKind(c: api.ElasticityCoef): string {
   if (c.scenario_id && c.company_id) return "specific"
   if (c.scenario_id) return "scenario"
@@ -711,9 +754,9 @@ function formatMln(v: number | string): string {
   const n = Number(v)
   if (isNaN(n)) return "—"
   const abs = Math.abs(n)
-  if (abs >= 1e6) return t('{value0} трлн сум', { value0: (n / 1e6).toFixed(2) })
-  if (abs >= 1e3) return t('{value0} млрд сум', { value0: (n / 1e3).toFixed(1) })
-  return t('{value0} млн сум', { value0: n.toFixed(0) })
+  if (abs >= 1e6) return t('{value0} трлн сум', { value0: fmt.fmtNumber(n / 1e6, { decimals: 2 }) })
+  if (abs >= 1e3) return t('{value0} млрд сум', { value0: fmt.fmtNumber(n / 1e3, { decimals: 1 }) })
+  return t('{value0} млн сум', { value0: fmt.fmtNumber(n) })
 }
 function formatMlnSigned(v: number | string): string {
   const n = Number(v)
@@ -731,6 +774,7 @@ const TT = {
 }
 
 onMounted(() => {
+  void companiesStore.ensureLoaded();
   // Портфельный агрегат («Все 22 SOE») ограниченному пользователю скрыт —
   // подставляем его компанию, чтобы декомпозиция считалась по конкретному объекту.
   if (!scope.showPortfolioViews.value && !decCompany.value) {

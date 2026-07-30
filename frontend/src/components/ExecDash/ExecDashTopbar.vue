@@ -55,6 +55,10 @@ function isSectorSelected(id: string): boolean {
   return exec.selectedSectors.value.includes(id);
 }
 
+function sectorLabel(id: string, fallback: string): string {
+  return companiesStore.getSectorName(id) || t(fallback);
+}
+
 function closeAllMenus() {
   sectorMenuOpen.value = false;
   yearMenuOpen.value = false;
@@ -158,7 +162,7 @@ onBeforeUnmount(() => {
           >
             <span class="edt-check">{{ isSectorSelected(s.id) ? '✓' : '' }}</span>
             <span class="edt-opt-dot" :style="{ background: s.color }" />
-            <span>{{ t(s.label) }}</span>
+            <span>{{ sectorLabel(s.id, s.label) }}</span>
           </div>
         </div>
       </div>

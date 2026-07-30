@@ -16,6 +16,7 @@ import {
 import { useI18n } from "@/composables/useI18n";
 import { i18nKey } from "@/locale/keys";
 import { useAiFeatureAccess } from "@/composables/useAiFeatureAccess";
+import { resolveCompanyDisplayName } from "@/utils/displayNames";
 
 
 const { t } = useI18n();
@@ -41,7 +42,9 @@ const companyCode = ref<string>(PORTFOLIO);
 const model = ref<ForecastModel>("cagr");
 
 const companies = computed(() =>
-  [...props.summary.items].sort((a, b) => (a.company_name || "").localeCompare(b.company_name || "", "ru")),
+  [...props.summary.items].sort((a, b) =>
+    resolveCompanyDisplayName(a.company_name_short || a.company_name, a.company_code)
+      .localeCompare(resolveCompanyDisplayName(b.company_name_short || b.company_name, b.company_code))),
 );
 const histYears = computed(() => [...props.summary.years].sort((a, b) => a - b));
 
@@ -141,7 +144,7 @@ function fmt(v: number | null): string {
           <select v-model="companyCode" class="ffc-select">
             <option :value="PORTFOLIO">{{ t("Весь портфель") }}</option>
             <option v-for="c in companies" :key="c.company_code" :value="c.company_code">
-              {{ c.company_name_short || c.company_name || c.company_code }}
+              {{ resolveCompanyDisplayName(c.company_name_short || c.company_name, c.company_code) || c.company_code }}
             </option>
           </select>
         </div>

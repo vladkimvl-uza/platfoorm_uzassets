@@ -3,9 +3,11 @@
  * ─────────────────────────────────────────────────────────────────
  * Единый источник истины для отображаемых имён компаний и секторов.
  *
- * ПРАВИЛО (Pack 7.12, выбранный вариант 3):
- *   • Компания:  name_short если он непустой, иначе name_ru
- *   • Сектор:    name_ru (sector.name_short нет в модели)
+ * ПРАВИЛО:
+ *   • RU: короткое имя компании, затем name_ru;
+ *   • UZ: name_uz с нормализацией в выбранную графику;
+ *   • EN: name_en;
+ *   • если локализованное поле пусто, используется русский fallback.
  *
  * Это правило применяется ВЕЗДЕ: bar-чарты, таблицы, модалки, badges,
  * dropdowns. Если админ заполнил поле «Сокращённое имя» в Companies admin,
@@ -18,9 +20,20 @@
  *   useCompaniesStore.getCompanyName(code) — резолвит из кэшированного store.
  */
 
+import { shallowRef } from "vue";
+import { getCurrentLocale } from "@/locale/i18n";
+import {
+  translitCyrillicToLatin,
+  translitLatinToCyrillic,
+} from "@/locale/translit";
+
 /** Минимальный shape компании, достаточный для resolving имени. */
 export interface CompanyNameShape {
+  id?: string | null;
+  code?: string | null;
   name_ru?: string | null;
+  name_uz?: string | null;
+  name_en?: string | null;
   name_short?: string | null;
   /** Иногда серверу передаются псевдонимы; используем как fallback. */
   name?: string | null;
@@ -28,9 +41,72 @@ export interface CompanyNameShape {
 
 /** Минимальный shape сектора. */
 export interface SectorNameShape {
+  id?: string | null;
   name_ru?: string | null;
+  name_uz?: string | null;
+  name_en?: string | null;
   name?: string | null;
   code?: string | null;
+}
+
+const companyAliases = shallowRef(new Map<string, CompanyNameShape>());
+const sectorAliases = shallowRef(new Map<string, SectorNameShape>());
+
+function aliasKey(value: string | null | undefined): string {
+  return (value || "")
+    .trim()
+    .toLocaleLowerCase()
+    .replace(/[«»“”„\"]/g, "")
+    .replace(/\s+/g, " ");
+}
+
+/** Keep one reactive alias catalog for legacy endpoints that only return a display string. */
+export function registerDisplayNameCatalog(
+  companies: readonly CompanyNameShape[],
+  sectors: readonly SectorNameShape[],
+): void {
+  const nextCompanies = new Map<string, CompanyNameShape>();
+  for (const company of companies) {
+    for (const alias of [
+      company.id,
+      company.code,
+      company.name,
+      company.name_short,
+      company.name_ru,
+      company.name_uz,
+      company.name_en,
+    ]) {
+      const key = aliasKey(alias);
+      if (key) nextCompanies.set(key, company);
+    }
+  }
+
+  const nextSectors = new Map<string, SectorNameShape>();
+  for (const sector of sectors) {
+    for (const alias of [
+      sector.id,
+      sector.code,
+      sector.name,
+      sector.name_ru,
+      sector.name_uz,
+      sector.name_en,
+    ]) {
+      const key = aliasKey(alias);
+      if (key) nextSectors.set(key, sector);
+    }
+  }
+
+  companyAliases.value = nextCompanies;
+  sectorAliases.value = nextSectors;
+}
+
+const CYRILLIC_RE = /[А-Яа-яЁёЎўҒғҚқҲҳ]/; // i18n-exempt: script detector, never rendered
+
+function localizedUzName(value: string, locale: "uz-latn" | "uz-cyr"): string {
+  if (locale === "uz-latn") {
+    return CYRILLIC_RE.test(value) ? translitCyrillicToLatin(value) : value;
+  }
+  return CYRILLIC_RE.test(value) ? value : translitLatinToCyrillic(value);
 }
 
 
@@ -48,10 +124,14 @@ export interface SectorNameShape {
  */
 export function companyDisplayName(co: CompanyNameShape | null | undefined): string {
   if (!co) return "";
-  const short = (co.name_short || "").trim();
-  if (short) return short;
-  const full = (co.name_ru || co.name || "").trim();
-  return full;
+  const fallback = (co.name_short || co.name_ru || co.name || "").trim();
+  const locale = getCurrentLocale();
+  if (locale === "en") return (co.name_en || "").trim() || fallback;
+  if (locale === "uz-latn" || locale === "uz-cyr") {
+    const uz = (co.name_uz || "").trim();
+    return uz ? localizedUzName(uz, locale) : fallback;
+  }
+  return fallback;
 }
 
 
@@ -63,7 +143,14 @@ export function companyDisplayName(co: CompanyNameShape | null | undefined): str
  */
 export function sectorDisplayName(sec: SectorNameShape | null | undefined): string {
   if (!sec) return "";
-  return (sec.name_ru || sec.name || sec.code || "").trim();
+  const fallback = (sec.name_ru || sec.name || sec.code || "").trim();
+  const locale = getCurrentLocale();
+  if (locale === "en") return (sec.name_en || "").trim() || fallback;
+  if (locale === "uz-latn" || locale === "uz-cyr") {
+    const uz = (sec.name_uz || "").trim();
+    return uz ? localizedUzName(uz, locale) : fallback;
+  }
+  return fallback;
 }
 
 
@@ -80,8 +167,23 @@ export function sectorDisplayName(sec: SectorNameShape | null | undefined): stri
  * Используй companyDisplayName(co) когда есть полная модель.
  * Используй useCompaniesStore.getCompanyName(code) когда есть только код.
  */
-export function resolveCompanyDisplayName(name: string | null | undefined): string {
-  return (name || "").trim();
+export function resolveCompanyDisplayName(
+  name: string | null | undefined,
+  idOrCode?: string | null,
+): string {
+  const match = companyAliases.value.get(aliasKey(idOrCode))
+    || companyAliases.value.get(aliasKey(name));
+  return match ? companyDisplayName(match) : (name || "").trim();
+}
+
+/** Resolve a legacy sector label or code through the same localized catalog. */
+export function resolveSectorDisplayName(
+  name: string | null | undefined,
+  idOrCode?: string | null,
+): string {
+  const match = sectorAliases.value.get(aliasKey(idOrCode))
+    || sectorAliases.value.get(aliasKey(name));
+  return match ? sectorDisplayName(match) : (name || idOrCode || "").trim();
 }
 
 

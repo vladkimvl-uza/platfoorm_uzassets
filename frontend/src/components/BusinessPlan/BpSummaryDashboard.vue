@@ -71,7 +71,7 @@
               :style="{ '--cl': pctColor(c.pct), animationDelay: `${i * 60}ms` }"
               @click="$emit('open-company', c.company_id)"
             >
-              <span class="nm">{{ c.company_name_ru }}</span>
+              <span class="nm">{{ resolveCompanyDisplayName(c.company_name_ru, c.company_id) }}</span>
               <span class="pc" :style="{ color: pctColor(c.pct) }">
                 {{ fmt.fmtPercent(c.pct, { decimals: 1 }) }}
               </span>
@@ -88,7 +88,7 @@
               :style="{ '--cl': pctColor(c.pct), animationDelay: `${i * 60}ms` }"
               @click="$emit('open-company', c.company_id)"
             >
-              <span class="nm">{{ c.company_name_ru }}</span>
+              <span class="nm">{{ resolveCompanyDisplayName(c.company_name_ru, c.company_id) }}</span>
               <span class="pc" :style="{ color: pctColor(c.pct) }">
                 {{ fmt.fmtPercent(c.pct, { decimals: 1 }) }}
               </span>
@@ -188,6 +188,7 @@ import Odometer from "@/components/Odometer.vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import { useI18n } from "@/composables/useI18n";
 import { i18nKey } from "@/locale/keys";
+import { resolveCompanyDisplayName } from "@/utils/displayNames";
 
 
 const { t } = useI18n();

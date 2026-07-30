@@ -10,6 +10,7 @@
  */
 import { ref, onMounted } from "vue";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 import { i18nKey } from "@/locale/keys";
 
 const { t } = useI18n();
@@ -47,7 +48,7 @@ const TARGET: { ccy: Rate["ccy"]; nameRu: string; cc: string }[] = [
 
 function fmtRate(r: number): string {
   // 12 750.42 → разделяем тысячи thin-space, 2 знака после запятой
-  return r.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return r.toLocaleString(getCurrentIntlLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 function fmtDiff(d: number): string {
   if (!Number.isFinite(d)) return "—";

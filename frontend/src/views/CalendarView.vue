@@ -2,12 +2,13 @@
 import { ref, onMounted, onUnmounted, computed } from "vue";
 import CompanyCalendar from "@/components/Company/CompanyCalendar.vue";
 import { calendarApi } from "@/api/calendar";
-import { companiesApi } from "@/api/companies";
+import { companiesApi, type CompanyListItem } from "@/api/companies";
 import { useEntityEditor } from "@/composables/useEntityEditor";
 import { useToast } from "@/composables/useToast";
 import ModalShell from "@/components/ModalShell.vue";
 import { useCompanyScope } from "@/composables/useCompanyScope";
 import { useI18n } from "@/composables/useI18n";
+import { companyDisplayName } from "@/utils/displayNames";
 const { t } = useI18n();
 
 
@@ -19,7 +20,11 @@ const scope = useCompanyScope();
 const selectedCompany = ref<string | null>(
   scope.showCompanyPicker.value ? null : scope.defaultCompanyId.value,
 );
-const companies = ref<{ id: string; name: string }[]>([]);
+const companyCatalog = ref<CompanyListItem[]>([]);
+const companies = computed(() => companyCatalog.value.map(company => ({
+  id: company.id,
+  name: companyDisplayName(company) || company.code,
+})));
 
 const icalUrl = ref<string>("");
 const icalOpen = ref(false);
@@ -32,7 +37,7 @@ onMounted(async () => {
   window.addEventListener("keydown", onKey);
   try {
     const resp = await companiesApi.list({ limit: 200 } as any);
-    companies.value = (resp.items || []).map((c: any) => ({ id: c.id, name: c.name_short || c.name_ru || c.code }));
+    companyCatalog.value = resp.items || [];
     // Селектор скрыт — компанию обязан проставить экран, иначе фильтр останется пустым.
     if (!scope.showCompanyPicker.value && !selectedCompany.value) {
       selectedCompany.value = scope.defaultCompanyId.value || companies.value[0]?.id || null;

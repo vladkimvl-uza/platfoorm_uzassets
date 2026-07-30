@@ -7,6 +7,7 @@
  */
 import { computed, ref, watch } from "vue";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 import { useToast } from "@/composables/useToast";
 import CreditDonut, { type DonutEntry } from "@/components/CreditPortfolio/CreditDonut.vue";
 import MentionableTextarea from "@/components/MentionableTextarea.vue";
@@ -106,7 +107,7 @@ function addComment() {
 }
 function fmtDate(iso?: string): string {
   if (!iso) return "";
-  try { return new Date(iso).toLocaleString("ru", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }); }
+  try { return new Date(iso).toLocaleString(getCurrentIntlLocale(), { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }); }
   catch { return iso; }
 }
 function importCost(it: EditImport): number { return num(it.usd) * usdRate.value * num(it.qty); }
@@ -141,16 +142,16 @@ function fuelDelta(p: EditProduct, f: string): { d: number; cost: number; over: 
 }
 function fmt(v: number | null): string {
   if (v == null) return "—";
-  return v.toLocaleString("ru", { maximumFractionDigits: 2 });
+  return v.toLocaleString(getCurrentIntlLocale(), { maximumFractionDigits: 2 });
 }
 function fmtC(v: number | null): string {
   if (v == null) return "—";
   const a = Math.abs(v);
-  if (a >= 1e12) return (v / 1e12).toLocaleString("ru", { maximumFractionDigits: 2 }) + " " + t("трлн");
-  if (a >= 1e9) return (v / 1e9).toLocaleString("ru", { maximumFractionDigits: 1 }) + " " + t("млрд");
-  if (a >= 1e6) return (v / 1e6).toLocaleString("ru", { maximumFractionDigits: 1 }) + " " + t("млн");
-  if (a >= 1e3) return (v / 1e3).toLocaleString("ru", { maximumFractionDigits: 1 }) + " " + t("тыс");
-  return v.toLocaleString("ru", { maximumFractionDigits: 0 });
+  if (a >= 1e12) return (v / 1e12).toLocaleString(getCurrentIntlLocale(), { maximumFractionDigits: 2 }) + " " + t("трлн");
+  if (a >= 1e9) return (v / 1e9).toLocaleString(getCurrentIntlLocale(), { maximumFractionDigits: 1 }) + " " + t("млрд");
+  if (a >= 1e6) return (v / 1e6).toLocaleString(getCurrentIntlLocale(), { maximumFractionDigits: 1 }) + " " + t("млн");
+  if (a >= 1e3) return (v / 1e3).toLocaleString(getCurrentIntlLocale(), { maximumFractionDigits: 1 }) + " " + t("тыс");
+  return v.toLocaleString(getCurrentIntlLocale(), { maximumFractionDigits: 0 });
 }
 function shareColor(s: number | null): string {
   if (s == null) return "#9AA0AE";
@@ -315,7 +316,7 @@ defineExpose({ save, saving, dirty });
         <div class="ucm-imp-hd">
           <div>
             <div class="ucm-imp-t">{{ t("Импорт для производства") }}</div>
-            <div class="ucm-imp-s">{{ t("закупаемое за рубежом сырьё и комплектующие · цена в USD × курс {rate}", { rate: num(usdRate).toLocaleString("ru") }) }}</div>
+            <div class="ucm-imp-s">{{ t("закупаемое за рубежом сырьё и комплектующие · цена в USD × курс {rate}", { rate: num(usdRate).toLocaleString(getCurrentIntlLocale()) }) }}</div>
           </div>
           <button type="button" class="ucm-add" @click="addImport">{{ t("+ позиция") }}</button>
         </div>

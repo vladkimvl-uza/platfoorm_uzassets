@@ -66,6 +66,7 @@ import {
   type DeniedUser,
 } from "@/api/attachments";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 const { t } = useI18n();
 
 
@@ -126,7 +127,7 @@ async function onAllow(userId: string) {
 }
 
 function fmtDate(iso: string): string {
-  try { return new Date(iso).toLocaleDateString("ru-RU", { day: "2-digit", month: "short", year: "2-digit" }); }
+  try { return new Date(iso).toLocaleDateString(getCurrentIntlLocale(), { day: "2-digit", month: "short", year: "2-digit" }); }
   catch { return ""; }
 }
 

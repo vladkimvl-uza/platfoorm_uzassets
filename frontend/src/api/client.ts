@@ -22,8 +22,9 @@ export const api = axios.create({
 // платформы», вместо локальных формулировок. Интерсептор ниже подменяет им
 // «сырое» axios-сообщение на 502/503/504/нет-ответа, поэтому любой показ
 // err.message получает этот текст автоматически.
-export const PLATFORM_UPDATING_MESSAGE =
-  t('Идёт обновление платформы — подождите несколько секунд и повторите. Введённые данные не пропадут.');
+export function getPlatformUpdatingMessage(): string {
+  return t('Идёт обновление платформы — подождите несколько секунд и повторите. Введённые данные не пропадут.');
+}
 
 // =====================================================================
 // Request: attach JWT
@@ -198,7 +199,7 @@ api.interceptors.response.use(
     const httpStatus = err.response?.status;
     const noResponse = !err.response && err.code !== "ERR_CANCELED";
     if (httpStatus === 502 || httpStatus === 503 || httpStatus === 504 || noResponse) {
-      err.message = PLATFORM_UPDATING_MESSAGE;
+      err.message = getPlatformUpdatingMessage();
     }
 
     return Promise.reject(err);

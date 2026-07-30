@@ -320,7 +320,7 @@ export function paSameCat(a: string | number | null | undefined, b: string | num
 
 export function paFmtMoney(v: number | null | undefined): string {
   if (v == null || isNaN(Number(v))) return "—";
-  return Number(v).toLocaleString("ru-RU", { maximumFractionDigits: 2 });
+  return fmtNumber(Number(v), getCurrentLocale(), { decimals: 2, minDecimals: 0 });
 }
 
 /** Wrap a long label across `maxChars` chunks (Chart.js radar/bar labels). */

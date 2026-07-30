@@ -43,7 +43,7 @@
         <tbody>
           <tr v-for="(r, idx) in visibleRows" :key="r.id">
             <td class="num">{{ idx + 1 }}</td>
-            <td class="nm">{{ r.company_name }}</td>
+            <td class="nm">{{ companyName(r) }}</td>
             <td>
               <input
                 class="pa-cell"
@@ -116,10 +116,14 @@ import { ref, computed } from "vue";
 import { api } from "@/api/client";
 import { useToast } from "@/composables/useToast";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
+import { resolveCompanyDisplayName } from "@/utils/displayNames";
 import type { ClosureRow } from "@/api/procurement_analysis";
 import ModalShell from "@/components/ModalShell.vue";
 
 const { t } = useI18n();
+const companyName = (row: ClosureRow) =>
+  resolveCompanyDisplayName(row.company_name, row.company_id) || "—";
 
 const props = defineProps<{
   modelValue: boolean;
@@ -141,7 +145,7 @@ const visibleRows = computed(() => {
   if (!q) return props.rows;
   return props.rows.filter((r) => {
     const hay = [
-      r.company_name, r.supplier, r.product_name, r.product_code,
+      companyName(r), r.company_name, r.supplier, r.product_name, r.product_code,
       r.category_name,
     ].filter(Boolean).join(" ").toLowerCase();
     return hay.includes(q);
@@ -156,7 +160,7 @@ const lastSavedShort = computed(() => {
 
 function fmt(n: number | null | undefined): string {
   if (n == null) return "—";
-  return new Intl.NumberFormat("ru-RU").format(Math.round(Number(n)));
+  return new Intl.NumberFormat(getCurrentIntlLocale()).format(Math.round(Number(n)));
 }
 
 async function patch(row: ClosureRow, body: Record<string, unknown>) {

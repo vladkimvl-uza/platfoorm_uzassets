@@ -1,13 +1,14 @@
 <script setup lang="ts">
 /**
  * AddCompanyModal — лёгкий модал создания новой компании.
- * Используется в /kpi и /business-plan. Минимальные поля: код + название (RU),
- * сектор опционально. Право — companies.create (owner/admin/organization).
+ * Используется в /kpi и /business-plan. Код и русское название обязательны,
+ * локализованные названия и сектор можно заполнить сразу при создании.
  */
 import { ref, onMounted } from "vue";
 import { companiesApi, type SectorBrief, type CompanyDetail } from "@/api/companies";
 import ModalShell from "@/components/ModalShell.vue";
 import { useI18n } from "@/composables/useI18n";
+import { sectorDisplayName } from "@/utils/displayNames";
 const { t } = useI18n();
 
 
@@ -15,6 +16,8 @@ const emit = defineEmits<{ (e: "close"): void; (e: "created", company: CompanyDe
 
 const code = ref("");
 const nameRu = ref("");
+const nameUz = ref("");
+const nameEn = ref("");
 const sectorCode = ref("");
 const sectors = ref<SectorBrief[]>([]);
 const saving = ref(false);
@@ -38,6 +41,8 @@ async function submit() {
     const detail = await companiesApi.create({
       code: code.value.trim(),
       name_ru: nameRu.value.trim(),
+      name_uz: nameUz.value.trim() || undefined,
+      name_en: nameEn.value.trim() || undefined,
       sector_code: sectorCode.value || undefined,
     });
     emit("created", detail);
@@ -66,11 +71,21 @@ async function submit() {
         <span class="acm-lbl">{{ t('Название (RU)') }} <i>*</i></span>
         <input v-model="nameRu" type="text" class="acm-input" :placeholder="t('АО «…»')" />
       </label>
+      <div class="acm-grid">
+        <label class="acm-field">
+          <span class="acm-lbl">{{ t('Название (UZ)') }}</span>
+          <input v-model="nameUz" type="text" class="acm-input" placeholder="AJ «…»" />
+        </label>
+        <label class="acm-field">
+          <span class="acm-lbl">{{ t('Название (EN)') }}</span>
+          <input v-model="nameEn" type="text" class="acm-input" placeholder="JSC …" />
+        </label>
+      </div>
       <label class="acm-field">
         <span class="acm-lbl">{{ t('Сектор') }}</span>
         <select v-model="sectorCode" class="acm-input">
           <option value="">{{ t('— не выбран —') }}</option>
-          <option v-for="s in sectors" :key="s.code" :value="s.code">{{ s.name_ru }}</option>
+          <option v-for="s in sectors" :key="s.code" :value="s.code">{{ sectorDisplayName(s) }}</option>
         </select>
       </label>
 
@@ -90,6 +105,7 @@ async function submit() {
 /* Обёртка/шапка/футер — из ModalShell (Teleport + ESC + фокус-трап + --z-top). */
 .acm-title { font-size: 15px; font-weight: 600; color: var(--t1, #1E2A4A); }
 .acm-body { display: flex; flex-direction: column; gap: 13px; }
+.acm-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .acm-field { display: flex; flex-direction: column; gap: 5px; }
 .acm-lbl { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--t3, #94A3B8); }
 .acm-lbl i { color: #E24B4A; font-style: normal; }
@@ -103,4 +119,5 @@ async function submit() {
 .acm-btn-ghost:hover:not(:disabled) { background: rgba(15,23,60,.04); }
 .acm-btn-primary { background: linear-gradient(135deg, #534AB7, #7F77DD); color: #fff; box-shadow: 0 4px 14px rgba(83,74,183,.28); }
 .acm-btn-primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(83,74,183,.36); }
+@media (max-width: 560px) { .acm-grid { grid-template-columns: 1fr; } }
 </style>

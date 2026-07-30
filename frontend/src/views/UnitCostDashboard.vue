@@ -7,6 +7,7 @@
  */
 import { computed, inject, onMounted, ref, watch } from "vue";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 import { useCompanyScope } from "@/composables/useCompanyScope";
 import { usePermissions } from "@/composables/usePermissions";
 import { useSavedFilter } from "@/composables/useSavedFilter";
@@ -79,11 +80,11 @@ function onKpiClick() { if (finPerm.canEdit.value) pricesOpen.value = true; }
 // компактное представление суммы в СУМАХ (сырьё уже в сумах)
 function scaleSum(v: number): string {
   const a = Math.abs(v);
-  if (a >= 1e12) return (v / 1e12).toLocaleString("ru", { maximumFractionDigits: 2 }) + " " + t("трлн");
-  if (a >= 1e9) return (v / 1e9).toLocaleString("ru", { maximumFractionDigits: 1 }) + " " + t("млрд");
-  if (a >= 1e6) return (v / 1e6).toLocaleString("ru", { maximumFractionDigits: 1 }) + " " + t("млн");
-  if (a >= 1e3) return (v / 1e3).toLocaleString("ru", { maximumFractionDigits: 1 }) + " " + t("тыс");
-  return v.toLocaleString("ru", { maximumFractionDigits: 0 });
+  if (a >= 1e12) return (v / 1e12).toLocaleString(getCurrentIntlLocale(), { maximumFractionDigits: 2 }) + " " + t("трлн");
+  if (a >= 1e9) return (v / 1e9).toLocaleString(getCurrentIntlLocale(), { maximumFractionDigits: 1 }) + " " + t("млрд");
+  if (a >= 1e6) return (v / 1e6).toLocaleString(getCurrentIntlLocale(), { maximumFractionDigits: 1 }) + " " + t("млн");
+  if (a >= 1e3) return (v / 1e3).toLocaleString(getCurrentIntlLocale(), { maximumFractionDigits: 1 }) + " " + t("тыс");
+  return v.toLocaleString(getCurrentIntlLocale(), { maximumFractionDigits: 0 });
 }
 function fmtSum(v: number | null): string { return v == null ? "—" : scaleSum(v); }
 
@@ -112,11 +113,11 @@ function shareColor(s: number | null): string {
 const worldLive = computed(() => data.value?.world_live || null);
 const liveFresh = computed(() => {
   const t = worldLive.value?.updated_at; if (!t) return "";
-  try { return new Date(t).toLocaleTimeString("ru", { hour: "2-digit", minute: "2-digit" }); }
+  try { return new Date(t).toLocaleTimeString(getCurrentIntlLocale(), { hour: "2-digit", minute: "2-digit" }); }
   catch { return ""; }
 });
 function fmtNum(v: number | null | undefined, d = 0): string {
-  return v == null ? "—" : Number(v).toLocaleString("ru", { maximumFractionDigits: d });
+  return v == null ? "—" : Number(v).toLocaleString(getCurrentIntlLocale(), { maximumFractionDigits: d });
 }
 // честный тикер: помечаем только реально живые поля (USD — ЦБ, золото — спот);
 // Brent/медь — ориентиры без живого источника (правятся в «Цены и курсы»).
@@ -140,7 +141,7 @@ const sectorFilter = ref<string>("");
 const sectors = computed(() => {
   const set = new Map<string, string>();  // sector → цвет
   for (const c of companies.value) if (c.sector && c.sector !== "—") set.set(c.sector, c.color);
-  return Array.from(set, ([name, color]) => ({ name, color })).sort((a, b) => a.name.localeCompare(b.name, "ru"));
+  return Array.from(set, ([name, color]) => ({ name, color })).sort((a, b) => a.name.localeCompare(b.name, getCurrentIntlLocale()));
 });
 const visibleCompanies = computed(() =>
   sectorFilter.value ? companies.value.filter((c) => c.sector === sectorFilter.value) : companies.value);
@@ -315,7 +316,7 @@ function donutHover(e: DonutEntry, total: number): [string, string] {
           <div class="uc-prices">
             <div v-for="(p, i) in priceRows" :key="p.fuel" class="uc-price" :style="{ '--d': (i * 50) + 'ms', '--fc': FUEL_PAL[p.fuel] || '#7F77DD' }">
               <div class="uc-price-l"><FuelIcon :fuel="p.fuel" :size="13" />{{ t(p.label) }}</div>
-              <div class="uc-price-v">{{ p.price.toLocaleString("ru") }}</div>
+              <div class="uc-price-v">{{ p.price.toLocaleString(getCurrentIntlLocale()) }}</div>
               <div class="uc-price-u">{{ p.unit }}</div>
             </div>
           </div>

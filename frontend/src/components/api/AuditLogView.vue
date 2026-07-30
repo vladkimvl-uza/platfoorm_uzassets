@@ -5,6 +5,7 @@ import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import ModalShell from "@/components/ModalShell.vue";
 import { auditApi, httpStatusColor, type AuditEvent } from "@/api/partners";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 const { t } = useI18n();
 
 
@@ -50,7 +51,7 @@ watch([() => filters.value.hours, () => filters.value.module, () => filters.valu
        () => filters.value.only_api_key], () => { page.value = 1; reload(); });
 
 function fmtTime(iso: string): string {
-  return new Date(iso).toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  return new Date(iso).toLocaleString(getCurrentIntlLocale(), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
 function fmtRel(iso: string): string {
   const d = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);

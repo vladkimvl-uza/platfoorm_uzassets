@@ -268,10 +268,10 @@ const ministerCount = computed(() =>
           <!-- строка 2: квартал · гант · срок -->
           <div class="mx-pc-row mx-pc-r2">
             <label class="mx-fl"><span>{{ t('Квартал') }}</span>
-              <select v-model="p.quarter" class="mx-in mx-in-q"><option v-for="o in QOPTS" :key="String(o.v)" :value="o.v">{{ o.l }}</option></select>
+              <select v-model="p.quarter" class="mx-in mx-in-q"><option v-for="o in QOPTS" :key="String(o.v)" :value="o.v">{{ t(o.l) }}</option></select>
             </label>
             <label class="mx-fl"><span>{{ t('Гант — до') }}</span>
-              <select v-model="p.quarter_end" class="mx-in mx-in-q"><option v-for="o in QEND_OPTS" :key="'e' + String(o.v)" :value="o.v">{{ o.l }}</option></select>
+              <select v-model="p.quarter_end" class="mx-in mx-in-q"><option v-for="o in QEND_OPTS" :key="'e' + String(o.v)" :value="o.v">{{ t(o.l) }}</option></select>
             </label>
             <label class="mx-fl"><span>{{ t('Срок') }}</span>
               <input v-model="p.due_date" type="date" class="mx-in" />

@@ -40,7 +40,10 @@ import { useAuthStore } from "@/stores/auth";
 import { watch } from "vue";
 import type { ESGMaturityHeatmap, ESGMaturityCompany, ESGSwotResponse, ESGSwotItemBrief } from "@/api/esg";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 import { i18nKey } from "@/locale/keys";
+import { useCompaniesStore } from "@/stores/companies";
+import { resolveCompanyDisplayName, resolveSectorDisplayName } from "@/utils/displayNames";
 
 const { t } = useI18n();
 
@@ -50,6 +53,29 @@ const { t } = useI18n();
 // ───────────────────────────────────────────────────────────────
 
 const toast = useToast();
+const companiesStore = useCompaniesStore();
+
+interface CompanyNameSource {
+  company_id?: string | null;
+  company_code?: string | null;
+  company_name?: string | null;
+  company_abbr?: string | null;
+}
+
+function companyName(company: CompanyNameSource): string {
+  return companiesStore.getCompanyNameById(company.company_id)
+    || resolveCompanyDisplayName(
+      company.company_name || company.company_abbr || company.company_code,
+      company.company_id || company.company_code,
+    )
+    || "—";
+}
+
+function sectorName(name?: string | null, code?: string | null): string {
+  return companiesStore.getSectorName(code)
+    || resolveSectorDisplayName(name || code, code)
+    || "—";
+}
 
 const overview = ref<ESGOverviewResponse | null>(null);
 const year = useSavedFilter<number | null>("esg.year", null);
@@ -117,7 +143,7 @@ const swotByCompany = computed(() => {
   for (const it of (swot.value?.company_items || [])) {
     const key = it.company_code || it.company_id || "—";
     let g = map.get(key);
-    if (!g) { g = { name: it.company_name || it.company_code || "—", strengths: [], weaknesses: [] }; map.set(key, g); }
+    if (!g) { g = { name: companyName(it), strengths: [], weaknesses: [] }; map.set(key, g); }
     (it.kind === "strength" ? g.strengths : g.weaknesses).push(it);
   }
   return Array.from(map.values());
@@ -232,8 +258,8 @@ const totalD5 = computed(() => dimTotal("D5"));
 const coveragePct = computed(() => Math.round((heatmap.value?.rated_count ?? 0) / Math.max(1, totalD3.value) * 100));
 
 function baseRow(c: ESGMaturityCompany): ESGDrillRow {
-  return { id: c.company_id, name: c.company_name || c.company_code,
-           sector: c.sector_name, color: c.sector_color || "#7C6FF7", value: "" };
+  return { id: c.company_id, name: companyName(c),
+           sector: sectorName(c.sector_name, c.sector_code), color: c.sector_color || "#7C6FF7", value: "" };
 }
 
 const drill = ref<{ title: string; subtitle?: string; description?: string; accent?: string; rows: ESGDrillRow[] } | null>(null);
@@ -347,7 +373,7 @@ function openRatingEdit(r: ESGCompanyScore, cell: AgencyRatingCell) {
   if (!canEditRatings.value) return;
   ratingEdit.value = {
     companyId: r.company_id,
-    companyName: r.company_name || r.company_code,
+    companyName: companyName(r),
     agency: cell.agency,
     existing: cell.rating_id ? {
       id: cell.rating_id, agency: cell.agency, rating: cell.rating, score: cell.score,
@@ -450,12 +476,19 @@ const AGENCY_COLORS: Record<string, string> = {
 };
 
 const k = computed(() => overview.value?.kpis);
-// Балл лидера «как есть» (агентский), а не композит — для KPI-карточки «Лидер».
-const leaderNativeScore = computed<string | null>(() => {
+const leaderCompany = computed(() => {
   const name = k.value?.leader_company_name;
   if (!name) return null;
-  const co = (overview.value?.rankings || []).find(r => (r.company_name || r.company_code) === name);
-  const c0 = co ? esgPrimaryCell(co) : null;
+  return (overview.value?.rankings || []).find(r => (r.company_name || r.company_code) === name) || null;
+});
+const leaderCompanyName = computed(() =>
+  leaderCompany.value
+    ? companyName(leaderCompany.value)
+    : resolveCompanyDisplayName(k.value?.leader_company_name) || "—",
+);
+// Балл лидера «как есть» (агентский), а не композит — для KPI-карточки «Лидер».
+const leaderNativeScore = computed<string | null>(() => {
+  const c0 = leaderCompany.value ? esgPrimaryCell(leaderCompany.value) : null;
   return c0 ? esgRatingValue(c0) : null;
 });
 const sectorBreakdown = computed(() => overview.value?.sector_breakdown ?? []);
@@ -480,16 +513,16 @@ const tableSections = computed<TableSection[]>(() => {
   const rows = overview.value?.rankings ?? [];
   const filter = searchQuery.value.trim().toLowerCase();
   const filtered = filter
-    ? rows.filter(r => (r.company_name || r.company_code).toLowerCase().includes(filter))
+    ? rows.filter(r => `${companyName(r)} ${r.company_name || ""} ${r.company_code}`.toLowerCase().includes(filter))
     : rows;
 
   if (sortBy.value === "name") {
     const sorted = [...filtered].sort((a, b) => {
-      const an = a.company_name || a.company_code;
-      const bn = b.company_name || b.company_code;
+      const an = companyName(a);
+      const bn = companyName(b);
       return sortDesc.value
-        ? bn.localeCompare(an, "ru")
-        : an.localeCompare(bn, "ru");
+        ? bn.localeCompare(an, getCurrentIntlLocale())
+        : an.localeCompare(bn, getCurrentIntlLocale());
     });
     return [{
       sector_code: "all",
@@ -514,7 +547,7 @@ const tableSections = computed<TableSection[]>(() => {
       const av = a.composite_esg_score ?? -1;
       const bv = b.composite_esg_score ?? -1;
       if (av === bv) {
-        return (a.company_name || a.company_code).localeCompare(b.company_name || b.company_code, "ru");
+        return companyName(a).localeCompare(companyName(b));
       }
       return bv - av;
     });
@@ -526,7 +559,7 @@ const tableSections = computed<TableSection[]>(() => {
       const rs = groupMap[code];
       return {
         sector_code: code,
-        sector_label: sec?.label || code,
+        sector_label: sectorName(sec?.label, code),
         sector_color: sec?.color || "#888780",
         total: rs.length,
         covered: rs.filter(r => r.has_any_rating).length,
@@ -709,7 +742,7 @@ function miniDasharray(pct: number): string {
 //   Lifecycle
 // ───────────────────────────────────────────────────────────────
 
-onMounted(() => { load(); loadMaturity(); loadSwot(); });
+onMounted(() => { void companiesStore.ensureLoaded(); load(); loadMaturity(); loadSwot(); });
 </script>
 
 <template>
@@ -853,10 +886,10 @@ onMounted(() => { load(); loadMaturity(); loadSwot(); });
               </div>
               <div class="kpi2-lbl">{{ t('Лидер') }}</div>
               <div class="kpi2-val ev-kpi-name" :style="{
-                fontSize: (k.leader_company_name && k.leader_company_name.length > 14) ? '22px'
-                          : (k.leader_company_name && k.leader_company_name.length > 10) ? '26px' : '30px'
+                fontSize: leaderCompanyName.length > 14 ? '22px'
+                          : leaderCompanyName.length > 10 ? '26px' : '30px'
               }">
-                {{ k.leader_company_name || "—" }}
+                {{ leaderCompanyName }}
               </div>
               <div class="kpi2-sub">
                 <template v-if="k.leader_composite != null">
@@ -936,7 +969,7 @@ onMounted(() => { load(); loadMaturity(); loadSwot(); });
                       @click="kpiDrill = null; openDrill(row.r.company_id, row.r.last_year_reported);">
                       <td class="lt">
                         <span class="ev-mat-sec" :style="{ background: fallbackSectorColor(row.r) }"></span>
-                        {{ row.r.company_name || row.r.company_code }}
+                        {{ companyName(row.r) }}
                       </td>
                       <td class="num big" :style="{ color: row.primaryColor }">{{ row.primary }}</td>
                       <td class="sub">{{ row.secondary }}</td>

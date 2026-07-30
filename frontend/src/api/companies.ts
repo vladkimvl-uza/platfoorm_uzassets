@@ -72,9 +72,13 @@ export interface CompanyListItem {
   code: string;
   inn?: string | null;
   name_ru: string;
+  name_uz?: string | null;
+  name_en?: string | null;
   name_short: string | null;
   sector_code: string | null;
   sector_name: string | null;
+  sector_name_uz?: string | null;
+  sector_name_en?: string | null;
   sector_color: string | null;
   is_active: boolean;
   is_custom: boolean;

@@ -27,7 +27,7 @@ import { getActivePinia } from "pinia";
 
 import { useLocaleStore } from "@/stores/locale";
 
-import type { AppLocale } from "./locales";
+import { INTL_LOCALE, type AppLocale } from "./locales";
 import { translitLatinToCyrillic } from "./translit";
 
 export { i18nKey } from "./keys";
@@ -63,6 +63,11 @@ export function getCurrentLocale(): AppLocale {
     /* до инициализации pinia (ранний импорт) — безопасный дефолт */
   }
   return "ru";
+}
+
+/** BCP-47 locale matching the currently selected application language. */
+export function getCurrentIntlLocale(): string {
+  return INTL_LOCALE[getCurrentLocale()];
 }
 
 /** Перевод строки интерфейса. Ключ — русский текст. */

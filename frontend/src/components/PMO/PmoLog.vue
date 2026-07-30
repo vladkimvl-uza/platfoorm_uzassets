@@ -16,6 +16,7 @@ import {
   type ChangeItem, type ChangePayload, type ChangeKind, type ChangeStatus,
 } from "@/api/pmo";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 import { i18nKey } from "@/locale/keys";
 
 const { t } = useI18n();
@@ -203,7 +204,7 @@ async function cRemove(it: ChangeItem) {
   catch (e: any) { toast.error(e?.response?.data?.detail || t('Не удалось удалить')); }
 }
 
-const fmtDt = (s: string | null) => s ? new Date(s).toLocaleDateString("ru-RU", { day: "numeric", month: "short", year: "2-digit" }) : "—";
+const fmtDt = (s: string | null) => s ? new Date(s).toLocaleDateString(getCurrentIntlLocale(), { day: "numeric", month: "short", year: "2-digit" }) : "—";
 </script>
 
 <template>
@@ -231,16 +232,16 @@ const fmtDt = (s: string | null) => s ? new Date(s).toLocaleDateString("ru-RU", 
       <div class="pl-fchips">
         <button class="pl-fchip" :class="{ on: !filterKind }" @click="filterKind = ''">{{ t('Все') }}</button>
         <template v-if="tab === 'lessons'">
-          <button v-for="k in L_KINDS" :key="k.v" class="pl-fchip" :class="{ on: filterKind === k.v }" :style="filterKind === k.v ? { background: k.c + '1a', color: k.c, borderColor: k.c + '55' } : {}" @click="filterKind = k.v">{{ k.l }}</button>
+          <button v-for="k in L_KINDS" :key="k.v" class="pl-fchip" :class="{ on: filterKind === k.v }" :style="filterKind === k.v ? { background: k.c + '1a', color: k.c, borderColor: k.c + '55' } : {}" @click="filterKind = k.v">{{ t(k.l) }}</button>
         </template>
         <template v-else>
-          <button v-for="k in C_KINDS" :key="k.v" class="pl-fchip" :class="{ on: filterKind === k.v }" @click="filterKind = k.v">{{ k.l }}</button>
+          <button v-for="k in C_KINDS" :key="k.v" class="pl-fchip" :class="{ on: filterKind === k.v }" @click="filterKind = k.v">{{ t(k.l) }}</button>
         </template>
       </div>
 
       <!-- status chips (changes) -->
       <div v-if="tab === 'changes'" class="pl-fchips">
-        <button v-for="s in C_STATUSES" :key="s.v" class="pl-fchip" :class="{ on: filterStatus === s.v }" :style="filterStatus === s.v ? { background: s.c + '1a', color: s.c, borderColor: s.c + '55' } : {}" @click="filterStatus = filterStatus === s.v ? '' : s.v">{{ s.l }}</button>
+        <button v-for="s in C_STATUSES" :key="s.v" class="pl-fchip" :class="{ on: filterStatus === s.v }" :style="filterStatus === s.v ? { background: s.c + '1a', color: s.c, borderColor: s.c + '55' } : {}" @click="filterStatus = filterStatus === s.v ? '' : s.v">{{ t(s.l) }}</button>
       </div>
 
       <!-- project filter -->
@@ -273,7 +274,7 @@ const fmtDt = (s: string | null) => s ? new Date(s).toLocaleDateString("ru-RU", 
           <thead><tr><th>{{ t('Тип') }}</th><th>{{ t('Урок') }}</th><th>{{ t('Проект') }}</th><th>{{ t('Ответственный') }}</th><th>{{ t('Дата') }}</th><th></th></tr></thead>
           <tbody>
             <tr v-for="(it, i) in shownLessons" :key="it.id" class="pl-row" :style="{ animationDelay: Math.min(i*0.025, 0.35)+'s' }">
-              <td><span class="pl-kind" :style="{ color: LK[it.kind]?.c, background: LK[it.kind]?.c + '1a' }">{{ LK[it.kind]?.l }}</span></td>
+              <td><span class="pl-kind" :style="{ color: LK[it.kind]?.c, background: LK[it.kind]?.c + '1a' }">{{ t(LK[it.kind]?.l || '') }}</span></td>
               <td>
                 <div class="pl-title">{{ it.title }}</div>
                 <div v-if="it.description" class="pl-sub">{{ it.description }}</div>
@@ -302,7 +303,7 @@ const fmtDt = (s: string | null) => s ? new Date(s).toLocaleDateString("ru-RU", 
           <thead><tr><th>{{ t('Тип') }}</th><th>{{ t('Изменение') }}</th><th>{{ t('Проект') }}</th><th>{{ t('Инициатор') }}</th><th>{{ t('Статус') }}</th><th>{{ t('Решение') }}</th><th></th></tr></thead>
           <tbody>
             <tr v-for="(it, i) in shownChanges" :key="it.id" class="pl-row" :style="{ animationDelay: Math.min(i*0.025, 0.35)+'s' }">
-              <td><span class="pl-ck">{{ CK[it.kind]?.l }}</span></td>
+              <td><span class="pl-ck">{{ t(CK[it.kind]?.l || '') }}</span></td>
               <td>
                 <div class="pl-title">{{ it.title }}</div>
                 <div v-if="it.description" class="pl-sub">{{ it.description }}</div>
@@ -310,7 +311,7 @@ const fmtDt = (s: string | null) => s ? new Date(s).toLocaleDateString("ru-RU", 
               </td>
               <td><span v-if="projTitle(it.project_id)" class="pl-proj">{{ projTitle(it.project_id) }}</span><span v-else class="pl-dash">—</span></td>
               <td><span v-if="it.requested_by" class="pl-owner"><span class="pl-av">{{ avInitials(it.requested_by) }}</span>{{ it.requested_by }}</span><span v-else class="pl-dash">—</span></td>
-              <td><span class="pl-stat" :style="{ color: CS[it.status]?.c, background: CS[it.status]?.c + '1a' }">{{ CS[it.status]?.l }}</span></td>
+              <td><span class="pl-stat" :style="{ color: CS[it.status]?.c, background: CS[it.status]?.c + '1a' }">{{ t(CS[it.status]?.l || '') }}</span></td>
               <td class="pl-dec">{{ it.decided_by || "—" }}<template v-if="it.decided_at"><br><span class="is-mono pl-decdt">{{ fmtDt(it.decided_at) }}</span></template></td>
               <td style="text-align:right; white-space:nowrap">
                 <button v-if="canEdit" class="pl-ia" :title="t('Править')" @click="cEdit(it)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
@@ -329,7 +330,7 @@ const fmtDt = (s: string | null) => s ? new Date(s).toLocaleDateString("ru-RU", 
           <div class="pl-mh">{{ lEditId ? t('Правка урока') : t('Новый урок') }}</div>
           <div class="pl-mb">
             <div class="pl-f2">
-              <div class="pl-f"><label>{{ t('Тип') }}</label><select v-model="lForm.kind"><option v-for="k in L_KINDS" :key="k.v" :value="k.v">{{ k.l }}</option></select></div>
+              <div class="pl-f"><label>{{ t('Тип') }}</label><select v-model="lForm.kind"><option v-for="k in L_KINDS" :key="k.v" :value="k.v">{{ t(k.l) }}</option></select></div>
               <div class="pl-f"><label>{{ t('Проект') }}</label>
                 <select v-model="lForm.project_id">
                   <option :value="null">{{ t('— без проекта —') }}</option>
@@ -358,8 +359,8 @@ const fmtDt = (s: string | null) => s ? new Date(s).toLocaleDateString("ru-RU", 
           <div class="pl-mh">{{ cEditId ? t('Правка изменения') : t('Новый запрос на изменение') }}</div>
           <div class="pl-mb">
             <div class="pl-f2">
-              <div class="pl-f"><label>{{ t('Тип') }}</label><select v-model="cForm.kind"><option v-for="k in C_KINDS" :key="k.v" :value="k.v">{{ k.l }}</option></select></div>
-              <div class="pl-f"><label>{{ t('Статус') }}</label><select v-model="cForm.status"><option v-for="s in C_STATUSES" :key="s.v" :value="s.v">{{ s.l }}</option></select></div>
+              <div class="pl-f"><label>{{ t('Тип') }}</label><select v-model="cForm.kind"><option v-for="k in C_KINDS" :key="k.v" :value="k.v">{{ t(k.l) }}</option></select></div>
+              <div class="pl-f"><label>{{ t('Статус') }}</label><select v-model="cForm.status"><option v-for="s in C_STATUSES" :key="s.v" :value="s.v">{{ t(s.l) }}</option></select></div>
             </div>
             <div class="pl-f"><label>{{ t('Проект') }}</label>
               <select v-model="cForm.project_id">

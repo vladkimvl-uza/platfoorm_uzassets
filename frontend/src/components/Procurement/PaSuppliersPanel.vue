@@ -22,10 +22,14 @@ import {
   type SupplierConcentration,
 } from "@/api/procurement_analysis";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 import { i18nKey } from "@/locale/keys";
+import { resolveCompanyDisplayName } from "@/utils/displayNames";
 
 
 const { t } = useI18n();
+const companyName = (company: SupplierConcentration) =>
+  resolveCompanyDisplayName(company.company_name, company.company_id) || "—";
 
 const props = defineProps<{ data: ProcurementAggregate }>();
 
@@ -90,7 +94,7 @@ const concentration = computed<SupplierConcentration[]>(() => {
 
 // ── Форматтеры ──
 const fmtN = (v: number | null | undefined): string =>
-  v == null || isNaN(Number(v)) ? "—" : Number(v).toLocaleString("ru-RU");
+  v == null || isNaN(Number(v)) ? "—" : Number(v).toLocaleString(getCurrentIntlLocale());
 
 const fmtPct1 = (v: number | null | undefined): string =>
   v == null || isNaN(Number(v)) ? "—" : Number(v).toFixed(1) + "%";
@@ -256,13 +260,13 @@ function premiumClass(p: number): string {
             :key="c.company_id"
             class="psp-trow"
             :style="{ '--i': i }"
-            :title="t('Открыть профиль') + ': ' + c.company_name"
+            :title="t('Открыть профиль') + ': ' + companyName(c)"
             @click="emit('select-company', c.company_id)"
           >
             <td class="ta-l">
               <span class="psp-co">
                 <span class="psp-dotc" :style="{ background: c.company_color || '#7F77DD' }" />
-                <span class="psp-co-nm" :title="c.company_name">{{ c.company_name }}</span>
+                <span class="psp-co-nm" :title="companyName(c)">{{ companyName(c) }}</span>
               </span>
             </td>
             <td class="ta-r psp-num">{{ fmtN(c.supplier_count) }}</td>

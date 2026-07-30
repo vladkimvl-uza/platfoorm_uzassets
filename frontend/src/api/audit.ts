@@ -1,5 +1,5 @@
 import { api } from "./client";
-import { t } from "@/locale/i18n";
+import { getCurrentIntlLocale, t } from "@/locale/i18n";
 
 
 // ─── Types matching backend Pydantic schemas ─────────────────
@@ -263,11 +263,11 @@ export function formatRelativeTime(iso: string): string {
   if (sec < 60) return t('{value0}с назад', { value0: sec });
   if (sec < 3600) return t('{value0}мин назад', { value0: Math.floor(sec / 60) });
   if (sec < 86400) return t('{value0}ч назад', { value0: Math.floor(sec / 3600) });
-  return d.toLocaleDateString("ru-RU");
+  return d.toLocaleDateString(getCurrentIntlLocale());
 }
 
 export function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  return new Date(iso).toLocaleTimeString(getCurrentIntlLocale(), { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
 
 export function formatDateShort(iso: string): string {
@@ -277,5 +277,5 @@ export function formatDateShort(iso: string): string {
   const yest = new Date(today);
   yest.setDate(yest.getDate() - 1);
   if (d.toDateString() === yest.toDateString()) return t('вчера');
-  return d.toLocaleDateString("ru-RU", { day: "2-digit", month: "short" });
+  return d.toLocaleDateString(getCurrentIntlLocale(), { day: "2-digit", month: "short" });
 }

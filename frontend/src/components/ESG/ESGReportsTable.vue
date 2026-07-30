@@ -10,6 +10,7 @@ import { isModerationQueued } from "@/api/client";
 import { esgApi, type ESGReportBrief } from "@/api/esg";
 import { useToast } from "@/composables/useToast";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 const { t } = useI18n();
 
 
@@ -121,7 +122,7 @@ async function commitEdit() {
 
 function fmtDate(iso: string | null): string {
   if (!iso) return "";
-  try { return new Date(iso).toLocaleDateString("ru", { day: "2-digit", month: "short", year: "numeric" }); }
+  try { return new Date(iso).toLocaleDateString(getCurrentIntlLocale(), { day: "2-digit", month: "short", year: "numeric" }); }
   catch { return iso; }
 }
 function shortUrl(url: string): string {

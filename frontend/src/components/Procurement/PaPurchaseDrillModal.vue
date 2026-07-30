@@ -20,10 +20,14 @@ import {
 import { useToast } from "@/composables/useToast";
 import PaModalShell from "./PaModalShell.vue";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 import { i18nKey } from "@/locale/keys";
+import { resolveCompanyDisplayName } from "@/utils/displayNames";
 
 
 const { t } = useI18n();
+const companyName = (purchase: ClosureRow) =>
+  resolveCompanyDisplayName(purchase.company_name, purchase.company_id) || "—";
 
 const props = defineProps<{
   purchase: ClosureRow;
@@ -162,7 +166,7 @@ const recommendation = computed<string>(() => {
   if (best && best.company_id !== props.purchase.company_id && best.unit_price < props.purchase.unit_price) {
     const saveTotal = (props.purchase.unit_price - best.unit_price) * totalVol.value;
     const vars = {
-      co: `<b>${_escHtml(best.company_name)}</b>`,
+      co: `<b>${_escHtml(companyName(best))}</b>`,
       price: `<b>${paFmtMoney(best.unit_price)}</b>`,
       sup: _escHtml(best.supplier || ""),
       save: `<b>${paFmtMoneyShort(saveTotal)} ${t("сум/год")}</b>`,
@@ -196,7 +200,7 @@ const accentColor = computed(() => {
 });
 
 const headerTitle = computed(() => {
-  const company = props.purchase.company_name || props.purchase.company_id;
+  const company = companyName(props.purchase);
   return `${company} · ${cat.value.name}`;
 });
 </script>
@@ -233,7 +237,7 @@ const headerTitle = computed(() => {
       </div>
       <div class="pms-stat">
         <div class="pms-stat-lbl">{{ t("Объём") }}</div>
-        <div class="pms-stat-val">{{ purchase.volume.toLocaleString('ru-RU') }}<small>{{ cat.short || t('ед') }}</small></div>
+        <div class="pms-stat-val">{{ purchase.volume.toLocaleString(getCurrentIntlLocale()) }}<small>{{ cat.short || t('ед') }}</small></div>
       </div>
       <div class="pms-stat">
         <div class="pms-stat-lbl">{{ devAbs >= 0 ? t('Переплата итого') : t('Экономия итого') }}</div>
@@ -275,7 +279,7 @@ const headerTitle = computed(() => {
           class="ppd-best-btn"
           @click="emit('select-co', bestCo!.company_id); emit('close')"
         >
-          {{ t("Профиль эталона") }} ({{ bestCo!.company_name }}) →
+          {{ t("Профиль эталона") }} ({{ companyName(bestCo!) }}) →
         </button>
       </div>
 
@@ -333,7 +337,7 @@ const headerTitle = computed(() => {
       <div v-if="related.length > 1" class="ppd-section">
         <div class="ppd-section-h">
           <span class="ppd-section-t">{{ t("Закупки этой компании в категории") }}</span>
-          <span class="ppd-section-s">{{ t("{n} закупок · {vol} {unit} объёма", { n: related.length, vol: totalVol.toLocaleString('ru-RU'), unit: cat.short || t('ед') }) }}</span>
+          <span class="ppd-section-s">{{ t("{n} закупок · {vol} {unit} объёма", { n: related.length, vol: totalVol.toLocaleString(getCurrentIntlLocale()), unit: cat.short || t('ед') }) }}</span>
         </div>
         <table class="ppd-tbl pa-stagger">
           <thead>
@@ -349,7 +353,7 @@ const headerTitle = computed(() => {
             <tr v-for="r in related" :key="r.id" :class="{ 'ppd-row-dirty': r.is_dirty, 'ppd-row-current': r.id === purchase.id }">
               <td class="left">{{ fmtDate(r.contract_date) }}<span v-if="r.id === purchase.id" class="ppd-current-tag">{{ t("текущая") }}</span></td>
               <td class="left supplier">{{ r.supplier || '—' }}</td>
-              <td class="right">{{ r.volume.toLocaleString('ru-RU') }}</td>
+              <td class="right">{{ r.volume.toLocaleString(getCurrentIntlLocale()) }}</td>
               <td class="right">{{ paFmtMoney(r.unit_price) }}</td>
               <td class="right" :class="(r.deviation_pct ?? 0) >= 0 ? 'neg' : 'pos'">
                 {{ (r.deviation_pct ?? 0) >= 0 ? '+' : '' }}{{ (r.deviation_pct ?? 0).toFixed(1) }}%

@@ -39,6 +39,7 @@ import RatingsRecentChanges  from "@/components/Ratings/RatingsRecentChanges.vue
 import RatingsSectorTable    from "@/components/Ratings/RatingsSectorTable.vue";
 import RatingEditModal       from "@/components/Ratings/RatingEditModal.vue";
 import { useI18n } from "@/composables/useI18n";
+import { companyDisplayName, sectorDisplayName } from "@/utils/displayNames";
 const { t } = useI18n();
 
 
@@ -117,7 +118,7 @@ const totalCount = computed(() => filteredCompanies.value.length);
 function activeSectorLabel(): string {
   if (!sectorFilter.value) return "";
   const s = sectors.value.find(x => String(x.code).toLowerCase() === sectorFilter.value);
-  return s?.name_ru || sectorFilter.value;
+  return sectorDisplayName(s) || sectorFilter.value;
 }
 
 // ─── Edit modal ──────────────────────────────────────────────────────
@@ -137,7 +138,7 @@ function openEditModal(companyId: string, agency: string) {
   ) || null;
   editModal.value = {
     companyId,
-    companyName: co.name_short || co.name_ru || co.code || "—",
+    companyName: companyDisplayName(co) || co.code || "—",
     agency,
     existing,
   };
@@ -227,7 +228,7 @@ function onShowAllChanges() {
               @keydown.space.prevent="setSector(String(s.code).toLowerCase())"
             >
               <span class="rt-dd-dot" :style="{ background: s.color_hex || '#7F77DD' }"></span>
-              <span class="rt-dd-meta">{{ s.name_ru }}</span>
+              <span class="rt-dd-meta">{{ sectorDisplayName(s) }}</span>
               <span class="rt-dd-count">{{ sectorCounts[String(s.code).toLowerCase()] || 0 }}</span>
             </div>
           </div>

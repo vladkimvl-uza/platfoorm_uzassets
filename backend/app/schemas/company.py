@@ -92,9 +92,13 @@ class CompanyListItem(BaseModel):
     code: str
     inn: Optional[str] = None
     name_ru: str
+    name_uz: Optional[str] = None
+    name_en: Optional[str] = None
     name_short: Optional[str]
     sector_code: Optional[str]
     sector_name: Optional[str]
+    sector_name_uz: Optional[str] = None
+    sector_name_en: Optional[str] = None
     sector_color: Optional[str]
     is_active: bool
     is_custom: bool

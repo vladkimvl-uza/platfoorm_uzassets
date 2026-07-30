@@ -10,11 +10,13 @@ import { reactive, ref, computed, onMounted } from "vue";
 import { authApi } from "@/api/auth";
 import { useAuthStore } from "@/stores/auth";
 import { useRouter } from "vue-router";
-import { companiesApi } from "@/api/companies";
+import { companiesApi, type CompanyListItem } from "@/api/companies";
 import UserAffiliationBadge from "@/components/rbac-v3/UserAffiliationBadge.vue";
 import SocialLinks from "@/components/user/SocialLinks.vue";
 import { useI18n } from "@/composables/useI18n";
-const { t } = useI18n();
+import { INTL_LOCALE } from "@/locale";
+import { companyDisplayName } from "@/utils/displayNames";
+const { t, locale } = useI18n();
 
 
 const emit = defineEmits<{ close: [] }>();
@@ -24,14 +26,17 @@ const router = useRouter();
 const tab = ref<"profile" | "password">("profile");
 // Компания (organization_id): юзер задаёт сам ОДИН раз при первой настройке.
 const orgLocked = computed(() => !!auth.user?.org_profile_set);
-const allCompanies = ref<{ id: string; name: string }[]>([]);
+const companyCatalog = ref<CompanyListItem[]>([]);
+const allCompanies = computed(() => companyCatalog.value
+  .map(company => ({ id: company.id, name: companyDisplayName(company) || company.code }))
+  .filter(company => company.id)
+  .sort((a, b) => a.name.localeCompare(b.name, INTL_LOCALE[locale.value])));
 onMounted(async () => {
   if (orgLocked.value) return; // список нужен только для первичного выбора
   try {
     const r = await companiesApi.list({ per_page: 500 } as any);
     const items = (r as any)?.items || (r as any)?.companies || (Array.isArray(r) ? r : []);
-    allCompanies.value = (items || []).map((c: any) => ({ id: c.id, name: c.name_ru || c.name || c.code }))
-      .filter((c: any) => c.id).sort((a: any, b: any) => a.name.localeCompare(b.name, "ru"));
+    companyCatalog.value = items || [];
   } catch { /* список недоступен — поле скрыто */ }
 });
 const saving = ref(false);

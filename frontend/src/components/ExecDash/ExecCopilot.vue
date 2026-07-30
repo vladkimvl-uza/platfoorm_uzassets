@@ -13,6 +13,7 @@ import { useFocusTrap } from "@/composables/useFocusTrap";
 import AiMessage from "@/components/Ai/AiMessage.vue";
 import { useAiActivation } from "@/composables/useAiActivation";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 
 const { t } = useI18n();
 
@@ -42,7 +43,7 @@ useFocusTrap(panelEl, open);
 function fmtTs(iso: string): string {
   if (!iso) return "";
   try {
-    return new Date(iso).toLocaleString("ru-RU", {
+    return new Date(iso).toLocaleString(getCurrentIntlLocale(), {
       day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit",
     });
   } catch { return ""; }

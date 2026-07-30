@@ -23,6 +23,7 @@ import SoeHealthParamsModal from "@/components/Financials/SoeHealthParamsModal.v
 import SoeHealthDrillModal from "@/components/Financials/SoeHealthDrillModal.vue";
 import CreditDonut, { type DonutEntry } from "@/components/CreditPortfolio/CreditDonut.vue";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 import { i18nKey } from "@/locale/keys";
 
 const { t: tr } = useI18n();
@@ -131,8 +132,8 @@ function barLabel(vBln: number): string {
 }
 
 function fmtBln(v: number): string {
-  if (Math.abs(v) >= 1000) return tr('{value0} трлн', { value0: (v / 1000).toLocaleString("ru", { maximumFractionDigits: 1 }) });
-  return tr('{value0} млрд', { value0: v.toLocaleString("ru", { maximumFractionDigits: 0 }) });
+  if (Math.abs(v) >= 1000) return tr('{value0} трлн', { value0: (v / 1000).toLocaleString(getCurrentIntlLocale(), { maximumFractionDigits: 1 }) });
+  return tr('{value0} млрд', { value0: v.toLocaleString(getCurrentIntlLocale(), { maximumFractionDigits: 0 }) });
 }
 
 // ─── Размер vs риск (scatter): x = обязательства (√-шкала), y = балл 1..5 ──
@@ -200,7 +201,7 @@ const fiscalCards = computed(() => {
 const gdpBln = computed(() => pf.value?.gdp_bln || null);
 function fmtTrln(bln: number | null): string {
   if (bln == null) return "—";
-  return tr('{value0} трлн', { value0: (bln / 1000).toLocaleString("ru", { maximumFractionDigits: 0 }) });
+  return tr('{value0} трлн', { value0: (bln / 1000).toLocaleString(getCurrentIntlLocale(), { maximumFractionDigits: 0 }) });
 }
 
 // ─── Комбо «Активы и ROA» / «Капитал и ROE» по секторам (верт. бары) ──

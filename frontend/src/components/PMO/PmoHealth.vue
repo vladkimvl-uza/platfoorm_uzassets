@@ -7,6 +7,7 @@ import { ref, computed, watch, onMounted } from "vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import { pmoApi, type HealthResponse, type StatusReport } from "@/api/pmo";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 import { i18nKey } from "@/locale/keys";
 import { useAiFeatureAccess } from "@/composables/useAiFeatureAccess";
 const { t } = useI18n();
@@ -68,7 +69,7 @@ async function generate() {
   }
 }
 
-const fmtDt = (s: string) => new Date(s).toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+const fmtDt = (s: string) => new Date(s).toLocaleString(getCurrentIntlLocale(), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 const latest = computed(() => reports.value[0] || null);
 </script>
 

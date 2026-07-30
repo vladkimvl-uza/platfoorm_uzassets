@@ -134,7 +134,7 @@ async function removeItem(s: Stakeholder) {
           <div class="ps-eng-wrap">
             <table class="ps-eng">
               <thead>
-                <tr><th class="ps-eng-name"></th><th v-for="e in ENG" :key="e.v">{{ e.l }}</th></tr>
+                <tr><th class="ps-eng-name"></th><th v-for="e in ENG" :key="e.v">{{ t(e.l) }}</th></tr>
               </thead>
               <tbody>
                 <tr v-for="s in items" :key="'e' + s.id" :class="{ gap: ENG_I[s.engagement_desired] > ENG_I[s.engagement_current] }">
@@ -163,8 +163,8 @@ async function removeItem(s: Stakeholder) {
               <td>{{ s.organization || "—" }}</td>
               <td style="text-align:center" class="is-mono">{{ s.power }}</td>
               <td style="text-align:center" class="is-mono">{{ s.interest }}</td>
-              <td><span class="ps-quad" :style="{ color: quadrant(s.power, s.interest).c }">{{ quadrant(s.power, s.interest).l }}</span></td>
-              <td><span class="ps-eng-txt">{{ ENG.find(e => e.v === s.engagement_current)?.l }}<span v-if="s.engagement_desired !== s.engagement_current"> → {{ ENG.find(e => e.v === s.engagement_desired)?.l }}</span></span></td>
+              <td><span class="ps-quad" :style="{ color: quadrant(s.power, s.interest).c }">{{ t(quadrant(s.power, s.interest).l) }}</span></td>
+              <td><span class="ps-eng-txt">{{ t(ENG.find(e => e.v === s.engagement_current)?.l || '') }}<span v-if="s.engagement_desired !== s.engagement_current"> → {{ t(ENG.find(e => e.v === s.engagement_desired)?.l || '') }}</span></span></td>
               <td style="text-align:right">
                 <button v-if="canEdit" class="ps-ia" :title="t('Править')" @click="openEdit(s)">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -195,10 +195,10 @@ async function removeItem(s: Stakeholder) {
           </div>
           <div class="ps-f2">
             <div class="ps-f"><label>{{ t('Вовлечённость сейчас') }}</label>
-              <select v-model="form.engagement_current"><option v-for="e in ENG" :key="e.v" :value="e.v">{{ e.l }}</option></select>
+              <select v-model="form.engagement_current"><option v-for="e in ENG" :key="e.v" :value="e.v">{{ t(e.l) }}</option></select>
             </div>
             <div class="ps-f"><label>{{ t('Цель') }}</label>
-              <select v-model="form.engagement_desired"><option v-for="e in ENG" :key="e.v" :value="e.v">{{ e.l }}</option></select>
+              <select v-model="form.engagement_desired"><option v-for="e in ENG" :key="e.v" :value="e.v">{{ t(e.l) }}</option></select>
             </div>
           </div>
           <div class="ps-f"><label>{{ t('Контакт') }}</label><input v-model="form.contact" :placeholder="t('email / телефон')" /></div>

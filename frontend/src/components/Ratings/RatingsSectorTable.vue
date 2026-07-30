@@ -25,6 +25,7 @@ import {
 } from "./ratingsHelpers";
 import { useI18n } from "@/composables/useI18n";
 import { i18nKey } from "@/locale/keys";
+import { companyDisplayName, sectorDisplayName } from "@/utils/displayNames";
 
 const { t } = useI18n();
 
@@ -226,7 +227,7 @@ const legend = computed(() => {
                '--stripe-color': g.color,
                borderBottomColor: g.color + '22',
              }">
-          <span class="rst-sec-name" :style="{ color: g.color }">{{ g.sector.name_ru }}</span>
+          <span class="rst-sec-name" :style="{ color: g.color }">{{ sectorDisplayName(g.sector) }}</span>
           <span class="rst-sec-cnt">{{ g.companies.length }}</span>
         </div>
 
@@ -240,9 +241,9 @@ const legend = computed(() => {
                }">
             <!-- Company name cell -->
             <div class="rst-cell-co">
-              <CompanyAvatar :name="co.name_short || co.name_ru" :color="g.color" :size="20" />
+              <CompanyAvatar :name="companyDisplayName(co)" :color="g.color" :size="20" />
               <span class="rst-co-name" :class="{ 'rst-co-empty': !hasAnyAgency(co) }">
-                {{ co.name_short || co.name_ru }}
+                {{ companyDisplayName(co) }}
               </span>
             </div>
 

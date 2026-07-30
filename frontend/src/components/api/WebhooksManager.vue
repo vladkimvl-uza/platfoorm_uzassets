@@ -9,6 +9,7 @@ import {
 } from "@/api/webhooks";
 import { apiKeysApi, type ServiceAccount } from "@/api/api_catalog";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 const { t } = useI18n();
 
 
@@ -142,7 +143,7 @@ async function copySecret() {
 
 function fmtDate(iso: string | null): string {
   if (!iso) return "—";
-  return new Date(iso).toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  return new Date(iso).toLocaleString(getCurrentIntlLocale(), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 function fmtRel(iso: string | null): string {
   if (!iso) return "—";

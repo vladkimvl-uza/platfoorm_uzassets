@@ -392,7 +392,7 @@ const distrib = computed(() => {
 
 // Tooltip text per bar
 function tooltipFor(b: RenderBar): string {
-  const parts = [b.name, b.labelFull];
+  const parts = [b.name, t(b.labelFull)];
   if (b.delta != null) {
     parts.push((b.delta >= 0 ? "+" : "") + fmtNum(b.delta));
   }
@@ -565,7 +565,7 @@ function tooltipFor(b: RenderBar): string {
               text-anchor="middle"
               font-family="Geist, system-ui, sans-serif"
             >
-              <title>{{ b.labelFull }}</title>
+              <title>{{ t(b.labelFull) }}</title>
               {{ t(b.label) }}
             </text>
 

@@ -5,6 +5,7 @@
 import { computed, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 import { useExecutiveDashboard } from "@/composables/useExecutiveDashboard";
 import { useNumberTween } from "@/composables/useNumberTween";
 import { productionApi, type ProdOverview, type ProdCompany } from "@/api/production";
@@ -53,7 +54,7 @@ const withPct = computed(() => (data.value?.companies || []).filter((c) => c.exe
 const leaders = computed(() => withPct.value.slice().sort((a, b) => (b.execPct || 0) - (a.execPct || 0)).slice(0, 3));
 const laggards = computed(() => withPct.value.slice().sort((a, b) => (a.execPct || 0) - (b.execPct || 0)).slice(0, 3));
 
-function fmt1(v: number) { return (Math.round(v * 10) / 10).toLocaleString("ru", { maximumFractionDigits: 1 }); }
+function fmt1(v: number) { return (Math.round(v * 10) / 10).toLocaleString(getCurrentIntlLocale(), { maximumFractionDigits: 1 }); }
 function go() { router.push({ path: "/business-plan", query: { tab: "production" } }); }
 function coLabel(c: ProdCompany) { return c.n; }
 </script>

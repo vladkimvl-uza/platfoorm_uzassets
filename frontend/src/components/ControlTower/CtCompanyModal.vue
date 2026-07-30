@@ -9,6 +9,7 @@ import { computed } from "vue";
 import ModalShell from "@/components/ModalShell.vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 
 const { t } = useI18n();
 
@@ -44,7 +45,7 @@ const modalNums = computed(() => {
 });
 
 function trailTime(ts: string): string {
-  return new Date(ts).toLocaleString("ru-RU", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+  return new Date(ts).toLocaleString(getCurrentIntlLocale(), { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 function actionRu(a: string): string {
   return ({ status_changed: t("сменил статус"), field_updated: t("обновил"), created: t("создал"), archived: t("архивировал") } as any)[a] || a;

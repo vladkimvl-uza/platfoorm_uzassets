@@ -67,3 +67,23 @@ export function translitLatinToCyrillic(text: string): string {
     )
     .join("");
 }
+
+const CYRILLIC_TO_LATIN: Record<string, string> = {
+  а: "a", б: "b", в: "v", г: "g", д: "d", е: "e", ё: "yo", ж: "j",
+  з: "z", и: "i", й: "y", к: "k", қ: "q", л: "l", м: "m", н: "n",
+  о: "o", п: "p", р: "r", с: "s", т: "t", у: "u", ф: "f", х: "x",
+  ҳ: "h", ц: "ts", ч: "ch", ш: "sh", ъ: "ʼ", ь: "", э: "e", ю: "yu",
+  я: "ya", ў: "oʻ", ғ: "gʻ",
+  А: "A", Б: "B", В: "V", Г: "G", Д: "D", Е: "E", Ё: "Yo", Ж: "J",
+  З: "Z", И: "I", Й: "Y", К: "K", Қ: "Q", Л: "L", М: "M", Н: "N",
+  О: "O", П: "P", Р: "R", С: "S", Т: "T", У: "U", Ф: "F", Х: "X",
+  Ҳ: "H", Ц: "Ts", Ч: "Ch", Ш: "Sh", Ъ: "ʼ", Ь: "", Э: "E", Ю: "Yu",
+  Я: "Ya", Ў: "Oʻ", Ғ: "Gʻ",
+};
+
+/** Узбекская кириллица → латиница для локализованных данных из БД. */
+export function translitCyrillicToLatin(text: string): string {
+  let out = "";
+  for (const ch of text) out += CYRILLIC_TO_LATIN[ch] ?? ch;
+  return out;
+}

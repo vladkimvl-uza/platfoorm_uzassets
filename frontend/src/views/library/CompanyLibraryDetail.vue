@@ -34,6 +34,7 @@ import { api } from "@/api/client";
 import { STATUS_LABELS, STATUS_COLORS } from "@/utils/progress";
 import { useI18n } from "@/composables/useI18n";
 import { i18nKey } from "@/locale/keys";
+import { resolveCompanyDisplayName, resolveSectorDisplayName } from "@/utils/displayNames";
 
 const { t: tr } = useI18n();
 
@@ -50,6 +51,14 @@ const detail   = ref<LibraryCompanyDetail | null>(null);
 const loading  = ref(true);
 const error    = ref<string | null>(null);
 const activeTabCode = ref<string>("overview");
+const localizedCompanyName = computed(() => resolveCompanyDisplayName(
+  detail.value?.company_name,
+  detail.value?.company_id || detail.value?.company_code,
+));
+const localizedSectorName = computed(() => resolveSectorDisplayName(
+  detail.value?.sector_name,
+  detail.value?.sector_id,
+));
 const activity = ref<LibraryActivityEntry[]>([]);
 const tabBuilderOpen = ref(false);
 
@@ -326,10 +335,10 @@ const allTabs = computed(() => {
           </div>
           <div class="cld-head-text">
             <RouterLink to="/library/companies" class="cld-breadcrumb">{{ tr('← Библиотека') }}</RouterLink>
-            <h1 class="cld-title">{{ detail.company_name }}</h1>
+            <h1 class="cld-title">{{ localizedCompanyName }}</h1>
             <div class="cld-subline">
               <span v-if="valueForCode('inn')">{{ tr('ИНН') }} {{ valueForCode("inn") }}</span>
-              <span v-if="detail.sector_name">· {{ detail.sector_name }}</span>
+              <span v-if="detail.sector_name">· {{ localizedSectorName }}</span>
               <span v-if="valueForCode('region')">· {{ valueForCode("region") }}</span>
               <span v-if="valueForCode('employees')">· {{ valueForCode("employees") }} {{ tr('сотр.') }}</span>
             </div>
@@ -399,7 +408,7 @@ const allTabs = computed(() => {
             <article v-if="sectorScopedCodes.length" class="cld-card cld-card-sector">
               <header class="cld-card-h">
                 {{ tr('Отраслевые поля') }}
-                <span v-if="detail.sector_name" class="cld-card-h-sub">· {{ detail.sector_name }}</span>
+                <span v-if="detail.sector_name" class="cld-card-h-sub">· {{ localizedSectorName }}</span>
               </header>
               <div class="cld-kv-list">
                 <div v-for="code in sectorScopedCodes" :key="code" class="cld-kv-row">
@@ -485,7 +494,7 @@ const allTabs = computed(() => {
             <article class="cld-card">
               <header class="cld-card-h">
                 {{ tr('Финансовые показатели') }}
-                <span class="cld-card-h-sub">· {{ detail.company_name }}</span>
+                <span class="cld-card-h-sub">· {{ localizedCompanyName }}</span>
               </header>
               <div class="cld-fin-grid-lg">
                 <template v-for="code in financeCodes" :key="code">

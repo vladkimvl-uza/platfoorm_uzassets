@@ -32,8 +32,13 @@ import {
 } from "@/api/procurement_analysis";
 import PaWorksServicesChart from "./PaWorksServicesChart.vue";
 import { useI18n } from "@/composables/useI18n";
+import { resolveCompanyDisplayName, resolveSectorDisplayName } from "@/utils/displayNames";
 
 const { t } = useI18n();
+const companyName = (company: WorkServiceByCompany) =>
+  resolveCompanyDisplayName(company.company_name, company.company_id) || "—";
+const sectorName = (company: WorkServiceByCompany) =>
+  resolveSectorDisplayName(company.company_sector) || company.company_sector || "";
 
 const props = defineProps<{ data: ProcurementAggregate }>();
 
@@ -414,9 +419,9 @@ function companyDot(c: WorkServiceByCompany): string {
                   <td class="al">
                     <div class="pa-co">
                       <span class="pa-co-dot" :style="{ background: companyDot(c) }"></span>
-                      <span class="pa-co-nm" :title="c.company_name">{{ c.company_name }}</span>
+                      <span class="pa-co-nm" :title="companyName(c)">{{ companyName(c) }}</span>
                     </div>
-                    <div v-if="c.company_sector" class="pa-co-sector">{{ c.company_sector }}</div>
+                    <div v-if="c.company_sector" class="pa-co-sector">{{ sectorName(c) }}</div>
                   </td>
                   <td class="ar pa-num pa-co-spend">{{ paFmtMoneyShort(cSpend(c)) }}</td>
                   <td class="ac pa-buyers">{{ cLots(c) }}</td>

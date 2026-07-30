@@ -36,11 +36,31 @@ import { usePermissions } from "@/composables/usePermissions";
 import { useToast } from "@/composables/useToast";
 import { useI18n } from "@/composables/useI18n";
 import { i18nKey } from "@/locale/keys";
+import { resolveCompanyDisplayName } from "@/utils/displayNames";
 
 const { t } = useI18n();
 
 
 const companiesStore = useCompaniesStore();
+
+type CompanyNameSource = {
+  company_id?: string | null;
+  company_code?: string | null;
+  company_name?: string | null;
+  company_abbr?: string | null;
+  name?: string | null;
+  name_short?: string | null;
+};
+
+function companyName(row: CompanyNameSource): string {
+  const idOrCode = row.company_id || row.company_code;
+  return companiesStore.getCompanyNameById(row.company_id)
+    || resolveCompanyDisplayName(
+      row.company_name || row.name_short || row.name || row.company_abbr || row.company_code,
+      idOrCode,
+    )
+    || "—";
+}
 // Область доступа: пользователю со своими компаниями фильтр по секторам не нужен.
 const scope = useCompanyScope();
 const companiesPerm = usePermissions("companies");
@@ -339,9 +359,7 @@ const activePeriod = computed<CommitteeMeetingPeriod | null>(() => {
 // Строки таблицы (по названию) — все компании портфеля.
 const committeeRows = computed(() => {
   const rows = [...(committeeData.value?.companies ?? [])];
-  rows.sort((a, b) =>
-    (a.name_short || a.name || "").localeCompare(b.name_short || b.name || "", "ru"),
-  );
+  rows.sort((a, b) => companyName(a).localeCompare(companyName(b)));
   return rows;
 });
 
@@ -604,7 +622,7 @@ const kpiDrillRows = computed<DrillRow[]>(() => {
     }
     case "dno": {
       const f = rows.filter(r => !!r.has_dno_insurance)
-        .sort((a, b) => (a.company_name ?? a.company_code).localeCompare(b.company_name ?? b.company_code, "ru"));
+        .sort((a, b) => companyName(a).localeCompare(companyName(b)));
       return f.map(r => ({ r, primary: "✓", primaryColor: "#1D9E75", secondary: t("застрахован") }));
     }
   }
@@ -785,7 +803,7 @@ onMounted(() => {
                     >
                       <td class="lt">
                         <span class="gv-mat-sec" :style="{ background: fallbackSectorColor(r) }"></span>
-                        <span class="gv-mat-name">{{ r.company_name || r.company_abbr || r.company_code }}</span>
+                        <span class="gv-mat-name">{{ companyName(r) }}</span>
                       </td>
                       <td class="num" :style="{ color: scoreColor(rowScore(r)), fontWeight: 600 }">
                         {{ rowScore(r) ?? "—" }}
@@ -896,7 +914,7 @@ onMounted(() => {
                     >
                       <td class="lt" @click="openDetail(r.company_id)">
                         <span class="gv-mat-sec" :style="{ background: committeeSectorColor(r.sector_code) }"></span>
-                        <span class="gv-mat-name">{{ r.name_short || r.name || '—' }}</span>
+                        <span class="gv-mat-name">{{ companyName(r) }}</span>
                       </td>
                       <td
                         v-for="col in ALL_CM_COLS"
@@ -965,7 +983,7 @@ onMounted(() => {
                     >
                       <td class="lt">
                         <span class="gv-mat-sec" :style="{ background: fallbackSectorColor(row.r) }"></span>
-                        {{ row.r.company_name || row.r.company_abbr || row.r.company_code }}
+                        {{ companyName(row.r) }}
                       </td>
                       <td class="num big" :style="{ color: row.primaryColor }">{{ row.primary }}</td>
                       <td class="sub">{{ row.secondary }}</td>

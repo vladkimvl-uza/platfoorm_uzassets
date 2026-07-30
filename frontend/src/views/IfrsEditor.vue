@@ -31,8 +31,10 @@ import { safeEvalExpression, type CellMatrix } from "@/composables/useNsbuCalcul
 import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 import { usePermissions } from "@/composables/usePermissions";
 import { useCompanyScope } from "@/composables/useCompanyScope";
+import { companyDisplayName } from "@/utils/displayNames";
 const _perm = usePermissions("financials");
 const { t } = useI18n();
 // Область доступа: при единственной своей компании список слева не нужен —
@@ -94,8 +96,11 @@ const filteredCompanies = computed(() => {
   if (!q) return companies.value;
   return companies.value.filter((c) =>
     (c.code || "").toLowerCase().includes(q) ||
+    companyDisplayName(c).toLowerCase().includes(q) ||
     (c.name_short || "").toLowerCase().includes(q) ||
-    (c.name_ru || "").toLowerCase().includes(q),
+    (c.name_ru || "").toLowerCase().includes(q) ||
+    (c.name_uz || "").toLowerCase().includes(q) ||
+    (c.name_en || "").toLowerCase().includes(q),
   );
 });
 
@@ -1156,7 +1161,7 @@ function closeHistory() {
 function formatHistoryDate(iso: string | null): string {
   if (!iso) return "—";
   try {
-    return new Date(iso).toLocaleString("ru", {
+    return new Date(iso).toLocaleString(getCurrentIntlLocale(), {
       day: "2-digit", month: "2-digit", year: "numeric",
       hour: "2-digit", minute: "2-digit",
     });
@@ -1211,7 +1216,7 @@ function closeRecon() {
 
 function fmtReconNum(v: number | null): string {
   if (v == null) return "—";
-  return v.toLocaleString("ru", { maximumFractionDigits: 1 });
+  return v.toLocaleString(getCurrentIntlLocale(), { maximumFractionDigits: 1 });
 }
 
 function fmtReconPct(v: number | null): string {
@@ -1311,12 +1316,12 @@ watch(reconYear, () => { if (reconOpen.value) loadRecon(); });
                 class="ne-co-row"
                 :class="{ active: c.code === selectedCode }"
                 :style="{ '--stripe-color': companyStatusColor(c) }"
-                :title="coPaneCollapsed ? `${c.code} · ${c.name_short || c.name_ru}` : ''"
+                :title="coPaneCollapsed ? `${c.code} · ${companyDisplayName(c)}` : ''"
                 @click="selectCompany(c.code)"
               >
                 <span class="uza-stripe-el" :style="{ '--stripe-color': companyStatusColor(c) }" />
                 <div class="ne-co-code">{{ c.code }}</div>
-                <div class="ne-co-name">{{ c.name_short || c.name_ru }}</div>
+                <div class="ne-co-name">{{ companyDisplayName(c) }}</div>
                 <div class="ne-co-sub">
                   {{ companyYearSummary(c) }}
                   <span v-if="companyStates[c.code]?.dirty" class="ne-co-dirty">•</span>
@@ -1346,14 +1351,14 @@ watch(reconYear, () => { if (reconOpen.value) loadRecon(); });
               <div class="ne-co-hdr">
                 <div class="ne-co-hdr-stripe"></div>
                 <div class="ne-co-hdr-info">
-                  <div class="ne-co-hdr-name">{{ currentCompany.name_short || currentCompany.name_ru }}</div>
+                  <div class="ne-co-hdr-name">{{ companyDisplayName(currentCompany) }}</div>
                   <div class="ne-co-hdr-meta">
                     {{ currentCompany.sector_code || "—" }} · {{ currentCompany.code }}
                     <span v-if="companyStates[selectedCode]?.dirty" style="color:#EF9F27; font-weight:600">
                       · {{ t("черновик не сохранён — нажмите «Сохранить»") }}
                     </span>
                     <span v-else-if="companyStates[selectedCode]?.savedAt">
-                      · {{ t("сохранено") }} {{ new Date(companyStates[selectedCode]!.savedAt!).toLocaleString("ru") }}
+                      · {{ t("сохранено") }} {{ new Date(companyStates[selectedCode]!.savedAt!).toLocaleString(getCurrentIntlLocale()) }}
                     </span>
                   </div>
                 </div>
@@ -1602,7 +1607,7 @@ watch(reconYear, () => { if (reconOpen.value) loadRecon(); });
           <div class="ne-hist-hdr">
             <div>
               <div class="ne-hist-eyebrow">{{ t("ИСТОРИЯ ПРАВОК") }}</div>
-              <div class="ne-hist-title">{{ currentCompany?.name_short || currentCompany?.code }}</div>
+              <div class="ne-hist-title">{{ companyDisplayName(currentCompany) || currentCompany?.code }}</div>
             </div>
             <button class="ne-btn-x" @click="closeHistory">×</button>
           </div>
@@ -1642,7 +1647,7 @@ watch(reconYear, () => { if (reconOpen.value) loadRecon(); });
           <div class="ne-hist-hdr">
             <div>
               <div class="ne-hist-eyebrow">{{ t("СВЕРКА НСБУ ↔ МСФО") }}</div>
-              <div class="ne-hist-title">{{ currentCompany?.name_short || currentCompany?.code }}</div>
+              <div class="ne-hist-title">{{ companyDisplayName(currentCompany) || currentCompany?.code }}</div>
             </div>
             <button class="ne-btn-x" @click="closeRecon">×</button>
           </div>

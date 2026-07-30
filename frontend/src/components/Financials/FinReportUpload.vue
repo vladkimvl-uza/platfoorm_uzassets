@@ -10,6 +10,7 @@ import { api } from "@/api/client";
 import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 import { i18nKey } from "@/locale/keys";
 
 const { t } = useI18n();
@@ -60,7 +61,7 @@ function ext(f: Attachment): string {
 }
 function color(f: Attachment): string { return KIND_COLOR[fileKind(f.mime_type)] || KIND_COLOR.other; }
 function fmtDate(iso: string): string {
-  try { return new Date(iso).toLocaleDateString("ru-RU", { day: "2-digit", month: "short", year: "numeric" }); }
+  try { return new Date(iso).toLocaleDateString(getCurrentIntlLocale(), { day: "2-digit", month: "short", year: "numeric" }); }
   catch { return ""; }
 }
 

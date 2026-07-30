@@ -48,6 +48,9 @@ const emit = defineEmits<{
 }>();
 
 const expanded = ref(false);
+const sectorLabel = computed(() =>
+  companies.getSectorName(props.sector.id) || t(props.sector.label),
+);
 
 const visibleCompanies = computed(() => {
   if (expanded.value || props.sector.companies.length <= 3) {
@@ -68,12 +71,12 @@ function onClickCompany(c: { company_id: string; board_id?: string | null; name:
   emit("selectCompany", {
     company_id: c.company_id,
     board_id: c.board_id || null,
-    name: c.name,
+    name: companies.getCompanyNameById(c.company_id) || c.name,
     pct: c.pct,
     task_total: c.task_total,
     task_done: c.task_done,
     sector_color: props.sector.color,
-    sector_label: props.sector.label,
+    sector_label: sectorLabel.value,
   });
 }
 
@@ -104,7 +107,7 @@ const coLine = computed(() => {
     <!-- Header -->
     <div class="va-sec-h">
       <div>
-        <div class="va-sec-t">{{ t(sector.label) }}</div>
+        <div class="va-sec-t">{{ sectorLabel }}</div>
         <div class="va-sec-l">
           {{ coLine }}
         </div>

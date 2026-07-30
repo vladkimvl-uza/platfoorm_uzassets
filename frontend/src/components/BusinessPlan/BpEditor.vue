@@ -7,7 +7,7 @@
           <div class="bpe-subtitle">
             <span v-if="companies && companies.length > 1" class="bpe-co-switch">
               <select class="bpe-co-select" :value="companyId" @change="onSwitchCompany" :title="t('Переключить компанию')">
-                <option v-for="c in companies" :key="c.company_id" :value="c.company_id">{{ c.company_name_ru }}</option>
+                <option v-for="c in companies" :key="c.company_id" :value="c.company_id">{{ resolveCompanyDisplayName(c.company_name_ru, c.company_id) }}</option>
               </select>
               <svg class="bpe-co-caret" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
             </span>
@@ -195,10 +195,10 @@
                     <span v-if="m.annual != null && draftBusy(m)" class="bpe-badge bpe-badge-manual" :title="t('Годовой план уже введён — черновик его не тронет')">{{ t("занято") }}</span>
                   </td>
                   <template v-if="m.annual != null">
-                    <td class="num"><b>{{ m.annual.toLocaleString("ru-RU") }}</b></td>
-                    <td class="num bpe-draft-corr">{{ m.low != null && m.high != null ? m.low.toLocaleString("ru-RU") + " – " + m.high.toLocaleString("ru-RU") : "—" }}</td>
+                    <td class="num"><b>{{ m.annual.toLocaleString(getCurrentIntlLocale()) }}</b></td>
+                    <td class="num bpe-draft-corr">{{ m.low != null && m.high != null ? m.low.toLocaleString(getCurrentIntlLocale()) + " – " + m.high.toLocaleString(getCurrentIntlLocale()) : "—" }}</td>
                     <template v-if="m.quarters_ytd">
-                      <td v-for="(v, i) in m.quarters_ytd" :key="i" class="num">{{ v != null ? v.toLocaleString("ru-RU") : "—" }}</td>
+                      <td v-for="(v, i) in m.quarters_ytd" :key="i" class="num">{{ v != null ? v.toLocaleString(getCurrentIntlLocale()) : "—" }}</td>
                     </template>
                     <td v-else colspan="4" class="bpe-draft-noq">{{ t("сезонности нет — только год") }}</td>
                     <td class="bpe-draft-m" :title="m.note">{{ t(DRAFT_METHOD_RU[m.method] || m.method) }} · {{ t(DRAFT_CONF_RU[m.confidence] || m.confidence) }}</td>
@@ -255,7 +255,9 @@ import { computed, onMounted, ref, watch } from "vue";
 import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 import { i18nKey } from "@/locale/keys";
+import { resolveCompanyDisplayName } from "@/utils/displayNames";
 
 const toast = useToast();
 const { confirmDialog } = useConfirm();
@@ -530,7 +532,7 @@ function computedNum(key: string, col: "plan" | "expect" | "fact"): number | nul
 function formatComputed(key: string, col: "plan" | "expect" | "fact"): string {
   const v = computedNum(key, col);
   if (v == null) return "—";
-  return v.toLocaleString("ru-RU", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  return v.toLocaleString(getCurrentIntlLocale(), { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 }
 
 // ─── Переопределяемый итог (чистая прибыль): ручной ввод + подсказки ─────
@@ -548,7 +550,7 @@ function peSuggestion(key: string, col: "plan" | "expect"): number | null {
 }
 function peGhost(key: string, col: "plan" | "expect"): string {
   const v = peSuggestion(key, col);
-  return v == null ? "—" : v.toLocaleString("ru-RU", { maximumFractionDigits: 2 });
+  return v == null ? "—" : v.toLocaleString(getCurrentIntlLocale(), { maximumFractionDigits: 2 });
 }
 function applyComputedCol(key: string, col: "plan" | "expect") {
   const v = computedNum(key, col);
@@ -670,7 +672,7 @@ async function save() {
       // Успех = бэкенд закоммитил запись (API ответил 2xx). Подтверждаем визуально.
       dirty.value = false;
       editorToken.value = (resp as any)?.editorToken ?? null;   // перевыдан — работаем дальше
-      lastSaved.value = new Date().toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+      lastSaved.value = new Date().toLocaleTimeString(getCurrentIntlLocale(), { hour: "2-digit", minute: "2-digit" });
       const n = (resp as any)?.upserted;
       toast.success(typeof n === "number" ? t("Сохранено · {n} ячеек записано", { n }) : t("Бизнес-план сохранён"));
       emit("saved");

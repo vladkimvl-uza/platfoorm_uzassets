@@ -27,6 +27,7 @@ import EptLogo from "@/components/EptLogo.vue";
 import minfinLogoUrl from "@/assets/minfin-logo.png";
 import uzassetsLogoUrl from "@/assets/uzassets-logo-wide.png";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 import { useFormatters } from "@/composables/useFormatters";
 import { i18nKey } from "@/locale/keys";
 
@@ -322,7 +323,7 @@ const matrix = computed(() => {
     if (e.counts[col] > maxCell) maxCell = e.counts[col];
     colTotals[col] = (colTotals[col] || 0) + 1; grand++;
   }
-  const dirRows = [...byDir.values()].sort((a, b) => b.total - a.total || a.label.localeCompare(b.label, "ru"));
+  const dirRows = [...byDir.values()].sort((a, b) => b.total - a.total || a.label.localeCompare(b.label, getCurrentIntlLocale()));
   return { dirRows, colTotals, grand, maxCell };
 });
 function mxCellStyle(colKey: string, n: number): Record<string, string> {
@@ -368,9 +369,9 @@ function numOrNull(s: string): number | null {
 function money(v: number | null): string {
   if (v == null) return "—";
   const a = Math.abs(v); let s: string;
-  if (a >= 1000) s = Math.round(v).toLocaleString("ru-RU");
-  else if (a >= 10) s = v.toLocaleString("ru-RU", { maximumFractionDigits: 1 });
-  else s = v.toLocaleString("ru-RU", { maximumFractionDigits: 2 });
+  if (a >= 1000) s = Math.round(v).toLocaleString(getCurrentIntlLocale());
+  else if (a >= 10) s = v.toLocaleString(getCurrentIntlLocale(), { maximumFractionDigits: 1 });
+  else s = v.toLocaleString(getCurrentIntlLocale(), { maximumFractionDigits: 2 });
   // Неразрывные пробелы/запятые → разряды «1 520» не ломаются на 2 строки в Word.
   return s.replace(/[\s,]/g, " ");
 }

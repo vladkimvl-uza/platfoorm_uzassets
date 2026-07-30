@@ -11,7 +11,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useCompanyLibraryStore } from "@/stores/companyLibrary";
-import { companiesApi } from "@/api/companies";
+import { companiesApi, type SectorBrief } from "@/api/companies";
 import InlineCell from "@/components/library/InlineCell.vue";
 import ColumnManagerModal from "@/components/library/ColumnManagerModal.vue";
 import CustomFieldBuilder from "@/components/library/CustomFieldBuilder.vue";
@@ -19,6 +19,11 @@ import SectorChip from "@/components/UZA/SectorChip.vue";
 import { useToast } from "@/composables/useToast";
 import { useCompanyScope } from "@/composables/useCompanyScope";
 import { useI18n } from "@/composables/useI18n";
+import {
+  resolveCompanyDisplayName,
+  resolveSectorDisplayName,
+  sectorDisplayName,
+} from "@/utils/displayNames";
 const { t } = useI18n();
 
 
@@ -33,7 +38,7 @@ function onCellError(e: any) {
   toast.error(e?.response?.data?.detail || t('Не удалось сохранить поле'));
 }
 
-const sectors = ref<{ code: string; name_ru: string }[]>([]);
+const sectors = ref<SectorBrief[]>([]);
 const columnsModalOpen = ref(false);
 const fieldBuilderOpen = ref(false);
 
@@ -47,10 +52,7 @@ onMounted(async () => {
   if (scope.showSectorPicker.value) {
     try {
       const list = await companiesApi.listSectors();
-      sectors.value = list.map((s: any) => ({
-        code: s.code,
-        name_ru: s.name_ru || s.name || s.code,
-      }));
+      sectors.value = list;
     } catch { /* non-fatal */ }
   }
   await Promise.all([store.load(), store.loadAllFields(), store.loadTabs()]);
@@ -120,7 +122,7 @@ const lastUpdatedHint = computed(() => {
         @change="onSectorChange(($event.target as HTMLSelectElement).value || null)"
       >
         <option value="">{{ t('Все сектора') }}</option>
-        <option v-for="s in sectors" :key="s.code" :value="s.code">{{ s.name_ru }}</option>
+        <option v-for="s in sectors" :key="s.code" :value="s.code">{{ sectorDisplayName(s) }}</option>
       </select>
 
       <div class="cl-live">
@@ -174,8 +176,8 @@ const lastUpdatedHint = computed(() => {
           >
             <td class="cl-td cl-td-name">
               <div class="cl-co-name">
-                <span class="cl-co-short">{{ co.name_short || co.name_ru }}</span>
-                <SectorChip v-if="co.sector_name" :name="co.sector_name" :color="(co as any).sector_color || null" size="sm" />
+                <span class="cl-co-short">{{ resolveCompanyDisplayName(co.name_short || co.name_ru, co.id || co.code) }}</span>
+                <SectorChip v-if="co.sector_name" :name="resolveSectorDisplayName(co.sector_name, co.sector_id)" :color="(co as any).sector_color || null" size="sm" />
               </div>
             </td>
             <td

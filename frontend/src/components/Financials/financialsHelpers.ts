@@ -9,6 +9,7 @@ import type {
 } from "@/api/financials";
 import type { CompanyListItem, SectorBrief } from "@/api/companies";
 import { i18nKey } from "@/locale/keys";
+import { sectorDisplayName } from "@/utils/displayNames";
 
 
 // ─── Formatting ────────────────────────────────────────────────────────────
@@ -220,7 +221,7 @@ export function aggregateBySector(
       const sec = sectorByCode[code];
       buckets[code] = {
         sectorCode: code,
-        label: sec?.name_ru || (code === "other" ? i18nKey("Другое") : code),
+        label: sectorDisplayName(sec) || (code === "other" ? i18nKey("Другое") : code),
         color: sectorColor(sec),
         total: 0,
         count: 0,

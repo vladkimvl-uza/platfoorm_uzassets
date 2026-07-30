@@ -24,8 +24,8 @@
           <span class="pa-rate-sec" :style="{ background: c.company_color || '#888780' }" />
 
           <div class="pa-rate-mid">
-            <div class="pa-rate-nm" :title="c.company_name">
-              {{ c.company_name }}
+            <div class="pa-rate-nm" :title="companyName(c)">
+              {{ companyName(c) }}
               <span
                 v-if="c.low_sample"
                 class="pa-rate-lowsample"
@@ -79,8 +79,11 @@
 import { computed } from "vue";
 import { paFmtMoneyShort, type CompanyRatingRow } from "@/api/procurement_analysis";
 import { useI18n } from "@/composables/useI18n";
+import { resolveCompanyDisplayName } from "@/utils/displayNames";
 
 const { t } = useI18n();
+const companyName = (company: CompanyRatingRow) =>
+  resolveCompanyDisplayName(company.company_name || company.company_code, company.company_id || company.company_code) || "—";
 
 const props = defineProps<{
   rating: CompanyRatingRow[];

@@ -4,6 +4,7 @@ import { broadcastsApi, formatRelativeTime, type BroadcastAnalytics } from "@/ap
 import { useConfirm } from "@/composables/useConfirm";
 import BIcon from "./BIcon.vue";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 const { t } = useI18n();
 
 
@@ -155,7 +156,7 @@ function initials(name: string | null, email: string): string {
           </thead>
           <tbody>
             <tr v-for="h in data.history" :key="h.id">
-              <td>{{ new Date(h.dispatched_at).toLocaleString("ru-RU", { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) }}</td>
+              <td>{{ new Date(h.dispatched_at).toLocaleString(getCurrentIntlLocale(), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) }}</td>
               <td><span class="ba-trig-pill" :class="`trig-${h.trigger}`">{{ h.trigger }}</span></td>
               <td class="r">{{ h.recipients_count }}</td>
               <td class="r">{{ h.delivered_count }}</td>

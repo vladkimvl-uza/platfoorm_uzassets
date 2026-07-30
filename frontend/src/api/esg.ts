@@ -8,6 +8,7 @@
  */
 import { api, type ModerationQueuedTag } from "./client";
 import { i18nKey } from "@/locale/keys";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 
 export type Pillar = "E" | "S" | "G";
 export type Severity = "low" | "med" | "high" | "critical";
@@ -529,6 +530,6 @@ export function fmtMetricValue(v: number | null | undefined, unit: string | null
   if (v == null) return "—";
   const n = Number(v);
   if (isNaN(n)) return "—";
-  const numStr = n.toLocaleString("ru-RU", { maximumFractionDigits: 2 });
+  const numStr = n.toLocaleString(getCurrentIntlLocale(), { maximumFractionDigits: 2 });
   return unit ? `${numStr} ${unit}` : numStr;
 }

@@ -9,7 +9,7 @@
  */
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
-import { t } from "@/locale/i18n";
+import { getCurrentIntlLocale, t } from "@/locale/i18n";
 import {
   companyLibraryApi,
   type FieldDefinition,
@@ -93,7 +93,7 @@ export const useCompanyLibraryStore = defineStore("companyLibrary", () => {
             ? -1
             : (typeof av === "number" && typeof bv === "number")
               ? av - bv
-              : String(av).localeCompare(String(bv), "ru");
+              : String(av).localeCompare(String(bv), getCurrentIntlLocale());
         return sortDir.value === "desc" ? -cmp : cmp;
       });
       companies.value     = items;

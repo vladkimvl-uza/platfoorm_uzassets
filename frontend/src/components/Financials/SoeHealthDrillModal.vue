@@ -10,6 +10,8 @@ import Odometer from "@/components/Odometer.vue";
 import { api } from "@/api/client";
 import type { SoeCompany, SoeRatio } from "@/components/Financials/SoeHealthBoard.vue";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
+import { resolveCompanyDisplayName, resolveSectorDisplayName } from "@/utils/displayNames";
 
 const { t } = useI18n();
 
@@ -55,8 +57,8 @@ watch(() => [props.open, props.company?.code, props.year, props.standard], loadS
 
 function fmtMoney(v: number | null): string {
   if (v == null) return "—";
-  if (Math.abs(v) >= 1000) return (v / 1000).toLocaleString("ru", { maximumFractionDigits: 1 }) + " " + t("трлн");
-  return v.toLocaleString("ru", { maximumFractionDigits: 0 }) + " " + t("млрд");
+  if (Math.abs(v) >= 1000) return (v / 1000).toLocaleString(getCurrentIntlLocale(), { maximumFractionDigits: 1 }) + " " + t("трлн");
+  return v.toLocaleString(getCurrentIntlLocale(), { maximumFractionDigits: 0 }) + " " + t("млрд");
 }
 function varColor(v: number | null): string {
   if (v == null) return "#9AA0AE";
@@ -109,9 +111,9 @@ const best = computed(() =>
           <div class="shd-eyebrow">SOE Health Check Tool · {{ standard }} · FY {{ year }}</div>
           <h2 class="shd-title">
             <span class="shd-dot" :style="{ background: company.sector_color || '#94A3B8' }" />
-            {{ company.name || company.code }}
+            {{ resolveCompanyDisplayName(company.name, company.code) || company.code }}
           </h2>
-          <div class="shd-meta">{{ company.sector_name || '—' }} · {{ t("оценено коэффициентов: {a} из {b}", { a: company.available, b: company.ratios.length }) }}</div>
+          <div class="shd-meta">{{ resolveSectorDisplayName(company.sector_name, company.sector_code) || '—' }} · {{ t("оценено коэффициентов: {a} из {b}", { a: company.available, b: company.ratios.length }) }}</div>
         </div>
         <div class="shd-badges">
           <div v-if="company.z_score" class="shd-zbadge" :title="t('Altman Z-Score (модель развив. рынков).') + ' ' + company.z_score.zone.label"

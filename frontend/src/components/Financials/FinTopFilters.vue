@@ -16,6 +16,7 @@ import { useFormatters } from "@/composables/useFormatters";
 import UzaYearStepper from "@/components/UZA/UzaYearStepper.vue";
 import { useI18n } from "@/composables/useI18n";
 import { useCompanyScope } from "@/composables/useCompanyScope";
+import { sectorDisplayName } from "@/utils/displayNames";
 const fmt = useFormatters();
 const { t } = useI18n();
 // Область доступа: селектор секторов не нужен пользователю, ограниченному
@@ -147,7 +148,7 @@ function currencyTooltip(c: "UZS" | "USD" | "EUR"): string {
         <option v-for="s in sortedSectors"
                 :key="s.code"
                 :value="String(s.code).toLowerCase()">
-          {{ s.name_ru }}
+          {{ sectorDisplayName(s) }}
         </option>
       </select>
 

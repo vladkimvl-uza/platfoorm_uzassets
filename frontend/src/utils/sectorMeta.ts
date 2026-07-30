@@ -21,8 +21,9 @@
 
 import { computed } from "vue";
 import { useCompaniesStore } from "@/stores/companies";
-import { canonSectorCode, sectorShortLabel } from "@/utils/displayNames";
+import { canonSectorCode, sectorDisplayName, sectorShortLabel } from "@/utils/displayNames";
 import { i18nKey } from "@/locale/keys";
+import { t } from "@/locale/i18n";
 
 
 // ─── Канонические 5 секторов в порядке отображения ───
@@ -80,10 +81,10 @@ export function useSectorMeta() {
     const result = {} as Record<SectorCode, SectorMetaEntry>;
     for (const code of SECTOR_ORDER) {
       // Try to find a real sector row whose code normalizes to this bucket
-      let label = FALLBACK_LABELS[code];
+      let label = t(FALLBACK_LABELS[code]);
       for (const sec of companies.sectors) {
         if (canonSectorCode(sec.code) === code && sec.name_ru) {
-          label = sec.name_ru;
+          label = sectorDisplayName(sec);
           break;
         }
       }

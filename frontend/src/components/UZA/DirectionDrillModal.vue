@@ -33,8 +33,11 @@ import {
 } from "@/api/executiveDashboard";
 import { useI18n } from "@/composables/useI18n";
 import { i18nKey } from "@/locale/keys";
+import { resolveCompanyDisplayName } from "@/utils/displayNames";
 
 const { t } = useI18n();
+const companyName = (company: ExecDirectionDrillCompany) =>
+  resolveCompanyDisplayName(company.company_name, company.company_id) || "—";
 
 
 interface Props {
@@ -272,7 +275,7 @@ function pluralDays(n: number): string {
                       <svg viewBox="0 0 14 14" class="svg-ic" width="11" height="11"><path d="M5 3l4 4-4 4"/></svg>
                     </span>
                     <span class="ddm-co-tick" :style="{ background: sectorColor[c.sector] || '#888780' }" />
-                    <span class="ddm-co-name" :title="c.company_name">{{ c.company_name }}</span>
+                    <span class="ddm-co-name" :title="companyName(c)">{{ companyName(c) }}</span>
                     <span class="ddm-co-stat" :title="t('Проекты: {value0} завершено из {value1}', { value0: c.projects_done, value1: c.projects_total })">
                       <svg viewBox="0 0 14 14" class="ddm-co-stat-ico"><path d="M2.5 11V4l5-1.5 5 1.5v7M5 7h4M5 9.5h4"/></svg>
                       <span class="ddm-co-stat-num">{{ c.projects_done }}</span><span class="ddm-co-stat-tot">/{{ c.projects_total }}</span>

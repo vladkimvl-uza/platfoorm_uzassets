@@ -23,9 +23,11 @@ import DOMPurify from "dompurify";
 import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 import { useCompanyScope } from "@/composables/useCompanyScope";
 import { i18nKey } from "@/locale/keys";
 import { useAiFeatureAccess } from "@/composables/useAiFeatureAccess";
+import { companyDisplayName } from "@/utils/displayNames";
 
 
 const toast = useToast();
@@ -90,7 +92,7 @@ const importFileRef = ref<HTMLInputElement | null>(null);
 const displayCompanies = computed(() => {
   return props.companies
     .filter(c => c.is_active !== false)
-    .sort((a, b) => (a.name_short || a.code).localeCompare(b.name_short || b.code, "ru"));
+    .sort((a, b) => (a.name_short || a.code).localeCompare(b.name_short || b.code, getCurrentIntlLocale()));
 });
 
 // ─── Кастомный комбобокс выбора компании (нативный <select> не стилизуется) ───
@@ -110,7 +112,10 @@ const coFiltered = computed(() => {
   if (!q) return displayCompanies.value;
   return displayCompanies.value.filter(c =>
     (c.code || "").toLowerCase().includes(q) ||
-    (c.name_short || c.name_ru || "").toLowerCase().includes(q));
+    companyDisplayName(c).toLowerCase().includes(q)
+    || (c.name_ru || "").toLowerCase().includes(q)
+    || (c.name_uz || "").toLowerCase().includes(q)
+    || (c.name_en || "").toLowerCase().includes(q));
 });
 watch(coSearch, () => { coHighlight.value = 0; });
 
@@ -553,7 +558,7 @@ async function runAnalysis() {
       const kobj: Record<string, number | null> = {};
       for (const k of ks) kobj[k.key] = k.values[yi] ?? null;
       if (Object.values(kobj).some(v => v != null)) {
-        rows.push({ code: co.code, name: co.name_short || co.name_ru, kpis: kobj });
+        rows.push({ code: co.code, name: companyDisplayName(co), kpis: kobj });
         if (hlf.years[yi] > maxYear) maxYear = hlf.years[yi];
       }
     }
@@ -568,12 +573,12 @@ async function runAnalysis() {
     startTicker(buildSteps(rows.map(r => r.name), defs.map(d => d.label)));
     const resp = await api.post("/ai/hlf-analysis", {
       year: maxYear || null, metric_labels, metric_units, rows, scenario: anScenario.value,
-      focus: _single ? (_single.name_short || _single.name_ru || _single.code) : null,
+      focus: _single ? (companyDisplayName(_single) || _single.code) : null,
     }, { timeout: 235000 });
     const raw = resp.data?.analysis || "";
     anRaw.value = raw;
     anHtml.value = renderMd(raw);
-    anDoneAt.value = new Date().toLocaleString("ru-RU");
+    anDoneAt.value = new Date().toLocaleString(getCurrentIntlLocale());
     if (!anHtml.value) anError.value = t("ИИ вернул пустой ответ.");
     else await saveAnalysis();
   } catch (e: unknown) {
@@ -934,9 +939,9 @@ function fmtNum(v: number | null): string {
   if (v === 0) return "0";
   const abs = Math.abs(v);
   let str: string;
-  if (abs >= 1000) str = Math.round(v).toLocaleString("ru", { maximumFractionDigits: 0 });
-  else if (abs >= 10) str = v.toLocaleString("ru", { maximumFractionDigits: 1 });
-  else str = v.toLocaleString("ru", { maximumFractionDigits: 2 });
+  if (abs >= 1000) str = Math.round(v).toLocaleString(getCurrentIntlLocale(), { maximumFractionDigits: 0 });
+  else if (abs >= 10) str = v.toLocaleString(getCurrentIntlLocale(), { maximumFractionDigits: 1 });
+  else str = v.toLocaleString(getCurrentIntlLocale(), { maximumFractionDigits: 2 });
   // \u0422\u043e\u043b\u044c\u043a\u043e \u0440\u0430\u0437\u0440\u044f\u0434\u044b (NBSP) \u2192 \u043e\u0431\u044b\u0447\u043d\u044b\u0439 \u043f\u0440\u043e\u0431\u0435\u043b; \u0434\u0435\u0441\u044f\u0442\u0438\u0447\u043d\u0443\u044e \u0437\u0430\u043f\u044f\u0442\u0443\u044e \u041d\u0415 \u0442\u0440\u043e\u0433\u0430\u0435\u043c,
   // \u0438\u043d\u0430\u0447\u0435 \u00ab325,1\u00bb \u043f\u0440\u0435\u0432\u0440\u0430\u0449\u0430\u043b\u043e\u0441\u044c \u0432 \u00ab325 1\u00bb (\u043d\u0435\u043e\u0442\u043b\u0438\u0447\u0438\u043c\u043e \u043e\u0442 \u0442\u044b\u0441\u044f\u0447).
   return str.replace(/\u00a0/g, " ");
@@ -951,7 +956,7 @@ function toggleSection(id: string) {
 function formatDate(iso?: string): string {
   if (!iso) return "—";
   try {
-    return new Date(iso).toLocaleString("ru", {
+    return new Date(iso).toLocaleString(getCurrentIntlLocale(), {
       day: "2-digit", month: "2-digit", year: "numeric",
       hour: "2-digit", minute: "2-digit",
     });
@@ -1289,7 +1294,7 @@ const kpiCards = computed(() => kpis.value.map(k => ({
           <!-- Селектор компаний скрыт (одна своя компания) — но подпись, чья это
                отчётность, остаётся: иначе экран теряет привязку к компании. -->
           <template v-if="!scope.showCompanyPicker.value && selectedCompany">
-            {{ selectedCompany.name_short || selectedCompany.name_ru }} ·
+            {{ companyDisplayName(selectedCompany) }} ·
           </template>
           {{ t("Иерархия из консолидированного шаблона") }}
           <template v-if="data?.updated_at"> · {{ t("ред. {d}", { d: formatDate(data.updated_at) }) }}</template>
@@ -1302,9 +1307,9 @@ const kpiCards = computed(() => kpis.value.map(k => ({
           <button type="button" class="hlf-co-trigger" :class="{ open: coOpen }"
                   @click="coToggle" @keydown="coKeydown">
             <CompanyAvatar v-if="selectedCompany"
-              :name="selectedCompany.name_short || selectedCompany.name_ru"
+              :name="companyDisplayName(selectedCompany)"
               :code="selectedCompany.code" :color="selectedCompany.sector_color || undefined" :size="20" />
-            <span class="hlf-co-trig-name">{{ selectedCompany ? (selectedCompany.name_short || selectedCompany.name_ru) : t("Выберите компанию") }}</span>
+            <span class="hlf-co-trig-name">{{ selectedCompany ? companyDisplayName(selectedCompany) : t("Выберите компанию") }}</span>
             <span v-if="selectedCompany" class="hlf-co-trig-code">{{ selectedCompany.code }}</span>
             <svg class="hlf-co-chev" :class="{ up: coOpen }" viewBox="0 0 12 12" width="11" height="11"
                  fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5L6 7.5l3-3"/></svg>
@@ -1512,8 +1517,8 @@ const kpiCards = computed(() => kpis.value.map(k => ({
         <button v-for="(co, i) in coFiltered" :key="co.code" type="button"
                 class="hlf-co-opt" :class="{ sel: co.code === selectedCode, hi: i === coHighlight }"
                 @click="coPick(co.code)" @mousemove="coHighlight = i">
-          <CompanyAvatar :name="co.name_short || co.name_ru" :code="co.code" :color="co.sector_color || undefined" :size="22" />
-          <span class="hlf-co-opt-name">{{ co.name_short || co.name_ru }}</span>
+          <CompanyAvatar :name="companyDisplayName(co)" :code="co.code" :color="co.sector_color || undefined" :size="22" />
+          <span class="hlf-co-opt-name">{{ companyDisplayName(co) }}</span>
           <span class="hlf-co-opt-code">{{ co.code }}</span>
           <svg v-if="co.code === selectedCode" class="hlf-co-check" viewBox="0 0 14 14" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 7.5L6 11l5.5-7"/></svg>
         </button>
@@ -1557,7 +1562,7 @@ const kpiCards = computed(() => kpis.value.map(k => ({
         <header class="hlf-an-hd">
           <div class="hlf-an-hd-txt">
             <div class="hlf-an-eyebrow">{{ anScope === 'company' ? t('ИИ-АНАЛИЗ КОМПАНИИ') : t('ИИ-АНАЛИЗ ПОРТФЕЛЯ') }}</div>
-            <h2 class="hlf-an-title">{{ t("Высокоуровневые показатели — {x}", { x: anScope === 'company' ? (anSingleCompany?.name_short || anSingleCompany?.name_ru || anSingleCompany?.code || t('компания')) : t('все компании') }) }}</h2>
+            <h2 class="hlf-an-title">{{ t("Высокоуровневые показатели — {x}", { x: anScope === 'company' ? (companyDisplayName(anSingleCompany) || anSingleCompany?.code || t('компания')) : t('все компании') }) }}</h2>
             <div v-if="anYear && !anLoading && anHtml" class="hlf-an-sub">{{ anScope === 'company' ? t('1 компания') : t('{n} компаний', { n: anCount }) }} · {{ anYear }}<span v-if="anDoneAt"> · {{ anDoneAt }}</span></div>
           </div>
           <button class="hlf-an-x" @click="anOpen = false" :aria-label="t('Закрыть')">×</button>
@@ -1578,7 +1583,7 @@ const kpiCards = computed(() => kpis.value.map(k => ({
           <select v-if="anScope === 'company' && scope.showCompanyPicker.value" v-model="anPickedCode" @change="onAnPickCompany"
                   :disabled="anLoading" class="hlf-an-co-select" :aria-label="t('Компания для анализа')">
             <option v-for="c in displayCompanies" :key="c.code" :value="c.code">
-              {{ c.name_short || c.name_ru || c.code }}
+              {{ companyDisplayName(c) || c.code }}
             </option>
           </select>
         </div>

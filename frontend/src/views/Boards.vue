@@ -6,6 +6,7 @@ import type { BoardBrief } from "@/api/tasks";
 import { useCompanyScope } from "@/composables/useCompanyScope";
 import { useI18n } from "@/composables/useI18n";
 import { i18nKey } from "@/locale/keys";
+import { resolveCompanyDisplayName } from "@/utils/displayNames";
 
 const { t } = useI18n();
 
@@ -136,7 +137,7 @@ const STATUS_META: Record<string, { label: string; color: string }> = {
           <div class="flex-1 min-w-0">
             <div class="font-medium text-slate-900 truncate">{{ b.name }}</div>
             <div v-if="b.company_name" class="text-xs text-slate-500 mt-0.5 truncate">
-              {{ b.company_name }}
+              {{ resolveCompanyDisplayName(b.company_name, b.company_id || b.company_code) }}
             </div>
           </div>
           <div v-if="b.tasks_total" class="flex-shrink-0 text-[20px] font-normal tabular-nums tracking-uza-tight text-slate-700">
@@ -164,7 +165,7 @@ const STATUS_META: Record<string, { label: string; color: string }> = {
           <div class="flex items-center gap-3 text-[10px] text-slate-500 flex-wrap">
             <span v-for="(cnt, st) in b.tasks_by_status" :key="st" class="flex items-center gap-1">
               <span class="w-1.5 h-1.5 rounded-full" :style="{background: STATUS_META[st]?.color || '#94A3B8'}"></span>
-              <span>{{ STATUS_META[st]?.label || st }}: <span class="tabular-nums">{{ cnt }}</span></span>
+              <span>{{ STATUS_META[st]?.label ? t(STATUS_META[st].label) : st }}: <span class="tabular-nums">{{ cnt }}</span></span>
             </span>
           </div>
         </div>

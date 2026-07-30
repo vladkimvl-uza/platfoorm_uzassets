@@ -104,6 +104,7 @@
 import { computed, ref } from "vue";
 import ModalShell from "@/components/ModalShell.vue";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 import {
   kpiStatusColor,
   kpiStatusLabel,
@@ -192,7 +193,7 @@ function arrow(key: string): string {
 function cmp(a: number | string, b: number | string, dir: "asc" | "desc"): number {
   const mul = dir === "asc" ? 1 : -1;
   if (typeof a === "string" || typeof b === "string") {
-    return mul * String(a).localeCompare(String(b), "ru");
+    return mul * String(a).localeCompare(String(b), getCurrentIntlLocale());
   }
   return mul * (a - b);
 }
@@ -242,7 +243,7 @@ const headerTitle = computed(() => {
 function fmtNum(v: number | string | null | undefined): string {
   if (v == null) return "—";
   const n = num(v);
-  if (Math.abs(n) >= 1000) return Math.round(n).toLocaleString("ru-RU").replace(/,/g, " ");
+  if (Math.abs(n) >= 1000) return Math.round(n).toLocaleString(getCurrentIntlLocale());
   if (Math.abs(n) >= 10) return n.toFixed(1);
   return n.toFixed(2);
 }

@@ -12,6 +12,7 @@ import { ratingsApi } from "@/api/ratings";
 import ESGReportRatingModal from "@/components/ESG/ESGReportRatingModal.vue";
 import { useI18n } from "@/composables/useI18n";
 import { i18nKey } from "@/locale/keys";
+import { resolveCompanyDisplayName, resolveSectorDisplayName } from "@/utils/displayNames";
 
 const { t } = useI18n();
 
@@ -26,6 +27,16 @@ const emit = defineEmits<{ (e: "saved"): void; (e: "open-company", id: string): 
 const toast = useToast();
 const errorText = (err: any) => err?.response?.data?.detail || err?.message || t("ошибка");
 const rows = ref<ESGMaturityCompany[]>([]);
+const companyName = (company: ESGMaturityCompany) =>
+  resolveCompanyDisplayName(
+    company.company_name || company.company_code,
+    company.company_id || company.company_code,
+  ) || "—";
+const sectorName = (company: ESGMaturityCompany) =>
+  resolveSectorDisplayName(
+    company.sector_name || company.sector_code,
+    company.sector_code,
+  ) || t("Прочее");
 
 // Единое окно «внешней валидации» (отчётность + заверение + рейтинг) по компании.
 const unifiedFor = ref<ESGMaturityCompany | null>(null);
@@ -35,7 +46,7 @@ watch(() => props.heatmap, (h) => { rows.value = h ? h.companies.map((c) => ({ .
 const filtered = computed(() => {
   const q = (props.search || "").trim().toLowerCase();
   const list = q
-    ? rows.value.filter((c) => (c.company_name || c.company_code).toLowerCase().includes(q))
+    ? rows.value.filter((c) => `${companyName(c)} ${c.company_name || ""} ${c.company_code}`.toLowerCase().includes(q))
     : rows.value;
   return list;
 });
@@ -49,7 +60,7 @@ const grouped = computed(() => {
     if (i === undefined) {
       i = out.length;
       idx.set(key, i);
-      out.push({ key, name: c.sector_name || t("Прочее"), color: c.sector_color || "#94A3B8", companies: [] });
+      out.push({ key, name: sectorName(c), color: c.sector_color || "#94A3B8", companies: [] });
     }
     out[i].companies.push(c);
   }
@@ -340,7 +351,7 @@ async function commitLink(c: ESGMaturityCompany) {
           <tr v-for="c in g.companies" :key="c.company_id" class="mm-row" :class="{ 'mm-row-nn': isNotNeeded(c) }">
             <td class="mm-co" @click="emit('open-company', c.company_id)">
               <span class="mm-co-dot" :style="{ background: c.sector_color || '#94A3B8' }"></span>
-              <span class="mm-co-name" :title="c.company_name || c.company_code">{{ c.company_name || c.company_code }}</span>
+              <span class="mm-co-name" :title="companyName(c)">{{ companyName(c) }}</span>
               <span v-if="!isNotNeeded(c)" class="mm-co-bar"><i :style="{ width: c.ems + '%', backgroundColor: emsColor(c.ems) }"></i></span>
               <span v-else class="mm-nn-badge">{{ t('базовые ESG-практики') }}</span>
               <button v-if="canEdit && !isNotNeeded(c)" type="button" class="mm-uni-btn"

@@ -11,10 +11,13 @@ import {
 } from "@/utils/progress";
 import DirectionBadge from "@/components/DirectionBadge.vue";
 import { useI18n } from "@/composables/useI18n";
+import { useFormatters } from "@/composables/useFormatters";
 import { i18nKey } from "@/locale/keys";
+import { resolveCompanyDisplayName } from "@/utils/displayNames";
 
 
 const { t } = useI18n();
+const formatters = useFormatters();
 
 const route   = useRoute();
 const py      = usePortfolioYearStore();
@@ -140,7 +143,7 @@ function subPct(id: string): number {
 
 function fmtDate(s: string | null): string {
   if (!s) return "";
-  return new Date(s).toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
+  return formatters.fmtDate(s, { includeYear: false });
 }
 
 function isOverdue(t: TaskBrief): boolean {
@@ -235,7 +238,7 @@ function openTask(t: TaskBrief) {
       <!-- Header -->
       <div class="mb-4 flex items-end justify-between flex-wrap gap-4">
         <div>
-          <div class="uza-section-label">{{ data.board.company_name || t("Доска") }}</div>
+          <div class="uza-section-label">{{ resolveCompanyDisplayName(data.board.company_name, data.board.company_id || data.board.company_code) || t("Доска") }}</div>
           <h1 class="text-[22px] font-normal tracking-uza-tight mt-1">{{ data.board.name }}</h1>
           <div v-if="data.board.description" class="text-sm text-slate-500 mt-1">
             {{ data.board.description }}

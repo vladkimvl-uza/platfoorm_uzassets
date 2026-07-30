@@ -67,7 +67,7 @@
             <td>
               <div class="nm-cell">
                 <span class="sec" :style="{ background: c.company_color || '#888780' }" />
-                <span class="nm" :title="c.company_name">{{ c.company_name }}</span>
+                <span class="nm" :title="companyName(c)">{{ companyName(c) }}</span>
               </div>
             </td>
             <td class="right" :class="c.company_deviation >= 0 ? 'up' : 'dn'">
@@ -124,8 +124,11 @@ import {
 } from "@/api/procurement_analysis";
 import { useSavedFilter } from "@/composables/useSavedFilter";
 import { useI18n } from "@/composables/useI18n";
+import { resolveCompanyDisplayName } from "@/utils/displayNames";
 
 const { t } = useI18n();
+const companyName = (company: CompanyRatingRow) =>
+  resolveCompanyDisplayName(company.company_name || company.company_code, company.company_id || company.company_code) || "—";
 
 const props = defineProps<{
   rating: CompanyRatingRow[];

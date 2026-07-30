@@ -9,7 +9,7 @@
         <div class="gd-header">
           <div class="gd-header-l">
             <div class="gd-eyebrow">{{ t('Корп. управление · детали') }}</div>
-            <h2 class="gd-title">{{ detail.company_name || detail.company_code }}</h2>
+            <h2 class="gd-title">{{ localizedCompanyName }}</h2>
             <div class="gd-meta">
               <span v-if="detail.sector_code" class="gd-sector">{{ sectorName }}</span>
               <span class="gd-meta-sep">·</span>
@@ -211,7 +211,7 @@
         <GovernanceEditor
           v-if="editorOpen"
           :company-id="props.companyId"
-          :company-name="detail.company_name || detail.company_code"
+          :company-name="localizedCompanyName"
           :year="detail.year"
           :data="detail.data"
           :members="detail.board_members"
@@ -239,6 +239,7 @@ import GovernanceEditor from "@/components/Governance/GovernanceEditor.vue";
 import { useCompaniesStore } from "@/stores/companies";
 import { usePermissions } from "@/composables/usePermissions";
 import { useI18n } from "@/composables/useI18n";
+import { resolveCompanyDisplayName } from "@/utils/displayNames";
 const { t } = useI18n();
 
 
@@ -271,6 +272,14 @@ const detail = ref<GovernanceCompanyDetail | null>(null);
 const loading = ref(true);
 const error = ref<string | null>(null);
 const currentYear = ref<number | null>(props.initialYear ?? null);
+const localizedCompanyName = computed(() =>
+  companiesStore.getCompanyNameById(detail.value?.company_id)
+  || resolveCompanyDisplayName(
+    detail.value?.company_name || detail.value?.company_code,
+    detail.value?.company_id || detail.value?.company_code,
+  )
+  || "—",
+);
 
 async function load() {
   loading.value = true;

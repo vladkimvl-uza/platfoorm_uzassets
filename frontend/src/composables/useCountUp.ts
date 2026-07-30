@@ -13,6 +13,8 @@
  * Performance: requestAnimationFrame with cubic-bezier easing. ~60fps.
  */
 import { ref, watch, type Ref } from "vue";
+import { getCurrentIntlLocale } from "@/locale/i18n";
+import { useLocaleStore } from "@/stores/locale";
 
 export { runCountUp as countUpScan } from "@/utils/countUp";
 
@@ -23,7 +25,7 @@ export interface CountUpOptions {
   easing?: "easeOut" | "easeSoft" | "linear";
   /** Decimals to keep. Default 0. */
   decimals?: number;
-  /** Locale for thousand separators. Default 'ru-RU'. */
+  /** Locale for thousand separators. Defaults to the active application locale. */
   locale?: string;
   /** Suffix appended to formatted number (e.g. "%", "млрд"). Default ''. */
   suffix?: string;
@@ -54,7 +56,7 @@ export function useCountUp(
     duration = 900,
     easing = "easeSoft",
     decimals = 0,
-    locale = "ru-RU",
+    locale,
     suffix = "",
   } = options;
 
@@ -63,7 +65,7 @@ export function useCountUp(
 
   function format(v: number): string {
     if (!isFinite(v) || isNaN(v)) return "—";
-    const fmt = v.toLocaleString(locale, {
+    const fmt = v.toLocaleString(locale || getCurrentIntlLocale(), {
       minimumFractionDigits: decimals,
       maximumFractionDigits: decimals,
     });
@@ -114,6 +116,13 @@ export function useCountUp(
   if (typeof target !== "number") {
     watch(target as Ref<number>, (newVal, oldVal) => {
       animateTo(oldVal || 0, newVal || 0);
+    });
+  }
+
+  if (!locale) {
+    const localeStore = useLocaleStore();
+    watch(() => localeStore.current, () => {
+      display.value = format(current.value);
     });
   }
 

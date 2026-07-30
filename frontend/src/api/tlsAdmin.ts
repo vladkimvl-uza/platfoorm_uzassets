@@ -1,6 +1,6 @@
 // TLS admin — API wrapper. Under is_owner||is_admin gate.
 import { api } from "./client";
-import { t } from "@/locale/i18n";
+import { getCurrentIntlLocale, t } from "@/locale/i18n";
 
 export interface CertInfo {
   present: boolean;
@@ -79,6 +79,6 @@ export function shortDate(iso: string | null | undefined): string {
   if (!iso) return "—";
   try {
     const d = new Date(iso);
-    return d.toLocaleDateString("ru-RU", { day: "2-digit", month: "short", year: "numeric" });
+    return d.toLocaleDateString(getCurrentIntlLocale(), { day: "2-digit", month: "short", year: "numeric" });
   } catch { return "—"; }
 }

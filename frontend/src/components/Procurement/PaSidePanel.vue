@@ -5,7 +5,7 @@
     <div v-if="selectedCo" class="pa-radar-wrap">
       <!-- line 22225-22227 -->
       <div class="pa-radar-h">
-        <span class="pa-radar-co">{{ selectedCo.company_name }} · {{ t("профиль") }}</span>
+        <span class="pa-radar-co">{{ companyName(selectedCo) }} · {{ t("профиль") }}</span>
         <button class="pa-back" @click="$emit('select-co', null)">‹ {{ t("к рейтингу") }}</button>
       </div>
 
@@ -71,8 +71,11 @@ import PaRatingPanel from "./PaRatingPanel.vue";
 import PaCategoryDeviationBars from "./PaCategoryDeviationBars.vue";
 import PaSpendBreakdown from "./PaSpendBreakdown.vue";
 import { useI18n } from "@/composables/useI18n";
+import { resolveCompanyDisplayName } from "@/utils/displayNames";
 
 const { t } = useI18n();
+const companyName = (company: CompanyRatingRow) =>
+  resolveCompanyDisplayName(company.company_name || company.company_code, company.company_id || company.company_code) || "—";
 
 const props = defineProps<{
   rating: CompanyRatingRow[];

@@ -259,7 +259,7 @@
         <tbody>
           <tr v-for="ln in topLoans" :key="ln.loan_id">
             <td>
-              <div class="cnt-tl-name">{{ ln.company_name }}<small>← {{ ln.bank }}</small></div>
+              <div class="cnt-tl-name">{{ companyName(ln.company_name) }}<small>← {{ ln.bank }}</small></div>
             </td>
             <td class="r">{{ ln.debt_usd ? fmtUsdMln(ln.debt_usd) : '—' }}</td>
             <td class="r">{{ ln.rate != null ? fmtPct(ln.rate * 100, 2) : '—' }}</td>
@@ -299,7 +299,7 @@
         <table class="cnt-tbl cnt-tbl-tight" v-if="ratios.length">
           <tbody>
             <tr v-for="r in ratios" :key="r.company_id">
-              <td>{{ r.company_name }}</td>
+              <td>{{ companyName(r.company_name, r.company_id) }}</td>
               <td class="r"><b>{{ r.debt_to_ebitda != null ? Number(r.debt_to_ebitda).toFixed(2) + '×' : '—' }}</b></td>
               <td><span class="cnt-tag" :class="`cnt-tag-${r.risk_zone}`">{{ r.risk_zone }}</span></td>
             </tr>
@@ -333,8 +333,13 @@ import * as creditApi from "@/api/creditScenario"
 import { useConfirm } from "@/composables/useConfirm"
 import { useI18n } from "@/composables/useI18n";
 import { i18nKey } from "@/locale/keys";
+import { resolveCompanyDisplayName } from "@/utils/displayNames";
+import { useCompaniesStore } from "@/stores/companies";
 
 const { t } = useI18n();
+const companiesStore = useCompaniesStore();
+const companyName = (name?: string | null, id?: string | null) =>
+  resolveCompanyDisplayName(name, id) || "—";
 
 
 const { confirmDialog } = useConfirm()
@@ -468,6 +473,7 @@ function barHeight(v: number) { return Math.max(3, (v / maxForecastTotal.value) 
 
 // ─── Mount ───
 onMounted(async () => {
+  await companiesStore.ensureLoaded()
   await loadScenarios()
   await loadAll()
 })

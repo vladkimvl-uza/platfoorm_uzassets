@@ -142,7 +142,7 @@ onBeforeUnmount(() => {
         @click.stop="open ? closeMenu(false) : openMenu()"
         @keydown="onBtnKeydown"
       >
-        <span class="uza-sel-val">{{ prefix }}{{ current?.label ?? modelValue }}</span>
+        <span class="uza-sel-val">{{ prefix }}{{ current?.label ? t(current.label) : modelValue }}</span>
         <svg class="uza-sel-chev" :class="{ open }" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <Transition name="uza-sel-fade">

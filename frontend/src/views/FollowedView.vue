@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from "vue";
 import { watchesApi, type WatchedItem } from "@/api/watches";
-import { PLATFORM_UPDATING_MESSAGE } from "@/api/client";
+import { getPlatformUpdatingMessage } from "@/api/client";
 import { useEntityEditor } from "@/composables/useEntityEditor";
 import { useToast } from "@/composables/useToast";
 import { useI18n } from "@/composables/useI18n";
 import { i18nKey } from "@/locale/keys";
+import { resolveCompanyDisplayName } from "@/utils/displayNames";
 
 const { t } = useI18n();
 
@@ -75,7 +76,7 @@ const filtered = computed(() => {
   return items.value
     .filter((i) => fType.value === "all" || i.entity_type === fType.value)
     .filter((i) => !fOverdue.value || overdueDays(i.due_date, i.status) !== null)
-    .filter((i) => !q || `${i.num || ""} ${i.title} ${i.company_name || ""}`.toLowerCase().includes(q))
+    .filter((i) => !q || `${i.num || ""} ${i.title} ${i.company_name || ""} ${resolveCompanyDisplayName(i.company_name, i.company_id)}`.toLowerCase().includes(q))
     .slice()
     .sort((a, b) => {
       const oa = overdueDays(a.due_date, a.status), ob = overdueDays(b.due_date, b.status);
@@ -210,7 +211,7 @@ async function unfollow(it: WatchedItem, ev: Event) {
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#E24B4A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
       </div>
       <div class="fl-empty-t">{{ t('Не удалось загрузить') }}</div>
-      <div class="fl-empty-s">{{ PLATFORM_UPDATING_MESSAGE }}</div>
+      <div class="fl-empty-s">{{ getPlatformUpdatingMessage() }}</div>
       <button class="fl-reset" @click="load">{{ t('Повторить') }}</button>
     </div>
 
@@ -247,7 +248,7 @@ async function unfollow(it: WatchedItem, ev: Event) {
         <span
           class="fl-dot"
           :class="{ pulse: it.current_health && RISK_HEALTH.has(it.current_health) }"
-          :title="(it.current_health && HEALTH[it.current_health]) ? HEALTH[it.current_health].l : t('Нет оценки хода')"
+          :title="(it.current_health && HEALTH[it.current_health]) ? t(HEALTH[it.current_health].l) : t('Нет оценки хода')"
         ></span>
         <div class="fl-main">
           <div class="fl-row-title">
@@ -256,15 +257,15 @@ async function unfollow(it: WatchedItem, ev: Event) {
           <div class="fl-row-meta">
             <span class="fl-type">{{ it.entity_type === "project" ? t('Проект') : t('Задача') }}</span>
             <span class="fl-meta-sep">·</span>
-            <span class="fl-co">{{ it.company_name || "—" }}</span>
+            <span class="fl-co">{{ resolveCompanyDisplayName(it.company_name, it.company_id) || "—" }}</span>
             <template v-if="it.current_health && HEALTH[it.current_health]">
               <span class="fl-meta-sep">·</span>
-              <span class="fl-health" :style="{ color: HEALTH[it.current_health].c }">{{ HEALTH[it.current_health].l }}</span>
+              <span class="fl-health" :style="{ color: HEALTH[it.current_health].c }">{{ t(HEALTH[it.current_health].l) }}</span>
             </template>
           </div>
         </div>
         <span class="fl-status" :style="{ '--sc': (STATUS[it.status]?.c || '#94A3B8') }">
-          <span class="fl-status-dot"></span>{{ STATUS[it.status]?.l || it.status }}
+          <span class="fl-status-dot"></span>{{ STATUS[it.status]?.l ? t(STATUS[it.status].l) : it.status }}
         </span>
         <div class="fl-due" :class="{ overdue: overdueDays(it.due_date, it.status) }">
           <span class="fl-due-d">{{ fmtDue(it.due_date) }}</span>

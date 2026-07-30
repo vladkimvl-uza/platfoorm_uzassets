@@ -24,7 +24,7 @@
  */
 import { ref, computed, watch, readonly } from "vue";
 import { systemConfigApi, type YearlyRate } from "@/api/systemConfig";
-import { t } from "@/locale/i18n";
+import { getCurrentIntlLocale, t } from "@/locale/i18n";
 
 
 
@@ -248,7 +248,7 @@ export function useCurrencyConverter() {
     if (_currency.value === "UZS") return "";
     const r = _currency.value === "EUR" ? getEurRate(year) : getUsdRate(year);
     const cur = _currency.value;
-    return t('{value0} сум за 1 {value1}', { value0: Math.round(r).toLocaleString("ru-RU").replace(/\u00A0/g, " "), value1: cur });
+    return t('{value0} сум за 1 {value1}', { value0: Math.round(r).toLocaleString(getCurrentIntlLocale()).replace(/\u00A0/g, " "), value1: cur });
   }
 
   async function reload(): Promise<void> {

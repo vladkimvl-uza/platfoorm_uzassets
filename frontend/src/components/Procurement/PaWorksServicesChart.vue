@@ -26,8 +26,9 @@ import {
   type WorkServiceByCompany,
 } from "@/api/procurement_analysis";
 import { useI18n } from "@/composables/useI18n";
+import { resolveCompanyDisplayName } from "@/utils/displayNames";
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 
 declare global {
   interface Window {
@@ -89,7 +90,9 @@ function build() {
     hostRef.value.style.height = `${h}px`;
   }
 
-  const labels = data.map((r) => r.company_name || "—");
+  const labels = data.map((r) =>
+    resolveCompanyDisplayName(r.company_name, r.company_id) || "—",
+  );
   // Значения в МИЛЛИАРДАХ (округлённые) для бара/оси.
   const values = data.map((r) => Math.round(valueOf(r) / 1e9));
 
@@ -199,6 +202,7 @@ function build() {
 onMounted(build);
 onBeforeUnmount(destroy);
 watch(() => [props.items, props.mode], build, { deep: true });
+watch(locale, build);
 </script>
 
 <style scoped>

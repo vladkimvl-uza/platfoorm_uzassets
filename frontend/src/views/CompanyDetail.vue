@@ -10,7 +10,11 @@ import type {
   GovernanceBrief,
 } from "@/api/companies";
 import { useI18n } from "@/composables/useI18n";
+import { useFormatters } from "@/composables/useFormatters";
+import { getCurrentLocale } from "@/locale/i18n";
+import { companyDisplayName, sectorDisplayName } from "@/utils/displayNames";
 const { t } = useI18n();
+const formatters = useFormatters();
 
 
 const route   = useRoute();
@@ -61,7 +65,7 @@ function fmtNum(value: string | number | null | undefined): string {
   if (value == null || value === "") return "—";
   const n = typeof value === "string" ? parseFloat(value) : value;
   if (isNaN(n)) return "—";
-  return new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(n);
+  return formatters.fmtNumber(n);
 }
 
 function scoreColor(score: number | null | undefined): string {
@@ -74,6 +78,13 @@ function scoreColor(score: number | null | undefined): string {
 
 const latestGov = computed(() => governance.value[0] || null);
 const latestFin = computed(() => financials.value[0] || null);
+const localizedCompanyName = computed(() => companyDisplayName(company.value));
+const localizedSectorName = computed(() => sectorDisplayName(company.value?.sector));
+const showRussianFullName = computed(() => (
+  getCurrentLocale() === "ru"
+  && !!company.value?.name_short
+  && company.value.name_ru !== company.value.name_short
+));
 
 const latestRevenue = computed(() => {
   if (!latestFin.value) return null;
@@ -105,7 +116,7 @@ function backToList() {
     <template v-else-if="company">
       <!-- Breadcrumbs -->
       <nav class="flex items-center gap-2 text-xs text-slate-400 mb-4">
-        <span class="text-slate-600">{{ company.name_short || company.code.toUpperCase() }}</span>
+        <span class="text-slate-600">{{ localizedCompanyName || company.code.toUpperCase() }}</span>
       </nav>
 
       <!-- Header card -->
@@ -117,9 +128,9 @@ function backToList() {
           <div class="flex-1 min-w-[300px]">
             <div class="uza-section-label">{{ company.code.toUpperCase() }}</div>
             <h1 class="text-[22px] font-normal text-slate-900 tracking-uza-tight mt-1">
-              {{ company.name_short || company.name_ru }}
+              {{ localizedCompanyName }}
             </h1>
-            <div v-if="company.name_short && company.name_ru !== company.name_short"
+            <div v-if="showRussianFullName"
                  class="text-sm text-slate-500 mt-1">
               {{ company.name_ru }}
             </div>
@@ -128,7 +139,7 @@ function backToList() {
                 v-if="company.sector"
                 class="inline-block px-2 py-0.5 text-[11px] rounded-uza-pill"
                 :style="{ background: (company.sector.color_hex || '#777') + '15', color: company.sector.color_hex || '#777' }"
-              >{{ company.sector.name_ru }}</span>
+              >{{ localizedSectorName }}</span>
 
               <span
                 v-if="company.is_custom"

@@ -24,12 +24,19 @@ import {
 import { useCompaniesStore } from "@/stores/companies";
 import { useFormatters } from "@/composables/useFormatters";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 import Odometer from "@/components/Odometer.vue";
+import { resolveCompanyDisplayName, resolveSectorDisplayName } from "@/utils/displayNames";
 const fmt2 = useFormatters();
 const { t } = useI18n();
 
 const companies = useCompaniesStore();
 onMounted(() => { void companies.ensureLoaded(); });
+
+function companyName(name: string | null | undefined, idOrCode?: string | null): string {
+  return companies.getCompanyNameById(idOrCode)
+    || resolveCompanyDisplayName(name, idOrCode);
+}
 
 const props = defineProps<{
   mode: "kpi" | "company" | "sector" | "pnl-line";
@@ -104,7 +111,7 @@ async function loadKpiOrPnlMode() {
       }
       rows.push({
         company_id: co.company_id,
-        name: co.company_name_ru,
+        name: companyName(co.company_name_ru, co.company_id),
         color: co.sector_color || "#888780",
         plan,
         fact,
@@ -254,7 +261,7 @@ const tableRows = computed(() => {
   const sign = dir === "desc" ? -1 : 1;
   const NEG = Number.NEGATIVE_INFINITY;
   arr.sort((a, b) => {
-    if (key === "name") return sign * a.name.localeCompare(b.name, "ru");
+    if (key === "name") return sign * a.name.localeCompare(b.name, getCurrentIntlLocale());
     const pick = (x: typeof a) => key === "fact" ? (x.fact ?? NEG) : key === "plan" ? (x.plan ?? NEG) : key === "pct" ? (x.ratio ?? NEG) : (x.share ?? NEG);
     return sign * (Number(pick(a)) - Number(pick(b)));
   });
@@ -504,7 +511,7 @@ const sectorBenchmarks = computed(() => {
   const leader = rows.reduce((best, c) => (best == null || num(c.rev_fact) > num(best.rev_fact)) ? c : best, rows[0]);
   return {
     avgPct,
-    leaderName: shortName(leader?.company_name_ru || "—"),
+    leaderName: shortName(companyName(leader?.company_name_ru, leader?.company_id) || "—"),
     coCount: rows.length,
   };
 });
@@ -528,7 +535,7 @@ const donutSegments = computed<DonutSeg[]>(() => {
       color: palette[i % palette.length],
       len,
       offset: -offset,
-      label: shortName(rows[i].company_name_ru),
+      label: shortName(companyName(rows[i].company_name_ru, rows[i].company_id)),
     });
     offset += len;
   }
@@ -553,7 +560,7 @@ const headerTitle = computed(() => {
     return f?.label ? t(f.label) : (activeMetric.value ?? "—");
   }
   if (props.mode === "company") return props.companyName ?? "—";
-  if (props.mode === "sector") return props.sectorLabel ?? props.sectorCode ?? "—";
+  if (props.mode === "sector") return resolveSectorDisplayName(props.sectorLabel, props.sectorCode) || "—";
   return "—";
 });
 
@@ -878,7 +885,7 @@ watch(
                 <div class="bpd-sector-rh">{{ t("Компании сектора") }}</div>
                 <div v-for="(c, ci) in sectorRows" :key="c.company_id" class="bpd-sec-co" :style="{ '--d': (ci * 40) + 'ms' }">
                   <div class="bpd-sec-co-body">
-                    <div class="bpd-sec-co-name">{{ c.company_name_ru }}</div>
+                    <div class="bpd-sec-co-name">{{ companyName(c.company_name_ru, c.company_id) }}</div>
                     <div class="bpd-sec-co-bar">
                       <div class="bpd-sec-co-fill" :style="{ width: (num(c.rev_fact) / (sectorRows[0] ? num(sectorRows[0].rev_fact) : 1) * 100) + '%', background: donutSegments[ci]?.color || '#888780' }"></div>
                     </div>

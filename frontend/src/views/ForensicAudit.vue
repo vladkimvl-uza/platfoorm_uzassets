@@ -882,7 +882,7 @@ onBeforeUnmount(() => {
                     :key="sid"
                     :class="{ on: sectorFilter === sid }"
                     @click="sectorFilter = sid"
-                  >{{ SECTOR_LABELS_RU[sid] }}</button>
+                  >{{ t(SECTOR_LABELS_RU[sid]) }}</button>
                 </div>
                 <button class="pr-zoom-btn" @click="toggleZoom('chart')" :title="zoomed === 'chart' ? t('Свернуть') : t('Развернуть')">
                   <svg v-if="zoomed !== 'chart'" width="14" height="14" viewBox="0 0 16 16" fill="none">

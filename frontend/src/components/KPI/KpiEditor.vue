@@ -43,12 +43,12 @@
                     <span v-if="r.linked" class="kpe-draft-chip">{{ t("из БП") }}</span>
                     <span v-else-if="r.proposed_plan_year != null && r.current_plan_year != null" class="kpe-draft-chip busy" :title="t('План уже введён — черновик его не тронет')">{{ t("занято") }}</span>
                   </td>
-                  <td class="num">{{ r.current_plan_year != null ? r.current_plan_year.toLocaleString("ru-RU") : "—" }}</td>
+                  <td class="num">{{ r.current_plan_year != null ? r.current_plan_year.toLocaleString(getCurrentIntlLocale()) : "—" }}</td>
                   <template v-if="r.proposed_plan_year != null">
-                    <td class="num"><b>{{ r.proposed_plan_year.toLocaleString("ru-RU") }}</b></td>
-                    <td class="num kpe-draft-corr">{{ r.low != null && r.high != null ? r.low.toLocaleString("ru-RU") + " – " + r.high.toLocaleString("ru-RU") : "—" }}</td>
+                    <td class="num"><b>{{ r.proposed_plan_year.toLocaleString(getCurrentIntlLocale()) }}</b></td>
+                    <td class="num kpe-draft-corr">{{ r.low != null && r.high != null ? r.low.toLocaleString(getCurrentIntlLocale()) + " – " + r.high.toLocaleString(getCurrentIntlLocale()) : "—" }}</td>
                     <template v-if="r.proposed_q">
-                      <td v-for="(v, i) in r.proposed_q" :key="i" class="num">{{ v != null ? v.toLocaleString("ru-RU") : "—" }}</td>
+                      <td v-for="(v, i) in r.proposed_q" :key="i" class="num">{{ v != null ? v.toLocaleString(getCurrentIntlLocale()) : "—" }}</td>
                     </template>
                     <td v-else colspan="4" class="kpe-draft-noq">{{ t("сезонности нет — только год") }}</td>
                     <td class="kpe-draft-m" :title="r.note">{{ t(KPI_DRAFT_METHOD_RU[r.method] || r.method) }} · {{ t(KPI_DRAFT_CONF_RU[r.confidence] || r.confidence) }}</td>
@@ -255,6 +255,7 @@ import {
 import { isModerationQueued } from "@/api/client";
 import { usePermissions } from "@/composables/usePermissions";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
 import { i18nKey } from "@/locale/keys";
@@ -294,7 +295,7 @@ function bpProvLabel(ind: any): string {
 function bpVal(v: any): string {
   if (v == null || v === "") return "—";
   const n = Number(v);
-  return isNaN(n) ? "—" : new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 1 }).format(n);
+  return isNaN(n) ? "—" : new Intl.NumberFormat(getCurrentIntlLocale(), { maximumFractionDigits: 1 }).format(n);
 }
 // При выборе/смене связи сразу выставляем каноническое направление (cost=down),
 // чтобы не ждать пересчёта на бэке; пустой выбор → свободный KPI (направление вручную).

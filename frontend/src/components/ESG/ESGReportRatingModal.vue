@@ -16,6 +16,7 @@ import { ratingsApi } from "@/api/ratings";
 import { useToast } from "@/composables/useToast";
 import { useI18n } from "@/composables/useI18n";
 import { i18nKey } from "@/locale/keys";
+import { resolveCompanyDisplayName } from "@/utils/displayNames";
 
 const { t } = useI18n();
 
@@ -90,7 +91,10 @@ function init() {
 }
 watch(() => [props.open, props.company?.company_id], () => { if (props.open) init(); }, { immediate: true });
 
-const title = computed(() => props.company?.company_name || props.company?.company_code || i18nKey("Компания"));
+const title = computed(() => resolveCompanyDisplayName(
+  props.company?.company_name || props.company?.company_code,
+  props.company?.company_id || props.company?.company_code,
+) || i18nKey("Компания"));
 
 function addRow() {
   if (!props.canEdit) return;

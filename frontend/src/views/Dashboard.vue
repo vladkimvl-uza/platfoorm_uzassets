@@ -9,6 +9,7 @@ import Odometer from "@/components/Odometer.vue";
 import { api } from "@/api/client";
 import { Chart } from "@/utils/chartjsRegister";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 
 const { t } = useI18n();
 const scope = useCompanyScope();
@@ -354,7 +355,7 @@ const allCompaniesList = computed(() => {
       out.push({ code: co.code, name: co.name });
     }
   }
-  return out.sort((a, b) => a.name.localeCompare(b.name, "ru"));
+  return out.sort((a, b) => a.name.localeCompare(b.name, getCurrentIntlLocale()));
 });
 
 // Секторы для фильтра — ТОЛЬКО те, в которых у пользователя есть компании

@@ -10,6 +10,7 @@ import {
 } from "@/api/partners";
 import { useConfirm } from "@/composables/useConfirm";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 const { t } = useI18n();
 
 
@@ -137,7 +138,7 @@ async function detach(r: LinkedResource) {
 
 function fmtDate(iso: string | null): string {
   if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("ru-RU", { day: "numeric", month: "short", year: "numeric" });
+  return new Date(iso).toLocaleDateString(getCurrentIntlLocale(), { day: "numeric", month: "short", year: "numeric" });
 }
 
 const totalResources = computed(() => {

@@ -6,6 +6,7 @@
  */
 import { computed, ref, watch } from "vue";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 import ModalShell from "@/components/ModalShell.vue";
 import { useToast } from "@/composables/useToast";
 import { unitCostApi, FUELS, type UCPrices, type UCWorld } from "@/api/unitCost";
@@ -73,7 +74,7 @@ function priceErr(f: string): boolean {
 }
 const hasErr = computed(() => FUELS.some((f) => priceErr(f)) ||
   WORLD.some((w) => wdraft.value[w.key] !== "" && (num(wdraft.value[w.key]) == null || num(wdraft.value[w.key])! < 0)));
-function fmt(v: number | null): string { return v == null ? "—" : v.toLocaleString("ru", { maximumFractionDigits: 0 }); }
+function fmt(v: number | null): string { return v == null ? "—" : v.toLocaleString(getCurrentIntlLocale(), { maximumFractionDigits: 0 }); }
 
 function fillFromLive() {
   if (!props.live) return;

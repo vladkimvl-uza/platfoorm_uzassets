@@ -82,9 +82,12 @@ class CompaniesService:
             fin = latest_fin.get(str(c.id))
             items.append(CompanyListItem(
                 id=c.id, code=c.code, inn=c.inn,
-                name_ru=c.name_ru, name_short=c.name_short,
+                name_ru=c.name_ru, name_uz=c.name_uz, name_en=c.name_en,
+                name_short=c.name_short,
                 sector_code=c.sector.code if c.sector else None,
                 sector_name=c.sector.name_ru if c.sector else None,
+                sector_name_uz=c.sector.name_uz if c.sector else None,
+                sector_name_en=c.sector.name_en if c.sector else None,
                 sector_color=c.sector.color_hex if c.sector else None,
                 is_active=c.is_active, is_custom=c.is_custom,
                 hidden_years=c.hidden_years or None,

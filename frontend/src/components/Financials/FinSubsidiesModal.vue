@@ -19,6 +19,12 @@ import {
   type SubsidyRow,
 } from "@/api/subsidies";
 import { useI18n } from "@/composables/useI18n";
+import {
+  companyDisplayName,
+  resolveCompanyDisplayName,
+  resolveSectorDisplayName,
+  sectorDisplayName,
+} from "@/utils/displayNames";
 
 const { t } = useI18n();
 
@@ -72,6 +78,20 @@ const sortedSectors = computed(() =>
   [...props.sectors].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)),
 );
 
+function rowCompanyName(row: SubsidyRow): string {
+  const company = props.companies.find(item => item.id === row.company_id);
+  return companyDisplayName(company)
+    || resolveCompanyDisplayName(row.company_name, row.company_id)
+    || "—";
+}
+
+function rowSectorName(row: SubsidyRow): string {
+  const sector = props.sectors.find(item => item.code === row.sector_code);
+  return sectorDisplayName(sector)
+    || resolveSectorDisplayName(row.sector_name, row.sector_code)
+    || "—";
+}
+
 const filtered = computed<SubsidyRow[]>(() => {
   const q = fSearch.value.trim().toLowerCase();
   return rows.value.filter(r => {
@@ -80,7 +100,7 @@ const filtered = computed<SubsidyRow[]>(() => {
     if (fCompany.value && r.company_id !== fCompany.value) return false;
     if (fStatus.value && r.status !== fStatus.value) return false;
     if (q) {
-      const hay = [r.company_name, r.program, r.source, r.kind, r.note].join(" ").toLowerCase();
+      const hay = [r.company_name, rowCompanyName(r), r.program, r.source, r.kind, r.note].join(" ").toLowerCase();
       if (!hay.includes(q)) return false;
     }
     return true;
@@ -97,7 +117,7 @@ const topSector = computed(() => {
   const m = new Map<string, { name: string; color: string; total: number }>();
   for (const r of filtered.value) {
     const k = r.sector_code || "—";
-    const e = m.get(k) || { name: r.sector_name || t("Без сектора"), color: r.sector_color || "#94A3B8", total: 0 };
+    const e = m.get(k) || { name: rowSectorName(r) || t("Без сектора"), color: r.sector_color || "#94A3B8", total: 0 };
     e.total += Number(r.amount || 0);
     m.set(k, e);
   }
@@ -259,7 +279,7 @@ async function doDelete(r: SubsidyRow) {
 }
 
 const sortedCompanies = computed(() =>
-  [...props.companies].sort((a, b) => (a.name_ru || "").localeCompare(b.name_ru || "", "ru")),
+  [...props.companies].sort((a, b) => companyDisplayName(a).localeCompare(companyDisplayName(b))),
 );
 </script>
 
@@ -300,11 +320,11 @@ const sortedCompanies = computed(() =>
           </select>
           <select v-model="fSector" class="sub-sel">
             <option value="">{{ t("Все секторы") }}</option>
-            <option v-for="s in sortedSectors" :key="s.code" :value="String(s.code).toLowerCase()">{{ s.name_ru }}</option>
+            <option v-for="s in sortedSectors" :key="s.code" :value="String(s.code).toLowerCase()">{{ sectorDisplayName(s) }}</option>
           </select>
           <select v-model="fCompany" class="sub-sel">
             <option value="">{{ t("Все компании") }}</option>
-            <option v-for="c in sortedCompanies" :key="c.id" :value="c.id">{{ c.name_ru }}</option>
+            <option v-for="c in sortedCompanies" :key="c.id" :value="c.id">{{ companyDisplayName(c) }}</option>
           </select>
           <select v-model="fStatus" class="sub-sel">
             <option value="">{{ t("Все статусы") }}</option>
@@ -328,7 +348,7 @@ const sortedCompanies = computed(() =>
               <span class="sub-fld-l">{{ t("Компания") }} *</span>
               <select v-model="form.company_id" class="sub-inp">
                 <option value="">{{ t("— выберите —") }}</option>
-                <option v-for="c in sortedCompanies" :key="c.id" :value="c.id">{{ c.name_ru }}</option>
+                <option v-for="c in sortedCompanies" :key="c.id" :value="c.id">{{ companyDisplayName(c) }}</option>
               </select>
             </label>
             <label class="sub-fld sub-fld-sm">
@@ -407,9 +427,9 @@ const sortedCompanies = computed(() =>
             <tr v-for="(r, ri) in filtered" :key="r.id" :style="{ '--ri': ri }">
               <td class="l sub-co">
                 <span class="sub-co-dot" :style="{ background: r.sector_color || '#94A3B8' }"></span>
-                {{ r.company_name || '—' }}
+                {{ rowCompanyName(r) }}
               </td>
-              <td class="l sub-muted">{{ r.sector_name || '—' }}</td>
+              <td class="l sub-muted">{{ rowSectorName(r) }}</td>
               <td class="c">{{ r.year ?? '—' }}</td>
               <td class="l">{{ r.program || '—' }}</td>
               <td class="l sub-muted">{{ r.source || '—' }}</td>

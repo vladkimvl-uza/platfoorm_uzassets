@@ -24,6 +24,7 @@ import { api } from "@/api/client";
 import { useI18n } from "@/composables/useI18n";
 import { i18nKey } from "@/locale/keys";
 import { useAiFeatureAccess } from "@/composables/useAiFeatureAccess";
+import { resolveCompanyDisplayName } from "@/utils/displayNames";
 
 
 const { t } = useI18n();
@@ -82,7 +83,7 @@ const displayBuckets = computed(() => {
       .map((b) => ({
         ...b,
         companies: b.companies.filter((c) =>
-          `${c.company_name || ""} ${c.company_name_short || ""} ${c.company_code || ""}`.toLowerCase().includes(q),
+          `${c.company_name || ""} ${c.company_name_short || ""} ${c.company_code || ""} ${resolveCompanyDisplayName(c.company_name_short || c.company_name, c.company_code)}`.toLowerCase().includes(q),
         ),
       }))
       .filter((b) => b.companies.length > 0);
@@ -498,8 +499,8 @@ function cellValue(c: SectorBucket["companies"][number], y: number): number | nu
                gridTemplateColumns: gridCols,
              }">
           <div class="fst-cell-co" style="display:flex; align-items:center; gap:8px; min-width:0;">
-            <CompanyAvatar :name="c.company_name_short || c.company_name" :color="b.color" :size="20" />
-            <span style="min-width:0; line-height:1.2; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">{{ c.company_name_short || c.company_name }}</span>
+            <CompanyAvatar :name="resolveCompanyDisplayName(c.company_name_short || c.company_name, c.company_code)" :color="b.color" :size="20" />
+            <span style="min-width:0; line-height:1.2; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">{{ resolveCompanyDisplayName(c.company_name_short || c.company_name, c.company_code) }}</span>
           </div>
 
           <div v-for="y in years" :key="y" class="fst-cell-num" :class="{ 'fst-cell-fc': cellIsForecast(y) }">

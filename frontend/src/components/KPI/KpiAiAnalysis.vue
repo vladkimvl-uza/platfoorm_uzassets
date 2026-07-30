@@ -30,7 +30,7 @@
               <button :class="{ on: scope === 'company' }" :disabled="loading" @click="setScope('company')">{{ t("Одна компания") }}</button>
             </div>
             <select v-if="scope === 'company' && coScope.showCompanyPicker.value" v-model="pickedId" :disabled="loading" @change="onPickCompany" class="kpai-co-select">
-              <option v-for="c in companies" :key="c.company_id" :value="c.company_id">{{ c.company_name_ru }}</option>
+              <option v-for="c in companies" :key="c.company_id" :value="c.company_id">{{ companyName(c) }}</option>
             </select>
           </div>
           <div class="kpai-seg-row">
@@ -51,7 +51,7 @@
             <!-- Режим «Прогноз»: траектория выполнения + модельная таблица движка -->
             <template v-if="mode === 'forecast'">
               <div v-if="fcTrend.length" class="kpai-chart">
-                <div class="kpai-chart-title">{{ t("Прогноз сводного выполнения «{name}», % (история → прогноз)", { name: fcScopeName === PORTFOLIO_SCOPE ? t(PORTFOLIO_SCOPE) : fcScopeName }) }}</div>
+                <div class="kpai-chart-title">{{ t("Прогноз сводного выполнения «{name}», % (история → прогноз)", { name: fcScopeDisplayName }) }}</div>
                 <div v-for="(tr, i) in fcTrend" :key="i" class="kpai-bar-row">
                   <span class="kpai-bar-lbl">{{ t(tr.label) }}<span v-if="tr.projected" class="kpai-fc-tag">{{ t("прогноз") }}</span></span>
                   <div class="kpai-bar-track">
@@ -63,7 +63,7 @@
               </div>
               <div v-if="fcView.length" class="kpai-fc">
                 <div class="kpai-fc-head">
-                  <div class="kpai-chart-title">{{ t("Модельный прогноз (движок)") }}{{ fcScopeName ? ' · ' + (fcScopeName === PORTFOLIO_SCOPE ? t(PORTFOLIO_SCOPE) : fcScopeName) : '' }}</div>
+                  <div class="kpai-chart-title">{{ t("Модельный прогноз (движок)") }}{{ fcScopeDisplayName ? ' · ' + fcScopeDisplayName : '' }}</div>
                   <div v-if="hasFcQuarters" class="kpai-fc-toggle">
                     <div class="kpai-seg kpai-seg-sm">
                       <button :class="{ on: fcTblMode === 'years' }" @click="setFcTblMode('years')">{{ t("По годам") }}</button>
@@ -91,7 +91,7 @@
                     <tbody>
                       <tr v-for="(r, i) in fcView" :key="i">
                         <td class="kpai-fc-nm">
-                          <span class="kpai-fc-nm-t">{{ r.name }}<span v-if="fcUnit(r.unit)" class="kpai-fc-unit"> · {{ fcUnit(r.unit) }}</span></span>
+                          <span class="kpai-fc-nm-t">{{ forecastRowName(r.name) }}<span v-if="fcUnit(r.unit)" class="kpai-fc-unit"> · {{ fcUnit(r.unit) }}</span></span>
                           <span v-if="r.manager" class="kpai-fc-mgr">{{ r.manager }}</span>
                         </td>
                         <td>{{ fcCell(r.fact, r.unit) }}</td>
@@ -155,8 +155,10 @@ import { renderMarkdown } from "@/utils/renderMarkdown";
 import { extractHlfHeadline, HLF_LABELS } from "@/utils/hlfHeadline";
 import { useCompanyScope } from "@/composables/useCompanyScope";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 import { useToast } from "@/composables/useToast";
 import { i18nKey } from "@/locale/keys";
+import { resolveCompanyDisplayName } from "@/utils/displayNames";
 
 
 type Mode = "performance" | "correlation" | "forecast";
@@ -183,6 +185,12 @@ type SavedRec = { raw: string; doneAt: string; year: number; chart?: ChartRow[];
 
 const props = defineProps<{ companies: Co[]; year: number; period: string; selectedId: string | null }>();
 
+function companyName(company: Co | null | undefined): string {
+  return company
+    ? resolveCompanyDisplayName(company.company_name_ru, company.company_id || company.company_code)
+    : "";
+}
+
 const { t } = useI18n();
 const PORTFOLIO_SCOPE = i18nKey("Портфель");
 const toast = useToast();
@@ -202,6 +210,17 @@ const fcYears = ref<string[]>([]);       // столбцы будущих лет
 const fcTrend = ref<FcTrend[]>([]);      // траектория сводного выполнения (компания)
 const fcBaseYear = ref<number>(0);
 const fcScopeName = ref<string>("");
+const fcScopeDisplayName = computed(() => {
+  if (!fcScopeName.value) return "";
+  return fcScopeName.value === PORTFOLIO_SCOPE
+    ? t(PORTFOLIO_SCOPE)
+    : resolveCompanyDisplayName(fcScopeName.value) || fcScopeName.value;
+});
+function forecastRowName(name: string): string {
+  return fcScopeName.value === PORTFOLIO_SCOPE
+    ? resolveCompanyDisplayName(name) || name
+    : name;
+}
 
 function barColor(pct: number): string {
   if (pct >= 100) return "#1D9E75";
@@ -214,7 +233,7 @@ function fcFmt(v: number | null | undefined, unit: string | null): string {
   const u = unit || "";
   if (u === "%") return `${Math.round(v)}%`;
   const a = Math.abs(v);
-  const s = a >= 1000 ? Math.round(v).toLocaleString("ru-RU").replace(/,/g, " ")
+  const s = a >= 1000 ? Math.round(v).toLocaleString(getCurrentIntlLocale())
     : a >= 10 ? v.toFixed(0) : v.toFixed(1).replace(/\.0$/, "");
   return `${s}${u ? " " + u : ""}`;
 }
@@ -224,7 +243,7 @@ function fcCell(v: number | null | undefined, unit: string | null): string {
   if (v == null) return "—";
   if ((unit || "") === "%") return `${Math.round(v)}%`;
   const a = Math.abs(v);
-  return a >= 1000 ? Math.round(v).toLocaleString("ru-RU").replace(/,/g, " ")
+  return a >= 1000 ? Math.round(v).toLocaleString(getCurrentIntlLocale())
     : a >= 10 ? v.toFixed(0) : v.toFixed(1).replace(/\.0$/, "");
 }
 // Единица для подписи строки (проценты и пустые не дублируем).
@@ -308,7 +327,7 @@ const MODE_LABEL: Record<Mode, string> = { performance: i18nKey("Исполне�
 const pickedId = ref<string | null>(props.selectedId || (props.companies[0]?.company_id ?? null));
 const selectedCompany = computed(() => props.companies.find(c => c.company_id === pickedId.value) || null);
 const titleText = computed(() => scope.value === "company"
-  ? (selectedCompany.value?.company_name_ru || t("Компания"))
+  ? (companyName(selectedCompany.value) || t("Компания"))
   : t("Все компании портфеля"));
 
 function savedKey(m: Mode = mode.value): string {
@@ -394,7 +413,7 @@ function exportExcel(): void {
   const textWs = XLSX.utils.aoa_to_sheet(lines.map(l => [l]));
   textWs["!cols"] = [{ wch: 120 }];
   XLSX.utils.book_append_sheet(wb, textWs, t("Полный текст"));
-  const scopeName = scope.value === "company" ? (selectedCompany.value?.company_name_ru || "company") : i18nKey("портфель");
+  const scopeName = scope.value === "company" ? (companyName(selectedCompany.value) || "company") : i18nKey("портфель");
   XLSX.writeFile(wb, `KPI_${MODE_LABEL[mode.value]}_${scopeName}_${props.year}.xlsx`);
 }
 function setMode(m: Mode): void { if (!loading.value) applyMode(m); }
@@ -436,7 +455,7 @@ async function run(): Promise<void> {
   if (loading.value) return;
   loading.value = true; error.value = ""; html.value = "";
   const single = scope.value === "company" && selectedCompany.value ? selectedCompany.value : null;
-  step.value = single ? t("Загружаю KPI: {name}…", { name: single.company_name_ru }) : t("Загружаю KPI всех компаний…");
+  step.value = single ? t("Загружаю KPI: {name}…", { name: companyName(single) }) : t("Загружаю KPI всех компаний…");
   try {
     const { api } = await import("@/api/client");
     const cos: Co[] = single ? [single] : props.companies;
@@ -469,7 +488,7 @@ async function run(): Promise<void> {
           }
           if (inds.length) mgrsOut.push({ title: mgr.title, role: mgr.role, indicators: inds });
         }
-        return mgrsOut.length ? { code: co.company_code, name: co.company_name_ru, managers: mgrsOut } : null;
+        return mgrsOut.length ? { code: co.company_code, name: companyName(co), managers: mgrsOut } : null;
       } catch { return null; }
     }));
     const kpi_rows = built.filter((r): r is NonNullable<typeof r> => r != null);
@@ -497,7 +516,7 @@ async function run(): Promise<void> {
       try {
         const r = await api.get(`/financials/companies/${co.company_code}/hlf`);
         const ext = extractHlfHeadline(r.data?.hlf || null);
-        return ext ? { code: co.company_code, name: co.company_name_ru, kpis: ext.kpis } : null;
+        return ext ? { code: co.company_code, name: companyName(co), kpis: ext.kpis } : null;
       } catch { return null; }
     }))).filter((r): r is NonNullable<typeof r> => r != null);
 
@@ -509,7 +528,10 @@ async function run(): Promise<void> {
         if (single) {
           const fc = await kpiApi.getForecast(single.company_id, props.year, 3);
           buildForecastView(fc);
-          forecastPayload = fc;
+          forecastPayload = {
+            ...fc,
+            company_name: resolveCompanyDisplayName(fc.company_name, fc.company_id || fc.company_code),
+          };
         } else {
           const fcs = (await Promise.all(props.companies.map(async (c) => {
             try { return await kpiApi.getForecast(c.company_id, props.year, 3); } catch { return null; }
@@ -517,7 +539,7 @@ async function run(): Promise<void> {
           buildPortfolioForecastView(fcs, props.year);
           forecastPayload = {
             portfolio: fcs.map(f => ({
-              name: f.company_name, completion: f.completion,
+              name: resolveCompanyDisplayName(f.company_name, f.company_id || f.company_code), completion: f.completion,
               indicators: f.managers.flatMap(m => m.indicators.map(i => ({
                 name: i.name, unit: i.unit, manager: i.manager,
                 quarterly: i.quarterly, annual: i.annual,
@@ -533,14 +555,14 @@ async function run(): Promise<void> {
     step.value = t("ИИ анализирует KPI и связь с финансами…");
     const resp = await api.post("/ai/kpi-analysis", {
       year: props.year, period: props.period, mode: mode.value,
-      focus: single ? single.company_name_ru : null,
+      focus: single ? companyName(single) : null,
       kpi_rows, fin_rows, fin_labels: HLF_LABELS, forecast: forecastPayload,
     }, { timeout: 235000 });
     const raw = (resp.data?.analysis || "") as string;
     if (!raw) { error.value = t("ИИ вернул пустой ответ."); loading.value = false; return; }
     rawMd.value = raw;
     html.value = renderMarkdown(raw);
-    doneAt.value = new Date().toLocaleString("ru-RU");
+    doneAt.value = new Date().toLocaleString(getCurrentIntlLocale());
     await saveResult(raw);
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } }; message?: string };

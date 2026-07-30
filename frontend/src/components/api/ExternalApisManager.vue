@@ -10,6 +10,7 @@ import {
 import { methodPill } from "@/api/api_catalog";
 import { useConfirm } from "@/composables/useConfirm";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 const { t } = useI18n();
 
 
@@ -163,7 +164,7 @@ function toggleEp(e: ExtEndpoint) { const k = epKey(e); expandedEp.value = expan
 
 function fmtDate(iso: string | null): string {
   if (!iso) return "—";
-  return new Date(iso).toLocaleString("ru-RU", { day: "numeric", month: "short", year: "numeric" });
+  return new Date(iso).toLocaleString(getCurrentIntlLocale(), { day: "numeric", month: "short", year: "numeric" });
 }
 
 function pasteSpec() {

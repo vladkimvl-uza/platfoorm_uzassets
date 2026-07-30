@@ -161,7 +161,7 @@ async function save(): Promise<void> {
         <input v-else v-model="buf.score" class="rt-in rt-in-grade"
                placeholder="0–100" maxlength="16" :disabled="saving" />
         <select v-if="mode === 'credit'" v-model="buf.outlook" class="rt-in" :disabled="saving">
-          <option v-for="o in OUTLOOKS" :key="o.v" :value="o.v">{{ o.l }}</option>
+          <option v-for="o in OUTLOOKS" :key="o.v" :value="o.v">{{ t(o.l) }}</option>
         </select>
         <input v-model="buf.date" class="rt-in" :placeholder="t('дата (окт 2025)')"
                maxlength="64" :disabled="saving" />
@@ -203,7 +203,7 @@ async function save(): Promise<void> {
         <template v-if="mode === 'credit'">
           <div class="rt-value" :style="{ color: creditColor(rating.rating) }">{{ rating.rating }}</div>
           <div v-if="outlookView" class="rt-outlook"
-               :style="{ background: outlookView.bg, color: outlookView.fg }">{{ outlookView.l }}</div>
+               :style="{ background: outlookView.bg, color: outlookView.fg }">{{ t(outlookView.l) }}</div>
         </template>
         <template v-else>
           <div class="rt-value" :style="{ color: esgColor }">{{ rating.score || rating.rating }}</div>

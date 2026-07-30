@@ -10,6 +10,7 @@ import { ref, computed, watch, onMounted } from "vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import { pmoApi, type EvmResponse, type EvmProject, type EvmRag } from "@/api/pmo";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 import { useFormatters } from "@/composables/useFormatters";
 import { i18nKey } from "@/locale/keys";
 
@@ -196,7 +197,7 @@ function metricNeg(p: EvmProject, m: MetricDef): boolean {
         </table>
       </div>
 
-      <div class="ev-foot">{{ t('Индексы ≥ 1.0 — хорошо (по графику / в бюджете). На дату') }} {{ new Date(data.as_of).toLocaleDateString("ru-RU") }} {{ t('· бюджетных проектов:') }} {{ data.budgeted_count }} {{ t('из') }} {{ data.total_count }}{{ t('. Клик по проекту — детальный разбор.') }}</div>
+      <div class="ev-foot">{{ t('Индексы ≥ 1.0 — хорошо (по графику / в бюджете). На дату') }} {{ new Date(data.as_of).toLocaleDateString(getCurrentIntlLocale()) }} {{ t('· бюджетных проектов:') }} {{ data.budgeted_count }} {{ t('из') }} {{ data.total_count }}{{ t('. Клик по проекту — детальный разбор.') }}</div>
     </template>
 
     <!-- ── Модалка проекта (drill-down) ── -->

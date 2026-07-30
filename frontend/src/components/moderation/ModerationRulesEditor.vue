@@ -8,6 +8,7 @@ import {
 import { useUserDirectory } from "@/composables/useUserDirectory";
 import { useConfirm } from "@/composables/useConfirm";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 const { t } = useI18n();
 
 
@@ -200,7 +201,7 @@ function removeCondition(idx: number) {
           <BIcon :name="draft.icon || 'route'" :size="18" style="color: #534AB7;" />
           <input v-model="draft.name" class="mre-ed-name" @input="markDirty"/>
           <div class="mre-ed-meta">
-            v.{{ selected.version }} {{ t('· обновлено') }} {{ new Date(selected.updated_at).toLocaleDateString("ru-RU") }} {{ t('· применено') }} {{ selected.total_matches }} {{ t('раз') }}
+            v.{{ selected.version }} {{ t('· обновлено') }} {{ new Date(selected.updated_at).toLocaleDateString(getCurrentIntlLocale()) }} {{ t('· применено') }} {{ selected.total_matches }} {{ t('раз') }}
           </div>
           <label class="mre-active-toggle">
             <span style="font-size: 11px;">{{ draft.is_active ? t('Активно') : t('Неактивно') }}</span>

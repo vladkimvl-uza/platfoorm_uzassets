@@ -55,7 +55,7 @@
       >
         <option value="">{{ t("— выберите компанию —") }}</option>
         <option v-for="co in state.companies.value" :key="co.company_id" :value="co.company_id">
-          {{ co.company_name_ru }}
+          {{ localizedCompanyName(co.company_name_ru, co.company_id) }}
         </option>
       </select>
       <button v-if="canCreateCompany" class="kpi-co-add" @click="addCompanyOpen = true" :title="t('Добавить новую компанию')">
@@ -98,7 +98,7 @@
         :active-manager-idx="state.selectedManagerIdx.value"
         :period="state.selectedPeriod.value"
         :company-id="state.selectedCompany.value.company_id"
-        :company-name="state.selectedCompany.value.company_name_ru"
+        :company-name="selectedCompanyName"
         :year="state.selectedYear.value"
         :can-edit="canEdit"
         @set-manager="state.setManager"
@@ -112,7 +112,7 @@
     <KpiEditor
       v-if="editorOpen && state.selectedCompany.value"
       :company-id="state.selectedCompany.value.company_id"
-      :company-name="state.selectedCompany.value.company_name_ru"
+      :company-name="selectedCompanyName"
       :year="state.selectedYear.value"
       @close="editorOpen = false"
       @saved="onEditorSaved"
@@ -159,6 +159,7 @@ import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
 import { useAuthStore } from "@/stores/auth";
 import type { CompanyDetail } from "@/api/companies";
+import { resolveCompanyDisplayName } from "@/utils/displayNames";
 
 const _perm = usePermissions("kpi");
 const { t } = useI18n();
@@ -172,6 +173,15 @@ const auth = useAuthStore();
 const canCreateCompany = computed(() => auth.hasPermission("companies.create"));
 
 const state = useKpiData();
+function localizedCompanyName(name: string | null | undefined, idOrCode?: string | null): string {
+  return resolveCompanyDisplayName(name, idOrCode);
+}
+const selectedCompanyName = computed(() => {
+  const company = state.selectedCompany.value;
+  return company
+    ? localizedCompanyName(company.company_name_ru, company.company_id)
+    : t("Выберите компанию");
+});
 // Область доступа: ограниченному пользователю портфельная «Сводка» не нужна.
 const scope = useCompanyScope();
 const menuOpen = ref(false);
@@ -218,7 +228,7 @@ const kpiYearOpts = computed(() => state.availableYears.value.map((y) => ({ valu
 const headerTitle = computed(() =>
   state.viewMode.value === "summary"
     ? t("Сводка по портфелю")
-    : state.selectedCompany.value?.company_name_ru ?? t("Выберите компанию"),
+    : selectedCompanyName.value,
 );
 
 const headerSub = computed(() => {
@@ -255,7 +265,7 @@ async function confirmDelete() {
   }
   if (!(await confirmDialog({
     message: t("Удалить весь KPI {name} за {year}?", {
-      name: state.selectedCompany.value.company_name_ru,
+      name: selectedCompanyName.value,
       year: state.selectedYear.value,
     }),
     danger: true,

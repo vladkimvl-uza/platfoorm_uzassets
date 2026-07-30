@@ -28,6 +28,7 @@ import { fmtBigNumber } from "./financialsHelpers";
 import { useFormatters } from "@/composables/useFormatters";
 import { useI18n } from "@/composables/useI18n";
 import { i18nKey } from "@/locale/keys";
+import { resolveCompanyDisplayName, sectorDisplayName } from "@/utils/displayNames";
 
 const fmt = useFormatters();
 const { t } = useI18n();
@@ -84,7 +85,7 @@ function sectorColor(code: string | null): string {
 function sectorLabel(code: string | null): string {
   if (!code) return "—";
   const s = sectorByCode.value.get(code.toLowerCase());
-  return s?.name_ru || s?.name_en || code;
+  return sectorDisplayName(s) || code;
 }
 
 // ─── Core values per KPI ───
@@ -310,7 +311,10 @@ const allCompanyRows = computed<CompanyRow[]>(() => {
     }
     rows.push({
       code:      it.company_code,
-      name:      it.company_name_short || it.company_name || it.company_code,
+      name:      resolveCompanyDisplayName(
+        it.company_name_short || it.company_name || it.company_code,
+        it.company_code,
+      ),
       sector:    it.sector_code || "other",
       value,
       marginPct,

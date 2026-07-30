@@ -6,6 +6,7 @@ import {
   type RbacV3UserBrief,
   type RbacV3UserCompanyMembership,
 } from '@/api/rbacV3';
+import { companiesApi, type CompanyListItem } from '@/api/companies';
 import BIcon from '@/components/broadcasts/BIcon.vue';
 import BulkRolePickerModal from '@/components/rbac-v3/BulkRolePickerModal.vue';
 import RoleChip from '@/components/rbac-v3/RoleChip.vue';
@@ -16,6 +17,7 @@ import { useConfirm } from '@/composables/useConfirm';
 import { useI18n } from '@/composables/useI18n';
 import { presenceStatus } from '@/composables/usePresence';
 import { fmtDateTime, fmtRelativeTime, INTL_LOCALE } from '@/locale';
+import { companyDisplayName } from '@/utils/displayNames';
 import UserDetailDrawer from './UserDetailDrawer.vue';
 
 type Filter = 'all' | 'active' | 'inactive' | 'pwd_change' | 'without_roles';
@@ -66,6 +68,8 @@ const selectedUser = ref<RbacV3UserBrief | null>(null);
 const showBulk = ref(false);
 const bulkBusy = ref(false);
 const truncated = ref(false);
+const companyCatalog = ref<CompanyListItem[]>([]);
+const companyById = computed(() => new Map(companyCatalog.value.map(company => [company.id, company])));
 
 const USERS_LIMIT = 500;
 const PWD_AGE_WARN_DAYS = 60;
@@ -109,6 +113,15 @@ async function loadOverview() {
   }
 }
 
+async function loadCompanies() {
+  try {
+    const response = await companiesApi.list({ per_page: 500 });
+    companyCatalog.value = response.items || [];
+  } catch {
+    // The registry can still use names included in the RBAC response.
+  }
+}
+
 async function loadUsers(silent = false) {
   if (!silent) loading.value = true;
   error.value = null;
@@ -148,7 +161,7 @@ let presenceTimer: number | undefined;
 let searchTimer: number | undefined;
 
 onMounted(() => {
-  Promise.all([loadUsers(), loadOverview()]);
+  Promise.all([loadUsers(), loadOverview(), loadCompanies()]);
   window.addEventListener('rbac-v3:users-changed', onExternalRefresh);
   presenceTimer = window.setInterval(onExternalRefresh, 45000);
 });
@@ -262,6 +275,11 @@ const visibleUsers = computed(() => {
 
 const UNASSIGNED_COMPANY_KEY = '__unassigned__';
 
+function localizedCompanyName(companyId: string | null, fallback: string | null | undefined): string {
+  if (!companyId) return fallback || '';
+  return companyDisplayName(companyById.value.get(companyId)) || fallback || companyId;
+}
+
 const companyGroups = computed<CompanyUserGroup[]>(() => {
   const groups = new Map<
     string,
@@ -290,7 +308,7 @@ const companyGroups = computed<CompanyUserGroup[]>(() => {
         addEntry(
           membership.company_id,
           membership.company_id,
-          membership.company_name || membership.group_name,
+          localizedCompanyName(membership.company_id, membership.company_name || membership.group_name),
           user,
           membership,
         );
@@ -299,7 +317,13 @@ const companyGroups = computed<CompanyUserGroup[]>(() => {
     }
 
     if (user.organization_id && user.company) {
-      addEntry(user.organization_id, user.organization_id, user.company, user, null);
+      addEntry(
+        user.organization_id,
+        user.organization_id,
+        localizedCompanyName(user.organization_id, user.company),
+        user,
+        null,
+      );
     } else {
       addEntry(UNASSIGNED_COMPANY_KEY, null, t('Без привязки к компании'), user, null);
     }
@@ -475,7 +499,7 @@ function lastActivityTitle(user: RbacV3UserBrief): string {
 }
 
 function scopeLabel(user: RbacV3UserBrief): string {
-  return user.company || user.department || t('Не указана');
+  return localizedCompanyName(user.organization_id, user.company) || user.department || t('Не указана');
 }
 
 function rowScopeLabel(user: RbacV3UserBrief, membership: RbacV3UserCompanyMembership | null): string {
@@ -498,7 +522,7 @@ function rowRoleTitle(
   membership: RbacV3UserCompanyMembership | null,
 ): string {
   const labels = [
-    ...(membership ? [`${membership.role_name} · ${membership.company_name}`] : []),
+    ...(membership ? [`${membership.role_name} · ${localizedCompanyName(membership.company_id, membership.company_name)}`] : []),
     ...user.role_names,
   ];
   return labels.join(', ') || t('Роли не назначены');

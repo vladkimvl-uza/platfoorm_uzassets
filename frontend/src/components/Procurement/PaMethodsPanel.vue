@@ -19,6 +19,7 @@ import {
   type PlatformAgg,
 } from "@/api/procurement_analysis";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 
 const { t } = useI18n();
 
@@ -85,7 +86,7 @@ function barW(sharePct: number | null | undefined): string {
 function fmtPct(v: number | null | undefined): string {
   const n = Number(v);
   if (!isFinite(n)) return "—";
-  return n.toLocaleString("ru-RU", {
+  return n.toLocaleString(getCurrentIntlLocale(), {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
   });
@@ -94,7 +95,7 @@ function fmtPct(v: number | null | undefined): string {
 function fmtInt(v: number | null | undefined): string {
   const n = Number(v);
   if (!isFinite(n)) return "0";
-  return Math.round(n).toLocaleString("ru-RU");
+  return Math.round(n).toLocaleString(getCurrentIntlLocale());
 }
 </script>
 

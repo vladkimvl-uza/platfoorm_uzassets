@@ -28,6 +28,7 @@ import { api } from "@/api/client";
 import { ref, computed, onMounted, onUnmounted, provide, inject, watch, nextTick } from "vue";
 import { useFormatters } from "@/composables/useFormatters";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 
 const fmt = useFormatters();
 const { t } = useI18n();
@@ -106,6 +107,7 @@ import CompanyDocuments from "@/components/Documents/CompanyDocuments.vue";
 import ExecOverview from "@/views/ExecOverview.vue";
 import { useSavedFilter } from "@/composables/useSavedFilter";
 import { i18nKey } from "@/locale/keys";
+import { companyDisplayName, sectorDisplayName } from "@/utils/displayNames";
 
 
 const route = useRoute();
@@ -120,7 +122,16 @@ const code = computed(() => String(route.params.code || route.params.id || "").t
 // State
 // =====================================================================
 const company = ref<any>(null);
-const sector = ref<{ id: string; code: string; name_ru: string; color_hex?: string | null } | null>(null);
+const sector = ref<{
+  id: string;
+  code: string;
+  name_ru: string;
+  name_uz?: string | null;
+  name_en?: string | null;
+  color_hex?: string | null;
+} | null>(null);
+const localizedCompanyName = computed(() => companyDisplayName(company.value));
+const localizedSectorName = computed(() => sectorDisplayName(sector.value));
 
 // Ссылка на сайт компании (премиум-пилюля в шапке)
 const companyWebsite = computed<string | null>(() => {
@@ -593,10 +604,7 @@ function getStatusColor(s: string): string {
 }
 
 function fmtDate(d: string | null | undefined): string {
-  if (!d) return "—";
-  const date = new Date(d);
-  if (isNaN(date.getTime())) return "—";
-  return date.toLocaleDateString("ru-RU", { day: "2-digit", month: "short", year: "numeric" });
+  return fmt.fmtDate(d);
 }
 
 function isOverdueTask(t: any): boolean {
@@ -868,7 +876,7 @@ async function loadEsg() {
         };
       });
       esgSectorPillars.value = map;
-      esgSectorLabel.value = (sector.value as any)?.name_ru || t("сектору");
+      esgSectorLabel.value = localizedSectorName.value || t("сектору");
     }
 
     esgLoadedFor.value = key;
@@ -958,7 +966,7 @@ const finDrillCompanies = computed(() => {
     // подстраховка сектора (акцент/лейбл в drill), если getOne их не отдал
     sector_code: company.value.sector_code ?? s?.code,
     sector_color: company.value.sector_color ?? s?.color_hex,
-    sector_name: company.value.sector_name ?? s?.name_ru,
+    sector_name: company.value.sector_name ?? sectorDisplayName(s),
   }];
 });
 const finDrillSectors = computed(() => (sector.value ? [sector.value] : []));
@@ -1758,7 +1766,7 @@ const boardMembersByRole = computed<BoardMemberView[]>(() => {
       const ai = ROLE_ORDER.indexOf(a.roleType as any);
       const bi = ROLE_ORDER.indexOf(b.roleType as any);
       if (ai !== bi) return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
-      return a.fullName.localeCompare(b.fullName, "ru");
+      return a.fullName.localeCompare(b.fullName, getCurrentIntlLocale());
     });
 });
 
@@ -2997,11 +3005,11 @@ function onEditorClose() {
               <line x1="3" y1="18" x2="21" y2="18"/>
             </svg>
           </button>
-          <h1 :title="company.name_ru">{{ company.name_short || company.name_ru }}</h1>
+          <h1 :title="localizedCompanyName">{{ localizedCompanyName }}</h1>
 
           <span v-if="sector" class="cw-tbadge cw-tbadge-sector"
                 :style="sector.color_hex ? `background: ${sector.color_hex}24; color: ${sector.color_hex}` : ''">
-            {{ sector.name_ru }}
+            {{ localizedSectorName }}
           </span>
 
           <!-- Премиум-ссылка на сайт компании -->
@@ -3237,7 +3245,7 @@ function onEditorClose() {
             :company-id="company?.id || ''"
             :company-code="(route.params.code as string) || ''"
             :sector-id="(company as any)?.sector_id || (sector as any)?.id || ''"
-            :sector-name="sector?.name_ru || t('Сектор')"
+            :sector-name="localizedSectorName || t('Сектор')"
             :year="year"
             :overdue="overdue || 0"
           />
@@ -3359,7 +3367,7 @@ function onEditorClose() {
           <CompanyBoardList
             ref="boardListRef"
             :company-id="company?.id || ''"
-            :company-name="company?.name_ru || company?.name_short || ''"
+            :company-name="localizedCompanyName"
             :year="year"
             @openEditor="openTaskEditor"
             @changed="onBoardListChanged"
@@ -3421,18 +3429,18 @@ function onEditorClose() {
           </div>
           <ReportingWizard
             v-if="repSub === 'wizard'"
-            :company-name="company?.name_short || company?.name_ru || ''"
+            :company-name="localizedCompanyName"
             :company-code="(route.params.code as string) || code"
-            :sector-name="sector?.name_ru || null"
+            :sector-name="localizedSectorName || null"
             :year="year"
             :projects="projItems"
           />
           <ProjectsStatusReport
             v-else-if="repSub === 'projreport'"
             :company-id="company?.id || ''"
-            :company-name="company?.name_short || company?.name_ru || ''"
+            :company-name="localizedCompanyName"
             :company-code="(route.params.code as string) || code"
-            :sector-name="sector?.name_ru || null"
+            :sector-name="localizedSectorName || null"
             :year="year"
             :projects="projItems"
             :tasks="taskItems"
@@ -3452,7 +3460,7 @@ function onEditorClose() {
           <UzaStateBlock v-else-if="kpiError" state="error" variant="block" :title="t('Ошибка загрузки KPI')" :text="kpiError" retry @retry="loadKpi" />
 
           <!-- Empty state -->
-          <UzaStateBlock v-else-if="kpiManagerViews.length === 0" state="empty" variant="block" :title="t('KPI не настроены')" :text="t('Для {name} в {year} году KPI не добавлены.', { name: company.name_short || company.name_ru, year })">
+          <UzaStateBlock v-else-if="kpiManagerViews.length === 0" state="empty" variant="block" :title="t('KPI не настроены')" :text="t('Для {name} в {year} году KPI не добавлены.', { name: localizedCompanyName, year })">
             <template #actions>
               <button v-if="kpiPerm.canEdit" class="cw-cta-btn" @click="openKpiEditor">{{ t("Создать KPI") }}</button>
               <RouterLink to="/kpi" class="cw-cta-btn" style="background:transparent;color:var(--uza-purple);border:1px solid var(--uza-purple)">{{ t("Открыть в полной версии →") }}</RouterLink>
@@ -3512,7 +3520,7 @@ function onEditorClose() {
               :active-manager-idx="activeKpiMgrIdx"
               :period="kpiPeriod"
               :company-id="company.id"
-              :company-name="company.name_short || company.name_ru || ''"
+              :company-name="localizedCompanyName"
               :year="year"
               :can-edit="kpiPerm.canEdit.value"
               @set-manager="activeKpiMgrIdx = $event"
@@ -3558,7 +3566,7 @@ function onEditorClose() {
 
           <UzaStateBlock v-else-if="bpError" state="error" variant="block" :title="t('Ошибка загрузки Бизнес-плана')" :text="bpError" retry @retry="loadBp" />
 
-          <UzaStateBlock v-else-if="!bpData || bpFieldViews.length === 0" state="empty" variant="block" :title="t('Бизнес-план не загружен')" :text="t('Для {name} в {year} году записи отсутствуют.', { name: company.name_short || company.name_ru, year })" />
+          <UzaStateBlock v-else-if="!bpData || bpFieldViews.length === 0" state="empty" variant="block" :title="t('Бизнес-план не загружен')" :text="t('Для {name} в {year} году записи отсутствуют.', { name: localizedCompanyName, year })" />
 
           <template v-else>
             <!-- Top 3 KPI cards -->
@@ -3627,7 +3635,7 @@ function onEditorClose() {
           <!-- ═══ Производственные показатели этой компании (натура + деньги) ═══ -->
           <CwProductionSection
             :company-code="company?.code || code"
-            :company-name="company?.name_short || company?.name_ru || ''"
+            :company-name="localizedCompanyName"
             :year="year"
             :can-edit="bpPerm.canEdit"
           />
@@ -3639,7 +3647,7 @@ function onEditorClose() {
 
           <UzaStateBlock v-else-if="govError" state="error" variant="block" :title="t('Ошибка загрузки')" :text="govError" retry @retry="loadGovernance" />
 
-          <UzaStateBlock v-else-if="!(govDetail?.data || govDetail?.governance_data) && govMembers.length === 0" state="empty" variant="block" :title="t('Данные не введены')" :text="t('Для {name} в {year} году данные о корп. управлении отсутствуют.', { name: company.name_short || company.name_ru, year })">
+          <UzaStateBlock v-else-if="!(govDetail?.data || govDetail?.governance_data) && govMembers.length === 0" state="empty" variant="block" :title="t('Данные не введены')" :text="t('Для {name} в {year} году данные о корп. управлении отсутствуют.', { name: localizedCompanyName, year })">
             <template #actions>
               <button v-if="govPerm.canEdit.value" class="cw-cta-btn" @click="openGovEditor">{{ t("Ввести данные") }}</button>
               <RouterLink v-else to="/governance" class="cw-cta-btn">{{ t("Открыть редактор →") }}</RouterLink>
@@ -3848,7 +3856,7 @@ function onEditorClose() {
               variant="block"
               :title="t('Консультанты не назначены')"
             >
-              {{ t("Для {name} в {year} году консультанты не привязаны ни к одной задаче.", { name: company.name_short || company.name_ru, year }) }}
+              {{ t("Для {name} в {year} году консультанты не привязаны ни к одной задаче.", { name: localizedCompanyName, year }) }}
               <p style="margin-top: 8px; font-size: 11.5px">
                 {{ t("Чтобы добавить консультанта — откройте задачу в проекте и укажите консультанта в редакторе.") }}
               </p>
@@ -3858,7 +3866,7 @@ function onEditorClose() {
             <div v-else class="cw-cons2-card">
               <div class="cw-cons2-h">
                 <span class="cw-cons2-t">{{ t("Консультанты компании") }}</span>
-                <span class="cw-cons2-hsub">{{ company.name_short || company.name_ru }} · FY {{ year }}</span>
+                <span class="cw-cons2-hsub">{{ localizedCompanyName }} · FY {{ year }}</span>
               </div>
               <div class="cw-cons2-lhead">
                 <span>{{ t("КОНСУЛЬТАНТ") }}</span><span>{{ t("ПРОГРЕСС") }}</span><span class="r">{{ t("ЗАДАЧИ") }}</span><span class="r">{{ t("ПРОСРОЧЕНО") }}</span>
@@ -3926,7 +3934,7 @@ function onEditorClose() {
 
           <UzaStateBlock v-else-if="creditError" state="error" variant="block" :title="t('Ошибка загрузки')" :text="creditError" retry @retry="loadCredit" />
 
-          <UzaStateBlock v-else-if="creditLoans.length === 0" state="empty" variant="block" :title="t('Кредитов нет')" :text="t('У {name} нет активных кредитов в портфеле.', { name: company.name_short || company.name_ru })">
+          <UzaStateBlock v-else-if="creditLoans.length === 0" state="empty" variant="block" :title="t('Кредитов нет')" :text="t('У {name} нет активных кредитов в портфеле.', { name: localizedCompanyName })">
             <template #actions>
               <RouterLink to="/credit-portfolio" class="cw-cta-btn">{{ t("Открыть полный портфель →") }}</RouterLink>
             </template>
@@ -4119,7 +4127,7 @@ function onEditorClose() {
 
           <UzaStateBlock v-else-if="procError" state="error" variant="block" :title="t('Ошибка загрузки')" :text="procError" retry @retry="loadProc" />
 
-          <UzaStateBlock v-else-if="procPurchases.length === 0" state="empty" variant="block" :title="t('Закупки не загружены')" :text="t('У {name} в {year} году нет данных по закупкам в системе.', { name: company.name_short || company.name_ru, year })">
+          <UzaStateBlock v-else-if="procPurchases.length === 0" state="empty" variant="block" :title="t('Закупки не загружены')" :text="t('У {name} в {year} году нет данных по закупкам в системе.', { name: localizedCompanyName, year })">
             <template #actions>
               <RouterLink to="/procurement/analysis" class="cw-cta-btn">{{ t("Открыть полный анализ →") }}</RouterLink>
             </template>
@@ -4353,7 +4361,7 @@ function onEditorClose() {
                  stroke-linecap="round" stroke-linejoin="round"
                  v-html="getIconPath(currentTabDef.key)"></svg>
             <h2>{{ t(currentTabDef.label) }}</h2>
-            <p>{{ t("Раздел «{tab}» для {name}", { tab: t(currentTabDef.label), name: company.name_short || company.name_ru }) }}</p>
+            <p>{{ t("Раздел «{tab}» для {name}", { tab: t(currentTabDef.label), name: localizedCompanyName }) }}</p>
             <p class="cw-cta-note">
               {{ t("Полная функциональность доступна на глобальной странице.") }}<br>
               {{ t("Фильтрация по компании — в следующих сессиях.") }}
@@ -4416,7 +4424,7 @@ function onEditorClose() {
                 </div>
                 <div class="cw-ov-row-r">
                   <div class="cw-ov-row-days">+{{ r.daysOverdue }} {{ t("дн") }}</div>
-                  <div v-if="r.due_date" class="cw-ov-row-date">{{ t("срок") }} {{ new Date(r.due_date).toLocaleDateString("ru-RU") }}</div>
+                  <div v-if="r.due_date" class="cw-ov-row-date">{{ t("срок") }} {{ fmt.fmtDateNumeric(r.due_date) }}</div>
                   <button
                     type="button"
                     class="cw-ov-row-link"
@@ -4475,7 +4483,7 @@ function onEditorClose() {
                 <div class="cw-ov-row-r">
                   <div v-if="r.progress != null" class="cw-status-row-pct">{{ Math.round(r.progress) }}%</div>
                   <div v-if="r.isOverdue" class="cw-ov-row-days">{{ t("просрочено") }}</div>
-                  <div v-if="r.due_date" class="cw-ov-row-date">{{ t("срок") }} {{ new Date(r.due_date).toLocaleDateString("ru-RU") }}</div>
+                  <div v-if="r.due_date" class="cw-ov-row-date">{{ t("срок") }} {{ fmt.fmtDateNumeric(r.due_date) }}</div>
                   <span class="cw-ov-row-link" aria-hidden="true">→</span>
                 </div>
               </li>
@@ -4490,7 +4498,7 @@ function onEditorClose() {
     <BpEditor
       v-if="bpEditorOpen && company"
       :company-id="company.id"
-      :company-name="company.name_short || company.name_ru || ''"
+      :company-name="localizedCompanyName"
       :year="year"
       @close="bpEditorOpen = false"
       @saved="onBpEditorSaved"
@@ -4500,7 +4508,7 @@ function onEditorClose() {
     <KpiEditor
       v-if="kpiEditorOpen && company"
       :company-id="company.id"
-      :company-name="company.name_short || company.name_ru || ''"
+      :company-name="localizedCompanyName"
       :year="year"
       @close="kpiEditorOpen = false"
       @saved="onKpiEditorSaved"
@@ -4511,7 +4519,7 @@ function onEditorClose() {
     <GovernanceEditor
       v-if="govEditorOpen && company"
       :company-id="company.id"
-      :company-name="company.name_short || company.name_ru || ''"
+      :company-name="localizedCompanyName"
       :year="govShownYear || year"
       :data="govDetail?.data || null"
       :members="govMembers"
@@ -4533,7 +4541,7 @@ function onEditorClose() {
     <BoardMemberProfileModal
       :open="boardMemberModalOpen"
       :member="selectedBoardMember as any"
-      :company-name="company?.name_short || company?.name_ru || ''"
+      :company-name="localizedCompanyName"
       @close="boardMemberModalOpen = false"
     />
 
@@ -4541,7 +4549,7 @@ function onEditorClose() {
     <ESGEditor
       v-if="esgEditorOpen && company"
       :company-id="company.id"
-      :company-name="company.name_short || company.name_ru || ''"
+      :company-name="localizedCompanyName"
       :year="esgShownYear || year"
       :detail="esgDetail"
       :issues="esgIssues"

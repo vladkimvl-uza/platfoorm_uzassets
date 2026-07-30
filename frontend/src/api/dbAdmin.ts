@@ -1,6 +1,7 @@
 // DB Admin Console — API wrapper.
 // All endpoints под is_owner || is_admin gate в backend.
 import { api } from "./client";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 
 export interface ColumnInfo {
   name: string;
@@ -99,5 +100,5 @@ export function formatBytes(n: number | null | undefined): string {
 
 export function formatNumber(n: number | null | undefined): string {
   if (n === null || n === undefined) return "—";
-  return new Intl.NumberFormat("ru-RU").format(n);
+  return new Intl.NumberFormat(getCurrentIntlLocale()).format(n);
 }

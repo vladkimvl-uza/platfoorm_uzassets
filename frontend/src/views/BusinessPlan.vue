@@ -62,7 +62,7 @@
           :key="co.company_id"
           :value="co.company_id"
         >
-          {{ co.company_name_ru }}
+          {{ localizedCompanyName(co.company_name_ru, co.company_id) }}
         </option>
       </select>
       <button v-if="canCreateCompany" class="bp-co-add" @click="addCompanyOpen = true" :title="t('Добавить новую компанию')">
@@ -107,7 +107,7 @@
         :computed-data="state.computed.value"
         :attention="state.attention.value"
         :comment="state.comment.value"
-        :company-name="state.selectedCompany.value.company_name_ru"
+        :company-name="selectedCompanyName"
         :year="state.selectedYear.value"
         :period="state.selectedPeriod.value"
         :can-edit="canEdit"
@@ -142,7 +142,7 @@
     <BpEditor
       v-if="editorOpen && state.selectedCompany.value"
       :company-id="state.selectedCompany.value.company_id"
-      :company-name="state.selectedCompany.value.company_name_ru"
+      :company-name="selectedCompanyName"
       :year="state.selectedYear.value"
       :companies="state.companies.value"
       @switch-company="(id) => state.setCompany(id)"
@@ -204,6 +204,7 @@ import { useI18n } from "@/composables/useI18n";
 import { useCompanyScope } from "@/composables/useCompanyScope";
 import { useAiFeatureAccess } from "@/composables/useAiFeatureAccess";
 import type { CompanyDetail } from "@/api/companies";
+import { resolveCompanyDisplayName } from "@/utils/displayNames";
 
 const perm = usePermissions("bp");
 const canEdit = perm.canEdit;
@@ -217,6 +218,15 @@ const { confirmDialog } = useConfirm();
 const { t } = useI18n();
 
 const state = useBusinessPlanData();
+function localizedCompanyName(name: string | null | undefined, idOrCode?: string | null): string {
+  return resolveCompanyDisplayName(name, idOrCode);
+}
+const selectedCompanyName = computed(() => {
+  const company = state.selectedCompany.value;
+  return company
+    ? localizedCompanyName(company.company_name_ru, company.company_id)
+    : t("Выберите компанию");
+});
 // Область доступа: ограниченному пользователю портфельная «Сводка» не нужна.
 const scope = useCompanyScope();
 const menuOpen = ref(false);
@@ -313,7 +323,7 @@ const drill = ref<DrillSpec | null>(null);
 const headerTitle = computed(() =>
   state.viewMode.value === "summary"
     ? t("Сводка по портфелю")
-    : state.selectedCompany.value?.company_name_ru ?? t("Выберите компанию"),
+    : selectedCompanyName.value,
 );
 
 const headerSub = computed(() => {
@@ -350,7 +360,7 @@ async function confirmDelete() {
     useToast().info(t("Выберите компанию"));
     return;
   }
-  if (!(await confirmDialog({ message: t("Удалить весь бизнес-план {name} за {year}?", { name: state.selectedCompany.value.company_name_ru, year: state.selectedYear.value }), danger: true }))) return;
+  if (!(await confirmDialog({ message: t("Удалить весь бизнес-план {name} за {year}?", { name: selectedCompanyName.value, year: state.selectedYear.value }), danger: true }))) return;
   try {
     await bpApi.deleteYear(state.selectedCompany.value.company_id, state.selectedYear.value);
     await state.loadCompanies();
@@ -364,7 +374,7 @@ async function confirmDelete() {
 
 function onDrillCompany(id: string) {
   const co = state.companies.value.find((c) => c.company_id === id);
-  drill.value = { mode: "company", companyId: id, companyName: co?.company_name_ru };
+  drill.value = { mode: "company", companyId: id, companyName: localizedCompanyName(co?.company_name_ru, id) };
 }
 
 function onDrillKpi(metric: string) {

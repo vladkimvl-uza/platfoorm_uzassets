@@ -28,8 +28,9 @@ import {
 } from "@/api/procurement_analysis";
 import { useFormatters } from "@/composables/useFormatters";
 import { useI18n } from "@/composables/useI18n";
+import { resolveCompanyDisplayName } from "@/utils/displayNames";
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 
 // Pack 7.9r: renamed from `fmt` → `fmtUtil` to avoid shadowing by the
 // local `const fmt = props.fmt || "pct"` inside build() — shadowing made
@@ -90,7 +91,9 @@ function build() {
     hostRef.value.style.height = `${h}px`;
   }
 
-  const labels = rows.map((r) => r.company_name || r.company_code || "—");
+  const labels = rows.map((r) =>
+    resolveCompanyDisplayName(r.company_name || r.company_code, r.company_id || r.company_code) || "—",
+  );
   const values = rows.map((r) => {
     if (fmt === "rub") return Math.round(Number(r.sum_dev || 0) / 1e9);  // млрд сум, signed
     return Number(r.company_deviation || 0);
@@ -221,6 +224,7 @@ function build() {
 onMounted(build);
 onBeforeUnmount(destroy);
 watch(() => [props.data, props.fmt], build, { deep: true });
+watch(locale, build);
 </script>
 
 <style scoped>

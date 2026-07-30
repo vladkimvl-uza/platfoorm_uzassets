@@ -9,7 +9,7 @@
 import { ref, shallowRef, computed, watch } from "vue"
 import * as api from "@/api/creditScenario"
 import { i18nKey } from "@/locale/keys";
-import { t } from "@/locale/i18n";
+import { getCurrentIntlLocale, t } from "@/locale/i18n";
 
 
 
@@ -314,7 +314,7 @@ export function fmtPct(v: any, digits = 1): string {
 }
 export function fmtCount(v: any): string {
   const n = _num(v); if (n == null) return "—"
-  return Math.round(n).toLocaleString("ru-RU")
+  return Math.round(n).toLocaleString(getCurrentIntlLocale())
 }
 export function fmtRate(v: any): string {
   const n = _num(v); if (n == null) return "—"

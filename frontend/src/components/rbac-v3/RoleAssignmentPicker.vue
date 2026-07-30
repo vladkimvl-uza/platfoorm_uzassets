@@ -4,6 +4,7 @@ import type { RbacV3Role } from '@/api/rbacV3';
 import BIcon from '@/components/broadcasts/BIcon.vue';
 import RoleChip from './RoleChip.vue';
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 import { i18nKey } from "@/locale/keys";
 
 const { t } = useI18n();
@@ -99,7 +100,7 @@ const categories = computed(() => {
 });
 
 const filteredRoles = computed(() => {
-  const normalizedQuery = query.value.trim().toLocaleLowerCase('ru');
+  const normalizedQuery = query.value.trim().toLocaleLowerCase(getCurrentIntlLocale());
   return props.roles
     .filter((role) => {
       if (activeCategory.value === 'selected' && !props.modelValue.includes(role.code)) return false;
@@ -110,11 +111,11 @@ const filteredRoles = computed(() => {
       ) return false;
       if (!normalizedQuery) return true;
       return [role.name_ru, role.code, role.description_ru || '']
-        .some(value => value.toLocaleLowerCase('ru').includes(normalizedQuery));
+        .some(value => value.toLocaleLowerCase(getCurrentIntlLocale()).includes(normalizedQuery));
     })
     .sort((a, b) => {
       const selectedDelta = Number(props.modelValue.includes(b.code)) - Number(props.modelValue.includes(a.code));
-      return selectedDelta || a.sort_order - b.sort_order || a.name_ru.localeCompare(b.name_ru, 'ru');
+      return selectedDelta || a.sort_order - b.sort_order || a.name_ru.localeCompare(b.name_ru, getCurrentIntlLocale());
     });
 });
 

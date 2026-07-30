@@ -18,6 +18,7 @@ import { useProductionData } from "@/composables/useProductionData";
 import type { ProdCompany } from "@/api/production";
 import { execCol as pctCol, execZone as pctZone } from "@/utils/execBand";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 import { i18nKey } from "@/locale/keys";
 
 
@@ -84,7 +85,7 @@ const CHART_MODES = [
 // ─── formatting ───────────────────────────────────────────────
 function fmtMlrd(v: number | null | undefined): string {
   if (v == null || !isFinite(v)) return "—";
-  return Math.round(v).toLocaleString("ru", { maximumFractionDigits: 0 });
+  return Math.round(v).toLocaleString(getCurrentIntlLocale(), { maximumFractionDigits: 0 });
 }
 function fmtTrln(v: number | null | undefined): number {
   if (v == null || !isFinite(v)) return 0;
@@ -111,7 +112,7 @@ const sectorChips = computed(() => {
   }));
 });
 const companyOptions = computed(() =>
-  companies.value.slice().sort((a, b) => a.n.localeCompare(b.n, "ru")).map((c) => ({ value: c.k, label: c.n })));
+  companies.value.slice().sort((a, b) => a.n.localeCompare(b.n, getCurrentIntlLocale())).map((c) => ({ value: c.k, label: c.n })));
 
 const filtered = computed(() => {
   let list = companies.value;

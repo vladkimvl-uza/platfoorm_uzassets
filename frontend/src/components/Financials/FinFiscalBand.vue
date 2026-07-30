@@ -12,6 +12,7 @@ import { fmtSubsidySum } from "@/api/subsidies";
 import { ensureFinancialsCss } from "@/components/Financials/financialsHelpers";
 import Odometer from "@/components/Odometer.vue";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 
 const { t } = useI18n();
 
@@ -43,9 +44,9 @@ const spoFmt = computed(() => fmtSubsidySum(props.sponsorshipTotal ?? null));
 function fmtAmount(v: number | null | undefined): { text: string; unit: string } {
   if (v == null || !isFinite(v)) return { text: "—", unit: t("млрд сум") };
   if (Math.abs(v) >= 1000) {
-    return { text: (v / 1000).toLocaleString("ru", { maximumFractionDigits: 1 }), unit: t("трлн сум") };
+    return { text: (v / 1000).toLocaleString(getCurrentIntlLocale(), { maximumFractionDigits: 1 }), unit: t("трлн сум") };
   }
-  return { text: v.toLocaleString("ru", { maximumFractionDigits: 1 }), unit: t("млрд сум") };
+  return { text: v.toLocaleString(getCurrentIntlLocale(), { maximumFractionDigits: 1 }), unit: t("млрд сум") };
 }
 function fmtYoY(v: number | null | undefined): string {
   if (v == null || isNaN(v)) return "";

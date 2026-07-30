@@ -17,10 +17,13 @@ import MatrixEditor from "@/components/reporting/MatrixEditor.vue";
 import { usePermissions } from "@/composables/usePermissions";
 import { useCompanyScope } from "@/composables/useCompanyScope";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
+import { useFormatters } from "@/composables/useFormatters";
 import { i18nKey } from "@/locale/keys";
 
 
 const { t } = useI18n();
+const formatters = useFormatters();
 // Область доступа: при единственной компании чипы выбора компании не нужны.
 const scope = useCompanyScope();
 
@@ -38,7 +41,7 @@ const companyFilter = ref<string | null>(null);
 const allCompanies = computed(() => {
   const out: { id: string; name: string }[] = [];
   for (const s of (data.value?.sectors || [])) for (const c of s.companies) out.push({ id: c.id, name: c.name });
-  return out.sort((a, b) => a.name.localeCompare(b.name, "ru"));
+  return out.sort((a, b) => a.name.localeCompare(b.name, getCurrentIntlLocale()));
 });
 const viewSectors = computed(() => {
   const secs = data.value?.sectors || [];
@@ -159,16 +162,16 @@ const DL: Record<DeadlineState, { l: string; c: string }> = {
 };
 function fmtDue(s: string | null): string {
   if (!s) return "—";
-  return new Date(s).toLocaleDateString("ru-RU", { day: "2-digit", month: "short", year: "2-digit" });
+  return formatters.fmtDate(s);
 }
 // финпоказатели — компактный формат UZS (трлн/млрд/млн)
 function fmtFin(n: number | null): string {
   if (n == null) return "—";
   const a = Math.abs(n);
-  if (a >= 1e12) return t('{value0} трлн', { value0: (n / 1e12).toFixed(1) });
-  if (a >= 1e9) return t('{value0} млрд', { value0: (n / 1e9).toFixed(1) });
-  if (a >= 1e6) return t('{value0} млн', { value0: (n / 1e6).toFixed(1) });
-  return new Intl.NumberFormat("ru-RU").format(Math.round(n));
+  if (a >= 1e12) return t('{value0} трлн', { value0: formatters.fmtNumber(n / 1e12, { decimals: 1 }) });
+  if (a >= 1e9) return t('{value0} млрд', { value0: formatters.fmtNumber(n / 1e9, { decimals: 1 }) });
+  if (a >= 1e6) return t('{value0} млн', { value0: formatters.fmtNumber(n / 1e6, { decimals: 1 }) });
+  return formatters.fmtNumber(Math.round(n));
 }
 
 // БП за Q1: % выполнения (факт / план) и цветовой класс маркера
@@ -516,7 +519,7 @@ watch(data, (d) => {
         <EptLogo :size="30" />
         <div class="eo-tb-titles">
           <h1 class="eo-title">{{ t("Сводный обзор портфеля") }}</h1>
-          <div class="eo-sub">{{ t("Единая платформа трансформации") }}<template v-if="data"> · {{ t("на {d}", { d: new Date(data.as_of).toLocaleDateString("ru-RU") }) }}</template></div>
+          <div class="eo-sub">{{ t("Единая платформа трансформации") }}<template v-if="data"> · {{ t("на {d}", { d: formatters.fmtDateNumeric(data.as_of) }) }}</template></div>
         </div>
       </div>
       <div class="eo-tb-r">

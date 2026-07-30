@@ -8,11 +8,12 @@ import {
   type RbacV3Group,
   type RbacV3Role,
 } from '@/api/rbacV3';
-import { companiesApi, type SectorBrief } from '@/api/companies';
+import { companiesApi, type CompanyListItem, type SectorBrief } from '@/api/companies';
 import ModalShell from '@/components/ModalShell.vue';
 import BIcon from '@/components/broadcasts/BIcon.vue';
 import { useI18n } from '@/composables/useI18n';
 import { INTL_LOCALE } from '@/locale';
+import { companyDisplayName, sectorDisplayName } from '@/utils/displayNames';
 import RoleAssignmentPicker from './RoleAssignmentPicker.vue';
 
 const props = defineProps<{
@@ -53,7 +54,12 @@ const defaultCompanyRole = ref(props.prefill?.role_codes?.[0] || 'viewer');
 const allRoles = ref<RbacV3Role[]>([]);
 const companyGroups = ref<RbacV3Group[]>([]);
 const sectors = ref<SectorBrief[]>([]);
-const allCompanies = ref<{ id: string; name: string }[]>([]);
+const companyCatalog = ref<CompanyListItem[]>([]);
+const companyById = computed(() => new Map(companyCatalog.value.map(company => [company.id, company])));
+const allCompanies = computed(() => companyCatalog.value
+  .map(company => ({ id: company.id, name: companyDisplayName(company) || company.code }))
+  .filter(company => company.id)
+  .sort((a, b) => a.name.localeCompare(b.name, INTL_LOCALE[locale.value])));
 const companySearch = ref('');
 const loadingCatalogs = ref(true);
 const saving = ref(false);
@@ -85,14 +91,7 @@ onMounted(async () => {
     const items = (companies as any)?.items
       || (companies as any)?.companies
       || (Array.isArray(companies) ? companies : []);
-    allCompanies.value = (items || [])
-      .map((company: any) => ({
-        id: company.id,
-        name: company.name_ru || company.name || company.code,
-      }))
-      .filter((company: { id?: string }) => company.id)
-      .sort((a: { name: string }, b: { name: string }) =>
-        a.name.localeCompare(b.name, INTL_LOCALE[locale.value]));
+    companyCatalog.value = items || [];
   } catch (e: any) {
     error.value = e?.response?.data?.detail || t('Не удалось загрузить роли и области доступа');
   } finally {
@@ -107,10 +106,19 @@ const roleByCode = computed<Record<string, RbacV3Role>>(() => {
 });
 
 const selectedCompanyGroupIds = computed(() => Object.keys(companyRoleAssignments.value));
+const localizedCompanyGroups = computed(() => {
+  void locale.value;
+  return companyGroups.value.map(group => ({
+    ...group,
+    name: group.company_id
+      ? (companyDisplayName(companyById.value.get(group.company_id)) || group.name)
+      : group.name,
+  }));
+});
 const filteredCompanyGroups = computed(() => {
   const intlLocale = INTL_LOCALE[locale.value];
   const query = companySearch.value.trim().toLocaleLowerCase(intlLocale);
-  return companyGroups.value
+  return localizedCompanyGroups.value
     .filter(group => !query || `${group.name} ${group.code}`.toLocaleLowerCase(intlLocale).includes(query))
     .sort((a, b) => {
       const selectedDelta = Number(!!companyRoleAssignments.value[b.id]) - Number(!!companyRoleAssignments.value[a.id]);
@@ -160,6 +168,10 @@ const isDirty = computed(() => !!(
 
 function roleName(code: string): string {
   return roleByCode.value[code]?.name_ru || code;
+}
+
+function sectorName(sector: SectorBrief): string {
+  return sectorDisplayName(sector) || sector.code;
 }
 
 function formatCount(value: number): string {
@@ -619,7 +631,7 @@ function requestClose() {
             >
               <span class="iu-select-control"><BIcon v-if="selectedSectors.includes(sector.code)" name="check" :size="12" /></span>
               <span class="iu-sector-dot" :style="{ background: sector.color_hex || '#6257c8' }"></span>
-              {{ sector.name_ru }}
+              {{ sectorName(sector) }}
             </button>
             <div v-if="!loadingCatalogs && !sectors.length" class="iu-empty">{{ t('Секторы не найдены') }}</div>
           </div>

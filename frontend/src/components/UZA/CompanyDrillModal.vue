@@ -32,7 +32,9 @@ import { companiesApi, type CompanyDetail, type FinancialReportBrief, type Compa
 import EditableField from "@/components/UZA/EditableField.vue";
 import EntityDrillShell from "@/components/UZA/EntityDrillShell.vue";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 import { i18nKey } from "@/locale/keys";
+import { companyDisplayName, sectorDisplayName } from "@/utils/displayNames";
 
 const { t: tr } = useI18n();
 const t = tr;
@@ -83,13 +85,18 @@ const code = computed<string | null>(() => {
 const liteCompany = computed(() => companies.findById(props.companyId) || null);
 
 const displayName = computed(() => {
-  if (detail.value) return detail.value.name_short || detail.value.name_ru;
-  if (liteCompany.value) return liteCompany.value.name_short || liteCompany.value.name_ru;
+  if (detail.value) return companyDisplayName(detail.value);
+  if (liteCompany.value) return companyDisplayName(liteCompany.value);
   return props.initialName || "—";
 });
 
 const sectorChipColor = computed(() => props.sectorColor || liteCompany.value?.sector_color || "#7F77DD");
-const sectorChipLabel = computed(() => props.sectorLabel || liteCompany.value?.sector_name || "");
+const sectorChipLabel = computed(() => sectorDisplayName(detail.value?.sector || {
+  code: liteCompany.value?.sector_code,
+  name_ru: liteCompany.value?.sector_name,
+  name_uz: liteCompany.value?.sector_name_uz,
+  name_en: liteCompany.value?.sector_name_en,
+}) || props.sectorLabel || "");
 
 // Task math
 const taskInProgress = computed(() => {
@@ -178,12 +185,12 @@ const govScore = computed<number | null>(() => {
 // разделителями, единица «млрд сум» выводится в подписи под значением.
 function fmtMlrd(n: number | null | undefined): string {
   if (n == null || !Number.isFinite(n) || n === 0) return "—";
-  return Math.round(n).toLocaleString("ru-RU").replace(/,/g, " ");
+  return Math.round(n).toLocaleString(getCurrentIntlLocale());
 }
 
 function fmtInt(n: number | null | undefined): string {
   if (n == null) return "—";
-  return n.toLocaleString("ru-RU").replace(/,/g, " ");
+  return n.toLocaleString(getCurrentIntlLocale());
 }
 
 function normaliseWebsite(url: string): string {

@@ -31,6 +31,7 @@ import { RouterLink, useRoute } from "vue-router";
 import { useCompaniesStore } from "@/stores/companies";
 import { useNotificationsStore } from "@/stores/notifications";
 import { useI18n } from "@/composables/useI18n";
+import { companyDisplayName, sectorDisplayName } from "@/utils/displayNames";
 
 const { t } = useI18n();
 const route = useRoute();
@@ -147,7 +148,7 @@ onMounted(() => {
           class="sb-co-sec-header"
           :class="{ open: !!expandedSectors[group.sector.code] }"
           @click="toggleSector(group.sector.code)"
-          :title="group.sector.name_ru"
+          :title="sectorDisplayName(group.sector)"
         >
           <svg
             class="sb-co-sec-chev"
@@ -158,7 +159,7 @@ onMounted(() => {
             <polyline points="9 18 15 12 9 6" />
           </svg>
           <span class="sb-co-sec-dot" :style="`background: ${group.sector.color}`"></span>
-          <span class="sb-co-sec-name">{{ group.sector.name_ru }}</span>
+          <span class="sb-co-sec-name">{{ sectorDisplayName(group.sector) }}</span>
           <!-- Свёрнутый сектор: красный агрегат непрочитанного по его компаниям -->
           <span v-if="!expandedSectors[group.sector.code] && sectorBadge(group.companies)" class="sb-co-newbadge">{{ sectorBadge(group.companies) }}</span>
           <span class="sb-co-sec-count">{{ group.companies.length }}</span>
@@ -173,9 +174,9 @@ onMounted(() => {
             class="sb-co-item"
             :class="{ active: isActiveCompany(co.code) }"
             :style="`--sec-color: ${group.sector.color}`"
-            :title="co.name_ru"
+            :title="companyDisplayName(co)"
           >
-            <span class="sb-co-name">{{ co.name_short || co.name_ru }}</span>
+            <span class="sb-co-name">{{ companyDisplayName(co) }}</span>
             <span v-if="coBadge(co.id)" class="sb-co-newbadge">{{ coBadge(co.id) }}</span>
           </RouterLink>
         </div>

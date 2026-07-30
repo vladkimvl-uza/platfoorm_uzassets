@@ -12,7 +12,9 @@ import { esgApi, type ESGSwotResponse, type ESGSwotItemBrief, type ESGKpiBrief, 
 import { useToast } from "@/composables/useToast";
 import { useCompanyScope } from "@/composables/useCompanyScope";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 import { i18nKey } from "@/locale/keys";
+import { resolveCompanyDisplayName, resolveSectorDisplayName } from "@/utils/displayNames";
 
 const { t } = useI18n();
 
@@ -54,7 +56,7 @@ function kpiColor(pct: number | null): string {
   return "#E24B4A";
 }
 function fmtKpiNum(n: number | null): string {
-  return n == null ? "—" : n.toLocaleString("ru-RU", { maximumFractionDigits: 1 });
+  return n == null ? "—" : n.toLocaleString(getCurrentIntlLocale(), { maximumFractionDigits: 1 });
 }
 
 // ── ручное добавление ESG-KPI → пишется в модуль KPI (sync с /kpi) ──
@@ -118,7 +120,12 @@ const sectorGroups = computed(() => {
     let i = idx.get(key);
     if (i === undefined) {
       i = out.length; idx.set(key, i);
-      out.push({ key, name: c.sector_name || t("Прочее"), color: c.sector_color || "#94A3B8", companies: [] });
+      out.push({
+        key,
+        name: resolveSectorDisplayName(c.sector_name || c.sector_code, c.sector_code) || t("Прочее"),
+        color: c.sector_color || "#94A3B8",
+        companies: [],
+      });
     }
     out[i].companies.push(c);
   }
@@ -140,7 +147,13 @@ const tableRows = computed<SweRow[]>(() => {
   for (const g of sectorGroups.value) {
     rows.push({ type: "sector", label: g.name, color: g.color, count: g.companies.length });
     for (const c of g.companies) {
-      rows.push({ type: "company", label: c.company_name, scope: "company", cid: c.company_id, color: c.sector_color || g.color });
+      rows.push({
+        type: "company",
+        label: resolveCompanyDisplayName(c.company_name, c.company_id) || c.company_name,
+        scope: "company",
+        cid: c.company_id,
+        color: c.sector_color || g.color,
+      });
     }
   }
   return rows;
@@ -214,7 +227,7 @@ const kpiCompanies = computed(() =>
     <!-- Две панели «по типу KPI»: Сильные стороны (зелёная) · Проблемные зоны (красная) -->
     <div class="swe-grid2">
       <div v-for="kind in KINDS" :key="kind" class="swe-w">
-        <div class="swe-w-t" :style="{ color: KIND_AC[kind] }">{{ KIND_TITLE[kind] }}</div>
+        <div class="swe-w-t" :style="{ color: KIND_AC[kind] }">{{ t(KIND_TITLE[kind]) }}</div>
         <div class="swe-obj-list">
           <template v-for="(row, ri) in tableRows" :key="kind+':'+(row.type==='sector' ? 'sec:'+row.label : row.scope+':'+row.cid)">
             <!-- секторный разделитель -->

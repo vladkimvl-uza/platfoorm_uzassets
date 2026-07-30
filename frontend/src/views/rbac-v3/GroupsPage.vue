@@ -4,13 +4,14 @@ import ModalShell from '@/components/ModalShell.vue';
 import { groupsApi, rbacV3Api, rolesApi, permissionsApi, permissionsToLevels, levelsToPermissions, isGridManagedPermission } from '@/api/rbacV3';
 import type { RbacV3Group, RbacV3GroupDetail, RbacV3UserBrief, RbacV3Role, RbacV3GroupGrant, RbacV3Permission } from '@/api/rbacV3';
 import type { AccessLevel } from '@/composables/usePermissions';
-import { companiesApi } from '@/api/companies';
+import { companiesApi, type CompanyListItem } from '@/api/companies';
 import UserAvatar from '@/components/rbac-v3/UserAvatar.vue';
 import ModuleSelectGrid from '@/components/rbac-v3/ModuleSelectGrid.vue';
 import { useToast } from '@/composables/useToast';
 import { useConfirm } from '@/composables/useConfirm';
 import { useI18n } from '@/composables/useI18n';
 import { INTL_LOCALE } from '@/locale';
+import { companyDisplayName } from '@/utils/displayNames';
 
 const toast = useToast();
 const { confirmDialog } = useConfirm();
@@ -19,7 +20,10 @@ const { t, locale } = useI18n();
 // ─── Точечные правила (deny / срок / scope по компаниям) ────────
 interface AdvGrant { permission_code: string; grant_type: 'grant' | 'deny'; expires_at: string | null; scope_companies: string[]; }
 const allPerms = ref<RbacV3Permission[]>([]);
-const allCompanies = ref<{ code: string; name: string }[]>([]);
+const companyCatalog = ref<CompanyListItem[]>([]);
+const allCompanies = computed(() => companyCatalog.value
+  .map(company => ({ code: company.code, name: companyDisplayName(company) || company.code }))
+  .sort((a, b) => a.name.localeCompare(b.name, INTL_LOCALE[locale.value])));
 const advGrants = ref<AdvGrant[]>([]);
 
 const groups = ref<RbacV3Group[]>([]);
@@ -87,7 +91,7 @@ onMounted(async () => {
   try {
     const r = await companiesApi.list({ per_page: 500 } as any);
     const items = (r as any).items || (r as any).companies || (Array.isArray(r) ? r : []);
-    allCompanies.value = items.map((c: any) => ({ code: c.code, name: c.name_ru || c.name || c.code }));
+    companyCatalog.value = items;
   } catch { /* scope picker degrades to manual codes */ }
 });
 

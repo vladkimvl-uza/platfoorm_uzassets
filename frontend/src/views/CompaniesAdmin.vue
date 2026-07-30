@@ -14,6 +14,7 @@ import type {
   SectorCreatePayload,
 } from "@/api/companies";
 import { useI18n } from "@/composables/useI18n";
+import { companyDisplayName, resolveSectorDisplayName, sectorDisplayName } from "@/utils/displayNames";
 const { t } = useI18n();
 
 
@@ -453,7 +454,7 @@ async function submitDeleteSector() {
         <select v-model="filterSector" @change="loadCompanies"
                 class="px-3 py-2 text-sm rounded-uza-pill border border-slate-200 bg-white focus:border-uza-purple">
           <option value="">{{ t('Все сектора') }}</option>
-          <option v-for="s in sectors" :key="s.code" :value="s.code">{{ s.name_ru }}</option>
+          <option v-for="s in sectors" :key="s.code" :value="s.code">{{ sectorDisplayName(s) }}</option>
         </select>
         <select v-model="filterActive" @change="loadCompanies"
                 class="px-3 py-2 text-sm rounded-uza-pill border border-slate-200 bg-white focus:border-uza-purple">
@@ -481,7 +482,7 @@ async function submitDeleteSector() {
           <select v-model="companyForm.sector_code"
                   class="px-3 py-2 text-sm rounded-uza-pill border border-slate-200 bg-white focus:border-uza-purple">
             <option value="">{{ t('— выбрать сектор —') }}</option>
-            <option v-for="s in sectors" :key="s.code" :value="s.code">{{ s.name_ru }}</option>
+            <option v-for="s in sectors" :key="s.code" :value="s.code">{{ sectorDisplayName(s) }}</option>
           </select>
           <select v-model="companyForm.legal_form"
                   class="px-3 py-2 text-sm rounded-uza-pill border border-slate-200 bg-white focus:border-uza-purple">
@@ -526,7 +527,7 @@ async function submitDeleteSector() {
               </td>
               <td class="px-3 py-3">
                 <div style="display:flex;align-items:center;gap:8px;">
-                  <CompanyAvatar :name="c.name_short || c.code" :color="c.sector_color || '#888780'" :size="28" />
+                  <CompanyAvatar :name="companyDisplayName(c) || c.code" :color="c.sector_color || '#888780'" :size="28" />
                   <!-- Inline-редактирование названия -->
                   <div v-if="inline.code === c.code && inline.field === 'name'" style="display:flex;flex-direction:column;gap:4px;min-width:0;width:100%;">
                     <input :ref="el => focusInline(el)" v-model="inlineDraft.name_short" :placeholder="t('Короткое имя')"
@@ -542,7 +543,7 @@ async function submitDeleteSector() {
                   <div v-else style="min-width:0;" :class="canEditCompanies ? 'ca-editable' : ''"
                        :title="canEditCompanies ? t('Кликните для быстрого редактирования') : ''"
                        @click="startInline(c, 'name')">
-                    <div class="text-slate-900">{{ c.name_short || c.name_ru }}</div>
+                    <div class="text-slate-900">{{ companyDisplayName(c) }}</div>
                     <div class="text-xs text-slate-500">{{ c.name_ru }}</div>
                   </div>
                 </div>
@@ -551,12 +552,12 @@ async function submitDeleteSector() {
                 <select v-if="inline.code === c.code && inline.field === 'sector'" :ref="el => focusInline(el)"
                         v-model="inlineDraft.sector_code" class="ca-iedit"
                         @change="saveInline(c)" @blur="cancelInline">
-                  <option v-for="s in sectors" :key="s.code" :value="s.code">{{ s.name_ru }}</option>
+                  <option v-for="s in sectors" :key="s.code" :value="s.code">{{ sectorDisplayName(s) }}</option>
                 </select>
                 <span v-else :class="canEditCompanies ? 'ca-editable' : ''"
                       :title="canEditCompanies ? t('Кликните, чтобы сменить сектор') : ''"
                       @click="canEditCompanies && startInline(c, 'sector')">
-                  <SectorChip v-if="c.sector_name" :name="c.sector_name" :color="c.sector_color" />
+                  <SectorChip v-if="c.sector_name" :name="resolveSectorDisplayName(c.sector_name, c.sector_code)" :color="c.sector_color" />
                   <span v-else class="text-slate-300 text-xs">—</span>
                 </span>
               </td>
@@ -619,7 +620,7 @@ async function submitDeleteSector() {
             <tr v-for="s in sectors" :key="s.id" class="hover:bg-slate-50/80">
               <td class="px-4 py-3"><code class="text-xs text-slate-500">{{ s.code }}</code></td>
               <td class="px-3 py-3">
-                <SectorChip :name="s.name_ru" :color="s.color_hex" />
+                <SectorChip :name="sectorDisplayName(s)" :color="s.color_hex" />
               </td>
               <td class="px-3 py-3 text-xs text-slate-600">{{ s.name_uz || "—" }}</td>
               <td class="px-3 py-3 text-xs text-slate-600">{{ s.name_en || "—" }}</td>
@@ -669,7 +670,7 @@ async function submitDeleteSector() {
               <select v-model="companyForm.sector_code"
                       class="w-full px-3 py-2 text-sm rounded-uza-pill border border-slate-200 bg-white focus:border-uza-purple">
                 <option value="">{{ t('— не указан —') }}</option>
-                <option v-for="s in sectors" :key="s.code" :value="s.code">{{ s.name_ru }}</option>
+                <option v-for="s in sectors" :key="s.code" :value="s.code">{{ sectorDisplayName(s) }}</option>
               </select>
             </div>
           </div>

@@ -9,7 +9,9 @@ import { useToast } from "@/composables/useToast";
 import type { CompanyListItem, SectorBrief } from "@/api/companies";
 import { ifrsReportHistoryApi, type IfrsHistoryLastChange } from "@/api/ifrsReportHistory";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 import { i18nKey } from "@/locale/keys";
+import { companyDisplayName, resolveSectorDisplayName, sectorDisplayName } from "@/utils/displayNames";
 
 const { t } = useI18n();
 
@@ -129,7 +131,15 @@ const grouped = computed(() => {
     const key = String(c.sector_code || "—").toLowerCase();
     let g = map.get(key);
     if (!g) {
-      g = { code: key, name: c.sector_name || t("Без сектора"), color: c.sector_color || "#94A3B8", companies: [] };
+      const sector = props.sectors.find(item => String(item.code).toLowerCase() === key);
+      g = {
+        code: key,
+        name: sectorDisplayName(sector)
+          || resolveSectorDisplayName(c.sector_name, c.sector_code)
+          || t("Без сектора"),
+        color: c.sector_color || "#94A3B8",
+        companies: [],
+      };
       map.set(key, g);
     }
     g.companies.push(c);
@@ -169,7 +179,7 @@ function fmtDT(d: string | null): string {
   if (!d) return "";
   const dt = new Date(d);
   if (isNaN(dt.getTime())) return d;
-  return dt.toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  return dt.toLocaleString(getCurrentIntlLocale(), { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 function cellTip(cid: string, y: number): string {
   const c = cell(cid, y);
@@ -296,7 +306,7 @@ const filledCount = computed(() => {
               </td>
             </tr>
             <tr v-for="c in g.companies" :key="c.id" class="ih-row">
-              <td class="ih-co">{{ c.name_short || c.name_ru || c.code }}</td>
+              <td class="ih-co">{{ companyDisplayName(c) || c.code }}</td>
               <td
                 v-for="y in years"
                 :key="y"

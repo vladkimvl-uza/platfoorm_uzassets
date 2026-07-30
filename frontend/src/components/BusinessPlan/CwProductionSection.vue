@@ -16,6 +16,7 @@ import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import ProductionEditModal from "@/components/BusinessPlan/ProductionEditModal.vue";
 import { execCol as pctCol, execZone as pctZone } from "@/utils/execBand";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 import { i18nKey } from "@/locale/keys";
 
 
@@ -78,12 +79,12 @@ watch(period, (n, o) => { if (n !== o) load(); });
 // ─── formatting + zones (1:1 с ProductionDrillModal) ──────────
 function fmtM(v: number | null | undefined): string {
   if (v == null || !isFinite(v)) return "—";
-  return Math.round(v).toLocaleString("ru", { maximumFractionDigits: 0 });
+  return Math.round(v).toLocaleString(getCurrentIntlLocale(), { maximumFractionDigits: 0 });
 }
 function fmtN(v: number | null | undefined): string {
   if (v == null || !isFinite(v)) return "—";
   const abs = Math.abs(v);
-  return v.toLocaleString("ru", { maximumFractionDigits: abs >= 1000 ? 0 : abs >= 10 ? 1 : 2 });
+  return v.toLocaleString(getCurrentIntlLocale(), { maximumFractionDigits: abs >= 1000 ? 0 : abs >= 10 ? 1 : 2 });
 }
 // P0 аудита: пороги исполнения — единый канон execBand (80/50, >110), импортом
 // pctCol/pctZone. Раньше инлайн 90/75 с врущим комментарием «mirror forensic».

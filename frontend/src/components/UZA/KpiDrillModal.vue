@@ -31,6 +31,7 @@ import { useCompaniesStore } from "@/stores/companies";
 import { tasksApi } from "@/api/tasks";
 import { projectsApi } from "@/api/projects";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 import { i18nKey } from "@/locale/keys";
 
 const { t: tr } = useI18n();
@@ -477,7 +478,7 @@ function fmtDate(iso: string | null): string {
   if (!iso) return "—";
   try {
     const d = new Date(iso);
-    return d.toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
+    return d.toLocaleDateString(getCurrentIntlLocale(), { day: "numeric", month: "short" });
   } catch {
     return "—";
   }

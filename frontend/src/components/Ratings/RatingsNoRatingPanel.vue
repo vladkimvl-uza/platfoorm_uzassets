@@ -12,6 +12,7 @@ import {
   coSector, sectorColor,
 } from "./ratingsHelpers";
 import { useI18n } from "@/composables/useI18n";
+import { companyDisplayName } from "@/utils/displayNames";
 const { t } = useI18n();
 
 
@@ -69,7 +70,7 @@ const noEsg = computed(() =>
                :title="t('Добавить рейтинг Fitch')"
                @click="emit('add', co.id, 'Fitch')">
             <div class="rno-stripe" :style="{ background: colorOf(co) }" />
-            <span class="rno-name">{{ co.name_short || co.name_ru }}</span>
+            <span class="rno-name">{{ companyDisplayName(co) }}</span>
           </div>
           <div v-if="!noCredit.length" class="rno-empty">{{ t('— все покрыты') }}</div>
         </div>
@@ -88,7 +89,7 @@ const noEsg = computed(() =>
                :title="t('Добавить ESG рейтинг')"
                @click="emit('add', co.id, 'Sustainable Fitch')">
             <div class="rno-stripe" :style="{ background: colorOf(co) }" />
-            <span class="rno-name">{{ co.name_short || co.name_ru }}</span>
+            <span class="rno-name">{{ companyDisplayName(co) }}</span>
           </div>
           <div v-if="!noEsg.length" class="rno-empty">{{ t('— все покрыты') }}</div>
         </div>

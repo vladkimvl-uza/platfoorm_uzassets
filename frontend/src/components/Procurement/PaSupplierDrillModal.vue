@@ -21,9 +21,15 @@ import {
 import { useFormatters } from "@/composables/useFormatters";
 import PaModalShell from "./PaModalShell.vue";
 import { useI18n } from "@/composables/useI18n";
+import { resolveCompanyDisplayName } from "@/utils/displayNames";
 
 const { t } = useI18n();
 const fmt = useFormatters();
+const companyName = (company: CompanyRatingRow | ClosureRow | undefined) =>
+  resolveCompanyDisplayName(
+    company?.company_name,
+    company?.company_id || (company as CompanyRatingRow | undefined)?.company_code,
+  ) || "—";
 
 const props = defineProps<{
   /** Normalized supplier key (from PaSupplierAudit.normalize()) — used to
@@ -117,7 +123,7 @@ const buyersMap = computed(() => {
       const co = props.companies.find(c => c.company_id === p.company_id);
       s = {
         companyId: p.company_id,
-        name: co?.company_name || "—",
+        name: companyName(co || p),
         color: co?.company_color || null,
         sumSpend: 0, sumRef: 0, sumOverpay: 0, closures: 0,
       };
@@ -333,7 +339,7 @@ const accentColor = computed(() => {
               {{ p.category_name }}
             </td>
             <td class="left">
-              {{ companies.find(c => c.company_id === p.company_id)?.company_name || '—' }}
+              {{ companyName(companies.find(c => c.company_id === p.company_id) || p) }}
             </td>
             <td class="right">{{ paFmtMoney(p.unit_price) }}</td>
             <td class="right neu">{{ paFmtMoney(p.market_avg) }}</td>

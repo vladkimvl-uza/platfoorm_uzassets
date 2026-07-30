@@ -7,6 +7,7 @@ import { ref, computed, watch, onMounted } from "vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import { pmoApi, type RaidItem, type RaidPayload, type RaidKind, type RaidSeverity, type RaidStatus } from "@/api/pmo";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 import { i18nKey } from "@/locale/keys";
 
 const { t } = useI18n();
@@ -140,7 +141,7 @@ async function removeItem(it: RaidItem) {
   catch (e: any) { error.value = e?.response?.data?.detail || t('Не удалось удалить'); }
 }
 
-const fmtDue = (s: string | null) => s ? new Date(s + "T00:00:00").toLocaleDateString("ru-RU", { day: "numeric", month: "short" }) : "—";
+const fmtDue = (s: string | null) => s ? new Date(s + "T00:00:00").toLocaleDateString(getCurrentIntlLocale(), { day: "numeric", month: "short" }) : "—";
 </script>
 
 <template>
@@ -151,7 +152,7 @@ const fmtDue = (s: string | null) => s ? new Date(s + "T00:00:00").toLocaleDateS
     <div class="pr-bar">
       <div class="pr-chips">
         <button class="pr-chip" :class="{ on: kindFilter === '' }" @click="kindFilter = ''">{{ t('Все типы') }}</button>
-        <button v-for="k in KINDS" :key="k.v" class="pr-chip" :class="{ on: kindFilter === k.v }" @click="kindFilter = k.v">{{ k.l }}</button>
+        <button v-for="k in KINDS" :key="k.v" class="pr-chip" :class="{ on: kindFilter === k.v }" @click="kindFilter = k.v">{{ t(k.l) }}</button>
       </div>
       <div class="pr-pol-seg">
         <button class="pr-pol" :class="{ on: polarityFilter === '' }" @click="polarityFilter = ''">{{ t('Все') }}</button>
@@ -206,19 +207,19 @@ const fmtDue = (s: string | null) => s ? new Date(s + "T00:00:00").toLocaleDateS
             <tbody>
               <tr v-for="(it, idx) in filtered" :key="it.id" class="pr-row" :style="{ animationDelay: Math.min(idx * 0.03, 0.4) + 's' }">
                 <td>
-                  <span class="pr-pol-dot" :title="POL_M[it.polarity || 'threat']?.l" :style="{ background: POL_M[it.polarity || 'threat']?.c }"></span>
-                  <span class="pr-kind">{{ KIND_L[it.kind] }}</span>
+                  <span class="pr-pol-dot" :title="t(POL_M[it.polarity || 'threat']?.l || '')" :style="{ background: POL_M[it.polarity || 'threat']?.c }"></span>
+                  <span class="pr-kind">{{ t(KIND_L[it.kind]) }}</span>
                 </td>
                 <td>
                   <div class="pr-title">{{ it.title }}</div>
-                  <div v-if="it.response_strategy" class="pr-resp">{{ t('Реакция:') }} {{ RESP_L[it.response_strategy] || it.response_strategy }}</div>
+                  <div v-if="it.response_strategy" class="pr-resp">{{ t('Реакция:') }} {{ t(RESP_L[it.response_strategy] || it.response_strategy) }}</div>
                   <div v-if="it.mitigation" class="pr-mit">↳ {{ it.mitigation }}</div>
                 </td>
                 <td>{{ it.owner_name || "—" }}</td>
-                <td><span class="pr-sev" :style="{ color: SEV_M[it.severity]?.c }">{{ SEV_M[it.severity]?.l }}</span></td>
+                <td><span class="pr-sev" :style="{ color: SEV_M[it.severity]?.c }">{{ t(SEV_M[it.severity]?.l || '') }}</span></td>
                 <td style="text-align:center" class="is-mono">{{ it.probability }}×{{ it.impact }}</td>
                 <td style="text-align:center"><span class="pr-score" :style="{ background: scoreColor(it.score) }">{{ it.score }}</span></td>
-                <td><span class="pr-stat" :style="{ color: STAT_M[it.status]?.c }">{{ STAT_M[it.status]?.l }}</span></td>
+                <td><span class="pr-stat" :style="{ color: STAT_M[it.status]?.c }">{{ t(STAT_M[it.status]?.l || '') }}</span></td>
                 <td class="is-mono">{{ fmtDue(it.due_date) }}</td>
                 <td style="text-align:right">
                   <button v-if="canEdit" class="pr-ia" :title="t('Править')" @click="openEdit(it)">
@@ -242,7 +243,7 @@ const fmtDue = (s: string | null) => s ? new Date(s + "T00:00:00").toLocaleDateS
         <div class="pr-modal-b">
           <div class="pr-f2">
             <div class="pr-f"><label>{{ t('Тип') }}</label>
-              <select v-model="form.kind"><option v-for="k in KINDS" :key="k.v" :value="k.v">{{ k.l }}</option></select>
+              <select v-model="form.kind"><option v-for="k in KINDS" :key="k.v" :value="k.v">{{ t(k.l) }}</option></select>
             </div>
             <div class="pr-f"><label>{{ t('Полярность') }}</label>
               <div class="pr-pol-toggle">
@@ -256,7 +257,7 @@ const fmtDue = (s: string | null) => s ? new Date(s + "T00:00:00").toLocaleDateS
           <div class="pr-f2">
             <div class="pr-f"><label>{{ t('Владелец') }}</label><input v-model="form.owner_name" :placeholder="t('Имя')" /></div>
             <div class="pr-f"><label>{{ t('Серьёзность') }}</label>
-              <select v-model="form.severity"><option v-for="s in SEVERITIES" :key="s.v" :value="s.v">{{ s.l }}</option></select>
+              <select v-model="form.severity"><option v-for="s in SEVERITIES" :key="s.v" :value="s.v">{{ t(s.l) }}</option></select>
             </div>
           </div>
           <div class="pr-f2">
@@ -265,14 +266,14 @@ const fmtDue = (s: string | null) => s ? new Date(s + "T00:00:00").toLocaleDateS
           </div>
           <div class="pr-f2">
             <div class="pr-f"><label>{{ t('Статус') }}</label>
-              <select v-model="form.status"><option v-for="s in STATUSES" :key="s.v" :value="s.v">{{ s.l }}</option></select>
+              <select v-model="form.status"><option v-for="s in STATUSES" :key="s.v" :value="s.v">{{ t(s.l) }}</option></select>
             </div>
             <div class="pr-f"><label>{{ t('Срок') }}</label><input type="date" v-model="form.due_date" /></div>
           </div>
           <div class="pr-f"><label>{{ t('Стратегия реагирования (') }}{{ form.polarity === 'opportunity' ? t('возможность') : t('угроза') }})</label>
             <select v-model="form.response_strategy">
               <option :value="null">{{ t('— Не выбрана') }}</option>
-              <option v-for="r in respOptions" :key="r.v" :value="r.v">{{ r.l }}</option>
+              <option v-for="r in respOptions" :key="r.v" :value="r.v">{{ t(r.l) }}</option>
             </select>
           </div>
           <div class="pr-f"><label>{{ form.polarity === 'opportunity' ? t('План реализации') : t('Митигировка / план') }}</label><textarea v-model="form.mitigation" rows="2"></textarea></div>

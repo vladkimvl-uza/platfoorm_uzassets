@@ -13,6 +13,8 @@ import { api } from "@/api/client";
 import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
+import { useFormatters } from "@/composables/useFormatters";
 import { useCompanyScope } from "@/composables/useCompanyScope";
 import { useAiFeatureAccess } from "@/composables/useAiFeatureAccess";
 import EptLogo from "@/components/EptLogo.vue";
@@ -35,6 +37,7 @@ interface TrailItem { ts: string; actor: string; action: string; field: string |
 const toast = useToast();
 const { confirmDialog } = useConfirm();
 const { t } = useI18n();
+const formatters = useFormatters();
 // Область доступа: при единственной компании селектор компаний в «Динамике» не нужен.
 const scope = useCompanyScope();
 const { canUseAi } = useAiFeatureAccess();
@@ -146,7 +149,7 @@ const PROG = "#7C6FF7";
 function progColor(_v?: number | null): string { return PROG; }
 function fmtDate(s: string | undefined): string {
   if (!s) return "—"; if (s === "Сейчас") return t("Сейчас"); // i18n-exempt: canonical API snapshot label
-  return new Date(s).toLocaleString("ru-RU", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+  return formatters.fmtDateTime(s);
 }
 const cur = computed(() => digest.value?.current);
 const cmp = computed(() => digest.value?.comparison);
@@ -178,7 +181,7 @@ const riskCount = computed(() => (cur.value?.companies || []).filter(isRisk).len
 const coSort = ref<"worst" | "best" | "name">("worst");
 const sortedCompanies = computed(() => {
   const arr = [...(cur.value?.companies || [])];
-  if (coSort.value === "name") return arr.sort((a, b) => a.name.localeCompare(b.name, "ru"));
+  if (coSort.value === "name") return arr.sort((a, b) => a.name.localeCompare(b.name, getCurrentIntlLocale()));
   return arr.sort((a, b) => {
     const sa = a.oblig == null ? 1000 : a.oblig;
     const sb = b.oblig == null ? 1000 : b.oblig;

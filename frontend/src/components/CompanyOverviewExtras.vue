@@ -29,6 +29,7 @@ import { useDirectionsStore } from "@/stores/directions";
 import ModalShell from "@/components/ModalShell.vue";
 import { useI18n } from "@/composables/useI18n";
 import { i18nKey } from "@/locale/keys";
+import { resolveCompanyDisplayName } from "@/utils/displayNames";
 
 const { t: tr } = useI18n();
 
@@ -745,7 +746,7 @@ async function loadSector() {
     if (rankItems.length > 0) {
       sectorRanking.value = rankItems.map((it: any) => ({
         code: String(it.code || ""),
-        name: String(it.name || it.code || ""),
+        name: resolveCompanyDisplayName(String(it.name || it.code || ""), String(it.code || "")),
         score: _num(it.progress_pct),
         grade: "",
         isMine: !!it.is_mine,
@@ -790,7 +791,7 @@ async function loadSector() {
     sectorRanking.value = sectorMatches
       .map((c: any) => ({
         code: c.code,
-        name: c.name_short || c.name_ru || c.code,
+        name: resolveCompanyDisplayName(c.name_short || c.name_ru || c.code, c.id || c.code),
         score: progressByCode.get(String(c.code || "").toLowerCase()) ?? 0,
         grade: "",
         isMine: c.id === props.companyId,
@@ -955,6 +956,8 @@ function activityActionLabel(it: ActivityRow): string {
   };
   const action = it.action || "";
 
+  if (action === "status_update.created") return tr(i18nKey("обновил(а) ход"));
+
   // task_history field updates → "изменил <field-label>"
   if (action === "field_updated") {
     const f = it.field || "";
@@ -979,6 +982,34 @@ function activityActionLabel(it: ActivityRow): string {
     if (VERB_MAP[verb]) return tr(verbRu);
   }
   return action || "—";
+}
+
+function statusUpdateEntityLabel(it: ActivityRow): string {
+  const explicit = String(it.entity_label || "").trim();
+  if (explicit) return explicit;
+  const raw = String(it.detail || it.notes || it.title || "").trim();
+  return raw.match(/«([^»]+)»/)?.[1]?.trim() || "";
+}
+
+function activityTargetLabel(it: ActivityRow): string {
+  if (it.action === "status_update.created") return statusUpdateEntityLabel(it);
+  return String(it.entity_label || it.title || "").trim();
+}
+
+function activityDisplayTitle(it: ActivityRow): string {
+  if (it.action === "status_update.created") {
+    const entity = statusUpdateEntityLabel(it);
+    return entity
+      ? tr("обновил(а) ход «{entity}»", { entity })
+      : tr("обновил(а) ход");
+  }
+  return it.title || tr(activityActionLabel(it));
+}
+
+function activityDetailText(it: ActivityRow): string {
+  const raw = String(it.detail || it.notes || "").trim();
+  if (it.action !== "status_update.created" || !raw) return raw;
+  return raw.replace(/^обновил\s+ход\s+(?:проекта|задачи)\s+«[^»]*»:\s*/iu, "").trim(); // i18n-exempt: legacy event parser, never rendered
 }
 
 function activityActionColor(it: ActivityRow): string {
@@ -1601,8 +1632,8 @@ watch(
               </svg>
             </span>
             <span class="cox-activity-body">
-              <span class="cox-activity-title" :title="a.title || tr(activityActionLabel(a))">
-                {{ a.title || tr(activityActionLabel(a)) }}
+              <span class="cox-activity-title" :title="activityDisplayTitle(a)">
+                {{ activityDisplayTitle(a) }}
               </span>
               <span class="cox-activity-meta">
                 <!-- КТО: имя автора первым — раньше строка начиналась с типа
@@ -1642,7 +1673,7 @@ watch(
                 <div class="cox-act-full-line1">
                   <span class="cox-act-full-actor">{{ it.actor }}</span>
                   <span class="cox-act-full-action">{{ tr(activityActionLabel(it)) }}</span>
-                  <span v-if="it.title" class="cox-act-full-target" :title="it.title">{{ it.title }}</span>
+                  <span v-if="activityTargetLabel(it)" class="cox-act-full-target" :title="activityTargetLabel(it)">{{ activityTargetLabel(it) }}</span>
                 </div>
                 <div class="cox-act-full-line2">
                   <span class="cox-act-full-ts">{{ fmtTimeAgo(it.ts) }}</span>
@@ -1667,10 +1698,10 @@ watch(
           <span class="cox-actd-chip">{{ tr(activityActionLabel(activityDetail)) }}</span>
           <span class="cox-actd-ts">{{ fmtTimeAgo(activityDetail.ts) }}</span>
         </div>
-        <div class="cox-actd-entity">{{ activityDetail.title || activityDetail.entity_label || '—' }}</div>
+        <div class="cox-actd-entity">{{ activityTargetLabel(activityDetail) || '—' }}</div>
         <!-- Что именно: полный текст события (текст комментария, суть правки) -->
-        <div v-if="activityDetail.detail || activityDetail.notes" class="cox-actd-text">
-          {{ activityDetail.detail || activityDetail.notes }}
+        <div v-if="activityDetailText(activityDetail)" class="cox-actd-text">
+          {{ activityDetailText(activityDetail) }}
         </div>
         <div v-else-if="shortDiff(activityDetail)" class="cox-actd-text">{{ shortDiff(activityDetail) }}</div>
         <div class="cox-actd-meta">

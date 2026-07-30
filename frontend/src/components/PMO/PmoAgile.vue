@@ -16,6 +16,7 @@ import {
   type AgileResponse, type AgileTask, type Sprint, type SprintPayload, type SprintStatus,
 } from "@/api/pmo";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 import { i18nKey } from "@/locale/keys";
 
 const { t: tr } = useI18n();
@@ -200,7 +201,7 @@ async function sprintRemove(s: Sprint) {
   catch (e: any) { toast.error(tr('Не удалось удалить')); }
 }
 
-const fmtDate = (s: string | null) => s ? new Date(s).toLocaleDateString("ru-RU", { day: "numeric", month: "short" }) : "—";
+const fmtDate = (s: string | null) => s ? new Date(s).toLocaleDateString(getCurrentIntlLocale(), { day: "numeric", month: "short" }) : "—";
 </script>
 
 <template>
@@ -232,7 +233,7 @@ const fmtDate = (s: string | null) => s ? new Date(s).toLocaleDateString("ru-RU"
           class="ag-fchip" :class="{ on: filterPriority === k }"
           :style="filterPriority === k ? { color: p.c, background: p.c + '1a', borderColor: p.c + '66' } : {}"
           @click="filterPriority = filterPriority === k ? null : k"
-        ><span class="ag-flag" :style="{ background: p.c }"></span>{{ p.l }}</button>
+        ><span class="ag-flag" :style="{ background: p.c }"></span>{{ tr(p.l) }}</button>
 
         <span class="ag-fdiv"></span>
         <button v-if="myId" class="ag-fchip" :class="{ on: onlyMine }" @click="onlyMine = !onlyMine">{{ tr('Только мои') }}</button>
@@ -250,7 +251,7 @@ const fmtDate = (s: string | null) => s ? new Date(s).toLocaleDateString("ru-RU"
         <UzaStateBlock v-if="!backlog.length" state="empty" variant="block" :title="tr('Бэклог пуст')" :text="t('Сюда попадают открытые задачи без спринта. Создайте задачи в разделе «Задачи» или снимите задачи со спринта.')" />
         <div v-else class="ag-list">
           <div v-for="(t, i) in backlog" :key="t.id" class="ag-bli" :style="{ animationDelay: Math.min(i*0.02, 0.3)+'s' }">
-            <span class="ag-pflag" :style="{ background: pri(t).c }" :title="tr('Приоритет: {value0}', { value0: pri(t).l })"></span>
+            <span class="ag-pflag" :style="{ background: pri(t).c }" :title="tr('Приоритет: {value0}', { value0: tr(pri(t).l) })"></span>
             <div class="ag-bli-main">
               <div class="ag-bli-title">{{ t.title }}</div>
               <div class="ag-bli-meta">
@@ -278,7 +279,7 @@ const fmtDate = (s: string | null) => s ? new Date(s).toLocaleDateString("ru-RU"
           <div class="ag-sh-main">
             <div class="ag-sh-top">
               <span class="ag-sh-name">{{ currentSprint.name }}</span>
-              <span class="ag-sh-status" :style="{ color: SP_STATUS[currentSprint.status].c, background: SP_STATUS[currentSprint.status].c + '1a' }">{{ SP_STATUS[currentSprint.status].l }}</span>
+              <span class="ag-sh-status" :style="{ color: SP_STATUS[currentSprint.status].c, background: SP_STATUS[currentSprint.status].c + '1a' }">{{ tr(SP_STATUS[currentSprint.status].l) }}</span>
               <span class="ag-sh-dates">{{ fmtDate(currentSprint.start_date) }} — {{ fmtDate(currentSprint.end_date) }}</span>
             </div>
             <div v-if="currentSprint.goal" class="ag-sh-goal">{{ currentSprint.goal }}</div>
@@ -312,7 +313,7 @@ const fmtDate = (s: string | null) => s ? new Date(s).toLocaleDateString("ru-RU"
                 :draggable="canEdit" @dragstart="onDragStart(t)" @dragend="onDragEnd"
               >
                 <div v-if="t.priority !== 'medium' || t.tags.length" class="ag-card-tags">
-                  <span v-if="t.priority !== 'medium'" class="ag-pchip" :style="{ color: pri(t).c, background: pri(t).c + '1a' }"><span class="ag-flag" :style="{ background: pri(t).c }"></span>{{ pri(t).l }}</span>
+                  <span v-if="t.priority !== 'medium'" class="ag-pchip" :style="{ color: pri(t).c, background: pri(t).c + '1a' }"><span class="ag-flag" :style="{ background: pri(t).c }"></span>{{ tr(pri(t).l) }}</span>
                   <span v-for="tag in t.tags.slice(0, 3)" :key="tag" class="ag-tag">{{ tag }}</span>
                 </div>
                 <div class="ag-card-title">{{ t.title }}</div>

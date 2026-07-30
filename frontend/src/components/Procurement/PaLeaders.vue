@@ -20,8 +20,11 @@ import {
   type CompanyRatingRow,
 } from "@/api/procurement_analysis";
 import { useI18n } from "@/composables/useI18n";
+import { resolveCompanyDisplayName } from "@/utils/displayNames";
 
 const { t } = useI18n();
+const companyName = (company: CompanyRatingRow) =>
+  resolveCompanyDisplayName(company.company_name || company.company_code, company.company_id || company.company_code) || "—";
 
 const props = defineProps<{
   rating: CompanyRatingRow[];
@@ -89,7 +92,7 @@ const leaders = computed<LeaderRow[]>(() => {
     >
       <div class="pa-leader-h">
         <span class="pa-leader-rank">#{{ i + 1 }}</span>
-        <span class="pa-leader-nm">{{ l.co.company_name }}</span>
+        <span class="pa-leader-nm">{{ companyName(l.co) }}</span>
         <span class="pa-leader-v">−{{ paFmtMoneyShort(l.netEconomy) }}</span>
       </div>
       <div class="pa-leader-meta">

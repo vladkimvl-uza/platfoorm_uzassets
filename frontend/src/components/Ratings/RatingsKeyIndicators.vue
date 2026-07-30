@@ -15,6 +15,7 @@ import {
   coSector, sectorColor,
 } from "./ratingsHelpers";
 import { useI18n } from "@/composables/useI18n";
+import { companyDisplayName, sectorDisplayName } from "@/utils/displayNames";
 const { t } = useI18n();
 
 
@@ -34,7 +35,7 @@ const lowest = computed(() => {
     if (!r) continue;
     const rk = ratingRank(r.rating);
     if (rk >= 0 && rk < loRank) {
-      loRank = rk; loName = c.name_short || c.name_ru; loVal = r.rating || "";
+      loRank = rk; loName = companyDisplayName(c); loVal = r.rating || "";
     }
   }
   return loRank === 999 ? null : { name: loName, value: loVal };
@@ -48,7 +49,7 @@ const highest = computed(() => {
     if (!r) continue;
     const rk = ratingRank(r.rating);
     if (rk > hiRank) {
-      hiRank = rk; hiName = c.name_short || c.name_ru; hiVal = r.rating || "";
+      hiRank = rk; hiName = companyDisplayName(c); hiVal = r.rating || "";
     }
   }
   return hiRank === -1 ? null : { name: hiName, value: hiVal };
@@ -65,7 +66,7 @@ const weakSectors = computed(() => {
     ).length;
     const pct = Math.round((covered / cs.length) * 100);
     if (pct < 50) {
-      out.push({ name: sec.name_ru, pct, color: sectorColor(sec) });
+      out.push({ name: sectorDisplayName(sec), pct, color: sectorColor(sec) });
     }
   }
   // Worst first

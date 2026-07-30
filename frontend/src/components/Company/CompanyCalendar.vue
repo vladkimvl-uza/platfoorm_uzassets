@@ -9,12 +9,13 @@ import { ref, computed, onMounted, watch } from "vue";
 import { calendarApi, type CalendarEvent } from "@/api/calendar";
 import { notesApi, type Note } from "@/api/notes";
 import { watchesApi } from "@/api/watches";
-import { companiesApi } from "@/api/companies";
+import { companiesApi, type CompanyListItem } from "@/api/companies";
 import { useEntityEditor } from "@/composables/useEntityEditor";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
 import { useI18n } from "@/composables/useI18n";
 import { i18nKey } from "@/locale/keys";
+import { companyDisplayName, resolveCompanyDisplayName } from "@/utils/displayNames";
 import {
   getHolidays, holidayTitle, HOLIDAY_KIND_COLORS, HOLIDAY_KIND_LABELS,
   type UzHoliday,
@@ -264,13 +265,17 @@ const noteSaving = ref(false);
 const noteError = ref("");
 const noteDeletingId = ref<string | null>(null);
 // Глобальный режим: для новой заметки нужна компания → пикер из доступных юзеру.
-const noteCompanies = ref<{ id: string; name: string }[]>([]);
+const noteCompanyCatalog = ref<CompanyListItem[]>([]);
+const noteCompanies = computed(() => noteCompanyCatalog.value.map(company => ({
+  id: company.id,
+  name: companyDisplayName(company) || company.code,
+})));
 const noteCompanyId = ref<string>("");
 async function ensureNoteCompanies() {
   if (props.companyId || noteCompanies.value.length) return;
   try {
     const resp = await companiesApi.list({ limit: 200 } as any);
-    noteCompanies.value = (resp.items || []).map((c: any) => ({ id: c.id, name: c.name_short || c.name_ru || c.code }));
+    noteCompanyCatalog.value = resp.items || [];
   } catch { /* ignore */ }
 }
 function startAddNote() { noteEditId.value = null; noteAdding.value = true; noteBody.value = ""; noteError.value = ""; noteCompanyId.value = ""; ensureNoteCompanies(); }
@@ -342,7 +347,7 @@ function overdueDays(e: CalendarEvent): number {
         <!-- Фильтры -->
         <select v-model="fStatus" class="cal-fselect" :aria-label="t('Фильтр по статусу')">
           <option :value="null">{{ t('Все статусы') }}</option>
-          <option v-for="s in STATUS_OPTS" :key="s.v" :value="s.v">{{ s.l }}</option>
+          <option v-for="s in STATUS_OPTS" :key="s.v" :value="s.v">{{ t(s.l) }}</option>
         </select>
         <button class="cal-fchip" :class="{ on: fOverdue }" @click="fOverdue = !fOverdue">{{ t('Просроченные') }}</button>
         <button class="cal-fchip" :class="{ on: fWatched }" @click="fWatched = !fWatched">{{ t('Отслеживаемые') }}</button>
@@ -408,7 +413,7 @@ function overdueDays(e: CalendarEvent): number {
                       :title="e.title" @click="openEvent(e)">
                 <span class="cal-wev-bar"></span>
                 <span class="cal-wev-txt">{{ e.num ? e.num + ' ' : '' }}{{ e.title }}</span>
-                <span v-if="isGlobal && e.company_name" class="cal-wev-co">{{ e.company_name }}</span>
+                <span v-if="isGlobal && e.company_name" class="cal-wev-co">{{ resolveCompanyDisplayName(e.company_name, e.company_id) }}</span>
               </button>
               <div v-if="!(eventsByDay[d.key] || []).length" class="cal-wempty">—</div>
             </div>
@@ -427,7 +432,7 @@ function overdueDays(e: CalendarEvent): number {
             <span class="cal-ag-bar"></span>
             <div class="cal-ag-main">
               <div class="cal-ag-title"><span v-if="e.num" class="cal-ag-num">{{ e.num }}</span>{{ e.title }}</div>
-              <div class="cal-ag-meta">{{ e.entity_type === 'project' ? t('Проект') : t('Задача') }}<template v-if="isGlobal && e.company_name"> · {{ e.company_name }}</template></div>
+              <div class="cal-ag-meta">{{ e.entity_type === 'project' ? t('Проект') : t('Задача') }}<template v-if="isGlobal && e.company_name"> · {{ resolveCompanyDisplayName(e.company_name, e.company_id) }}</template></div>
             </div>
             <span v-if="evState(e) === 'overdue'" class="cal-ag-over">{{ t('просрочено') }} {{ overdueDays(e) }} {{ t('дн') }}</span>
           </button>
@@ -464,7 +469,7 @@ function overdueDays(e: CalendarEvent): number {
               <div class="cal-sp-main">
                 <div class="cal-sp-title"><span v-if="e.num" class="cal-sp-num">{{ e.num }}</span>{{ e.title }}</div>
                 <div class="cal-sp-meta">
-                  {{ e.entity_type === 'project' ? t('Проект') : t('Задача') }}<template v-if="isGlobal && e.company_name"> · {{ e.company_name }}</template>
+                  {{ e.entity_type === 'project' ? t('Проект') : t('Задача') }}<template v-if="isGlobal && e.company_name"> · {{ resolveCompanyDisplayName(e.company_name, e.company_id) }}</template>
                   <span v-if="evState(e) === 'overdue'" class="cal-sp-od">{{ t('просрочено') }} {{ overdueDays(e) }} {{ t('дн') }}</span>
                 </div>
               </div>

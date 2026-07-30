@@ -14,7 +14,11 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import { companiesApi } from "@/api/companies";
-import { companyDisplayName, sectorDisplayName } from "@/utils/displayNames";
+import {
+  companyDisplayName,
+  registerDisplayNameCatalog,
+  sectorDisplayName,
+} from "@/utils/displayNames";
 import { usePortfolioYearStore } from "@/stores/portfolioYear";
 import { t } from "@/locale/i18n";
 
@@ -23,9 +27,13 @@ interface CompanyLite {
   id: string;
   code: string;
   name_ru: string;
+  name_uz: string | null;
+  name_en: string | null;
   name_short: string | null;
   sector_code: string | null;
   sector_name: string | null;
+  sector_name_uz: string | null;
+  sector_name_en: string | null;
   sector_color: string | null;
   sort_order: number | null;
   is_active?: boolean;
@@ -36,6 +44,8 @@ interface SectorLite {
   id?: string;
   code: string;
   name_ru: string;
+  name_uz?: string | null;
+  name_en?: string | null;
   color_hex?: string | null;
   sort_order?: number | null;
 }
@@ -112,6 +122,7 @@ export const useCompaniesStore = defineStore("companies", () => {
         (Array.isArray(resp) ? resp : []);
       companies.value = items.filter(c => c && c.is_active !== false);
       sectors.value   = (resp as any).sectors || [];
+      registerDisplayNameCatalog(companies.value, sectors.value);
       loaded.value    = true;
     } catch (e: any) {
       error.value = e?.response?.data?.detail || e?.message || t("Не удалось загрузить компании");
@@ -154,7 +165,9 @@ export const useCompaniesStore = defineStore("companies", () => {
           sector: {
             ...(meta || {}),
             code: key,
-        name_ru: meta?.name_ru || c.sector_name || (key === "_none" ? t("Без сектора") : key),
+            name_ru: meta?.name_ru || c.sector_name || (key === "_none" ? t("Без сектора") : key),
+            name_uz: meta?.name_uz || c.sector_name_uz || null,
+            name_en: meta?.name_en || c.sector_name_en || null,
             color,
           },
           companies: [],
@@ -196,7 +209,7 @@ export const useCompaniesStore = defineStore("companies", () => {
 
   // ─────────────────── Display-name helpers ───────────────────
   // Единая точка для получения отображаемых имён.
-  // Правило: name_short если есть, иначе name_ru. См. utils/displayNames.ts.
+  // Правило зависит от текущей локали. См. utils/displayNames.ts.
 
   /** Find a sector by its `code`. */
   function findSectorByCode(code: string | null | undefined): SectorLite | undefined {
@@ -215,7 +228,12 @@ export const useCompaniesStore = defineStore("companies", () => {
     if (sec) return sectorDisplayName(sec);
     // Fallback: компания могла принести sector_name напрямую (если sectors[] не загружены)
     const co = companies.value.find(c => c.sector_code === code);
-    if (co?.sector_name) return co.sector_name;
+    if (co?.sector_name) return sectorDisplayName({
+      code: co.sector_code,
+      name_ru: co.sector_name,
+      name_uz: co.sector_name_uz,
+      name_en: co.sector_name_en,
+    });
     return code || "";
   }
 

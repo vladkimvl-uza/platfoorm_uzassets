@@ -24,7 +24,9 @@ import TaskProjectEditor from "@/components/TaskProjectEditor.vue";
 import { tasksApi, type TaskDetail } from "@/api/tasks";
 import { useToast } from "@/composables/useToast";
 import { useI18n } from "@/composables/useI18n";
+import { useFormatters } from "@/composables/useFormatters";
 const { t } = useI18n();
+const formatters = useFormatters();
 
 const _perm = usePermissions("consultants");
 const toast = useToast();
@@ -147,9 +149,7 @@ function cellFg(count: number, max: number): string {
 
 function fmtDate(s: string | null): string {
   if (!s) return "—";
-  const d = new Date(s);
-  if (isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString("ru-RU", { day: "2-digit", month: "short", year: "numeric" });
+  return formatters.fmtDate(s);
 }
 
 // ─── Count-up scan ───────────────────────────────────────────────

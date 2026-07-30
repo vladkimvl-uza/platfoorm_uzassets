@@ -54,11 +54,19 @@ import { api } from "@/api/client";
 import { useFormatters } from "@/composables/useFormatters";
 import { useI18n } from "@/composables/useI18n";
 import { i18nKey } from "@/locale/keys";
+import { resolveCompanyDisplayName } from "@/utils/displayNames";
+import { useCompaniesStore } from "@/stores/companies";
 
 const { t } = useI18n();
 
 
 const fmt = useFormatters();
+const companiesStore = useCompaniesStore();
+const companyName = (company: { company_id?: string | null; company_name?: string | null; company_code?: string | null }) =>
+  resolveCompanyDisplayName(
+    company.company_name || company.company_code,
+    company.company_id || company.company_code,
+  ) || "—";
 
 // ─── State ───────────────────────────────────────────────────────
 const aggregate = ref<ProcurementAggregate | null>(null);
@@ -256,11 +264,11 @@ const redFlags = computed<RedFlag[]>(() => {
     const undisclosed = !conc.top1_name || conc.top1_name === "(не указан)"; // i18n-exempt -- canonical API sentinel
     out.push(undisclosed ? {
       id: "conc", tone: "amber", tab: "suppliers",
-      title: t("{company}: {percent}% спенда в одном нераскрытом контракте", { company: conc.company_name, percent: conc.top1_pct.toFixed(0) }),
+      title: t("{company}: {percent}% спенда в одном нераскрытом контракте", { company: companyName(conc), percent: conc.top1_pct.toFixed(0) }),
       detail: t("поставщик не раскрыт — требуется проверка прозрачности"),
     } : {
       id: "conc", tone: "red", tab: "suppliers",
-      title: t("{company}: {percent}% закупок у одного поставщика", { company: conc.company_name, percent: conc.top1_pct.toFixed(0) }),
+      title: t("{company}: {percent}% закупок у одного поставщика", { company: companyName(conc), percent: conc.top1_pct.toFixed(0) }),
       detail: t("{supplier} · индекс концентрации HHI {hhi}", { supplier: conc.top1_name, hhi: Math.round(conc.hhi) }),
     });
   }
@@ -329,6 +337,7 @@ async function editAction(action: "import-contracts" | "template" | "edit" | "ex
 function closeAllDropdowns() { sectorOpen.value = false; yearOpen.value = false; editMenuOpen.value = false; }
 
 onMounted(() => {
+  void companiesStore.ensureLoaded();
   // Фильтры живут в localStorage и общие для устройства: скрытый контрол не
   // должен оставлять «залипшее» значение от прошлого визита другого пользователя.
   if (!scope.showSectorPicker.value && sectorCode.value) sectorCode.value = null;

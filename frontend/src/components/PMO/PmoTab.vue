@@ -20,6 +20,7 @@ import PmoAgile from "./PmoAgile.vue";
 import { api } from "@/api/client";
 import { pmoApi, type ScheduleResponse, type ScheduleBar } from "@/api/pmo";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 import { i18nKey } from "@/locale/keys";
 const { t: tr } = useI18n();
 const t = tr;
@@ -351,7 +352,7 @@ onBeforeUnmount(() => {
 });
 
 const fmtD = (s: string | null) =>
-  s ? new Date(s + "T00:00:00").toLocaleDateString("ru-RU", { day: "numeric", month: "short" }) : "—";
+  s ? new Date(s + "T00:00:00").toLocaleDateString(getCurrentIntlLocale(), { day: "numeric", month: "short" }) : "—";
 </script>
 
 <template>

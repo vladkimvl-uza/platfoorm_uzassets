@@ -22,6 +22,7 @@ import {
 import { paGenerateCompanyRecommendation } from "@/composables/usePaRecommendation";
 import { useFormatters } from "@/composables/useFormatters";
 import { useI18n } from "@/composables/useI18n";
+import { resolveCompanyDisplayName } from "@/utils/displayNames";
 import PaModalShell from "./PaModalShell.vue";
 import PaCategoryDeviationBars from "./PaCategoryDeviationBars.vue";
 import PaSpendBreakdown from "./PaSpendBreakdown.vue";
@@ -49,6 +50,10 @@ const activeTab = ref<Tab>("overview");
 const rank = computed(() => props.company?.rank ?? 0);
 const overpay = computed(() => Math.max(0, props.company?.sum_dev ?? 0));
 const savings = computed(() => Math.max(0, -(props.company?.sum_dev ?? 0)));
+const companyName = computed(() => resolveCompanyDisplayName(
+  props.company?.company_name || props.company?.company_code,
+  props.company?.company_id || props.company?.company_code,
+) || "—");
 // ОБЪЁМ = СОВОКУПНЫЙ расход компании (лот-дедуп, ВСЕ типы) из бэкенда. Это НЕ
 // sum_ref (тот = только сопоставимый товарный benchmark для расчёта отклонения).
 const totalVol = computed(() => Number(props.company?.company_total_spend ?? 0));
@@ -168,7 +173,7 @@ function devComparable(p: ClosureRow): boolean {
   <PaModalShell
     v-if="company"
     :kind="t('Компания')"
-    :title="company.company_name"
+    :title="companyName"
     :accent="accentColor"
     max-width="1100px"
     @close="emit('close')"

@@ -27,6 +27,8 @@ import { useAuthStore } from "@/stores/auth";
 import { useToast } from "@/composables/useToast";
 import { isModerationQueued } from "@/api/client";
 import { useI18n } from "@/composables/useI18n";
+import { useCompaniesStore } from "@/stores/companies";
+import { resolveCompanyDisplayName } from "@/utils/displayNames";
 
 const { t } = useI18n();
 
@@ -46,6 +48,18 @@ const detail = ref<ESGCompanyDetail | null>(null);
 const loading = ref(true);
 const error = ref<string | null>(null);
 const currentYear = ref<number | null>(props.initialYear ?? null);
+const companiesStore = useCompaniesStore();
+const localizedCompanyName = computed(() =>
+  companiesStore.getCompanyNameById(detail.value?.company_id)
+  || resolveCompanyDisplayName(
+    detail.value?.company_name || detail.value?.company_code,
+    detail.value?.company_id || detail.value?.company_code,
+  )
+  || "—",
+);
+const localizedSectorName = computed(() =>
+  companiesStore.getSectorName(detail.value?.sector_code) || detail.value?.sector_code || "",
+);
 
 const auth = useAuthStore();
 const canEditEsg = computed(() =>
@@ -116,7 +130,7 @@ async function load() {
   }
 }
 
-onMounted(load);
+onMounted(() => { void companiesStore.ensureLoaded(); void load(); });
 watch(() => props.companyId, load);
 // Во встроенном режиме год приходит из воркспейса — перезагружаем при смене.
 watch(() => props.initialYear, (y) => {
@@ -172,7 +186,7 @@ const isEmpty = computed(() => detail.value != null && _mc(detail.value) === 0 &
       v-else-if="isEmpty"
       state="empty" variant="block"
       :title="t('ESG-данные не введены')"
-      :text="t('Для {name} в {year} году метрики ESG отсутствуют.', { name: detail?.company_name || detail?.company_code, year: detail?.year })"
+      :text="t('Для {name} в {year} году метрики ESG отсутствуют.', { name: localizedCompanyName, year: detail?.year })"
     >
       <template #actions>
         <button v-if="canEditEsg" class="ec-edit-btn" type="button" @click="editorOpen = true">{{ t("Ввести данные") }}</button>
@@ -184,10 +198,10 @@ const isEmpty = computed(() => detail.value != null && _mc(detail.value) === 0 &
       <div class="ec-header">
         <div class="ec-header-l">
           <div v-if="variant === 'modal'" class="ec-eyebrow">{{ t("ESG · детали компании") }}</div>
-          <h2 v-if="variant === 'modal'" class="ec-title">{{ detail.company_name || detail.company_code }}</h2>
+          <h2 v-if="variant === 'modal'" class="ec-title">{{ localizedCompanyName }}</h2>
           <div class="ec-meta">
             <span class="ec-co-code">{{ detail.company_code }}</span>
-            <span v-if="detail.sector_code" class="ec-sector">{{ detail.sector_code }}</span>
+            <span v-if="detail.sector_code" class="ec-sector">{{ localizedSectorName }}</span>
             <span class="ec-meta-sep">·</span>
             <span>FY {{ detail.year }}</span>
           </div>
@@ -298,7 +312,7 @@ const isEmpty = computed(() => detail.value != null && _mc(detail.value) === 0 &
     <ESGEditor
       v-if="editorOpen && detail"
       :company-id="companyId"
-      :company-name="detail.company_name || detail.company_code"
+      :company-name="localizedCompanyName"
       :year="currentYear ?? detail.year"
       :detail="detail"
       :issues="detail.issues"

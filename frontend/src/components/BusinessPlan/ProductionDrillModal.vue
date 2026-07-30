@@ -9,6 +9,7 @@ import { usePermissions } from "@/composables/usePermissions";
 import type { ProdCompany, ProdLine } from "@/api/production";
 import { execCol as pctCol, execZone as pctZone } from "@/utils/execBand";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 import { i18nKey } from "@/locale/keys";
 
 
@@ -24,12 +25,12 @@ const periodLabel = computed(() => PERIOD_LABEL[props.period] || props.period);
 
 function fmtM(v: number | null | undefined): string {
   if (v == null || !isFinite(v)) return "—";
-  return Math.round(v).toLocaleString("ru", { maximumFractionDigits: 0 });
+  return Math.round(v).toLocaleString(getCurrentIntlLocale(), { maximumFractionDigits: 0 });
 }
 function fmtN(v: number | null | undefined): string {
   if (v == null || !isFinite(v)) return "—";
   const abs = Math.abs(v);
-  return v.toLocaleString("ru", { maximumFractionDigits: abs >= 1000 ? 0 : abs >= 10 ? 1 : 2 });
+  return v.toLocaleString(getCurrentIntlLocale(), { maximumFractionDigits: abs >= 1000 ? 0 : abs >= 10 ? 1 : 2 });
 }
 // P0 аудита: пороги исполнения — единый канон execBand (80/50, >110), импортом
 // pctCol/pctZone. Раньше инлайн 90/75 с врущим комментарием «mirror forensic».

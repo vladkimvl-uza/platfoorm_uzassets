@@ -17,6 +17,7 @@ import {
   type RaciEntry, type RaciRole,
 } from "@/api/pmo";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 import { i18nKey } from "@/locale/keys";
 
 const { t } = useI18n();
@@ -169,7 +170,7 @@ async function clearItem(item: string) {
             <div class="tm-pmain">
               <div class="tm-prow">
                 <span class="tm-pname">{{ p.name }}</span>
-                <span class="tm-cap" :style="{ color: CAP[p.capacity].c, background: CAP[p.capacity].c + '18' }">{{ CAP[p.capacity].l }}</span>
+                <span class="tm-cap" :style="{ color: CAP[p.capacity].c, background: CAP[p.capacity].c + '18' }">{{ t(CAP[p.capacity].l) }}</span>
               </div>
               <div class="tm-loadbar"><span class="tm-loadbar-fill" :style="{ width: loadPct(p) + '%', background: CAP[p.capacity].c }"></span></div>
               <div class="tm-pmeta">
@@ -181,7 +182,7 @@ async function clearItem(item: string) {
             </div>
           </div>
         </div>
-        <div v-if="wl && wl.people.length" class="tm-foot">{{ t('Загрузка = сумма весов открытых задач исполнителя. Считается из назначений задач на') }} {{ new Date(wl.as_of).toLocaleDateString("ru-RU") }}.</div>
+        <div v-if="wl && wl.people.length" class="tm-foot">{{ t('Загрузка = сумма весов открытых задач исполнителя. Считается из назначений задач на') }} {{ new Date(wl.as_of).toLocaleDateString(getCurrentIntlLocale()) }}.</div>
       </div>
 
       <!-- ── RACI ── -->
@@ -189,7 +190,7 @@ async function clearItem(item: string) {
         <UzaStateBlock v-if="!raci.length" state="empty" variant="block" :title="t('Матрица RACI пуста')" :text="t('Добавьте назначения: для каждой активности укажите, кто Ответственный (A), Исполнитель (R), Консультируемый (C), Информируемый (I).')" />
         <template v-else>
           <div class="tm-legend">
-            <span v-for="r in RACI_ROLES" :key="r.v" class="tm-leg"><span class="tm-leg-b" :style="{ color: r.c, background: r.c + '1a' }">{{ r.v }}</span>{{ r.l }}</span>
+            <span v-for="r in RACI_ROLES" :key="r.v" class="tm-leg"><span class="tm-leg-b" :style="{ color: r.c, background: r.c + '1a' }">{{ r.v }}</span>{{ t(r.l) }}</span>
           </div>
           <div class="tm-mxwrap">
             <table class="tm-mx">
@@ -207,7 +208,7 @@ async function clearItem(item: string) {
                     <span
                       v-for="e in cellEntries(item, pn)" :key="e.id"
                       class="tm-rb" :style="{ color: RR[e.role]?.c, background: RR[e.role]?.c + '1a' }"
-                      :title="canEdit ? t('{value0} — клик чтобы убрать', { value0: RR[e.role]?.l }) : RR[e.role]?.l"
+                      :title="canEdit ? t('{value0} — клик чтобы убрать', { value0: t(RR[e.role]?.l || '') }) : t(RR[e.role]?.l || '')"
                       @click="canEdit && removeEntry(e)"
                     >{{ e.role }}</span>
                   </td>
@@ -238,7 +239,7 @@ async function clearItem(item: string) {
             <div class="tm-f"><label>{{ t('Роль') }}</label>
               <div class="tm-roles">
                 <button v-for="r in RACI_ROLES" :key="r.v" type="button" class="tm-role" :class="{ on: fRole === r.v }" :style="fRole === r.v ? { color: r.c, background: r.c + '1a', borderColor: r.c + '66' } : {}" @click="fRole = r.v">
-                  <b>{{ r.v }}</b> {{ r.l.split(" ")[0] }}
+                  <b>{{ r.v }}</b> {{ t(r.l).split(" ")[0] }}
                 </button>
               </div>
             </div>

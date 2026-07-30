@@ -30,6 +30,7 @@ import { useFormatters } from "@/composables/useFormatters";
 import Odometer from "@/components/Odometer.vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import { i18nKey } from "@/locale/keys";
+import { resolveCompanyDisplayName } from "@/utils/displayNames";
 
 
 const { t } = useI18n();
@@ -377,9 +378,9 @@ function ctaLabel(): string {
                     <span class="ddm-co-tick" :style="{ background: data.sector_color_map[c.sector] || '#888780' }" />
                     <span
                       class="ddm-co-name"
-                      :title="t('Открыть карточку компании «{name}»', { name: c.company_name })"
+                      :title="t('Открыть карточку компании «{name}»', { name: resolveCompanyDisplayName(c.company_name, c.company_id || c.company_code) })"
                       @click.stop="gotoCompany(c)"
-                    >{{ c.company_name }}</span>
+                    >{{ resolveCompanyDisplayName(c.company_name, c.company_id || c.company_code) }}</span>
                     <span class="ddm-co-stat" :title="t('Проекты: {n} в выборке из {total}', { n: c.projects_count, total: c.projects_total })">
                       <svg viewBox="0 0 14 14" class="ddm-co-stat-ico"><path d="M2.5 11V4l5-1.5 5 1.5v7M5 7h4M5 9.5h4"/></svg>
                       <span class="ddm-co-stat-num">{{ c.projects_count }}</span><span class="ddm-co-stat-tot">/{{ c.projects_total }}</span>

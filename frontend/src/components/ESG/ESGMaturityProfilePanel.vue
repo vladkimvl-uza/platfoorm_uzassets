@@ -12,6 +12,7 @@ import ESGReportsTable from "@/components/ESG/ESGReportsTable.vue";
 import ESGMaturityMatrix from "@/components/ESG/ESGMaturityMatrix.vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 import { i18nKey } from "@/locale/keys";
 
 const { t } = useI18n();
@@ -83,7 +84,7 @@ async function toggleHistory(agency: string) {
   finally { histLoading.value = false; }
 }
 function histDate(iso: string): string {
-  try { return new Date(iso).toLocaleDateString("ru", { day: "2-digit", month: "short", year: "numeric" }); }
+  try { return new Date(iso).toLocaleDateString(getCurrentIntlLocale(), { day: "2-digit", month: "short", year: "numeric" }); }
   catch { return iso; }
 }
 </script>

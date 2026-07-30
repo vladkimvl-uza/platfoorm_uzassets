@@ -6,6 +6,7 @@ import DirectionBadge from "./DirectionBadge.vue";
 import { useConfirm } from "@/composables/useConfirm";
 import { useI18n } from "@/composables/useI18n";
 import { i18nKey } from "@/locale/keys";
+import { resolveCompanyDisplayName } from "@/utils/displayNames";
 
 const { t: tr } = useI18n();
 
@@ -87,7 +88,10 @@ async function loadLookups() {
       api.get<{ companies: any[] }>("/companies?limit=100"),
       api.get<{ directions: any[] }>("/directions"),
     ]);
-    boards.value = (bd.data.companies || []).map(c => ({ id: c.id, name: c.name_short || c.name_ru }));
+    boards.value = (bd.data.companies || []).map(c => ({
+      id: c.id,
+      name: resolveCompanyDisplayName(c.name_short || c.name_ru, c.id),
+    }));
     directions.value = dr.data.directions || [];
   } catch (e) {
     console.warn("Could not load lookups", e);

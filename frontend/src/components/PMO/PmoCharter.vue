@@ -12,6 +12,7 @@ import NoteAssigneePicker from "@/components/NoteAssigneePicker.vue";
 import { useToast } from "@/composables/useToast";
 import { pmoApi, type Charter, type CharterPayload } from "@/api/pmo";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 import { i18nKey } from "@/locale/keys";
 
 const { t } = useI18n();
@@ -154,9 +155,9 @@ async function remove(c: Charter) {
 }
 
 const fmtDate = (s: string | null) => s
-  ? new Date(s).toLocaleDateString("ru-RU", { day: "numeric", month: "short", year: "numeric" })
+  ? new Date(s).toLocaleDateString(getCurrentIntlLocale(), { day: "numeric", month: "short", year: "numeric" })
   : "—";
-const fmtMoney = (n: number | null) => n == null ? "—" : new Intl.NumberFormat("ru-RU").format(n);
+const fmtMoney = (n: number | null) => n == null ? "—" : new Intl.NumberFormat(getCurrentIntlLocale()).format(n);
 
 // Разделы документа для рендера
 const DOC_SECTIONS: { key: keyof Charter; label: string }[] = [

@@ -111,7 +111,11 @@ const companiesCovered = computed<{ name: string; count: number; sector_color: s
   for (const t of filteredTasks.value) {
     const key = t.company_id || t.company_name;
     if (!key) continue;
-    if (!m.has(key)) m.set(key, { name: t.company_name || "—", count: 0, sector_color: null });
+    if (!m.has(key)) m.set(key, {
+      name: resolveCompanyDisplayName(t.company_name, t.company_id) || "—",
+      count: 0,
+      sector_color: null,
+    });
     m.get(key)!.count++;
   }
   return Array.from(m.values()).sort((a, b) => b.count - a.count);
@@ -146,7 +150,7 @@ function fmtDate(s: string | null): string {
   if (!s) return "—";
   const d = new Date(s);
   if (isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString("ru-RU", { day: "2-digit", month: "short", year: "numeric" });
+  return d.toLocaleDateString(getCurrentIntlLocale(), { day: "2-digit", month: "short", year: "numeric" });
 }
 
 const STATUS_DOT: Record<string, string> = {
@@ -170,7 +174,7 @@ function isOverdue(t: TaskRow): boolean {
 // ─── Header title ────────────────────────────────────────────────
 const headerTitle = computed(() => {
   if (props.kind === "consultant") return props.consultant?.name || tr("Консультант");
-  if (props.kind === "cell") return `${props.cellBoard?.name || "—"} × ${props.cellConsultant?.name || "—"}`;
+  if (props.kind === "cell") return `${resolveCompanyDisplayName(props.cellBoard?.name, props.cellBoard?.id) || "—"} × ${props.cellConsultant?.name || "—"}`;
   if (props.kind === "direction") return props.direction?.label || tr("Направление");
   return tr("Детали");
 });
@@ -190,7 +194,9 @@ const headerKind = computed(() => {
 // ─── Esc to close ────────────────────────────────────────────────
 import { onMounted, onBeforeUnmount } from "vue";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 import { i18nKey } from "@/locale/keys";
+import { resolveCompanyDisplayName } from "@/utils/displayNames";
 
 const { t: tr } = useI18n();
 

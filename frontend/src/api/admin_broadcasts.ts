@@ -1,5 +1,5 @@
 import { api } from "./client";
-import { t } from "@/locale/i18n";
+import { getCurrentIntlLocale, t } from "@/locale/i18n";
 import { i18nKey } from "@/locale/keys";
 
 
@@ -255,5 +255,5 @@ export function formatRelativeTime(iso: string): string {
   if (diffSec < 3600) return t('{value0} мин', { value0: Math.floor(diffSec / 60) });
   if (diffSec < 86400) return t('{value0} ч', { value0: Math.floor(diffSec / 3600) });
   if (diffSec < 86400 * 7) return t('{value0} д', { value0: Math.floor(diffSec / 86400) });
-  return new Date(iso).toLocaleDateString("ru-RU");
+  return new Date(iso).toLocaleDateString(getCurrentIntlLocale());
 }

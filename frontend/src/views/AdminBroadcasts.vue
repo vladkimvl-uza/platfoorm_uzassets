@@ -13,9 +13,11 @@ import BroadcastComposer from "@/components/broadcasts/BroadcastComposer.vue";
 import BroadcastAnalytics from "@/components/broadcasts/BroadcastAnalytics.vue";
 import BIcon from "@/components/broadcasts/BIcon.vue";
 import { useI18n } from "@/composables/useI18n";
+import { useFormatters } from "@/composables/useFormatters";
 import { i18nKey } from "@/locale/keys";
 
 const { t: tr } = useI18n();
+const formatters = useFormatters();
 
 
 const list = ref<TemplateListItem[]>([]);
@@ -94,7 +96,7 @@ function onDeleted() {
 const scheduleSummary = (t: TemplateListItem): string => {
   if (t.schedule_mode === "oneshot") return tr("Однократно");
   if (t.schedule_mode === "interval") {
-    if (t.next_run_at) return `→ ${new Date(t.next_run_at).toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`;
+    if (t.next_run_at) return `→ ${formatters.fmtDateTime(t.next_run_at)}`;
   return tr("Повторяющееся");
   }
   return t.schedule_mode;

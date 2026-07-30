@@ -13,6 +13,7 @@ import { companiesApi, type CompanyEmployee } from "@/api/companies";
 import { formatRelativeTime } from "@/api/audit";
 import UserCardAnchor from "@/components/user/UserCardAnchor.vue";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 import { i18nKey } from "@/locale/keys";
 
 const { t } = useI18n();
@@ -95,8 +96,8 @@ const filtered = computed(() => {
     const da = departmentKey(a), db = departmentKey(b);
     if (da === NO_DEPARTMENT) return 1;
     if (db === NO_DEPARTMENT) return -1;
-    if (da !== db) return da.localeCompare(db, "ru");
-    return (a.full_name || "").localeCompare(b.full_name || "", "ru");
+    if (da !== db) return da.localeCompare(db, getCurrentIntlLocale());
+    return (a.full_name || "").localeCompare(b.full_name || "", getCurrentIntlLocale());
   });
 });
 </script>

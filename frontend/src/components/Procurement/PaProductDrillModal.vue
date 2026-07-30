@@ -24,8 +24,12 @@ import {
 } from "@/api/procurement_analysis";
 import PaModalShell from "./PaModalShell.vue";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
+import { resolveCompanyDisplayName } from "@/utils/displayNames";
 
 const { t } = useI18n();
+const companyName = (purchase: ClosureRow) =>
+  resolveCompanyDisplayName(purchase.company_name, purchase.company_id) || "—";
 
 const props = defineProps<{
   productCode: string;
@@ -165,7 +169,7 @@ const soeGroups = computed<SoeGroup[]>(() => {
     if (!g) {
       g = {
         companyId: r.company_id,
-        companyName: r.company_name || r.company_id,
+        companyName: companyName(r),
         companyColor: r.company_color,
         contracts: [],
         minPrice: price, maxPrice: price,
@@ -383,7 +387,7 @@ const flatContracts = computed<ClosureRow[]>(() =>
                   <b>{{ paFmtMoney(g.avgPrice) }}</b>
                   <div v-if="distFromBest(g.avgPrice) > 0" class="ppdv-dist-from">+{{ distFromBest(g.avgPrice).toFixed(0) }}% {{ t("от лидера") }}</div>
                 </td>
-                <td class="right">{{ g.sumVol.toLocaleString('ru-RU') }}</td>
+                <td class="right">{{ g.sumVol.toLocaleString(getCurrentIntlLocale()) }}</td>
                 <td class="left supplier">{{ supplierTxt(g) }}</td>
                 <td class="left muted">{{ dateTxt(g) }}</td>
                 <td class="right" :class="devPctVsAvg(g.avgPrice) >= 0 ? 'neg' : 'pos'">
@@ -405,7 +409,7 @@ const flatContracts = computed<ClosureRow[]>(() =>
                     <span class="muted">{{ fmtDate(c.contract_date) }}</span>
                   </td>
                   <td class="right">{{ paFmtMoney(c.unit_price) }}</td>
-                  <td class="right">{{ c.volume.toLocaleString('ru-RU') }}</td>
+                  <td class="right">{{ c.volume.toLocaleString(getCurrentIntlLocale()) }}</td>
                   <td class="left supplier">{{ c.supplier || '—' }}</td>
                   <td class="left muted">{{ fmtDate(c.contract_date) }}</td>
                   <td class="right" :class="devPctVsAvg(c.unit_price) >= 0 ? 'neg' : 'pos'">
@@ -444,12 +448,12 @@ const flatContracts = computed<ClosureRow[]>(() =>
                 :title="t('Открыть детали закупки')">
               <td class="left">
                 <span class="ppdv-strip" :style="{ background: c.company_color || '#888' }"></span>
-                {{ c.company_name || c.company_id }}
+                {{ companyName(c) }}
               </td>
               <td class="left muted">{{ fmtDate(c.contract_date) }}</td>
               <td class="left supplier">{{ c.supplier || '—' }}</td>
               <td class="right"><b>{{ paFmtMoney(c.unit_price) }}</b></td>
-              <td class="right">{{ c.volume.toLocaleString('ru-RU') }}</td>
+              <td class="right">{{ c.volume.toLocaleString(getCurrentIntlLocale()) }}</td>
               <td class="right" :class="devPctVsAvg(c.unit_price) >= 0 ? 'neg' : 'pos'">
                 {{ devPctVsAvg(c.unit_price) >= 0 ? '+' : '' }}{{ devPctVsAvg(c.unit_price).toFixed(1) }}%
                 <span v-if="c.is_dirty" class="ppdv-dirty-tag" title="Dirty">⚠</span>

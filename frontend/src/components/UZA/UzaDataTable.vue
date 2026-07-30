@@ -15,6 +15,7 @@
 import { computed, ref } from "vue";
 import { i18nKey } from "@/locale/keys";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 const { t } = useI18n();
 
 
@@ -68,7 +69,7 @@ const sortedRows = computed(() => {
     if (va == null) return 1;
     if (vb == null) return -1;
     if (typeof va === "number" && typeof vb === "number") return (va - vb) * dir;
-    return String(va).localeCompare(String(vb), "ru", { numeric: true }) * dir;
+    return String(va).localeCompare(String(vb), getCurrentIntlLocale(), { numeric: true }) * dir;
   });
 });
 

@@ -27,9 +27,12 @@ import {
 } from "@/api/procurement_analysis";
 import { useFormatters } from "@/composables/useFormatters";
 import { useI18n } from "@/composables/useI18n";
+import { resolveCompanyDisplayName } from "@/utils/displayNames";
 
 const fmt = useFormatters();
 const { t } = useI18n();
+const companyName = (row: ClosureRow) =>
+  resolveCompanyDisplayName(row.company_name, row.company_id) || "—";
 
 const props = defineProps<{
   categories: CategoryMeta[];
@@ -422,7 +425,7 @@ function excludedNote(cat: CategoryMeta): string {
                   <tr v-for="r in detailRowsFor(cat.id)" :key="r.id" @click.stop="$emit('drill-closure', r)">
                     <td>
                       <span class="sec" :style="{ background: r.company_color || '#888780' }" />
-                      <span class="nm">{{ r.company_name }}</span>
+                      <span class="nm">{{ companyName(r) }}</span>
                     </td>
                     <td class="r px">{{ paFmtMoney(r.unit_price) }}</td>
                     <td class="r vol">{{ fmt.fmtNumber(Number(r.volume)) }}</td>

@@ -16,6 +16,7 @@ import type { PortfolioSummaryResponse } from "@/api/financials";
 import type { CompanyListItem, SectorBrief } from "@/api/companies";
 import { fmtCompact, sectorColor, buildCompanyIndex } from "./financialsHelpers";
 import { useI18n } from "@/composables/useI18n";
+import { resolveCompanyDisplayName } from "@/utils/displayNames";
 
 const { t } = useI18n();
 
@@ -140,7 +141,7 @@ const rows = computed<Row[]>(() => {
       if (String(co?.sector_code || "").toLowerCase() !== props.sectorFilter) return false;
     }
     if (q) {
-      const hay = `${it.company_name || ""} ${it.company_name_short || ""} ${it.company_code || ""}`.toLowerCase();
+      const hay = `${it.company_name || ""} ${it.company_name_short || ""} ${it.company_code || ""} ${resolveCompanyDisplayName(it.company_name_short || it.company_name, it.company_code)}`.toLowerCase();
       if (!hay.includes(q)) return false;
     }
     return true;
@@ -155,6 +156,7 @@ const rows = computed<Row[]>(() => {
 
   const out: Row[] = [];
   for (const item of filtered) {
+    const localizedName = resolveCompanyDisplayName(item.company_name_short || item.company_name, item.company_code);
     const co = companyIdx.value.get(item.company_code.toLowerCase());
     const sec = sectorByCode.value[String(co?.sector_code || "").toLowerCase()];
     const sColor = sectorColor(sec);
@@ -188,7 +190,7 @@ const rows = computed<Row[]>(() => {
       const roe = pct(ni, eq);
       sortVals = [0, 0, ta, eq, dt, de, nd, ca, roe];
       cells = [
-        coCell(item.company_name, sColor),
+        coCell(localizedName, sColor),
         numCell(ta, props.unit),
         numCell(eq, props.unit),
         numCell(dt, props.unit),
@@ -207,7 +209,7 @@ const rows = computed<Row[]>(() => {
       const conv = (eb != null && eb > 0 && cfo != null) ? pct(cfo, eb) : null;
       sortVals = [0, 0, cfo, cfi, cff, fcf, div, conv];
       cells = [
-        coCell(item.company_name, sColor),
+        coCell(localizedName, sColor),
         numCell(cfo, props.unit),
         numCell(cfi, props.unit, true),
         numCell(cff, props.unit),
@@ -227,7 +229,7 @@ const rows = computed<Row[]>(() => {
       sortVals = [0, 0, 0, rev, gm, eb, em, ni, nm, yoy];
       const sparkVals = yearValues(item, "revenue");
       cells = [
-        coCell(item.company_name, sColor),
+        coCell(localizedName, sColor),
         sparkCell(sparkVals, muted),
         numCell(rev, props.unit),
         pctCell(gm, 20),
@@ -242,7 +244,7 @@ const rows = computed<Row[]>(() => {
     out.push({
       rank: 0,
       company_code: item.company_code,
-      name: item.company_name,
+      name: localizedName,
       sector_color: sColor,
       sortVals,
       cells,

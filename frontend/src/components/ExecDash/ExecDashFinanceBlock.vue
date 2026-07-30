@@ -23,6 +23,8 @@ import FinanceDrillModal, { type FinKpiKind } from "@/components/UZA/FinanceDril
 import Odometer from "@/components/Odometer.vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
+import { resolveCompanyDisplayName } from "@/utils/displayNames";
 
 const { t } = useI18n();
 const fmt = useFormatters();
@@ -179,7 +181,10 @@ const focusedItem = computed(() => {
 });
 const focusedCompanyCode = computed<string | null>(() => (focusedItem.value as any)?.company_code || null);
 const focusedCompanyName = computed(() =>
-  (focusedItem.value as any)?.company_name_short || (focusedItem.value as any)?.company_name || focusedCompanyCode.value || "",
+  resolveCompanyDisplayName(
+    (focusedItem.value as any)?.company_name_short || (focusedItem.value as any)?.company_name || focusedCompanyCode.value,
+    (focusedItem.value as any)?.company_id || focusedCompanyCode.value,
+  ),
 );
 
 const cosWithRevenue = computed<number>(() => {
@@ -443,7 +448,10 @@ const tableRows = computed<CompanyRow[]>(() => {
       idx: 0,
       id: it.company_id,
       code: it.company_code,
-      name: it.company_name_short || it.company_name || it.company_code,
+      name: resolveCompanyDisplayName(
+        it.company_name_short || it.company_name || it.company_code,
+        it.company_id || it.company_code,
+      ) || it.company_code,
       sector: canonSector(it.sector_code),
       revenue, profit, assets, debt, cfo, cfi, ebitda, ebitdaPct, yoy, trend5y, breakdown, hasData,
     });
@@ -453,7 +461,7 @@ const tableRows = computed<CompanyRow[]>(() => {
   const k = sortBy.value;
   rows.sort((a, b) => {
     if (k === "name" || k === "sector") {
-      return ((a as any)[k] || "").localeCompare((b as any)[k] || "", "ru") * dir;
+      return ((a as any)[k] || "").localeCompare((b as any)[k] || "", getCurrentIntlLocale()) * dir;
     }
     const av = (a as any)[k];
     const bv = (b as any)[k];

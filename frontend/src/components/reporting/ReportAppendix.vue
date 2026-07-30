@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 import { i18nKey } from "@/locale/keys";
 
 const { t } = useI18n();
@@ -48,9 +49,9 @@ function money(v: number | null): string {
   if (v == null) return "—";
   const a = Math.abs(v);
   let s: string;
-  if (a >= 1000) s = Math.round(v).toLocaleString("ru-RU");
-  else if (a >= 10) s = v.toLocaleString("ru-RU", { maximumFractionDigits: 1 });
-  else s = v.toLocaleString("ru-RU", { maximumFractionDigits: 2 });
+  if (a >= 1000) s = Math.round(v).toLocaleString(getCurrentIntlLocale());
+  else if (a >= 10) s = v.toLocaleString(getCurrentIntlLocale(), { maximumFractionDigits: 1 });
+  else s = v.toLocaleString(getCurrentIntlLocale(), { maximumFractionDigits: 2 });
   return s.replace(/,/g, " ");
 }
 function pct(r: number | null): string { return r == null ? "—" : Math.round(r * 100) + "%"; }

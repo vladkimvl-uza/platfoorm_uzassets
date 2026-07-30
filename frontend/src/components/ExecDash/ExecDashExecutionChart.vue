@@ -87,8 +87,8 @@ function companyLabel(row: { company_id: string; name: string }): string {
 
 /** Полное name_ru для tooltip (если есть в кэше). */
 function companyFullName(row: { company_id: string; name: string }): string {
-  const co = companiesStore.findById(row.company_id);
-  return co?.name_ru || row.name || "";
+  return companiesStore.getCompanyNameById(row.company_id)
+    || resolveCompanyDisplayName(row.name, row.company_id);
 }
 
 /**

@@ -4,7 +4,7 @@ import { rbacV3Api, deriveAccessMap, rolesApi, groupsApi, adminMfaApi, generateP
 import { MODULE_REGISTRY, type AccessLevel } from '@/composables/usePermissions';
 import type { RbacV3UserDetail, RbacV3UserBrief, RbacV3Role, RbacV3Group, AdminMfaRow } from '@/api/rbacV3';
 import { moderationApi } from '@/api/moderation';
-import { companiesApi, type SectorBrief } from '@/api/companies';
+import { companiesApi, type CompanyListItem, type SectorBrief } from '@/api/companies';
 import { auditApi, actionMeta, type AuditEventRead, type AuditEventDetail } from '@/api/audit';
 import UserAvatar from '@/components/rbac-v3/UserAvatar.vue';
 import RoleChip from '@/components/rbac-v3/RoleChip.vue';
@@ -19,6 +19,7 @@ import { useToast } from '@/composables/useToast';
 import { useI18n } from '@/composables/useI18n';
 import { useConfirm } from '@/composables/useConfirm';
 import { INTL_LOCALE } from '@/locale';
+import { companyDisplayName, sectorDisplayName } from '@/utils/displayNames';
 
 const toast = useToast();
 const { t, locale } = useI18n();
@@ -145,7 +146,9 @@ const sectorMap = computed<Record<string, SectorBrief>>(() => {
   for (const s of allSectors.value) m[s.code] = s;
   return m;
 });
-function sectorLabel(code: string): string { return sectorMap.value[code]?.name_ru || code; }
+function sectorLabel(code: string): string {
+  return sectorDisplayName(sectorMap.value[code]) || code;
+}
 function sectorColor(code: string): string { return sectorMap.value[code]?.color_hex || '#7F77DD'; }
 // ─── Редактирование области доступа «По секторам» ─────────────────
 // Блок был только для чтения: администратор видел выданные секторы, но не мог
@@ -184,15 +187,17 @@ async function saveScope(): Promise<void> {
 
 const hasDataScope = computed(() =>
   !!(detail.value?.allowed_sectors?.length || detail.value?.allowed_companies?.length));
-const allCompanies = ref<{ id: string; name: string }[]>([]);
+const companyCatalog = ref<CompanyListItem[]>([]);
+const allCompanies = computed(() => companyCatalog.value
+  .map((company) => ({ id: company.id, name: companyDisplayName(company) || company.code }))
+  .filter((company) => company.id)
+  .sort((a, b) => a.name.localeCompare(b.name, INTL_LOCALE[locale.value])));
 onMounted(async () => {
   try { allSectors.value = await companiesApi.listSectors(); } catch { /* best-effort */ }
   try {
     const r = await companiesApi.list({ per_page: 500 } as any);
     const items = (r as any)?.items || (r as any)?.companies || (Array.isArray(r) ? r : []);
-    allCompanies.value = (items || []).map((c: any) => ({ id: c.id, name: c.name_ru || c.name || c.code }))
-      .filter((c: any) => c.id)
-      .sort((a: any, b: any) => a.name.localeCompare(b.name, INTL_LOCALE[locale.value]));
+    companyCatalog.value = items || [];
   } catch { /* best-effort */ }
 });
 
@@ -821,7 +826,7 @@ async function onDeletePermanent() {
                          :checked="draftSectors.includes(sec.code)"
                          @change="toggleSector(sec.code)" />
                   <span class="rv3-dr-scope-dot" :style="{ background: sec.color_hex || '#7F77DD' }"></span>
-                  <span>{{ sec.name_ru || sec.code }}</span>
+                  <span>{{ sectorDisplayName(sec) || sec.code }}</span>
                 </label>
                 <div v-if="!allSectors.length" class="rv3-dr-scope-note">{{ t('Справочник секторов не загружен.') }}</div>
                 <div class="rv3-dr-scope-actions">

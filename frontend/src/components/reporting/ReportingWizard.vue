@@ -25,6 +25,7 @@ import type { TaskBrief } from "@/api/tasks";
 import { reportWizardApi } from "@/api/reportWizard";
 import { useToast } from "@/composables/useToast";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 import { i18nKey } from "@/locale/keys";
 
 const { t } = useI18n();
@@ -168,7 +169,7 @@ function fmtSavedAt(): string {
   if (!savedAt.value) return "";
   const d = new Date(savedAt.value);
   if (isNaN(d.getTime())) return "";
-  return d.toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleString(getCurrentIntlLocale(), { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
 // ── narrative: направление → проекты → задачи ──
@@ -235,9 +236,9 @@ function removeRow(page: ReportPage, rid: number) { page.rows = page.rows.filter
 
 function fmtDate(s: string | null): string {
   if (!s) return "—";
-  return new Date(s).toLocaleDateString("ru-RU", { day: "2-digit", month: "short", year: "2-digit" });
+  return new Date(s).toLocaleDateString(getCurrentIntlLocale(), { day: "2-digit", month: "short", year: "2-digit" });
 }
-const todayStr = new Date().toLocaleDateString("ru-RU");
+const todayStr = new Date().toLocaleDateString(getCurrentIntlLocale());
 const fy = computed(() => props.year || new Date().getFullYear());
 
 const printablePages = computed(() => pages.value.filter(p =>

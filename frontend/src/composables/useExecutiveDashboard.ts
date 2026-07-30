@@ -10,7 +10,7 @@ import {
   type ExecutiveDashboardData,
 } from "@/api/executiveDashboard";
 import { useCompaniesStore } from "@/stores/companies";
-import { t } from "@/locale/i18n";
+import { getCurrentIntlLocale, t } from "@/locale/i18n";
 
 
 
@@ -66,11 +66,12 @@ const loading = reactive({ data: false });
 const error = ref<string | null>(null);
 
 const filteredSectorsLabel = computed(() => {
+  const store = useCompaniesStore();
   if (!selectedSectors.value.length) return t("Все секторы");
   if (!data.value) return t('Секторы: {value0}', { value0: selectedSectors.value.length });
   if (selectedSectors.value.length === 1) {
     const s = data.value.available_sectors.find((x) => x.id === selectedSectors.value[0]);
-    return s ? s.label : t("Сектор");
+    return s ? (store.getSectorName(s.id) || t(s.label)) : t("Сектор");
   }
   return t('Секторы: {value0}', { value0: selectedSectors.value.length });
 });
@@ -88,13 +89,14 @@ export interface ExecCompanyOption {
 
 /** Плоский список компаний из всех секторов (для пикера и бенчмарка). */
 const availableCompanies = computed<ExecCompanyOption[]>(() => {
+  const store = useCompaniesStore();
   const out: ExecCompanyOption[] = [];
   for (const s of data.value?.sectors || []) {
     for (const c of s.companies || []) {
       out.push({
         company_id: c.company_id,
-        name: c.name,
-        sector_label: s.label,
+        name: store.getCompanyNameById(c.company_id) || c.name,
+        sector_label: store.getSectorName(s.id) || t(s.label),
         sector_color: s.color,
         pct: c.pct,
         task_total: c.task_total,
@@ -102,7 +104,7 @@ const availableCompanies = computed<ExecCompanyOption[]>(() => {
       });
     }
   }
-  return out.sort((a, b) => a.name.localeCompare(b.name, "ru"));
+  return out.sort((a, b) => a.name.localeCompare(b.name, getCurrentIntlLocale()));
 });
 
 /** Полный список компаний для ПИКЕРА (из стора) — не зависит от фильтрации
@@ -117,15 +119,15 @@ const pickerCompanies = computed<ExecCompanyOption[]>(() => {
       const m = metricMap.get(c.id);
       return {
         company_id: c.id,
-        name: c.name_short || c.name_ru,
-        sector_label: c.sector_name || "",
+        name: store.getCompanyNameById(c.id) || c.code,
+        sector_label: store.getSectorName(c.sector_code) || c.sector_name || "",
         sector_color: c.sector_color || "#94A3B8",
         pct: m?.pct ?? 0,
         task_total: m?.task_total ?? 0,
         task_done: m?.task_done ?? 0,
       };
     })
-    .sort((a, b) => a.name.localeCompare(b.name, "ru"));
+    .sort((a, b) => a.name.localeCompare(b.name, getCurrentIntlLocale()));
 });
 
 /** Выбранные компании с метриками (для бенчмарка) — из pickerCompanies,

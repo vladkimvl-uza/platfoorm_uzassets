@@ -10,13 +10,14 @@
 import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
-import { companiesApi } from "@/api/companies";
+import { companiesApi, type CompanyListItem } from "@/api/companies";
 import { api } from "@/api/client";
 import { useEntityEditor } from "@/composables/useEntityEditor";
 import { useI18n } from "@/composables/useI18n";
 // Экран министра — портфельный: scope-ограниченному юзеру роутер его не отдаёт,
 // значит и в палитре команда должна быть скрыта (иначе ведёт в отказ).
 import { i18nKey } from "@/locale/keys";
+import { companyDisplayName } from "@/utils/displayNames";
 
 
 const { t } = useI18n();
@@ -133,22 +134,23 @@ const navCommands = computed<Cmd[]>(() => {
 });
 
 // ─── Компании (lazy) ───
-const companies = ref<{ id: string; name: string; sub: string; kw: string; code: string }[]>([]);
+type PaletteCompany = CompanyListItem & { name: string; sub: string; kw: string };
+const companies = ref<CompanyListItem[]>([]);
+const localizedCompanies = computed<PaletteCompany[]>(() => companies.value.map((c) => ({
+  ...c,
+  name: companyDisplayName(c) || c.code || t("Компания"),
+  sub: c.code || "",
+  kw: `${c.code || ""} ${c.name_short || ""} ${c.name_ru || ""} ${c.name_uz || ""} ${c.name_en || ""}`.trim(),
+})));
 async function loadCompanies() {
   if (companies.value.length || !can("companies.view")) return;
   try {
     const resp = await companiesApi.list({ limit: 200 } as any);
-    companies.value = (resp.items || []).map((c: any) => ({
-      id: c.id,
-      code: c.code || "",
-      name: c.name_ru || c.name_short || c.code || t("Компания"),
-      sub: c.name_short && c.name_short !== (c.name_ru || "") ? c.name_short : (c.code || ""),
-      kw: `${c.code || ""} ${c.name_short || ""} ${c.name_en || ""}`.trim(),
-    }));
+    companies.value = resp.items || [];
   } catch { /* ignore */ }
 }
 const companyCommands = computed<Cmd[]>(() =>
-  companies.value.map((c) => ({
+  localizedCompanies.value.map((c) => ({
     id: `co:${c.id}`,
     title: c.name,
     subtitle: c.sub || t("Компания"),
@@ -181,7 +183,7 @@ const WS_MODULES: Array<{ id: string; label: string; icon: string; kw: string }>
 const scopedCommands = computed<ScopedCmd[]>(() => {
   if (!can("companies.view")) return [];
   const out: ScopedCmd[] = [];
-  for (const co of companies.value) {
+  for (const co of localizedCompanies.value) {
     if (!co.code) continue;
     const companyText = `${co.name} ${co.kw}`.toLowerCase();
     const code = co.code.toLowerCase();

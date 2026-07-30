@@ -304,7 +304,7 @@ async function submit() {
         <div v-for="(p, pi) in projects" :key="pi" class="pb-proj">
           <div class="pb-proj-head">
             <input v-model="p.title" class="pb-in title" :placeholder="t('Название проекта')" />
-            <select v-model="p.status" class="pb-in sm"><option v-for="s in STATUSES" :key="s.v" :value="s.v">{{ s.l }}</option></select>
+            <select v-model="p.status" class="pb-in sm"><option v-for="s in STATUSES" :key="s.v" :value="s.v">{{ t(s.l) }}</option></select>
             <select v-model="p.direction_id" class="pb-in sm"><option value="">{{ t('направление…') }}</option><option v-for="d in directions" :key="d.id" :value="d.id">{{ d.name }}</option></select>
             <input type="date" v-model="p.due_date" class="pb-in sm" />
             <button class="pb-del" @click="rmProject(pi)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button>
@@ -318,7 +318,7 @@ async function submit() {
               <div class="pb-task">
                 <span class="pb-task-dot" />
                 <input v-model="tsk.title" class="pb-in" :placeholder="t('Задача')" />
-                <select v-model="tsk.status" class="pb-in sm"><option v-for="s in STATUSES" :key="s.v" :value="s.v">{{ s.l }}</option></select>
+                <select v-model="tsk.status" class="pb-in sm"><option v-for="s in STATUSES" :key="s.v" :value="s.v">{{ t(s.l) }}</option></select>
                 <input type="date" v-model="tsk.due_date" class="pb-in sm" />
                 <button class="pb-del" @click="rmTask(p, ti)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg></button>
               </div>
@@ -344,8 +344,8 @@ async function submit() {
           <div class="pb-task">
             <span class="pb-task-dot" />
             <input v-model="tsk.title" class="pb-in" :placeholder="t('Задача')" />
-            <select v-model="tsk.status" class="pb-in sm"><option v-for="s in STATUSES" :key="s.v" :value="s.v">{{ s.l }}</option></select>
-            <select v-model="tsk.priority" class="pb-in sm"><option v-for="p in PRIOS" :key="p.v" :value="p.v">{{ p.l }}</option></select>
+            <select v-model="tsk.status" class="pb-in sm"><option v-for="s in STATUSES" :key="s.v" :value="s.v">{{ t(s.l) }}</option></select>
+            <select v-model="tsk.priority" class="pb-in sm"><option v-for="p in PRIOS" :key="p.v" :value="p.v">{{ t(p.l) }}</option></select>
             <input type="date" v-model="tsk.due_date" class="pb-in sm" />
             <button class="pb-del" @click="rmStandalone(ti)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg></button>
           </div>

@@ -41,6 +41,7 @@ import AttachmentsPanel from "./Attachments/AttachmentsPanel.vue";
 import { usePermissions } from "@/composables/usePermissions";
 import { pmoApi, type DependencyRead } from "@/api/pmo";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 import { i18nKey } from "@/locale/keys";
 
 const { t: tr } = useI18n();
@@ -952,7 +953,7 @@ function formatDate(iso: string | null | undefined): string {
   if (!iso) return "";
   try {
     const d = new Date(iso);
-    return d.toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+    return d.toLocaleString(getCurrentIntlLocale(), { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
   } catch { return iso; }
 }
 
@@ -960,7 +961,7 @@ function formatDateShort(iso: string | null | undefined): string {
   if (!iso) return "—";
   try {
     const d = new Date(iso);
-    return d.toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric" });
+    return d.toLocaleDateString(getCurrentIntlLocale(), { day: "2-digit", month: "2-digit", year: "numeric" });
   } catch { return String(iso); }
 }
 

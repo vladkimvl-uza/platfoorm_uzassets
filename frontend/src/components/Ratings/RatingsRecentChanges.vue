@@ -13,6 +13,7 @@ import {
   displayRating, coSector, sectorColor,
 } from "./ratingsHelpers";
 import { useI18n } from "@/composables/useI18n";
+import { companyDisplayName } from "@/utils/displayNames";
 const { t } = useI18n();
 
 
@@ -111,7 +112,7 @@ const esgSlice  = computed(() => esgEvents.value.slice(0, 8));
                @click="emit('openRating', e.rating.company_id, e.agency)">
             <div class="rrc-stripe" :style="{ background: e.sectorClr }" />
             <div class="rrc-info">
-              <div class="rrc-name">{{ e.company?.name_short || e.company?.name_ru || '—' }}</div>
+              <div class="rrc-name">{{ companyDisplayName(e.company) || '—' }}</div>
               <div class="rrc-ag">{{ e.agency }}</div>
             </div>
             <div class="rrc-badge-col">
@@ -149,7 +150,7 @@ const esgSlice  = computed(() => esgEvents.value.slice(0, 8));
                @click="emit('openRating', e.rating.company_id, e.agency)">
             <div class="rrc-stripe" :style="{ background: e.sectorClr }" />
             <div class="rrc-info">
-              <div class="rrc-name">{{ e.company?.name_short || e.company?.name_ru || '—' }}</div>
+              <div class="rrc-name">{{ companyDisplayName(e.company) || '—' }}</div>
               <div class="rrc-ag">{{ e.agency }}</div>
             </div>
             <div class="rrc-badge-col">

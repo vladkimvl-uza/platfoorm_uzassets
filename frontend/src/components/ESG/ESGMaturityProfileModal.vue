@@ -5,19 +5,33 @@
  * «Динамика рейтингов» — история изменений ESG-рейтингов (read-only).
  * Внизу — годовая таблица ESG-отчётов (ESGReportsTable): редактируемая, с 2021.
  */
-import { ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import ModalShell from "@/components/ModalShell.vue";
 import ESGReportsTable from "@/components/ESG/ESGReportsTable.vue";
 import type { ESGMaturityCompany } from "@/api/esg";
 import { ratingsApi, type AgencyRatingBrief, type AgencyRatingHistoryItem } from "@/api/ratings";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 import { i18nKey } from "@/locale/keys";
+import { resolveCompanyDisplayName, resolveSectorDisplayName } from "@/utils/displayNames";
 
 const { t } = useI18n();
 
 
 const props = defineProps<{ company: ESGMaturityCompany | null; canEdit?: boolean }>();
 const emit = defineEmits<{ (e: "close"): void }>();
+const companyName = computed(() =>
+  resolveCompanyDisplayName(
+    props.company?.company_name || props.company?.company_code,
+    props.company?.company_id || props.company?.company_code,
+  ) || "—",
+);
+const sectorName = computed(() =>
+  resolveSectorDisplayName(
+    props.company?.sector_name || props.company?.sector_code,
+    props.company?.sector_code,
+  ) || props.company?.company_code || "",
+);
 
 // ─── Динамика (история) ESG-рейтингов — read-only ──────────────────
 const ratings = ref<AgencyRatingBrief[]>([]);
@@ -50,7 +64,7 @@ async function toggleHistory(agency: string) {
   finally { histLoading.value = false; }
 }
 function histDate(iso: string): string {
-  try { return new Date(iso).toLocaleDateString("ru", { day: "2-digit", month: "short", year: "numeric" }); }
+  try { return new Date(iso).toLocaleDateString(getCurrentIntlLocale(), { day: "2-digit", month: "short", year: "numeric" }); }
   catch { return iso; }
 }
 
@@ -65,8 +79,8 @@ watch(() => props.company, (c) => {
     <template #header v-if="company">
       <div class="mp-head">
         <div>
-          <div class="mp-eyebrow">{{ company.sector_name || company.company_code }} {{ t('· ESG-зрелость') }}</div>
-          <div class="mp-title">{{ company.company_name || company.company_code }}</div>
+          <div class="mp-eyebrow">{{ sectorName }} {{ t('· ESG-зрелость') }}</div>
+          <div class="mp-title">{{ companyName }}</div>
         </div>
       </div>
     </template>

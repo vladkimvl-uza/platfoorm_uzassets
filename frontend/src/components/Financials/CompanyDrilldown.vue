@@ -20,9 +20,11 @@ import EntityDrillShell from "@/components/UZA/EntityDrillShell.vue";
 import { useToast } from "@/composables/useToast";
 import { usePermissions } from "@/composables/usePermissions";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 import { useAuthStore } from "@/stores/auth";
 import type { CompanyListItem, SectorBrief } from "@/api/companies";
 import { i18nKey } from "@/locale/keys";
+import { companyDisplayName, sectorDisplayName } from "@/utils/displayNames";
 
 
 const props = withDefaults(defineProps<{
@@ -58,7 +60,7 @@ function markEdited() { lastEdit.value = { at: new Date().toISOString(), by: meN
 function fmtDateTime(iso: string | null): string {
   if (!iso) return "";
   try {
-    return new Date(iso).toLocaleString("ru", {
+    return new Date(iso).toLocaleString(getCurrentIntlLocale(), {
       day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
     });
   } catch { return iso; }
@@ -93,7 +95,12 @@ const statusBorder = computed(() => {
 
 // Display name for sector — prefer company.sector_name (already populated by API)
 const sectorLabel = computed<string>(() => {
-  return company.value?.sector_name || sector.value?.name_ru || "—";
+  return sectorDisplayName(sector.value || {
+    code: company.value?.sector_code,
+    name_ru: company.value?.sector_name,
+    name_uz: company.value?.sector_name_uz,
+    name_en: company.value?.sector_name_en,
+  }) || "—";
 });
 
 // ─── Schema config (fields per section) ─────────────────────────────────
@@ -406,9 +413,9 @@ function fmtNum(v: number | null): string {
   if (v == null || !isFinite(v)) return "—";
   const abs = Math.abs(v);
   let str: string;
-  if (abs >= 1000) str = Math.round(v).toLocaleString("ru", { maximumFractionDigits: 0 });
-  else if (abs >= 10) str = v.toLocaleString("ru", { maximumFractionDigits: 1 });
-  else str = v.toLocaleString("ru", { maximumFractionDigits: 2 });
+  if (abs >= 1000) str = Math.round(v).toLocaleString(getCurrentIntlLocale(), { maximumFractionDigits: 0 });
+  else if (abs >= 10) str = v.toLocaleString(getCurrentIntlLocale(), { maximumFractionDigits: 1 });
+  else str = v.toLocaleString(getCurrentIntlLocale(), { maximumFractionDigits: 2 });
   return str.replace(/,/g, " ");
 }
 
@@ -680,7 +687,7 @@ const auditLine = computed<string>(() => {
   if (a.signed_at) {
     try {
       const d = new Date(a.signed_at);
-      parts.push(t("подписан {d}", { d: d.toLocaleDateString("ru") }));
+      parts.push(t("подписан {d}", { d: d.toLocaleDateString(getCurrentIntlLocale()) }));
     } catch { /* noop */ }
   }
   return parts.join(" · ");
@@ -707,7 +714,7 @@ function close() {
       <div class="cdrl-hdr">
         <div class="cdrl-hdr-left">
           <div class="cdrl-eyebrow">{{ company?.code }} · {{ t(sectorLabel) }}</div>
-          <div class="cdrl-title">{{ company?.name_short || company?.name_ru || company?.code }}</div>
+          <div class="cdrl-title">{{ companyDisplayName(company) || company?.code }}</div>
           <div class="cdrl-badges">
             <span class="cdrl-badge" :class="localStandard === 'IFRS' ? 'badge-ifrs' : 'badge-nsbu'">
               <svg viewBox="0 0 12 12" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 6h8M2 4h8M2 8h6" /><path v-if="localStandard === 'IFRS'" d="M9 2v8" /></svg>

@@ -6,6 +6,7 @@
 import { computed } from "vue";
 import { getHoliday, holidayTitle, HOLIDAY_KIND_COLORS, HOLIDAY_KIND_LABELS, type UzHoliday } from "@/api/holidays";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 
 const { t } = useI18n();
 
@@ -29,7 +30,7 @@ function whenLabel(offset: number, d: Date): string {
   if (offset === 1) return t("Завтра");
   if (offset === 2) return t("Послезавтра");
   // 3 days → "Через 3 дня · day month"
-  const fmt = new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long" });
+  const fmt = new Intl.DateTimeFormat(getCurrentIntlLocale(), { day: "numeric", month: "long" });
   return t("Через {n} дн. · {date}", { n: offset, date: fmt.format(d) });
 }
 
@@ -40,7 +41,7 @@ const whenText = computed(() => {
 
 const fullDate = computed(() => {
   if (!upcoming.value) return "";
-  return new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", weekday: "long" }).format(upcoming.value.date);
+  return new Intl.DateTimeFormat(getCurrentIntlLocale(), { day: "numeric", month: "long", weekday: "long" }).format(upcoming.value.date);
 });
 </script>
 
