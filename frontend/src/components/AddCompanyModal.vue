@@ -17,6 +17,7 @@ const emit = defineEmits<{ (e: "close"): void; (e: "created", company: CompanyDe
 const code = ref("");
 const nameRu = ref("");
 const nameUz = ref("");
+const nameUzCyr = ref("");
 const nameEn = ref("");
 const sectorCode = ref("");
 const sectors = ref<SectorBrief[]>([]);
@@ -42,6 +43,7 @@ async function submit() {
       code: code.value.trim(),
       name_ru: nameRu.value.trim(),
       name_uz: nameUz.value.trim() || undefined,
+      name_uz_cyr: nameUzCyr.value.trim() || undefined,
       name_en: nameEn.value.trim() || undefined,
       sector_code: sectorCode.value || undefined,
     });
@@ -73,8 +75,12 @@ async function submit() {
       </label>
       <div class="acm-grid">
         <label class="acm-field">
-          <span class="acm-lbl">{{ t('Название (UZ)') }}</span>
+          <span class="acm-lbl">{{ t('Название (UZ латиница)') }}</span>
           <input v-model="nameUz" type="text" class="acm-input" placeholder="AJ «…»" />
+        </label>
+        <label class="acm-field">
+          <span class="acm-lbl">{{ t('Название (UZ кириллица)') }}</span>
+          <input v-model="nameUzCyr" type="text" class="acm-input" :placeholder="t('“Навоий КМК” АЖ')" />
         </label>
         <label class="acm-field">
           <span class="acm-lbl">{{ t('Название (EN)') }}</span>

@@ -99,6 +99,7 @@ const sectorLabel = computed<string>(() => {
     code: company.value?.sector_code,
     name_ru: company.value?.sector_name,
     name_uz: company.value?.sector_name_uz,
+    name_uz_cyr: company.value?.sector_name_uz_cyr,
     name_en: company.value?.sector_name_en,
   }) || "—";
 });

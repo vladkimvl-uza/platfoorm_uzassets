@@ -20,7 +20,15 @@ const exec = useExecutiveDashboard();
 const router = useRouter();
 
 const block = computed(() => exec.data.value?.kpi_forecast || null);
-const companies = computed(() => block.value?.companies || []);
+function localizeCompanies(rows: ExecKpiForecastCompany[]): ExecKpiForecastCompany[] {
+  return rows.map((company) => ({
+    ...company,
+    name: exec.catalogCompanyName(company.company_id, company.name),
+  }));
+}
+const companies = computed(() => localizeCompanies(block.value?.companies || []));
+const risks = computed(() => localizeCompanies(block.value?.risks || []));
+const leaders = computed(() => localizeCompanies(block.value?.leaders || []));
 const chartRows = computed(() => companies.value.slice(0, 8));
 const chartMax = computed(() =>
   Math.max(100, ...chartRows.value.map(c => c.high ?? c.forecast ?? 0)));
@@ -147,7 +155,7 @@ function onRowKey(e: KeyboardEvent) {
       <div class="efk-cols">
         <div class="efk-col">
           <div class="efk-col-t" style="color:#E24B4A">↓ {{ t("Риски недостижения") }}</div>
-          <div v-for="(c, i) in (block.risks || [])" :key="c.company_id" class="efk-row"
+          <div v-for="(c, i) in risks" :key="c.company_id" class="efk-row"
                :style="{ '--d': (i * 60) + 'ms' }" role="button" tabindex="0"
                :title="t('Открыть KPI: {name}', { name: c.name })" @click="openKpi" @keydown="onRowKey">
             <span class="efk-dot" :style="{ background: c.sector_color || '#E24B4A' }" />
@@ -157,11 +165,11 @@ function onRowKey(e: KeyboardEvent) {
               {{ fmtPct(c.forecast) }}
             </span>
           </div>
-          <div v-if="!(block.risks || []).length" class="efk-none">{{ t("нет компаний в зоне риска") }}</div>
+          <div v-if="!risks.length" class="efk-none">{{ t("нет компаний в зоне риска") }}</div>
         </div>
         <div class="efk-col">
           <div class="efk-col-t" style="color:#1D9E75">↑ {{ t("Лидеры прогноза") }}</div>
-          <div v-for="(c, i) in (block.leaders || [])" :key="c.company_id" class="efk-row"
+          <div v-for="(c, i) in leaders" :key="c.company_id" class="efk-row"
                :style="{ '--d': (i * 60) + 'ms' }" role="button" tabindex="0"
                :title="t('Открыть KPI: {name}', { name: c.name })" @click="openKpi" @keydown="onRowKey">
             <span class="efk-dot" :style="{ background: c.sector_color || '#1D9E75' }" />
@@ -173,7 +181,7 @@ function onRowKey(e: KeyboardEvent) {
               {{ fmtPct(c.forecast) }}
             </span>
           </div>
-          <div v-if="!(block.leaders || []).length" class="efk-none">—</div>
+          <div v-if="!leaders.length" class="efk-none">—</div>
         </div>
       </div>
       <div class="efk-foot">{{ t("Числа — детерминированный движок (OLS-тренд по годовому ряду выполнения); коридор надёжности учтён. Разбор и прогноз по показателям — в модуле KPI, режим «Прогноз».") }}</div>

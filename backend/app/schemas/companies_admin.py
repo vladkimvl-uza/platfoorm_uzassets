@@ -23,6 +23,7 @@ class CompanyAdminRead(BaseModel):
     name_ru: str
     name_short: Optional[str] = None
     name_uz: Optional[str] = None
+    name_uz_cyr: Optional[str] = None
     name_en: Optional[str] = None
     legal_form: Optional[str] = None
     ownership_entity: Optional[str] = None
@@ -78,6 +79,7 @@ class CompanyAdminUpdate(BaseModel):
     name_ru: Optional[str] = None
     name_short: Optional[str] = None
     name_uz: Optional[str] = None
+    name_uz_cyr: Optional[str] = None
     name_en: Optional[str] = None
     legal_form: Optional[str] = None
     ownership_entity: Optional[str] = None
@@ -122,6 +124,7 @@ class CompanyAdminCreate(BaseModel):
     name_ru: str = Field(min_length=1, max_length=255)
     name_short: Optional[str] = None
     name_uz: Optional[str] = None
+    name_uz_cyr: Optional[str] = None
     name_en: Optional[str] = None
     sector_code: Optional[str] = None
     legal_form: Optional[str] = None
@@ -175,6 +178,7 @@ class SectorAdminRead(BaseModel):
     code: str
     name_ru: str
     name_uz: Optional[str] = None
+    name_uz_cyr: Optional[str] = None
     name_en: Optional[str] = None
     color_hex: Optional[str] = None
     color_secondary: Optional[str] = None
@@ -188,6 +192,7 @@ class SectorAdminRead(BaseModel):
 class SectorAdminUpdate(BaseModel):
     name_ru: Optional[str] = None
     name_uz: Optional[str] = None
+    name_uz_cyr: Optional[str] = None
     name_en: Optional[str] = None
     color_hex: Optional[str] = None
     color_secondary: Optional[str] = None
@@ -201,6 +206,7 @@ class SectorAdminCreate(BaseModel):
     code: str = Field(min_length=1, max_length=64)
     name_ru: str = Field(min_length=1, max_length=255)
     name_uz: Optional[str] = None
+    name_uz_cyr: Optional[str] = None
     name_en: Optional[str] = None
     color_hex: Optional[str] = "#7F77DD"
     color_secondary: Optional[str] = None

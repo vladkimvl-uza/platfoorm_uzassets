@@ -17,6 +17,7 @@ class SectorBrief(BaseModel):
     code: str
     name_ru: str
     name_uz: Optional[str] = None
+    name_uz_cyr: Optional[str] = None
     name_en: Optional[str] = None
     color_hex: Optional[str] = None
     sort_order: int
@@ -27,6 +28,7 @@ class SectorCreatePayload(BaseModel):
     code: str = Field(..., min_length=1, max_length=64, pattern=r"^[a-z0-9_]+$")
     name_ru: str = Field(..., min_length=1, max_length=255)
     name_uz: Optional[str] = Field(None, max_length=255)
+    name_uz_cyr: Optional[str] = Field(None, max_length=255)
     name_en: Optional[str] = Field(None, max_length=255)
     color_hex: Optional[str] = Field(None, pattern=r"^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$")
     sort_order: int = 1000
@@ -35,6 +37,7 @@ class SectorCreatePayload(BaseModel):
 class SectorUpdatePayload(BaseModel):
     name_ru: Optional[str] = Field(None, min_length=1, max_length=255)
     name_uz: Optional[str] = Field(None, max_length=255)
+    name_uz_cyr: Optional[str] = Field(None, max_length=255)
     name_en: Optional[str] = Field(None, max_length=255)
     color_hex: Optional[str] = Field(None, pattern=r"^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$")
     sort_order: Optional[int] = None
@@ -50,6 +53,7 @@ class CompanyCreatePayload(BaseModel):
     name_ru: str = Field(..., min_length=1, max_length=255)
     name_short: Optional[str] = Field(None, max_length=128)
     name_uz: Optional[str] = Field(None, max_length=255)
+    name_uz_cyr: Optional[str] = Field(None, max_length=255)
     name_en: Optional[str] = Field(None, max_length=255)
     sector_code: Optional[str] = Field(None, description="Sector code, e.g. 'mining_metallurgy'")
     legal_form: Optional[str] = Field(None, max_length=64)
@@ -67,6 +71,7 @@ class CompanyUpdatePayload(BaseModel):
     name_ru: Optional[str] = Field(None, min_length=1, max_length=255)
     name_short: Optional[str] = Field(None, max_length=128)
     name_uz: Optional[str] = Field(None, max_length=255)
+    name_uz_cyr: Optional[str] = Field(None, max_length=255)
     name_en: Optional[str] = Field(None, max_length=255)
     sector_code: Optional[str] = None
     legal_form: Optional[str] = Field(None, max_length=64)
@@ -93,11 +98,13 @@ class CompanyListItem(BaseModel):
     inn: Optional[str] = None
     name_ru: str
     name_uz: Optional[str] = None
+    name_uz_cyr: Optional[str] = None
     name_en: Optional[str] = None
     name_short: Optional[str]
     sector_code: Optional[str]
     sector_name: Optional[str]
     sector_name_uz: Optional[str] = None
+    sector_name_uz_cyr: Optional[str] = None
     sector_name_en: Optional[str] = None
     sector_color: Optional[str]
     is_active: bool
@@ -124,6 +131,7 @@ class CompanyDetail(BaseModel):
     code: str
     name_ru: str
     name_uz: Optional[str]
+    name_uz_cyr: Optional[str] = None
     name_en: Optional[str]
     name_short: Optional[str]
     legal_form: Optional[str]

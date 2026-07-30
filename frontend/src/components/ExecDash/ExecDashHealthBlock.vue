@@ -45,8 +45,14 @@ const attention = computed(() => {
 });
 const support = computed(() => zones.value[0]?.count || 0);
 
-const worst = computed(() => block.value?.worst || []);
-const best = computed(() => block.value?.best || []);
+const worst = computed(() => (block.value?.worst || []).map((company) => ({
+  ...company,
+  name: exec.catalogCompanyName(company.code, company.name),
+})));
+const best = computed(() => (block.value?.best || []).map((company) => ({
+  ...company,
+  name: exec.catalogCompanyName(company.code, company.name),
+})));
 
 const tAvg = useNumberTween(() => Number(block.value?.avg) || 0, { duration: 900 });
 
@@ -66,7 +72,12 @@ async function openDrill(c: { code: string }) {
       ovCache.value = r.data;
     }
     const full = (ovCache.value?.companies || []).find((x) => x.code === c.code);
-    if (full) drillCompany.value = full;
+    if (full) {
+      drillCompany.value = {
+        ...full,
+        name: exec.catalogCompanyName(full.code, full.name),
+      };
+    }
   } catch { /* тихо — модалка просто не откроется */ }
   finally { drillLoadingCode.value = null; }
 }

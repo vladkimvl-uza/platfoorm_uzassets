@@ -44,7 +44,7 @@ class CompaniesAdminV2Service:
 
         return CompanyAdminRead(
             id=c.id, code=c.code, name_ru=c.name_ru, name_short=c.name_short,
-            name_uz=c.name_uz, name_en=c.name_en,
+            name_uz=c.name_uz, name_uz_cyr=c.name_uz_cyr, name_en=c.name_en,
             legal_form=c.legal_form, ownership_entity=c.ownership_entity, inn=c.inn,
             sector_id=c.sector_id, sector_code=sector_code, sector_name=sector_name,
             description=c.description, logo_url=c.logo_url,
@@ -70,7 +70,8 @@ class CompaniesAdminV2Service:
         cnt = await self.uow.companies_admin_v2.count_companies_in_sector(s.id)
         return SectorAdminRead(
             id=s.id, code=s.code,
-            name_ru=s.name_ru, name_uz=s.name_uz, name_en=s.name_en,
+            name_ru=s.name_ru, name_uz=s.name_uz,
+            name_uz_cyr=s.name_uz_cyr, name_en=s.name_en,
             color_hex=s.color_hex, color_secondary=s.color_secondary,
             icon_name=s.icon_name, short_badge=s.short_badge,
             sort_order=s.sort_order, aliases=s.aliases,
@@ -119,7 +120,8 @@ class CompaniesAdminV2Service:
 
             c = Company(
                 code=body.code, name_ru=body.name_ru, name_short=body.name_short,
-                name_uz=body.name_uz, name_en=body.name_en,
+                name_uz=body.name_uz, name_uz_cyr=body.name_uz_cyr,
+                name_en=body.name_en,
                 sector_id=sector_id, legal_form=body.legal_form,
                 ownership_entity=body.ownership_entity, inn=body.inn,
                 founded_year=body.founded_year, parent_id=parent_id,

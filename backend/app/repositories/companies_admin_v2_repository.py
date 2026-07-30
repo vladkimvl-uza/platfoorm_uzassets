@@ -97,6 +97,9 @@ class CompaniesAdminV2Repository:
                 func.lower(Company.code).like(like)
                 | func.lower(Company.name_ru).like(like)
                 | func.lower(Company.name_short).like(like)
+                | func.lower(Company.name_uz).like(like)
+                | func.lower(Company.name_uz_cyr).like(like)
+                | func.lower(Company.name_en).like(like)
             )
         if conds:
             q = q.where(and_(*conds))

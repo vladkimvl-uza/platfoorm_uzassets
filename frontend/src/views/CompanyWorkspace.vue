@@ -127,6 +127,7 @@ const sector = ref<{
   code: string;
   name_ru: string;
   name_uz?: string | null;
+  name_uz_cyr?: string | null;
   name_en?: string | null;
   color_hex?: string | null;
 } | null>(null);

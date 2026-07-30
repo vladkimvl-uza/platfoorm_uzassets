@@ -56,7 +56,7 @@ const laggards = computed(() => withPct.value.slice().sort((a, b) => (a.execPct 
 
 function fmt1(v: number) { return (Math.round(v * 10) / 10).toLocaleString(getCurrentIntlLocale(), { maximumFractionDigits: 1 }); }
 function go() { router.push({ path: "/business-plan", query: { tab: "production" } }); }
-function coLabel(c: ProdCompany) { return c.n; }
+function coLabel(c: ProdCompany) { return exec.catalogCompanyName(c.k, c.n); }
 </script>
 
 <template>
@@ -96,7 +96,7 @@ function coLabel(c: ProdCompany) { return c.n; }
           <div class="edp-col-l">{{ t("Лидеры") }}</div>
           <div v-for="c in leaders" :key="c.k" class="edp-lrow">
             <span class="edp-dot" :style="{ background: c.sector_color }" />
-            <span class="edp-lname">{{ t(coLabel(c)) }}</span>
+            <span class="edp-lname">{{ coLabel(c) }}</span>
             <span class="edp-lpct" :style="{ color: pctCol(c.execPct ?? null) }">{{ c.execPct }}%</span>
           </div>
         </div>
@@ -104,7 +104,7 @@ function coLabel(c: ProdCompany) { return c.n; }
           <div class="edp-col-l">{{ t("Отстающие") }}</div>
           <div v-for="c in laggards" :key="c.k" class="edp-lrow">
             <span class="edp-dot" :style="{ background: c.sector_color }" />
-            <span class="edp-lname">{{ t(coLabel(c)) }}</span>
+            <span class="edp-lname">{{ coLabel(c) }}</span>
             <span class="edp-lpct" :style="{ color: pctCol(c.execPct ?? null) }">{{ c.execPct }}%</span>
           </div>
         </div>

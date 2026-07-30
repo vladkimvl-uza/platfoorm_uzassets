@@ -115,6 +115,7 @@ const coFiltered = computed(() => {
     companyDisplayName(c).toLowerCase().includes(q)
     || (c.name_ru || "").toLowerCase().includes(q)
     || (c.name_uz || "").toLowerCase().includes(q)
+    || (c.name_uz_cyr || "").toLowerCase().includes(q)
     || (c.name_en || "").toLowerCase().includes(q));
 });
 watch(coSearch, () => { coHighlight.value = 0; });

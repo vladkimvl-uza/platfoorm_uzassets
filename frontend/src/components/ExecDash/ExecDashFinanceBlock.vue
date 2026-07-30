@@ -24,7 +24,6 @@ import Odometer from "@/components/Odometer.vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import { useI18n } from "@/composables/useI18n";
 import { getCurrentIntlLocale } from "@/locale/i18n";
-import { resolveCompanyDisplayName } from "@/utils/displayNames";
 
 const { t } = useI18n();
 const fmt = useFormatters();
@@ -170,7 +169,10 @@ const showStatement = ref(true);
 const hlfCompanies = computed(() =>
   (fin.summary.value?.items || []).map((it: any) => ({
     code: it.company_code,
-    name_short: it.company_name_short,
+    name_short: exec.catalogCompanyName(
+      it.company_id || it.company_code,
+      it.company_name_short || it.company_name || it.company_code,
+    ),
     name_ru: it.company_name,
   })) as any,
 );
@@ -181,9 +183,9 @@ const focusedItem = computed(() => {
 });
 const focusedCompanyCode = computed<string | null>(() => (focusedItem.value as any)?.company_code || null);
 const focusedCompanyName = computed(() =>
-  resolveCompanyDisplayName(
-    (focusedItem.value as any)?.company_name_short || (focusedItem.value as any)?.company_name || focusedCompanyCode.value,
+  exec.catalogCompanyName(
     (focusedItem.value as any)?.company_id || focusedCompanyCode.value,
+    (focusedItem.value as any)?.company_name_short || (focusedItem.value as any)?.company_name || focusedCompanyCode.value,
   ),
 );
 
@@ -448,9 +450,9 @@ const tableRows = computed<CompanyRow[]>(() => {
       idx: 0,
       id: it.company_id,
       code: it.company_code,
-      name: resolveCompanyDisplayName(
-        it.company_name_short || it.company_name || it.company_code,
+      name: exec.catalogCompanyName(
         it.company_id || it.company_code,
+        it.company_name_short || it.company_name || it.company_code,
       ) || it.company_code,
       sector: canonSector(it.sector_code),
       revenue, profit, assets, debt, cfo, cfi, ebitda, ebitdaPct, yoy, trend5y, breakdown, hasData,

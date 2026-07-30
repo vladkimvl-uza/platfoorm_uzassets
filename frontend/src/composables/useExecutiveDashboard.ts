@@ -11,6 +11,7 @@ import {
 } from "@/api/executiveDashboard";
 import { useCompaniesStore } from "@/stores/companies";
 import { getCurrentIntlLocale, t } from "@/locale/i18n";
+import { resolveCompanyDisplayName, resolveSectorDisplayName } from "@/utils/displayNames";
 
 
 
@@ -65,13 +66,27 @@ const data = ref<ExecutiveDashboardData | null>(null);
 const loading = reactive({ data: false });
 const error = ref<string | null>(null);
 
-const filteredSectorsLabel = computed(() => {
+function catalogCompanyName(idOrCode: string | null | undefined, fallback = ""): string {
   const store = useCompaniesStore();
+  return store.getCompanyNameById(idOrCode)
+    || store.getCompanyName(idOrCode)
+    || resolveCompanyDisplayName(fallback, idOrCode)
+    || fallback;
+}
+
+function catalogSectorName(code: string | null | undefined, fallback = ""): string {
+  const store = useCompaniesStore();
+  return store.getSectorName(code)
+    || resolveSectorDisplayName(fallback, code)
+    || fallback;
+}
+
+const filteredSectorsLabel = computed(() => {
   if (!selectedSectors.value.length) return t("Все секторы");
   if (!data.value) return t('Секторы: {value0}', { value0: selectedSectors.value.length });
   if (selectedSectors.value.length === 1) {
     const s = data.value.available_sectors.find((x) => x.id === selectedSectors.value[0]);
-    return s ? (store.getSectorName(s.id) || t(s.label)) : t("Сектор");
+    return s ? (catalogSectorName(s.id, s.label) || t(s.label)) : t("Сектор");
   }
   return t('Секторы: {value0}', { value0: selectedSectors.value.length });
 });
@@ -89,14 +104,13 @@ export interface ExecCompanyOption {
 
 /** Плоский список компаний из всех секторов (для пикера и бенчмарка). */
 const availableCompanies = computed<ExecCompanyOption[]>(() => {
-  const store = useCompaniesStore();
   const out: ExecCompanyOption[] = [];
   for (const s of data.value?.sectors || []) {
     for (const c of s.companies || []) {
       out.push({
         company_id: c.company_id,
-        name: store.getCompanyNameById(c.company_id) || c.name,
-        sector_label: store.getSectorName(s.id) || t(s.label),
+        name: catalogCompanyName(c.company_id, c.name),
+        sector_label: catalogSectorName(s.id, s.label) || t(s.label),
         sector_color: s.color,
         pct: c.pct,
         task_total: c.task_total,
@@ -119,8 +133,8 @@ const pickerCompanies = computed<ExecCompanyOption[]>(() => {
       const m = metricMap.get(c.id);
       return {
         company_id: c.id,
-        name: store.getCompanyNameById(c.id) || c.code,
-        sector_label: store.getSectorName(c.sector_code) || c.sector_name || "",
+        name: catalogCompanyName(c.id, c.code),
+        sector_label: catalogSectorName(c.sector_code, c.sector_name || ""),
         sector_color: c.sector_color || "#94A3B8",
         pct: m?.pct ?? 0,
         task_total: m?.task_total ?? 0,
@@ -196,7 +210,11 @@ async function loadData(force = false): Promise<void> {
   loading.data = true;
   error.value = null;
   try {
-    const res = await getExecutiveDashboard(year.value, selectedSectors.value.length ? selectedSectors.value : undefined, bpMetric.value, filterCompanyId.value, bpPeriod.value);
+    const store = useCompaniesStore();
+    const [res] = await Promise.all([
+      getExecutiveDashboard(year.value, selectedSectors.value.length ? selectedSectors.value : undefined, bpMetric.value, filterCompanyId.value, bpPeriod.value),
+      store.ensureLoaded(),
+    ]);
     if (my !== _reqSeq) return;  // устаревший ответ — игнорируем
     data.value = res;
     _lastKey = key;
@@ -290,6 +308,8 @@ export function useExecutiveDashboard() {
     portfolioBaseline,
     benchmarkActive,
     companyFilterLabel,
+    catalogCompanyName,
+    catalogSectorName,
     toggleCompany,
     clearCompanies,
   };

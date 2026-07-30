@@ -29,11 +29,13 @@ interface CompanyLite {
   code: string;
   name_ru: string;
   name_uz: string | null;
+  name_uz_cyr?: string | null;
   name_en: string | null;
   name_short: string | null;
   sector_code: string | null;
   sector_name: string | null;
   sector_name_uz: string | null;
+  sector_name_uz_cyr?: string | null;
   sector_name_en: string | null;
   sector_color: string | null;
   sort_order: number | null;
@@ -46,6 +48,7 @@ interface SectorLite {
   code: string;
   name_ru: string;
   name_uz?: string | null;
+  name_uz_cyr?: string | null;
   name_en?: string | null;
   color_hex?: string | null;
   sort_order?: number | null;
@@ -168,6 +171,7 @@ export const useCompaniesStore = defineStore("companies", () => {
             code: key,
             name_ru: meta?.name_ru || c.sector_name || (key === "_none" ? t("Без сектора") : key),
             name_uz: meta?.name_uz || c.sector_name_uz || null,
+            name_uz_cyr: meta?.name_uz_cyr || c.sector_name_uz_cyr || null,
             name_en: meta?.name_en || c.sector_name_en || null,
             color,
           },
@@ -246,6 +250,7 @@ export const useCompaniesStore = defineStore("companies", () => {
       code: co.sector_code,
       name_ru: co.sector_name,
       name_uz: co.sector_name_uz,
+      name_uz_cyr: co.sector_name_uz_cyr,
       name_en: co.sector_name_en,
     });
     return code || "";

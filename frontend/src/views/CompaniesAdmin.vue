@@ -14,7 +14,13 @@ import type {
   SectorCreatePayload,
 } from "@/api/companies";
 import { useI18n } from "@/composables/useI18n";
-import { companyDisplayName, resolveSectorDisplayName, sectorDisplayName } from "@/utils/displayNames";
+import {
+  companyDisplayName,
+  resolveSectorDisplayName,
+  sectorDisplayName,
+  uzbekCyrillicName,
+  uzbekLatinName,
+} from "@/utils/displayNames";
 const { t } = useI18n();
 
 
@@ -66,7 +72,7 @@ const editingSector  = ref<SectorBrief | null>(null);
 
 // Forms
 const companyForm = ref<CompanyCreatePayload & { is_active?: boolean; hidden_years?: number[] }>({
-  code: "", name_ru: "", name_short: "", name_uz: "", name_en: "",
+  code: "", name_ru: "", name_short: "", name_uz: "", name_uz_cyr: "", name_en: "",
   sector_code: "", legal_form: "", inn: "", description: "",
   website: "", address: "", ceo_name: "",
   employees_count: undefined, founded_year: undefined,
@@ -87,7 +93,7 @@ function toggleHiddenYear(y: number) {
 }
 
 const sectorForm = ref<SectorCreatePayload>({
-  code: "", name_ru: "", name_uz: "", name_en: "",
+  code: "", name_ru: "", name_uz: "", name_uz_cyr: "", name_en: "",
   color_hex: "", sort_order: 1000,
 });
 
@@ -144,7 +150,7 @@ function toggleInlineCreate() {
   showInlineCreate.value = !showInlineCreate.value;
   if (showInlineCreate.value) {
     companyForm.value = {
-      code: "", name_ru: "", name_short: "", name_uz: "", name_en: "",
+      code: "", name_ru: "", name_short: "", name_uz: "", name_uz_cyr: "", name_en: "",
       sector_code: "",
       legal_form: "АО", inn: "", description: "", // i18n-exempt: canonical API value
       website: "", address: "", ceo_name: "",
@@ -161,7 +167,8 @@ function openEditCompany(c: CompanyListItem) {
     code: c.code,
     name_ru: c.name_ru,
     name_short: c.name_short || "",
-    name_uz: (c as any).name_uz || "",
+    name_uz: uzbekLatinName(c.name_uz, c.name_uz_cyr),
+    name_uz_cyr: uzbekCyrillicName(c.name_uz, c.name_uz_cyr),
     name_en: (c as any).name_en || "",
     sector_code: c.sector_code || "",
     legal_form: (c as any).legal_form || "",
@@ -249,6 +256,7 @@ async function submitCreateCompany() {
       name_ru: companyForm.value.name_ru.trim(),
       name_short: companyForm.value.name_short || undefined,
       name_uz: companyForm.value.name_uz || undefined,
+      name_uz_cyr: companyForm.value.name_uz_cyr || undefined,
       name_en: companyForm.value.name_en || undefined,
       sector_code: companyForm.value.sector_code || undefined,
       legal_form: companyForm.value.legal_form || undefined,
@@ -294,6 +302,7 @@ async function submitEditCompany() {
     if (companyForm.value.name_ru) patch.name_ru = companyForm.value.name_ru;
     if (companyForm.value.name_short !== undefined) patch.name_short = companyForm.value.name_short;
     if (companyForm.value.name_uz !== undefined) patch.name_uz = companyForm.value.name_uz;
+    if (companyForm.value.name_uz_cyr !== undefined) patch.name_uz_cyr = companyForm.value.name_uz_cyr;
     if (companyForm.value.name_en !== undefined) patch.name_en = companyForm.value.name_en;
     if (companyForm.value.sector_code !== undefined) patch.sector_code = companyForm.value.sector_code;
     if (companyForm.value.legal_form !== undefined) patch.legal_form = companyForm.value.legal_form;
@@ -337,7 +346,7 @@ async function submitDeleteCompany() {
 // =====================================================================
 function openCreateSector() {
   sectorForm.value = {
-    code: "", name_ru: "", name_uz: "", name_en: "",
+    code: "", name_ru: "", name_uz: "", name_uz_cyr: "", name_en: "",
     color_hex: "", sort_order: (Math.max(0, ...sectors.value.map(s => s.sort_order)) + 10),
   };
   formError.value = null;
@@ -348,7 +357,10 @@ function openEditSector(s: SectorBrief) {
   editingSector.value = s;
   sectorForm.value = {
     code: s.code,
-    name_ru: s.name_ru, name_uz: s.name_uz || "", name_en: s.name_en || "",
+    name_ru: s.name_ru,
+    name_uz: uzbekLatinName(s.name_uz, s.name_uz_cyr),
+    name_uz_cyr: uzbekCyrillicName(s.name_uz, s.name_uz_cyr),
+    name_en: s.name_en || "",
     color_hex: s.color_hex || "",
     sort_order: s.sort_order,
   };
@@ -365,12 +377,14 @@ async function submitCreateSector() {
       code: sectorForm.value.code.toLowerCase().trim(),
       name_ru: sectorForm.value.name_ru.trim(),
       name_uz: sectorForm.value.name_uz || undefined,
+      name_uz_cyr: sectorForm.value.name_uz_cyr || undefined,
       name_en: sectorForm.value.name_en || undefined,
       color_hex: sectorForm.value.color_hex || undefined,
       sort_order: sectorForm.value.sort_order,
     });
     showCreateSector.value = false;
     await loadSectors();
+    await companiesStore.reload();
   } catch (e: any) {
     if (e?.response?.status === 409) {
       formError.value = t('Сектор \'{value0}\' уже существует.', { value0: sectorForm.value.code });
@@ -390,12 +404,14 @@ async function submitEditSector() {
     await companiesApi.updateSector(editingSector.value.code, {
       name_ru: sectorForm.value.name_ru,
       name_uz: sectorForm.value.name_uz || null,
+      name_uz_cyr: sectorForm.value.name_uz_cyr || null,
       name_en: sectorForm.value.name_en || null,
       color_hex: sectorForm.value.color_hex || null,
       sort_order: sectorForm.value.sort_order,
     });
     showEditSector.value = false;
     await loadSectors();
+    await companiesStore.reload();
   } catch (e: any) {
     formError.value = e?.response?.data?.detail || e?.message || t('Ошибка сохранения');
   } finally {
@@ -416,6 +432,7 @@ async function submitDeleteSector() {
     await companiesApi.removeSector(editingSector.value.code);
     showDeleteSector.value = false;
     await loadSectors();
+    await companiesStore.reload();
   } catch (e: any) {
     if (e?.response?.status === 409) {
       formError.value = e?.response?.data?.detail;
@@ -478,6 +495,12 @@ async function submitDeleteSector() {
           <input v-model="companyForm.name_short" :placeholder="t('Короткое имя')"
                  class="px-3 py-2 text-sm rounded-uza-pill border border-slate-200 focus:border-uza-purple focus:outline-none"/>
           <input v-model="companyForm.name_ru" :placeholder="t('Полное название (RU) *')"
+                 class="col-span-2 px-3 py-2 text-sm rounded-uza-pill border border-slate-200 focus:border-uza-purple focus:outline-none"/>
+          <input v-model="companyForm.name_uz" :placeholder="t('Название (UZ латиница)')"
+                 class="px-3 py-2 text-sm rounded-uza-pill border border-slate-200 focus:border-uza-purple focus:outline-none"/>
+          <input v-model="companyForm.name_uz_cyr" :placeholder="t('Название (UZ кириллица)')"
+                 class="px-3 py-2 text-sm rounded-uza-pill border border-slate-200 focus:border-uza-purple focus:outline-none"/>
+          <input v-model="companyForm.name_en" :placeholder="t('Название (EN)')"
                  class="col-span-2 px-3 py-2 text-sm rounded-uza-pill border border-slate-200 focus:border-uza-purple focus:outline-none"/>
           <select v-model="companyForm.sector_code"
                   class="px-3 py-2 text-sm rounded-uza-pill border border-slate-200 bg-white focus:border-uza-purple">
@@ -602,13 +625,14 @@ async function submitDeleteSector() {
       <div v-else-if="sectors.length === 0" class="uza-card p-12 text-center text-slate-400 text-sm">
         {{ t('Секторов нет.') }}
       </div>
-      <div v-else class="uza-card overflow-hidden">
-        <table class="w-full text-sm">
+      <div v-else class="uza-card overflow-x-auto">
+        <table class="w-full min-w-[1100px] text-sm">
           <thead class="bg-slate-50/60 border-b border-slate-100 text-[10px] uppercase tracking-uza-label2 text-slate-500">
             <tr>
               <th class="text-left px-4 py-3 font-medium">{{ t('Код') }}</th>
               <th class="text-left px-3 py-3 font-medium">RU</th>
-              <th class="text-left px-3 py-3 font-medium">UZ</th>
+              <th class="text-left px-3 py-3 font-medium">UZ LAT</th>
+              <th class="text-left px-3 py-3 font-medium">UZ CYR</th>
               <th class="text-left px-3 py-3 font-medium">EN</th>
               <th class="text-center px-3 py-3 font-medium">{{ t('Цвет') }}</th>
               <th class="text-center px-3 py-3 font-medium">{{ t('Компаний') }}</th>
@@ -620,9 +644,10 @@ async function submitDeleteSector() {
             <tr v-for="s in sectors" :key="s.id" class="hover:bg-slate-50/80">
               <td class="px-4 py-3"><code class="text-xs text-slate-500">{{ s.code }}</code></td>
               <td class="px-3 py-3">
-                <SectorChip :name="sectorDisplayName(s)" :color="s.color_hex" />
+                <SectorChip :name="s.name_ru" :color="s.color_hex" />
               </td>
-              <td class="px-3 py-3 text-xs text-slate-600">{{ s.name_uz || "—" }}</td>
+              <td class="px-3 py-3 text-xs text-slate-600">{{ uzbekLatinName(s.name_uz, s.name_uz_cyr) || "—" }}</td>
+              <td class="px-3 py-3 text-xs text-slate-600">{{ uzbekCyrillicName(s.name_uz, s.name_uz_cyr) || "—" }}</td>
               <td class="px-3 py-3 text-xs text-slate-600">{{ s.name_en || "—" }}</td>
               <td class="px-3 py-3 text-center">
                 <span v-if="s.color_hex" class="inline-block w-4 h-4 rounded-full align-middle"
@@ -701,8 +726,14 @@ async function submitDeleteSector() {
             </div>
           </div>
           <div>
-            <label class="block text-xs text-slate-600 mb-1">{{ t('Название (UZ кириллица)') }}</label>
+            <label class="block text-xs text-slate-600 mb-1">{{ t('Название (UZ латиница)') }}</label>
             <input v-model="companyForm.name_uz" type="text"
+                   placeholder='"Navoiy KMK" AJ'
+                   class="w-full px-3 py-2 text-sm rounded-uza-pill border border-slate-200 focus:border-uza-purple"/>
+          </div>
+          <div>
+            <label class="block text-xs text-slate-600 mb-1">{{ t('Название (UZ кириллица)') }}</label>
+            <input v-model="companyForm.name_uz_cyr" type="text"
                    :placeholder="t('“Навоий КМК” АЖ')"
                    class="w-full px-3 py-2 text-sm rounded-uza-pill border border-slate-200 focus:border-uza-purple"/>
           </div>
@@ -801,8 +832,13 @@ async function submitDeleteSector() {
                    class="w-full px-3 py-2 text-sm rounded-uza-pill border border-slate-200 focus:border-uza-purple"/>
           </div>
           <div>
-            <label class="block text-xs text-slate-600 mb-1">{{ t('Название (UZ кириллица)') }}</label>
+            <label class="block text-xs text-slate-600 mb-1">{{ t('Название (UZ латиница)') }}</label>
             <input v-model="sectorForm.name_uz" type="text"
+                   class="w-full px-3 py-2 text-sm rounded-uza-pill border border-slate-200 focus:border-uza-purple"/>
+          </div>
+          <div>
+            <label class="block text-xs text-slate-600 mb-1">{{ t('Название (UZ кириллица)') }}</label>
+            <input v-model="sectorForm.name_uz_cyr" type="text"
                    class="w-full px-3 py-2 text-sm rounded-uza-pill border border-slate-200 focus:border-uza-purple"/>
           </div>
           <div>

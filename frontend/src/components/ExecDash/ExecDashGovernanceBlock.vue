@@ -20,6 +20,10 @@ const { t } = useI18n();
 const exec = useExecutiveDashboard();
 
 const block = computed(() => exec.data.value?.governance || null);
+const topCompanies = computed(() => (block.value?.top_companies || []).map((company) => ({
+  ...company,
+  name: exec.catalogCompanyName(company.company_id, company.name),
+})));
 
 // единый источник цветов секторов (см. [[useSectorMeta]] / sectorMeta.ts)
 const sectorColor = SECTOR_COLORS as Record<string, string>;
@@ -97,7 +101,7 @@ function medalColor(rank: number): string {
       <!-- Top-7 list -->
       <div class="edg-rows">
         <div
-          v-for="(co, i) in block.top_companies"
+          v-for="(co, i) in topCompanies"
           :key="co.company_id"
           class="edg-row"
           :style="{ '--rd': `${i * 60}ms` }"

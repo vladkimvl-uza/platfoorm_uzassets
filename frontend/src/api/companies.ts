@@ -9,6 +9,7 @@ export interface SectorBrief {
   code: string;
   name_ru: string;
   name_uz: string | null;
+  name_uz_cyr?: string | null;
   name_en: string | null;
   color_hex: string | null;
   sort_order: number;
@@ -19,6 +20,7 @@ export interface SectorCreatePayload {
   code: string;
   name_ru: string;
   name_uz?: string | null;
+  name_uz_cyr?: string | null;
   name_en?: string | null;
   color_hex?: string | null;
   sort_order?: number;
@@ -27,6 +29,7 @@ export interface SectorCreatePayload {
 export interface SectorUpdatePayload {
   name_ru?: string;
   name_uz?: string | null;
+  name_uz_cyr?: string | null;
   name_en?: string | null;
   color_hex?: string | null;
   sort_order?: number;
@@ -37,6 +40,7 @@ export interface CompanyCreatePayload {
   name_ru: string;
   name_short?: string;
   name_uz?: string;
+  name_uz_cyr?: string;
   name_en?: string;
   sector_code?: string;
   legal_form?: string;
@@ -53,6 +57,7 @@ export interface CompanyUpdatePayload {
   name_ru?: string;
   name_short?: string;
   name_uz?: string;
+  name_uz_cyr?: string;
   name_en?: string;
   sector_code?: string;
   legal_form?: string;
@@ -73,11 +78,13 @@ export interface CompanyListItem {
   inn?: string | null;
   name_ru: string;
   name_uz?: string | null;
+  name_uz_cyr?: string | null;
   name_en?: string | null;
   name_short: string | null;
   sector_code: string | null;
   sector_name: string | null;
   sector_name_uz?: string | null;
+  sector_name_uz_cyr?: string | null;
   sector_name_en?: string | null;
   sector_color: string | null;
   is_active: boolean;
@@ -100,6 +107,7 @@ export interface CompanyDetail {
   code: string;
   name_ru: string;
   name_uz: string | null;
+  name_uz_cyr?: string | null;
   name_en: string | null;
   name_short: string | null;
   legal_form: string | null;

@@ -95,6 +95,7 @@ const sectorChipLabel = computed(() => sectorDisplayName(detail.value?.sector ||
   code: liteCompany.value?.sector_code,
   name_ru: liteCompany.value?.sector_name,
   name_uz: liteCompany.value?.sector_name_uz,
+  name_uz_cyr: liteCompany.value?.sector_name_uz_cyr,
   name_en: liteCompany.value?.sector_name_en,
 }) || props.sectorLabel || "");
 

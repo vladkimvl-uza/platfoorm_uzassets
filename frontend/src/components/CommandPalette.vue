@@ -140,7 +140,7 @@ const localizedCompanies = computed<PaletteCompany[]>(() => companies.value.map(
   ...c,
   name: companyDisplayName(c) || c.code || t("Компания"),
   sub: c.code || "",
-  kw: `${c.code || ""} ${c.name_short || ""} ${c.name_ru || ""} ${c.name_uz || ""} ${c.name_en || ""}`.trim(),
+  kw: `${c.code || ""} ${c.name_short || ""} ${c.name_ru || ""} ${c.name_uz || ""} ${c.name_uz_cyr || ""} ${c.name_en || ""}`.trim(),
 })));
 async function loadCompanies() {
   if (companies.value.length || !can("companies.view")) return;

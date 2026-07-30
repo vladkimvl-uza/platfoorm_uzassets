@@ -54,6 +54,9 @@ class CompaniesRepository:
                 func.lower(Company.code).like(s),
                 func.lower(Company.name_ru).like(s),
                 func.lower(Company.name_short).like(s),
+                func.lower(Company.name_uz).like(s),
+                func.lower(Company.name_uz_cyr).like(s),
+                func.lower(Company.name_en).like(s),
             ))
         if scope_company_ids is not None:
             if not scope_company_ids:

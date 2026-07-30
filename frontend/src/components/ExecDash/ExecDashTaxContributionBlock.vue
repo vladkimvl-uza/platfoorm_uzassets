@@ -35,7 +35,10 @@ const block = computed(() => exec.data.value?.tax_contribution || null);
 const kpi = computed(() => block.value?.kpi || null);
 const isFallback = computed(() =>
   !!block.value?.requested_year && block.value.requested_year !== block.value.year);
-const topPayers = computed(() => block.value?.top_payers || []);
+const topPayers = computed(() => (block.value?.top_payers || []).map((company) => ({
+  ...company,
+  name: exec.catalogCompanyName(company.company_id, company.name),
+})));
 
 // Pack 7.22: pre-compute bar width as percentage of the largest payer
 // so the rendered bars are visually proportional (top payer = 100%).

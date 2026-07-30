@@ -43,7 +43,10 @@ const isFallback = computed(() =>
 const tOnTarget  = useNumberTween(() => Number(block.value?.on_target) || 0, { duration: 900 });
 const tAttention = useNumberTween(() => Number(block.value?.attention) || 0, { duration: 900 });
 const tBehind    = useNumberTween(() => Number(block.value?.behind) || 0, { duration: 900 });
-const rows = computed(() => block.value?.rows || []);
+const rows = computed(() => (block.value?.rows || []).map((row) => ({
+  ...row,
+  name: exec.catalogCompanyName(row.company_id, row.name),
+})));
 
 const METRIC_TITLES: Record<string, string> = {
   revenue: i18nKey("Выручка"),

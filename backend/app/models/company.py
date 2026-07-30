@@ -17,6 +17,7 @@ class Sector(Base, UUIDMixin, TimestampMixin):
     code: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
     name_ru: Mapped[str] = mapped_column(String(255), nullable=False)
     name_uz: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    name_uz_cyr: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     name_en: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     color_hex: Mapped[Optional[str]] = mapped_column(String(9), nullable=True)
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
@@ -60,6 +61,7 @@ class Company(Base, UUIDMixin, TimestampMixin):
     name_ru: Mapped[str] = mapped_column(String(255), nullable=False)
     name_short: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     name_uz: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    name_uz_cyr: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     name_en: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     legal_form: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     # Орган управления / собственник (напр. «Агентство по управлению госактивами»,

@@ -31,7 +31,8 @@ from app.uow.ports import UnitOfWorkABC
 def _company_to_detail(co: Company) -> CompanyDetail:
     return CompanyDetail(
         id=co.id, code=co.code,
-        name_ru=co.name_ru, name_uz=co.name_uz, name_en=co.name_en,
+        name_ru=co.name_ru, name_uz=co.name_uz,
+        name_uz_cyr=co.name_uz_cyr, name_en=co.name_en,
         name_short=co.name_short, legal_form=co.legal_form, inn=co.inn,
         sector=SectorBrief.model_validate(co.sector) if co.sector else None,
         description=co.description, website=co.website,
@@ -82,11 +83,13 @@ class CompaniesService:
             fin = latest_fin.get(str(c.id))
             items.append(CompanyListItem(
                 id=c.id, code=c.code, inn=c.inn,
-                name_ru=c.name_ru, name_uz=c.name_uz, name_en=c.name_en,
+                name_ru=c.name_ru, name_uz=c.name_uz,
+                name_uz_cyr=c.name_uz_cyr, name_en=c.name_en,
                 name_short=c.name_short,
                 sector_code=c.sector.code if c.sector else None,
                 sector_name=c.sector.name_ru if c.sector else None,
                 sector_name_uz=c.sector.name_uz if c.sector else None,
+                sector_name_uz_cyr=c.sector.name_uz_cyr if c.sector else None,
                 sector_name_en=c.sector.name_en if c.sector else None,
                 sector_color=c.sector.color_hex if c.sector else None,
                 is_active=c.is_active, is_custom=c.is_custom,
@@ -225,7 +228,8 @@ class CompaniesService:
             co = Company(
                 code=payload.code.lower(),
                 name_ru=name_ru_clean, name_short=name_short_clean,
-                name_uz=payload.name_uz, name_en=payload.name_en,
+                name_uz=payload.name_uz, name_uz_cyr=payload.name_uz_cyr,
+                name_en=payload.name_en,
                 sector_id=sector.id if sector else None,
                 legal_form=payload.legal_form, inn=payload.inn,
                 description=payload.description, website=payload.website,
@@ -308,7 +312,8 @@ class CompaniesService:
             changes: list[str] = []
             field_map = {
                 "name_ru": payload.name_ru, "name_short": payload.name_short,
-                "name_uz": payload.name_uz, "name_en": payload.name_en,
+                "name_uz": payload.name_uz, "name_uz_cyr": payload.name_uz_cyr,
+                "name_en": payload.name_en,
                 "legal_form": payload.legal_form, "inn": payload.inn,
                 "description": payload.description, "website": payload.website,
                 "address": payload.address, "ceo_name": payload.ceo_name,
@@ -461,7 +466,8 @@ class SectorsService:
                 return [
                     SectorBrief(
                         id=r.Sector.id, code=r.Sector.code,
-                        name_ru=r.Sector.name_ru, name_uz=r.Sector.name_uz, name_en=r.Sector.name_en,
+                        name_ru=r.Sector.name_ru, name_uz=r.Sector.name_uz,
+                        name_uz_cyr=r.Sector.name_uz_cyr, name_en=r.Sector.name_en,
                         color_hex=r.Sector.color_hex, sort_order=r.Sector.sort_order,
                         company_count=r.cnt or 0,
                     )
@@ -478,7 +484,8 @@ class SectorsService:
                 raise HTTPException(409, f"Sector '{payload.code}' already exists")
             s = Sector(
                 code=payload.code,
-                name_ru=payload.name_ru, name_uz=payload.name_uz, name_en=payload.name_en,
+                name_ru=payload.name_ru, name_uz=payload.name_uz,
+                name_uz_cyr=payload.name_uz_cyr, name_en=payload.name_en,
                 color_hex=payload.color_hex, sort_order=payload.sort_order,
             )
             self.uow.companies.add(s)
@@ -492,7 +499,7 @@ class SectorsService:
             if not s:
                 raise HTTPException(404, f"Sector '{code}' not found")
             changes: list[str] = []
-            for field in ("name_ru", "name_uz", "name_en", "color_hex", "sort_order"):
+            for field in ("name_ru", "name_uz", "name_uz_cyr", "name_en", "color_hex", "sort_order"):
                 v = getattr(payload, field)
                 if v is None:
                     continue

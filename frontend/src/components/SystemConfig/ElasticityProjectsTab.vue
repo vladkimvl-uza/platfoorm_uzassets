@@ -451,7 +451,7 @@ const error = ref<string | null>(null)
 
 const constants = ref<api.Constants | null>(null)
 const scenarios = ref<Array<{ id: string; name_ru?: string; code: string }>>([])
-const companies = ref<Array<{ id: string; code?: string; name_ru: string; name_uz?: string | null; name_en?: string | null; name_short?: string | null }>>([])
+const companies = ref<Array<{ id: string; code?: string; name_ru: string; name_uz?: string | null; name_uz_cyr?: string | null; name_en?: string | null; name_short?: string | null }>>([])
 const companiesTruncated = ref(false)
 const projects = ref<Array<{ id: string; title: string; num?: string }>>([])
 const projectsTruncated = ref(false)

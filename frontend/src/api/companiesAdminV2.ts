@@ -16,6 +16,7 @@ export interface CompanyAdmin {
   name_ru: string;
   name_short: string | null;
   name_uz: string | null;
+  name_uz_cyr: string | null;
   name_en: string | null;
   legal_form: string | null;
   ownership_entity: string | null;
@@ -97,6 +98,7 @@ export interface SectorAdmin {
   code: string;
   name_ru: string;
   name_uz: string | null;
+  name_uz_cyr: string | null;
   name_en: string | null;
   color_hex: string | null;
   color_secondary: string | null;

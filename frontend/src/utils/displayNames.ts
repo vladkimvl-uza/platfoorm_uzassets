@@ -5,7 +5,8 @@
  *
  * ПРАВИЛО:
  *   • RU: короткое имя компании, затем name_ru;
- *   • UZ: name_uz с нормализацией в выбранную графику;
+ *   • UZ Latin: name_uz, с fallback из name_uz_cyr;
+ *   • UZ Cyrillic: name_uz_cyr, с fallback из name_uz;
  *   • EN: name_en;
  *   • если локализованное поле пусто, используется русский fallback.
  *
@@ -33,6 +34,7 @@ export interface CompanyNameShape {
   code?: string | null;
   name_ru?: string | null;
   name_uz?: string | null;
+  name_uz_cyr?: string | null;
   name_en?: string | null;
   name_short?: string | null;
   /** Иногда серверу передаются псевдонимы; используем как fallback. */
@@ -44,6 +46,7 @@ export interface SectorNameShape {
   id?: string | null;
   name_ru?: string | null;
   name_uz?: string | null;
+  name_uz_cyr?: string | null;
   name_en?: string | null;
   name?: string | null;
   code?: string | null;
@@ -74,6 +77,7 @@ export function registerDisplayNameCatalog(
       company.name_short,
       company.name_ru,
       company.name_uz,
+      company.name_uz_cyr,
       company.name_en,
     ]) {
       const key = aliasKey(alias);
@@ -89,6 +93,7 @@ export function registerDisplayNameCatalog(
       sector.name,
       sector.name_ru,
       sector.name_uz,
+      sector.name_uz_cyr,
       sector.name_en,
     ]) {
       const key = aliasKey(alias);
@@ -102,10 +107,19 @@ export function registerDisplayNameCatalog(
 
 const CYRILLIC_RE = /[А-Яа-яЁёЎўҒғҚқҲҳ]/; // i18n-exempt: script detector, never rendered
 
-function localizedUzName(value: string, locale: "uz-latn" | "uz-cyr"): string {
-  if (locale === "uz-latn") {
-    return CYRILLIC_RE.test(value) ? translitCyrillicToLatin(value) : value;
-  }
+export function uzbekLatinName(
+  latin: string | null | undefined,
+  cyrillic?: string | null,
+): string {
+  const value = (latin || cyrillic || "").trim();
+  return CYRILLIC_RE.test(value) ? translitCyrillicToLatin(value) : value;
+}
+
+export function uzbekCyrillicName(
+  latin: string | null | undefined,
+  cyrillic?: string | null,
+): string {
+  const value = (cyrillic || latin || "").trim();
   return CYRILLIC_RE.test(value) ? value : translitLatinToCyrillic(value);
 }
 
@@ -127,10 +141,8 @@ export function companyDisplayName(co: CompanyNameShape | null | undefined): str
   const fallback = (co.name_short || co.name_ru || co.name || "").trim();
   const locale = getCurrentLocale();
   if (locale === "en") return (co.name_en || "").trim() || fallback;
-  if (locale === "uz-latn" || locale === "uz-cyr") {
-    const uz = (co.name_uz || "").trim();
-    return uz ? localizedUzName(uz, locale) : fallback;
-  }
+  if (locale === "uz-latn") return uzbekLatinName(co.name_uz, co.name_uz_cyr) || fallback;
+  if (locale === "uz-cyr") return uzbekCyrillicName(co.name_uz, co.name_uz_cyr) || fallback;
   return fallback;
 }
 
@@ -146,10 +158,8 @@ export function sectorDisplayName(sec: SectorNameShape | null | undefined): stri
   const fallback = (sec.name_ru || sec.name || sec.code || "").trim();
   const locale = getCurrentLocale();
   if (locale === "en") return (sec.name_en || "").trim() || fallback;
-  if (locale === "uz-latn" || locale === "uz-cyr") {
-    const uz = (sec.name_uz || "").trim();
-    return uz ? localizedUzName(uz, locale) : fallback;
-  }
+  if (locale === "uz-latn") return uzbekLatinName(sec.name_uz, sec.name_uz_cyr) || fallback;
+  if (locale === "uz-cyr") return uzbekCyrillicName(sec.name_uz, sec.name_uz_cyr) || fallback;
   return fallback;
 }
 

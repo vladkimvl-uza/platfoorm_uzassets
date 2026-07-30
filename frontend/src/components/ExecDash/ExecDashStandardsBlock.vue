@@ -18,6 +18,10 @@ const { t } = useI18n();
 const exec = useExecutiveDashboard();
 
 const block = computed(() => exec.data.value?.standards || null);
+const attentionList = computed(() => (block.value?.attention_list || []).map((company) => ({
+  ...company,
+  name: exec.catalogCompanyName(company.company_id, company.name),
+})));
 // Стандарты ВСЕГДА за предыдущий год (аудит с лагом в год) — год для бейджа.
 const stdYear = computed(() => exec.data.value?.standards_year ?? null);
 
@@ -155,16 +159,16 @@ function statusColor(status: string): string {
 
       <!-- Attention list label -->
       <div class="eds-att-hdr">
-        {{ t("Требуют внимания") }} · {{ block.attention_list.length }}
+        {{ t("Требуют внимания") }} · {{ attentionList.length }}
       </div>
 
       <!-- Attention list -->
       <div class="eds-att-wrap">
-        <div v-if="!block.attention_list.length" class="eds-att-clean">
+        <div v-if="!attentionList.length" class="eds-att-clean">
           {{ t("Все компании завершили МСФО и Forensic") }}
         </div>
         <div
-          v-for="(a, i) in block.attention_list"
+          v-for="(a, i) in attentionList"
           :key="a.company_id"
           class="eds-att-row"
           :style="{ '--rd': `${i * 40}ms` }"

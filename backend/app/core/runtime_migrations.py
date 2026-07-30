@@ -254,6 +254,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_drop_value_module(conn)
             await _patch_kpi_quarters_mode(conn)
             await _patch_user_ui_locale(conn)
+            await _patch_company_sector_uz_cyr_names(conn)
             await _bump_alembic(conn)
     except Exception as e:
         # Never crash the app on a self-heal failure - just log and continue.
@@ -2714,6 +2715,37 @@ async def _patch_scenarios_tables(conn) -> None:
                 "budget": budget,
             },
         )
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Company and sector names in both Uzbek scripts
+# ─────────────────────────────────────────────────────────────────────
+
+async def _patch_company_sector_uz_cyr_names(conn) -> None:
+    """Add explicit Uzbek Cyrillic fields without rewriting manual names."""
+    for table in ("companies", "sectors"):
+        await conn.execute(text(
+            f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS name_uz_cyr VARCHAR(255)"
+        ))
+        await conn.execute(text(
+            f"""
+            UPDATE {table}
+               SET name_uz_cyr = name_uz
+             WHERE name_uz_cyr IS NULL
+               AND name_uz ~ '[А-Яа-яЁёЎўҒғҚқҲҳ]'
+            """
+        ))
+
+    # Runtime self-heal and Alembic may run in different deploy paths. Once
+    # this exact schema step is complete, keep their bookkeeping in sync so
+    # a later `alembic upgrade head` does not try to add the columns again.
+    await conn.execute(
+        text(
+            "UPDATE alembic_version "
+            "SET version_num = '9b5_company_sector_uz_cyr' "
+            "WHERE version_num = '9b4_rbac_screen_permissions'"
+        )
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────
