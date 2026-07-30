@@ -15,6 +15,7 @@ import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import { companiesApi } from "@/api/companies";
 import {
+  canonSectorCode,
   companyDisplayName,
   registerDisplayNameCatalog,
   sectorDisplayName,
@@ -214,7 +215,15 @@ export const useCompaniesStore = defineStore("companies", () => {
   /** Find a sector by its `code`. */
   function findSectorByCode(code: string | null | undefined): SectorLite | undefined {
     if (!code) return undefined;
-    return sectors.value.find(s => s.code === code);
+    const normalized = code.trim().toLowerCase();
+    const exact = sectors.value.find(s => s.code.toLowerCase() === normalized);
+    if (exact) return exact;
+
+    // Executive Dashboard uses five short buckets, while the sector catalog
+    // keeps full codes such as mining_metallurgy and transport_communications.
+    const bucket = canonSectorCode(code);
+    if (bucket === "other" && normalized !== "other") return undefined;
+    return sectors.value.find(s => canonSectorCode(s.code) === bucket);
   }
 
   /** Get the canonical display name for a company by its code. Empty string if not found. */
@@ -227,7 +236,12 @@ export const useCompaniesStore = defineStore("companies", () => {
     const sec = findSectorByCode(code);
     if (sec) return sectorDisplayName(sec);
     // Fallback: компания могла принести sector_name напрямую (если sectors[] не загружены)
-    const co = companies.value.find(c => c.sector_code === code);
+    const normalized = (code || "").trim().toLowerCase();
+    const bucket = canonSectorCode(code);
+    const co = companies.value.find(c => c.sector_code?.toLowerCase() === normalized)
+      || (bucket !== "other" || normalized === "other"
+        ? companies.value.find(c => canonSectorCode(c.sector_code) === bucket)
+        : undefined);
     if (co?.sector_name) return sectorDisplayName({
       code: co.sector_code,
       name_ru: co.sector_name,
