@@ -33,6 +33,13 @@ import { i18nKey } from "@/locale/keys";
 
 const { t: tr } = useI18n();
 const fmt = useFormatters();
+const reportBrandLines = computed(() => {
+  const words = tr("Единая платформа трансформации")
+    .toLocaleUpperCase(getCurrentIntlLocale())
+    .trim()
+    .split(/\s+/);
+  return [words.slice(0, -1).join(" "), words[words.length - 1] || ""];
+});
 
 
 const props = defineProps<{
@@ -685,7 +692,7 @@ async function exportDoc() {
       rasterize(uzassetsLogoUrl, 30),
       rasterize("data:image/svg+xml;charset=utf-8," + encodeURIComponent(EPT_SVG), 30),
     ]);
-    const eptCell = `<table style="margin:0 auto;border-collapse:collapse"><tr>${eptB64 ? `<td style="vertical-align:middle;padding-right:7px"><img src="${eptB64}" height="30" style="height:30px"/></td>` : ""}<td style="vertical-align:middle;text-align:left;font:800 11px Arial;color:#4B4A9A;letter-spacing:.5px;line-height:1.2">${tr("ЕДИНАЯ ПЛАТФОРМА")}<br/>${tr("ТРАНСФОРМАЦИИ")}</td></tr></table>`;
+    const eptCell = `<table style="margin:0 auto;border-collapse:collapse"><tr>${eptB64 ? `<td style="vertical-align:middle;padding-right:7px"><img src="${eptB64}" height="30" style="height:30px"/></td>` : ""}<td style="vertical-align:middle;text-align:left;font:800 11px Arial;color:#4B4A9A;letter-spacing:.5px;line-height:1.2">${reportBrandLines.value[0]}<br/>${reportBrandLines.value[1]}</td></tr></table>`;
     // Официальная тройная шапка (как в печати): Минфин · EPT · UzAssets.
     const head = `
       <table style="width:100%;border-collapse:collapse;border-bottom:2.5px solid #4B4A9A;margin-bottom:10px"><tr>
@@ -755,7 +762,7 @@ watch(apxPeriod, () => { scheduleSave(); if (showBp.value) loadBp(); });
           <td class="lh-center">
             <div class="lh-ept">
               <EptLogo :size="30" class="lh-ept-mark" />
-              <div class="lh-ept-t">{{ tr('ЕДИНАЯ ПЛАТФОРМА') }}<br />{{ tr('ТРАНСФОРМАЦИИ') }}</div>
+              <div class="lh-ept-t">{{ reportBrandLines[0] }}<br />{{ reportBrandLines[1] }}</div>
             </div>
           </td>
           <td class="lh-right"><img :src="uzassetsLogoUrl" alt="UzAssets" class="lh-uza" /></td>
@@ -917,7 +924,7 @@ watch(apxPeriod, () => { scheduleSave(); if (showBp.value) loadBp(); });
                   <td class="lh-center">
                     <div class="lh-ept">
                       <EptLogo :size="30" class="lh-ept-mark" />
-                      <div class="lh-ept-t">{{ tr('ЕДИНАЯ ПЛАТФОРМА') }}<br />{{ tr('ТРАНСФОРМАЦИИ') }}</div>
+                      <div class="lh-ept-t">{{ reportBrandLines[0] }}<br />{{ reportBrandLines[1] }}</div>
                     </div>
                   </td>
                   <td class="lh-right"><img :src="uzassetsLogoUrl" alt="" class="lh-uza" /></td>

@@ -9,6 +9,7 @@ import { inject, computed, ref, onMounted, onBeforeUnmount } from "vue";
 import { useI18n } from "@/composables/useI18n";
 import { useExecutiveDashboard } from "@/composables/useExecutiveDashboard";
 import { useCompaniesStore } from "@/stores/companies";
+import { i18nKey } from "@/locale/keys";
 import UzaYearStepper from "@/components/UZA/UzaYearStepper.vue";
 import minfinLogoUrl from "@/assets/minfin-logo.png";
 
@@ -26,6 +27,7 @@ const sectorMenuOpen = ref(false);
 const yearMenuOpen = ref(false);
 const companyMenuOpen = ref(false);
 const companySearch = ref("");
+const DEFAULT_MAIN_TITLE = i18nKey("Программа трансформации государственных предприятий");
 
 const filteredCompanyOptions = computed(() => {
   const q = companySearch.value.trim().toLowerCase();
@@ -47,8 +49,16 @@ function resetFilters() {
   companyMenuOpen.value = false;
 }
 
-const mainTitle = computed(() => exec.data.value?.title_main || t("Программа трансформации государственных предприятий"));
-const subTitle = computed(() => exec.data.value?.title_sub || `FY ${exec.year.value} · REVIEW`);
+const mainTitle = computed(() => {
+  const source = exec.data.value?.title_main;
+  if (!source || source === DEFAULT_MAIN_TITLE) return t(DEFAULT_MAIN_TITLE);
+  return source;
+});
+const subTitle = computed(() => {
+  const count = exec.data.value?.total_companies;
+  const review = `FY ${exec.year.value} · ${t("Обзор")}`;
+  return count == null ? review : `${review} · ${t("{n} компаний", { n: count })}`;
+});
 
 function isSectorSelected(id: string): boolean {
   if (!exec.selectedSectors.value.length) return false;

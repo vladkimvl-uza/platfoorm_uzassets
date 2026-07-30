@@ -28,6 +28,9 @@ import { useHeartbeat } from "@/composables/usePresence";
 const aiAct = useAiActivation();
 const aiActive = computed(() => aiAct.state.active);
 const { t } = useI18n();
+const brandTaglineLines = computed(() =>
+  t("Единая платформа трансформации").trim().split(/\s+/),
+);
 // Область доступа: по ней прячем портфельные пункты меню (экран министра).
 import UserProfileModal from "@/components/UserProfileModal.vue";
 import WelcomeModal from "@/components/WelcomeModal.vue";
@@ -434,9 +437,7 @@ function exitImpersonate() {
         <RouterLink to="/home" class="sb-brand" :title="t('UzAssets · Единая платформа трансформации')">
           <EptLogo :size="40" />
           <span class="sb-brand-tagline-stack">
-            <span>{{ t('Единая') }}</span>
-            <span>{{ t('платформа') }}</span>
-            <span>{{ t('трансформации') }}</span>
+            <span v-for="line in brandTaglineLines" :key="line">{{ line }}</span>
           </span>
         </RouterLink>
         <NotificationBell class="sb-header-bell" />

@@ -10,6 +10,7 @@
 import { computed, ref } from "vue";
 import { useI18n } from "@/composables/useI18n";
 import { useExecutiveDashboard } from "@/composables/useExecutiveDashboard";
+import { i18nKey } from "@/locale/keys";
 import { useNumberTween } from "@/composables/useNumberTween";
 import ExecDashSectorCard from "./ExecDashSectorCard.vue";
 import CompanyDrillModal from "@/components/UZA/CompanyDrillModal.vue";
@@ -20,7 +21,13 @@ const { t } = useI18n();
 const exec = useExecutiveDashboard();
 const { canUseAi } = useAiFeatureAccess();
 
+const DEFAULT_ROW_TITLE = i18nKey("Исполнение задач Ожиданий Акционера");
 const sectors = computed(() => exec.data.value?.sectors || []);
+const row1Title = computed(() => {
+  const source = exec.data.value?.row1_title;
+  if (!source || source === DEFAULT_ROW_TITLE) return t(DEFAULT_ROW_TITLE);
+  return source;
+});
 
 // 2026-05-26: rebuild header subtitle from bottom_metrics with countup animation
 // (was backend pre-formatted string — couldn't tween). Falls back to raw
@@ -67,7 +74,7 @@ function closeDrill() {
     <!-- Header -->
     <div class="ed-card-ttl">
       <span>
-        <span>{{ exec.data.value?.row1_title || t('Исполнение задач Ожиданий Акционера') }}</span>
+        <span>{{ row1Title }}</span>
         · {{ exec.year.value }}
       </span>
       <span class="sub">{{ headerSub }}</span>

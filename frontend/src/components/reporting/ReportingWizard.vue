@@ -29,6 +29,10 @@ import { getCurrentIntlLocale } from "@/locale/i18n";
 import { i18nKey } from "@/locale/keys";
 
 const { t } = useI18n();
+const reportBrandLines = computed(() => {
+  const words = t("Единая платформа трансформации").trim().split(/\s+/);
+  return [words.slice(0, -1).join(" "), words[words.length - 1] || ""];
+});
 
 
 const props = defineProps<{
@@ -388,7 +392,7 @@ function printReport() {
                   <path d="M 80 30 L 210 110 L 80 190 L 115 110 Z" fill="#534AB7" />
                   <g fill="#7F77DD"><rect x="56" y="50" width="8" height="8" /><rect x="42" y="64" width="7" height="7" /><rect x="50" y="96" width="7" height="7" /><rect x="36" y="116" width="7" height="7" /><rect x="48" y="150" width="7" height="7" /></g>
                 </svg>
-                <span class="rw-pp-brand-txt">{{ t('Единая платформа') }}<br />{{ t('трансформации') }}</span>
+                <span class="rw-pp-brand-txt">{{ reportBrandLines[0] }}<br />{{ reportBrandLines[1] }}</span>
               </div>
               <img :src="uzassetsLogoUrl" class="rw-pp-uza-img" alt="UzAssets" />
             </div>
