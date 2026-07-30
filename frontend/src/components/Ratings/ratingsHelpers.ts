@@ -7,6 +7,7 @@ import type { AgencyRatingBrief } from "@/api/ratings";
 import type { SectorBrief } from "@/api/companies";
 import { t } from "@/locale/i18n";
 import { i18nKey } from "@/locale/keys";
+import { formatRatingDate, ratingDateSortKey } from "@/utils/ratingDates";
 
 // ─── Agencies ──────────────────────────────────────────────────────────────
 export const CREDIT_AGENCIES = ["Fitch", "S&P", "Moody's"] as const;
@@ -40,45 +41,11 @@ export function isRecentlyUpdated(r: AgencyRatingBrief | null | undefined): bool
 }
 
 export function formatDate(d: string | null | undefined): string {
-  if (!d) return "";
-  // ISO YYYY-MM-DD → DD.MM.YYYY
-  const s = String(d);
-  if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
-    return s.slice(0, 10).split("-").reverse().join(".");
-  }
-  return s;
+  return formatRatingDate(d);
 }
-
-const MON_MAP: Record<string, string> = {
-  // i18n-exempt-start -- accepted date tokens from persisted/imported data.
-  янв:"01",фев:"02",мар:"03",апр:"04",май:"05",июн:"06",
-  июл:"07",авг:"08",сен:"09",окт:"10",ноя:"11",дек:"12",
-  jan:"01",feb:"02",mar:"03",apr:"04",may:"05",jun:"06",
-  jul:"07",aug:"08",sep:"09",oct:"10",nov:"11",dec:"12",
-  // i18n-exempt-end
-};
 
 /** Build a sortable YYYY-MM-DD key from various date string forms. */
-export function dateSortKey(d: string | null | undefined): string {
-  if (!d) return "0000-00-00";
-  const s = String(d).trim().toLowerCase();
-  // ISO already
-  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
-  const p = s.split(/[\s\/.\-]+/);
-  if (p.length === 3) {
-    const y = p[2] && p[2].length === 4 ? p[2] : p[0];
-    const m = MON_MAP[p[1]] || MON_MAP[p[0]] || p[1];
-    const day = p[0].length <= 2 ? p[0] : p[2];
-    return `${y}-${("0" + m).slice(-2)}-${("0" + day).slice(-2)}`;
-  }
-  if (p.length === 2) {
-    const mm = MON_MAP[p[0]] || p[0];
-    const yy = p[1] && p[1].length === 4 ? p[1] : p[0];
-    return `${yy}-${("0" + mm).slice(-2)}-01`;
-  }
-  if (p.length === 1 && p[0].length === 4) return `${p[0]}-01-01`;
-  return s;
-}
+export const dateSortKey = ratingDateSortKey;
 
 // ─── Color scheme for rating badges (port of bSt() from legacy) ─────────
 export interface BadgeStyle { bg: string; fg: string; }
@@ -132,6 +99,10 @@ export function outlookBadge(outlook: string | null | undefined): OutlookBadge |
   const v = OUTLOOK_MAP[outlook];
   if (!v) return null;
   return { label: t(v[0]), fg: v[1], bg: v[2], symbol: v[3] };
+}
+
+export function formatOutlook(outlook: string | null | undefined): string {
+  return outlookBadge(outlook)?.label || outlook || "";
 }
 
 // ─── Sector helpers ────────────────────────────────────────────────────────

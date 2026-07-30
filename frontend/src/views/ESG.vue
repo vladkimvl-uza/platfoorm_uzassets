@@ -44,6 +44,8 @@ import { getCurrentIntlLocale } from "@/locale/i18n";
 import { i18nKey } from "@/locale/keys";
 import { useCompaniesStore } from "@/stores/companies";
 import { resolveCompanyDisplayName, resolveSectorDisplayName } from "@/utils/displayNames";
+import { formatOutlook } from "@/components/Ratings/ratingsHelpers";
+import { formatRatingDate } from "@/utils/ratingDates";
 
 const { t } = useI18n();
 
@@ -353,8 +355,8 @@ function setSectorFilter(code: string | null) {
 
 function showRatingDetails(cell: AgencyRatingCell) {
   const parts = [`${cell.agency}: ${cell.rating}`];
-  if (cell.outlook) parts.push(cell.outlook);
-  if (cell.rating_date_text) parts.push(cell.rating_date_text);
+  if (cell.outlook) parts.push(formatOutlook(cell.outlook));
+  if (cell.rating_date_text) parts.push(formatRatingDate(cell.rating_date_text));
   toast.info(parts.join(" · "));
 }
 function openDrill(id: string, yr: number | null) {
@@ -706,7 +708,7 @@ const kpiDrillRows = computed<KpiDrillRow[]>(() => {
           r: fakeRow,
           primary: txt,
           primaryColor: u.agency_color,
-          secondary: `${u.agency}${u.rating_date_text ? " · " + u.rating_date_text : ""}`,
+          secondary: `${u.agency}${u.rating_date_text ? " · " + formatRatingDate(u.rating_date_text) : ""}`,
         };
       });
     }

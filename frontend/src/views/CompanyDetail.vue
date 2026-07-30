@@ -13,6 +13,8 @@ import { useI18n } from "@/composables/useI18n";
 import { useFormatters } from "@/composables/useFormatters";
 import { getCurrentLocale } from "@/locale/i18n";
 import { companyDisplayName, sectorDisplayName } from "@/utils/displayNames";
+import { formatOutlook } from "@/components/Ratings/ratingsHelpers";
+import { formatRatingDate } from "@/utils/ratingDates";
 const { t } = useI18n();
 const formatters = useFormatters();
 
@@ -358,10 +360,10 @@ function backToList() {
                 </div>
                 <div v-if="r.outlook" class="text-xs mt-1"
                      :style="{ color: r.outlook === 'Positive' ? '#1D9E75' : r.outlook === 'Negative' ? '#E24B4A' : r.outlook === 'Developing' ? '#EF9F27' : '#64748B' }">
-                  {{ r.outlook }}
+                  {{ formatOutlook(r.outlook) }}
                 </div>
-                <div v-if="r.rating_date_text" class="text-[10px] text-slate-400 mt-1 tabular-nums">
-                  {{ r.rating_date_text }}
+                <div v-if="r.rating_date || r.rating_date_text" class="text-[10px] text-slate-400 mt-1 tabular-nums">
+                  {{ formatRatingDate(r.rating_date || r.rating_date_text) }}
                 </div>
               </div>
             </div>
@@ -386,9 +388,9 @@ function backToList() {
                     score <span v-count-up="{ value: r.score, decimals: 0, key: `esg-score-${r.id}` }">0</span>
                   </div>
                 </div>
-                <div v-if="r.outlook" class="text-xs mt-1 text-slate-500">{{ r.outlook }}</div>
-                <div v-if="r.rating_date_text" class="text-[10px] text-slate-400 mt-1 tabular-nums">
-                  {{ r.rating_date_text }}
+                <div v-if="r.outlook" class="text-xs mt-1 text-slate-500">{{ formatOutlook(r.outlook) }}</div>
+                <div v-if="r.rating_date || r.rating_date_text" class="text-[10px] text-slate-400 mt-1 tabular-nums">
+                  {{ formatRatingDate(r.rating_date || r.rating_date_text) }}
                 </div>
               </div>
             </div>

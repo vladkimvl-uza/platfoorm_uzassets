@@ -15,6 +15,7 @@ import { ratingsApi, type AgencyRatingBrief } from "@/api/ratings";
 import { isModerationQueued } from "@/api/client";
 import { useI18n } from "@/composables/useI18n";
 import { i18nKey } from "@/locale/keys";
+import { formatRatingDate } from "@/utils/ratingDates";
 
 const { t } = useI18n();
 
@@ -213,8 +214,8 @@ async function save(): Promise<void> {
           <div v-if="rating.score" class="rt-esg-score" :style="{ color: esgColor }">{{ rating.score }} / 100</div>
         </template>
 
-        <div v-if="rating.rating_date_text" class="rt-date">
-          {{ rating.rating_date_text }}
+        <div v-if="rating.rating_date || rating.rating_date_text" class="rt-date">
+          {{ formatRatingDate(rating.rating_date || rating.rating_date_text) }}
           <a v-if="rating.report_url" :href="rating.report_url" target="_blank"
              class="rt-link" @click.stop :title="t('Открыть отчёт')">↗</a>
         </div>

@@ -14,6 +14,8 @@ import { useI18n } from "@/composables/useI18n";
 import { getCurrentIntlLocale } from "@/locale/i18n";
 import { i18nKey } from "@/locale/keys";
 import { resolveCompanyDisplayName, resolveSectorDisplayName } from "@/utils/displayNames";
+import { formatOutlook } from "@/components/Ratings/ratingsHelpers";
+import { formatRatingDate } from "@/utils/ratingDates";
 
 const { t } = useI18n();
 
@@ -99,10 +101,10 @@ watch(() => props.company, (c) => {
               <div class="mp-rh-l">
                 <span class="mp-rh-ag">{{ r.agency }}</span>
                 <span class="mp-rh-val">{{ r.score || r.rating || '—' }}</span>
-                <span v-if="r.outlook" class="mp-rh-out">{{ r.outlook }}</span>
+                <span v-if="r.outlook" class="mp-rh-out">{{ formatOutlook(r.outlook) }}</span>
               </div>
               <div class="mp-rh-r">
-                <span v-if="r.rating_date_text" class="mp-rh-date">{{ r.rating_date_text }}</span>
+                <span v-if="r.rating_date || r.rating_date_text" class="mp-rh-date">{{ formatRatingDate(r.rating_date || r.rating_date_text) }}</span>
                 <a v-if="r.report_url" class="mp-rh-doc" :href="r.report_url" target="_blank" rel="noopener">{{ t('отчёт') }}</a>
                 <button class="mp-rh-btn" type="button" :class="{ on: histOpen === r.agency }"
                         @click="toggleHistory(r.agency)">{{ t('история') }}</button>
@@ -116,7 +118,7 @@ watch(() => props.company, (c) => {
                     <div v-for="(h, i) in histItems" :key="h.id" class="mp-hist-row" :style="{ '--d': (i*40)+'ms' }">
                       <span class="mp-hist-dot" :class="'a-'+h.action"></span>
                       <span class="mp-hist-val">{{ h.score || h.rating || '—' }}</span>
-                      <span v-if="h.outlook" class="mp-hist-out">{{ h.outlook }}</span>
+                      <span v-if="h.outlook" class="mp-hist-out">{{ formatOutlook(h.outlook) }}</span>
                       <span class="mp-hist-act" :class="'a-'+h.action">{{ ACTION_LBL[h.action] || h.action }}</span>
                       <span class="mp-hist-when">{{ histDate(h.created_at) }}</span>
                       <span v-if="h.changed_by_name" class="mp-hist-who">· {{ h.changed_by_name }}</span>

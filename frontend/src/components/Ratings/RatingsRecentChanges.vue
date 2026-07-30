@@ -128,7 +128,7 @@ const esgSlice  = computed(() => esgEvents.value.slice(0, 8));
               </span>
             </div>
             <span class="rrc-date">
-              {{ formatDate(e.rating.rating_date) || e.rating.rating_date_text }}
+              {{ formatDate(e.rating.rating_date || e.rating.rating_date_text) }}
             </span>
             <span v-if="e.isNew" class="rrc-recent">▲</span>
           </div>
@@ -166,7 +166,7 @@ const esgSlice  = computed(() => esgEvents.value.slice(0, 8));
               </span>
             </div>
             <span class="rrc-date">
-              {{ formatDate(e.rating.rating_date) || e.rating.rating_date_text }}
+              {{ formatDate(e.rating.rating_date || e.rating.rating_date_text) }}
             </span>
             <span v-if="e.isNew" class="rrc-recent">▲</span>
           </div>

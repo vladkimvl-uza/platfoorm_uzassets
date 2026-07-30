@@ -14,6 +14,8 @@ import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import { useI18n } from "@/composables/useI18n";
 import { getCurrentIntlLocale } from "@/locale/i18n";
 import { i18nKey } from "@/locale/keys";
+import { formatOutlook } from "@/components/Ratings/ratingsHelpers";
+import { formatRatingDate } from "@/utils/ratingDates";
 
 const { t } = useI18n();
 
@@ -118,10 +120,10 @@ function histDate(iso: string): string {
                 <div class="mpp-rh-l">
                   <span class="mpp-rh-ag">{{ r.agency }}</span>
                   <span class="mpp-rh-val">{{ r.score || r.rating || '—' }}</span>
-                  <span v-if="r.outlook" class="mpp-rh-out">{{ r.outlook }}</span>
+                  <span v-if="r.outlook" class="mpp-rh-out">{{ formatOutlook(r.outlook) }}</span>
                 </div>
                 <div class="mpp-rh-r">
-                  <span v-if="r.rating_date_text" class="mpp-rh-date">{{ r.rating_date_text }}</span>
+                  <span v-if="r.rating_date || r.rating_date_text" class="mpp-rh-date">{{ formatRatingDate(r.rating_date || r.rating_date_text) }}</span>
                   <a v-if="r.report_url" class="mpp-rh-doc" :href="r.report_url" target="_blank" rel="noopener">{{ t('отчёт') }}</a>
                   <button class="mpp-rh-btn" type="button" :class="{ on: histOpen === r.agency }" @click="toggleHistory(r.agency)">{{ t('история') }}</button>
                 </div>
@@ -134,7 +136,7 @@ function histDate(iso: string): string {
                       <div v-for="(h, i) in histItems" :key="h.id" class="mpp-hist-row" :style="{ '--d': (i*40)+'ms' }">
                         <span class="mpp-hist-dot" :class="'a-'+h.action"></span>
                         <span class="mpp-hist-val">{{ h.score || h.rating || '—' }}</span>
-                        <span v-if="h.outlook" class="mpp-hist-out">{{ h.outlook }}</span>
+                        <span v-if="h.outlook" class="mpp-hist-out">{{ formatOutlook(h.outlook) }}</span>
                         <span class="mpp-hist-act" :class="'a-'+h.action">{{ ACTION_LBL[h.action] || h.action }}</span>
                         <span class="mpp-hist-when">{{ histDate(h.created_at) }}</span>
                         <span v-if="h.changed_by_name" class="mpp-hist-who">· {{ h.changed_by_name }}</span>

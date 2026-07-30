@@ -10,6 +10,8 @@ import { useExecutiveDashboard } from "@/composables/useExecutiveDashboard";
 import { useNumberTween } from "@/composables/useNumberTween";
 import type { ExecRingCard, ExecRatingCell } from "@/api/executiveDashboard";
 import { useCompaniesStore } from "@/stores/companies";
+import { formatOutlook } from "@/components/Ratings/ratingsHelpers";
+import { formatRatingDate } from "@/utils/ratingDates";
 import ExecDashRingCard from "./ExecDashRingCard.vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 
@@ -145,8 +147,8 @@ function isEmpty(cell: ExecRatingCell | null | undefined): boolean {
                 v-if="col.kind === 'credit' && row[col.key]?.outlook"
                 class="rt-outlook"
                 :style="{ color: outlookColor(row[col.key]?.outlook) }"
-              >{{ row[col.key]?.outlook }}</span>
-              <span v-if="row[col.key]?.rated_at" class="rt-date">{{ row[col.key]?.rated_at }}</span>
+              >{{ formatOutlook(row[col.key]?.outlook) }}</span>
+              <span v-if="row[col.key]?.rated_at" class="rt-date">{{ formatRatingDate(row[col.key]?.rated_at, { monthYear: true }) }}</span>
               <svg
                 v-if="row[col.key]?.report_url"
                 class="rt-ext-ic"

@@ -30,6 +30,8 @@ import { useI18n } from "@/composables/useI18n";
 import { getCurrentIntlLocale } from "@/locale/i18n";
 import { useFormatters } from "@/composables/useFormatters";
 import { i18nKey } from "@/locale/keys";
+import { formatOutlook } from "@/components/Ratings/ratingsHelpers";
+import { formatRatingDate } from "@/utils/ratingDates";
 
 const { t: tr } = useI18n();
 const fmt = useFormatters();
@@ -545,15 +547,22 @@ function effRat(kind: "credit" | "esg", agency: string, field: string, fallback:
   return o !== undefined ? o : (fallback ?? "");
 }
 function ratRows(list: any[] | undefined, kind: "credit" | "esg") {
-  return (list || []).map(r => ({
-    agency: r.agency,
-    rating: effRat(kind, r.agency, "rating", r.rating),
-    outlook: effRat(kind, r.agency, "outlook", r.outlook),
-    date: effRat(kind, r.agency, "date", r.rating_date_text || (r.rating_date ? String(r.rating_date).slice(0, 10) : "")),
-    ratingKey: `${kind}:${r.agency}:rating`,
-    outlookKey: `${kind}:${r.agency}:outlook`,
-    dateKey: `${kind}:${r.agency}:date`,
-  }));
+  return (list || []).map(r => {
+    const dateKey = `${kind}:${r.agency}:date`;
+    const dateOverride = ratOv.value[dateKey];
+    const outlookKey = `${kind}:${r.agency}:outlook`;
+    const outlookOverride = ratOv.value[outlookKey];
+    const sourceDate = r.rating_date || r.rating_date_text || "";
+    return {
+      agency: r.agency,
+      rating: effRat(kind, r.agency, "rating", r.rating),
+      outlook: outlookOverride !== undefined ? outlookOverride : formatOutlook(r.outlook),
+      date: dateOverride !== undefined ? dateOverride : formatRatingDate(String(sourceDate)),
+      ratingKey: `${kind}:${r.agency}:rating`,
+      outlookKey,
+      dateKey,
+    };
+  });
 }
 const ratingsVM = computed(() => ({
   empty: !((props.credit?.length || 0) + (props.esg?.length || 0)),

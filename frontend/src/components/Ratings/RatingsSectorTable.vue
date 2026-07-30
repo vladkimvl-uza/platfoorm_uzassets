@@ -266,7 +266,7 @@ const legend = computed(() => {
                       </div>
                       <div class="rst-meta-row">
                         <span v-if="c.rating.rating_date || c.rating.rating_date_text" class="rst-date">
-                          {{ formatDate(c.rating.rating_date) || c.rating.rating_date_text }}
+                          {{ formatDate(c.rating.rating_date || c.rating.rating_date_text) }}
                         </span>
                         <span v-if="c.olk"
                               class="rst-olk"
