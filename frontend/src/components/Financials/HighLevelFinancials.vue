@@ -1840,16 +1840,17 @@ const kpiCards = computed(() => kpis.value.map(k => ({
   content: "";
   position: absolute;
   top: 0; left: 0; right: 0;
-  height: 2px;
+  height: 3px;
   background: var(--kpi-accent, #7F77DD);
-  opacity: 0.4;
-  transition: opacity 0.16s ease;
+  border-radius: inherit;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
 }
 .hlf-kpi:hover {
   background: linear-gradient(180deg, rgba(127, 119, 221, 0.045), rgba(127, 119, 221, 0.015));
   transform: translateY(-1px);
 }
-.hlf-kpi:hover::before { opacity: 1; }
+
 .hlf-kpi-lbl {
   font-size: 10px;
   font-weight: 500;

@@ -1636,7 +1636,15 @@ function formatHistoryDate(iso: string | null): string {
 /* Pack 7.53: import preview */
 .ne-dlg-wide { width: 760px; max-width: 90vw; max-height: 88dvh; display: flex; flex-direction: column; }
 .ne-imp-summary { display: flex; gap: 16px; margin-bottom: 14px; }
-.ne-imp-stat { background: rgba(127, 119, 221, 0.06); border-radius: 8px; padding: 8px 14px; min-width: 100px; }
+.ne-imp-stat { background: rgba(127, 119, 221, 0.06); border-radius: 8px; padding: 8px 14px; min-width: 100px;  position: relative; overflow: hidden;
+}
+.ne-imp-stat::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: var(--accent, #7F77DD);
+  border-radius: inherit; border-bottom-left-radius: 0; border-bottom-right-radius: 0;
+  pointer-events: none;
+}
+
 .ne-imp-stat-val { font-size: 22px; font-weight: 500; color: var(--p-deep); letter-spacing: -0.02em; font-feature-settings: 'tnum'; }
 .ne-imp-stat-lbl { font-size: 10px; color: var(--t3, #94A3B8); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px; }
 .ne-imp-table-wrap { overflow: auto; max-height: 360px; border: 1px solid var(--border-input); border-radius: 6px; margin-bottom: 10px; }

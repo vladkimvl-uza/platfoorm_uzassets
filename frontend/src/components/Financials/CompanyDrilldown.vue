@@ -955,7 +955,15 @@ function close() {
 .cdrl-kpis-6 { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
 .cdrl-kpi {
   background: var(--bg1, #fff); padding: 14px 14px;
+  position: relative; overflow: hidden;
 }
+.cdrl-kpi::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: var(--accent, #7F77DD);
+  border-radius: inherit; border-bottom-left-radius: 0; border-bottom-right-radius: 0;
+  pointer-events: none;
+}
+
 .cdrl-kpis-6 .cdrl-kpi { padding: 12px 11px; }
 .cdrl-kpi-lbl {
   font-size: 9.5px; font-weight: 500; color: var(--t3, #94A3B8);

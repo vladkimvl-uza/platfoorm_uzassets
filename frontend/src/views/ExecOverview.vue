@@ -927,12 +927,20 @@ watch(data, (d) => {
 @keyframes eoStatIn { from { opacity: 0; transform: translateY(12px) scale(.97); } to { opacity: 1; transform: none; } }
 .eo-stat-n { font-size: 25px; font-weight: 400; color: var(--t1, #1e2a4a); font-variant-numeric: tabular-nums; line-height: 1.05; letter-spacing: -.01em; }
 .eo-stat-l { font-size: 9px; text-transform: uppercase; letter-spacing: .04em; color: var(--t3, #94a3b8); margin-top: 1px; }
-.eo-stat-red { border-top: 2px solid #E24B4A; }
+/* Акцент — верхняя полоса ::before со скруглением карточки (канон),
+   а не border-top: он тянулся по дуге угла. */
+.eo-stat { position: relative; overflow: hidden; }
+.eo-stat-red::before, .eo-stat-amber::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  border-radius: inherit; border-bottom-left-radius: 0; border-bottom-right-radius: 0;
+  pointer-events: none;
+}
+.eo-stat-red::before { background: #E24B4A; }
 .eo-stat-red .eo-stat-n { color: #E24B4A; }
-.eo-stat-amber { border-top: 2px solid #D97706; }
+.eo-stat-amber::before { background: #D97706; }
 .eo-stat-amber .eo-stat-n { color: #D97706; }
 .eo-stat.dim { opacity: .5; }
-.eo-stat.dim { border-top-color: var(--border, rgba(99,102,180,.12)); }
+.eo-stat.dim::before { background: var(--border, rgba(99,102,180,.12)); }
 .eo-stat.dim .eo-stat-n { color: var(--t3, #94a3b8); }
 .eo-expand { margin-left: auto; display: flex; gap: 6px; }
 .eo-expand button { padding: 6px 11px; border: 1px solid var(--border, rgba(99,102,180,.16)); border-radius: 8px; background: var(--bg1, #fff); color: var(--t2, #475569); font-size: 11px; cursor: pointer; font-family: inherit; }

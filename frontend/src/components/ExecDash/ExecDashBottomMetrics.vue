@@ -216,7 +216,15 @@ watch(m, runCountUp);
   display: flex;
   flex-direction: column;
   gap: 8px;
+  position: relative; overflow: hidden;
 }
+.va-cell::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: var(--accent, var(--kpi2-accent, #7F77DD));
+  border-radius: inherit; border-bottom-left-radius: 0; border-bottom-right-radius: 0;
+  pointer-events: none;
+}
+
 
 /* Pack 7.30: cells now are buttons — strip native styling, add hover affordance */
 .va-cell-btn {

@@ -1184,7 +1184,15 @@ function exportCsv() { window.open(auditFeedApi.exportCsvUrl(statsHours()), "_bl
 /* User activity modal */
 .aud-um-body { padding: 0 18px 18px; overflow-y: auto; scrollbar-gutter: stable; }
 .aud-um-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 14px 0; }
-.aud-um-stat { background: #F7F6FD; border-radius: 12px; padding: 12px 14px; text-align: center; }
+.aud-um-stat { background: #F7F6FD; border-radius: 12px; padding: 12px 14px; text-align: center;  position: relative; overflow: hidden;
+}
+.aud-um-stat::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: var(--accent, #7F77DD);
+  border-radius: inherit; border-bottom-left-radius: 0; border-bottom-right-radius: 0;
+  pointer-events: none;
+}
+
 .aud-um-stat b { display: block; font-family: var(--font); font-size: 21px; font-weight: 400; letter-spacing: -.02em; color: var(--t1, #0F172A); line-height: 1.1; }
 .aud-um-stat span { font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--t3, #94A3B8); margin-top: 3px; display: block; }
 .aud-um-bars { display: grid; grid-template-columns: 1fr 1fr; gap: 9px 16px; padding-bottom: 14px; border-bottom: 1px solid rgba(15,23,60,.06); }

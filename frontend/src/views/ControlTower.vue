@@ -682,7 +682,7 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
 /* ─── TILES ─── */
 .ph-tiles { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 16px; }
 .ph-tile { background: #fff; border: 1px solid var(--bd); border-radius: 14px; padding: 16px 18px; box-shadow: var(--sh-sm); position: relative; overflow: hidden; }
-.ph-tile::after { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: #E2E5EE; }
+.ph-tile::after { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: #E2E5EE; border-radius: inherit; border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
 .ph-tile[data-tone="danger"].on::after { background: #E24B4A; } .ph-tile[data-tone="warn"].on::after { background: #EF9F27; }
 .ph-tile-n { font-size: 26px; font-weight: 400; letter-spacing: -.03em; color: #1E2A4A; font-variant-numeric: tabular-nums; line-height: 1; }
 .ph-tile-n em { font-size: 15px; font-weight: 600; color: var(--t4); font-style: normal; }

@@ -203,7 +203,15 @@ function initials(name: string | null, email: string): string {
   border: 0.5px solid var(--color-border-tertiary);
   border-radius: 9px;
   padding: 10px 12px;
+  position: relative; overflow: hidden;
 }
+.ba-kpi::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: var(--accent, #7F77DD);
+  border-radius: inherit; border-bottom-left-radius: 0; border-bottom-right-radius: 0;
+  pointer-events: none;
+}
+
 .ba-kpi-lbl { font-size: 9.5px; color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: .05em; }
 .ba-kpi-val {
   font-size: 22px; color: var(--color-text-primary); font-weight: 500;

@@ -295,7 +295,7 @@ async function unfollow(it: WatchedItem, ev: Event) {
 .fl-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
 .fl-stat { position: relative; overflow: hidden; background: #fff; border: 1px solid rgba(15,23,60,.06); border-radius: 14px; padding: 16px 18px; box-shadow: 0 1px 3px rgba(15,23,60,.04); opacity: 0; transform: translateY(8px); }
 .fl-stat.pop { animation: flUp .5s var(--ease) forwards; animation-delay: var(--d, 0ms); }
-.fl-stat::after { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: #C7CCD9; opacity: .5; }
+.fl-stat::after { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: #C7CCD9; opacity: .5; border-radius: inherit; border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
 .fl-stat.danger.on::after { background: #E24B4A; opacity: 1; }
 .fl-stat.warn.on::after { background: #EF9F27; opacity: 1; }
 .fl-stat.ok.on::after { background: #1D9E75; opacity: 1; }

@@ -269,7 +269,15 @@ function fmtNum(v: number | string | null | undefined): string {
   background: var(--bg2, #FAFAFD);
   border-radius: 8px;
 }
-.kpd-stat { flex: 1; }
+.kpd-stat { flex: 1;  position: relative; overflow: hidden;
+}
+.kpd-stat::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: var(--accent, #7F77DD);
+  border-radius: inherit; border-bottom-left-radius: 0; border-bottom-right-radius: 0;
+  pointer-events: none;
+}
+
 .kpd-stat-l {
   font-size: 9.5px;
   font-weight: 600;

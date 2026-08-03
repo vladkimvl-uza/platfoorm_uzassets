@@ -123,7 +123,15 @@ const products = computed(() => props.company.lines.filter((l) => !l.total));
 
 .pdm-kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 14px; }
 @media (max-width: 760px) { .pdm-kpis { grid-template-columns: repeat(2, 1fr); } }
-.pdm-k { background: var(--bg2, #FAFAFC); border: 1px solid rgba(0,0,0,.05); border-radius: 10px; padding: 10px 12px; }
+.pdm-k { background: var(--bg2, #FAFAFC); border: 1px solid rgba(0,0,0,.05); border-radius: 10px; padding: 10px 12px;  position: relative; overflow: hidden;
+}
+.pdm-k::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: var(--kc, var(--accent, #7F77DD));
+  border-radius: inherit; border-bottom-left-radius: 0; border-bottom-right-radius: 0;
+  pointer-events: none;
+}
+
 .pdm-k-fact { background: rgba(127,119,221,.06); border-color: rgba(127,119,221,.16); }
 .pdm-fact-h { color: var(--p-deep, #534AB7) !important; }
 .pdm-tbl td.pdm-fact { color: var(--t1, #1E2A4A); font-weight: 500; background: rgba(127,119,221,.03); }

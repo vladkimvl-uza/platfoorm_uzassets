@@ -468,7 +468,15 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
   display: flex; flex-direction: column; gap: 4px;
   padding: 4px 14px;
   border-right: 1px solid rgba(0, 0, 0, .06);
+  position: relative; overflow: hidden;
 }
+.cdm-stat::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: var(--accent, #7F77DD);
+  border-radius: inherit; border-bottom-left-radius: 0; border-bottom-right-radius: 0;
+  pointer-events: none;
+}
+
 .cdm-stat:last-child { border-right: none; }
 .cdm-stat-lbl {
   font-size: 9.5px; font-weight: 600; letter-spacing: 0.06em;

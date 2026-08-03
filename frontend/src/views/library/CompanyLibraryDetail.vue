@@ -921,7 +921,15 @@ const allTabs = computed(() => {
   border-radius: 8px;
   padding: 10px 12px;
   display: flex; flex-direction: column; gap: 2px;
+  position: relative; overflow: hidden;
 }
+.cld-fin-cell::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: var(--accent, #7F77DD);
+  border-radius: inherit; border-bottom-left-radius: 0; border-bottom-right-radius: 0;
+  pointer-events: none;
+}
+
 .cld-fin-cell-h { font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--t3, var(--t-muted)); font-weight: 500; display: flex; align-items: center; gap: 6px; }
 .cld-fin-cell-v { font-size: 17px; font-weight: 500; color: var(--t1, #1E2A4A); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; line-height: 1.1; }
 .cld-fin-cell-u { font-size: 10px; color: var(--t3, var(--t-muted)); }
@@ -953,7 +961,15 @@ const allTabs = computed(() => {
   padding: 10px 12px;
   display: flex; flex-direction: column; gap: 3px;
   position: relative;
+  overflow: hidden;
 }
+.cld-rat-cell::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: var(--accent, #7F77DD);
+  border-radius: inherit; border-bottom-left-radius: 0; border-bottom-right-radius: 0;
+  pointer-events: none;
+}
+
 .cld-rat-cell-h { font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--t3, var(--t-muted)); font-weight: 500; }
 .cld-rat-cell-v { font-size: 18px; font-weight: 500; color: var(--t1, #1E2A4A); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
 .cld-rat-cell-dot { position: absolute; top: 8px; right: 8px; }
@@ -1048,7 +1064,15 @@ const allTabs = computed(() => {
   background: var(--bg1, #fff); border: 0.5px solid var(--border-hard, #E5E7EB);
   border-radius: 12px; padding: 14px 16px;
   box-shadow: 0 1px 2px rgba(15,23,60,.04);
+  position: relative; overflow: hidden;
 }
+.cld-work-stat::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: var(--accent, #7F77DD);
+  border-radius: inherit; border-bottom-left-radius: 0; border-bottom-right-radius: 0;
+  pointer-events: none;
+}
+
 .cld-work-stat-n { font-size: 26px; font-weight: 400; letter-spacing: -.025em; color: #1E2A4A; line-height: 1; }
 .cld-work-stat-l { font-size: 11px; color: var(--t3, #94A3B8); margin-top: 6px; }
 .cld-work-stat-l span { color: var(--green, #1D9E75); margin-left: 4px; }

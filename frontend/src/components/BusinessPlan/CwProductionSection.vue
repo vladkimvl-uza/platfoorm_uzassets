@@ -225,6 +225,13 @@ function onSaved() { editorOpen.value = false; load(); }
 .cwp-k-fact { background: rgba(127,119,221,.06); border-color: rgba(127,119,221,.16); }
 .cwp-k { position: relative; overflow: hidden; background: var(--bg2, #FAFAFC); border: 1px solid rgba(0,0,0,.05);
   border-radius: 11px; padding: 11px 13px; animation: cwpK .5s cubic-bezier(.34,1.1,.64,1) both; }
+.cwp-k::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: var(--kc, var(--accent, #7F77DD));
+  border-radius: inherit; border-bottom-left-radius: 0; border-bottom-right-radius: 0;
+  pointer-events: none;
+}
+
 .cwp-k:nth-child(2) { animation-delay: .06s; } .cwp-k:nth-child(3) { animation-delay: .12s; } .cwp-k:nth-child(4) { animation-delay: .18s; }
 @keyframes cwpK { from { opacity: 0; transform: translateY(8px) scale(.98); } to { opacity: 1; transform: none; } }
 .cwp-k-exec::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--exec, #7F77DD); opacity: .85; }

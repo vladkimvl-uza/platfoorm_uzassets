@@ -749,7 +749,8 @@ function clearFilters() {
 }
 .au-kpi::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0;
-  height: 2px; background: var(--ac);
+  height: 3px; background: var(--ac);
+  border-radius: inherit; border-bottom-left-radius: 0; border-bottom-right-radius: 0;
 }
 .au-kpi.fin-shimmer::after {
   content: ""; position: absolute; top: 0; left: -60%;

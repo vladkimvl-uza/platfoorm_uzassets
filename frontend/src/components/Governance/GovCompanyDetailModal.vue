@@ -549,7 +549,15 @@ function divBarFill(pct: number | null | undefined, target: number): string {
   background: var(--bg2, #FAFAFD);
   border-radius: 8px;
   padding: 12px 14px;
+  position: relative; overflow: hidden;
 }
+.gd-card::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: var(--accent, #7F77DD);
+  border-radius: inherit; border-bottom-left-radius: 0; border-bottom-right-radius: 0;
+  pointer-events: none;
+}
+
 .gd-card-l {
   font-size: 9.5px;
   font-weight: 600;

@@ -483,7 +483,15 @@ const successRatePct = computed(() => {
   padding: 8px 14px;
   border-radius: 8px;
   min-width: 110px;
+  position: relative; overflow: hidden;
 }
+.wh-stat::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: var(--accent, #7F77DD);
+  border-radius: inherit; border-bottom-left-radius: 0; border-bottom-right-radius: 0;
+  pointer-events: none;
+}
+
 .wh-stat-l { font-size: 9.5px; color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: .06em; }
 .wh-stat-v { font-size: 18px; color: var(--color-text-primary); font-weight: 400; letter-spacing: -.025em; font-feature-settings: "tnum"; }
 .wh-stat-tot { font-size: 12px; color: var(--color-text-tertiary); }

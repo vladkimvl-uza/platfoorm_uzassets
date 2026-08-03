@@ -359,11 +359,18 @@ const isEmpty = computed(() => detail.value != null && _mc(detail.value) === 0 &
 .ec-panel--embedded .ec-pillars { padding: 0 0 14px; border-bottom: none; }
 @media (max-width: 800px) { .ec-pillars { grid-template-columns: repeat(2, 1fr); } }
 
+/* Акцент — ВЕРХНЯЯ полоса, а не цветная черта слева: цветной left-border
+   в платформе не используется (канон top-accent). */
 .ec-pillar {
-  background: var(--bg2, #FAFAFD); border-radius: 9px; padding: 10px 12px 10px 18px;
+  background: var(--bg2, #FAFAFD); border-radius: 9px; padding: 12px 12px 10px;
   animation: cardIn .35s var(--ease-standard) backwards; position: relative; overflow: hidden; --ec-accent: #94A3B8;
 }
-.ec-pillar::before { content: ""; position: absolute; left: 6px; top: 12px; bottom: 12px; width: 4px; border-radius: 4px; background: var(--stripe-color, var(--ec-accent)); pointer-events: none; }
+.ec-pillar::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: var(--stripe-color, var(--ec-accent));
+  border-radius: inherit; border-bottom-left-radius: 0; border-bottom-right-radius: 0;
+  pointer-events: none;
+}
 @keyframes cardIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 .ec-pillar:nth-child(2) { animation-delay: 60ms; }
 .ec-pillar:nth-child(3) { animation-delay: 120ms; }

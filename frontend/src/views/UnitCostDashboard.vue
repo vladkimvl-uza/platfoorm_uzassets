@@ -21,9 +21,12 @@ import { unitCostApi, type UCOverview, type UCCompany } from "@/api/unitCost";
 import UnitCostCompanyModal from "@/components/UnitCost/UnitCostCompanyModal.vue";
 import UnitCostPricesModal from "@/components/UnitCost/UnitCostPricesModal.vue";
 import { i18nKey } from "@/locale/keys";
+import { useCompaniesStore } from "@/stores/companies";
+import { unitCostCatalogText } from "@/utils/unitCostDisplay";
 
 
 const { t } = useI18n();
+const companiesStore = useCompaniesStore();
 const scope = useCompanyScope();
 const finPerm = usePermissions("financials");
 const toggleSidebar = inject<() => void>("toggleSidebar", () => {});
@@ -68,11 +71,27 @@ async function load() {
     error.value = err?.response?.data?.detail || err?.message || t("Не удалось загрузить");
   } finally { if (my === seq) loading.value = false; }
 }
-onMounted(() => { ensureFinancialsCss(); load(); });
+onMounted(() => {
+  ensureFinancialsCss();
+  void companiesStore.ensureLoaded();
+  void load();
+});
 watch([year, quarter], load);
 
 const pf = computed(() => data.value?.portfolio || null);
-const companies = computed(() => data.value?.companies || []);
+type DisplayUCCompany = UCCompany & { displayName: string; sectorKey: string; sectorName: string };
+const companies = computed<DisplayUCCompany[]>(() => (data.value?.companies || []).map((company) => {
+  const catalogCompany = companiesStore.findByCode(company.code);
+  const sectorKey = catalogCompany?.sector_code || company.sector || "other";
+  return {
+    ...company,
+    displayName: companiesStore.getCompanyName(company.code) || company.name,
+    sectorKey,
+    sectorName: catalogCompany
+      ? companiesStore.getSectorName(sectorKey)
+      : company.sector,
+  };
+}));
 const pricesOpen = ref(false);
 const editCompany = ref<UCCompany | null>(null);
 function onKpiClick() { if (finPerm.canEdit.value) pricesOpen.value = true; }
@@ -99,7 +118,7 @@ const overrunColor = computed(() =>
 const priceRows = computed(() => {
   const p = data.value?.energyPrices || {}; const lbl = data.value?.fuel_labels || {};
   return Object.keys(lbl).filter((f) => p[f]).map((f) => ({
-    fuel: f, label: lbl[f], price: p[f].price, unit: p[f].unit,
+    fuel: f, label: unitCostCatalogText(lbl[f]), price: p[f].price, unit: unitCostCatalogText(p[f].unit),
   }));
 });
 function shareColor(s: number | null): string {
@@ -139,12 +158,19 @@ const tickerItems = computed(() => {
 // фильтр по секторам (для списка компаний)
 const sectorFilter = ref<string>("");
 const sectors = computed(() => {
-  const set = new Map<string, string>();  // sector → цвет
-  for (const c of companies.value) if (c.sector && c.sector !== "—") set.set(c.sector, c.color);
-  return Array.from(set, ([name, color]) => ({ name, color })).sort((a, b) => a.name.localeCompare(b.name, getCurrentIntlLocale()));
+  const set = new Map<string, { name: string; color: string }>();
+  for (const company of companies.value) {
+    if (company.sectorKey && company.sectorName !== "—") {
+      set.set(company.sectorKey, { name: company.sectorName, color: company.color });
+    }
+  }
+  return Array.from(set, ([key, value]) => ({ key, ...value }))
+    .sort((a, b) => a.name.localeCompare(b.name, getCurrentIntlLocale()));
 });
 const visibleCompanies = computed(() =>
-  sectorFilter.value ? companies.value.filter((c) => c.sector === sectorFilter.value) : companies.value);
+  sectorFilter.value ? companies.value.filter((c) => c.sectorKey === sectorFilter.value) : companies.value);
+const selectedSectorName = computed(() =>
+  sectors.value.find((sector) => sector.key === sectorFilter.value)?.name || sectorFilter.value);
 watch([year, quarter], () => { sectorFilter.value = ""; });
 
 // графики
@@ -154,7 +180,7 @@ const FUEL_PAL: Record<string, string> = {
 };
 const mixDonut = computed<DonutEntry[]>(() =>
   (data.value?.energy_mix || []).map((m) => ({
-    label: m.label, color: FUEL_PAL[m.fuel] || "#7F77DD", value: m.cost, sub: fmtSum(m.cost),
+    label: unitCostCatalogText(m.label), color: FUEL_PAL[m.fuel] || "#7F77DD", value: m.cost, sub: fmtSum(m.cost),
   })),
 );
 const mixTotal = computed(() => (data.value?.energy_mix || []).reduce((a, m) => a + m.cost, 0));
@@ -169,9 +195,18 @@ const structDonut = computed<DonutEntry[]>(() => {
 const SECTOR_PAL = ["#7F77DD", "#1D9E75", "#EF9F27", "#378ADD", "#E24B4A", "#8B7FFF", "#5DC093", "#4B5468"];
 const sectorDonut = computed<DonutEntry[]>(() => {
   const by: Record<string, number> = {};
-  for (const c of companies.value) if (c.total_cost) by[c.sector] = (by[c.sector] || 0) + c.total_cost;
+  const names: Record<string, string> = {};
+  for (const company of companies.value) {
+    names[company.sectorKey] = company.sectorName;
+    if (company.total_cost) by[company.sectorKey] = (by[company.sectorKey] || 0) + company.total_cost;
+  }
   return Object.entries(by).sort((a, b) => b[1] - a[1])
-    .map(([name, v], i) => ({ label: name, color: SECTOR_PAL[i % SECTOR_PAL.length], value: v, sub: fmtSum(v) }));
+    .map(([key, value], i) => ({
+      label: names[key] || key,
+      color: SECTOR_PAL[i % SECTOR_PAL.length],
+      value,
+      sub: fmtSum(value),
+    }));
 });
 const sectorTotal = computed(() => companies.value.reduce((a, c) => a + (c.total_cost || 0), 0));
 function donutHover(e: DonutEntry, total: number): [string, string] {
@@ -315,7 +350,7 @@ function donutHover(e: DonutEntry, total: number): [string, string] {
           </div>
           <div class="uc-prices">
             <div v-for="(p, i) in priceRows" :key="p.fuel" class="uc-price" :style="{ '--d': (i * 50) + 'ms', '--fc': FUEL_PAL[p.fuel] || '#7F77DD' }">
-              <div class="uc-price-l"><FuelIcon :fuel="p.fuel" :size="13" />{{ t(p.label) }}</div>
+              <div class="uc-price-l"><FuelIcon :fuel="p.fuel" :size="13" />{{ p.label }}</div>
               <div class="uc-price-v">{{ p.price.toLocaleString(getCurrentIntlLocale()) }}</div>
               <div class="uc-price-u">{{ p.unit }}</div>
             </div>
@@ -335,8 +370,8 @@ function donutHover(e: DonutEntry, total: number): [string, string] {
               <button type="button" class="uc-sec" :class="{ on: sectorFilter === '' }" @click="sectorFilter = ''">
                 {{ t("Все") }}<span class="uc-sec-n">{{ companies.length }}</span>
               </button>
-              <button v-for="s in sectors" :key="s.name" type="button" class="uc-sec"
-                      :class="{ on: sectorFilter === s.name }" @click="sectorFilter = s.name">
+              <button v-for="s in sectors" :key="s.key" type="button" class="uc-sec"
+                      :class="{ on: sectorFilter === s.key }" @click="sectorFilter = s.key">
                 <i :style="{ background: s.color }" />{{ s.name }}
               </button>
             </div>
@@ -348,8 +383,8 @@ function donutHover(e: DonutEntry, total: number): [string, string] {
             </div>
             <button v-for="(c, i) in visibleCompanies" :key="c.code" type="button" class="uc-co"
                     :style="{ '--d': Math.min(i * 24, 400) + 'ms' }"
-                    :title="t('Редактировать: {name}', { name: c.name })" @click="editCompany = c">
-              <span class="uc-co-name"><i :style="{ background: c.color }" />{{ c.name }}</span>
+                    :title="t('Редактировать: {name}', { name: c.displayName })" @click="editCompany = c">
+              <span class="uc-co-name"><i :style="{ background: c.color }" />{{ c.displayName }}</span>
               <span class="uc-co-n">{{ c.priced_count }}<span class="uc-co-nn">/{{ c.product_count }}</span></span>
               <span class="uc-co-cost">{{ fmtSum(c.total_cost) }}</span>
               <span class="uc-co-en">{{ fmtSum(c.energy_cost) }}</span>
@@ -361,7 +396,7 @@ function donutHover(e: DonutEntry, total: number): [string, string] {
                 <span v-else class="uc-dash">{{ t("н/д") }}</span>
               </span>
             </button>
-            <div v-if="!visibleCompanies.length" class="uc-chart-empty">{{ t("в секторе «{name}» нет компаний", { name: sectorFilter }) }}</div>
+            <div v-if="!visibleCompanies.length" class="uc-chart-empty">{{ t("в секторе «{name}» нет компаний", { name: selectedSectorName }) }}</div>
           </div>
         </div>
       </section>
@@ -487,7 +522,15 @@ function donutHover(e: DonutEntry, total: number): [string, string] {
 @media (max-width: 900px) { .uc-prices { grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 560px) { .uc-prices { grid-template-columns: repeat(2, 1fr); } }
 .uc-price { background: var(--bg2,#FAFAFD); border-radius: 11px; padding: 10px 12px;
-  animation: finKpiCardIn .5s var(--ease-standard) var(--d,0ms) both; }
+  animation: finKpiCardIn .5s var(--ease-standard) var(--d,0ms) both;  position: relative; overflow: hidden;
+}
+.uc-price::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: var(--fuel, var(--accent, #7F77DD));
+  border-radius: inherit; border-bottom-left-radius: 0; border-bottom-right-radius: 0;
+  pointer-events: none;
+}
+
 .uc-3col { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 @media (max-width: 1000px) { .uc-3col { grid-template-columns: 1fr; } }
 .uc-chart-empty { padding: 40px 16px; text-align: center; font-size: 11.5px; color: #C4C8D4; font-style: italic; }
