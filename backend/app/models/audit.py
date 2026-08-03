@@ -8,7 +8,6 @@ from typing import Optional
 
 from sqlalchemy import (
     Boolean,
-    ForeignKey,
     Index,
     Integer,
     String,
@@ -20,6 +19,17 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.database import Base
 from app.models.base import TimestampMixin, UUIDMixin
 
+# ВАЖНО: у audit_log НЕТ внешних ключей на users/api_key.
+#
+# Раньше `actor_id` ссылался на `users.id` с ON DELETE SET NULL, а `actor_id`
+# входит в тело HMAC. Жёсткое удаление пользователя обнуляло его во ВСЕХ
+# исторических строках — содержимое строки менялось после подписи, и цепочка
+# рвалась. На проде так сломались 837 строк из 77 639 (1.08%) с 23.06.2026:
+# у всех actor_id = NULL, а первая принадлежала уже удалённому аккаунту.
+#
+# Журнал аудита append-only: операции над другими таблицами не имеют права его
+# править. Связь оставлена логической — id хранится, даже если аккаунт удалён.
+
 
 class AuditLog(Base, UUIDMixin, TimestampMixin):
     """A single audit log entry. Append-only."""
@@ -29,7 +39,6 @@ class AuditLog(Base, UUIDMixin, TimestampMixin):
     # ─── Who ─────────────────────────────────────
     actor_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True, index=True,
     )
     actor_email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
@@ -71,7 +80,7 @@ class AuditLog(Base, UUIDMixin, TimestampMixin):
 
     # ─── link to API key if call was authenticated via API key ───
     api_key_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("api_key.id", ondelete="SET NULL"), nullable=True, index=True,
+        UUID(as_uuid=True), nullable=True, index=True,
     )
 
 

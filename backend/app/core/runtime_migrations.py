@@ -202,6 +202,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_documents_library(conn)
             await _patch_company_websites(conn)
             await _patch_moderation_routing(conn)
+            await _patch_audit_log_no_fk(conn)
             await _patch_custom_api_endpoint(conn)
             await _patch_org_role_tasks_write(conn)
             await _patch_org_role_company_create(conn)
@@ -2071,6 +2072,36 @@ async def _patch_documents_library(conn) -> None:
         "'Вложения задач/проектов/компаний перенесены в библиотеку документов', false) "
         "ON CONFLICT (key) DO NOTHING"
     ))
+
+
+async def _patch_audit_log_no_fk(conn) -> None:
+    """Снять внешние ключи с audit_log — журнал не должен мутировать.
+
+    `audit_log.actor_id` ссылался на `users.id` с ON DELETE SET NULL, и эта же
+    колонка входит в тело HMAC-подписи строки. Удаление пользователя молча
+    обнуляло actor_id в его исторических записях: содержимое менялось ПОСЛЕ
+    подписи, и verify_chain честно сообщал о разрыве. Замер на проде 03.08.2026:
+    837 строк из 77 639 (1.08%) не воспроизводятся, и у всех 837 actor_id NULL.
+
+    Связь оставляем логической: id хранится как есть, даже когда аккаунт удалён,
+    иначе журнал перестаёт отвечать на вопрос «кто это сделал». Имена
+    констрейнтов ищем по каталогу — они отличаются между окружениями.
+    """
+    rows = (await conn.execute(text(
+        """
+        SELECT con.conname
+        FROM pg_constraint con
+        JOIN pg_class c ON c.oid = con.conrelid
+        WHERE c.relname = 'audit_log' AND con.contype = 'f'
+        """,
+    ))).fetchall()
+    for (name,) in rows:
+        await conn.execute(text(f'ALTER TABLE audit_log DROP CONSTRAINT IF EXISTS "{name}"'))
+    if rows:
+        logger.info(
+            "[runtime_migration] audit_log: сняты внешние ключи (%s) — журнал append-only",
+            ", ".join(r[0] for r in rows),
+        )
 
 
 async def _patch_moderation_routing(conn) -> None:

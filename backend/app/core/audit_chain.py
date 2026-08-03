@@ -109,6 +109,27 @@ def build_chain_body(
     }
 
 
+async def chain_tip(db: AsyncSession) -> Optional[str]:
+    """Хвост цепи = entry_hash, на который никто не ссылается как на prev_hash.
+
+    Единая реализация для обоих писателей (`append_audit_entry` и
+    `audit_service.write_event`). Раньше запросы отличались: один фильтровал
+    `entry_hash IS NOT NULL`, другой нет, и оба брали LIMIT 1 без порядка —
+    две почти одинаковые копии, которые могут разойтись молча.
+    """
+    row = await db.execute(text("""
+        SELECT al.entry_hash
+        FROM audit_log al
+        WHERE al.entry_hash IS NOT NULL
+          AND NOT EXISTS (
+            SELECT 1 FROM audit_log al2
+            WHERE al2.prev_hash = al.entry_hash
+          )
+        LIMIT 1
+    """))
+    return row.scalar_one_or_none()
+
+
 async def append_audit_entry(
     db: AsyncSession,
     *,
@@ -141,16 +162,7 @@ async def append_audit_entry(
     # Using created_at DESC is unsafe — concurrent tx timestamps can be
     # reversed relative to insert order. NOT EXISTS via UNIQUE index on
     # prev_hash is O(log N).
-    result = await db.execute(text("""
-        SELECT al.entry_hash
-        FROM audit_log al
-        WHERE NOT EXISTS (
-            SELECT 1 FROM audit_log al2
-            WHERE al2.prev_hash = al.entry_hash
-        )
-        LIMIT 1
-    """))
-    prev_hash = result.scalar_one_or_none() or GENESIS_HASH
+    prev_hash = await chain_tip(db) or GENESIS_HASH
 
     body = build_chain_body(
         actor_id=actor_id,

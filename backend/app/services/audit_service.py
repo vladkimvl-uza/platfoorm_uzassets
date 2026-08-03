@@ -128,25 +128,11 @@ def _compute_hash(prev_hash: Optional[str], entry: dict[str, Any]) -> str:
 
 
 async def _latest_hash(db: AsyncSession) -> Optional[str]:
-    """Find the current chain tip — the entry_hash that no other row uses
-    as its prev_hash. Using created_at ordering is unsafe because concurrent
-    transactions can land out-of-order timestamps; chain integrity must
-    follow the cryptographic links.
+    """Хвост цепи. Единая реализация — core.audit_chain.chain_tip: оба писателя
+    обязаны искать хвост одинаково."""
+    from app.core.audit_chain import chain_tip
 
-    With the UNIQUE index on prev_hash, this query is O(log N) via index
-    anti-join.
-    """
-    row = await db.execute(text("""
-        SELECT al.entry_hash
-        FROM audit_log al
-        WHERE al.entry_hash IS NOT NULL
-          AND NOT EXISTS (
-            SELECT 1 FROM audit_log al2
-            WHERE al2.prev_hash = al.entry_hash
-          )
-        LIMIT 1
-    """))
-    return row.scalar_one_or_none()
+    return await chain_tip(db)
 
 
 # ─── Write ───────────────────────────────────────────────────

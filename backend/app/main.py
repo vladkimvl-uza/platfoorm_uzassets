@@ -157,6 +157,16 @@ async def lifespan(app: FastAPI):
                             f"SECURITY: audit chain broken at row {res.get('broken_at')} "
                             f"(reason={res.get('reason')}) — TAMPERING SUSPECTED"
                         )
+                        # AUDIT_CHAIN_HALT_ON_TAMPER был мёртвым тумблером:
+                        # объявлен в конфиге, задокументирован в рунбуке, но
+                        # никто не выставлял app.state.healthy — /health
+                        # оставался зелёным при разорванной цепи.
+                        if getattr(_settings, "AUDIT_CHAIN_HALT_ON_TAMPER", False):
+                            app.state.healthy = False
+                            logger.error(
+                                "AUDIT_CHAIN_HALT_ON_TAMPER=1 → /health переведён в "
+                                "нездоровое состояние до разбирательства"
+                            )
                     else:
                         gauge_set("audit_chain_status", 1)
                         gauge_set("audit_chain_rows", res.get("checked", 0))
