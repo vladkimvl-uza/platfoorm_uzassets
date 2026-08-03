@@ -64,7 +64,12 @@ async def shareholder_dashboard(
 @router.get("/kpi-drill")
 async def kpi_tile_drill(
     service: DashboardServiceDep,
-    bucket: str = Query(..., regex="^(total|done|active|overdue|deferred)$"),
+    # status:<код> — разрез кольца «Статусы» (init/new/active/review/done/
+    # quarterly/monthly/ongoing); остальные — сводные бакеты KPI-плиток.
+    bucket: str = Query(
+        ...,
+        regex="^(total|done|active|overdue|deferred|status:[a-z_]{2,24})$",
+    ),
     entity: str = Query("tasks", regex="^(projects|tasks)$"),
     year: Optional[int] = Query(None),
     sector_code: Optional[str] = Query(None),

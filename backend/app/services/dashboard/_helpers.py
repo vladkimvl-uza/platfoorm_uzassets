@@ -116,6 +116,13 @@ def is_overdue(due: Optional[date], status: str) -> bool:
 
 
 def matches_bucket(status: str, due_date, linked_year, today: date, bucket: str) -> bool:
+    # Кольцо «Статусы» на дашборде режет портфель по КОНКРЕТНОМУ статусу
+    # (инициирование / не начато / в процессе / на согласовании / завершено /
+    # ежеквартально / ежемесячно / постоянно), а не по пяти сводным бакетам.
+    # Пропускаем такие значения как есть — так клик по сегменту кольца даёт
+    # ровно ту выборку, которую он показывает.
+    if bucket.startswith("status:"):
+        return status == bucket.split(":", 1)[1]
     if bucket == "total":
         return True
     if bucket == "done":

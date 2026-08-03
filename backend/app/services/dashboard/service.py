@@ -34,6 +34,32 @@ from app.services.dashboard._helpers import (
 from app.uow.ports import UnitOfWorkABC
 
 
+def _status_of(bucket: str) -> Optional[tuple]:
+    """`status:<код>` → строка из STATUS_DEFS, иначе None."""
+    if not bucket.startswith("status:"):
+        return None
+    code = bucket.split(":", 1)[1]
+    for sid, label, color in STATUS_DEFS:
+        if sid == code:
+            return (sid, label, color)
+    return (code, code, "#7F77DD")
+
+
+def _status_label(bucket: str) -> Optional[str]:
+    row = _status_of(bucket)
+    return row[1].upper() if row else None
+
+
+def _status_title(bucket: str) -> Optional[str]:
+    row = _status_of(bucket)
+    return f"Статус «{row[1]}»" if row else None
+
+
+def _status_color(bucket: str) -> Optional[str]:
+    row = _status_of(bucket)
+    return row[2] if row else None
+
+
 class DashboardService:
     def __init__(self, uow: UnitOfWorkABC) -> None:
         self.uow = uow
@@ -637,9 +663,12 @@ class DashboardService:
 
         return {
             "bucket":  bucket, "entity": entity, "year": year,
-            "label":   BUCKET_LABEL.get(bucket, bucket.upper()),
-            "title":   BUCKET_TITLE.get(bucket, bucket),
-            "accent":  BUCKET_ACCENT.get(bucket, "#7F77DD"),
+            # Для разреза по статусу подпись/цвет берём из того же справочника,
+            # по которому нарисовано кольцо, — заголовок модалки и сегмент
+            # обязаны совпадать.
+            "label":   _status_label(bucket) or BUCKET_LABEL.get(bucket, bucket.upper()),
+            "title":   _status_title(bucket) or BUCKET_TITLE.get(bucket, bucket),
+            "accent":  _status_color(bucket) or BUCKET_ACCENT.get(bucket, "#7F77DD"),
             "sector_color_map": DDM_SECTOR_COLOR,
             "summary": {
                 "projects_count":     total_projects_match,

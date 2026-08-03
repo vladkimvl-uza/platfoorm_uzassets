@@ -36,7 +36,8 @@ import { resolveCompanyDisplayName } from "@/utils/displayNames";
 const { t } = useI18n();
 const fmt = useFormatters();
 
-type Bucket = "total" | "done" | "active" | "overdue" | "deferred";
+// `status:<код>` — разрез кольца «Статусы» на дашборде
+type Bucket = "total" | "done" | "active" | "overdue" | "deferred" | `status:${string}`;
 type Entity = "projects" | "tasks";
 
 interface DrillItem {

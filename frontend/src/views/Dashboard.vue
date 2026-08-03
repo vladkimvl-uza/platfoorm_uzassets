@@ -104,7 +104,8 @@ import CompanyAvatar from "@/components/CompanyAvatar.vue";
 import { useExecutiveDashboard } from "@/composables/useExecutiveDashboard";
 
 // ─── Pack 7.45: KPI tile drill-down state ────────────────────────
-type KpiDrillBucket = "total" | "done" | "active" | "overdue" | "deferred";
+// `status:<код>` — разрез кольца «Статусы» (тот же эндпоинт, что и у KPI-плиток)
+type KpiDrillBucket = "total" | "done" | "active" | "overdue" | "deferred" | `status:${string}`;
 type KpiDrillEntity = "projects" | "tasks";
 const kpiDrillOpen = ref(false);
 const kpiDrillBucket = ref<KpiDrillBucket>("total");
@@ -115,6 +116,13 @@ function openKpiDrill(bucket: KpiDrillBucket, entity: KpiDrillEntity) {
   kpiDrillOpen.value = true;
 }
 function closeKpiDrill() { kpiDrillOpen.value = false; }
+
+/** Клик по сегменту кольца или строке легенды → разбор этого статуса.
+ *  «Просрочено» — сквозной счётчик поверх статусов, у него свой бакет. */
+function openStatusDrill(statusId: string) {
+  const bucket = statusId === "overdue" ? "overdue" : (`status:${statusId}` as KpiDrillBucket);
+  openKpiDrill(bucket, statusEntity.value === "projects" ? "projects" : "tasks");
+}
 
 // ─── Pack 7.47: Company tile drill-down state ────────────────────
 const companyDrillOpen = ref(false);
@@ -137,6 +145,16 @@ function gotoCompanyWorkspace(code: string) {
 // Pack 7.13: unified naming via store
 const companies = useCompaniesStore();
 onMounted(() => { void companies.ensureLoaded(); });
+function dashboardCompanyName(company: CompanyRow): string {
+  return companies.getCompanyNameById(company.company_id)
+    || companies.getCompanyName(company.code)
+    || company.name;
+}
+function dashboardSectorName(group: SectorGroup): string {
+  return companies.findSectorByCode(group.sector)
+    ? companies.getSectorName(group.sector)
+    : t(group.sector_label);
+}
 const yearStore = usePortfolioYearStore();
 const year = computed(() => yearStore.year);
 const statusEntity = useSavedFilter<"projects" | "tasks">("dashboard.statusEntity", "tasks");
@@ -234,6 +252,15 @@ function renderDonut() {
     },
     options: {
       cutout: '84%', responsive: false,
+      // Сегмент кольца — такая же точка входа в разбор, как строка легенды.
+      onClick: (_evt: any, els: any[]) => {
+        const st = els?.length ? ringStatuses.value[els[0].index] : null;
+        if (st) openStatusDrill(st.id);
+      },
+      onHover: (evt: any, els: any[]) => {
+        const target = evt?.native?.target as HTMLElement | undefined;
+        if (target) target.style.cursor = els?.length ? "pointer" : "default";
+      },
       animation: { animateRotate: true, duration: 900, easing: "easeOutCubic" },
       animations: { numbers: { duration: 900, easing: "easeOutCubic" } },
       plugins: {
@@ -352,7 +379,7 @@ const allCompaniesList = computed(() => {
   const out: { code: string; name: string }[] = [];
   for (const grp of data.value.companies_by_sector) {
     for (const co of grp.companies) {
-      out.push({ code: co.code, name: co.name });
+      out.push({ code: co.code, name: dashboardCompanyName(co) });
     }
   }
   return out.sort((a, b) => a.name.localeCompare(b.name, getCurrentIntlLocale()));
@@ -365,7 +392,7 @@ const sectorOptions = computed<{ code: string; label: string }[]>(() => {
   if (!data.value) return [];
   const seen = new Map<string, string>();
   for (const grp of data.value.companies_by_sector) {
-    if (!seen.has(grp.sector)) seen.set(grp.sector, grp.sector_label);
+    if (!seen.has(grp.sector)) seen.set(grp.sector, dashboardSectorName(grp));
   }
   return [...seen.entries()].map(([code, label]) => ({ code, label }));
 });
@@ -472,7 +499,7 @@ const tweenedDeferredTasks = useNumberTween(
       </select>
       <select v-if="scope.showSectorPicker.value" v-model="sectorFilter" class="apt-page-select">
         <option value="">{{ t("Все секторы") }}</option>
-        <option v-for="s in sectorOptions" :key="s.code" :value="s.code">{{ t(s.label) }}</option>
+        <option v-for="s in sectorOptions" :key="s.code" :value="s.code">{{ s.label }}</option>
       </select>
       <select v-model="directionFilter" class="apt-page-select">
         <option value="">{{ t("Все направления") }}</option>
@@ -620,7 +647,7 @@ const tweenedDeferredTasks = useNumberTween(
       <div class="three-cols">
         <div class="cc">
           <div class="cc-header">
-            <div class="cc-title">{{ t("Статусы") }}</div>
+            <div class="cc-title">{{ t("Статусы") }}<span class="cc-hint">{{ t("клик — разбор по компаниям") }}</span></div>
             <div class="seg-controls">
               <div class="uza-seg is-sm">
                 <button :class="['uza-seg-btn',{on:statusEntity==='projects'}]" @click="statusEntity='projects'">{{ t("Проекты") }}</button>
@@ -645,7 +672,12 @@ const tweenedDeferredTasks = useNumberTween(
                    :key="s.id" class="legend-row"
                    :class="{ 'is-overdue': s.id==='overdue', 'is-active': hoveredStatus && hoveredStatus.id===s.id }"
                    :style="{ '--si': si }"
-                   @mouseenter="onLegendEnter(s)" @mouseleave="onLegendLeave()">
+                   role="button" tabindex="0"
+                   :title="t('Показать {label}: список по компаниям', { label: t(s.label).toLowerCase() })"
+                   @mouseenter="onLegendEnter(s)" @mouseleave="onLegendLeave()"
+                   @click="openStatusDrill(s.id)"
+                   @keydown.enter.prevent="openStatusDrill(s.id)"
+                   @keydown.space.prevent="openStatusDrill(s.id)">
                 <span class="legend-dot" :style="{background:s.color}"></span>
                 <span class="legend-lbl">{{ t(s.label) }}<small v-if="s.id==='overdue'" class="legend-note" :title="t('«Просрочено» — сквозной счётчик по всем статусам, не отдельный сегмент кольца')">· {{ t("вне кольца") }}</small></span>
                 <span class="legend-val" :style="{color:s.id==='overdue'?'#E24B4A':'var(--t1)'}">{{ formatStatusValue(s) }}</span>
@@ -667,7 +699,7 @@ const tweenedDeferredTasks = useNumberTween(
                    @keydown.enter.prevent="toggleSector(grp.sector)"
                    @keydown.space.prevent="toggleSector(grp.sector)">
                 <span class="sector-pill" :style="{background:grp.sector_color}"></span>
-                <span class="sector-name">{{ t(grp.sector_label) }}</span>
+                <span class="sector-name">{{ dashboardSectorName(grp) }}</span>
                 <span class="sector-count">{{ grp.companies.length }}</span>
                 <span class="sector-arrow" :class="{open: !expandedSectors.has(grp.sector)}">
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -680,32 +712,32 @@ const tweenedDeferredTasks = useNumberTween(
                 <div v-for="(co, idx) in grp.companies" :key="co.code" class="co-row co-row-clickable uza-side-stripe uza-side-stripe-tight"
                      :style="{ '--stripe-color': grp.sector_color }">
                   <div class="co-name" style="display:flex; align-items:center; gap:8px; min-width:0;">
-                    <CompanyAvatar :name="co.name || co.code" :color="grp.sector_color" :size="22" />
+                    <CompanyAvatar :name="dashboardCompanyName(co) || co.code" :color="grp.sector_color" :size="22" />
                     <span class="co-code"
                           :style="{ background: grp.sector_color + '22', color: grp.sector_color, '--cl': grp.sector_color }"
                           @click.stop="openCompanyDrill(co.code, 'projects')"
-                          :title="t('Открыть drill компании {name}', { name: co.name })">{{ co.code }}</span>
+                          :title="t('Открыть drill компании {name}', { name: dashboardCompanyName(co) })">{{ co.code }}</span>
                     <span class="co-text"
                           style="min-width:0; overflow:hidden; text-overflow:ellipsis;"
                           @click.stop="gotoCompanyWorkspace(co.code)"
-                          :title="t('Открыть карточку — {name}', { name: co.name })">{{ co.name }}</span>
+                          :title="t('Открыть карточку — {name}', { name: dashboardCompanyName(co) })">{{ dashboardCompanyName(co) }}</span>
                   </div>
                   <div class="co-bar-wrap" role="button" tabindex="0"
                        @click.stop="openCompanyDrill(co.code, 'tasks')"
                        @keydown.enter.prevent.stop="openCompanyDrill(co.code, 'tasks')"
                        @keydown.space.prevent.stop="openCompanyDrill(co.code, 'tasks')"
-                       :aria-label="t('Открыть детализацию задач — {name}', { name: co.name })"
-                       :title="t('Открыть drill компании {name}', { name: co.name })">
+                       :aria-label="t('Открыть детализацию задач — {name}', { name: dashboardCompanyName(co) })"
+                       :title="t('Открыть drill компании {name}', { name: dashboardCompanyName(co) })">
                     <span class="co-pct" :style="{color: pctColor(co.progress_pct)}">{{ co.progress_pct }}%</span>
                     <span class="co-bar"><i class="co-bar-fill"
                           :style="{ width: co.progress_pct + '%', '--c': pctColor(co.progress_pct), '--d': (idx * 45) + 'ms' }"></i></span>
                   </div>
                   <div class="co-num r co-num-clickable"
                        @click.stop="openCompanyDrill(co.code, 'projects')"
-                       :title="t('Drill: проекты {name}', { name: co.name })">{{ co.projects_done }}/{{ co.projects_total }}</div>
+                       :title="t('Drill: проекты {name}', { name: dashboardCompanyName(co) })">{{ co.projects_done }}/{{ co.projects_total }}</div>
                   <div class="co-num r co-num-clickable"
                        @click.stop="openCompanyDrill(co.code, 'tasks')"
-                       :title="t('Drill: задачи {name}', { name: co.name })">{{ co.tasks_done }}/{{ co.tasks_total }}</div>
+                       :title="t('Drill: задачи {name}', { name: dashboardCompanyName(co) })">{{ co.tasks_done }}/{{ co.tasks_total }}</div>
                 </div>
               </template>
             </template>
@@ -1481,4 +1513,14 @@ const tweenedDeferredTasks = useNumberTween(
 .rt-name-text      { font-size: 12px !important; }
 .rt-cell           { font-size: 11.5px !important; }
 .rt-pill, .rt-score { font-size: 11px !important; }
+
+/* Легенда кольца — точка входа в разбор статуса */
+.legend-row { cursor: pointer; border-radius: 8px; transition: background .16s ease, transform .16s ease; }
+.legend-row:hover { background: rgba(124, 111, 247, .07); transform: translateX(2px); }
+.legend-row:focus-visible { outline: 2px solid var(--uza-purple, #7C6FF7); outline-offset: 2px; }
+.cc-hint {
+  margin-left: 8px; font-size: 10px; font-weight: 400; letter-spacing: 0;
+  text-transform: none; color: var(--t3, #94A3B8);
+}
+@media (max-width: 720px) { .cc-hint { display: none; } }
 </style>
