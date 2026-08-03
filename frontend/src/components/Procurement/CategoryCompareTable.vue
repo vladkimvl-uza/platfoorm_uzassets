@@ -70,8 +70,10 @@
                 <span class="nm" :title="companyName(c)">{{ companyName(c) }}</span>
               </div>
             </td>
-            <td class="right" :class="c.company_deviation >= 0 ? 'up' : 'dn'">
-              {{ c.company_deviation >= 0 ? "+" : "" }}{{ c.company_deviation.toFixed(1) }}%
+            <td class="right" :class="c.company_deviation == null ? 'neu' : (c.company_deviation >= 0 ? 'up' : 'dn')"
+                :title="c.company_deviation == null ? t('Нет сопоставимых позиций — отклонение не рассчитывается') : undefined">
+              <template v-if="c.company_deviation == null">—</template>
+              <template v-else>{{ c.company_deviation >= 0 ? "+" : "" }}{{ c.company_deviation.toFixed(1) }}%</template>
             </td>
             <td class="right neu">
               <template v-if="Math.max(0, c.sum_dev) > 0">
@@ -162,7 +164,8 @@ function sortClass(key: SortKey): string {
 const sortedRating = computed(() => {
   const list = [...props.rating];
   const fn: Record<SortKey, (a: CompanyRatingRow, b: CompanyRatingRow) => number> = {
-    deviation: (a, b) => a.company_deviation - b.company_deviation,
+    deviation: (a, b) => (a.company_deviation ?? Number.POSITIVE_INFINITY)
+      - (b.company_deviation ?? Number.POSITIVE_INFINITY),
     overpay: (a, b) => Math.max(0, a.sum_dev) - Math.max(0, b.sum_dev),
     red: (a, b) => a.above_count - b.above_count,
     volume: (a, b) => a.sum_ref - b.sum_ref,

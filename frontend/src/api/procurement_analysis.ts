@@ -55,7 +55,8 @@ export interface CompanyRatingRow {
   company_name: string;
   company_color: string | null;
   company_sector: string | null;
-  company_deviation: number;
+  company_deviation: number | null;   // null = нет сопоставимых позиций
+  has_comparable?: boolean;
   sum_dev: number;
   sum_ref: number;
   above_count: number;
@@ -186,26 +187,31 @@ export interface ProcurementKpis {
   total_closures: number;
   clean_closures: number;
   total_overpay_uzs: number;
-  above_market_pct: number;
-  median_deviation_pct: number;
+  // null = сопоставимых компаний нет, судить не о чем
+  above_market_pct: number | null;
+  median_deviation_pct: number | null;
   // расширение (лот-дедуплицированные деньги)
   total_spend: number;
   total_lots: number;
   saved_amount: number;
-  saved_rate_pct: number;
+  // null = экономия не указана в источнике (не «торговались и не сэкономили»)
+  saved_rate_pct: number | null;
+  saving_known_lots: number;
+  saving_known_spend: number;
+  saving_unknown_spend: number;
   no_tender_spend: number;              // спенд НЕКОНКУРЕНТНЫХ методов (e_shop/каталог)
-  no_tender_pct: number;                // доля спенда без конкурентной процедуры
+  no_tender_pct: number | null;         // доля спенда без конкурентной процедуры
   competitive_no_saving_spend: number;  // конкурентные процедуры с нулевой экономией
-  competitive_no_saving_pct: number;    // их доля (сигнал имитации торга)
+  competitive_no_saving_pct: number | null;  // считается только по лотам с известной экономией
   potential_saving_uzs: number;
   supplier_count: number;
-  disclosed_supplier_pct: number;
+  disclosed_supplier_pct: number | null;
   cross_supplier_pct: number;           // доля спенда у сквозных (по ВСЕМ, не топ-50)
   services_spend: number;
-  services_pct: number;
+  services_pct: number | null;
   goods_spend: number;
   works_spend: number;
-  works_pct: number;
+  works_pct: number | null;
 }
 
 export interface WorkServiceByCompany {
@@ -220,9 +226,29 @@ export interface WorkServiceByCompany {
   total_spend: number;
 }
 
+/** Честный знаменатель экрана: по какой части данных посчитаны цифры. */
+export interface ProcurementCoverage {
+  companies_total: number;
+  companies_with_data: number;
+  companies_comparable: number;
+  closures_total: number;
+  lots_total: number;
+  spend_total: number;
+  comparable_spend: number;
+  comparable_spend_pct: number | null;
+  saving_known_lots_pct: number | null;
+  category_known_pct: number | null;
+  supplier_known_pct: number | null;
+  period_from: string | null;
+  period_to: string | null;
+  years: number[];
+}
+
 export interface ProcurementAggregate {
   year: number | null;
   sector_code: string | null;
+  has_data?: boolean;
+  coverage?: ProcurementCoverage;
   kpis: ProcurementKpis;
   categories: CategoryMeta[];
   category_aggregates: CategoryAggregate[];

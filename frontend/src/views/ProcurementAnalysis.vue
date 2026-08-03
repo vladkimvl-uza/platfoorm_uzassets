@@ -185,6 +185,7 @@ type KpiCard = {
   id: string; eyebrow: string; value: string; sub: string;
   accent: string; tab?: Tab; bar?: number; barColor?: string; hint?: string;
 };
+const DASH = "—";
 const kpiCards = computed<KpiCard[]>(() => {
   const kp = k.value;
   if (!kp) return [];
@@ -204,26 +205,66 @@ const kpiCards = computed<KpiCard[]>(() => {
     },
     {
       id: "notender", eyebrow: t("Без конкурентной процедуры"),
-      value: kp.no_tender_pct.toFixed(0) + "%",
+      value: kp.no_tender_pct == null ? DASH : kp.no_tender_pct.toFixed(0) + "%",
       sub: t("{amount} · каталог/e-shop", { amount: paFmtMoneyShort(kp.no_tender_spend) }),
       accent: "#E2807F", tab: "methods",
-      bar: kp.no_tender_pct, barColor: "#E2807F",
-      hint: t("Доля спенда через НЕКОНКУРЕНТНЫЕ методы (электронный магазин/каталог), где торга нет по определению. Отдельно: {percent}% ({amount}) — конкурентные процедуры, закрывшиеся с НУЛЕВОЙ экономией (возможная имитация торга).", { percent: kp.competitive_no_saving_pct.toFixed(0), amount: paFmtMoneyShort(kp.competitive_no_saving_spend) }),
+      bar: kp.no_tender_pct ?? undefined, barColor: "#E2807F",
+      hint: kp.competitive_no_saving_pct == null
+        ? t("Доля спенда через НЕКОНКУРЕНТНЫЕ методы (электронный магазин/каталог), где торга нет по определению.")
+        : t("Доля спенда через НЕКОНКУРЕНТНЫЕ методы (электронный магазин/каталог), где торга нет по определению. Отдельно: {percent}% ({amount}) — конкурентные процедуры, закрывшиеся с НУЛЕВОЙ экономией при ИЗВЕСТНОЙ экономии (возможная имитация торга).", { percent: kp.competitive_no_saving_pct.toFixed(0), amount: paFmtMoneyShort(kp.competitive_no_saving_spend) }),
     },
     {
       id: "suppliers", eyebrow: t("Поставщиков"),
       value: fmt.fmtNumber(kp.supplier_count),
-      sub: t("{percent}% спенда раскрыто", { percent: kp.disclosed_supplier_pct.toFixed(0) }),
+      sub: kp.disclosed_supplier_pct == null
+        ? t("поставщик не раскрыт ни в одной строке")
+        : t("{percent}% спенда раскрыто", { percent: kp.disclosed_supplier_pct.toFixed(0) }),
       accent: "#EFB373", tab: "suppliers",
     },
     {
       id: "split", eyebrow: t("Товары / Услуги / Работы"),
-      value: `${(100 - kp.services_pct - kp.works_pct).toFixed(0)}/${kp.services_pct.toFixed(0)}/${kp.works_pct.toFixed(0)}%`,
+      // Без известных долей услуг/работ «100/0/0%» — не структура расхода,
+      // а отсутствие типа продукта в источнике.
+      value: (kp.services_pct == null || kp.works_pct == null)
+        ? DASH
+        : `${(100 - kp.services_pct - kp.works_pct).toFixed(0)}/${kp.services_pct.toFixed(0)}/${kp.works_pct.toFixed(0)}%`,
       sub: `${paFmtMoneyShort(kp.goods_spend)} · ${paFmtMoneyShort(kp.services_spend)} · ${paFmtMoneyShort(kp.works_spend)}`,
       accent: "#378ADD", tab: "products",
-      bar: 100 - kp.services_pct - kp.works_pct, barColor: "#93D3B0",
+      bar: (kp.services_pct == null || kp.works_pct == null)
+        ? undefined
+        : 100 - kp.services_pct - kp.works_pct,
+      barColor: "#93D3B0",
     },
   ];
+});
+
+// ─── Честное покрытие ────────────────────────────────────────────
+// Экран считает «денежные» метрики по сопоставимым позициям, экономию — по
+// лотам, где она указана, а весь массив может быть одним кварталом. Пока эти
+// доли не показаны рядом с цифрами, полоса KPI читается как полная картина.
+const hasData = computed(() => aggregate.value?.has_data !== false && !!aggregate.value?.kpis?.total_closures);
+const coverageNote = computed<string | null>(() => {
+  const c = aggregate.value?.coverage;
+  if (!c || !hasData.value) return null;
+  const parts: string[] = [];
+  if (c.comparable_spend_pct != null && c.comparable_spend_pct < 90) {
+    parts.push(t("сопоставимые цены покрывают {pct}% расхода ({n} из {total} компаний)", {
+      pct: c.comparable_spend_pct.toFixed(1), n: c.companies_comparable, total: c.companies_total,
+    }));
+  }
+  if (c.saving_known_lots_pct != null && c.saving_known_lots_pct < 90) {
+    parts.push(t("экономия указана у {pct}% лотов", { pct: c.saving_known_lots_pct.toFixed(0) }));
+  }
+  if (c.category_known_pct != null && c.category_known_pct < 90) {
+    parts.push(t("категория проставлена у {pct}% строк", { pct: c.category_known_pct.toFixed(0) }));
+  }
+  if (c.period_from && c.period_to) {
+    parts.push(t("период данных: {from} — {to}", {
+      from: fmt.fmtDate(c.period_from), to: fmt.fmtDate(c.period_to),
+    }));
+  }
+  if (!parts.length) return null;
+  return parts.join(" · ") + ". " + t("Метрики ниже описывают только эту часть закупок.");
 });
 
 // ─── Авто red-flags ──────────────────────────────────────────────
@@ -250,7 +291,9 @@ const redFlags = computed<RedFlag[]>(() => {
   }
   // Главный сигнал качества торгов: конкурентные процедуры с нулевой экономией
   // (имитация конкуренции). «Без конкурентной процедуры» (каталог) — норма, не флаг.
-  if (a.kpis && a.kpis.competitive_no_saving_pct >= 30) {
+  // null = экономия не указана ни у одного лота: это пробел в данных, а не
+  // сигнал имитации торга — флаг в таком случае не поднимаем.
+  if (a.kpis && a.kpis.competitive_no_saving_pct != null && a.kpis.competitive_no_saving_pct >= 30) {
     out.push({
       id: "cns", tone: "amber", tab: "methods",
       title: t("{percent}% спенда: конкурентные процедуры без экономии", { percent: a.kpis.competitive_no_saving_pct.toFixed(0) }),
@@ -420,8 +463,15 @@ onMounted(() => {
     </div>
 
     <div v-else-if="aggregate" class="pa-body">
+      <!-- Честное покрытие: по какой части данных посчитан экран.
+           Без этих долей полоса KPI читается как полная картина закупок. -->
+      <div v-if="coverageNote" class="pa-cover">
+        <span class="pa-cover-badge">{{ t('Данных недостаточно') }}</span>
+        <span class="pa-cover-txt">{{ coverageNote }}</span>
+      </div>
+
       <!-- ── KPI band ── -->
-      <div class="pa-kpi-band">
+      <div v-if="hasData" class="pa-kpi-band">
         <button v-for="(c, i) in kpiCards" :key="c.id" class="pa-kpi" :class="{ clickable: !!c.tab }"
           :style="{ '--accent': c.accent, '--i': i }" :title="c.hint || undefined" @click="c.tab && (tab = c.tab)">
           <span class="pa-kpi-eyebrow">{{ c.eyebrow }}<span v-if="c.hint" class="pa-kpi-info" title="">ⓘ</span></span>
@@ -432,7 +482,7 @@ onMounted(() => {
       </div>
 
       <!-- Empty -->
-      <div v-if="!aggregate.rating.length" class="pa-empty-pane">
+      <div v-if="!hasData || !aggregate.rating.length" class="pa-empty-pane">
         <div class="pa-empty-icon">
           <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="#7F77DD" stroke-width="1.5"><rect x="8" y="10" width="32" height="32" rx="3"/><path d="M8 18h32M16 4v8M32 4v8"/><path d="M16 26h16M16 32h12"/></svg>
         </div>
@@ -675,4 +725,19 @@ onMounted(() => {
 .pa-skel-sm { height: 10px; width: 50%; margin-bottom: 10px; }
 .pa-skel-lg { height: 24px; width: 70%; margin-bottom: 8px; }
 .pa-skel-md { height: 10px; width: 60%; }
+
+/* Баннер покрытия — тот же вид, что «Данных недостаточно» в PMO */
+.pa-cover {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 9px 14px; margin-bottom: 12px;
+  background: rgba(234, 138, 40, .07);
+  border: 1px solid rgba(234, 138, 40, .22);
+  border-radius: 11px;
+}
+.pa-cover-badge {
+  flex: none; font-size: 9.5px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .05em; color: #B45309;
+  background: rgba(234, 138, 40, .16); border-radius: 999px; padding: 3px 8px;
+}
+.pa-cover-txt { font-size: 12px; line-height: 1.5; color: var(--t2, #475569); }
 </style>

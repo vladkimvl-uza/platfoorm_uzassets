@@ -26,8 +26,11 @@
       <div class="pa-mini-grid kpi-rail">
         <div class="pa-mini-kpi">
           <div class="pa-mini-l">{{ t("Отклонение") }}</div>
-          <div class="pa-mini-v" :class="selectedCo.company_deviation >= 0 ? 'up' : 'dn'">
-            {{ selectedCo.company_deviation >= 0 ? "+" : "" }}{{ selectedCo.company_deviation.toFixed(1) }}%
+          <div class="pa-mini-v"
+               :class="selectedCo.company_deviation == null ? '' : (selectedCo.company_deviation >= 0 ? 'up' : 'dn')"
+               :title="selectedCo.company_deviation == null ? t('Нет сопоставимых позиций — отклонение не рассчитывается') : undefined">
+            <template v-if="selectedCo.company_deviation == null">—</template>
+            <template v-else>{{ selectedCo.company_deviation >= 0 ? "+" : "" }}{{ selectedCo.company_deviation.toFixed(1) }}%</template>
           </div>
         </div>
         <div class="pa-mini-kpi">

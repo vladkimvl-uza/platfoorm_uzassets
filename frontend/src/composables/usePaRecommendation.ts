@@ -29,6 +29,11 @@ function catName(d: CategoryDeviation): string {
 }
 
 export function paGenerateRecommendation(co: CompanyRatingRow): string {
+  // Нет сопоставимых позиций — нет и оснований для вывода. Раньше такая
+  // компания приходила с отклонением 0 и получала рекомендацию «в норме».
+  if (co.company_deviation == null) {
+    return t("Сопоставимых позиций нет — сравнить цены компании не с чем. Вывод по закупкам сделать нельзя.");
+  }
   if (co.company_deviation < -3 && co.best_cats.length) {
     const top = co.best_cats[0];
     return t(
@@ -71,6 +76,11 @@ export function paGenerateCompanyRecommendation(
   const devPct = co.company_deviation;
   const overpay = Math.max(0, co.sum_dev);
   const redCount = co.above_count;
+
+  // Нет сопоставимых позиций — вывод о закупках компании невозможен.
+  if (devPct == null) {
+    return t("Сопоставимых позиций нет — сравнить цены компании не с чем. Вывод по закупкам сделать нельзя.");
+  }
 
   if (devPct >= 10 && worst) {
     return t(
