@@ -89,7 +89,10 @@ export interface CompanyListItem {
   sector_color: string | null;
   is_active: boolean;
   is_custom: boolean;
-  hidden_years?: number[] | null;  governance_score: number | null;
+  hidden_years?: number[] | null;
+  /** Официальный сайт — источник пилюли в шапке воркспейса. */
+  website?: string | null;
+  governance_score: number | null;
   latest_revenue: string | null; // Decimal serialized as string
   latest_revenue_year: number | null;
   has_financials: boolean;

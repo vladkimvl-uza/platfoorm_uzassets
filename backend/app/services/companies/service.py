@@ -94,6 +94,7 @@ class CompaniesService:
                 sector_color=c.sector.color_hex if c.sector else None,
                 is_active=c.is_active, is_custom=c.is_custom,
                 hidden_years=c.hidden_years or None,
+                website=c.website,
                 governance_score=gov_score.get(str(c.id)),
                 latest_revenue=fin[1] if fin else None,
                 latest_revenue_year=fin[0] if fin else None,

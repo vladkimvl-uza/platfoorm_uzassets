@@ -200,6 +200,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_rbac_screen_permissions(conn)
             await _patch_dashboard_view_grant(conn)
             await _patch_documents_library(conn)
+            await _patch_company_websites(conn)
             await _patch_custom_api_endpoint(conn)
             await _patch_org_role_tasks_write(conn)
             await _patch_org_role_company_create(conn)
@@ -2067,6 +2068,65 @@ async def _patch_documents_library(conn) -> None:
         "INSERT INTO system_config (id, key, value, description, is_secret) "
         "VALUES (gen_random_uuid(), 'documents_backfilled', '{\"done\": true}'::jsonb, "
         "'Вложения задач/проектов/компаний перенесены в библиотеку документов', false) "
+        "ON CONFLICT (key) DO NOTHING"
+    ))
+
+
+async def _patch_company_websites(conn) -> None:
+    """Разовое заполнение официальных сайтов компаний портфеля.
+
+    Поле `companies.website` существовало давно и уже выводится пилюлей в шапке
+    воркспейса, но НИ У ОДНОЙ компании не было заполнено (все NULL), поэтому
+    пилюля не появлялась никогда, а в админке поля для сайта просто не было.
+    Заполняем один раз по маркеру и только там, где значения нет, — дальше
+    источник истины один: профиль редактирования компании.
+
+    Адреса сверены по официальным сайтам (август 2026). Компании, у которых
+    официального сайта найти не удалось, намеренно оставлены пустыми — пустое
+    поле честнее выдуманного адреса.
+    """
+    already = (await conn.execute(text(
+        "SELECT 1 FROM system_config WHERE key = 'company_websites_seeded' LIMIT 1"
+    ))).first()
+    if already:
+        return
+    sites = {
+        "agmk": "agmk.uz",              # Олмалиқ КМК
+        "hgt": "hududgaz.uz",           # Худудгазтаъминот
+        "naz": "navoiyazot.uz",         # Навоийазот
+        "nes": "uzbekistonmet.uz",      # Национальные электрические сети
+        "ngmk": "ngmk.uz",              # Навоийский ГМК
+        "nur": "navoiyuran.uz",         # Навоийуран
+        "res": "het.uz",                # Худудий электр тармоқлари
+        "tes": "tpp.uz",                # Иссиқлик электр станциялари
+        "tst": "tashbus.uz",            # Тошшаҳартрансхизмат
+        "uap": "uzairports.com",        # Uzbekistan Airports
+        "uas": "uzavtosanoat.uz",       # Ўзавтосаноат
+        "uge": "uzgidro.uz",            # Ўзбекгидроэнерго
+        "ugt": "uzgastrade.uz",         # UzGasTrade
+        "uhy": "uzairways.com",         # Uzbekistan Airways
+        "uks": "uzkimyosanoat.uz",      # Ўзкимёсаноат
+        "umk": "uzbeksteel.uz",         # Ўзметкомбинат
+        "ung": "ung.uz",                # Ўзбекнефтгаз
+        "upt": "uz.post",               # Ўзбекистон почтаси
+        "utc": "uztelecom.uz",          # Ўзбектелеком
+        "utg": "utg.uz",                # Ўзтрансгаз
+        "uty": "railway.uz",            # Ўзбекистон темир йўллари
+        "uug": "uzbekcoal.uz",          # Ўзбекуголь
+    }
+    for code, site in sites.items():
+        await conn.execute(
+            text(
+                "UPDATE companies SET website = :site "
+                "WHERE code = :code AND (website IS NULL OR btrim(website) = '')"
+            ),
+            {"site": site, "code": code},
+        )
+    await conn.execute(text(
+        "INSERT INTO system_config (id, key, value, description, is_secret) "
+        "VALUES (gen_random_uuid(), 'company_websites_seeded', "
+        "'{\"done\": true}'::jsonb, "
+        "'Разовое заполнение companies.website официальными адресами', false) "
         "ON CONFLICT (key) DO NOTHING"
     ))
 

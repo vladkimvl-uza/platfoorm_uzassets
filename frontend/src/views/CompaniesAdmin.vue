@@ -172,7 +172,9 @@ function openEditCompany(c: CompanyListItem) {
     name_en: (c as any).name_en || "",
     sector_code: c.sector_code || "",
     legal_form: (c as any).legal_form || "",
-    inn: "", description: "", website: "", address: "", ceo_name: "",
+    inn: "", description: "",
+    website: (c as any).website || "",
+    address: "", ceo_name: "",
     employees_count: undefined, founded_year: undefined,
     is_active: c.is_active,
     hidden_years: c.hidden_years ? [...c.hidden_years] : [],
@@ -306,6 +308,7 @@ async function submitEditCompany() {
     if (companyForm.value.name_en !== undefined) patch.name_en = companyForm.value.name_en;
     if (companyForm.value.sector_code !== undefined) patch.sector_code = companyForm.value.sector_code;
     if (companyForm.value.legal_form !== undefined) patch.legal_form = companyForm.value.legal_form;
+    if (companyForm.value.website !== undefined) patch.website = (companyForm.value.website || "").trim();
     if (companyForm.value.is_active !== undefined) patch.is_active = companyForm.value.is_active;
     patch.hidden_years = companyForm.value.hidden_years || [];  // всегда шлём (чтобы снятие работало)
     await companiesApi.update(editingCompany.value.code, patch);
@@ -742,6 +745,14 @@ async function submitDeleteSector() {
             <input v-model="companyForm.name_en" type="text"
                    placeholder='"Navoiy MMC" JSC'
                    class="w-full px-3 py-2 text-sm rounded-uza-pill border border-slate-200 focus:border-uza-purple"/>
+          </div>
+          <!-- Сайт компании: единственный источник пилюли в шапке воркспейса -->
+          <div>
+            <label class="block text-xs text-slate-600 mb-1">{{ t('Сайт') }}</label>
+            <input v-model="companyForm.website" type="text"
+                   placeholder="ngmk.uz"
+                   class="w-full px-3 py-2 text-sm rounded-uza-pill border border-slate-200 focus:border-uza-purple"/>
+            <div class="text-[11px] text-slate-400 mt-1">{{ t('Показывается ссылкой в шапке рабочего пространства компании. Можно без https://') }}</div>
           </div>
           <label v-if="showEditCompany" class="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
             <input v-model="companyForm.is_active" type="checkbox"/>

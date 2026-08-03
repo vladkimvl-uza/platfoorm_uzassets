@@ -416,8 +416,11 @@ function secVal(c: Charter, k: keyof Charter): string {
 }
 .pc-stat-n { font-size: 18px; font-weight: 400; color: var(--t1, #1e2a4a); font-variant-numeric: tabular-nums; }
 .pc-stat-l { font-size: 9px; text-transform: uppercase; letter-spacing: .05em; color: var(--t3, #94a3b8); margin-top: 1px; }
-.pc-stat-ok { border-top: 2px solid #1d9e75; }
-.pc-stat-draft { border-top: 2px solid #d97706; }
+/* Акцент — верхняя полоса по канону (::before), не border-top. */
+.pc-stat-ok, .pc-stat-draft { position: relative; overflow: hidden; }
+.pc-stat-ok::before, .pc-stat-draft::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px; border-radius: inherit; border-bottom-left-radius: 0; border-bottom-right-radius: 0; pointer-events: none; }
+.pc-stat-ok::before { background: #1d9e75; }
+.pc-stat-draft::before { background: #d97706; }
 
 .pc-grid { display: grid; grid-template-columns: 300px 1fr; gap: 16px; align-items: start; }
 

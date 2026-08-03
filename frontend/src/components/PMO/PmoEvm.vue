@@ -295,7 +295,10 @@ function metricNeg(p: EvmProject, m: MetricDef): boolean {
 
 /* gauges */
 .ev-idx { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
-.ev-gauge { border: 1px solid var(--border, rgba(99,102,180,.12)); border-radius: 14px; background: var(--bg1, #fff); padding: 14px 16px; border-top: 2px solid var(--c); animation: evIn .4s var(--ease-out, cubic-bezier(.16,1,.3,1)) both; }
+/* Верхняя полоса-акцент по канону KPI-эталона: 3px ::before со скруглением
+   карточки, а не border-top (тот тянулся по углам и был толщиной 2px). */
+.ev-gauge { position: relative; overflow: hidden; border: 1px solid var(--border, rgba(99,102,180,.12)); border-radius: 14px; background: var(--bg1, #fff); padding: 14px 16px; animation: evIn .4s var(--ease-out, cubic-bezier(.16,1,.3,1)) both; }
+.ev-gauge::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--c); border-radius: inherit; border-bottom-left-radius: 0; border-bottom-right-radius: 0; pointer-events: none; }
 .ev-gauge-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .ev-gauge-l { font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: var(--t3, #94a3b8); font-weight: 600; }
 .ev-gauge-v { font-size: 26px; font-weight: 400; color: var(--c); font-variant-numeric: tabular-nums; line-height: 1; }
@@ -374,7 +377,8 @@ function metricNeg(p: EvmProject, m: MetricDef): boolean {
 .ev-prog-track-lg { height: 9px; border-radius: 5px; }
 
 .ev-mini2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.ev-mini { display: flex; flex-direction: column; gap: 2px; padding: 11px 13px; border-radius: 11px; background: var(--bg2, #fafafc); border-top: 2px solid var(--c); }
+.ev-mini { position: relative; overflow: hidden; display: flex; flex-direction: column; gap: 2px; padding: 11px 13px; border-radius: 11px; background: var(--bg2, #fafafc); }
+.ev-mini::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--c); border-radius: inherit; border-bottom-left-radius: 0; border-bottom-right-radius: 0; pointer-events: none; }
 .ev-mini-l { font-size: 10px; font-weight: 700; color: var(--t3, #94a3b8); }
 .ev-mini-v { font-size: 22px; font-weight: 400; color: var(--c); font-variant-numeric: tabular-nums; line-height: 1.1; }
 .ev-mini-x { font-size: 10.5px; color: var(--t2, #475569); }

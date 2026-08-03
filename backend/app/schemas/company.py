@@ -110,6 +110,9 @@ class CompanyListItem(BaseModel):
     is_active: bool
     is_custom: bool
     hidden_years: Optional[list[int]] = None
+    # Сайт компании — единственный источник для пилюли в шапке воркспейса,
+    # поэтому едет и в списке (админка предзаполняет им форму редактирования).
+    website: Optional[str] = None
 
     # Aggregated indicators (computed in the endpoint)
     governance_score: Optional[int] = None

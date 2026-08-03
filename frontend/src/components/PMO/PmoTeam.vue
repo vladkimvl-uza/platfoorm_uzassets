@@ -302,7 +302,9 @@ async function clearItem(item: string) {
 .tm-stat { display: flex; flex-direction: column; align-items: center; min-width: 92px; padding: 8px 12px; border: 1px solid var(--border, rgba(99,102,180,.12)); border-radius: 11px; background: var(--bg1, #fff); }
 .tm-stat-n { font-size: 19px; font-weight: 400; color: var(--t1, #1e2a4a); font-variant-numeric: tabular-nums; }
 .tm-stat-l { font-size: 9px; text-transform: uppercase; letter-spacing: .05em; color: var(--t3, #94a3b8); margin-top: 1px; }
-.tm-stat-warn { border-top: 2px solid #E24B4A; }
+/* Акцент — верхняя полоса по канону (::before), не border-top. */
+.tm-stat-warn { position: relative; overflow: hidden; }
+.tm-stat-warn::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: #E24B4A; border-radius: inherit; border-bottom-left-radius: 0; border-bottom-right-radius: 0; pointer-events: none; }
 
 /* people */
 .tm-people { display: flex; flex-direction: column; gap: 8px; }
