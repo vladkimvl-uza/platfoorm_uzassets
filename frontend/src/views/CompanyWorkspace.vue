@@ -3573,13 +3573,16 @@ function onEditorClose() {
             <!-- Top 3 KPI cards -->
             <div class="cw-bp-tops">
               <div
-                v-for="m in bpTopMetrics"
+                v-for="(m, mi) in bpTopMetrics"
                 :key="m.key"
-                class="cw-bp-top-card"
-                :style="`--accent: ${m.key === 'revenue' ? 'var(--uza-purple)' : m.key === 'opProfit' ? 'var(--uza-teal)' : 'var(--uza-amber)'}`"
+                class="kpi2 fin-shimmer cw-bp-top-card"
+                :style="{
+                  '--kpi2-accent': m.key === 'revenue' ? 'var(--uza-purple)' : m.key === 'opProfit' ? 'var(--uza-teal)' : 'var(--uza-amber)',
+                  '--kpi2-d': (mi * 80) + 'ms',
+                }"
               >
-                <div class="cw-bp-top-label">{{ t(m.label) }}</div>
-                <div class="cw-bp-top-value">{{ bpFmt(m.fact ?? m.plan) }}</div>
+                <div class="kpi2-lbl">{{ t(m.label) }}</div>
+                <div class="kpi2-val">{{ bpFmt(m.fact ?? m.plan) }}</div>
                 <div class="cw-bp-top-stats">
                   <div class="cw-bp-top-stat">
                     <span class="cw-bp-top-stat-l">{{ t("План") }}:</span>
@@ -3672,12 +3675,12 @@ function onEditorClose() {
               <div
                 v-for="(kpi, ki) in govKpis"
                 :key="kpi.label"
-                class="cw-gov-kpi-card"
-                :style="`--accent: ${kpi.color}; --d: ${ki}`"
+                class="kpi2 fin-shimmer"
+                :style="{ '--kpi2-accent': kpi.color, '--kpi2-d': (ki * 80) + 'ms', '--d': ki }"
               >
-                <div class="cw-gov-kpi-label">{{ t(kpi.label) }}</div>
-                <div class="cw-gov-kpi-value">{{ kpi.value }}</div>
-                <div v-if="kpi.unit" class="cw-gov-kpi-unit">{{ kpi.unit }}</div>
+                <div class="kpi2-lbl">{{ t(kpi.label) }}</div>
+                <div class="kpi2-val">{{ kpi.value }}</div>
+                <div v-if="kpi.unit" class="kpi2-sub">{{ kpi.unit }}</div>
               </div>
             </div>
 
@@ -3944,24 +3947,21 @@ function onEditorClose() {
           <template v-else>
             <!-- KPI strip -->
             <div class="cw-cred-kpis">
-              <div class="cw-cred-kpi">
-                <div class="cw-cred-kpi-label">{{ t("Активных кредитов") }}</div>
-                <div class="cw-cred-kpi-value">{{ creditKpis.total }}</div>
+              <div class="kpi2 fin-shimmer" style="--kpi2-accent:#7F77DD; --kpi2-d:0ms">
+                <div class="kpi2-lbl">{{ t("Активных кредитов") }}</div>
+                <div class="kpi2-val">{{ creditKpis.total }}</div>
               </div>
-              <div class="cw-cred-kpi-divider"></div>
-              <div class="cw-cred-kpi">
-                <div class="cw-cred-kpi-label">{{ t("Общая задолженность") }}</div>
-                <div class="cw-cred-kpi-value">{{ fmtUsd(creditKpis.totalDebt) }}</div>
+              <div class="kpi2 fin-shimmer" style="--kpi2-accent:#3B82F6; --kpi2-d:80ms">
+                <div class="kpi2-lbl">{{ t("Общая задолженность") }}</div>
+                <div class="kpi2-val">{{ fmtUsd(creditKpis.totalDebt) }}</div>
               </div>
-              <div class="cw-cred-kpi-divider"></div>
-              <div class="cw-cred-kpi">
-                <div class="cw-cred-kpi-label">{{ t("Гарантированных") }}</div>
-                <div class="cw-cred-kpi-value">{{ creditKpis.guaranteed }}</div>
+              <div class="kpi2 fin-shimmer" style="--kpi2-accent:#1D9E75; --kpi2-d:160ms">
+                <div class="kpi2-lbl">{{ t("Гарантированных") }}</div>
+                <div class="kpi2-val">{{ creditKpis.guaranteed }}</div>
               </div>
-              <div class="cw-cred-kpi-divider"></div>
-              <div class="cw-cred-kpi">
-                <div class="cw-cred-kpi-label">{{ t("Средняя ставка") }}</div>
-                <div class="cw-cred-kpi-value">{{ fmtRate(creditKpis.avgRate) }}</div>
+              <div class="kpi2 fin-shimmer" style="--kpi2-accent:#EF9F27; --kpi2-d:240ms">
+                <div class="kpi2-lbl">{{ t("Средняя ставка") }}</div>
+                <div class="kpi2-val">{{ fmtRate(creditKpis.avgRate) }}</div>
               </div>
             </div>
 
@@ -4137,37 +4137,34 @@ function onEditorClose() {
           <template v-else>
             <!-- KPI strip -->
             <div v-if="procCompanyKpis" class="cw-proc-kpis">
-              <div class="cw-proc-kpi">
-                <div class="cw-proc-kpi-label">{{ t("Закрытий") }}</div>
-                <div class="cw-proc-kpi-value">{{ procCompanyKpis.total }}</div>
-                <div v-if="procCompanyKpis.dirty > 0" class="cw-proc-kpi-meta">
+              <div class="kpi2 fin-shimmer" style="--kpi2-accent:#7F77DD; --kpi2-d:0ms">
+                <div class="kpi2-lbl">{{ t("Закрытий") }}</div>
+                <div class="kpi2-val">{{ procCompanyKpis.total }}</div>
+                <div v-if="procCompanyKpis.dirty > 0" class="kpi2-sub">
                   {{ t("чистых: {a} · отбраковано: {b}", { a: procCompanyKpis.clean, b: procCompanyKpis.dirty }) }}
                 </div>
               </div>
-              <div class="cw-proc-kpi-divider"></div>
-              <div class="cw-proc-kpi">
-                <div class="cw-proc-kpi-label">{{ t("Переплата") }}</div>
-                <div class="cw-proc-kpi-value" style="color: var(--uza-red)">
+              <div class="kpi2 fin-shimmer" style="--kpi2-accent:#E24B4A; --kpi2-d:80ms">
+                <div class="kpi2-lbl">{{ t("Переплата") }}</div>
+                <div class="kpi2-val" style="color: var(--uza-red)">
                   {{ paFmtMoneyShort(procCompanyKpis.totalOverpay) }}
                 </div>
-                <div class="cw-proc-kpi-meta">{{ t("UZS, к рынку") }}</div>
+                <div class="kpi2-sub">{{ t("UZS, к рынку") }}</div>
               </div>
-              <div class="cw-proc-kpi-divider"></div>
-              <div class="cw-proc-kpi">
-                <div class="cw-proc-kpi-label">{{ t("Выше рынка") }}</div>
+              <div class="kpi2 fin-shimmer" style="--kpi2-accent:#EF9F27; --kpi2-d:160ms">
+                <div class="kpi2-lbl">{{ t("Выше рынка") }}</div>
                 <div
-                  class="cw-proc-kpi-value"
+                  class="kpi2-val"
                   :style="`color: ${paColorByDev(procCompanyKpis.aboveMarketPct)}`"
                 >
                   {{ procCompanyKpis.aboveMarketPct }}%
                 </div>
-                <div class="cw-proc-kpi-meta">{{ t("закупок > +3%") }}</div>
+                <div class="kpi2-sub">{{ t("закупок > +3%") }}</div>
               </div>
-              <div class="cw-proc-kpi-divider"></div>
-              <div class="cw-proc-kpi">
-                <div class="cw-proc-kpi-label">{{ t("Медианное отклон.") }}</div>
+              <div class="kpi2 fin-shimmer" style="--kpi2-accent:#3B82F6; --kpi2-d:240ms">
+                <div class="kpi2-lbl">{{ t("Медианное отклон.") }}</div>
                 <div
-                  class="cw-proc-kpi-value"
+                  class="kpi2-val"
                   :style="`color: ${paColorByDev(procCompanyKpis.medianDev)}`"
                 >
                   {{ fmt.fmtPercent(procCompanyKpis.medianDev, { decimals: 1, signed: true }) }}
@@ -6089,34 +6086,8 @@ function onEditorClose() {
   grid-template-columns: repeat(3, 1fr);
   gap: 12px;
 }
-.cw-bp-top-card {
-  background: white;
-  border: 0.5px solid var(--uza-border);
-  border-top: 3px solid var(--accent, var(--uza-purple));
-  border-radius: 12px;
-  padding: 16px 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  box-shadow: 0 4px 16px rgba(15, 23, 60, 0.05);
-  animation: kpiSumIn 0.5s var(--ease-standard) both;
-}
-.cw-bp-top-label {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--uza-gray);
-  line-height: 1.3;
-}
-.cw-bp-top-value {
-  font-size: 28px;
-  font-weight: 400;
-  letter-spacing: -0.025em;
-  color: var(--uza-navy);
-  font-variant-numeric: tabular-nums;
-  margin: 4px 0;
-}
+/* Карточка = канон .kpi2 (стекло + 3px ::before + shimmer). Здесь только то,
+   что канон не задаёт: внутренний блок План/Факт/Выполнение. */
 .cw-bp-top-stats {
   display: flex;
   flex-direction: column;
@@ -6266,42 +6237,6 @@ function onEditorClose() {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 10px;
-}
-.cw-gov-kpi-card {
-  background: white;
-  border: 0.5px solid var(--uza-border);
-  border-top: 3px solid var(--accent);
-  border-radius: 10px;
-  padding: 12px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  box-shadow: 0 2px 8px rgba(15, 23, 60, 0.04);
-  animation: kpiSumIn 0.4s var(--ease-standard) both;
-  animation-delay: calc(var(--d, 0) * 45ms);
-  transition: transform .16s var(--ease-standard), box-shadow .16s;
-}
-.cw-gov-kpi-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 24px -10px rgba(40, 32, 80, 0.22);
-}
-.cw-gov-kpi-label {
-  font-size: 9.5px;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--uza-gray);
-}
-.cw-gov-kpi-value {
-  font-size: 22px;
-  font-weight: 400;
-  letter-spacing: -0.025em;
-  color: var(--uza-navy);
-  font-variant-numeric: tabular-nums;
-}
-.cw-gov-kpi-unit {
-  font-size: 10.5px;
-  color: var(--uza-gray);
 }
 
 .cw-gov-section {
@@ -7176,41 +7111,13 @@ function onEditorClose() {
   gap: 16px;
 }
 
+/* Полоса KPI = ряд канонических карточек .kpi2, а не одна карточка с
+   вертикальными разделителями: рядом с другими полосами экрана это выглядело
+   как отдельный стиль. */
 .cw-cred-kpis {
-  display: flex;
-  align-items: stretch;
-  gap: 0;
-  background: white;
-  border: 0.5px solid var(--uza-border);
-  border-radius: 12px;
-  padding: 14px 18px;
-  animation: kpiSumIn 0.4s var(--ease-standard) both;
-}
-.cw-cred-kpi {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 0 12px;
-}
-.cw-cred-kpi-label {
-  font-size: 9.5px;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--uza-gray);
-}
-.cw-cred-kpi-value {
-  font-size: 22px;
-  font-weight: 400;
-  letter-spacing: -0.025em;
-  color: var(--uza-navy);
-  font-variant-numeric: tabular-nums;
-}
-.cw-cred-kpi-divider {
-  width: 1px;
-  background: var(--uza-border);
-  align-self: stretch;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
 }
 
 .cw-cred-section {
@@ -7548,45 +7455,9 @@ function onEditorClose() {
 .cw-forensic-arrow { color: var(--t3, #94A3B8); font-weight: 400; }
 
 .cw-proc-kpis {
-  display: flex;
-  align-items: stretch;
-  gap: 0;
-  background: white;
-  border: 0.5px solid var(--uza-border);
-  border-radius: 12px;
-  padding: 14px 18px;
-  animation: kpiSumIn 0.4s var(--ease-standard) both;
-}
-.cw-proc-kpi {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 0 12px;
-}
-.cw-proc-kpi-label {
-  font-size: 9.5px;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--uza-gray);
-}
-.cw-proc-kpi-value {
-  font-size: 20px;
-  font-weight: 400;
-  letter-spacing: -0.025em;
-  color: var(--uza-navy);
-  font-variant-numeric: tabular-nums;
-}
-.cw-proc-kpi-meta {
-  font-size: 10px;
-  color: var(--uza-gray);
-  margin-top: 2px;
-}
-.cw-proc-kpi-divider {
-  width: 1px;
-  background: var(--uza-border);
-  align-self: stretch;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
 }
 
 /* Best / Worst categories */
@@ -8161,15 +8032,11 @@ function onEditorClose() {
   .cw-cons-kpi-divider { display: none; }
   .cw-cons-rich-header { flex-wrap: wrap; }
   .cw-cons-rich-pct { margin-left: auto; }
-  .cw-cred-kpis { flex-wrap: wrap; gap: 12px; }
-  .cw-cred-kpi-divider { display: none; }
-  .cw-cred-kpi { flex: 1 1 calc(50% - 6px); }
+  .cw-cred-kpis { grid-template-columns: 1fr 1fr; gap: 8px; }
   .cw-cred-table-header, .cw-cred-row { grid-template-columns: 50px 2fr 50px 1fr 80px; }
   .cw-cred-th-rate, .cw-cred-cell-rate { display: none; }
   .cw-proc-cats-row { grid-template-columns: 1fr; }
-  .cw-proc-kpis { flex-wrap: wrap; gap: 12px; }
-  .cw-proc-kpi-divider { display: none; }
-  .cw-proc-kpi { flex: 1 1 calc(50% - 6px); }
+  .cw-proc-kpis { grid-template-columns: 1fr 1fr; gap: 8px; }
   .cw-proc-purchases-header, .cw-proc-purchase { grid-template-columns: 2fr 1fr 70px 70px; }
   .cw-proc-ph-market, .cw-proc-pcell-market { display: none; }
   .cw-fin-meta { flex-wrap: wrap; gap: 8px; padding: 12px; }

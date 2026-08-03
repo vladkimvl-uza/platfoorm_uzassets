@@ -88,7 +88,10 @@ class CompanyRatingRow(BaseModel):
     company_color: Optional[str] = None
     company_sector: Optional[str] = None
 
-    company_deviation: float                    # weighted-avg deviation %
+    # None = сопоставимых позиций нет. Раньше такие компании добавлялись в
+    # рейтинг с отклонением 0.00% и вставали в один ряд с реально измеренными.
+    company_deviation: Optional[float] = None   # weighted-avg deviation %
+    has_comparable: bool = True                 # есть ли база для отклонения
     sum_dev: MoneyDecimal                             # net overpayment (can be negative for savings)
     sum_ref: MoneyDecimal                             # benchmark spend
     above_count: int                             # red closures count (dev ≥ +10%)
@@ -101,9 +104,9 @@ class CompanyRatingRow(BaseModel):
     # legacy-compat fields (PaRatingPanel + PaLeaders ожидают эти)
     sum_overpay: MoneyDecimal = Decimal(0)       # Σ(positive deviations) — for sort
     sum_savings: MoneyDecimal = Decimal(0)       # Σ(negative deviations as positive)
-    red_pct: float = 0.0                          # % closures with dev ≥ +10%
-    yellow_pct: float = 0.0                       # % closures with dev 0..+10%
-    green_pct: float = 0.0                        # % closures with dev < 0
+    red_pct: Optional[float] = None               # % closures with dev ≥ +10%
+    yellow_pct: Optional[float] = None            # % closures with dev 0..+10%
+    green_pct: Optional[float] = None             # % closures with dev < 0
     problem_cats: int = 0                         # # categories where avg dev > 10%
     total_count: int = 0                          # total non-dirty closures count
     low_sample: bool = False                       # мало сопоставимых позиций → company_deviation недостоверно
@@ -262,26 +265,60 @@ class ProcurementKpis(BaseModel):
     total_closures: int
     clean_closures: int                          # closures excluding `is_dirty`
     total_overpay_uzs: MoneyDecimal              # sum of positive deviations
-    above_market_pct: float                      # % companies with avg deviation > 0
-    median_deviation_pct: float                  # portfolio-wide median
+    # None = ни у одной компании нет сопоставимых позиций → судить не о чем
+    above_market_pct: Optional[float] = None     # % companies with avg deviation > 0
+    median_deviation_pct: Optional[float] = None # portfolio-wide median
     # ── расширение (лот-дедуплицированные деньги) ──
     total_spend: MoneyDecimal = Decimal(0)       # совокупный расход (одна сумма на лот)
     total_lots: int = 0                          # уникальных лотов
     saved_amount: MoneyDecimal = Decimal(0)      # уже сэкономлено на торгах
-    saved_rate_pct: float = 0.0                  # saved / start
+    # None = экономия не указана в источнике ни у одного лота. Ноль здесь означал
+    # бы «торговались и не сэкономили» — это разные вещи, и на проде у всех
+    # 5 947 лотов e_shop (24% спенда) поля экономии нет как класса.
+    saved_rate_pct: Optional[float] = None       # saved / start, только по лотам с известной экономией
+    saving_known_lots: int = 0                   # у скольких лотов экономия вообще указана
+    saving_known_spend: MoneyDecimal = Decimal(0)
+    saving_unknown_spend: MoneyDecimal = Decimal(0)
     no_tender_spend: MoneyDecimal = Decimal(0)   # спенд НЕКОНКУРЕНТНЫХ методов (e_shop/каталог/пусто)
-    no_tender_pct: float = 0.0                    # доля спенда без конкурентной процедуры
-    competitive_no_saving_spend: MoneyDecimal = Decimal(0)  # конкурентные процедуры с нулевой экономией
-    competitive_no_saving_pct: float = 0.0       # их доля в спенде (сигнал имитации торга)
+    no_tender_pct: Optional[float] = None         # доля спенда без конкурентной процедуры
+    # Считается ТОЛЬКО по лотам, где экономия известна и равна нулю. Раньше сюда
+    # попадали лоты с неизвестной экономией — отсутствие данных подавалось как
+    # признак имитации торга.
+    competitive_no_saving_spend: MoneyDecimal = Decimal(0)
+    competitive_no_saving_pct: Optional[float] = None
     potential_saving_uzs: MoneyDecimal = Decimal(0)  # Σ потенц. экономии по товарам
     supplier_count: int = 0                      # раскрытых поставщиков
-    disclosed_supplier_pct: float = 0.0          # доля спенда с раскрытым поставщиком
+    disclosed_supplier_pct: Optional[float] = None  # доля спенда с раскрытым поставщиком
     cross_supplier_pct: float = 0.0              # доля спенда у сквозных поставщиков (по ВСЕМ, не топ-50)
     services_spend: MoneyDecimal = Decimal(0)    # спенд на услуги (productType=SERVICE)
-    services_pct: float = 0.0                    # доля услуг в спенде
+    services_pct: Optional[float] = None         # доля услуг в спенде
     goods_spend: MoneyDecimal = Decimal(0)       # спенд на товары (productType=PRODUCT)
     works_spend: MoneyDecimal = Decimal(0)       # спенд на работы (productType=WORK)
-    works_pct: float = 0.0                       # доля работ в спенде
+    works_pct: Optional[float] = None            # доля работ в спенде
+
+
+class ProcurementCoverage(BaseModel):
+    """Честный знаменатель экрана: по какой части данных считаются цифры.
+
+    Появился по итогам замера: ключевые «денежные» метрики строятся на 7–8%
+    спенда (сопоставимые пары), экономия известна у 12% лотов, категория — у
+    55% строк, а весь массив — это один квартал одного года. Без этих чисел
+    экран выглядел как полная картина закупок портфеля.
+    """
+    companies_total: int = 0            # компаний в области видимости
+    companies_with_data: int = 0        # из них с закупками
+    companies_comparable: int = 0       # из них с сопоставимыми позициями
+    closures_total: int = 0             # строк закупок
+    lots_total: int = 0                 # уникальных лотов
+    spend_total: MoneyDecimal = Decimal(0)
+    comparable_spend: MoneyDecimal = Decimal(0)   # спенд, покрытый сопоставимыми позициями
+    comparable_spend_pct: Optional[float] = None
+    saving_known_lots_pct: Optional[float] = None  # доля лотов с известной экономией
+    category_known_pct: Optional[float] = None     # доля строк с категорией
+    supplier_known_pct: Optional[float] = None     # доля спенда с раскрытым поставщиком
+    period_from: Optional[str] = None    # первая дата закрытия в выборке
+    period_to: Optional[str] = None      # последняя
+    years: list[int] = Field(default_factory=list)  # какие годы вообще есть
 
 
 class ProcurementAggregate(BaseModel):
@@ -291,6 +328,11 @@ class ProcurementAggregate(BaseModel):
     """
     year: Optional[int] = None
     sector_code: Optional[str] = None
+
+    # False → данных для экрана нет вовсе; фронт обязан показать пустое
+    # состояние, а не полосу нулей.
+    has_data: bool = True
+    coverage: ProcurementCoverage = Field(default_factory=ProcurementCoverage)
 
     kpis: ProcurementKpis
     categories: list[CategoryMeta] = Field(default_factory=list)

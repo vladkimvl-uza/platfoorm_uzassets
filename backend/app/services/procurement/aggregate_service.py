@@ -14,6 +14,7 @@ from app.schemas.procurement_analysis import (
     CategoryMeta,
     ClosureRow,
     ProcurementAggregate,
+    ProcurementCoverage,
     ProcurementKpis,
     ProcurementMeta,
 )
@@ -125,6 +126,7 @@ class ProcurementAggregateService:
             cross_supplier_pct=cross_share_pct,
         )
         purchases = _build_purchases(closures)
+        coverage = _build_coverage(closures, lots, rating, kpis, avail_years)
 
         # Если есть товары без категории — добавляем мету «Без категории» (id=0),
         # чтобы сетка категорий показала ~45% спенда, ранее невидимого.
@@ -135,6 +137,8 @@ class ProcurementAggregateService:
         return ProcurementAggregate(
             year=year,
             sector_code=sector_code,
+            has_data=bool(closures),
+            coverage=coverage,
             kpis=kpis,
             categories=categories,
             category_aggregates=cat_aggregates,
@@ -162,15 +166,55 @@ class ProcurementAggregateService:
         )
 
 
+def _build_coverage(closures, lots, rating, kpis, avail_years) -> ProcurementCoverage:
+    """Честный знаменатель экрана.
+
+    Ключевые метрики строятся на сопоставимых позициях, а это малая часть
+    спенда; экономия известна не у всех лотов; категория проставлена не везде;
+    а весь массив может быть одним кварталом. Пока эти доли не показаны рядом
+    с цифрами, экран читается как полная картина закупок портфеля.
+    """
+    total_spend = float(sum(l["spend"] for l in lots)) if lots else 0.0
+    comparable_spend = float(sum(float(r.sum_ref) for r in rating))
+    known_lots = sum(1 for l in lots if l.get("saved_known"))
+    with_cat = sum(1 for c in closures if getattr(c, "category_id", None))
+    dates = [getattr(c, "closure_date", None) for c in closures]
+    dates = sorted(d for d in dates if d)
+    disclosed = kpis.disclosed_supplier_pct
+
+    return ProcurementCoverage(
+        companies_total=len(rating),
+        companies_with_data=len({str(l["company_id"]) for l in lots}),
+        companies_comparable=sum(1 for r in rating if r.company_deviation is not None),
+        closures_total=len(closures),
+        lots_total=len(lots),
+        spend_total=Decimal(str(round(total_spend, 2))),
+        comparable_spend=Decimal(str(round(comparable_spend, 2))),
+        comparable_spend_pct=(
+            round(comparable_spend / total_spend * 100, 1) if total_spend > 0 else None
+        ),
+        saving_known_lots_pct=(round(known_lots / len(lots) * 100, 1) if lots else None),
+        category_known_pct=(round(with_cat / len(closures) * 100, 1) if closures else None),
+        supplier_known_pct=disclosed,
+        period_from=str(dates[0]) if dates else None,
+        period_to=str(dates[-1]) if dates else None,
+        years=list(avail_years or []),
+    )
+
+
 def _empty_aggregate(year, sector_code) -> ProcurementAggregate:
+    """Данных нет вовсе. has_data=False, чтобы экран показал пустое состояние,
+    а не полосу нулей: раньше «0 сум · 0% · 0 поставщиков» выглядело как факт
+    об идеальных закупках."""
     return ProcurementAggregate(
         year=year,
         sector_code=sector_code,
+        has_data=False,
         kpis=ProcurementKpis(
             total_companies=0, clean_companies=0,
             total_closures=0, clean_closures=0,
             total_overpay_uzs=Decimal(0),
-            above_market_pct=0.0, median_deviation_pct=0.0,
+            above_market_pct=None, median_deviation_pct=None,
         ),
         categories=CATEGORIES_SEED,
         rating=[], purchases=[], available_years=[], sectors=[],
@@ -183,9 +227,15 @@ def _build_purchases(closures, cap: int = 15000) -> list[ClosureRow]:
     out: list[ClosureRow] = []
     for c in closures[:cap]:
         unit_price = c.unit_price or Decimal(0)
-        market_avg = c.market_avg or Decimal(1)
+        # Раньше при отсутствии рынка подставлялась единица (market_avg=1) —
+        # и строка получала отклонение в сотни тысяч процентов либо ровно −100%.
+        # Нет базы сравнения → отклонения нет.
+        market_avg = c.market_avg
         volume = c.volume or Decimal(0)
-        dev_pct = float((unit_price - market_avg) / market_avg * 100) if market_avg else 0.0
+        dev_pct = (
+            float((unit_price - market_avg) / market_avg * 100)
+            if market_avg and market_avg > 0 else None
+        )
         out.append(ClosureRow(
             id=c.id,
             company_id=c.company_id,

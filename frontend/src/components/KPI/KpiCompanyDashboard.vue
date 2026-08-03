@@ -929,45 +929,19 @@ function fmtNum(v: number | null): string {
   display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
   margin-bottom: 14px;
 }
-.kpv-stat-cell {
-  background: rgba(255, 255, 255, .92);
-  border: 1px solid rgba(255, 255, 255, .7);
-  border-radius: 12px;
-  padding: 14px 16px 12px;
-  position: relative; overflow: hidden;
-  animation: kpvCardIn .5s var(--ease-standard) var(--d, 0ms) both;
-  transition: background .25s, border-color .25s;
-  box-shadow: 0 2px 8px rgba(15, 23, 60, .06);
-}
-.kpv-stat-cell::before {
-  content: ""; position: absolute; top: 0; left: 0; right: 0;
-  height: 3px; background: var(--kpi2-accent, #7F77DD);
-  transform-origin: left;
-  animation: kpvStripeIn .8s var(--ease-standard) var(--kpi2-d, 0ms) both;
-  transition: background .3s;
-}
-.kpv-stat-cell.fin-shimmer::after {
-  content: ""; position: absolute; top: 0; left: -60%;
-  width: 60%; height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(127, 119, 221, .07), transparent);
-  animation: kpvShimmer 1.1s ease-out calc(var(--d, 0ms) + 200ms) forwards;
-  pointer-events: none; z-index: 2;
-}
+/* Карточка = канон .kpi2 из main.css. Локальные фон/радиус/паддинг/полоса
+   делали «почти такую же» карточку: другой радиус (12 против 16), другая
+   тень и своя ::before-полоса — рядом с полосой консультантов это читалось
+   как два разных стиля. Осталось только сопоставление серьёзности с цветом
+   акцента: цвет несёт полоса, а не число. */
 .kpv-stat-cell.ok      { --kpi2-accent: var(--green); }
 .kpv-stat-cell.warn    { --kpi2-accent: var(--amber); }
 .kpv-stat-cell.bad     { --kpi2-accent: var(--sev-high); }
 .kpv-stat-cell.neutral { --kpi2-accent: #94A3B8; }
 .kpv-stat-lbl {
-  font-size: 11px; color: var(--t3, var(--t-muted)); text-transform: uppercase;
-  letter-spacing: .06em; font-weight: 500; margin-bottom: 8px;
   animation: kpvNumIn .4s ease calc(var(--d, 0ms) + 50ms) both;
 }
 .kpv-stat-val {
-  font-size: 36px; font-weight: 400;
-  color: var(--kpi2-accent, #1E2A4A);
-  letter-spacing: -.035em; line-height: 1;
-  font-feature-settings: "tnum"; margin: 0;
-  transition: color .3s;
   animation: kpvNumIn .5s ease calc(var(--d, 0ms) + 200ms) both;
 }
 .kpv-stat-sub {

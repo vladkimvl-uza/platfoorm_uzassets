@@ -416,11 +416,14 @@ def aggregate_rating(closures: list) -> list[CompanyRatingRow]:
             ))
 
         above_count = co["red_count"]
-        company_dev_pct = (co["sum_dev"] / co["sum_ref"] * 100) if co["sum_ref"] > 0 else 0.0
-        total_n = max(1, co["total_count"])
-        red_pct = co["red_count"] / total_n * 100
-        yellow_pct = co["yellow_count"] / total_n * 100
-        green_pct = co["green_count"] / total_n * 100
+        # Нет сопоставимой базы — нет и отклонения. Прежний ноль ставил такие
+        # компании в один ряд с измеренными и попадал в медиану портфеля.
+        has_comparable = co["sum_ref"] > 0
+        company_dev_pct = (co["sum_dev"] / co["sum_ref"] * 100) if has_comparable else None
+        total_n = co["total_count"]
+        red_pct = (co["red_count"] / total_n * 100) if total_n else None
+        yellow_pct = (co["yellow_count"] / total_n * 100) if total_n else None
+        green_pct = (co["green_count"] / total_n * 100) if total_n else None
         problem_cats = sum(1 for cd in cat_devs if cd.deviation_pct > 10)
         sorted_by_dev = sorted(cat_devs, key=lambda x: x.deviation_pct)
         best_cats = sorted_by_dev[:3]
@@ -476,25 +479,33 @@ def compute_kpis(
     cross_supplier_pct: float = 0.0,
 ) -> ProcurementKpis:
     clean = [c for c in all_closures if not getattr(c, "is_dirty", False)]
-    above_count = sum(1 for r in rating if r.company_deviation > 0)
+    comparable = [r for r in rating if r.company_deviation is not None]
+    above_count = sum(1 for r in comparable if r.company_deviation > 0)
     # Валовая переплата (Σ положительных отклонений компаний). sum_dev уже нетто
     # внутри компании (переплаты минус экономии её категорий); берём только
     # положительные компании. Документировано как НЕТТО-по-компании.
     total_overpay = sum(max(Decimal(0), r.sum_dev) for r in rating)
-    devs = [r.company_deviation for r in rating if r.company_deviation is not None]
-    median_dev = float(statistics.median(devs)) if devs else 0.0
+    devs = [r.company_deviation for r in comparable]
+    median_dev = float(statistics.median(devs)) if devs else None
 
     lots = lots or []
     total_spend = sum(l["spend"] for l in lots)
-    total_start = sum(l["start"] for l in lots)
-    total_saved = sum(l["saved"] for l in lots)
+    # Экономия считается ТОЛЬКО по лотам, где она указана в источнике.
+    # Иначе знаменатель раздувается лотами без данных и «ставка экономии»
+    # выглядит проваленной там, где её просто не измеряли.
+    known = [l for l in lots if l.get("saved_known")]
+    total_start = sum(l["start"] for l in known)
+    total_saved = sum(l["saved"] for l in known)
+    known_spend = sum(l["spend"] for l in known)
+    unknown_spend = total_spend - known_spend
     # «Без конкурентного торга» = НЕКОНКУРЕНТНЫЙ МЕТОД (e_shop/каталог/пусто), а не
     # «нулевая экономия». Прежняя формула (saved<=0) ошибочно относила к
     # неконкурентным и конкурентные лоты, закрывшиеся без экономии (~64% от той суммы).
     no_tender_spend = sum(l["spend"] for l in lots if l["method"] not in _COMPETITIVE)
     # Отдельный сигнал качества: конкурентные процедуры, давшие нулевую экономию.
     competitive_no_saving = sum(
-        l["spend"] for l in lots if l["method"] in _COMPETITIVE and l["saved"] <= 0
+        l["spend"] for l in lots
+        if l["method"] in _COMPETITIVE and l.get("saved_known") and l["saved"] <= 0
     )
     services_spend = sum(l["spend"] for l in lots if l.get("ptype") == "SERVICE")
     works_spend = sum(l["spend"] for l in lots if l.get("ptype") == "WORK")
@@ -506,25 +517,28 @@ def compute_kpis(
         total_closures=len(all_closures),
         clean_closures=len(clean),
         total_overpay_uzs=total_overpay,
-        above_market_pct=(above_count / len(rating) * 100) if rating else 0.0,
+        above_market_pct=(above_count / len(comparable) * 100) if comparable else None,
         median_deviation_pct=median_dev,
         total_spend=Decimal(str(round(total_spend, 2))),
         total_lots=len(lots),
         saved_amount=Decimal(str(round(total_saved, 2))),
-        saved_rate_pct=round(total_saved / total_start * 100, 2) if total_start > 0 else 0.0,
+        saved_rate_pct=round(total_saved / total_start * 100, 2) if total_start > 0 else None,
+        saving_known_lots=len(known),
+        saving_known_spend=Decimal(str(round(known_spend, 2))),
+        saving_unknown_spend=Decimal(str(round(unknown_spend, 2))),
         no_tender_spend=Decimal(str(round(no_tender_spend, 2))),
-        no_tender_pct=round(no_tender_spend / total_spend * 100, 2) if total_spend > 0 else 0.0,
+        no_tender_pct=round(no_tender_spend / total_spend * 100, 2) if total_spend > 0 else None,
         competitive_no_saving_spend=Decimal(str(round(competitive_no_saving, 2))),
-        competitive_no_saving_pct=round(competitive_no_saving / total_spend * 100, 2) if total_spend > 0 else 0.0,
+        competitive_no_saving_pct=round(competitive_no_saving / total_spend * 100, 2) if total_spend > 0 else None,
         potential_saving_uzs=Decimal(str(round(potential, 2))),
         supplier_count=supplier_count,
-        disclosed_supplier_pct=round((total_spend - undisclosed_spend) / total_spend * 100, 2) if total_spend > 0 else 0.0,
+        disclosed_supplier_pct=round((total_spend - undisclosed_spend) / total_spend * 100, 2) if total_spend > 0 else None,
         cross_supplier_pct=round(cross_supplier_pct, 2),
         services_spend=Decimal(str(round(services_spend, 2))),
-        services_pct=round(services_spend / total_spend * 100, 2) if total_spend > 0 else 0.0,
+        services_pct=round(services_spend / total_spend * 100, 2) if total_spend > 0 else None,
         goods_spend=Decimal(str(round(total_spend - services_spend - works_spend, 2))),
         works_spend=Decimal(str(round(works_spend, 2))),
-        works_pct=round(works_spend / total_spend * 100, 2) if total_spend > 0 else 0.0,
+        works_pct=round(works_spend / total_spend * 100, 2) if total_spend > 0 else None,
     )
 
 
@@ -568,6 +582,9 @@ def dedup_lots(closures: list) -> list[dict]:
                 "platform": (getattr(c, "platform", None) or "").strip(),
                 "ptype": norm_product_type((getattr(c, "extra", None) or {}).get("product_type"), getattr(c, "unit", None)),
                 "_ca": None, "_start": None, "_lines": 0.0, "saved": 0.0,
+                # известна ли экономия по лоту: у 87.6% лотов на проде поля нет,
+                # и раньше это было неотличимо от «сэкономили ноль»
+                "saved_known": False,
             }
         extra = getattr(c, "extra", None) or {}
         if rec["_ca"] is None and extra.get("contract_amount") is not None:
@@ -589,6 +606,7 @@ def dedup_lots(closures: list) -> list[dict]:
         if sa is not None:
             try:
                 rec["saved"] = max(rec["saved"], float(sa))
+                rec["saved_known"] = True
             except (TypeError, ValueError):
                 pass
 
