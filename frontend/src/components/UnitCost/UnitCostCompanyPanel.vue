@@ -5,7 +5,7 @@
  * живой расчёт). Единое содержимое для модалки /unit-cost и вкладки воркспейса
  * (variant embedded) → 1:1 и синхронно (общий бэкенд saveCompany/overview).
  */
-import { computed, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "@/composables/useI18n";
 import { getCurrentIntlLocale } from "@/locale/i18n";
 import { useToast } from "@/composables/useToast";
@@ -14,6 +14,8 @@ import MentionableTextarea from "@/components/MentionableTextarea.vue";
 import { unitCostApi, FUELS, type UCCompany, type UCPrices, type UCWorld,
          type EditProduct, type EditImport, type EditComment } from "@/api/unitCost";
 import { i18nKey } from "@/locale/keys";
+import { useCompaniesStore } from "@/stores/companies";
+import { unitCostCatalogText } from "@/utils/unitCostDisplay";
 
 
 const props = withDefaults(defineProps<{
@@ -26,6 +28,14 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{ (e: "close"): void; (e: "saved"): void; (e: "update:dirty", v: boolean): void; (e: "update:saving", v: boolean): void }>();
 const toast = useToast();
 const { t } = useI18n();
+const companiesStore = useCompaniesStore();
+onMounted(() => { void companiesStore.ensureLoaded(); });
+const displayCompanyName = computed(() =>
+  companiesStore.getCompanyName(props.company?.code) || props.company?.name || "");
+const displaySectorName = computed(() => {
+  const sectorCode = companiesStore.findSectorCode(props.company?.code || "");
+  return (sectorCode && companiesStore.getSectorName(sectorCode)) || props.company?.sector || "";
+});
 
 const FUEL_UNIT: Record<string, string> = {
   electricity: i18nKey("кВт·ч/ед"), gas: i18nKey("м³/ед"), diesel: i18nKey("т/ед"), mazut: i18nKey("т/ед"), coal: i18nKey("т/ед"), kerosene: i18nKey("т/ед"),
@@ -78,7 +88,7 @@ function fuelCost(f: string): number {
   return draft.value.reduce((s, p) => s + num(p.energy[f]) * priceOf(f) * (num(p.output) || 1), 0);
 }
 const mixDonut = computed<DonutEntry[]>(() =>
-  FUELS.map((f) => ({ label: props.fuelLabels[f] || f, color: FUEL_COLOR[f], value: fuelCost(f) }))
+  FUELS.map((f) => ({ label: unitCostCatalogText(props.fuelLabels[f] || f), color: FUEL_COLOR[f], value: fuelCost(f) }))
     .filter((e) => e.value > 0));
 const mixTotal = computed(() => FUELS.reduce((s, f) => s + fuelCost(f), 0));
 const structDonut = computed<DonutEntry[]>(() => {
@@ -112,8 +122,9 @@ function fmtDate(iso?: string): string {
 }
 function importCost(it: EditImport): number { return num(it.usd) * usdRate.value * num(it.qty); }
 const importTotal = computed(() => imports.value.reduce((s, it) => s + importCost(it), 0));
-function addImport() { imports.value.push({ name: "", unit: t("т"), usd: 0, qty: 0 }); }
+function addImport() { imports.value.push({ name: "", unit: i18nKey("т"), usd: 0, qty: 0 }); }
 function removeImport(i: number) { imports.value.splice(i, 1); }
+function inputText(event: Event): string { return (event.target as HTMLInputElement).value; }
 
 function calc(p: EditProduct) {
   let energy = 0; let overUnit = 0; let hasNorm = false;
@@ -184,8 +195,8 @@ function toggle(i: number) { expanded.value = expanded.value === i ? null : i; }
 function addComponent(p: EditProduct) { p.components.push({ name: "", value: 0 }); }
 function removeComponent(p: EditProduct, i: number) { p.components.splice(i, 1); }
 function addProduct() {
-  draft.value.push({ name: t("Новый продукт"), unit: t("ед."), output: 0, energy: {}, norm: {},
-    components: [{ name: t("Сырьё и материалы"), value: 0 }, { name: t("Оплата труда"), value: 0 }] });
+  draft.value.push({ name: i18nKey("Новый продукт"), unit: i18nKey("ед."), output: 0, energy: {}, norm: {},
+    components: [{ name: i18nKey("Сырьё и материалы"), value: 0 }, { name: i18nKey("Оплата труда"), value: 0 }] });
   expanded.value = draft.value.length - 1;
 }
 function removeProduct(i: number) {
@@ -219,13 +230,13 @@ defineExpose({ save, saving, dirty });
   <div v-if="company" class="ucp" :class="`ucp--${variant}`">
     <!-- заголовок (в модалке дублирует шапку — там свой header-слот; в embedded — единственный) -->
     <div v-if="variant === 'embedded'" class="ucm-head ucp-head">
-      <h2 class="ucm-title"><span class="ucm-dot" :style="{ background: company.color }" />{{ company.name }}</h2>
-      <div class="ucm-meta">{{ company.sector }} · {{ t("продуктов: {n}", { n: draft.length }) }}</div>
+      <h2 class="ucm-title"><span class="ucm-dot" :style="{ background: company.color }" />{{ displayCompanyName }}</h2>
+      <div class="ucm-meta">{{ displaySectorName }} · {{ t("продуктов: {n}", { n: draft.length }) }}</div>
     </div>
 
     <div class="ucm-body">
       <!-- сводные показатели компании (те же, что на дашборде) -->
-      <div class="ucm-kpis">
+      <div class="ucm-kpis kpi-rail">
         <div class="ucm-k" style="--kc:#7F77DD"><span>{{ t("Себестоимость") }}</span><b>{{ fmtC(kpi.total) }}</b></div>
         <div class="ucm-k" style="--kc:#EF9F27"><span>{{ t("Энергозатраты") }}</span><b>{{ fmtC(kpi.energy) }}</b></div>
         <div class="ucm-k" style="--kc:#E24B4A"><span>{{ t("Доля энергии") }}</span><b>{{ kpi.share != null ? kpi.share.toFixed(1) + '%' : '—' }}</b></div>
@@ -253,8 +264,8 @@ defineExpose({ save, saving, dirty });
       <div v-for="(p, i) in draft" :key="i" class="ucm-prod" :class="{ open: expanded === i }" :style="{ '--d': (i * 40) + 'ms' }">
         <div class="ucm-prod-hd" @click="toggle(i)">
           <span class="ucm-chevron" :class="{ open: expanded === i }"></span>
-          <span class="ucm-prod-name">{{ p.name || t('Без названия') }}</span>
-          <span class="ucm-prod-cost">{{ fmt(calc(p).unit) }}<span class="ucm-cu">{{ t("сум") }}/{{ p.unit || t('ед.') }}</span></span>
+          <span class="ucm-prod-name">{{ unitCostCatalogText(p.name) || t('Без названия') }}</span>
+          <span class="ucm-prod-cost">{{ fmt(calc(p).unit) }}<span class="ucm-cu">{{ t("сум") }}/{{ unitCostCatalogText(p.unit) || t('ед.') }}</span></span>
           <span v-if="calc(p).share != null" class="ucm-prod-share"
                 :style="{ color: shareColor(calc(p).share), background: shareColor(calc(p).share) + '16' }">
             {{ t("энергия") }} {{ calc(p).share!.toFixed(0) }}%
@@ -263,14 +274,14 @@ defineExpose({ save, saving, dirty });
         <transition name="ucm-exp">
           <div v-if="expanded === i" class="ucm-prod-body">
             <div class="ucm-row3">
-              <label class="ucm-f"><span>{{ t("Название") }}</span><input v-model="p.name" type="text" class="ucm-inp" /></label>
-              <label class="ucm-f ucm-f-sm"><span>{{ t("Ед. изм.") }}</span><input v-model="p.unit" type="text" class="ucm-inp" /></label>
+              <label class="ucm-f"><span>{{ t("Название") }}</span><input :value="unitCostCatalogText(p.name)" type="text" class="ucm-inp" @input="p.name = inputText($event)" /></label>
+              <label class="ucm-f ucm-f-sm"><span>{{ t("Ед. изм.") }}</span><input :value="unitCostCatalogText(p.unit)" type="text" class="ucm-inp" @input="p.unit = inputText($event)" /></label>
               <label class="ucm-f ucm-f-sm"><span>{{ t("Годовой выпуск") }}</span><input v-model.number="p.output" type="text" inputmode="decimal" class="ucm-inp" /></label>
             </div>
             <div class="ucm-sub">{{ t("Удельный расход энергоресурсов") }} <span>{{ t("факт и норма на единицу · отклонение = перерасход / экономия") }}</span></div>
             <div class="ucm-energy">
               <div v-for="f in FUELS" :key="f" class="ucm-en">
-                <div class="ucm-en-l">{{ fuelLabels[f] || f }} <span class="ucm-en-u">{{ t(FUEL_UNIT[f]) }}</span></div>
+                <div class="ucm-en-l">{{ unitCostCatalogText(fuelLabels[f] || f) }} <span class="ucm-en-u">{{ t(FUEL_UNIT[f]) }}</span></div>
                 <div class="ucm-en-flds">
                   <label class="ucm-en-fld"><span>{{ t("факт") }}</span><input v-model.number="p.energy[f]" type="text" inputmode="decimal" class="ucm-inp ucm-inp-c" placeholder="—" /></label>
                   <label class="ucm-en-fld ucm-en-norm"><span>{{ t("норма") }}</span><input v-model.number="p.norm[f]" type="text" inputmode="decimal" class="ucm-inp ucm-inp-c" placeholder="—" /></label>
@@ -289,7 +300,7 @@ defineExpose({ save, saving, dirty });
             </div>
             <div class="ucm-comps">
               <div v-for="(c, ci) in p.components" :key="ci" class="ucm-comp">
-                <input v-model="c.name" type="text" class="ucm-inp" :placeholder="t('Статья')" />
+                <input :value="unitCostCatalogText(c.name)" type="text" class="ucm-inp" :placeholder="t('Статья')" @input="c.name = inputText($event)" />
                 <input v-model.number="c.value" type="text" inputmode="decimal" class="ucm-inp ucm-inp-c" placeholder="0" />
                 <button type="button" class="ucm-del" @click="removeComponent(p, ci)" :title="t('Удалить')">✕</button>
               </div>
@@ -298,7 +309,7 @@ defineExpose({ save, saving, dirty });
             <div class="ucm-total">
               <div class="ucm-tot-i"><span>{{ t("Энергозатраты") }}</span><b>{{ fmt(calc(p).energy) }}</b></div>
               <div class="ucm-tot-i"><span>{{ t("Прочие статьи") }}</span><b>{{ fmt(calc(p).comps) }}</b></div>
-              <div class="ucm-tot-i ucm-tot-sum"><span>{{ t("Удельная себестоимость") }}</span><b>{{ fmt(calc(p).unit) }} {{ t("сум") }}/{{ p.unit || t('ед.') }}</b></div>
+              <div class="ucm-tot-i ucm-tot-sum"><span>{{ t("Удельная себестоимость") }}</span><b>{{ fmt(calc(p).unit) }} {{ t("сум") }}/{{ unitCostCatalogText(p.unit) || t('ед.') }}</b></div>
               <div v-if="calc(p).total != null" class="ucm-tot-i"><span>{{ t("Годовая себестоимость") }}</span><b>{{ fmt(calc(p).total) }} {{ t("сум") }}</b></div>
               <div v-if="calc(p).overrunCost != null" class="ucm-tot-i">
                 <span>{{ calc(p).overUnit! > 0 ? t('Перерасход к норме') : t('Экономия к норме') }}</span>
@@ -324,7 +335,7 @@ defineExpose({ save, saving, dirty });
           <div class="ucm-imp-head"><span>{{ t("Наименование") }}</span><span>{{ t("Ед.") }}</span><span>{{ t("Цена, $") }}</span><span>{{ t("Кол-во") }}</span><span>{{ t("Итог, сум") }}</span><span></span></div>
           <div v-for="(it, ii) in imports" :key="ii" class="ucm-imp-row">
             <input v-model="it.name" type="text" class="ucm-inp" :placeholder="t('Импортируемая позиция')" />
-            <input v-model="it.unit" type="text" class="ucm-inp ucm-inp-c" :placeholder="t('т')" />
+            <input :value="unitCostCatalogText(it.unit)" type="text" class="ucm-inp ucm-inp-c" :placeholder="t('т')" @input="it.unit = inputText($event)" />
             <input v-model.number="it.usd" type="text" inputmode="decimal" class="ucm-inp ucm-inp-c" placeholder="0" />
             <input v-model.number="it.qty" type="text" inputmode="decimal" class="ucm-inp ucm-inp-c" placeholder="0" />
             <span class="ucm-imp-cost">{{ fmt(importCost(it)) }}</span>
@@ -371,11 +382,12 @@ defineExpose({ save, saving, dirty });
 .ucm-meta { font-size: 11px; color: var(--t3,#94A3B8); }
 
 .ucm-body { display: flex; flex-direction: column; gap: 8px; }
-.ucm-kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+/* Единая лента (.kpi-rail): общий контур + волосяные разделители. */
+.ucm-kpis { display: grid; grid-template-columns: repeat(5, 1fr); }
 @media (max-width: 720px) { .ucm-kpis { grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 460px) { .ucm-kpis { grid-template-columns: 1fr 1fr; } }
 .ucm-k { position: relative; background: var(--bg2,#FAFAFD); border-radius: 11px; padding: 9px 11px 8px; display: flex; flex-direction: column; gap: 3px; overflow: hidden; animation: ucmProdIn .4s ease both; }
-.ucm-k::before { content:''; position: absolute; top: 0; left: 0; right: 0; height: 2.5px; background: var(--kc,#7F77DD); opacity: .85; }
+.ucm-k::before { content:''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--kc,#7F77DD); }
 .ucm-k span { font-size: 8.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; color: var(--t3,#94A3B8); line-height: 1.2; }
 .ucm-k b { font-size: 15px; font-weight: 500; color: var(--t1,#1E2A4A); font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
 .ucm-k b i { font-size: 10px; font-style: normal; color: var(--t3,#94A3B8); font-weight: 500; }

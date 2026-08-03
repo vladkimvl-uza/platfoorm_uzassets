@@ -155,7 +155,9 @@ async function save() {
 <style scoped>
 .sw-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 @media (max-width: 760px) { .sw-grid { grid-template-columns: 1fr; } }
-.sw-col { background: #fff; border: .5px solid var(--line, #ECEAF4); border-radius: 12px; padding: 14px 16px; border-top: 3px solid var(--c, #94A3B8); }
+/* Акцент — ::before со скруглением карточки: border-top тянулся по углам. */
+.sw-col { position: relative; overflow: hidden; background: #fff; border: .5px solid var(--line, #ECEAF4); border-radius: 12px; padding: 14px 16px; }
+.sw-col::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--c, #94A3B8); border-radius: inherit; border-bottom-left-radius: 0; border-bottom-right-radius: 0; pointer-events: none; }
 .sw-col-good { --c: #1D9E75; }
 .sw-col-bad { --c: #E24B4A; }
 .sw-col-h { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }

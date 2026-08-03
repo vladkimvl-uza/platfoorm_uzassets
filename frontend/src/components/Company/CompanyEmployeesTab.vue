@@ -117,7 +117,7 @@ const filtered = computed(() => {
     </div>
 
     <!-- Loading skeleton -->
-    <div v-if="loading" class="cet-kpis" style="margin-top:16px">
+    <div v-if="loading" class="cet-kpis kpi-rail" style="margin-top:16px">
       <div v-for="i in 4" :key="i" class="cet-kpi cet-skel-kpi"></div>
     </div>
 
@@ -133,7 +133,7 @@ const filtered = computed(() => {
 
     <template v-else>
       <!-- KPI grid — стиль governance -->
-      <div class="cet-kpis">
+      <div class="cet-kpis kpi-rail">
         <div
           v-for="(k, ki) in kpis"
           :key="k.label"
@@ -238,7 +238,8 @@ const filtered = computed(() => {
 .cet-search:focus { border-color: var(--p, #7C6FF7); box-shadow: 0 0 0 3px rgba(124,111,247,.14); }
 
 /* ── KPI cards (1:1 с .cw-gov-kpi-card) ── */
-.cet-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+/* Полоса склеивается в единую ленту утилитой .kpi-rail (gap задаёт она). */
+.cet-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
 .cet-kpi {
   background: #fff; border: .5px solid var(--uza-border, #ECEAF4);
   border-top: 3px solid var(--accent, #7F77DD); border-radius: 10px;
