@@ -47,20 +47,31 @@ const pickerQuery = ref("");
 const allCompanies = ref<{ code: string; name: string; sector_color?: string }[]>([]);
 const pickerLoading = ref(false);
 
+const pickerError = ref<string | null>(null);
+
 async function openPicker() {
   pickerOpen.value = true;
   pickerQuery.value = "";
+  pickerError.value = null;
   if (allCompanies.value.length) return;
   pickerLoading.value = true;
   try {
     const { companiesApi } = await import("@/api/companies");
-    const r = await companiesApi.list({ limit: 300 } as any);
+    // limit=200 — серверный максимум (le=200). С limit=300 запрос падал с 422,
+    // а список молча оставался пустым: «Ничего не найдено» при 22 компаниях.
+    const r = await companiesApi.list({ limit: 200, active_only: true });
     allCompanies.value = (r.items || []).map((c: any) => ({
       code: c.code,
       name: c.name_short || c.name_ru || c.code,
       sector_color: c.sector_color || undefined,
     }));
-  } catch {
+    if (!allCompanies.value.length) {
+      pickerError.value = t("Список компаний пуст — обратитесь к администратору.");
+    }
+  } catch (e: any) {
+    // Тихий провал прятал причину: показываем её.
+    pickerError.value = e?.response?.data?.detail || e?.message
+      || t("Не удалось загрузить список компаний");
     allCompanies.value = [];
   } finally {
     pickerLoading.value = false;
@@ -71,13 +82,31 @@ async function openPicker() {
 const pickerItems = computed(() => {
   const have = new Set(companies.value.filter((c) => c.has_data).map((c) => c.k));
   const q = pickerQuery.value.trim().toLowerCase();
+  // Строго своя область: /companies и так отдаёт только доступные компании, но
+  // фильтр по scope оставляем явным — чтобы пользователь организации ни при
+  // каких условиях не увидел чужую компанию в списке ввода.
+  const inScope = (code: string) => scope.unrestricted.value || scope.allows(code);
   return allCompanies.value
+    .filter((c) => inScope(c.code))
     .map((c) => ({ ...c, filled: have.has(c.code) }))
     .filter((c) => !q || c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q))
     .sort((a, b) => Number(a.filled) - Number(b.filled) || a.name.localeCompare(b.name));
 });
 
 /** Открыть редактор для компании — с данными периода или с чистого листа. */
+/** Пользователю с ОДНОЙ компанией выбирать не из чего — открываем сразу её.
+ *  Правило платформы: область берём из useCompanyScope, а не из ролей. */
+function openPickerOrSingle() {
+  if (scope.single.value) {
+    const only = scope.companies.value[0];
+    if (only?.code) {
+      pickCompany({ code: only.code, name: only.name || only.code });
+      return;
+    }
+  }
+  void openPicker();
+}
+
 function pickCompany(c: { code: string; name: string; sector_color?: string }) {
   const existing = companies.value.find((x) => x.k === c.code);
   const company: ProdCompany = existing || {
@@ -267,7 +296,7 @@ watch([() => st.data.value, filtered], async () => { await nextTick(); rescan();
                   @update:model-value="(v) => st.setPeriod(v as string)" :label="t('Период')" />
       <UzaYearStepper :years="st.availableYears.value" :model-value="st.year.value"
                       @update:model-value="(v) => { if (v != null) st.setYear(v); }" prefix="FY " :label="t('Год')" />
-      <button v-if="canImport" class="pd-add" @click="openPicker" :title="t('Ввести данные по компании вручную')">
+      <button v-if="canImport" class="pd-add" @click="openPickerOrSingle" :title="t('Ввести данные по компании вручную')">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
         {{ t("Добавить данные") }}
       </button>
@@ -287,6 +316,7 @@ watch([() => st.data.value, filtered], async () => { await nextTick(); rescan();
         <input v-model="pickerQuery" type="search" :placeholder="t('Поиск компании')" />
       </label>
       <div v-if="pickerLoading" class="pdp-hint">{{ t('Загрузка…') }}</div>
+      <div v-else-if="pickerError" class="pdp-hint pdp-err">{{ pickerError }}</div>
       <div v-else class="pdp-list">
         <button v-for="(c, i) in pickerItems" :key="c.code" class="pdp-item"
                 :style="{ '--d': Math.min(i, 16) * 22 + 'ms' }" @click="pickCompany(c)">
@@ -323,7 +353,7 @@ watch([() => st.data.value, filtered], async () => { await nextTick(); rescan();
         {{ t('Загрузите «Свод» из Excel или введите показатели по компании вручную — номенклатуру можно перенести из другого периода.') }}
       </div>
       <div v-if="canImport" class="pd-empty-cta">
-        <button class="pd-add pd-add-lg" @click="openPicker">
+        <button class="pd-add pd-add-lg" @click="openPickerOrSingle">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
           {{ t("Добавить данные") }}
         </button>
@@ -732,6 +762,7 @@ watch([() => st.data.value, filtered], async () => { await nextTick(); rescan();
   font-size: 9.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em;
   color: #0F6E56; background: rgba(29,158,117,.12); border-radius: 999px; padding: 3px 8px; white-space: nowrap;
 }
+.pdp-err { color: #A32D2D; }
 .pdp-hint { font-size: 12px; color: var(--t4, #B4B2A9); padding: 14px; text-align: center; }
 
 @media (prefers-reduced-motion: reduce) {

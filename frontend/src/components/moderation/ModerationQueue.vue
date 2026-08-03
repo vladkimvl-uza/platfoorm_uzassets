@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import BIcon from "@/components/broadcasts/BIcon.vue";
 import {
   moderationApi, formatRelativeTime,
@@ -11,6 +11,31 @@ import { useUserDirectory } from "@/composables/useUserDirectory";
 import { useI18n } from "@/composables/useI18n";
 const { t } = useI18n();
 
+
+/** Модули, которые проходят модерацию (зеркалит MODERATED_MODULES на бэке).
+ *  В строках очереди показывался сырой код («business_plan»), а фильтр по
+ *  модулю существовал в коде, но контрола для него в интерфейсе не было. */
+const MODULES: { code: string; label: string }[] = [
+  { code: "tasks", label: "Задачи" },
+  { code: "projects", label: "Проекты" },
+  { code: "comments", label: "Комментарии" },
+  { code: "kpi", label: "KPI" },
+  { code: "financials", label: "Финансы" },
+  { code: "business_plan", label: "Бизнес-план" },
+  { code: "esg", label: "ESG" },
+  { code: "governance", label: "Корп. управление" },
+  { code: "ratings", label: "Рейтинги" },
+  { code: "procurement", label: "Закупки" },
+  { code: "production", label: "Производство" },
+  { code: "credit", label: "Кредитный портфель" },
+  { code: "investment", label: "Инвест-проекты" },
+  { code: "unit_cost", label: "Себестоимость" },
+  { code: "companies", label: "Компании" },
+];
+function moduleRu(code: string): string {
+  const m = MODULES.find((x) => x.code === code);
+  return m ? t(m.label) : code;
+}
 
 const props = defineProps<{ openSubmissionId: string | null }>();
 const emit = defineEmits<{ change: [] }>();
@@ -26,8 +51,11 @@ const loading = ref(false);
 const loadError = ref<string | null>(null);
 
 const filterStatuses = ref<SubmissionStatus[]>(["pending", "under_review"]);
-const filterAssignedToMe = ref(false);
+// «Только мне» убрано: с 03.08.2026 очередь общая — согласующий не назначается
+// правилом, разбирать может любой держатель moderation.review. Фильтр всегда
+// давал бы пусто.
 const filterModule = ref<string>("");
+const totalPages = computed(() => Math.max(1, Math.ceil(total.value / perPage)));
 
 const openId = ref<string | null>(props.openSubmissionId);
 
@@ -37,7 +65,6 @@ async function load() {
   try {
     const r = await moderationApi.queue({
       status: filterStatuses.value.length ? filterStatuses.value : undefined,
-      assigned_to: filterAssignedToMe.value ? "me" : undefined,
       module: filterModule.value || undefined,
       page: page.value, per_page: perPage,
     });
@@ -54,7 +81,8 @@ async function load() {
 onMounted(async () => {
   await Promise.all([load(), dir.ensureLoaded()]);
 });
-watch([filterStatuses, filterAssignedToMe, filterModule, page], load, { deep: true });
+watch([filterStatuses, filterModule], () => { page.value = 1; void load(); }, { deep: true });
+watch(page, load);
 watch(() => props.openSubmissionId, (v) => { if (v) openId.value = v; });
 
 function toggleStatus(s: SubmissionStatus) {
@@ -62,7 +90,7 @@ function toggleStatus(s: SubmissionStatus) {
   else filterStatuses.value = [...filterStatuses.value, s];
 }
 function clearFilters() {
-  filterStatuses.value = []; filterAssignedToMe.value = false; filterModule.value = "";
+  filterStatuses.value = []; filterModule.value = ""; page.value = 1;
 }
 
 function open(id: string) { openId.value = id; }
@@ -88,15 +116,22 @@ async function onResolved() {
         </button>
       </div>
       <span class="mq-sep"></span>
-      <label class="mq-check"><input type="checkbox" v-model="filterAssignedToMe" /> {{ t('только мне') }}</label>
-      <button v-if="filterStatuses.length || filterAssignedToMe || filterModule" class="mq-clear" @click="clearFilters">{{ t('сбросить') }}</button>
+      <select v-model="filterModule" class="mq-select" :title="t('Фильтр по модулю')">
+        <option value="">{{ t('все модули') }}</option>
+        <option v-for="m in MODULES" :key="m.code" :value="m.code">{{ t(m.label) }}</option>
+      </select>
+      <button v-if="filterStatuses.length || filterModule" class="mq-clear" @click="clearFilters">{{ t('сбросить') }}</button>
     </div>
 
     <div v-if="loadError" class="mq-error">{{ loadError }}</div>
     <div v-else-if="loading && items.length === 0" class="mq-empty">{{ t('Загрузка…') }}</div>
     <div v-else-if="!loading && items.length === 0" class="mq-empty">
       <BIcon name="inbox" :size="14" />
-      <div>{{ t('Очередь пуста') }}</div>
+      <div v-if="filterStatuses.length || filterModule">
+        {{ t('По выбранным фильтрам ничего нет') }}
+        <button class="mq-clear mq-clear-inline" @click="clearFilters">{{ t('сбросить фильтры') }}</button>
+      </div>
+      <div v-else>{{ t('Очередь пуста — на согласовании ничего нет') }}</div>
     </div>
 
     <div v-else class="mq-list">
@@ -108,7 +143,7 @@ async function onResolved() {
           <div class="mq-row-top">
             <span v-if="s.proposer_is_external" class="mq-ext">EXTERNAL</span>
             <span class="mq-proposer">{{ dir.shortName(s.proposer_user_id) }}</span>
-            <span class="mq-module">· {{ s.target_module }}</span>
+            <span class="mq-module">· {{ moduleRu(s.target_module) }}</span>
             <span class="mq-action">· {{ t(ACTION_LABELS[s.action as keyof typeof ACTION_LABELS] || s.action) }}</span>
             <span class="mq-time">· {{ formatRelativeTime(s.created_at) }}</span>
           </div>
@@ -117,6 +152,14 @@ async function onResolved() {
         </div>
         <BIcon name="chevron-right" :size="16" class="mq-row-arrow" />
       </div>
+    </div>
+
+    <!-- Пагинация: раньше её не было вовсе — за пределы первых 30 заявок
+         модератор попасть не мог, хотя бэкенд отдаёт постранично. -->
+    <div v-if="totalPages > 1" class="mq-pager">
+      <button class="mq-pg" :disabled="page <= 1" @click="page--">← {{ t('Назад') }}</button>
+      <span class="mq-pg-info">{{ t('Стр. {value0} из {value1}', { value0: page, value1: totalPages }) }} · {{ total }}</span>
+      <button class="mq-pg" :disabled="page >= totalPages" @click="page++">{{ t('Вперёд') }} →</button>
     </div>
 
     <ModerationReviewModal
@@ -243,4 +286,26 @@ async function onResolved() {
   color: var(--color-text-tertiary);
   align-self: center;
 }
+
+.mq-select {
+  font-family: inherit; font-size: 11.5px; color: var(--t2, #4B5468);
+  background: var(--color-background-primary, #fff);
+  border: 0.5px solid var(--color-border-tertiary, #E5E7EB);
+  border-radius: 8px; padding: 5px 9px; cursor: pointer;
+}
+.mq-clear-inline { margin-left: 8px; }
+.mq-pager {
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  padding: 8px 0 2px;
+}
+.mq-pg {
+  font-family: inherit; font-size: 11.5px; font-weight: 500;
+  color: var(--t2, #4B5468); background: var(--color-background-primary, #fff);
+  border: 0.5px solid var(--color-border-tertiary, #E5E7EB);
+  border-radius: 8px; padding: 6px 12px; cursor: pointer;
+  transition: border-color .14s, color .14s;
+}
+.mq-pg:hover:not(:disabled) { border-color: rgba(124,111,247,.4); color: var(--p-deep, #534AB7); }
+.mq-pg:disabled { opacity: .45; cursor: default; }
+.mq-pg-info { font-size: 11px; color: var(--t3, #94A3B8); font-variant-numeric: tabular-nums; }
 </style>
