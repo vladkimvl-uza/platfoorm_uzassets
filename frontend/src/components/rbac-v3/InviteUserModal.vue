@@ -5,6 +5,7 @@ import {
   generatePassword,
   groupsApi,
   rolesApi,
+  rbacV3Api,
   type RbacV3Group,
   type RbacV3Role,
 } from '@/api/rbacV3';
@@ -48,6 +49,57 @@ const bulkText = ref('');
 const scopeMode = ref<ScopeMode>('company');
 const selectedRoles = ref<string[]>(props.prefill?.role_codes || []);
 const selectedSectors = ref<string[]>([]);
+
+// ─── Маршрутизация модерации ───────────────────────────────────────
+// Кому уходят правки этого пользователя (персонально) и какие секторы он
+// сам ведёт как согласующий. Пусто в обоих полях — работает общий пул
+// (владельцы + держатели moderation.review), как раньше.
+const moderatorIds = ref<string[]>([]);
+const moderatedSectors = ref<string[]>([]);
+const moderatorQuery = ref('');
+const moderatorPool = ref<{ id: string; full_name: string; email: string; job_title?: string | null }[]>([]);
+const loadingModerators = ref(false);
+const moderatorPoolError = ref<string | null>(null);
+
+const moderatorOptions = computed(() => {
+  const q = moderatorQuery.value.trim().toLowerCase();
+  const rows = moderatorPool.value;
+  if (!q) return rows.slice(0, 40);
+  return rows.filter((u) =>
+    u.full_name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q),
+  ).slice(0, 40);
+});
+const selectedModerators = computed(() =>
+  moderatorPool.value.filter((u) => moderatorIds.value.includes(u.id)));
+
+function toggleModerator(id: string) {
+  const i = moderatorIds.value.indexOf(id);
+  if (i >= 0) moderatorIds.value.splice(i, 1);
+  else moderatorIds.value.push(id);
+}
+function toggleModeratedSector(code: string) {
+  const i = moderatedSectors.value.indexOf(code);
+  if (i >= 0) moderatedSectors.value.splice(i, 1);
+  else moderatedSectors.value.push(code);
+}
+
+async function loadModeratorPool() {
+  loadingModerators.value = true;
+  moderatorPoolError.value = null;
+  try {
+    // Согласующими могут быть только внутренние сотрудники — внешний автор не
+    // должен согласовывать сам себя или коллегу из своей же компании.
+    const res = await rbacV3Api.listUsers({ is_active: true, limit: 200 });
+    moderatorPool.value = (res.items || [])
+      .filter((u: any) => !u.is_external)
+      .map((u: any) => ({ id: u.id, full_name: u.full_name, email: u.email, job_title: u.job_title }));
+  } catch (e: any) {
+    // Тихий провал здесь означал бы «сотрудников нет» — говорим прямо.
+    moderatorPoolError.value = e?.response?.data?.detail || t('Не удалось загрузить список сотрудников');
+  } finally {
+    loadingModerators.value = false;
+  }
+}
 const companyRoleAssignments = ref<Record<string, string>>({});
 const defaultCompanyRole = ref(props.prefill?.role_codes?.[0] || 'viewer');
 
@@ -92,6 +144,7 @@ onMounted(async () => {
       || (companies as any)?.companies
       || (Array.isArray(companies) ? companies : []);
     companyCatalog.value = items || [];
+    void loadModeratorPool();   // список согласующих грузим независимо от каталогов
   } catch (e: any) {
     error.value = e?.response?.data?.detail || t('Не удалось загрузить роли и области доступа');
   } finally {
@@ -291,6 +344,8 @@ async function createOne(rowEmail: string, name: string, rowPassword: string) {
     must_change_password: mustChangePassword.value,
     role_codes: scopeMode.value === 'company' ? [] : selectedRoles.value,
     allowed_sectors: scopeMode.value === 'sector' ? selectedSectors.value : undefined,
+    moderator_ids: moderatorIds.value.length ? moderatorIds.value : undefined,
+    moderated_sector_codes: moderatedSectors.value.length ? moderatedSectors.value : undefined,
     group_memberships: companyGroupMemberships(),
   });
 }
@@ -656,6 +711,62 @@ function requestClose() {
         <div v-if="hasAdminRole" class="iu-admin-warning">
           <BIcon name="lock" :size="15" />
           <span>{{ t('Роль admin даёт полный доступ и может назначаться только владельцем платформы.') }}</span>
+        </div>
+      </section>
+
+      <!-- Маршрутизация модерации: кто согласует правки и что человек ведёт сам -->
+      <section class="iu-section iu-mod">
+        <div class="iu-section-head">
+          <h3>{{ t('Модерация') }}</h3>
+          <span class="iu-section-hint">{{ t('Необязательно') }}</span>
+        </div>
+
+        <div class="iu-mod-block">
+          <div class="iu-subheading">
+            <span>{{ t('Согласующие для этого пользователя') }}</span>
+            <b v-if="moderatorIds.length">{{ t('Выбрано: {count}', { count: formatCount(moderatorIds.length) }) }}</b>
+          </div>
+          <p class="iu-mod-note">{{ t('Правки уйдут именно им. Если никого не выбрать — заявку увидят все, кто ведёт модерацию.') }}</p>
+          <div v-if="selectedModerators.length" class="iu-mod-chips">
+            <button v-for="m in selectedModerators" :key="m.id" type="button" class="iu-mod-chip"
+                    @click="toggleModerator(m.id)">
+              {{ m.full_name }}
+              <BIcon name="x" :size="11" />
+            </button>
+          </div>
+          <input v-model="moderatorQuery" type="text" class="iu-input"
+                 :placeholder="t('Поиск сотрудника по имени или почте')" />
+          <div v-if="moderatorPoolError" class="iu-mod-err">{{ moderatorPoolError }}</div>
+          <div v-else-if="loadingModerators" class="iu-empty">{{ t('Загрузка…') }}</div>
+          <div v-else class="iu-mod-list">
+            <button v-for="u in moderatorOptions" :key="u.id" type="button"
+                    :class="{ on: moderatorIds.includes(u.id) }" @click="toggleModerator(u.id)">
+              <span class="iu-select-control"><BIcon v-if="moderatorIds.includes(u.id)" name="check" :size="12" /></span>
+              <span class="iu-mod-person">
+                <b>{{ u.full_name }}</b>
+                <small>{{ u.job_title || u.email }}</small>
+              </span>
+            </button>
+            <div v-if="!moderatorOptions.length" class="iu-empty">{{ t('Никого не нашлось') }}</div>
+          </div>
+        </div>
+
+        <div class="iu-mod-block">
+          <div class="iu-subheading">
+            <span>{{ t('Ведёт модерацию по секторам') }}</span>
+            <b v-if="moderatedSectors.length">{{ t('Выбрано: {count}', { count: formatCount(moderatedSectors.length) }) }}</b>
+          </div>
+          <p class="iu-mod-note">{{ t('Заявки авторов из компаний этих секторов будут приходить этому пользователю. Право «Модерация: рассмотрение» выдастся автоматически.') }}</p>
+          <div class="iu-sector-list">
+            <button v-for="sector in sectors" :key="sector.code" type="button"
+                    :class="{ on: moderatedSectors.includes(sector.code) }"
+                    @click="toggleModeratedSector(sector.code)">
+              <span class="iu-select-control"><BIcon v-if="moderatedSectors.includes(sector.code)" name="check" :size="12" /></span>
+              <span class="iu-sector-dot" :style="{ background: sector.color_hex || '#6257c8' }"></span>
+              {{ sectorName(sector) }}
+            </button>
+            <div v-if="!loadingCatalogs && !sectors.length" class="iu-empty">{{ t('Секторы не найдены') }}</div>
+          </div>
         </div>
       </section>
     </div>
@@ -1128,4 +1239,34 @@ function requestClose() {
   .iu-success { min-height: 380px; padding: 20px 4px; }
   .iu-credentials > div { grid-template-columns: 1fr; gap: 4px; padding: 8px 0; }
 }
+
+/* ─── Маршрутизация модерации ─── */
+.iu-mod-block { display: flex; flex-direction: column; gap: 7px; margin-top: 10px; }
+.iu-mod-note { font-size: 11.5px; line-height: 1.45; color: #7c869b; margin: 0; }
+.iu-mod-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.iu-mod-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 9px; border-radius: 999px; font: inherit; font-size: 12px;
+  color: #4436a8; background: rgba(124, 111, 247, .10);
+  border: 1px solid rgba(124, 111, 247, .26); cursor: pointer;
+  transition: background .16s ease, transform .16s ease;
+}
+.iu-mod-chip:hover { background: rgba(124, 111, 247, .18); transform: translateY(-1px); }
+.iu-mod-list {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px;
+  max-height: 190px; overflow-y: auto; padding-right: 2px;
+}
+.iu-mod-list > button {
+  min-height: 40px; display: flex; align-items: center; gap: 8px;
+  padding: 6px 8px; text-align: left; color: #4e586d; background: #fff;
+  border: 1px solid var(--border-hard, #e2e5ec); border-radius: 8px;
+  font: inherit; cursor: pointer; transition: border-color .16s ease, background .16s ease;
+}
+.iu-mod-list > button:hover { border-color: rgba(124, 111, 247, .45); }
+.iu-mod-list > button.on { border-color: #7c6ff7; background: rgba(124, 111, 247, .07); }
+.iu-mod-person { display: flex; flex-direction: column; min-width: 0; }
+.iu-mod-person b { font-weight: 500; font-size: 12.5px; color: #2b3348; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.iu-mod-person small { font-size: 10.5px; color: #93a0b4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.iu-mod-err { font-size: 11.5px; color: #c2410c; }
+@media (max-width: 720px) { .iu-mod-list { grid-template-columns: 1fr; } }
 </style>

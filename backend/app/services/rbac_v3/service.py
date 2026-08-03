@@ -249,6 +249,32 @@ async def _ensure_target_in_scope(db: AsyncSession, actor: User, target: User) -
     raise HTTPException(http_status.HTTP_404_NOT_FOUND, "User not found")
 
 
+async def _ensure_review_permission(db: AsyncSession, user_id: UUID) -> None:
+    """Назначили согласующим — выдаём право открывать очередь модерации.
+
+    Без этого назначение было бы «на бумаге»: экран `/admin/moderation` и
+    approve/reject закрыты правом `moderation.review`, и заявка приходила бы
+    человеку, который физически не может её открыть. Грант прямой (overlay
+    user_permission_grant), поэтому администратор в любой момент снимет его в
+    сетке доступа — правило остаётся одно: авторитет берётся из RBAC.
+    """
+    from sqlalchemy import text as _text
+    await db.execute(
+        _text("""
+            INSERT INTO user_permission_grant
+                (id, user_id, permission_code, grant_type, created_at, updated_at)
+            SELECT gen_random_uuid(), CAST(:uid AS uuid), 'moderation.review',
+                   'grant', now(), now()
+            WHERE NOT EXISTS (
+                SELECT 1 FROM user_permission_grant
+                WHERE user_id = CAST(:uid AS uuid)
+                  AND permission_code = 'moderation.review'
+            )
+        """),
+        {"uid": str(user_id)},
+    )
+
+
 async def _require_admin(db: AsyncSession, user: User) -> None:
     # P1 (аудит RBAC): через has_effective_permission (учитывает GroupPermissionGrant
     # grant/deny), а не синхронный _has_permission — иначе отзыв admin.users через
@@ -885,6 +911,8 @@ class RbacV3Service:
             bypass_moderation=bool(getattr(u, "bypass_moderation", False)),
             external_org_name=getattr(u, "external_org_name", None),
             allowed_sectors=getattr(u, "allowed_sectors", None) or None,
+            moderator_ids=[UUID(str(x)) for x in (getattr(u, "moderator_ids", None) or []) if x],
+            moderated_sector_codes=getattr(u, "moderated_sector_codes", None) or None,
         )
 
     async def set_user_permissions(
@@ -1034,6 +1062,8 @@ class RbacV3Service:
             is_active=True, is_owner=False,
             organization_id=payload.organization_id,
             allowed_sectors=payload.allowed_sectors or None,
+            moderator_ids=[str(x) for x in (payload.moderator_ids or [])] or None,
+            moderated_sector_codes=payload.moderated_sector_codes or None,
         )
         repo.add(new_user)
         await repo.flush()
@@ -1045,6 +1075,11 @@ class RbacV3Service:
                 group_id=group.id,
                 role_id=role.id,
             ))
+        if payload.moderated_sector_codes:
+            await _ensure_review_permission(db, new_user.id)
+        if payload.moderator_ids:
+            for mid in payload.moderator_ids:
+                await _ensure_review_permission(db, mid)
         await db.commit()
 
         await append_audit_entry(
@@ -1133,6 +1168,20 @@ class RbacV3Service:
                     db, user, allowed_sectors=new_sectors)
                 u.allowed_sectors = new_sectors
                 changes.append(f"allowed_sectors={payload.allowed_sectors}")
+        if payload.moderator_ids is not None:
+            new_mods = [str(x) for x in payload.moderator_ids] or None
+            if (u.moderator_ids or None) != new_mods:
+                u.moderator_ids = new_mods
+                changes.append(f"moderator_ids={new_mods}")
+                for mid in (payload.moderator_ids or []):
+                    await _ensure_review_permission(db, mid)
+        if payload.moderated_sector_codes is not None:
+            new_sec = payload.moderated_sector_codes or None
+            if (u.moderated_sector_codes or None) != new_sec:
+                u.moderated_sector_codes = new_sec
+                changes.append(f"moderated_sector_codes={new_sec}")
+                if new_sec:
+                    await _ensure_review_permission(db, u.id)
         if payload.role_codes is not None:
             roles = list(await repo.lookup_roles(payload.role_codes))
             missing = set(payload.role_codes) - {r.code for r in roles}

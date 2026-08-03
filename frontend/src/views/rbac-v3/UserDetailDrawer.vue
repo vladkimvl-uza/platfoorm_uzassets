@@ -187,6 +187,64 @@ async function saveScope(): Promise<void> {
 
 const hasDataScope = computed(() =>
   !!(detail.value?.allowed_sectors?.length || detail.value?.allowed_companies?.length));
+
+// ─── Маршрутизация модерации ────────────────────────
+// Кому уходят правки этого пользователя и какие секторы он ведёт сам.
+// Пусто в обоих полях — заявки идут в общий пул (владельцы + moderation.review).
+const editingMod = ref(false);
+const savingMod = ref(false);
+const draftModerators = ref<string[]>([]);
+const draftModSectors = ref<string[]>([]);
+const modQuery = ref('');
+const staffPool = ref<{ id: string; full_name: string; email: string; job_title?: string | null }[]>([]);
+
+const staffById = computed(() => {
+  const m: Record<string, { full_name: string; email: string }> = {};
+  for (const u of staffPool.value) m[u.id] = u;
+  return m;
+});
+const modOptions = computed(() => {
+  const q = modQuery.value.trim().toLowerCase();
+  const rows = staffPool.value.filter((u) => u.id !== detail.value?.id);
+  if (!q) return rows.slice(0, 40);
+  return rows.filter((u) =>
+    u.full_name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)).slice(0, 40);
+});
+function moderatorName(id: string): string {
+  return staffById.value[id]?.full_name || id.slice(0, 8);
+}
+function openModEditor(): void {
+  draftModerators.value = [...(detail.value?.moderator_ids || [])];
+  draftModSectors.value = [...(detail.value?.moderated_sector_codes || [])];
+  modQuery.value = '';
+  editingMod.value = true;
+}
+function toggleDraftModerator(id: string): void {
+  const i = draftModerators.value.indexOf(id);
+  if (i >= 0) draftModerators.value.splice(i, 1);
+  else draftModerators.value.push(id);
+}
+function toggleDraftModSector(code: string): void {
+  const i = draftModSectors.value.indexOf(code);
+  if (i >= 0) draftModSectors.value.splice(i, 1);
+  else draftModSectors.value.push(code);
+}
+async function saveModRouting(): Promise<void> {
+  if (!detail.value) return;
+  savingMod.value = true;
+  try {
+    detail.value = await rbacV3Api.update(detail.value.id, {
+      moderator_ids: draftModerators.value,
+      moderated_sector_codes: draftModSectors.value,
+    });
+    editingMod.value = false;
+    emit('changed');
+  } catch (e: any) {
+    error.value = e?.response?.data?.detail || t('Не удалось сохранить маршрут модерации');
+  } finally {
+    savingMod.value = false;
+  }
+}
 const companyCatalog = ref<CompanyListItem[]>([]);
 const allCompanies = computed(() => companyCatalog.value
   .map((company) => ({ id: company.id, name: companyDisplayName(company) || company.code }))
@@ -194,6 +252,12 @@ const allCompanies = computed(() => companyCatalog.value
   .sort((a, b) => a.name.localeCompare(b.name, INTL_LOCALE[locale.value])));
 onMounted(async () => {
   try { allSectors.value = await companiesApi.listSectors(); } catch { /* best-effort */ }
+  try {
+    const res = await rbacV3Api.listUsers({ is_active: true, limit: 200 });
+    staffPool.value = (res.items || [])
+      .filter((u: any) => !u.is_external)
+      .map((u: any) => ({ id: u.id, full_name: u.full_name, email: u.email, job_title: u.job_title }));
+  } catch { /* список согласующих не критичен для остальной карточки */ }
   try {
     const r = await companiesApi.list({ per_page: 500 } as any);
     const items = (r as any)?.items || (r as any)?.companies || (Array.isArray(r) ? r : []);
@@ -862,6 +926,75 @@ async function onDeletePermanent() {
 
             <div v-if="!canManage" class="rv3-dr-mem-hint">
               {{ t('Для редактирования членства нужны права admin.users.') }}
+            </div>
+
+            <!-- Маршрут модерации: персональные согласующие + ведение секторов -->
+            <div class="rv3-dr-scope">
+              <div class="rv3-dr-scope-head">
+                <span class="rv3-dr-scope-ttl">{{ t('Модерация') }}</span>
+                <button v-if="canManage && !editingMod" class="rv3-dr-scope-edit" @click="openModEditor">
+                  {{ t('Изменить') }}
+                </button>
+              </div>
+
+              <div v-if="editingMod">
+                <div class="rv3-dr-scope-note">
+                  {{ t('Согласующие для этого пользователя — правки уйдут именно им.') }}
+                </div>
+                <input v-model="modQuery" type="text" class="rv3-dr-mod-search"
+                       :placeholder="t('Поиск сотрудника по имени или почте')" />
+                <div class="rv3-dr-mod-list">
+                  <button v-for="u in modOptions" :key="u.id" type="button"
+                          :class="['rv3-dr-mod-opt', { on: draftModerators.includes(u.id) }]"
+                          @click="toggleDraftModerator(u.id)">
+                    <b>{{ u.full_name }}</b>
+                    <small>{{ u.job_title || u.email }}</small>
+                  </button>
+                  <div v-if="!modOptions.length" class="rv3-dr-scope-note">{{ t('Никого не нашлось') }}</div>
+                </div>
+
+                <div class="rv3-dr-scope-note">
+                  {{ t('Ведёт модерацию по секторам: заявки авторов из компаний этих секторов придут этому пользователю.') }}
+                </div>
+                <div class="rv3-dr-scope-pick">
+                  <button v-for="s in allSectors" :key="'ms-' + s.code" type="button"
+                          :class="['rv3-dr-scope-opt', { on: draftModSectors.includes(s.code) }]"
+                          :style="draftModSectors.includes(s.code)
+                            ? { color: sectorColor(s.code), borderColor: sectorColor(s.code) + '55', background: sectorColor(s.code) + '12' }
+                            : {}"
+                          @click="toggleDraftModSector(s.code)">
+                    <span class="rv3-dr-scope-dot" :style="{ background: sectorColor(s.code) }"></span>
+                    {{ sectorLabel(s.code) }}
+                  </button>
+                </div>
+                <div class="rv3-dr-scope-actions">
+                  <button class="rv3-btn" :disabled="savingMod" @click="editingMod = false">{{ t('Отмена') }}</button>
+                  <button class="rv3-btn rv3-btn-purple" :disabled="savingMod" @click="saveModRouting">
+                    {{ savingMod ? t('Сохранение…') : t('Сохранить') }}
+                  </button>
+                </div>
+                <div class="rv3-dr-scope-note">
+                  {{ t('Назначенным согласующим автоматически выдаётся право «Модерация: рассмотрение».') }}
+                </div>
+              </div>
+
+              <template v-else>
+                <div v-if="(detail.moderator_ids || []).length || (detail.moderated_sector_codes || []).length"
+                     class="rv3-dr-scope-chips">
+                  <span v-for="m in (detail.moderator_ids || [])" :key="'md-' + m" class="rv3-dr-scope-chip">
+                    {{ t('Согласует: {name}', { name: moderatorName(m) }) }}
+                  </span>
+                  <span v-for="s in (detail.moderated_sector_codes || [])" :key="'mos-' + s"
+                        class="rv3-dr-scope-chip"
+                        :style="{ color: sectorColor(s), background: sectorColor(s) + '14', borderColor: sectorColor(s) + '33' }">
+                    <span class="rv3-dr-scope-dot" :style="{ background: sectorColor(s) }"></span>
+                    {{ t('Ведёт сектор: {sector}', { sector: sectorLabel(s) }) }}
+                  </span>
+                </div>
+                <div v-else class="rv3-dr-scope-note">
+                  {{ t('Персональный согласующий не назначен: правки уходят всем, кто ведёт модерацию.') }}
+                </div>
+              </template>
             </div>
           </div>
 
@@ -1726,4 +1859,26 @@ async function onDeletePermanent() {
   font-size: 11px;
   color: var(--p-deep);
 }
+
+/* Маршрут модерации в карточке пользователя */
+.rv3-dr-mod-search {
+  width: 100%; margin: 6px 0; padding: 7px 10px; font: inherit; font-size: 12.5px;
+  border: 1px solid var(--border-hard, #e2e5ec); border-radius: 8px; background: #fff;
+}
+.rv3-dr-mod-search:focus { outline: none; border-color: #7c6ff7; }
+.rv3-dr-mod-list {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px;
+  max-height: 168px; overflow-y: auto; margin-bottom: 8px;
+}
+.rv3-dr-mod-opt {
+  display: flex; flex-direction: column; gap: 1px; padding: 6px 9px; text-align: left;
+  border: 1px solid var(--border-hard, #e2e5ec); border-radius: 8px; background: #fff;
+  font: inherit; cursor: pointer; min-width: 0;
+  transition: border-color .16s ease, background .16s ease;
+}
+.rv3-dr-mod-opt:hover { border-color: rgba(124, 111, 247, .45); }
+.rv3-dr-mod-opt.on { border-color: #7c6ff7; background: rgba(124, 111, 247, .07); }
+.rv3-dr-mod-opt b { font-weight: 500; font-size: 12.5px; color: #2b3348; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rv3-dr-mod-opt small { font-size: 10.5px; color: #93a0b4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 720px) { .rv3-dr-mod-list { grid-template-columns: 1fr; } }
 </style>

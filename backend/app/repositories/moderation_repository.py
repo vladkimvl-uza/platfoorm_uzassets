@@ -10,7 +10,8 @@ from datetime import datetime, timedelta
 from typing import Optional
 from uuid import UUID
 
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, cast, func, or_, select
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.moderation import (
@@ -108,7 +109,15 @@ class ModerationRepository:
         if status_in:
             base = base.where(ModerationSubmission.status.in_(status_in))
         if assigned_moderator_id is not None:
-            base = base.where(ModerationSubmission.assigned_moderator_id == assigned_moderator_id)
+            # «Назначено мне» = я основной согласующий ИЛИ вхожу в маршрут
+            # (reviewer_ids). Иначе куратор сектора не увидел бы свои заявки:
+            # основной там только первый из списка.
+            base = base.where(or_(
+                ModerationSubmission.assigned_moderator_id == assigned_moderator_id,
+                ModerationSubmission.reviewer_ids.contains(
+                    cast([str(assigned_moderator_id)], JSONB),
+                ),
+            ))
         if proposer_user_id is not None:
             base = base.where(ModerationSubmission.proposer_user_id == proposer_user_id)
         if target_module:

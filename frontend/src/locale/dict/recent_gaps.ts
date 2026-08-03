@@ -53,6 +53,33 @@ export const uz: Record<string, string> = {
   "Не удалось принять заявку": "Arizani qabul qilib boʻlmadi",
   "Не удалось определить заявку — откройте её в очереди":
     "Arizani aniqlab boʻlmadi — uni navbatda oching",
+
+  // ── Сайт компании + маршрутизация модерации ──
+  "Сайт": "Sayt",
+  "Показывается ссылкой в шапке рабочего пространства компании. Можно без https://":
+    "Kompaniya ish maydoni sarlavhasida havola sifatida koʻrsatiladi. https:// siz ham boʻladi.",
+  "Модерация": "Moderatsiya",
+  "Необязательно": "Majburiy emas",
+  "Согласующие для этого пользователя": "Ushbu foydalanuvchi uchun kelishuvchilar",
+  "Согласующие для этого пользователя — правки уйдут именно им.":
+    "Ushbu foydalanuvchi uchun kelishuvchilar — oʻzgarishlar aynan ularga boradi.",
+  "Правки уйдут именно им. Если никого не выбрать — заявку увидят все, кто ведёт модерацию.":
+    "Oʻzgarishlar aynan ularga boradi. Hech kim tanlanmasa — arizani moderatsiya yurituvchilarning barchasi koʻradi.",
+  "Ведёт модерацию по секторам": "Sektorlar boʻyicha moderatsiya yuritadi",
+  "Ведёт модерацию по секторам: заявки авторов из компаний этих секторов придут этому пользователю.":
+    "Sektorlar boʻyicha moderatsiya yuritadi: shu sektorlardagi kompaniyalar mualliflarining arizalari shu foydalanuvchiga keladi.",
+  "Заявки авторов из компаний этих секторов будут приходить этому пользователю. Право «Модерация: рассмотрение» выдастся автоматически.":
+    "Shu sektorlardagi kompaniyalar mualliflarining arizalari shu foydalanuvchiga keladi. «Moderatsiya: koʻrib chiqish» huquqi avtomatik beriladi.",
+  "Назначенным согласующим автоматически выдаётся право «Модерация: рассмотрение».":
+    "Tayinlangan kelishuvchilarga «Moderatsiya: koʻrib chiqish» huquqi avtomatik beriladi.",
+  "Персональный согласующий не назначен: правки уходят всем, кто ведёт модерацию.":
+    "Shaxsiy kelishuvchi tayinlanmagan: oʻzgarishlar moderatsiya yurituvchilarning barchasiga boradi.",
+  "Согласует: {name}": "Kelishadi: {name}",
+  "Ведёт сектор: {sector}": "Sektorni yuritadi: {sector}",
+  "Поиск сотрудника по имени или почте": "Xodimni ism yoki pochta boʻyicha qidirish",
+  "Никого не нашлось": "Hech kim topilmadi",
+  "Не удалось загрузить список сотрудников": "Xodimlar roʻyxatini yuklab boʻlmadi",
+  "Не удалось сохранить маршрут модерации": "Moderatsiya marshrutini saqlab boʻlmadi",
 };
 
 export const en: Record<string, string> = {
@@ -98,4 +125,31 @@ export const en: Record<string, string> = {
   "Не удалось принять заявку": "Could not approve the submission",
   "Не удалось определить заявку — откройте её в очереди":
     "Could not identify the submission — open it in the queue",
+
+  // ── Сайт компании + маршрутизация модерации ──
+  "Сайт": "Website",
+  "Показывается ссылкой в шапке рабочего пространства компании. Можно без https://":
+    "Shown as a link in the company workspace header. https:// is optional.",
+  "Модерация": "Moderation",
+  "Необязательно": "Optional",
+  "Согласующие для этого пользователя": "Approvers for this user",
+  "Согласующие для этого пользователя — правки уйдут именно им.":
+    "Approvers for this user — their changes go to exactly these people.",
+  "Правки уйдут именно им. Если никого не выбрать — заявку увидят все, кто ведёт модерацию.":
+    "Changes go to exactly these people. If you pick nobody, every moderator sees the submission.",
+  "Ведёт модерацию по секторам": "Moderates these sectors",
+  "Ведёт модерацию по секторам: заявки авторов из компаний этих секторов придут этому пользователю.":
+    "Moderates these sectors: submissions from authors in companies of these sectors go to this user.",
+  "Заявки авторов из компаний этих секторов будут приходить этому пользователю. Право «Модерация: рассмотрение» выдастся автоматически.":
+    "Submissions from authors in companies of these sectors will go to this user. The “Moderation: review” permission is granted automatically.",
+  "Назначенным согласующим автоматически выдаётся право «Модерация: рассмотрение».":
+    "Assigned approvers automatically receive the “Moderation: review” permission.",
+  "Персональный согласующий не назначен: правки уходят всем, кто ведёт модерацию.":
+    "No personal approver assigned: changes go to every moderator.",
+  "Согласует: {name}": "Approver: {name}",
+  "Ведёт сектор: {sector}": "Moderates sector: {sector}",
+  "Поиск сотрудника по имени или почте": "Search staff by name or email",
+  "Никого не нашлось": "Nobody found",
+  "Не удалось загрузить список сотрудников": "Could not load the staff list",
+  "Не удалось сохранить маршрут модерации": "Could not save the moderation route",
 };

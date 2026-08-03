@@ -182,6 +182,50 @@ async def moderator_ids(db: AsyncSession) -> list[UUID]:
     return [r for r in rows]
 
 
+async def resolve_moderators(
+    db: AsyncSession, proposer: User,
+) -> tuple[list[UUID], str]:
+    """Кому уходит заявка этого автора. Возвращает (id согласующих, маршрут).
+
+    Порядок ровно такой, потому что частное всегда должно бить общее:
+
+    1. ``users.moderator_ids`` — согласующие, выбранные лично при создании или
+       редактировании пользователя. Если заданы, работают только они.
+    2. Куратор сектора — внутренний пользователь, у которого в
+       ``moderated_sector_codes`` стоит сектор компании автора. Так «авторы из
+       компаний такого-то сектора» попадают к своему внутреннему согласующему.
+    3. Общий фолбэк — владельцы и держатели `moderation.review`.
+
+    Фолбэк обязателен: иначе заявка с выключенным/удалённым согласующим
+    зависла бы навсегда, а таких «тихих зависаний» мы уже наелись.
+    """
+    explicit = [x for x in (getattr(proposer, "moderator_ids", None) or []) if x]
+    if explicit:
+        rows = (await db.execute(text("""
+            SELECT id FROM users
+            WHERE is_active AND id = ANY(CAST(:ids AS uuid[]))
+        """), {"ids": [str(x) for x in explicit]})).scalars().all()
+        if rows:
+            return list(rows), "explicit"
+
+    if proposer.organization_id:
+        rows = (await db.execute(text("""
+            SELECT DISTINCT u.id
+            FROM users u
+            JOIN companies c ON c.id = CAST(:org AS uuid)
+            JOIN sectors s   ON s.id = c.sector_id
+            WHERE u.is_active
+              AND NOT u.is_external
+              AND u.id <> CAST(:self AS uuid)
+              AND u.moderated_sector_codes IS NOT NULL
+              AND u.moderated_sector_codes ? s.code
+        """), {"org": str(proposer.organization_id), "self": str(proposer.id)})).scalars().all()
+        if rows:
+            return list(rows), "sector"
+
+    return list(await moderator_ids(db)), "fallback"
+
+
 async def _user_matches(
     db: AsyncSession, user: User, rule: ModerationRule,
 ) -> bool:
@@ -337,6 +381,12 @@ async def create_submission(
         source_user_agent=source_user_agent,
     )
 
+    # Маршрутизация: персональные согласующие → куратор сектора → общий пул.
+    routed, route_kind = await resolve_moderators(db, proposer)
+    if routed:
+        sub.reviewer_ids = [str(x) for x in routed]
+        sub.assigned_moderator_id = routed[0] if route_kind != "fallback" else None
+
     if rule:
         sub.rule_id = rule.id
         sub.assigned_moderator_id = rule.moderator_primary_id
@@ -367,7 +417,10 @@ async def _notify_on_create(
 
     # Очередь общая: уведомляем всех, кто вправе её разбирать. Раньше письмо
     # уходило одному согласующему из правила — если он в отпуске, заявка висела.
-    recipients: list[UUID] = list(await moderator_ids(db))
+    # Если заявка смаршрутизирована (персональные согласующие или куратор
+    # сектора) — пишем только им; иначе общий пул, как раньше.
+    routed = [UUID(str(x)) for x in (sub.reviewer_ids or []) if x]
+    recipients: list[UUID] = routed or list(await moderator_ids(db))
     if sub.assigned_moderator_id:
         recipients.append(sub.assigned_moderator_id)
 
@@ -415,8 +468,11 @@ def _can_resolve(sub: ModerationSubmission, user: User) -> bool:
             return True
     except Exception:  # noqa: BLE001 — не роняем решение из-за резолва прав
         pass
-    # Совместимость со старыми заявками, где согласующий был задан явно.
+    # Согласующий, назначенный маршрутизацией (персонально или как куратор
+    # сектора), решает по своей заявке — иначе назначение было бы формальным.
     if sub.assigned_moderator_id and sub.assigned_moderator_id == user.id:
+        return True
+    if any(str(x) == str(user.id) for x in (sub.reviewer_ids or [])):
         return True
     if sub.coapprover_id and sub.coapprover_id == user.id:
         return True

@@ -142,6 +142,14 @@ class User(Base, UUIDMixin, TimestampMixin):
     # in migration 9aD) to UserGroupRole — see Group(company_id=...).
     allowed_sectors: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
 
+    # ─── Маршрутизация модерации ───
+    # Кого назначили согласующими лично этому пользователю (список id).
+    # Пусто → работает маршрут по сектору, затем общий фолбэк.
+    moderator_ids: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
+    # Для внутреннего пользователя: какие секторы он ведёт как согласующий.
+    # Заявки авторов из компаний этих секторов приходят ему.
+    moderated_sector_codes: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
+
     # Approval-chain helper: who is this user's reviewer / supervisor?
     supervisor_id: Mapped[Optional[UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True

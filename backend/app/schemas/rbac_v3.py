@@ -152,6 +152,10 @@ class UserDetail(UserBrief):
     bypass_moderation:  bool = False
     external_org_name:  Optional[str] = None
     allowed_sectors:    Optional[list[str]] = None    # Область доступа «По секторам»
+    # Маршрутизация модерации: кто согласует правки этого пользователя и какие
+    # секторы он сам ведёт как согласующий.
+    moderator_ids:          Optional[list[UUID]] = None
+    moderated_sector_codes: Optional[list[str]] = None
     # Только при создании: ушло ли письмо-приглашение (False = SMTP выключен/ошибка
     # → UI показывает предупреждение + temp-пароль для ручной передачи).
     invite_email_sent:  Optional[bool] = None
@@ -167,7 +171,9 @@ class UserCreatePayload(BaseModel):
     role_codes: list[str] = Field(default_factory=list)
     organization_id: Optional[UUID] = None
     allowed_companies: Optional[list[str]] = None
-    allowed_sectors: Optional[list[str]] = None    # Область доступа «По секторам»
+    allowed_sectors: Optional[list[str]] = None
+    moderator_ids: Optional[list[UUID]] = None            # персональные согласующие
+    moderated_sector_codes: Optional[list[str]] = None    # секторы, которые ведёт сам
     group_memberships: list[UserCreateGroupMembership] = Field(default_factory=list)
 
 
@@ -180,6 +186,8 @@ class UserUpdatePayload(BaseModel):
     organization_id: Optional[UUID] = None
     allowed_companies: Optional[list[str]] = None
     allowed_sectors: Optional[list[str]] = None
+    moderator_ids: Optional[list[UUID]] = None            # персональные согласующие
+    moderated_sector_codes: Optional[list[str]] = None    # секторы, которые ведёт сам
 
 
 class PasswordResetPayload(BaseModel):

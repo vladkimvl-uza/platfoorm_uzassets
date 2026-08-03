@@ -55,6 +55,10 @@ export interface RbacV3UserDetail extends RbacV3UserBrief {
   // Область доступа к данным: «По секторам» / прямые компании.
   allowed_sectors: string[] | null;
   allowed_companies: string[] | null;
+  /** Маршрутизация модерации: кто согласует правки этого пользователя. */
+  moderator_ids?: string[] | null;
+  /** Секторы, которые этот пользователь ведёт как согласующий. */
+  moderated_sector_codes?: string[] | null;
 }
 
 export interface RbacV3UserListResponse {
@@ -101,7 +105,7 @@ export const rbacV3Api = {
     const { data } = await api.post<RbacV3UserDetail>(`/rbac/v3/users/${id}/owner`, { is_owner: isOwner });
     return data;
   },
-  async update(id: string, payload: { full_name?: string; department?: string; job_title?: string; organization_id?: string; is_active?: boolean; role_codes?: string[]; allowed_companies?: string[] | null; allowed_sectors?: string[] | null }) {
+  async update(id: string, payload: { full_name?: string; department?: string; job_title?: string; organization_id?: string; is_active?: boolean; role_codes?: string[]; allowed_companies?: string[] | null; allowed_sectors?: string[] | null; moderator_ids?: string[] | null; moderated_sector_codes?: string[] | null }) {
     const { data } = await api.patch<RbacV3UserDetail>(`/rbac/v3/users/${id}`, payload);
     return data;
   },
@@ -508,6 +512,8 @@ export interface RbacV3CreateUserPayload {
   allowed_companies?: string[];
   group_memberships?: Array<{ group_id: string; role_code: string }>;
   allowed_sectors?: string[];   // Область доступа «По секторам»
+  moderator_ids?: string[];             // персональные согласующие
+  moderated_sector_codes?: string[];    // секторы, которые ведёт сам
 }
 
 export async function createUser(payload: RbacV3CreateUserPayload): Promise<RbacV3UserDetail> {

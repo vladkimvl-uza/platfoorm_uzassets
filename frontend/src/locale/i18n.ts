@@ -27,7 +27,7 @@ import { getActivePinia } from "pinia";
 
 import { useLocaleStore } from "@/stores/locale";
 
-import { INTL_LOCALE, type AppLocale } from "./locales";
+import { APP_LOCALES, INTL_LOCALE, type AppLocale } from "./locales";
 import { translitLatinToCyrillic } from "./translit";
 
 export { i18nKey } from "./keys";
@@ -60,7 +60,17 @@ export function getCurrentLocale(): AppLocale {
   try {
     if (getActivePinia()) return useLocaleStore().current;
   } catch {
-    /* до инициализации pinia (ранний импорт) — безопасный дефолт */
+    /* до инициализации pinia (ранний импорт) — читаем сохранённый выбор ниже */
+  }
+  // Фолбэк без pinia — тот же ключ, что пишет стор. Раньше здесь стояло жёсткое
+  // "ru", и системные сообщения раннего старта (например «Идёт обновление
+  // платформы» из axios-интерсептора, который срабатывает как раз когда бэкенд
+  // недоступен на загрузке) выходили по-русски при узбекском интерфейсе.
+  try {
+    const saved = localStorage.getItem("uza-locale-v1");
+    if (saved && (APP_LOCALES as string[]).includes(saved)) return saved as AppLocale;
+  } catch {
+    /* приватный режим / storage недоступен */
   }
   return "ru";
 }

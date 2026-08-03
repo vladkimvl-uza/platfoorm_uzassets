@@ -201,6 +201,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_dashboard_view_grant(conn)
             await _patch_documents_library(conn)
             await _patch_company_websites(conn)
+            await _patch_moderation_routing(conn)
             await _patch_custom_api_endpoint(conn)
             await _patch_org_role_tasks_write(conn)
             await _patch_org_role_company_create(conn)
@@ -2069,6 +2070,23 @@ async def _patch_documents_library(conn) -> None:
         "VALUES (gen_random_uuid(), 'documents_backfilled', '{\"done\": true}'::jsonb, "
         "'Вложения задач/проектов/компаний перенесены в библиотеку документов', false) "
         "ON CONFLICT (key) DO NOTHING"
+    ))
+
+
+async def _patch_moderation_routing(conn) -> None:
+    """Маршрутизация модерации: персональные согласующие и кураторы секторов.
+
+    До этого очередь была общей: заявку видели и разбирали ВСЕ держатели
+    `moderation.review`, назначить конкретного согласующего было негде (поле
+    жило только в правилах, которые удалены). Две колонки закрывают оба
+    сценария владельца: явный выбор согласующих при создании пользователя и
+    «авторы из компаний такого-то сектора идут к такому-то внутреннему».
+    """
+    await conn.execute(text(
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS moderator_ids JSONB"
+    ))
+    await conn.execute(text(
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS moderated_sector_codes JSONB"
     ))
 
 
