@@ -68,6 +68,19 @@ const CAP: Record<Capacity, { l: string; c: string }> = {
   high: { l: i18nKey("Высокая"), c: "#D97706" },
   overload: { l: i18nKey("Перегрузка"), c: "#E24B4A" },
 };
+// ЧЕСТНОЕ ПОКРЫТИЕ. Загрузка считается только по задачам, где проставлен
+// исполнитель. На проде это ~52 задачи из 1975: рейтинг ниже описывает
+// меньшинство работы, и об этом надо сказать прямо, а не показывать его
+// как полную картину команды.
+const coverage = computed(() => {
+  const w = wl.value;
+  if (!w) return { assigned: 0, total: 0, pct: 0, enough: true };
+  const total = w.total_open || 0;
+  const assigned = Math.max(0, total - (w.unassigned_open || 0));
+  const pct = total ? Math.round((assigned / total) * 100) : 0;
+  return { assigned, total, pct, enough: pct >= 50 };
+});
+
 function loadPct(p: WorkloadPerson): number {
   const max = wl.value?.max_load || 1;
   return Math.round((p.load / max) * 100);
@@ -157,6 +170,15 @@ async function clearItem(item: string) {
     <template v-else>
       <!-- ── Загрузка ── -->
       <div v-if="view === 'workload'">
+        <div v-if="wl && coverage.total && !coverage.enough" class="tm-cover">
+          <span class="tm-cover-badge">{{ t('Данных недостаточно') }}</span>
+          <span class="tm-cover-txt">
+            {{ t('Исполнитель проставлен у {value0} из {value1} открытых задач ({value2}%).', {
+              value0: coverage.assigned, value1: coverage.total, value2: coverage.pct,
+            }) }}
+            {{ t('Загрузка ниже посчитана только по ним — остальная работа в расчёт не входит.') }}
+          </span>
+        </div>
         <div v-if="wl" class="tm-stats">
           <div class="tm-stat"><span class="tm-stat-n">{{ wl.total_people }}</span><span class="tm-stat-l">{{ t('в команде') }}</span></div>
           <div class="tm-stat"><span class="tm-stat-n">{{ wl.total_open }}</span><span class="tm-stat-l">{{ t('открытых задач') }}</span></div>
@@ -265,6 +287,17 @@ async function clearItem(item: string) {
 .tm-add:hover { transform: translateY(-1px); }
 
 /* stats */
+.tm-cover {
+  display: flex; align-items: flex-start; gap: 9px; flex-wrap: wrap;
+  background: rgba(217,119,6,.07); border: 1px solid rgba(217,119,6,.22);
+  border-radius: 11px; padding: 10px 13px; margin-bottom: 12px;
+}
+.tm-cover-badge {
+  font-size: 9.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+  color: #B45309; background: rgba(217,119,6,.14); border-radius: 999px;
+  padding: 3px 9px; white-space: nowrap; flex-shrink: 0;
+}
+.tm-cover-txt { font-size: 11.5px; color: var(--t2, #4B5468); line-height: 1.5; }
 .tm-stats { display: flex; gap: 8px; margin-bottom: 14px; }
 .tm-stat { display: flex; flex-direction: column; align-items: center; min-width: 92px; padding: 8px 12px; border: 1px solid var(--border, rgba(99,102,180,.12)); border-radius: 11px; background: var(--bg1, #fff); }
 .tm-stat-n { font-size: 19px; font-weight: 400; color: var(--t1, #1e2a4a); font-variant-numeric: tabular-nums; }

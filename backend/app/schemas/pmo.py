@@ -389,6 +389,9 @@ class EvmResponse(BaseModel):
     projects: list[EvmProject] = Field(default_factory=list)
     budgeted_count: int = 0
     total_count: int = 0
+    # Сколько проектов имеют плановые даты — основа SPI. Без них индекс срока
+    # не считается вовсе, и покрытие надо показывать честно.
+    scheduled_count: int = 0
 
 
 # ─── P3: Команда / загрузка (Workload) ─────────────────────────────────

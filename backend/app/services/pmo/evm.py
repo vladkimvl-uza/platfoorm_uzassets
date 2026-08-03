@@ -193,4 +193,5 @@ async def compute_evm(
         projects=projects,
         budgeted_count=len(budgeted),
         total_count=len(projects),
+        scheduled_count=sum(1 for p in projects if p.spi is not None),
     )

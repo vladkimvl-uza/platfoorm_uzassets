@@ -70,6 +70,17 @@ const RAG_C: Record<EvmRag, string> = { green: "#1D9E75", amber: "#D97706", red:
 const RAG_L: Record<EvmRag, string> = { green: i18nKey("В норме"), amber: i18nKey("Внимание"), red: i18nKey("Риск"), na: "—" };
 
 const hasBudget = computed(() => !!data.value && data.value.budgeted_count > 0);
+// ЧЕСТНОЕ ПОКРЫТИЕ. EVM считается только по проектам, где заполнены бюджет,
+// факт затрат и плановые даты. На проде это 14 проектов из 589 — индексы
+// описывают меньшинство портфеля, и это должно быть видно СРАЗУ, а не сноской.
+const coverage = computed(() => {
+  const d = data.value;
+  if (!d) return { costPct: 0, schedPct: 0, enough: false, total: 0 };
+  const total = d.total_count || 0;
+  const costPct = total ? Math.round((d.budgeted_count / total) * 100) : 0;
+  const schedPct = total ? Math.round(((d.scheduled_count ?? 0) / total) * 100) : 0;
+  return { costPct, schedPct, enough: costPct >= 50, total };
+});
 const sortedProjects = computed<EvmProject[]>(() => {
   if (!data.value) return [];
   const order: Record<EvmRag, number> = { red: 0, amber: 1, green: 2, na: 3 };
@@ -147,6 +158,18 @@ function metricNeg(p: EvmProject, m: MetricDef): boolean {
           </div>
           <div class="ev-gauge-verdict">{{ idxVerdict(data.cpi, "cpi") }}</div>
         </div>
+      </div>
+
+      <!-- Покрытие: по скольким проектам вообще есть чем считать -->
+      <div v-if="coverage.total && (!coverage.enough || coverage.schedPct < 50)" class="ev-cover">
+        <span class="ev-cover-badge">{{ t('Данных недостаточно') }}</span>
+        <span class="ev-cover-txt">
+          {{ t('Стоимостные метрики — по {value0} из {value1} проектов ({value2}%), индекс срока — по {value3} ({value4}%).', {
+            value0: data.budgeted_count, value1: coverage.total, value2: coverage.costPct,
+            value3: data.scheduled_count ?? 0, value4: coverage.schedPct,
+          }) }}
+          {{ t('Цифры ниже описывают только эту часть портфеля — заполните бюджет, факт затрат и плановые даты в карточках проектов.') }}
+        </span>
       </div>
 
       <!-- ключевые величины -->
@@ -282,6 +305,17 @@ function metricNeg(p: EvmProject, m: MetricDef): boolean {
 .ev-gauge-verdict { font-size: 11px; color: var(--t2, #475569); }
 
 /* cards */
+.ev-cover {
+  display: flex; align-items: flex-start; gap: 9px; flex-wrap: wrap;
+  background: rgba(217,119,6,.07); border: 1px solid rgba(217,119,6,.22);
+  border-radius: 11px; padding: 10px 13px; margin-bottom: 14px;
+}
+.ev-cover-badge {
+  font-size: 9.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+  color: #B45309; background: rgba(217,119,6,.14); border-radius: 999px;
+  padding: 3px 9px; white-space: nowrap; flex-shrink: 0;
+}
+.ev-cover-txt { font-size: 11.5px; color: var(--t2, #4B5468); line-height: 1.5; }
 .ev-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 9px; margin-bottom: 14px; }
 .ev-card { display: flex; flex-direction: column; gap: 3px; padding: 10px 12px; border: 1px solid var(--border, rgba(99,102,180,.12)); border-radius: 11px; background: var(--bg1, #fff); }
 .ev-card-l { font-size: 9px; text-transform: uppercase; letter-spacing: .04em; color: var(--t3, #94a3b8); font-weight: 600; }

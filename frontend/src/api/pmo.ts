@@ -262,6 +262,8 @@ export interface EvmResponse {
   projects: EvmProject[];
   budgeted_count: number;
   total_count: number;
+  /** Проектов, у которых есть плановые даты — основа SPI. */
+  scheduled_count: number;
 }
 
 // ── P3: Команда / загрузка + RACI ──
