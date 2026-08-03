@@ -262,7 +262,9 @@ export const uz: Record<string, string> = {
   "У {name} в {year} году нет данных по закупкам в системе.": "{name} uchun {year} yilda tizimda xarid maʼlumotlari yoʻq.",
   "Открыть полный анализ →": "Toʻliq tahlilni ochish →",
   "Закрытий": "Yopilishlar",
-  "чистых: {a} · отбраковано: {b}": "toza: {a} · chiqitga chiqarilgan: {b}",
+  "сравнимых: {a} · без сравнения: {b}": "taqqoslanadigan: {a} · taqqoslashsiz: {b}",
+  "Сравнимые: есть медианная цена по коду товара. Без сравнения: медианы нет или отклонение больше 1000% (цена в 11+ раз от медианы) — такие строки не участвуют в расчёте переплаты и отклонений.":
+    "Taqqoslanadigan: tovar kodi boʻyicha mediana narx bor. Taqqoslashsiz: mediana yoʻq yoki ogʻish 1000% dan katta (narx medianadan 11+ barobar) — bunday satrlar ortiqcha toʻlov va ogʻishlar hisobiga kirmaydi.",
   "Переплата": "Ortiqcha toʻlov",
   "UZS, к рынку": "UZS, bozorga nisbatan",
   "Выше рынка": "Bozordan yuqori",
@@ -572,7 +574,9 @@ export const en: Record<string, string> = {
   "У {name} в {year} году нет данных по закупкам в системе.": "No procurement data in the system for {name} in {year}.",
   "Открыть полный анализ →": "Open full analysis →",
   "Закрытий": "Closures",
-  "чистых: {a} · отбраковано: {b}": "clean: {a} · rejected: {b}",
+  "сравнимых: {a} · без сравнения: {b}": "comparable: {a} · not comparable: {b}",
+  "Сравнимые: есть медианная цена по коду товара. Без сравнения: медианы нет или отклонение больше 1000% (цена в 11+ раз от медианы) — такие строки не участвуют в расчёте переплаты и отклонений.":
+    "Comparable: a median price exists for the product code. Not comparable: no median, or a deviation above 1000% (price 11+ times the median) — such rows are excluded from overpayment and deviation calculations.",
   "Переплата": "Overpayment",
   "UZS, к рынку": "UZS vs market",
   "Выше рынка": "Above market",
