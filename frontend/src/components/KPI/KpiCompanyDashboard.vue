@@ -565,7 +565,7 @@ function fmtNum(v: number | null): string {
     <div class="kpv-body">
 
       <!-- ═══ 1. Status bar (4 cells) ═══ -->
-      <div class="kpv-stat-bar">
+      <div class="kpv-stat-bar kpi-rail">
         <div
           v-for="s in statBand"
           :key="s.id"
@@ -925,8 +925,10 @@ function fmtNum(v: number | null): string {
 @keyframes kdmStripeGrow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 
 /* ═══ Status bar (4 cells) ═══ */
+/* .kpi-rail склеивает карточки в одну ленту (волосяные разделители,
+   общий контур) — как полоса консультантов. Свой grid остаётся. */
 .kpv-stat-bar {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+  display: grid; grid-template-columns: repeat(4, 1fr);
   margin-bottom: 14px;
 }
 /* Карточка = канон .kpi2 из main.css. Локальные фон/радиус/паддинг/полоса

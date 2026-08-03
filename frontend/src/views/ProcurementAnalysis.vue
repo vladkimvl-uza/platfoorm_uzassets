@@ -243,30 +243,6 @@ const kpiCards = computed<KpiCard[]>(() => {
 // лотам, где она указана, а весь массив может быть одним кварталом. Пока эти
 // доли не показаны рядом с цифрами, полоса KPI читается как полная картина.
 const hasData = computed(() => aggregate.value?.has_data !== false && !!aggregate.value?.kpis?.total_closures);
-const coverageNote = computed<string | null>(() => {
-  const c = aggregate.value?.coverage;
-  if (!c || !hasData.value) return null;
-  const parts: string[] = [];
-  if (c.comparable_spend_pct != null && c.comparable_spend_pct < 90) {
-    parts.push(t("сопоставимые цены покрывают {pct}% расхода ({n} из {total} компаний)", {
-      pct: c.comparable_spend_pct.toFixed(1), n: c.companies_comparable, total: c.companies_total,
-    }));
-  }
-  if (c.saving_known_lots_pct != null && c.saving_known_lots_pct < 90) {
-    parts.push(t("экономия указана у {pct}% лотов", { pct: c.saving_known_lots_pct.toFixed(0) }));
-  }
-  if (c.category_known_pct != null && c.category_known_pct < 90) {
-    parts.push(t("категория проставлена у {pct}% строк", { pct: c.category_known_pct.toFixed(0) }));
-  }
-  if (c.period_from && c.period_to) {
-    parts.push(t("период данных: {from} — {to}", {
-      from: fmt.fmtDate(c.period_from), to: fmt.fmtDate(c.period_to),
-    }));
-  }
-  if (!parts.length) return null;
-  return parts.join(" · ") + ". " + t("Метрики ниже описывают только эту часть закупок.");
-});
-
 // ─── Авто red-flags ──────────────────────────────────────────────
 type RedFlag = { id: string; title: string; detail: string; tone: "red" | "amber"; tab?: Tab };
 const redFlags = computed<RedFlag[]>(() => {
@@ -463,13 +439,6 @@ onMounted(() => {
     </div>
 
     <div v-else-if="aggregate" class="pa-body">
-      <!-- Честное покрытие: по какой части данных посчитан экран.
-           Без этих долей полоса KPI читается как полная картина закупок. -->
-      <div v-if="coverageNote" class="pa-cover">
-        <span class="pa-cover-badge">{{ t('Данных недостаточно') }}</span>
-        <span class="pa-cover-txt">{{ coverageNote }}</span>
-      </div>
-
       <!-- ── KPI band ── -->
       <div v-if="hasData" class="pa-kpi-band">
         <button v-for="(c, i) in kpiCards" :key="c.id" class="pa-kpi" :class="{ clickable: !!c.tab }"

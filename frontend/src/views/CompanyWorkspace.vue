@@ -3571,7 +3571,7 @@ function onEditorClose() {
 
           <template v-else>
             <!-- Top 3 KPI cards -->
-            <div class="cw-bp-tops">
+            <div class="cw-bp-tops kpi-rail">
               <div
                 v-for="(m, mi) in bpTopMetrics"
                 :key="m.key"
@@ -3671,7 +3671,7 @@ function onEditorClose() {
             </div>
 
             <!-- KPI grid -->
-            <div class="cw-gov-kpis">
+            <div class="cw-gov-kpis kpi-rail">
               <div
                 v-for="(kpi, ki) in govKpis"
                 :key="kpi.label"
@@ -3946,7 +3946,7 @@ function onEditorClose() {
 
           <template v-else>
             <!-- KPI strip -->
-            <div class="cw-cred-kpis">
+            <div class="cw-cred-kpis kpi-rail">
               <div class="kpi2 fin-shimmer" style="--kpi2-accent:#7F77DD; --kpi2-d:0ms">
                 <div class="kpi2-lbl">{{ t("Активных кредитов") }}</div>
                 <div class="kpi2-val">{{ creditKpis.total }}</div>
@@ -4136,7 +4136,7 @@ function onEditorClose() {
 
           <template v-else>
             <!-- KPI strip -->
-            <div v-if="procCompanyKpis" class="cw-proc-kpis">
+            <div v-if="procCompanyKpis" class="cw-proc-kpis kpi-rail">
               <div class="kpi2 fin-shimmer" style="--kpi2-accent:#7F77DD; --kpi2-d:0ms">
                 <div class="kpi2-lbl">{{ t("Закрытий") }}</div>
                 <div class="kpi2-val">{{ procCompanyKpis.total }}</div>
@@ -6084,7 +6084,6 @@ function onEditorClose() {
 .cw-bp-tops {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
 }
 /* Карточка = канон .kpi2 (стекло + 3px ::before + shimmer). Здесь только то,
    что канон не задаёт: внутренний блок План/Факт/Выполнение. */
@@ -6236,7 +6235,6 @@ function onEditorClose() {
 .cw-gov-kpis {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 10px;
 }
 
 .cw-gov-section {
@@ -7117,7 +7115,6 @@ function onEditorClose() {
 .cw-cred-kpis {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 10px;
 }
 
 .cw-cred-section {
@@ -7457,7 +7454,6 @@ function onEditorClose() {
 .cw-proc-kpis {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 10px;
 }
 
 /* Best / Worst categories */

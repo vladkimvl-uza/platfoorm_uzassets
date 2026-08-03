@@ -434,7 +434,8 @@ def aggregate_rating(closures: list) -> list[CompanyRatingRow]:
             company_name=co["company_name"],
             company_color=co["company_color"],
             company_sector=co["company_sector"],
-            company_deviation=round(company_dev_pct, 2),
+            company_deviation=(round(company_dev_pct, 2) if company_dev_pct is not None else None),
+            has_comparable=has_comparable,
             sum_dev=Decimal(str(round(co["sum_dev"], 2))),
             sum_ref=Decimal(str(round(co["sum_ref"], 2))),
             above_count=above_count,
@@ -444,14 +445,16 @@ def aggregate_rating(closures: list) -> list[CompanyRatingRow]:
             worst_cats=worst_cats,
             sum_overpay=Decimal(str(round(co["sum_overpay"], 2))),
             sum_savings=Decimal(str(round(co["sum_savings"], 2))),
-            red_pct=red_pct,
-            yellow_pct=yellow_pct,
-            green_pct=green_pct,
+            red_pct=(round(red_pct, 2) if red_pct is not None else None),
+            yellow_pct=(round(yellow_pct, 2) if yellow_pct is not None else None),
+            green_pct=(round(green_pct, 2) if green_pct is not None else None),
             problem_cats=problem_cats,
             total_count=co["total_count"],
         ))
 
-    rating.sort(key=lambda r: r.company_deviation)
+    # Без сопоставимой базы отклонения нет — такие компании уходят в конец,
+    # а не встают в середину списка как «ровно по рынку».
+    rating.sort(key=lambda r: (r.company_deviation is None, r.company_deviation or 0.0))
     for i, r in enumerate(rating):
         r.rank = i + 1
 
