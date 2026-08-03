@@ -121,3 +121,6 @@ backend/nul
 nul
 
 
+
+# Playwright-артефакты прогонов (скриншоты/трейсы) — не в репозиторий
+frontend/test-results/
