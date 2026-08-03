@@ -9,6 +9,7 @@ import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import MeshGradient from "@/components/Home/MeshGradient.vue";
+import LangSwitcher from "@/components/LangSwitcher.vue";
 import WeatherWidget from "@/components/Home/WeatherWidget.vue";
 import TomorrowHolidayWidget from "@/components/Home/TomorrowHolidayWidget.vue";
 import CurrenciesWidget from "@/components/Home/CurrenciesWidget.vue";
@@ -95,12 +96,15 @@ function doLogout() {
     <div class="home-banner">
       <MeshGradient />
 
-      <!-- Topbar — без логотипа, без lang-switches -->
+      <!-- Topbar — без логотипа; переключатель языка добавлен 29.07.2026 -->
       <div class="home-topbar">
         <div class="home-tb-left">
           <span class="home-tb-eyebrow">{{ t("Единая платформа трансформации") }}</span>
         </div>
         <div class="home-tb-right">
+          <!-- Переключатель языков: на /home сайдбара нет, а стартовая страница
+               для многих пользователей первая — язык должен переключаться и тут. -->
+          <LangSwitcher variant="dark" />
           <button
             class="home-profile-pill"
             type="button"

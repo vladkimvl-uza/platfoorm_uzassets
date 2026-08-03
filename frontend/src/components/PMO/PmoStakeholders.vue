@@ -6,10 +6,14 @@
 import { ref, computed, watch, onMounted } from "vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import { pmoApi, type Stakeholder, type StakeholderPayload, type Engagement } from "@/api/pmo";
+import { useToast } from "@/composables/useToast";
+import { useConfirm } from "@/composables/useConfirm";
 import { useI18n } from "@/composables/useI18n";
 import { i18nKey } from "@/locale/keys";
 
 const { t } = useI18n();
+const toast = useToast();
+const { confirmDialog } = useConfirm();
 
 
 const props = defineProps<{ companyCode: string; canEdit?: boolean }>();
@@ -78,13 +82,18 @@ async function save() {
     else await pmoApi.createStakeholder(props.companyCode, form.value);
     formOpen.value = false;
     await load();
-  } catch (e: any) { error.value = e?.response?.data?.detail || t('Не удалось сохранить'); }
+  } catch (e: any) { toast.error(e?.response?.data?.detail || t('Не удалось сохранить')); }
   finally { saving.value = false; }
 }
 async function removeItem(s: Stakeholder) {
-  if (!confirm(t("Удалить «{name}»?", { name: s.name }))) return;
+  const ok = await confirmDialog({
+    title: t("Удалить стейкхолдера?"),
+    message: t("«{name}» будет удалён безвозвратно.", { name: s.name }),
+    danger: true,
+  });
+  if (!ok) return;
   try { await pmoApi.deleteStakeholder(s.id); await load(); }
-  catch (e: any) { error.value = e?.response?.data?.detail || t('Не удалось удалить'); }
+  catch (e: any) { toast.error(e?.response?.data?.detail || t('Не удалось удалить')); }
 }
 </script>
 
@@ -292,4 +301,15 @@ async function removeItem(s: Stakeholder) {
 .ps-btn-ghost { padding: 8px 16px; border-radius: 9px; border: 1px solid var(--border, rgba(99,102,180,.18)); background: transparent; color: var(--t2, #475569); font-size: var(--fs-sm, 11.5px); cursor: pointer; font-family: inherit; }
 
 @media (max-width: 560px) { .ps-f2 { grid-template-columns: 1fr; } }
+
+/* Доступность: пользователю с настройкой «меньше движения» анимации не нужны —
+   в PMO их много (каскады строк, полосы Гантта, всплытие модалок). */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
 </style>

@@ -21,13 +21,18 @@ from app.services.pmo.schedule import build_schedule
 
 log = logging.getLogger(__name__)
 
-RAG_RU = {"red": "красный", "amber": "жёлтый", "green": "зелёный"}
-_RANK = {"green": 0, "amber": 1, "red": 2}
+RAG_RU = {"red": "красный", "amber": "жёлтый", "green": "зелёный", "na": "нет данных"}
+_RANK = {"na": -1, "green": 0, "amber": 1, "red": 2}
 
 
 def _project_rag(slip: int, blocked: int, overdue: int, total: int,
                  open_risks: int, high_risks: int) -> tuple[str, list[str]]:
     reasons: list[str] = []
+    # Нечего оценивать — честное «нет данных», а не «зелёный». Пустой проект,
+    # у которого нет ни задач, ни рисков, раньше попадал в зелёные и завышал
+    # картину здоровья портфеля («флаг ≠ факт»).
+    if total == 0 and open_risks == 0 and slip <= 0:
+        return "na", ["нет задач для оценки"]
     ratio = (overdue / total) if total else 0.0
     red = False
     if slip > 14:
@@ -103,7 +108,12 @@ async def compute_health(db: AsyncSession, company_code: str, today: date) -> Op
     green = sum(1 for p in projects if p.rag == "green")
     amber = sum(1 for p in projects if p.rag == "amber")
     red = sum(1 for p in projects if p.rag == "red")
-    portfolio_rag = "red" if red else ("amber" if amber else "green")
+    # Портфель зелёный только если есть ЧТО оценивать: когда все проекты в
+    # состоянии «нет данных», зелёный цвет вводил бы в заблуждение.
+    assessable = green + amber + red
+    portfolio_rag = (
+        "red" if red else "amber" if amber else "green" if assessable else "na"
+    )
 
     return HealthResponse(
         company_code=company_code, as_of=today, portfolio_rag=portfolio_rag,

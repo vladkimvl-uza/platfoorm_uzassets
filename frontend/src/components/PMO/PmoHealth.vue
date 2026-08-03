@@ -29,8 +29,13 @@ const RAG_LABELS: Record<string, string> = {
   green: i18nKey("зелёный"),
   amber: i18nKey("жёлтый"),
   red: i18nKey("красный"),
+  // «Нет данных» — честное состояние: оценивать нечего (нет задач и рисков).
+  // Раньше такой проект показывался зелёным и завышал здоровье портфеля.
+  na: i18nKey("нет данных"),
 };
-const RAG_C: Record<string, string> = { green: "#1D9E75", amber: "#D97706", red: "#E24B4A" };
+const RAG_C: Record<string, string> = {
+  green: "#1D9E75", amber: "#D97706", red: "#E24B4A", na: "#94A3B8",
+};
 
 async function load() {
   loading.value = true; error.value = null;
@@ -212,4 +217,15 @@ const latest = computed(() => reports.value[0] || null);
 .ph-reason { font-size: var(--fs-2xs, 9px); padding: 2px 6px; border-radius: 5px; background: color-mix(in srgb, var(--rag) 12%, transparent); color: var(--rag); font-weight: 600; }
 
 @media (max-width: 768px) { .ph-top { flex-direction: column; align-items: flex-start; } .ph-gen { margin-left: 0; } }
+
+/* Доступность: пользователю с настройкой «меньше движения» анимации не нужны —
+   в PMO их много (каскады строк, полосы Гантта, всплытие модалок). */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
 </style>

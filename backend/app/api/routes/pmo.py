@@ -23,6 +23,7 @@ from app.core.access import ensure_company_access
 from app.core.i18n import current_locale, tr
 from app.core.security import has_effective_permission
 from app.models.company import Company
+from app.models.project import Project
 from app.models.pmo import (
     PmoChange,
     PmoCharter,
@@ -993,6 +994,80 @@ async def list_charters(
         )
     ).scalars().all()
     return list(rows)
+
+
+@router.get("/companies/{code}/charter-prefill")
+async def charter_prefill(
+    code: str,
+    project_id: Optional[UUID] = None,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Черновик устава из УЖЕ имеющихся данных проекта.
+
+    Аудит PMO показал корень пустых уставов: всё приходится набивать руками,
+    хотя половина сведений уже есть в проекте и его задачах. Возвращаем
+    ПРЕДЛОЖЕНИЕ — фронт подставляет его в пустые поля формы и помечает
+    источник; введённое пользователем не трогаем.
+
+    Правила: РП — ответственный проекта; бюджет/даты — поля проекта; вехи —
+    задачи с признаком is_milestone; ключевые результаты — завершённые задачи;
+    границы (scope in) — перечень задач проекта.
+    """
+    if not await has_effective_permission(db, user, "pmo.view"):
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Нет доступа (pmo.view)")
+    company = await _company_or_404(db, code)
+    await ensure_company_access(db, user, company.id)
+
+    out: dict = {"fields": {}, "sources": {}}
+    if project_id is None:
+        return out
+
+    project = (await db.execute(
+        select(Project).where(Project.id == project_id, Project.company_id == company.id)
+    )).scalar_one_or_none()
+    if project is None:
+        raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Проект не найден")
+
+    tasks = (await db.execute(
+        select(Task).where(Task.project_id == project.id, Task.is_archived.is_(False))
+        .order_by(Task.due_date.asc().nullslast())
+    )).scalars().all()
+
+    def _put(field: str, value, source: str) -> None:
+        if value in (None, "", []):
+            return
+        out["fields"][field] = value
+        out["sources"][field] = source
+
+    _put("manager_name", project.assignee_name, "ответственный проекта")
+    _put("budget_amount", float(project.budget_amount) if project.budget_amount is not None else None,
+         "бюджет проекта")
+    _put("start_date", project.start_date.isoformat() if project.start_date else None,
+         "старт проекта")
+    _put("target_end_date", project.due_date.isoformat() if project.due_date else None,
+         "срок проекта")
+    _put("purpose", project.description, "описание проекта")
+
+    nl = chr(10)
+
+    milestones = [t for t in tasks if getattr(t, "is_milestone", False)]
+    if milestones:
+        _put("milestones", nl.join(
+            f"• {t.title}" + (f" — {t.due_date.isoformat()}" if t.due_date else "")
+            for t in milestones[:20]
+        ), f"вехи проекта ({len(milestones)})")
+
+    done = [t for t in tasks if t.status == "done"]
+    if done:
+        _put("deliverables", nl.join(f"• {t.title}" for t in done[:20]),
+             f"завершённые задачи ({len(done)})")
+
+    if tasks:
+        _put("scope_in", nl.join(f"• {t.title}" for t in tasks[:30]),
+             f"задачи проекта ({len(tasks)})")
+
+    return out
 
 
 @router.post("/companies/{code}/charters", response_model=CharterRead, status_code=http_status.HTTP_201_CREATED)

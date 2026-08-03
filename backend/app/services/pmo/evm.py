@@ -128,8 +128,14 @@ async def compute_evm(
         task_rows = [t for t in task_rows if t.portfolio_year in (None, year)]
 
     projects: list[EvmProject] = []
+    # Вес проекта для портфельных индексов = число его задач (объём работ).
+    # Нужен, чтобы SPI без бюджета не считался средним арифметическим по
+    # проектам: проект на две задачи не должен весить столько же, сколько
+    # годовой (та же ошибка «среднее из отношений», что чинили в дашборде).
+    weight_by_project: dict = {}
     for p in proj_rows:
         kids = [t for t in task_rows if t.project_id == p.id]
+        weight_by_project[p.id] = len(kids) or 1
         if kids:
             progress_pct = weighted_pct((t.status, t.extra) for t in kids)
         else:
@@ -154,10 +160,19 @@ async def compute_evm(
     AC = sum(p.ac for p in budgeted if p.ac is not None) if budgeted else None
 
     spi = (EV / PV) if (EV is not None and PV and PV > 0) else None
-    # SPI без бюджета — среднее по проектным SPI
+    # SPI без бюджета — ВЗВЕШЕННЫЙ по объёму работ проекта (числу задач), а не
+    # среднее арифметическое проектных SPI: маленький проект иначе тянул индекс
+    # наравне с крупным и портфельная цифра переставала описывать портфель.
     if spi is None:
-        sp = [p.spi for p in projects if p.spi is not None]
-        spi = (sum(sp) / len(sp)) if sp else None
+        num = 0.0
+        den = 0.0
+        for p in projects:
+            if p.spi is None:
+                continue
+            w = float(weight_by_project.get(p.project_id, 1))
+            num += p.spi * w
+            den += w
+        spi = (num / den) if den > 0 else None
     cpi = (EV / AC) if (EV is not None and AC and AC > 0) else None
     sv = (EV - PV) if (EV is not None and PV is not None) else None
     cv = (EV - AC) if (EV is not None and AC is not None) else None

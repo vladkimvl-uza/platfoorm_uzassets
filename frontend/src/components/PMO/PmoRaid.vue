@@ -6,11 +6,15 @@
 import { ref, computed, watch, onMounted } from "vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import { pmoApi, type RaidItem, type RaidPayload, type RaidKind, type RaidSeverity, type RaidStatus } from "@/api/pmo";
+import { useToast } from "@/composables/useToast";
+import { useConfirm } from "@/composables/useConfirm";
 import { useI18n } from "@/composables/useI18n";
 import { getCurrentIntlLocale } from "@/locale/i18n";
 import { i18nKey } from "@/locale/keys";
 
 const { t } = useI18n();
+const toast = useToast();
+const { confirmDialog } = useConfirm();
 
 
 const props = defineProps<{ companyCode: string; canEdit?: boolean }>();
@@ -132,13 +136,18 @@ async function save() {
     formOpen.value = false;
     await load();
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || t('Не удалось сохранить');
+    toast.error(e?.response?.data?.detail || t('Не удалось сохранить'));
   } finally { saving.value = false; }
 }
 async function removeItem(it: RaidItem) {
-  if (!confirm(t("Удалить «{title}»?", { title: it.title }))) return;
+  const ok = await confirmDialog({
+    title: t("Удалить запись RAID?"),
+    message: t("«{title}» будет удалена безвозвратно.", { title: it.title }),
+    danger: true,
+  });
+  if (!ok) return;
   try { await pmoApi.deleteRaid(it.id); await load(); }
-  catch (e: any) { error.value = e?.response?.data?.detail || t('Не удалось удалить'); }
+  catch (e: any) { toast.error(e?.response?.data?.detail || t('Не удалось удалить')); }
 }
 
 const fmtDue = (s: string | null) => s ? new Date(s + "T00:00:00").toLocaleDateString(getCurrentIntlLocale(), { day: "numeric", month: "short" }) : "—";
@@ -357,4 +366,15 @@ const fmtDue = (s: string | null) => s ? new Date(s + "T00:00:00").toLocaleDateS
 .pr-btn { padding: 8px 16px; border-radius: 9px; border: 1px solid var(--p, #7c6ff7); background: var(--p, #7c6ff7); color: #fff; font-size: var(--fs-sm, 11.5px); font-weight: 500; cursor: pointer; font-family: inherit; }
 .pr-btn:disabled { opacity: .5; }
 .pr-btn-ghost { padding: 8px 16px; border-radius: 9px; border: 1px solid var(--border, rgba(99,102,180,.18)); background: transparent; color: var(--t2, #475569); font-size: var(--fs-sm, 11.5px); cursor: pointer; font-family: inherit; }
+
+/* Доступность: пользователю с настройкой «меньше движения» анимации не нужны —
+   в PMO их много (каскады строк, полосы Гантта, всплытие модалок). */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
 </style>

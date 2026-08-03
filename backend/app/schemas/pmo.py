@@ -526,7 +526,7 @@ class TaskAgilePatch(BaseModel):
 class HealthProject(BaseModel):
     project_id: Optional[UUID] = None
     title: str
-    rag: str                    # green | amber | red
+    rag: str                    # green | amber | red | na (нет данных для оценки)
     progress_percent: int = 0
     slip_days: int = 0
     overdue_count: int = 0

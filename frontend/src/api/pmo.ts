@@ -514,6 +514,18 @@ export const pmoApi = {
   listCharters(code: string): Promise<Charter[]> {
     return api.get(`/pmo/companies/${encodeURIComponent(code)}/charters`).then(r => r.data);
   },
+  /**
+   * Черновик устава из данных проекта: {fields, sources}. Подставляется ТОЛЬКО
+   * в пустые поля формы; источник каждого значения показываем пользователю,
+   * чтобы предзаполнение не выглядело выдуманным.
+   */
+  charterPrefill(code: string, projectId: string | null): Promise<{
+    fields: Record<string, any>; sources: Record<string, string>;
+  }> {
+    return api.get(`/pmo/companies/${encodeURIComponent(code)}/charter-prefill`, {
+      params: projectId ? { project_id: projectId } : {},
+    }).then(r => r.data);
+  },
   createCharter(code: string, body: CharterPayload): Promise<Charter> {
     return api.post(`/pmo/companies/${encodeURIComponent(code)}/charters`, body).then(r => r.data);
   },

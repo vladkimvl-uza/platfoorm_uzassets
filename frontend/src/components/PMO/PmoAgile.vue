@@ -11,6 +11,7 @@ import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
 import { useAuthStore } from "@/stores/auth";
+import { computeProgress, type TaskWithStatus } from "@/utils/progress";
 import {
   pmoApi,
   type AgileResponse, type AgileTask, type Sprint, type SprintPayload, type SprintStatus,
@@ -105,11 +106,21 @@ const currentSprint = computed<Sprint | null>(() =>
 );
 
 function sumPoints(list: AgileTask[]) { return list.reduce((a, t) => a + (t.story_points || 0), 0); }
+/**
+ * Статистика спринта.
+ *
+ * ВАЖНО: `pct` считается ВЗВЕШЕННО по статусам (canon платформы: new 0 /
+ * init 25 / active 50 / review 75 / done 100), а НЕ как done/committed.
+ * Бинарный счёт занижал полосу спринта относительно всех остальных экранов:
+ * задача «на согласовании» давала 0, хотя везде она стоит 75%. Очки (points)
+ * остаются как есть — это объём обязательств, а не прогресс.
+ */
 function sprintStat(sid: string) {
   const list = sprintTasks(sid);
   const committed = sumPoints(list);
   const done = sumPoints(list.filter(t => t.status === "done"));
-  return { committed, done, total: list.length, pct: committed ? Math.round((done / committed) * 100) : 0 };
+  const prog = computeProgress(list as unknown as TaskWithStatus[]);
+  return { committed, done, total: list.length, pct: prog.pct };
 }
 
 // ── Доска: колонки ──
@@ -482,4 +493,15 @@ const fmtDate = (s: string | null) => s ? new Date(s).toLocaleDateString(getCurr
 
 @media (max-width: 1000px) { .ag-board { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 560px) { .ag-board { grid-template-columns: 1fr; } .ag-f3 { grid-template-columns: 1fr; } }
+
+/* Доступность: пользователю с настройкой «меньше движения» анимации не нужны —
+   в PMO их много (каскады строк, полосы Гантта, всплытие модалок). */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
 </style>

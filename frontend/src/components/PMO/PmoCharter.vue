@@ -11,11 +11,13 @@ import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import NoteAssigneePicker from "@/components/NoteAssigneePicker.vue";
 import { useToast } from "@/composables/useToast";
 import { pmoApi, type Charter, type CharterPayload } from "@/api/pmo";
+import { useConfirm } from "@/composables/useConfirm";
 import { useI18n } from "@/composables/useI18n";
 import { getCurrentIntlLocale } from "@/locale/i18n";
 import { i18nKey } from "@/locale/keys";
 
 const { t } = useI18n();
+const { confirmDialog } = useConfirm();
 
 
 const props = defineProps<{
@@ -85,9 +87,57 @@ const blank = (): CharterPayload & { project_id: string | null; project_title: s
 const form = ref(blank());
 const editId = ref<string | null>(null);
 const modalOpen = ref(false);
+// Dirty-guard: устав — девять текстовых разделов, закрытие «мимо» теряло всё.
+// Снимок делаем в момент открытия, сравниваем перед закрытием.
+const formSnapshot = ref<string>("");
+// Что подставлено из данных проекта и откуда — показываем пользователю,
+// иначе предзаполнение выглядит как выдуманный текст.
+const prefilled = ref<{ field: string; source: string }[]>([]);
+const prefillBusy = ref(false);
+const FIELD_RU: Record<string, string> = {
+  manager_name: "Руководитель", sponsor_name: "Спонсор", budget_amount: "Бюджет",
+  start_date: "Старт", target_end_date: "Завершение", purpose: "Обоснование",
+  milestones: "Вехи", deliverables: "Ключевые результаты", scope_in: "В границах",
+};
+const isDirty = computed(() => JSON.stringify(form.value) !== formSnapshot.value);
+async function closeModal() {
+  if (isDirty.value) {
+    const ok = await confirmDialog({
+      title: t("Закрыть без сохранения?"),
+      message: t("В уставе есть несохранённые изменения — они будут потеряны."),
+      danger: true,
+    });
+    if (!ok) return;
+  }
+  modalOpen.value = false;
+}
 // id-пикеров спонсора/РП (хранится только имя на бэке — id для работы пикера)
 const sponsorId = ref<string | null>(null);
 const managerId = ref<string | null>(null);
+
+/** Подставить в ПУСТЫЕ поля формы данные проекта (правку не трогаем). */
+async function applyPrefill(projectId: string | null) {
+  prefilled.value = [];
+  if (!projectId) return;
+  prefillBusy.value = true;
+  try {
+    const res = await pmoApi.charterPrefill(props.companyCode, projectId);
+    const f: any = res?.fields || {};
+    const src: any = res?.sources || {};
+    for (const key of Object.keys(f)) {
+      const cur = (form.value as any)[key];
+      const isEmpty = cur === null || cur === undefined || cur === "";
+      if (!isEmpty) continue;               // введённое пользователем не трогаем
+      (form.value as any)[key] = f[key];
+      prefilled.value.push({ field: FIELD_RU[key] || key, source: src[key] || "" });
+    }
+    formSnapshot.value = JSON.stringify(form.value);   // предзаполнение — не «грязь»
+  } catch {
+    /* предзаполнение необязательно: молча оставляем пустую форму */
+  } finally {
+    prefillBusy.value = false;
+  }
+}
 
 function openCreate(tile: Tile) {
   form.value = blank();
@@ -95,7 +145,9 @@ function openCreate(tile: Tile) {
   form.value.project_title = tile.projectId ? tile.title : null;
   sponsorId.value = null; managerId.value = null;
   editId.value = null;
+  formSnapshot.value = JSON.stringify(form.value);
   modalOpen.value = true;
+  void applyPrefill(tile.projectId);
 }
 function openEdit(c: Charter) {
   form.value = {
@@ -110,6 +162,8 @@ function openEdit(c: Charter) {
   sponsorId.value = c.sponsor_name ? "x" : null;
   managerId.value = c.manager_name ? "x" : null;
   editId.value = c.id;
+  prefilled.value = [];
+  formSnapshot.value = JSON.stringify(form.value);
   modalOpen.value = true;
 }
 
@@ -120,6 +174,7 @@ async function save() {
     let saved: Charter;
     if (editId.value) saved = await pmoApi.updateCharter(editId.value, payload);
     else saved = await pmoApi.createCharter(props.companyCode, payload);
+    formSnapshot.value = JSON.stringify(form.value);
     modalOpen.value = false;
     await load();
     selectedId.value = saved.id;
@@ -143,7 +198,12 @@ async function toggleApprove(c: Charter) {
 }
 
 async function remove(c: Charter) {
-  if (!confirm(t("Удалить устав «{title}»? Действие необратимо.", { title: c.project_title || t("Программа") }))) return;
+  const ok = await confirmDialog({
+    title: t("Удалить устав?"),
+    message: t("«{title}» будет удалён безвозвратно.", { title: c.project_title || t("Программа") }),
+    danger: true,
+  });
+  if (!ok) return;
   try {
     await pmoApi.deleteCharter(c.id);
     if (selectedId.value === c.id) selectedId.value = null;
@@ -282,13 +342,26 @@ function secVal(c: Charter, k: keyof Charter): string {
 
     <!-- edit modal -->
     <Transition name="pc-modal">
-      <div v-if="modalOpen" class="pc-ov" @click.self="modalOpen = false">
+      <div v-if="modalOpen" class="pc-ov" @click.self="closeModal">
         <div class="pc-modal">
           <div class="pc-mh">
             {{ editId ? t('Правка устава') : t('Новый устав') }}
             <span v-if="form.project_title" class="pc-mh-proj">· {{ form.project_title }}</span>
           </div>
           <div class="pc-mb">
+            <!-- Что подставлено автоматически и откуда: пользователь должен
+                 понимать, что это черновик из данных проекта, а не готовый текст. -->
+            <div v-if="prefillBusy" class="pc-prefill pc-prefill-busy">{{ t('Подставляю данные проекта…') }}</div>
+            <div v-else-if="prefilled.length" class="pc-prefill">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/>
+              </svg>
+              <span>{{ t('Заполнено из проекта — проверьте и поправьте:') }}</span>
+              <span v-for="(pf, i) in prefilled" :key="i" class="pc-prefill-chip" :title="pf.source">
+                {{ t(pf.field) }}
+              </span>
+            </div>
             <div class="pc-row3">
               <div class="pc-f"><label>{{ t('Спонсор') }}</label>
                 <NoteAssigneePicker :id="sponsorId" :name="form.sponsor_name || null" :placeholder="t('Спонсор')"
@@ -321,7 +394,7 @@ function secVal(c: Charter, k: keyof Charter): string {
             </div>
           </div>
           <div class="pc-mf">
-            <button class="pc-btn pc-btn-ghost" @click="modalOpen = false">{{ t('Отмена') }}</button>
+            <button class="pc-btn pc-btn-ghost" @click="closeModal">{{ t('Отмена') }}</button>
             <button class="pc-btn pc-btn-primary" :disabled="saving" @click="save">{{ saving ? t('Сохраняю…') : t('Сохранить') }}</button>
           </div>
         </div>
@@ -416,6 +489,17 @@ function secVal(c: Charter, k: keyof Charter): string {
 
 /* modal */
 .pc-ov { position: fixed; inset: 0; z-index: var(--z-modal, 9100); background: rgba(15,18,40,.45); -webkit-backdrop-filter: blur(7px); backdrop-filter: blur(7px); display: flex; align-items: center; justify-content: center; padding: 20px; }
+.pc-prefill {
+  display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
+  font-size: 11.5px; color: var(--p-deep, #534AB7);
+  background: rgba(124,111,247,.08); border: 1px solid rgba(124,111,247,.18);
+  border-radius: 10px; padding: 8px 11px; margin-bottom: 14px;
+}
+.pc-prefill-busy { color: var(--t3, #94A3B8); background: var(--bg2, #F8F9FC); border-color: var(--border, #EEF0F5); }
+.pc-prefill-chip {
+  font-size: 10.5px; font-weight: 600; background: #fff; border-radius: 6px;
+  padding: 2px 8px; border: 1px solid rgba(124,111,247,.22);
+}
 .pc-modal { background: var(--bg1, #fff); border-radius: 16px; width: min(680px, 96vw); max-height: 92dvh; overflow: hidden; display: flex; flex-direction: column; box-shadow: var(--shl, 0 24px 64px rgba(15,23,60,.22)); }
 .pc-mh { padding: 15px 20px; font-size: 13.5px; font-weight: 600; color: var(--t1, #1e2a4a); border-bottom: 1px solid var(--border, rgba(99,102,180,.12)); }
 .pc-mh-proj { font-weight: 400; color: var(--t3, #94a3b8); }
@@ -448,5 +532,16 @@ function secVal(c: Charter, k: keyof Charter): string {
 }
 @media (max-width: 620px) {
   .pc-row2, .pc-row3 { grid-template-columns: 1fr; }
+}
+
+/* Доступность: пользователю с настройкой «меньше движения» анимации не нужны —
+   в PMO их много (каскады строк, полосы Гантта, всплытие модалок). */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 </style>

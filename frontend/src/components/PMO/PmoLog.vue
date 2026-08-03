@@ -464,4 +464,15 @@ const fmtDt = (s: string | null) => s ? new Date(s).toLocaleDateString(getCurren
 .pl-modal-leave-to { opacity: 0; }
 
 @media (max-width: 560px) { .pl-f2 { grid-template-columns: 1fr; } }
+
+/* Доступность: пользователю с настройкой «меньше движения» анимации не нужны —
+   в PMO их много (каскады строк, полосы Гантта, всплытие модалок). */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
 </style>
