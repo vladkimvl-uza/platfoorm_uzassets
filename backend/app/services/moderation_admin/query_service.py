@@ -110,11 +110,27 @@ class ModerationQueryService:
     # ─── moderator / external users (for sub-tabs) ────────────────
 
     async def list_moderators(self) -> list[dict]:
+        """Модераторы = владельцы + держатели права moderation.review.
+
+        Раньше список собирался из полей правил (primary/co-approver), поэтому
+        после удаления конструктора правил он бы опустел. Источник теперь один —
+        RBAC, тот же, что открывает саму очередь.
+        """
+        from sqlalchemy import text as _text
         async with self.uow:
-            mod_ids = await self.uow.moderation.all_rule_moderator_ids()
-            owner_ids = await self.uow.moderation.list_owners()
-            ids = mod_ids.union(owner_ids)
-            users = await self.uow.moderation.users_by_ids(list(ids))
+            rows = (await self.uow.session.execute(_text("""
+                SELECT DISTINCT u.id FROM users u
+                WHERE u.is_active AND (
+                    u.is_owner
+                    OR EXISTS (
+                        SELECT 1 FROM user_role ur
+                        JOIN role_permission rp ON rp.role_id = ur.role_id
+                        JOIN permissions p ON p.id = rp.permission_id
+                        WHERE ur.user_id = u.id AND p.code = 'moderation.review'
+                    )
+                )
+            """))).scalars().all()
+            users = await self.uow.moderation.users_by_ids(list(rows))
         return [
             {
                 "id": str(u.id), "email": u.email, "full_name": u.full_name,

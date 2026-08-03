@@ -1,26 +1,31 @@
 <script setup lang="ts">
 /**
  * ModerationTab — top-level wrapper inside RBAC v2 "Модерация" tab.
- * Renders 5 sub-tabs: rules / moderators / submitted / queue / settings.
+ * Вкладки: очередь / модераторы / кого модерируем.
+ *
+ * Конструктор правил удалён (решение владельца 03.08.2026): 37 настроек на
+ * правило при трёх созданных правилах, все три названы «Новое правило» и
+ * настроены одинаково. Политика теперь одна и живёт в коде — см.
+ * backend/app/services/moderation_service.py: модерируются внешние
+ * пользователи, согласует любой держатель права moderation.review.
  */
 import { computed, onMounted, ref, watch } from "vue";
 import BIcon from "@/components/broadcasts/BIcon.vue";
 import { useRoute, useRouter } from "vue-router";
 import { moderationApi, type ModerationOverview } from "@/api/moderation";
 import ModerationQueue from "./ModerationQueue.vue";
-import ModerationRulesEditor from "./ModerationRulesEditor.vue";
 import ModerationModerators from "./ModerationModerators.vue";
 import ModerationSubmittedUsers from "./ModerationSubmittedUsers.vue";
 import { useI18n } from "@/composables/useI18n";
 const { t } = useI18n();
 
 
-type SubTab = "queue" | "rules" | "moderators" | "submitted";
+type SubTab = "queue" | "moderators" | "submitted";
 
 const route = useRoute();
 const router = useRouter();
 
-const VALID: SubTab[] = ["queue", "rules", "moderators", "submitted"];
+const VALID: SubTab[] = ["queue", "moderators", "submitted"];
 const initial = (route.query.sub_tab as SubTab) || "queue";
 const subTab = ref<SubTab>(VALID.includes(initial) ? initial : "queue");
 
@@ -50,11 +55,6 @@ const openSubmissionId = computed(() => (route.query.open as string) || null);
 <template>
   <div class="mod-tab">
     <div class="mod-subtabs">
-      <button class="mod-st" :class="{ active: subTab === 'rules' }" @click="subTab = 'rules'">
-        <BIcon name="route" :size="14" />
-        {{ t('Правила') }}
-        <span v-if="overview" class="mod-st-cnt">{{ overview.rules_active_count }}</span>
-      </button>
       <button class="mod-st" :class="{ active: subTab === 'moderators' }" @click="subTab = 'moderators'">
         <BIcon name="user-check" :size="14" />
         {{ t('Модераторы') }}
@@ -113,7 +113,6 @@ const openSubmissionId = computed(() => (route.query.open as string) || null);
       <ModerationQueue v-if="subTab === 'queue'"
                        :open-submission-id="openSubmissionId"
                        @change="loadOverview" />
-      <ModerationRulesEditor v-else-if="subTab === 'rules'" @change="loadOverview" />
       <ModerationModerators v-else-if="subTab === 'moderators'" />
       <ModerationSubmittedUsers v-else-if="subTab === 'submitted'" @change="loadOverview" />
     </div>

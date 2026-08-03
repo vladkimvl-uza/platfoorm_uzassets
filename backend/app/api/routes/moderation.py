@@ -35,10 +35,6 @@ from app.schemas.moderation import (
     CommentRead,
     ModerationOverview,
     ModuleInfo,
-    RuleCreate,
-    RuleListResponse,
-    RuleRead,
-    RuleUpdate,
     SubmissionCreate,
     SubmissionEditAndApprove,
     SubmissionListResponse,
@@ -298,61 +294,11 @@ async def add_comment(
     return CommentRead.model_validate(c)
 
 
-# ─── Rules CRUD ───────────────────────────────────────────────────
-
-@router.get("/rules", response_model=RuleListResponse)
-async def list_rules(
-    service: ModerationRulesServiceDep,
-    _u: User = Depends(require_permission("moderation.admin")),
-):
-    return await service.list_rules()
-
-
-@router.get("/rules/{rule_id}", response_model=RuleRead)
-async def get_rule(
-    rule_id: UUID,
-    service: ModerationRulesServiceDep,
-    _u: User = Depends(require_permission("moderation.admin")),
-):
-    return await service.get_rule(rule_id)
-
-
-@router.post("/rules", response_model=RuleRead, status_code=status.HTTP_201_CREATED)
-async def create_rule(
-    body: RuleCreate,
-    service: ModerationRulesServiceDep,
-    user: User = Depends(require_permission("moderation.admin")),
-):
-    return await service.create_rule(body, created_by_id=user.id)
-
-
-@router.patch("/rules/{rule_id}", response_model=RuleRead)
-async def update_rule(
-    rule_id: UUID,
-    body: RuleUpdate,
-    service: ModerationRulesServiceDep,
-    _u: User = Depends(require_permission("moderation.admin")),
-):
-    return await service.update_rule(rule_id, body)
-
-
-@router.delete("/rules/{rule_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_rule(
-    rule_id: UUID,
-    service: ModerationRulesServiceDep,
-    _u: User = Depends(require_permission("moderation.admin")),
-):
-    await service.delete_rule(rule_id)
-
-
-@router.post("/rules/{rule_id}/toggle", response_model=RuleRead)
-async def toggle_rule(
-    rule_id: UUID,
-    service: ModerationRulesServiceDep,
-    _u: User = Depends(require_permission("moderation.admin")),
-):
-    return await service.toggle_rule(rule_id)
-
+# ─── Правила удалены (решение владельца 03.08.2026) ───────────────
+# Конструктор правил (37 настроек на правило) заменён встроенной политикой в
+# moderation_service: модерируются внешние пользователи, согласует любой
+# держатель moderation.review. Настраивать нечего — и сломать нечего.
+# Эндпоинты /moderation/rules* сняты вместе с экраном настройки.
 
 # ─── Moderators / External users sub-tabs ─────────────────────────
 

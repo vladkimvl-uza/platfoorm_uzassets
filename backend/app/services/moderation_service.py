@@ -14,7 +14,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, Optional
 from uuid import UUID
 
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.moderation import (
@@ -119,6 +119,67 @@ def _eval_condition(payload: dict[str, Any], atom: dict[str, Any]) -> bool:
     except (TypeError, ValueError):
         return False
     return False
+
+
+
+# ════════════════════════════════════════════════════════════
+#   ВСТРОЕННАЯ ПОЛИТИКА МОДЕРАЦИИ (решение владельца 03.08.2026)
+# ════════════════════════════════════════════════════════════
+# Конструктор правил удалён. Он давал 37 настроек на правило (кто, что, где,
+# когда, пороги, двойное согласование, эскалации, авто-одобрение, срок
+# годности) — при том что за всё время создали три правила, все три названы
+# «Новое правило», и все три настроены одинаково: «внешние пользователи, все
+# модули, все действия». Настраивать было нечего, а сломать — легко.
+#
+# Правило теперь одно и живёт в коде:
+#   КОГО  — пользователи с флагом «внешний» (users.is_external);
+#   ЧТО   — изменения данных в модулях ниже;
+#   КТО   — согласует любой держатель права moderation.review (и владелец);
+#   КАК   — одно решение, без второго согласующего, эскалаций и таймеров.
+#
+# Исключения (пишут напрямую): владелец, users.bypass_moderation,
+# держатель права moderation.bypass — как и раньше.
+
+MODERATED_MODULES: frozenset[str] = frozenset({
+    "tasks", "projects", "comments", "kpi", "financials", "business_plan",
+    "esg", "governance", "ratings", "procurement", "production", "credit",
+    "investment", "unit_cost", "companies",
+})
+
+MODERATED_ACTIONS: frozenset[str] = frozenset({
+    "edit", "replace", "delete", "status_change", "upload", "comment",
+})
+
+
+def should_moderate(user: User, module: str, action: str) -> bool:
+    """Нужно ли отправить правку на согласование. Одно понятное правило."""
+    if not getattr(user, "is_external", False):
+        return False
+    if module not in MODERATED_MODULES:
+        return False
+    return _canon_action(action) in MODERATED_ACTIONS
+
+
+async def moderator_ids(db: AsyncSession) -> list[UUID]:
+    """Кто может решать по заявкам: владельцы + держатели moderation.review.
+
+    Раньше согласующий был полем в правиле, поэтому без правила заявку не мог
+    закрыть никто, кроме владельца. Теперь источник один — RBAC, как и во всём
+    остальном продукте.
+    """
+    rows = (await db.execute(text("""
+        SELECT DISTINCT u.id FROM users u
+        WHERE u.is_active AND (
+            u.is_owner
+            OR EXISTS (
+                SELECT 1 FROM user_role ur
+                JOIN role_permission rp ON rp.role_id = ur.role_id
+                JOIN permissions p ON p.id = rp.permission_id
+                WHERE ur.user_id = u.id AND p.code = 'moderation.review'
+            )
+        )
+    """))).scalars().all()
+    return [r for r in rows]
 
 
 async def _user_matches(
@@ -304,11 +365,11 @@ async def _notify_on_create(
     body_is_fallback = not sub.diff_summary and not sub.reason
     link  = f"/admin/moderation?sub_tab=queue&open={sub.id}"
 
-    recipients: list[UUID] = []
+    # Очередь общая: уведомляем всех, кто вправе её разбирать. Раньше письмо
+    # уходило одному согласующему из правила — если он в отпуске, заявка висела.
+    recipients: list[UUID] = list(await moderator_ids(db))
     if sub.assigned_moderator_id:
         recipients.append(sub.assigned_moderator_id)
-    if rule and rule.notify_coapprovers_cc and sub.coapprover_id:
-        recipients.append(sub.coapprover_id)
 
     payload = {
         "submission_id": str(sub.id),
@@ -339,8 +400,22 @@ async def _notify_on_create(
 
 
 def _can_resolve(sub: ModerationSubmission, user: User) -> bool:
+    """Решать по заявке может владелец или держатель moderation.review.
+
+    Раньше проверялось поле правила (assigned_moderator_id / coapprover_id) —
+    поэтому без правила заявку не мог закрыть НИКТО, кроме владельца, а очередь
+    у остальных модераторов была «только посмотреть». Теперь право одно и то же,
+    что открывает саму очередь.
+    """
     if user.is_owner:
         return True
+    try:
+        from app.core.security import _user_permission_codes
+        if "moderation.review" in _user_permission_codes(user):
+            return True
+    except Exception:  # noqa: BLE001 — не роняем решение из-за резолва прав
+        pass
+    # Совместимость со старыми заявками, где согласующий был задан явно.
     if sub.assigned_moderator_id and sub.assigned_moderator_id == user.id:
         return True
     if sub.coapprover_id and sub.coapprover_id == user.id:
@@ -484,13 +559,9 @@ async def gate_or_apply(
     except Exception:
         pass
 
-    rule = await match_rule(
-        db, user=user, module=module, action=action,
-        company_id=company_id, sector_id=sector_id, year=year,
-        payload={"proposed_value": payload, "original_value": original or {}, **payload},
-    )
-    if rule is None:
+    if not should_moderate(user, module, action):
         return False, None
+    rule = None
 
     sub = await create_submission(
         db,

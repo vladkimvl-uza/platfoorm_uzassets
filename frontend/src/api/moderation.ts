@@ -229,28 +229,9 @@ export const moderationApi = {
     return r.data;
   },
 
-  // Rules
-  async listRules(): Promise<{ items: Rule[]; total: number }> {
-    const r = await api.get<{ items: Rule[]; total: number }>("/moderation/rules");
-    return r.data;
-  },
-  async getRule(id: string): Promise<Rule> {
-    const r = await api.get<Rule>(`/moderation/rules/${id}`);
-    return r.data;
-  },
-  async createRule(payload: RulePayload): Promise<Rule> {
-    const r = await api.post<Rule>("/moderation/rules", payload);
-    return r.data;
-  },
-  async updateRule(id: string, payload: Partial<RulePayload>): Promise<Rule> {
-    const r = await api.patch<Rule>(`/moderation/rules/${id}`, payload);
-    return r.data;
-  },
-  async deleteRule(id: string) { await api.delete(`/moderation/rules/${id}`); },
-  async toggleRule(id: string): Promise<Rule> {
-    const r = await api.post<Rule>(`/moderation/rules/${id}/toggle`);
-    return r.data;
-  },
+  // Правила удалены (03.08.2026): политика модерации встроена в бэкенд —
+  // модерируются внешние пользователи, согласует держатель moderation.review.
+  // Эндпоинтов /moderation/rules* больше нет.
 
   // Users
   async moderators(): Promise<{ items: ModeratorUser[] }> {
