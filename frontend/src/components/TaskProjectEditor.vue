@@ -20,6 +20,7 @@
  * All original script logic preserved — only template + styles changed.
  */
 
+import { big4ChipStyle } from "@/utils/auditorStyle";
 import { ref, computed, onMounted, watch, nextTick, onBeforeUnmount } from "vue";
 import { useAuthStore } from "@/stores/auth";
 import { useEntityEditor } from "@/composables/useEntityEditor";
@@ -1589,7 +1590,8 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
                     :consultants="[{ id: c.id, abbr: c.abbr || c.code, color: c.color_hex || '#7F77DD' }]"
                     size="md" />
                   <span class="consultant-opt-name">{{ c.name_ru }}</span>
-                  <span v-if="c.is_big4" class="big4">Big 4</span>
+                  <span v-if="c.is_big4" class="big4"
+                        :style="big4ChipStyle(c.color_hex || '#7F77DD')">Big 4</span>
                 </div>
               </div>
             </div>
@@ -2466,12 +2468,12 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 }
 .consultant-opt:hover { background: rgba(127, 119, 221, .08); }
 .consultant-opt.active { background: rgba(127, 119, 221, .12); font-weight: 500; }
+/* Чип «Big 4» — канон /consultants: цвет выводится из фирменного цвета
+   консультанта, а не янтарная плашка на всех сразу. */
 .big4 {
-  font-size: 9px; font-weight: 600;
-  background: rgba(239, 159, 39, .18);
-  color: #B87600;
-  padding: 1px 6px; border-radius: 4px;
-  margin-left: auto;
+  font-size: 9px; font-weight: 700; letter-spacing: .03em;
+  padding: 1px 5px; border-radius: 3px; border: 0.5px solid;
+  margin-left: auto; white-space: nowrap; line-height: 1.5;
 }
 
 /* ═══════════════════════════════════════════════════════════════ */

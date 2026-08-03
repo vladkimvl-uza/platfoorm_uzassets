@@ -28,6 +28,8 @@ import ForensicEditModal from "@/components/Procurement/ForensicEditModal.vue";
 import UzaYearStepper from "@/components/UZA/UzaYearStepper.vue";
 import CompanyAvatar from "@/components/CompanyAvatar.vue";
 import BadgeConsultant from "@/components/BadgeConsultant.vue";
+import { auditorStyle, big4ChipStyle, ensureConsultants } from "@/utils/auditorStyle";
+import type { ConsultantBrief } from "@/api/consultants";
 import { useFormatters } from "@/composables/useFormatters";
 import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
@@ -360,13 +362,25 @@ function fN(v: number | null | undefined): string {
 function cleanAud(a: string | undefined): string {
   return a ? a.replace(/\s*до\s+\d{2}\.\d{2}\.\d{4}/, "") : "—"; // i18n-exempt -- cleanup of legacy persisted suffix
 }
+// Цвет — из справочника консультантов (единый источник с /consultants);
+// локальная карта AUDITOR_COLORS осталась запасным вариантом, пока справочник
+// не загрузился или аудитор в нём не заведён.
+const _consultantList = ref<ConsultantBrief[]>([]);
+onMounted(() => { void ensureConsultants().then((rows) => { _consultantList.value = rows; }); });
+
 function auditorColor(a: string | undefined): string {
+  const st = auditorStyle(a, _consultantList.value);
+  if (st.matched) return st.color;
   if (!a) return "#888780";
   const cleaned = cleanAud(a).trim();
   for (const k of Object.keys(AUDITOR_COLORS)) {
     if (a.indexOf(k) >= 0) return AUDITOR_COLORS[k];
   }
   return AUDITOR_COLORS[cleaned] || "#64748B";
+}
+
+function audIsBig4(a: string | undefined): boolean {
+  return auditorStyle(a, _consultantList.value).isBig4;
 }
 
 interface BadgeStyle { bg: string; fg: string }
@@ -1064,7 +1078,10 @@ onBeforeUnmount(() => {
                       <td>
                         <span v-if="c.auditor" class="pr-aud-cell">
                           <BadgeConsultant size="sm" :consultants="[{ id: c.auditor, abbr: cleanAud(c.auditor), color: auditorColor(c.auditor) }]" />
-                          <span class="pr-big4" :style="{ background: auditorColor(c.auditor) + '15', color: auditorColor(c.auditor), borderColor: auditorColor(c.auditor) + '25' }">Big 4</span>
+                          <!-- Чип вешаем ТОЛЬКО реальным Big 4 из справочника:
+                               раньше он доставался любому аудитору. -->
+                          <span v-if="audIsBig4(c.auditor)" class="pr-big4"
+                                :style="big4ChipStyle(auditorColor(c.auditor))">Big 4</span>
                         </span>
                         <span v-else class="muted">—</span>
                       </td>

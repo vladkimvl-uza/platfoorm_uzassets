@@ -75,6 +75,8 @@ import CompanyNotesTab from "@/components/CompanyNotesTab.vue";
 import CompanyCalendar from "@/components/Company/CompanyCalendar.vue";
 import CompanyOverviewExtras from "@/components/CompanyOverviewExtras.vue";
 import CompanyBoardList from "@/components/CompanyBoardList.vue";
+import BadgeConsultant from "@/components/BadgeConsultant.vue";
+import { auditorStyle, big4ChipStyle, ensureConsultants } from "@/utils/auditorStyle";
 import CompanyTabBar from "@/components/Company/CompanyTabBar.vue";
 import { COMPANY_TABS } from "@/components/Company/companyNavConfig";
 import HighLevelFinancials from "@/components/Financials/HighLevelFinancials.vue";
@@ -1079,13 +1081,16 @@ function fForensicBadge(f: string | undefined | null): FBadge {
   if (f.indexOf("Тендер") >= 0) return { text: t(f), bg: "rgba(239,159,39,.10)", fg: "#D97706" }; // i18n-exempt: canonical API value
   return { text: t(f), bg: "rgba(226,75,74,.08)", fg: "#993D3D" };
 }
-const _AUDITOR_COLORS: Record<string, string> = {
-  KPMG: "#378ADD", PwC: "#E24B4A", Deloitte: "#1D9E75", "E&Y": "#EF9F27",
-};
+// Цвет и признак Big 4 берём из справочника консультантов — того же, что
+// рисует /consultants. Локальная палитра давала KPMG #378ADD, форензик —
+// #0033A0, бейдж — #0091DA: одна компания трёх цветов на трёх экранах.
+const _consultantList = ref<ConsultantBrief[]>([]);
+onMounted(() => { void ensureConsultants().then((rows) => { _consultantList.value = rows; }); });
+function fAud(a: string | undefined | null) {
+  return auditorStyle(a, _consultantList.value);
+}
 function fAuditorColor(a: string | undefined | null): string {
-  if (!a) return "#64748B";
-  for (const k of Object.keys(_AUDITOR_COLORS)) if (a.indexOf(k) >= 0) return _AUDITOR_COLORS[k];
-  return "#64748B";
+  return fAud(a).color;
 }
 // План/факт закупок за выбранный год из years[] (млрд, как в forensic-вью)
 const procForensicYear = computed(() => {
@@ -4102,8 +4107,16 @@ function onEditorClose() {
               </div>
               <div class="cw-forensic-cell">
                 <div class="cw-forensic-label">{{ t("Аудитор") }}</div>
-                <span v-if="procForensic.auditor" class="cw-forensic-auditor"
-                      :style="{ color: fAuditorColor(procForensic.auditor) }">{{ procForensic.auditor }}</span>
+                <!-- 1:1 как на /consultants: бейдж фирменного цвета, тёмное имя,
+                     чип «Big 4» — и только если консультант реально из четвёрки -->
+                <span v-if="procForensic.auditor" class="cw-forensic-aud">
+                  <BadgeConsultant
+                    size="sm"
+                    :consultants="[{ id: procForensic.auditor, abbr: fAud(procForensic.auditor).abbr, color: fAud(procForensic.auditor).color }]" />
+                  <span class="cw-forensic-aud-name">{{ fAud(procForensic.auditor).name }}</span>
+                  <span v-if="fAud(procForensic.auditor).isBig4" class="cw-big4"
+                        :style="big4ChipStyle(fAud(procForensic.auditor).color)">Big 4</span>
+                </span>
                 <span v-else class="cw-forensic-dash">—</span>
               </div>
               <div class="cw-forensic-cell">
@@ -7438,6 +7451,16 @@ function onEditorClose() {
   white-space: nowrap;
 }
 .cw-forensic-auditor { font-size: 14px; font-weight: 600; }
+.cw-forensic-aud { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.cw-forensic-aud-name {
+  font-size: 13px; font-weight: 500; color: var(--t1, #1E2A4A);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cw-big4 {
+  font-size: 9px; font-weight: 700; letter-spacing: .03em;
+  padding: 1px 5px; border-radius: 3px; border: 0.5px solid;
+  white-space: nowrap; flex-shrink: 0; line-height: 1.5;
+}
 .cw-forensic-dash { font-size: 14px; color: var(--t3, #94A3B8); }
 .cw-forensic-years { font-size: 13px; font-weight: 500; color: var(--t1, #1E2A4A); }
 .cw-forensic-pf { grid-column: 1 / -1; }
