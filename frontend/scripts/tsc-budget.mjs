@@ -17,8 +17,8 @@
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-// Обновлено 2026-07-29 после исправления журнала аудита (было 56 → стало 55).
-const BUDGET = 55;
+// Обновлено 2026-08-03: null-guard у степпера года (было 55 → стало 54).
+const BUDGET = 54;
 
 // --force не даёт incremental-кэшу скрыть ошибки из предыдущего запуска.
 // Локальный bin запускаем через Node, чтобы не зависеть от shell/npx на Windows.

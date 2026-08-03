@@ -23,7 +23,7 @@
         <UzaSegment tone="dark" :options="periodOpts"
                     :model-value="state.selectedPeriod.value" @update:model-value="(v) => state.setPeriod(v as any)" />
         <UzaYearStepper tone="dark" :years="state.availableYears.value"
-                        :model-value="state.selectedYear.value" @update:model-value="(v) => state.setYear(v)" />
+                        :model-value="state.selectedYear.value" @update:model-value="(v) => { if (v != null) state.setYear(v); }" />
 
         <!-- Menu -->
         <div class="bp-menu-wrap">

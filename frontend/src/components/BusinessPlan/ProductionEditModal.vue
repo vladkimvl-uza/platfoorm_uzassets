@@ -46,6 +46,51 @@ const working = ref<ELine[]>((() => {
   return src;
 })());
 
+// ─── Перенос номенклатуры из другого периода ───────────────────
+// Зачем: за 2-е полугодие состав продукции тот же, что за 1-е. Набивать
+// два-три десятка строк заново — главная причина, почему периоды остаются
+// пустыми. Копируем ТОЛЬКО структуру (название, единицу, иерархию «в т.ч.»);
+// числа не переносим — это данные другого периода, и подставлять их значило
+// бы показать чужой факт как свой.
+const PERIOD_ORDER = ["h1", "h2", "annual"];
+const copyBusy = ref(false);
+const copyDone = ref(0);
+/** Пустой период: только строка-итог без наименований и чисел. */
+const isBlank = computed(() =>
+  working.value.length <= 1 &&
+  !working.value.some((l) => !l.total || l.baseM != null || l.planM != null || l.expM != null),
+);
+/** Откуда можно перенести: другие периоды того же года. */
+const copySources = computed(() =>
+  PERIOD_ORDER.filter((p) => p !== props.period).map((p) => ({
+    value: p,
+    label: p === "h1" ? t("1 полугодия") : p === "h2" ? t("2 полугодия") : t("года"),
+  })),
+);
+
+async function copyStructure(fromPeriod: string) {
+  copyBusy.value = true;
+  try {
+    const d = await productionApi.companyDetail(props.company.k, props.year, fromPeriod);
+    const src = d?.company?.lines || [];
+    if (!src.length) {
+      toast.info(t("В выбранном периоде тоже нет данных"));
+      return;
+    }
+    working.value = src.map((l: ProdLine) => ({
+      name: l.name || "", unit: l.unit || "", total: !!l.total, parent: l.parent ?? null,
+      baseN: null, baseM: null, planN: null, planM: null,
+      expN: null, expM: null, factN: null, factM: null,
+    }));
+    copyDone.value = working.value.length;
+    toast.success(t("Перенесено строк: {value0}. Значения заполните вручную.", { value0: working.value.length }));
+  } catch (e: any) {
+    toast.error(e?.response?.data?.detail || t("Не удалось перенести номенклатуру"));
+  } finally {
+    copyBusy.value = false;
+  }
+}
+
 const snapshot = ref(JSON.stringify(working.value));
 const dirty = computed(() => JSON.stringify(working.value) !== snapshot.value);
 const saving = ref(false);
@@ -160,6 +205,25 @@ const periodLabel = computed(() => ({ h1: i18nKey("1 полугодие"), h2: i
       </div>
     </template>
 
+    <!-- Пустой период: предложить перенос номенклатуры вместо ручного набора -->
+    <div v-if="isBlank" class="pe-copy">
+      <span class="pe-copy-ic">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/>
+        </svg>
+      </span>
+      <span class="pe-copy-txt">
+        {{ t("Период пустой. Номенклатуру можно перенести из другого периода — названия, единицы и вложенность, без чисел.") }}
+      </span>
+      <span class="pe-copy-btns">
+        <button v-for="src in copySources" :key="src.value" class="pe-copy-btn"
+                :disabled="copyBusy" @click="copyStructure(src.value)">
+          {{ copyBusy ? t("Переношу…") : t("Из {value0}", { value0: src.label }) }}
+        </button>
+      </span>
+    </div>
+
     <div class="pe-hint">
       {{ t("Темп роста и исполнение считаются автоматически (по деньгам, при отсутствии — по натуре). Введите «Факт» для реального исполнения (факт / план); без факта показывается прогнозное (ожид. / план). Объёмы — неотрицательные.") }}
     </div>
@@ -270,4 +334,32 @@ const periodLabel = computed(() => ({ h1: i18nKey("1 полугодие"), h2: i
 .pe-btn.save { background: #7F77DD; color: #fff; border-color: #7F77DD; }
 .pe-btn.save:hover:not(:disabled) { background: #6D62D6; box-shadow: 0 4px 12px rgba(127,119,221,.3); }
 .pe-btn.save:disabled { background: #CBD5E1; border-color: #CBD5E1; cursor: not-allowed; }
+
+/* ── Перенос номенклатуры из другого периода ── */
+.pe-copy {
+  display: flex; align-items: center; gap: 11px; flex-wrap: wrap;
+  background: rgba(124,111,247,.07); border: 1px solid rgba(124,111,247,.20);
+  border-radius: 12px; padding: 11px 14px; margin-bottom: 12px;
+  animation: peCopyIn .34s var(--ease-standard, cubic-bezier(.34,1.2,.64,1)) both;
+}
+@keyframes peCopyIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: none; } }
+.pe-copy-ic { color: var(--p-deep, #534AB7); line-height: 0; flex-shrink: 0; }
+.pe-copy-txt { flex: 1; min-width: 220px; font-size: 12px; color: var(--t2, #4B5468); line-height: 1.5; }
+.pe-copy-btns { display: flex; gap: 7px; flex-wrap: wrap; }
+.pe-copy-btn {
+  font-family: inherit; font-size: 11.5px; font-weight: 600;
+  color: var(--p-deep, #534AB7); background: #fff;
+  border: 1px solid rgba(124,111,247,.30); border-radius: 9px;
+  padding: 7px 13px; cursor: pointer; white-space: nowrap;
+  transition: background .14s, transform .14s, box-shadow .14s;
+}
+.pe-copy-btn:hover:not(:disabled) {
+  background: rgba(124,111,247,.10); transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(108,92,231,.18);
+}
+.pe-copy-btn:disabled { opacity: .6; cursor: default; }
+@media (prefers-reduced-motion: reduce) {
+  .pe-copy { animation: none; }
+  .pe-copy-btn:hover:not(:disabled) { transform: none; }
+}
 </style>

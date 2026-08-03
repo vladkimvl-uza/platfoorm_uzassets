@@ -17,6 +17,7 @@ import { useCompanyScope } from "@/composables/useCompanyScope";
 import { useProductionData } from "@/composables/useProductionData";
 import type { ProdCompany } from "@/api/production";
 import { execCol as pctCol, execZone as pctZone } from "@/utils/execBand";
+import ModalShell from "@/components/ModalShell.vue";
 import { useI18n } from "@/composables/useI18n";
 import { getCurrentIntlLocale } from "@/locale/i18n";
 import { i18nKey } from "@/locale/keys";
@@ -35,6 +36,57 @@ const st = useProductionData();
 // Область доступа: пользователю с одной компанией фильтры «сектор»/«компания»
 // не нужны — выбирать не из чего (решение владельца 29.07.2026).
 const scope = useCompanyScope();
+
+// ─── Добавление данных вручную ────────────────────────────────
+// Раньше редактор открывался ТОЛЬКО из строки компании. Если за период
+// (например, 2-е полугодие) данных ещё нет — строк нет, и войти в ввод было
+// неоткуда: на экране оставался лишь «Импорт». Теперь есть явный вход:
+// выбрать компанию → открыть тот же ProductionEditModal.
+const pickerOpen = ref(false);
+const pickerQuery = ref("");
+const allCompanies = ref<{ code: string; name: string; sector_color?: string }[]>([]);
+const pickerLoading = ref(false);
+
+async function openPicker() {
+  pickerOpen.value = true;
+  pickerQuery.value = "";
+  if (allCompanies.value.length) return;
+  pickerLoading.value = true;
+  try {
+    const { companiesApi } = await import("@/api/companies");
+    const r = await companiesApi.list({ limit: 300 } as any);
+    allCompanies.value = (r.items || []).map((c: any) => ({
+      code: c.code,
+      name: c.name_short || c.name_ru || c.code,
+      sector_color: c.sector_color || undefined,
+    }));
+  } catch {
+    allCompanies.value = [];
+  } finally {
+    pickerLoading.value = false;
+  }
+}
+
+/** Компании, которых ещё нет в выбранном периоде — их и предлагаем заполнить. */
+const pickerItems = computed(() => {
+  const have = new Set(companies.value.filter((c) => c.has_data).map((c) => c.k));
+  const q = pickerQuery.value.trim().toLowerCase();
+  return allCompanies.value
+    .map((c) => ({ ...c, filled: have.has(c.code) }))
+    .filter((c) => !q || c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q))
+    .sort((a, b) => Number(a.filled) - Number(b.filled) || a.name.localeCompare(b.name));
+});
+
+/** Открыть редактор для компании — с данными периода или с чистого листа. */
+function pickCompany(c: { code: string; name: string; sector_color?: string }) {
+  const existing = companies.value.find((x) => x.k === c.code);
+  const company: ProdCompany = existing || {
+    k: c.code, n: c.name, s: "", sector_color: c.sector_color || "#7C6FF7",
+    execState: "noplan", has_data: false, lines: [],
+  };
+  pickerOpen.value = false;
+  emit("edit", { company, year: st.year.value, period: st.period.value });
+}
 
 // ─── Excel-импорт «Свода» (лист на компанию) ──────────────────
 const uploadOpen = ref(false);
@@ -60,6 +112,9 @@ const PERIOD_OPTS = computed(() => [
   { value: "h2", label: t("2 полугодие") },
   { value: "annual", label: t("Год") },
 ]);
+const periodLabel = computed(
+  () => PERIOD_OPTS.value.find((o) => o.value === st.period.value)?.label || st.period.value,
+);
 const SECTOR_META: Record<string, { label: string; color: string }> = {
   mining: { label: i18nKey("Горнодоб."), color: "#9B8EC4" },
   oilgas: { label: i18nKey("Нефтегаз"), color: "#1D9E75" },
@@ -211,12 +266,37 @@ watch([() => st.data.value, filtered], async () => { await nextTick(); rescan();
       <UzaSegment :options="PERIOD_OPTS" :model-value="st.period.value"
                   @update:model-value="(v) => st.setPeriod(v as string)" :label="t('Период')" />
       <UzaYearStepper :years="st.availableYears.value" :model-value="st.year.value"
-                      @update:model-value="(v) => st.setYear(v)" prefix="FY " :label="t('Год')" />
+                      @update:model-value="(v) => { if (v != null) st.setYear(v); }" prefix="FY " :label="t('Год')" />
+      <button v-if="canImport" class="pd-add" @click="openPicker" :title="t('Ввести данные по компании вручную')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        {{ t("Добавить данные") }}
+      </button>
       <button v-if="canImport" class="pd-import" @click="uploadOpen = true" :title="t('Импорт «Свода» из Excel')">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         {{ t("Импорт") }}
       </button>
     </div>
+
+    <!-- Выбор компании для ручного ввода -->
+    <ModalShell :open="pickerOpen" size="sm" :title="t('Выберите компанию')" @close="pickerOpen = false">
+      <div class="pdp-sub">
+        {{ t('FY {value0} · {value1}. Компании, по которым данные уже есть, помечены.', { value0: st.year.value, value1: periodLabel }) }}
+      </div>
+      <label class="pdp-search">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input v-model="pickerQuery" type="search" :placeholder="t('Поиск компании')" />
+      </label>
+      <div v-if="pickerLoading" class="pdp-hint">{{ t('Загрузка…') }}</div>
+      <div v-else class="pdp-list">
+        <button v-for="(c, i) in pickerItems" :key="c.code" class="pdp-item"
+                :style="{ '--d': Math.min(i, 16) * 22 + 'ms' }" @click="pickCompany(c)">
+          <span class="pdp-dot" :style="{ background: c.sector_color || '#7C6FF7' }"></span>
+          <span class="pdp-name">{{ c.name }}</span>
+          <span v-if="c.filled" class="pdp-filled">{{ t('есть данные') }}</span>
+        </button>
+        <div v-if="!pickerItems.length" class="pdp-hint">{{ t('Ничего не найдено') }}</div>
+      </div>
+    </ModalShell>
 
     <ForensicUploadModal
       v-if="uploadOpen"
@@ -231,8 +311,28 @@ watch([() => st.data.value, filtered], async () => { await nextTick(); rescan();
 
     <UzaStateBlock v-if="st.loading.value && !st.data.value" state="loading" variant="text" :loadingText="t('Загрузка…')" />
     <UzaStateBlock v-else-if="st.error.value" state="error" variant="block" :text="st.error.value" />
-    <UzaStateBlock v-else-if="st.data.value && !companies.length" state="empty" variant="block"
-                   :text="t('Нет производственных данных за выбранный период.')" />
+    <div v-else-if="st.data.value && !companies.length" class="pd-empty">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 3v18h18"/><path d="M7 14l3-3 3 3 5-6"/>
+      </svg>
+      <div class="pd-empty-t">
+        {{ t('За {value0} · {value1} данных пока нет', { value0: 'FY ' + st.year.value, value1: periodLabel }) }}
+      </div>
+      <div class="pd-empty-s">
+        {{ t('Загрузите «Свод» из Excel или введите показатели по компании вручную — номенклатуру можно перенести из другого периода.') }}
+      </div>
+      <div v-if="canImport" class="pd-empty-cta">
+        <button class="pd-add pd-add-lg" @click="openPicker">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          {{ t("Добавить данные") }}
+        </button>
+        <button class="pd-import pd-add-lg" @click="uploadOpen = true">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          {{ t("Импорт из Excel") }}
+        </button>
+      </div>
+    </div>
 
     <div v-else-if="st.data.value" ref="scanRoot" class="pd-body">
       <!-- ═══ Filter chips ═══ -->
@@ -578,4 +678,64 @@ watch([() => st.data.value, filtered], async () => { await nextTick(); rescan();
 .pd-readout-vals { font-size: 10px; color: var(--t3, var(--t-muted)); font-feature-settings: 'tnum'; white-space: nowrap; }
 .pd-readout-vals b { color: var(--t3, #B8B4C8); font-weight: 400; margin: 0 3px; }
 .pd-chart-empty { padding: 30px; text-align: center; font-size: 12px; color: var(--t3, var(--t-muted)); font-style: italic; }
+
+/* ── Ручной ввод: кнопка, пустое состояние, выбор компании ── */
+.pd-add {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: inherit; font-size: 12px; font-weight: 600;
+  color: #fff; border: 0; border-radius: 10px; padding: 8px 14px; cursor: pointer;
+  background: linear-gradient(135deg, #8B7FFF 0%, #6C5CE7 100%);
+  box-shadow: 0 3px 12px rgba(108,92,231,.28);
+  transition: transform .14s var(--ease-standard, cubic-bezier(.34,1.2,.64,1)), box-shadow .14s;
+}
+.pd-add:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(108,92,231,.40); }
+.pd-add:active { transform: translateY(0); }
+.pd-add-lg { padding: 10px 18px; font-size: 12.5px; }
+
+.pd-empty {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 54px 24px; text-align: center;
+  border: 1.5px dashed var(--border-hard, #E5E7EB); border-radius: 16px;
+  color: var(--t4, #B4B2A9);
+  animation: pdEmptyIn .4s var(--ease-standard, cubic-bezier(.34,1.2,.64,1)) both;
+}
+@keyframes pdEmptyIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.pd-empty-t { font-size: 15px; font-weight: 600; color: var(--t1, #1E2A4A); letter-spacing: -.01em; }
+.pd-empty-s { font-size: 12.5px; color: var(--t2, #4B5468); max-width: 56ch; line-height: 1.55; }
+.pd-empty-cta { display: flex; gap: 9px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
+
+.pdp-sub { font-size: 12px; color: var(--t3, #94A3B8); margin-bottom: 11px; line-height: 1.5; }
+.pdp-search {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+  background: var(--bg2, #F8F9FC); border: 1px solid var(--border, #EEF0F5);
+  border-radius: 10px; padding: 8px 12px; color: var(--t3, #94A3B8);
+  transition: border-color .15s, box-shadow .15s;
+}
+.pdp-search:focus-within { border-color: rgba(124,111,247,.45); box-shadow: 0 0 0 3px rgba(124,111,247,.10); }
+.pdp-search input {
+  flex: 1; border: 0; outline: 0; background: transparent;
+  font-family: inherit; font-size: 12.5px; color: var(--t1, #1E2A4A);
+}
+.pdp-list { display: flex; flex-direction: column; gap: 2px; max-height: 46vh; overflow-y: auto; }
+.pdp-item {
+  display: flex; align-items: center; gap: 9px; width: 100%;
+  background: transparent; border: 1px solid transparent; border-radius: 10px;
+  padding: 9px 11px; cursor: pointer; font-family: inherit; text-align: left;
+  animation: pdEmptyIn .3s var(--ease-standard, cubic-bezier(.34,1.2,.64,1)) both;
+  animation-delay: var(--d, 0ms);
+  transition: background .14s, border-color .14s, transform .14s;
+}
+.pdp-item:hover { background: rgba(124,111,247,.07); border-color: rgba(124,111,247,.18); transform: translateX(2px); }
+.pdp-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.pdp-name { flex: 1; min-width: 0; font-size: 12.5px; color: var(--t1, #1E2A4A); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pdp-filled {
+  font-size: 9.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em;
+  color: #0F6E56; background: rgba(29,158,117,.12); border-radius: 999px; padding: 3px 8px; white-space: nowrap;
+}
+.pdp-hint { font-size: 12px; color: var(--t4, #B4B2A9); padding: 14px; text-align: center; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pd-empty, .pdp-item { animation: none; }
+  .pd-add:hover, .pdp-item:hover { transform: none; }
+}
 </style>
