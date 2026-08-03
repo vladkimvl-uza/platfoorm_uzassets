@@ -5,19 +5,28 @@
  * Всё содержимое и расчёт живут в панели; здесь — ModalShell, шапка, футер,
  * dirty-guard. Та же панель встроена во вкладку воркспейса (1:1, общий бэкенд).
  */
-import { ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useI18n } from "@/composables/useI18n";
 import ModalShell from "@/components/ModalShell.vue";
 import UnitCostCompanyPanel from "@/components/UnitCost/UnitCostCompanyPanel.vue";
 import { type UCCompany, type UCPrices, type UCWorld } from "@/api/unitCost";
+import { useCompaniesStore } from "@/stores/companies";
 
-defineProps<{
+const props = defineProps<{
   open: boolean; company: UCCompany | null;
   prices: UCPrices; world: UCWorld | null; fuelLabels: Record<string, string>;
   year: number; quarter: string;
 }>();
 const emit = defineEmits<{ (e: "close"): void; (e: "saved"): void }>();
 const { t } = useI18n();
+const companiesStore = useCompaniesStore();
+onMounted(() => { void companiesStore.ensureLoaded(); });
+const displayCompanyName = computed(() =>
+  companiesStore.getCompanyName(props.company?.code) || props.company?.name || "");
+const displaySectorName = computed(() => {
+  const sectorCode = companiesStore.findSectorCode(props.company?.code || "");
+  return (sectorCode && companiesStore.getSectorName(sectorCode)) || props.company?.sector || "";
+});
 
 const panel = ref<InstanceType<typeof UnitCostCompanyPanel> | null>(null);
 const dirty = ref(false);
@@ -30,8 +39,8 @@ function doSave() { panel.value?.save(); }
     <template v-if="company" #header>
       <div class="ucm-head">
         <div class="ucm-eyebrow">{{ t("Удельная себестоимость") }}</div>
-        <h2 class="ucm-title"><span class="ucm-dot" :style="{ background: company.color }" />{{ company.name }}</h2>
-        <div class="ucm-meta">{{ company.sector }}</div>
+        <h2 class="ucm-title"><span class="ucm-dot" :style="{ background: company.color }" />{{ displayCompanyName }}</h2>
+        <div class="ucm-meta">{{ displaySectorName }}</div>
       </div>
     </template>
 

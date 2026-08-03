@@ -12,6 +12,7 @@ import { useToast } from "@/composables/useToast";
 import { unitCostApi, FUELS, type UCPrices, type UCWorld } from "@/api/unitCost";
 import FuelIcon from "@/components/UnitCost/FuelIcon.vue";
 import { i18nKey } from "@/locale/keys";
+import { unitCostCatalogText } from "@/utils/unitCostDisplay";
 
 
 const props = defineProps<{ open: boolean; prices: UCPrices; world: UCWorld | null;
@@ -145,7 +146,7 @@ async function save() {
         <span></span><span>{{ t("Цена, сум") }}</span><span>{{ t("или USD") }}</span><span>{{ t("Итог, сум") }}</span>
       </div>
       <div v-for="(f, i) in FUELS" :key="f" class="ucp-row" :class="{ err: priceErr(f) }" :style="{ '--d': (i * 45) + 'ms' }">
-        <span class="ucp-label" :style="{ '--fc': FUEL_COLOR[f] }"><FuelIcon :fuel="f" :size="14" />{{ fuelLabels[f] || f }}</span>
+        <span class="ucp-label" :style="{ '--fc': FUEL_COLOR[f] }"><FuelIcon :fuel="f" :size="14" />{{ unitCostCatalogText(fuelLabels[f] || f) }}</span>
         <div class="ucp-inwrap">
           <input v-model="pdraft[f].price" type="text" inputmode="decimal" class="ucp-inp ucp-inp-c"
                  :disabled="!!num(pdraft[f].usd)" placeholder="—" />
