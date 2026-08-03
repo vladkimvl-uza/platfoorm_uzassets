@@ -142,7 +142,11 @@ const filtered = computed(() => {
         >
           <div class="cet-kpi-l">{{ t(k.label) }}</div>
           <div class="cet-kpi-v">
-            {{ k.value }}
+            <!-- Число считается вверх, как во всех полосах платформы. Сканер
+                 count-up пишет голую цифру, поэтому анимируем только числовые
+                 значения; форматированные строки оставляем как есть. -->
+            <span v-if="typeof k.value === 'number'" :data-countup="k.value">{{ k.value }}</span>
+            <template v-else>{{ k.value }}</template>
             <span v-if="(k as any).live" class="cet-kpi-live"></span>
           </div>
           <div v-if="k.unit" class="cet-kpi-u">{{ k.unit }}</div>

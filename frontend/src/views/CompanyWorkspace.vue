@@ -75,7 +75,6 @@ import CompanyNotesTab from "@/components/CompanyNotesTab.vue";
 import CompanyCalendar from "@/components/Company/CompanyCalendar.vue";
 import CompanyOverviewExtras from "@/components/CompanyOverviewExtras.vue";
 import CompanyBoardList from "@/components/CompanyBoardList.vue";
-import BadgeConsultant from "@/components/BadgeConsultant.vue";
 import { auditorStyle, big4ChipStyle, ensureConsultants } from "@/utils/auditorStyle";
 import CompanyTabBar from "@/components/Company/CompanyTabBar.vue";
 import { COMPANY_TABS } from "@/components/Company/companyNavConfig";
@@ -2557,8 +2556,13 @@ async function loadTopFinSnapshot() {
 // Sprint C · Re-animate after any heavy data set lands.
 // Placed AFTER all 4 watched refs are declared so Vue's effect-tracking
 // can iterate them without hitting a TDZ "Cannot access X before init".
+// Пересчёт анимации после ЛЮБОЙ подгрузки вкладки. Вотчера на activeTab мало:
+// он срабатывает до того, как приедут данные (loadProc/loadCredit/… async),
+// поэтому сканер не находил ещё не отрисованные числа — вкладка «Закупки»
+// показывала готовые цифры без счёта вверх.
 watch(
-  [finKpis, creditMaturityLadder, procSupplierConcentration, topFinSnapshot],
+  [finKpis, creditMaturityLadder, procSupplierConcentration, topFinSnapshot,
+   procCompanyKpis, creditKpis, govKpis],
   () => { nextTick(() => animateCounters()); },
   { deep: true },
 );
@@ -3684,7 +3688,15 @@ function onEditorClose() {
                 :style="{ '--kpi2-accent': kpi.color, '--kpi2-d': (ki * 80) + 'ms', '--d': ki }"
               >
                 <div class="kpi2-lbl">{{ t(kpi.label) }}</div>
-                <div class="kpi2-val">{{ kpi.value }}</div>
+                <!-- Анимируем только само число: сканер count-up пишет в
+                     textContent голую цифру, поэтому суффикс «%» держим снаружи,
+                     а форматированные значения (деньги, единицы) не трогаем. -->
+                <div class="kpi2-val">
+                  <template v-if="kpi.raw !== null">
+                    <span :data-countup="kpi.raw">{{ kpi.raw }}</span><span v-if="String(kpi.value).endsWith('%')">%</span>
+                  </template>
+                  <template v-else>{{ kpi.value }}</template>
+                </div>
                 <div v-if="kpi.unit" class="kpi2-sub">{{ kpi.unit }}</div>
               </div>
             </div>
@@ -3954,7 +3966,7 @@ function onEditorClose() {
             <div class="cw-cred-kpis kpi-rail">
               <div class="kpi2 fin-shimmer" style="--kpi2-accent:#7F77DD; --kpi2-d:0ms">
                 <div class="kpi2-lbl">{{ t("Активных кредитов") }}</div>
-                <div class="kpi2-val">{{ creditKpis.total }}</div>
+                <div class="kpi2-val"><span :data-countup="creditKpis.total">{{ creditKpis.total }}</span></div>
               </div>
               <div class="kpi2 fin-shimmer" style="--kpi2-accent:#3B82F6; --kpi2-d:80ms">
                 <div class="kpi2-lbl">{{ t("Общая задолженность") }}</div>
@@ -3962,7 +3974,7 @@ function onEditorClose() {
               </div>
               <div class="kpi2 fin-shimmer" style="--kpi2-accent:#1D9E75; --kpi2-d:160ms">
                 <div class="kpi2-lbl">{{ t("Гарантированных") }}</div>
-                <div class="kpi2-val">{{ creditKpis.guaranteed }}</div>
+                <div class="kpi2-val"><span :data-countup="creditKpis.guaranteed">{{ creditKpis.guaranteed }}</span></div>
               </div>
               <div class="kpi2 fin-shimmer" style="--kpi2-accent:#EF9F27; --kpi2-d:240ms">
                 <div class="kpi2-lbl">{{ t("Средняя ставка") }}</div>
@@ -4110,9 +4122,9 @@ function onEditorClose() {
                 <!-- 1:1 как на /consultants: бейдж фирменного цвета, тёмное имя,
                      чип «Big 4» — и только если консультант реально из четвёрки -->
                 <span v-if="procForensic.auditor" class="cw-forensic-aud">
-                  <BadgeConsultant
-                    size="sm"
-                    :consultants="[{ id: procForensic.auditor, abbr: fAud(procForensic.auditor).abbr, color: fAud(procForensic.auditor).color }]" />
+                  <!-- Точка фирменного цвета, а не бейдж с аббревиатурой: рядом
+                       стоит полное имя, и «KPMG KPMG» читалось как дубль. -->
+                  <span class="cw-forensic-aud-dot" :style="{ background: fAud(procForensic.auditor).color }"></span>
                   <span class="cw-forensic-aud-name">{{ fAud(procForensic.auditor).name }}</span>
                   <span v-if="fAud(procForensic.auditor).isBig4" class="cw-big4"
                         :style="big4ChipStyle(fAud(procForensic.auditor).color)">Big 4</span>
@@ -4152,9 +4164,13 @@ function onEditorClose() {
             <div v-if="procCompanyKpis" class="cw-proc-kpis kpi-rail">
               <div class="kpi2 fin-shimmer" style="--kpi2-accent:#7F77DD; --kpi2-d:0ms">
                 <div class="kpi2-lbl">{{ t("Закрытий") }}</div>
-                <div class="kpi2-val">{{ procCompanyKpis.total }}</div>
-                <div v-if="procCompanyKpis.dirty > 0" class="kpi2-sub">
-                  {{ t("чистых: {a} · отбраковано: {b}", { a: procCompanyKpis.clean, b: procCompanyKpis.dirty }) }}
+                <div class="kpi2-val"><span :data-countup="procCompanyKpis.total">{{ procCompanyKpis.total }}</span></div>
+                <!-- «Отбраковано» звучало как брак в закупке; на деле это строки
+                     без сопоставимой рыночной цены (нет медианы по коду) либо с
+                     отклонением >1000% — их исключают из ценовых метрик. -->
+                <div v-if="procCompanyKpis.dirty > 0" class="kpi2-sub"
+                     :title="t('Сравнимые: есть медианная цена по коду товара. Без сравнения: медианы нет или отклонение больше 1000% (цена в 11+ раз от медианы) — такие строки не участвуют в расчёте переплаты и отклонений.')">
+                  {{ t("сравнимых: {a} · без сравнения: {b}", { a: procCompanyKpis.clean, b: procCompanyKpis.dirty }) }}
                 </div>
               </div>
               <div class="kpi2 fin-shimmer" style="--kpi2-accent:#E24B4A; --kpi2-d:80ms">
@@ -4170,7 +4186,7 @@ function onEditorClose() {
                   class="kpi2-val"
                   :style="`color: ${paColorByDev(procCompanyKpis.aboveMarketPct)}`"
                 >
-                  {{ procCompanyKpis.aboveMarketPct }}%
+                  <span :data-countup="procCompanyKpis.aboveMarketPct">{{ procCompanyKpis.aboveMarketPct }}</span>%
                 </div>
                 <div class="kpi2-sub">{{ t("закупок > +3%") }}</div>
               </div>
@@ -7452,6 +7468,7 @@ function onEditorClose() {
 }
 .cw-forensic-auditor { font-size: 14px; font-weight: 600; }
 .cw-forensic-aud { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.cw-forensic-aud-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 .cw-forensic-aud-name {
   font-size: 13px; font-weight: 500; color: var(--t1, #1E2A4A);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
