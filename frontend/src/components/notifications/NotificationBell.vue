@@ -13,8 +13,10 @@ import UserCardAnchor from "@/components/user/UserCardAnchor.vue";
 import ActorLine from "@/components/user/ActorLine.vue";
 import { describeNotification, NOTIF_ICON_PATHS } from "@/composables/useNotificationMeta";
 import { useNotificationDetail } from "@/composables/useNotificationDetail";
+import { useToast } from "@/composables/useToast";
 import { useI18n } from "@/composables/useI18n";
 const { t } = useI18n();
+const toast = useToast();
 
 
 const router = useRouter();
@@ -111,17 +113,52 @@ async function handleItemClick(n: any) {
   notifDetail.open(n);
 }
 
+/**
+ * Быстрые действия по заявке модерации прямо из колокольчика.
+ *
+ * ДО 03.08.2026 «Принять» и «Отклонить» были ЗАГЛУШКАМИ: обработчик лишь
+ * помечал уведомление прочитанным (в коде так и стояло «wired in Pack 11.1»).
+ * Модератор жал «Принять», уведомление гасло — и он считал, что решение
+ * принято, хотя заявка оставалась на согласовании.
+ *
+ * Теперь: «Принять» реально одобряет (комментарий не обязателен). «Отклонить»
+ * открывает карточку заявки — по решению владельца отказ всегда с причиной,
+ * а её надо где-то написать.
+ */
 async function quickAction(id: string, action: "approve" | "reject" | "open") {
-  if (action === "open") {
-    const item = store.recent.find((n) => n.id === id);
+  const item = store.recent.find((n) => n.id === id);
+  const subId = (item?.payload as any)?.submission_id as string | undefined;
+
+  function openIt() {
     if (item?.link_url && !entityEditor.openFromLink(item.link_url)) {
       router.push(item.link_url);
     }
     close();
+  }
+
+  if (action === "open" || action === "reject") {
+    if (action === "reject" && !item?.link_url && subId) {
+      router.push(`/admin/moderation?sub_tab=queue&open=${subId}`);
+      close();
+      return;
+    }
+    openIt();
     return;
   }
-  // Approve/Reject are wired in Pack 11.1 via moderation API.
-  await store.markRead(id);
+
+  if (!subId) {
+    toast.error(t("Не удалось определить заявку — откройте её в очереди"));
+    return;
+  }
+  try {
+    const { moderationApi } = await import("@/api/moderation");
+    await moderationApi.approve(subId);
+    toast.success(t("Заявка принята"));
+    await store.markRead(id);
+    await store.refreshCount();
+  } catch (e: any) {
+    toast.error(e?.response?.data?.detail || t("Не удалось принять заявку"));
+  }
 }
 
 function onDocClick(e: MouseEvent) {

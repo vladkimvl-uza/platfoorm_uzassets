@@ -60,7 +60,11 @@ class GovernanceCompanyScore(BaseModel):
     independent_count: Optional[int] = None
     women_count: Optional[int] = None
     foreign_count: Optional[int] = None
-    vacant_seats: Optional[int] = None          # legacy: vacant
+    # Факт: сколько людей реально заведено в совете (не ручное поле).
+    board_actual: Optional[int] = None
+    # Вакансии = утверждённый размер − факт. Ручное payload.vacant осталось
+    # только как фолбэк для старых записей без board_size.
+    vacant_seats: Optional[int] = None
     exec_count: Optional[int] = None            # legacy: exec
     nonexec_count: Optional[int] = None         # legacy: nonexec
 
@@ -219,6 +223,12 @@ class GovernanceCompanyDetail(BaseModel):
     board_members: list[BoardMemberBrief] = Field(default_factory=list)
 
     score: Optional[float] = None
+    # Состав по факту и вакансии — «размер совета» показывается по людям.
+    board_actual: Optional[int] = None
+    vacant_seats: Optional[int] = None
+    # Разбор балла по факторам: из чего он сложился и чего не хватает.
+    # Считается тем же кодом, что и сам балл (governance_score_breakdown).
+    score_breakdown: list[dict] = Field(default_factory=list)
     independent_pct: Optional[float] = None
     women_pct: Optional[float] = None
     foreign_pct: Optional[float] = None

@@ -82,7 +82,7 @@ async function requestClose(): Promise<void> {
 }
 
 const numFields: { key: keyof typeof form; label: string; max?: number }[] = [
-  { key: "board_size", label: i18nKey("Размер совета") },
+  { key: "board_size", label: i18nKey("Утверждённый размер совета") },
   { key: "independent_directors_count", label: i18nKey("Независимых") },
   { key: "women_directors_count", label: i18nKey("Женщин") },
   { key: "foreign_directors_count", label: i18nKey("Иностранцев") },
@@ -131,6 +131,44 @@ const boardAgg = computed(() => ({
   women: localMembers.value.filter(m => m.is_woman).length,
   foreign: localMembers.value.filter(m => m.is_foreign).length,
 }));
+/** Факт состава и вакансии. Правило владельца: «размер совета — по факту
+ *  людей», поэтому фактический состав считается из списка членов, а вакансии =
+ *  утверждённый размер − факт. Раньше вакансии были отдельным ручным полем и
+ *  расходились с данными (на проде «1 вакансия» стояла там, где мест нет). */
+const seats = computed(() => {
+  const approved = _num(form.board_size);
+  const actual = localMembers.value.length;
+  const vacant = approved != null ? Math.max(0, approved - actual) : null;
+  return { approved, actual, vacant, over: approved != null && actual > approved };
+});
+
+/** Предпросчёт балла — зеркалит формулу бэкенда (governance_score).
+ *  Итоговое значение всё равно приходит с сервера после сохранения. */
+const scorePreview = computed<number | null>(() => {
+  const size = _num(form.board_size) ?? localMembers.value.length;
+  if (!size) return null;
+  const parts: [number, number][] = [];
+  const ind = _num(form.independent_directors_count);
+  if (ind != null) parts.push([0.25, Math.min(1, (ind / size) / 0.33)]);
+  const wm = _num(form.women_directors_count);
+  if (wm != null) parts.push([0.15, Math.min(1, (wm / size) / 0.20)]);
+  const fo = _num(form.foreign_directors_count);
+  if (fo != null) parts.push([0.10, Math.min(1, (fo / size) / 0.10)]);
+  const comms = [
+    form.has_audit_committee, form.has_strategy_committee,
+    form.has_nomrem_committee,
+    form.has_anticorr_committee, form.has_induction_program,
+  ].filter(Boolean).length;
+  parts.push([0.25, comms / 5]);
+  const att = _num(form.avg_attendance_pct);
+  if (att != null) parts.push([0.15, Math.min(1, att / 80)]);
+  const mt = _num(form.meetings_per_year);
+  if (mt != null) parts.push([0.10, Math.min(1, mt / 4)]);
+  const w = parts.reduce((a, [ww]) => a + ww, 0);
+  if (!w) return null;
+  return Math.round(parts.reduce((a, [ww, r]) => a + ww * r, 0) / w * 1000) / 10;
+});
+
 function fillFromBoard(): void {
   form.board_size = boardAgg.value.board_size;
   form.independent_directors_count = boardAgg.value.independent;
@@ -298,6 +336,29 @@ const ROLE_OPTIONS = computed(() => ROLE_TYPE_META);
             <span class="ge-autofill-hint">{{ t('Состав совета:') }} {{ boardAgg.board_size }} {{ t('чел ·') }} {{ boardAgg.independent }} {{ t('незав. ·') }} {{ boardAgg.women }} {{ t('жен. ·') }} {{ boardAgg.foreign }} {{ t('иностр.') }}</span>
             <button type="button" class="ge-autofill-btn" :disabled="saving" @click="fillFromBoard">{{ t('Подставить из совета') }}</button>
           </div>
+
+          <!-- Места в совете и предпросчёт балла -->
+          <div class="ge-seats">
+            <div class="ge-seat">
+              <span class="ge-seat-l">{{ t('Заведено людей') }}</span>
+              <span class="ge-seat-v">{{ seats.actual }}</span>
+            </div>
+            <div class="ge-seat">
+              <span class="ge-seat-l">{{ t('Утверждено') }}</span>
+              <span class="ge-seat-v">{{ seats.approved ?? '—' }}</span>
+            </div>
+            <div class="ge-seat" :class="{ 'ge-seat-warn': (seats.vacant || 0) > 0 }">
+              <span class="ge-seat-l">{{ t('Вакансий') }}</span>
+              <span class="ge-seat-v">{{ seats.vacant ?? '—' }}</span>
+            </div>
+            <div class="ge-seat ge-seat-score">
+              <span class="ge-seat-l">{{ t('Балл КУ (предпросчёт)') }}</span>
+              <span class="ge-seat-v">{{ scorePreview ?? '—' }}<small v-if="scorePreview != null">/100</small></span>
+            </div>
+          </div>
+          <p v-if="seats.over" class="ge-seat-note">
+            {{ t('Заведено больше людей, чем утверждено ({value0} > {value1}) — проверьте утверждённый размер или список членов.', { value0: seats.actual, value1: seats.approved }) }}
+          </p>
           <div class="ge-grid">
             <label v-for="f in numFields" :key="f.key" class="ge-field">
               <span class="ge-label">{{ t(f.label) }}</span>
@@ -494,4 +555,19 @@ const ROLE_OPTIONS = computed(() => ROLE_TYPE_META);
   .ge-modal { max-width: 100%; margin: 0 8px; max-height: 92dvh; }
   .ge-icon-btn, .ge-icon-del { width: 34px; height: 34px; }
 }
+
+.ge-seats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin: 10px 0 4px; }
+.ge-seat {
+  display: flex; flex-direction: column; gap: 2px;
+  background: var(--bg2, #F8F9FC); border: 1px solid var(--border, #EEF0F5);
+  border-radius: 11px; padding: 9px 12px;
+}
+.ge-seat-l { font-size: 9.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--t3, #94A3B8); }
+.ge-seat-v { font-size: 17px; font-weight: 500; color: var(--t1, #1E2A4A); font-variant-numeric: tabular-nums; }
+.ge-seat-v small { font-size: 11px; color: var(--t3, #94A3B8); margin-left: 2px; }
+.ge-seat-warn { background: rgba(217,119,6,.07); border-color: rgba(217,119,6,.22); }
+.ge-seat-warn .ge-seat-v { color: #B45309; }
+.ge-seat-score { background: rgba(124,111,247,.07); border-color: rgba(124,111,247,.20); }
+.ge-seat-score .ge-seat-v { color: var(--p-deep, #534AB7); }
+.ge-seat-note { font-size: 11.5px; color: #B45309; margin: 6px 0 0; line-height: 1.45; }
 </style>

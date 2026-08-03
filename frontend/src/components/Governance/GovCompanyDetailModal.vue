@@ -46,9 +46,54 @@
 
         <!-- Body -->
         <div class="gd-body">
+          <!-- Балл корпоративного управления: из чего сложился -->
+          <div v-if="detail.score != null && detail.score_breakdown?.length" class="gd-sec">
+            <div class="gd-sec-h">{{ t('Балл корпоративного управления') }}</div>
+            <div class="gd-score-wrap">
+              <div class="gd-score-big" :style="{ '--sc': scoreColor(detail.score) }">
+                <span class="gd-score-val">{{ fmt.fmtNumber(detail.score, { decimals: 0 }) }}</span>
+                <span class="gd-score-max">/100</span>
+                <span class="gd-score-cap">{{ t('composite') }}</span>
+              </div>
+              <div class="gd-score-factors">
+                <div v-for="(f, i) in detail.score_breakdown" :key="f.key"
+                     class="gd-sf" :class="{ 'is-missing': f.missing }"
+                     :style="{ '--d': i * 40 + 'ms' }">
+                  <div class="gd-sf-top">
+                    <span class="gd-sf-label">{{ t(f.label) }}</span>
+                    <span class="gd-sf-weight">{{ t('вес') }} {{ Math.round(f.weight * 100) }}%</span>
+                    <span v-if="!f.missing" class="gd-sf-pts">+{{ f.points }}</span>
+                    <span v-else class="gd-sf-na">{{ t('нет данных') }}</span>
+                  </div>
+                  <div class="gd-sf-bar">
+                    <span class="gd-sf-fill" :style="{ width: ((f.ratio ?? 0) * 100) + '%' }"></span>
+                  </div>
+                  <div class="gd-sf-foot">
+                    <span>{{ f.value_text || '—' }}</span>
+                    <span class="gd-sf-target">{{ t('цель') }} {{ f.target_text }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div v-if="missingFactors > 0" class="gd-score-note">
+              {{ t('Балл посчитан по {value0} факторам из {value1}: веса недостающих перераспределены. Заполните их — оценка станет полной.', {
+                  value0: detail.score_breakdown.length - missingFactors,
+                  value1: detail.score_breakdown.length,
+              }) }}
+            </div>
+          </div>
+
           <!-- Diversity bars -->
           <div class="gd-sec">
-            <div class="gd-sec-h">{{ t('Состав совета директоров') }}</div>
+            <div class="gd-sec-h">
+              {{ t('Состав совета директоров') }}
+              <span v-if="detail.board_actual != null" class="gd-board-cnt">
+                {{ detail.board_actual }}<template v-if="detail.data?.board_size"> {{ t('из') }} {{ detail.data.board_size }}</template>
+              </span>
+              <span v-if="detail.vacant_seats" class="gd-vacant">
+                {{ t('{value0} вакансий', { value0: detail.vacant_seats }) }}
+              </span>
+            </div>
             <UzaStateBlock v-if="!detail.data" state="empty" variant="inline" :text="t('Данные за {value0} ещё не заведены', { value0: detail.year })" />
             <div v-else class="gd-diversity">
               <div class="gd-div-row">
@@ -272,6 +317,11 @@ const detail = ref<GovernanceCompanyDetail | null>(null);
 const loading = ref(true);
 const error = ref<string | null>(null);
 const currentYear = ref<number | null>(props.initialYear ?? null);
+/** Сколько факторов балла остались незаполненными — показываем честно. */
+const missingFactors = computed(
+  () => (detail.value?.score_breakdown || []).filter((f: any) => f.missing).length,
+);
+
 const localizedCompanyName = computed(() =>
   companiesStore.getCompanyNameById(detail.value?.company_id)
   || resolveCompanyDisplayName(
@@ -594,4 +644,51 @@ function divBarFill(pct: number | null | undefined, target: number): string {
 .gd-flag-f { background: rgba(168, 85, 247, .15); color: #A855F7; }
 
 .gd-na { color: rgba(15, 23, 60, .35); }
+
+/* ── Балл КУ: из чего сложился ── */
+.gd-score-wrap { display: grid; grid-template-columns: 132px 1fr; gap: 18px; align-items: start; }
+.gd-score-big {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--sc) 9%, transparent);
+  border: 1px solid color-mix(in srgb, var(--sc) 24%, transparent);
+  border-radius: 14px; padding: 16px 10px;
+}
+.gd-score-val { font-size: 34px; font-weight: 500; color: var(--sc); line-height: 1; font-variant-numeric: tabular-nums; }
+.gd-score-max { font-size: 12px; color: var(--t3, #94A3B8); margin-top: 2px; }
+.gd-score-cap { font-size: 9px; text-transform: uppercase; letter-spacing: .07em; color: var(--t4, #B4B2A9); margin-top: 7px; }
+.gd-score-factors { display: flex; flex-direction: column; gap: 9px; }
+.gd-sf {
+  animation: gdSfIn .34s var(--ease-standard, cubic-bezier(.34,1.2,.64,1)) both;
+  animation-delay: var(--d, 0ms);
+}
+@keyframes gdSfIn { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: none; } }
+.gd-sf.is-missing { opacity: .55; }
+.gd-sf-top { display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px; }
+.gd-sf-label { font-size: 12px; font-weight: 500; color: var(--t1, #1E2A4A); }
+.gd-sf-weight { font-size: 10px; color: var(--t4, #B4B2A9); }
+.gd-sf-pts { margin-left: auto; font-size: 12px; font-weight: 600; color: #0F6E56; font-variant-numeric: tabular-nums; }
+.gd-sf-na { margin-left: auto; font-size: 10.5px; color: var(--t3, #94A3B8); }
+.gd-sf-bar { height: 6px; border-radius: 999px; background: var(--bg2, #F1F2F6); overflow: hidden; }
+.gd-sf-fill {
+  display: block; height: 100%; border-radius: inherit;
+  background: linear-gradient(90deg, #8B7FFF, #6C5CE7);
+  transition: width .5s var(--ease-standard, cubic-bezier(.34,1.2,.64,1));
+}
+.gd-sf-foot { display: flex; justify-content: space-between; margin-top: 3px; font-size: 10.5px; color: var(--t3, #94A3B8); }
+.gd-sf-target { opacity: .85; }
+.gd-score-note {
+  margin-top: 12px; font-size: 11.5px; line-height: 1.5; color: var(--t2, #4B5468);
+  background: rgba(217,119,6,.07); border: 1px solid rgba(217,119,6,.20);
+  border-radius: 10px; padding: 9px 12px;
+}
+.gd-board-cnt {
+  font-size: 11px; font-weight: 600; color: var(--p-deep, #534AB7);
+  background: rgba(124,111,247,.12); border-radius: 999px; padding: 2px 9px; margin-left: 8px;
+}
+.gd-vacant {
+  font-size: 10.5px; font-weight: 600; color: #B45309;
+  background: rgba(217,119,6,.13); border-radius: 999px; padding: 2px 9px; margin-left: 6px;
+}
+@media (max-width: 720px) { .gd-score-wrap { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .gd-sf { animation: none; } .gd-sf-fill { transition: none; } }
 </style>

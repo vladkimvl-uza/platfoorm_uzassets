@@ -148,6 +148,26 @@ class GovernanceRepository:
         q = q.order_by(asc(BoardMember.role_type), asc(BoardMember.full_name))
         return (await self.session.execute(q)).scalars().all()
 
+    async def board_member_counts(self) -> dict:
+        """{company_id: сколько ДЕЙСТВУЮЩИХ членов совета заведено}.
+
+        Нужен, чтобы «размер совета» показывался по факту людей, а вакансии
+        считались как утверждённый размер минус факт — вместо ручного поля,
+        которое расходилось с данными (на проде «1 вакансия» стояла у пяти
+        компаний, где все места заняты).
+        """
+        today = datetime.now(UTC).date()
+        q = (
+            select(BoardMember.company_id, func.count())
+            .where(
+                (BoardMember.term_end_date == None)  # noqa: E711
+                | (BoardMember.term_end_date >= today),
+            )
+            .group_by(BoardMember.company_id)
+        )
+        rows = (await self.session.execute(q)).all()
+        return {cid: int(n) for cid, n in rows}
+
     async def get_member(self, member_id: UUID) -> Optional[BoardMember]:
         res = await self.session.execute(
             select(BoardMember).where(BoardMember.id == member_id)

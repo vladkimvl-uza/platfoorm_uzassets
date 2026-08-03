@@ -81,7 +81,92 @@ def governance_score(d: GovernanceData) -> Optional[float]:
     return round(weighted * 100, 1)
 
 
-def co_data_to_score_row(d: GovernanceData, co: Company) -> GovernanceCompanyScore:
+def governance_score_breakdown(d: GovernanceData) -> list[dict]:
+    """Разбор балла по факторам — чтобы пользователь видел, ИЗ ЧЕГО он сложился.
+
+    Считается ровно теми же формулами, что governance_score (один код, одна
+    правда): доля от цели, ограниченная 1.0, умноженная на вес.
+
+    ВАЖНО про честность: если фактор не заполнен, он не участвует, а веса
+    оставшихся нормируются. Балл при этом выглядит «полным», хотя описывает
+    меньше факторов — поэтому `missing=true` возвращается явно, и интерфейс
+    обязан показать покрытие.
+    """
+    if d.board_size is None or d.board_size == 0:
+        return []
+
+    n_committees, total_committees = committees_present(d)
+    rows: list[dict] = [
+        {
+            "key": "independence", "label": "Независимые директора",
+            "weight": 0.25, "target_text": "≥33% состава",
+            "value": (d.independent_directors_count / d.board_size * 100)
+                     if d.independent_directors_count is not None else None,
+            "value_text": (f"{d.independent_directors_count} из {d.board_size}"
+                           if d.independent_directors_count is not None else None),
+            "ratio": min(1.0, (d.independent_directors_count / d.board_size) / 0.33)
+                     if d.independent_directors_count is not None else None,
+        },
+        {
+            "key": "women", "label": "Женщины в совете",
+            "weight": 0.15, "target_text": "≥20% состава",
+            "value": (d.women_directors_count / d.board_size * 100)
+                     if d.women_directors_count is not None else None,
+            "value_text": (f"{d.women_directors_count} из {d.board_size}"
+                           if d.women_directors_count is not None else None),
+            "ratio": min(1.0, (d.women_directors_count / d.board_size) / 0.20)
+                     if d.women_directors_count is not None else None,
+        },
+        {
+            "key": "foreign", "label": "Иностранные директора",
+            "weight": 0.10, "target_text": "≥10% состава",
+            "value": (d.foreign_directors_count / d.board_size * 100)
+                     if d.foreign_directors_count is not None else None,
+            "value_text": (f"{d.foreign_directors_count} из {d.board_size}"
+                           if d.foreign_directors_count is not None else None),
+            "ratio": min(1.0, (d.foreign_directors_count / d.board_size) / 0.10)
+                     if d.foreign_directors_count is not None else None,
+        },
+        {
+            "key": "committees", "label": "Комитеты совета",
+            "weight": 0.25, "target_text": f"все {total_committees}",
+            "value": (n_committees / total_committees * 100) if total_committees else None,
+            "value_text": f"{n_committees} из {total_committees}",
+            "ratio": (n_committees / total_committees) if total_committees else 0.0,
+        },
+        {
+            "key": "attendance", "label": "Посещаемость заседаний",
+            "weight": 0.15, "target_text": "≥80%",
+            "value": d.avg_attendance_pct,
+            "value_text": (f"{d.avg_attendance_pct:g}%"
+                           if d.avg_attendance_pct is not None else None),
+            "ratio": min(1.0, d.avg_attendance_pct / 80)
+                     if d.avg_attendance_pct is not None else None,
+        },
+        {
+            "key": "meetings", "label": "Заседаний в год",
+            "weight": 0.10, "target_text": "≥4",
+            "value": d.meetings_per_year,
+            "value_text": (f"{d.meetings_per_year:g}"
+                           if d.meetings_per_year is not None else None),
+            "ratio": min(1.0, d.meetings_per_year / 4)
+                     if d.meetings_per_year is not None else None,
+        },
+    ]
+
+    present = [r for r in rows if r["ratio"] is not None]
+    total_weight = sum(r["weight"] for r in present) or 1.0
+    for r in rows:
+        r["missing"] = r["ratio"] is None
+        # Вклад в итоговый балл с учётом нормировки весов по заполненным факторам.
+        r["points"] = (round(r["weight"] / total_weight * r["ratio"] * 100, 1)
+                       if r["ratio"] is not None else None)
+        r["max_points"] = round(r["weight"] / total_weight * 100, 1) if not r["missing"] else None
+    return rows
+
+
+def co_data_to_score_row(d: GovernanceData, co: Company,
+                         board_actual: Optional[int] = None) -> GovernanceCompanyScore:
     bs = d.board_size or 0
     indep_pct = round(100 * d.independent_directors_count / bs, 1) if d.independent_directors_count is not None and bs else None
     wm_pct    = round(100 * d.women_directors_count / bs, 1) if d.women_directors_count is not None and bs else None
@@ -115,7 +200,15 @@ def co_data_to_score_row(d: GovernanceData, co: Company) -> GovernanceCompanySco
         independent_count=d.independent_directors_count,
         women_count=d.women_directors_count,
         foreign_count=d.foreign_directors_count,
-        vacant_seats=payload.get("vacant"),
+        board_actual=board_actual,
+        # Вакансии = утверждённый размер − факт. Ручное payload.vacant —
+        # только фолбэк для записей без board_size: на проде оно расходилось
+        # с данными (стояла «1 вакансия» там, где все места заняты).
+        vacant_seats=(
+            max(0, d.board_size - board_actual)
+            if (d.board_size is not None and board_actual is not None)
+            else payload.get("vacant")
+        ),
         exec_count=payload.get("exec"),
         nonexec_count=payload.get("nonexec"),
         independent_pct=indep_pct,

@@ -143,6 +143,16 @@ export interface GovernanceCompanyDetail {
   data: GovernanceDataBrief | null;
   board_members: BoardMemberBrief[];
   score: number | null;
+  /** Разбор балла по факторам — считается тем же кодом, что и сам балл. */
+  score_breakdown: {
+    key: string; label: string; weight: number;
+    target_text: string; value: number | null; value_text: string | null;
+    ratio: number | null; points: number | null; max_points: number | null;
+    missing: boolean;
+  }[];
+  /** Состав по факту (людей заведено) и вакансии = утверждённый − факт. */
+  board_actual: number | null;
+  vacant_seats: number | null;
   independent_pct: number | null;
   women_pct: number | null;
   foreign_pct: number | null;

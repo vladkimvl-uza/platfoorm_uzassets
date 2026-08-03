@@ -35,6 +35,7 @@ from app.services.governance._helpers import (
     data_to_brief,
     diversity_from_members,
     governance_score,
+    governance_score_breakdown,
     member_to_brief,
 )
 from app.uow.ports import UnitOfWorkABC
@@ -152,11 +153,13 @@ class GovernanceService:
             # Rankings
             rankings: list[GovernanceCompanyScore] = []
             co_lookup = {co.id: co for co in companies}
+            # Факт состава — по людям, а не по ручному числу.
+            member_counts = await self.uow.governance.board_member_counts()
             for co_id, d in by_co.items():
                 co = co_lookup.get(co_id)
                 if not co:
                     continue
-                rankings.append(co_data_to_score_row(d, co))
+                rankings.append(co_data_to_score_row(d, co, member_counts.get(co_id)))
 
             def _sort_key(r: GovernanceCompanyScore):
                 # Единая шкала 0..100: legacy 0..1200 нормируем /12 (иначе смешение шкал
@@ -260,6 +263,7 @@ class GovernanceService:
             cm_agg = _aggregate_committee_meetings(cm_rows)
 
             indep_pct = wm_pct = fo_pct = score = None
+            breakdown: list[dict] = []
             if d:
                 bs = d.board_size or 0
                 if bs:
@@ -270,6 +274,7 @@ class GovernanceService:
                     if d.foreign_directors_count is not None:
                         fo_pct = round(100 * d.foreign_directors_count / bs, 1)
                 score = governance_score(d)
+                breakdown = governance_score_breakdown(d)
 
             return GovernanceCompanyDetail(
                 company_id=co.id,
@@ -280,6 +285,12 @@ class GovernanceService:
                 data=data_to_brief(d) if d else None,
                 board_members=members,
                 score=score,
+                score_breakdown=breakdown,
+                board_actual=len(members),
+                vacant_seats=(
+                    max(0, d.board_size - len(members))
+                    if (d and d.board_size is not None) else None
+                ),
                 independent_pct=indep_pct,
                 women_pct=wm_pct,
                 foreign_pct=fo_pct,
