@@ -32,20 +32,34 @@ const open = ref(false);
 // Куда раскрывать список. Меню было жёстко привязано вверх (сделано под подвал
 // сайдбара) — в топбаре /home оно уходило за край экрана и было не видно.
 // Решаем при открытии: если сверху места нет, а снизу есть — раскрываем вниз.
-const dropUp = ref(true);
 const rootEl = ref<HTMLElement | null>(null);
 const MENU_H = 190;   // высота меню из четырёх пунктов с отступами
+const MENU_W = 176;
+
+// Меню выносим в <body> и позиционируем фиксированно. Раньше оно было
+// absolute внутри переключателя: на /home топбар и баннер создают свои
+// контексты наложения (z-index + overflow: hidden), и меню либо обрезалось,
+// либо перехват кликов уходил соседнему элементу — выбрать язык было нельзя.
+const menuPos = ref<{ top: number; left: number }>({ top: 0, left: 0 });
+
+function place() {
+  const r = rootEl.value?.getBoundingClientRect();
+  if (!r) return;
+  const spaceBelow = window.innerHeight - r.bottom;
+  const up = spaceBelow < MENU_H && r.top >= MENU_H;
+  menuPos.value = {
+    top: up ? Math.max(8, r.top - MENU_H - 6) : r.bottom + 6,
+    // не даём уехать за правый край экрана
+    left: Math.min(Math.max(8, r.left), window.innerWidth - MENU_W - 8),
+  };
+}
 
 function toggle() {
-  if (!open.value) {
-    const r = rootEl.value?.getBoundingClientRect();
-    if (r) {
-      const spaceAbove = r.top;
-      const spaceBelow = window.innerHeight - r.bottom;
-      dropUp.value = spaceAbove >= MENU_H || spaceAbove >= spaceBelow;
-    }
-  }
+  if (!open.value) place();
   open.value = !open.value;
+}
+function onViewportChange() {
+  if (open.value) place();
 }
 const localeFlag: Record<AppLocale, string> = {
   ru: flagRu,
@@ -60,10 +74,20 @@ function pick(loc: AppLocale) {
 }
 
 function onDocClick(e: MouseEvent) {
-  if (!(e.target as HTMLElement).closest(".lsw-root")) open.value = false;
+  const el = e.target as HTMLElement;
+  // Меню телепортировано в body, поэтому проверяем и его собственный класс.
+  if (!el.closest(".lsw-root") && !el.closest(".lsw-menu")) open.value = false;
 }
-onMounted(() => document.addEventListener("click", onDocClick));
-onBeforeUnmount(() => document.removeEventListener("click", onDocClick));
+onMounted(() => {
+  document.addEventListener("click", onDocClick);
+  window.addEventListener("resize", onViewportChange);
+  window.addEventListener("scroll", onViewportChange, true);
+});
+onBeforeUnmount(() => {
+  document.removeEventListener("click", onDocClick);
+  window.removeEventListener("resize", onViewportChange);
+  window.removeEventListener("scroll", onViewportChange, true);
+});
 </script>
 
 <template>
@@ -80,7 +104,9 @@ onBeforeUnmount(() => document.removeEventListener("click", onDocClick));
       <svg class="lsw-chev" :class="{ open }" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
     </button>
 
-    <div v-show="open" class="lsw-menu" :class="dropUp ? 'lsw-menu-up' : 'lsw-menu-down'" role="listbox">
+    <Teleport to="body">
+      <div v-show="open" class="lsw-menu" :class="`lsw-${variant}`" role="listbox"
+           :style="{ top: menuPos.top + 'px', left: menuPos.left + 'px' }">
       <button
         v-for="loc in APP_LOCALES"
         :key="loc"
@@ -93,8 +119,9 @@ onBeforeUnmount(() => document.removeEventListener("click", onDocClick));
         <img class="lsw-menu-flag" :src="localeFlag[loc]" alt="" aria-hidden="true" />
         <span class="lsw-mcode">{{ LOCALE_SHORT[loc] }}</span>
         <span>{{ LOCALE_NAME[loc] }}</span>
-      </button>
-    </div>
+        </button>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -144,8 +171,7 @@ onBeforeUnmount(() => document.removeEventListener("click", onDocClick));
 .lsw-chev.open { transform: rotate(180deg); }
 
 .lsw-menu {
-  position: absolute;
-  left: 0;
+  position: fixed;
   display: flex; flex-direction: column;
   background: var(--bg1, #fff);
   border: 0.5px solid rgba(15, 23, 60, 0.1);
@@ -153,10 +179,8 @@ onBeforeUnmount(() => document.removeEventListener("click", onDocClick));
   box-shadow: 0 10px 28px rgba(15, 23, 60, 0.2);
   padding: 4px;
   min-width: 168px;
-  z-index: var(--z-dropdown, 900);
+  z-index: var(--z-toast, 9800);
 }
-.lsw-menu-up { bottom: calc(100% + 6px); }
-.lsw-menu-down { top: calc(100% + 6px); }
 .lsw-menu button {
   display: flex; align-items: center; gap: 8px;
   background: transparent; border: none;

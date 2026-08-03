@@ -7,6 +7,7 @@ import {
 } from "@/api/moderation";
 import { useAuthStore } from "@/stores/auth";
 import { useUserDirectory } from "@/composables/useUserDirectory";
+import { useToast } from "@/composables/useToast";
 import { useFormatters } from "@/composables/useFormatters";
 import { useConfirm } from "@/composables/useConfirm";
 import { useI18n } from "@/composables/useI18n";
@@ -22,6 +23,17 @@ const emit = defineEmits<{ close: []; resolved: [] }>();
 
 const auth = useAuthStore();
 const dir = useUserDirectory();
+const toast = useToast();
+
+/** Русские названия модулей — в карточке выводился сырой код («business_plan»). */
+const MODULE_RU: Record<string, string> = {
+  tasks: "Задачи", projects: "Проекты", comments: "Комментарии",
+  kpi: "KPI", financials: "Финансы", business_plan: "Бизнес-план",
+  esg: "ESG", governance: "Корп. управление", ratings: "Рейтинги",
+  procurement: "Закупки", production: "Производство", credit: "Кредитный портфель",
+  investment: "Инвест-проекты", unit_cost: "Себестоимость", companies: "Компании",
+};
+function moduleRu(code: string): string { return t(MODULE_RU[code] || code); }
 
 const sub = ref<Submission | null>(null);
 const comments = ref<Comment[]>([]);
@@ -90,7 +102,7 @@ async function submitResolve() {
       await moderationApi.approve(sub.value.id, resolveNote.value || undefined);
     } else if (resolveMode.value === "reject") {
       if (!resolveNote.value.trim()) {
-        error.value = t('Укажите причину отклонения');
+        toast.error(t('Укажите причину отклонения'));
         acting.value = false;
         return;
       }
@@ -118,7 +130,9 @@ async function submitResolve() {
     resolveMode.value = null;
     emit("resolved");
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || e?.message || t('Действие не выполнено');
+    // Тост, а не баннер: карточка заявки длинная, баннер вверху модератор,
+    // нажавший кнопку внизу, попросту не увидит.
+    toast.error(e?.response?.data?.detail || e?.message || t('Действие не выполнено'));
   } finally { acting.value = false; }
 }
 
@@ -129,7 +143,7 @@ async function setReview() {
   try {
     await moderationApi.setReview(sub.value.id, note);
     emit("resolved");
-  } catch (e: any) { error.value = e?.response?.data?.detail || e?.message; }
+  } catch (e: any) { toast.error(e?.response?.data?.detail || e?.message || t('Действие не выполнено')); }
   finally { acting.value = false; }
 }
 async function withdraw() {
@@ -139,7 +153,7 @@ async function withdraw() {
   try {
     await moderationApi.withdraw(sub.value.id);
     emit("resolved");
-  } catch (e: any) { error.value = e?.response?.data?.detail || e?.message; }
+  } catch (e: any) { toast.error(e?.response?.data?.detail || e?.message || t('Действие не выполнено')); }
   finally { acting.value = false; }
 }
 
@@ -154,7 +168,7 @@ async function retryApply() {
     }
     // On failed/skipped the panel will show the new error inline.
   } catch (e: any) {
-    error.value = e?.response?.data?.detail || e?.message || t('Retry не удался');
+    toast.error(e?.response?.data?.detail || e?.message || t('Retry не удался'));
   } finally { acting.value = false; }
 }
 
@@ -180,7 +194,7 @@ async function postComment() {
     const c = await moderationApi.addComment(sub.value.id, text, { is_internal: internalToggle.value });
     comments.value.push(c);
     newComment.value = "";
-  } catch (e: any) { error.value = e?.response?.data?.detail || e?.message; }
+  } catch (e: any) { toast.error(e?.response?.data?.detail || e?.message || t('Действие не выполнено')); }
 }
 
 function onBackdropClick(e: MouseEvent) {
@@ -200,12 +214,51 @@ const diffEntries = computed(() => {
   }));
 });
 
-function fmtVal(v: unknown): string {
-  if (v === null || v === undefined) return "—";
+/** Русские подписи полей — модератор видел технические имена (assignee_email). */
+const FIELD_RU: Record<string, string> = {
+  title: "Название", name: "Название", description: "Описание",
+  status: "Статус", due_date: "Срок", start_date: "Начало",
+  assignee_id: "Ответственный", assignee_email: "Ответственный",
+  assignee_name: "Ответственный", priority: "Приоритет",
+  progress: "Прогресс", result: "Результат", notes: "Примечание",
+  comment: "Комментарий", body: "Текст", weight: "Вес",
+  direction_id: "Направление", tags: "Метки", year: "Год",
+  plan: "План", fact: "Факт", value: "Значение", amount: "Сумма",
+  currency: "Валюта", unit: "Ед. изм.", is_milestone: "Веха",
+};
+function fieldRu(key: string): string { return t(FIELD_RU[key] || key); }
+
+/** Человеческие статусы задач/проектов — иначе в диффе стоит «review». */
+const STATUS_RU: Record<string, string> = {
+  new: "Не начато", init: "Инициирование", active: "В процессе",
+  review: "На согласовании", done: "Завершено", deferred: "Перенесено",
+  quarterly: "Ежеквартально", monthly: "Ежемесячно", ongoing: "Постоянно",
+};
+
+function fmtVal(v: unknown, key?: string): string {
+  if (v === null || v === undefined || v === "") return "—";
+  if (typeof v === "boolean") return v ? t("да") : t("нет");
+  if (key === "status" && typeof v === "string" && STATUS_RU[v]) return t(STATUS_RU[v]);
   if (typeof v === "number") return fmt.fmtNumber(v);
-  if (typeof v === "object") return JSON.stringify(v);
+  if (Array.isArray(v)) return v.length ? v.map((x) => String(x)).join(", ") : "—";
+  if (typeof v === "object") {
+    // Вложенный объект: показываем поля, а не JSON-строку.
+    const parts = Object.entries(v as Record<string, unknown>)
+      .filter(([, val]) => val !== null && val !== undefined && val !== "")
+      .slice(0, 6)
+      .map(([k2, val]) => `${fieldRu(k2)}: ${String(val)}`);
+    return parts.length ? parts.join(" · ") : "—";
+  }
   return String(v);
 }
+
+// По умолчанию показываем ТОЛЬКО изменённое: раньше в списке были все поля
+// тела запроса, и модератор глазами искал, что именно поменялось.
+const showAllFields = ref(false);
+const changedEntries = computed(() => diffEntries.value.filter((d) => d.changed));
+const visibleEntries = computed(() =>
+  showAllFields.value ? diffEntries.value : changedEntries.value,
+);
 </script>
 
 <template>
@@ -227,7 +280,7 @@ function fmtVal(v: unknown): string {
                   {{ t(STATUS_LABELS[sub.status].label) }}
                 </span>
               </div>
-              <div class="mrm-title">{{ sub.target_entity_label || sub.target_module }}</div>
+              <div class="mrm-title">{{ sub.target_entity_label || moduleRu(sub.target_module) }}</div>
             </div>
           </div>
           <button class="mrm-close" @click="emit('close')">
@@ -257,7 +310,7 @@ function fmtVal(v: unknown): string {
           <div class="mrm-section">
             <div class="mrm-section-hd">{{ t('Контекст') }}</div>
             <div class="mrm-breadcrumbs">
-              <span class="mrm-bc-item"><BIcon name="package" :size="14" /> {{ sub.target_module }}</span>
+              <span class="mrm-bc-item"><BIcon name="package" :size="14" /> {{ moduleRu(sub.target_module) }}</span>
               <BIcon v-if="sub.target_entity_label" name="chevron-right" :size="13" class="mrm-bc-arr" />
               <span v-if="sub.target_entity_label" class="mrm-bc-item">{{ sub.target_entity_label }}</span>
               <BIcon v-if="sub.target_field" name="chevron-right" :size="13" class="mrm-bc-arr" />
@@ -266,18 +319,31 @@ function fmtVal(v: unknown): string {
           </div>
 
           <div v-if="diffEntries.length > 0" class="mrm-section">
-            <div class="mrm-section-hd">{{ t('Изменения') }}</div>
-            <div class="mrm-diff-grid">
-              <div v-for="d in diffEntries" :key="d.key" class="mrm-diff-row" :class="{ changed: d.changed }">
-                <div class="mrm-diff-key">{{ d.key }}</div>
+            <div class="mrm-section-hd">
+              {{ t('Изменения') }}
+              <span v-if="changedEntries.length" class="mrm-diff-cnt">{{ changedEntries.length }}</span>
+              <button v-if="diffEntries.length > changedEntries.length"
+                      class="mrm-diff-toggle" @click="showAllFields = !showAllFields">
+                {{ showAllFields
+                    ? t('только изменённые')
+                    : t('показать все поля ({value0})', { value0: diffEntries.length }) }}
+              </button>
+            </div>
+            <div v-if="!visibleEntries.length" class="mrm-diff-none">
+              {{ t('Значения полей не изменились — предложение не меняет данные.') }}
+            </div>
+            <div v-else class="mrm-diff-grid">
+              <div v-for="(d, i) in visibleEntries" :key="d.key" class="mrm-diff-row"
+                   :class="{ changed: d.changed }" :style="{ '--d': Math.min(i, 12) * 26 + 'ms' }">
+                <div class="mrm-diff-key">{{ fieldRu(d.key) }}</div>
                 <div class="mrm-diff-before">
                   <div class="mrm-diff-label">{{ t('Было') }}</div>
-                  <div class="mrm-diff-val">{{ fmtVal(d.before) }}</div>
+                  <div class="mrm-diff-val">{{ fmtVal(d.before, d.key) }}</div>
                 </div>
                 <BIcon name="arrow-right" :size="15" class="mrm-diff-arr" />
                 <div class="mrm-diff-after">
                   <div class="mrm-diff-label">{{ t('Предложено') }}</div>
-                  <div class="mrm-diff-val">{{ fmtVal(d.after) }}</div>
+                  <div class="mrm-diff-val">{{ fmtVal(d.after, d.key) }}</div>
                 </div>
               </div>
             </div>
@@ -787,4 +853,18 @@ function fmtVal(v: unknown): string {
   line-height: 1.45;
   white-space: pre-wrap;
 }
+
+.mrm-diff-cnt {
+  font-size: 10px; font-weight: 700; color: var(--p-deep, #534AB7);
+  background: rgba(124,111,247,.12); border-radius: 999px; padding: 2px 8px; margin-left: 7px;
+}
+.mrm-diff-toggle {
+  margin-left: auto; font-family: inherit; font-size: 11px; font-weight: 500;
+  color: var(--p-deep, #534AB7); background: transparent; border: 0;
+  cursor: pointer; text-decoration: underline; text-underline-offset: 2px;
+}
+.mrm-diff-none { font-size: 12px; color: var(--t3, #94A3B8); padding: 8px 2px; }
+.mrm-diff-row { animation: mrmDiffIn .3s var(--ease-standard, cubic-bezier(.34,1.2,.64,1)) both; animation-delay: var(--d, 0ms); }
+@keyframes mrmDiffIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .mrm-diff-row { animation: none; } }
 </style>
