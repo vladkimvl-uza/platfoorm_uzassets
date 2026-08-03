@@ -230,6 +230,14 @@ const router = createRouter({
         // RBAC v2. When v2 was removed it became orphaned — restore as a
         // standalone admin route so the moderation workflow is reachable.
         {
+          // «Мои заявки» — экран АВТОРА правки, без права модератора: до этого
+          // у модерируемого пользователя не было вообще никакого экрана.
+          path: "my-submissions",
+          name: "my-submissions",
+          component: () => import("@/views/MySubmissions.vue"),
+          meta: { title: "Мои заявки", requiresAuth: true },
+        },
+        {
           path: "admin/moderation",
           name: "admin-moderation",
           component: () => import("@/components/moderation/ModerationTab.vue"),

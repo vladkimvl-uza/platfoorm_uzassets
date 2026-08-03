@@ -46,6 +46,13 @@ class ScheduleResponse(BaseModel):
     forecast_finish: Optional[date] = None
     baseline_finish: Optional[date] = None
     critical_path_ids: list[UUID] = Field(default_factory=list)
+    # Сколько связей между задачами задано. Без них критический путь не
+    # существует — интерфейс должен сказать это прямо, а не подсвечивать
+    # произвольную задачу.
+    dependency_count: int = 0
+    # Сколько полос не имеют даты начала: длительность у них берётся условной,
+    # и Гантт рисует их фактически по одному дедлайну.
+    missing_start_count: int = 0
     overdue_count: int = 0
     blocked_count: int = 0
 

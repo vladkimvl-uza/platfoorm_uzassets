@@ -33,6 +33,10 @@ export interface ScheduleResponse {
   forecast_finish: string | null;
   baseline_finish: string | null;
   critical_path_ids: string[];
+  /** Сколько связей между задачами задано (0 → критического пути нет). */
+  dependency_count: number;
+  /** Сколько полос без даты начала — Гантт рисует их по одному дедлайну. */
+  missing_start_count: number;
   overdue_count: number;
   blocked_count: number;
 }

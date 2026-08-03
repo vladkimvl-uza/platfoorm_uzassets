@@ -29,6 +29,24 @@ withDefaults(defineProps<{ variant?: "dark" | "light" }>(), { variant: "dark" })
 
 const store = useLocaleStore();
 const open = ref(false);
+// Куда раскрывать список. Меню было жёстко привязано вверх (сделано под подвал
+// сайдбара) — в топбаре /home оно уходило за край экрана и было не видно.
+// Решаем при открытии: если сверху места нет, а снизу есть — раскрываем вниз.
+const dropUp = ref(true);
+const rootEl = ref<HTMLElement | null>(null);
+const MENU_H = 190;   // высота меню из четырёх пунктов с отступами
+
+function toggle() {
+  if (!open.value) {
+    const r = rootEl.value?.getBoundingClientRect();
+    if (r) {
+      const spaceAbove = r.top;
+      const spaceBelow = window.innerHeight - r.bottom;
+      dropUp.value = spaceAbove >= MENU_H || spaceAbove >= spaceBelow;
+    }
+  }
+  open.value = !open.value;
+}
 const localeFlag: Record<AppLocale, string> = {
   ru: flagRu,
   "uz-latn": flagUz,
@@ -49,20 +67,20 @@ onBeforeUnmount(() => document.removeEventListener("click", onDocClick));
 </script>
 
 <template>
-  <div class="lsw-root" :class="`lsw-${variant}`">
+  <div ref="rootEl" class="lsw-root" :class="`lsw-${variant}`">
     <button
       class="lsw-btn"
       type="button"
       :title="LOCALE_NAME[store.current]"
       :aria-label="t('Til / Язык / Language: {value0}', { value0: LOCALE_NAME[store.current] })"
-      @click.stop="open = !open"
+      @click.stop="toggle"
     >
       <img class="lsw-flag" :src="localeFlag[store.current]" alt="" aria-hidden="true" />
       <span class="lsw-code">{{ LOCALE_SHORT[store.current] }}</span>
       <svg class="lsw-chev" :class="{ open }" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
     </button>
 
-    <div v-show="open" class="lsw-menu" role="listbox">
+    <div v-show="open" class="lsw-menu" :class="dropUp ? 'lsw-menu-up' : 'lsw-menu-down'" role="listbox">
       <button
         v-for="loc in APP_LOCALES"
         :key="loc"
@@ -127,7 +145,7 @@ onBeforeUnmount(() => document.removeEventListener("click", onDocClick));
 
 .lsw-menu {
   position: absolute;
-  bottom: calc(100% + 6px); left: 0;
+  left: 0;
   display: flex; flex-direction: column;
   background: var(--bg1, #fff);
   border: 0.5px solid rgba(15, 23, 60, 0.1);
@@ -137,6 +155,8 @@ onBeforeUnmount(() => document.removeEventListener("click", onDocClick));
   min-width: 168px;
   z-index: var(--z-dropdown, 900);
 }
+.lsw-menu-up { bottom: calc(100% + 6px); }
+.lsw-menu-down { top: calc(100% + 6px); }
 .lsw-menu button {
   display: flex; align-items: center; gap: 8px;
   background: transparent; border: none;

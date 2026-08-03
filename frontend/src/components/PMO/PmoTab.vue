@@ -399,10 +399,28 @@ const fmtD = (s: string | null) =>
           <div class="pmo-kpi-l">{{ tr('Заблокировано') }}</div>
           <div class="pmo-kpi-v">{{ data.blocked_count }}</div>
         </div>
-        <div class="pmo-kpi" :style="{ '--accent': '#E24B4A' }">
+        <div class="pmo-kpi" :style="{ '--accent': data.dependency_count ? '#E24B4A' : '#94a3b8' }"
+             :title="data.dependency_count
+               ? tr('Самая длинная цепочка связанных задач — задержка любой из них сдвигает финиш.')
+               : tr('Критический путь строится по связям между задачами. Связей не задано, поэтому рассчитать его невозможно.')">
           <div class="pmo-kpi-l">{{ tr('Критический путь') }}</div>
-          <div class="pmo-kpi-v">{{ data.critical_path_ids.length }} {{ tr('зад.') }}</div>
+          <div v-if="data.dependency_count" class="pmo-kpi-v">{{ data.critical_path_ids.length }} {{ tr('зад.') }}</div>
+          <div v-else class="pmo-kpi-v pmo-kpi-na">{{ tr('нет связей') }}</div>
         </div>
+      </div>
+
+      <!-- Честный контекст расписания: без связей и дат начала Гантт
+           показывает не то, что от него ждут. -->
+      <div v-if="!data.dependency_count || data.missing_start_count" class="pmo-note">
+        <span class="pmo-note-badge">{{ tr('Данных недостаточно') }}</span>
+        <span>
+          <template v-if="!data.dependency_count">
+            {{ tr('Связи между задачами не заданы — критический путь не рассчитывается.') }}
+          </template>
+          <template v-if="data.missing_start_count">
+            {{ tr('У {value0} полос нет даты начала: длительность условная, полоса строится по одному дедлайну.', { value0: data.missing_start_count }) }}
+          </template>
+        </span>
       </div>
 
       <!-- Легенда -->
@@ -596,6 +614,18 @@ const fmtD = (s: string | null) =>
 .pg-label.is-click:hover { background: rgba(124,111,247,.07); }
 .pg-label-txt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pg-grp { font-size: var(--fs-2xs, 9px); text-transform: uppercase; letter-spacing: .05em; color: var(--t3, #94a3b8); font-weight: 700; }
+.pmo-kpi-na { font-size: 13px !important; font-weight: 500 !important; color: var(--t3, #94A3B8); }
+.pmo-note {
+  display: flex; align-items: flex-start; gap: 9px; flex-wrap: wrap;
+  background: rgba(217,119,6,.07); border: 1px solid rgba(217,119,6,.22);
+  border-radius: 11px; padding: 9px 13px; margin: 0 0 12px;
+  font-size: 11.5px; color: var(--t2, #4B5468); line-height: 1.5;
+}
+.pmo-note-badge {
+  font-size: 9.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+  color: #B45309; background: rgba(217,119,6,.14); border-radius: 999px;
+  padding: 3px 9px; white-space: nowrap; flex-shrink: 0;
+}
 .pg-cp-dot { width: 6px; height: 6px; border-radius: 50%; background: #E24B4A; flex-shrink: 0; }
 .pg-lock { color: #888780; display: inline-flex; flex-shrink: 0; }
 

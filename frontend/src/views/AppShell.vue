@@ -219,6 +219,17 @@ function isAdmin(): boolean {
 // codes the router enforces. `auth.hasPermission` already bypasses for
 // owner + role admin so they keep seeing every section.
 const can = (code: string) => auth.hasPermission(code);
+// «Мои заявки» — личный экран автора правок. Показываем пункт только тем, у
+// кого заявки реально есть: большинству пользователей модерация не встречается,
+// и постоянный пункт был бы шумом. Считаем один раз за сессию.
+const mySubmissionsCount = ref(0);
+async function loadMySubmissionsCount() {
+  try {
+    const { moderationApi } = await import("@/api/moderation");
+    const r = await moderationApi.mySubmissions({ per_page: 1 });
+    mySubmissionsCount.value = r.total || 0;
+  } catch { mySubmissionsCount.value = 0; }
+}
 // Видимость модуля определяется тем же effective permission, что и маршрут/API.
 // Сам payload уже режется company scope на бэкенде, поэтому дополнительный
 // portfolio-гейт здесь делал валидно выданный доступ невидимым.
@@ -325,6 +336,7 @@ onMounted(() => {
   if (auth.isAuthenticated) {
     notifStore.start();
     aiAct.load();
+    void loadMySubmissionsCount();
   }
 });
 
@@ -536,6 +548,16 @@ function exitImpersonate() {
           </svg>
           <span class="sb-name">{{ t("Проекты трансформации") }}</span>
           <span v-if="secBadge(SB.projects)" class="sb-badge">{{ secBadge(SB.projects) }}</span>
+        </RouterLink>
+
+        <!-- 2a. Мои заявки на согласование — виден только автору правок -->
+        <RouterLink v-if="mySubmissionsCount > 0"
+                    to="/my-submissions" class="sb-item" active-class="active">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+          </svg>
+          <span class="sb-name">{{ t("Мои заявки") }}</span>
         </RouterLink>
 
         <!-- 2b. Отслеживаемое — проекты/задачи, на изменения которых подписан юзер -->

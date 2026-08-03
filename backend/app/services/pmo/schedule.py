@@ -37,7 +37,18 @@ def _slip(due: Optional[date], baseline_due: Optional[date]) -> int:
 
 def _critical_path(tasks: list[Task], deps: list[TaskDependency]) -> set[UUID]:
     """Longest-path (по длительности) через DAG зависимостей FS → множество
-    id задач на критическом пути. Циклы игнорируются (Kahn по indeg)."""
+    id задач на критическом пути. Циклы игнорируются (Kahn по indeg).
+
+    ВАЖНО: без зависимостей критического пути НЕ СУЩЕСТВУЕТ. Раньше в этом
+    случае алгоритм всё равно возвращал одну задачу — с максимальным EF, то
+    есть просто самую длинную, — и Гантт помечал её как «критический путь».
+    На проде связей нет вовсе (0 записей), а старт не заполнен у 97% задач,
+    поэтому длительность у всех выходила одинаковая (1 день по умолчанию) и
+    «критической» становилась фактически произвольная задача. Возвращаем
+    пустое множество: пусть интерфейс честно скажет, что путь не рассчитан.
+    """
+    if not deps:
+        return set()
     dur: dict[UUID, int] = {
         t.id: _duration_days(t.start_date, t.due_date, bool(t.is_milestone)) for t in tasks
     }
@@ -220,6 +231,10 @@ async def build_schedule(
         forecast_finish=forecast_finish,
         baseline_finish=baseline_finish,
         critical_path_ids=list(critical),
+        # Честный контекст расписания: без связей критического пути нет, а без
+        # дат начала полосы рисуются фактически по одному дедлайну.
+        dependency_count=len(deps),
+        missing_start_count=sum(1 for b in bars if b.start is None),
         overdue_count=overdue_count,
         blocked_count=blocked_count,
     )
