@@ -1,12 +1,13 @@
 """Moderation API — thin HTTP layer (refactored 2026-05-25).
 
-State transitions (approve/reject/edit-and-approve/withdraw/retry-apply/etc)
+State transitions (approve/reject/withdraw/retry-apply/etc)
 continue to delegate to the existing core `app/services/moderation_service.py`
 (aliased as `svc` here) — that module is the gate-or-apply engine used by
 all other route files, do not break its contract.
 
-UI dashboard queries + rules CRUD + user flags live in the new
-`moderation_admin/` services (with backing ModerationRepository).
+UI dashboard queries + user flags live in the new `moderation_admin/` services
+(with backing ModerationRepository). Конструктор правил удалён — политика
+модерации встроена в moderation_service.
 """
 from __future__ import annotations
 
@@ -36,7 +37,6 @@ from app.schemas.moderation import (
     ModerationOverview,
     ModuleInfo,
     SubmissionCreate,
-    SubmissionEditAndApprove,
     SubmissionListResponse,
     SubmissionRead,
     SubmissionResolve,
@@ -203,19 +203,12 @@ async def set_review_submission(
     return SubmissionRead.model_validate(result)
 
 
-@router.post("/submissions/{submission_id}/edit-and-approve", response_model=SubmissionRead)
-async def edit_and_approve_submission(
-    submission_id: UUID,
-    body: SubmissionEditAndApprove,
-    db: AsyncSession = Depends(get_db),
-    user: User = Depends(require_permission("moderation.review")),
-):
-    sub = await _load_sub(db, submission_id)
-    result = await _wrap_state_change(svc.edit_and_approve(
-        db, sub=sub, user=user, proposed_value=body.proposed_value, note=body.note,
-    ))
-    return SubmissionRead.model_validate(result)
-
+# «Изменить и принять» удалено (решение владельца 03.08.2026): модератор правил
+# proposed_value сырым JSON — для нетехнического согласующего это тупик, а
+# молчаливая правка чужого предложения подменяла авторство. Решение теперь
+# бинарное: принять как есть или отклонить с комментарием, чтобы автор прислал
+# исправленный вариант. Метод svc.edit_and_approve оставлен в сервисе —
+# он не вызывается из API.
 
 @router.post("/submissions/{submission_id}/retry-apply", response_model=SubmissionRead)
 async def retry_apply_submission(

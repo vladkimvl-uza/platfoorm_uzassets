@@ -44,11 +44,13 @@ const newComment = ref("");
 const internalToggle = ref(false);
 
 // C1: inline resolution panel — replaces window.prompt for reject.
-type ResolveMode = "approve" | "reject" | "edit-approve" | null;
+// Решение модератора — только «принять» или «отклонить с комментарием»
+// (решение владельца 03.08.2026). Режим «изменить и принять» правил
+// proposed_value СЫРЫМ JSON: для согласующего-нетехнаря это тупик, а молчаливая
+// правка чужого предложения ещё и подменяла авторство.
+type ResolveMode = "approve" | "reject" | null;
 const resolveMode = ref<ResolveMode>(null);
 const resolveNote = ref("");
-const editedJson = ref("");
-const editedJsonError = ref<string | null>(null);
 
 const canResolve = computed(() => {
   if (!sub.value) return false;
@@ -81,17 +83,12 @@ onMounted(load);
 function openResolvePanel(mode: ResolveMode) {
   resolveMode.value = mode;
   resolveNote.value = "";
-  editedJsonError.value = null;
-  if (mode === "edit-approve" && sub.value) {
-    editedJson.value = JSON.stringify(sub.value.proposed_value ?? {}, null, 2);
-  }
+
 }
 
 function cancelResolvePanel() {
   resolveMode.value = null;
   resolveNote.value = "";
-  editedJson.value = "";
-  editedJsonError.value = null;
 }
 
 async function submitResolve() {
@@ -107,25 +104,6 @@ async function submitResolve() {
         return;
       }
       await moderationApi.reject(sub.value.id, resolveNote.value);
-    } else if (resolveMode.value === "edit-approve") {
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(editedJson.value);
-      } catch (e: any) {
-        editedJsonError.value = t('Невалидный JSON: {value0}', { value0: (e?.message || "") });
-        acting.value = false;
-        return;
-      }
-      if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-        editedJsonError.value = t('Ожидается JSON-объект (не массив, не примитив)');
-        acting.value = false;
-        return;
-      }
-      await moderationApi.editAndApprove(
-        sub.value.id,
-        parsed as Record<string, unknown>,
-        resolveNote.value || undefined,
-      );
     }
     resolveMode.value = null;
     emit("resolved");
@@ -423,23 +401,17 @@ const visibleEntries = computed(() =>
           <div v-if="error" class="mrm-error">{{ error }}</div>
         </div>
 
-        <!-- C1: inline resolution panel — replaces window.prompt + adds edit-approve UI -->
+        <!-- Решение по заявке: принять или отклонить с комментарием -->
         <div v-if="resolveMode" class="mrm-resolve-panel" :class="`mrm-rp-${resolveMode}`">
           <div class="mrm-rp-hd">
             <span v-if="resolveMode === 'approve'">{{ t('Принять предложение') }}</span>
-            <span v-else-if="resolveMode === 'reject'">{{ t('Отклонить предложение') }}</span>
-            <span v-else>{{ t('Изменить и принять') }}</span>
+            <span v-else>{{ t('Отклонить предложение') }}</span>
           </div>
 
-          <textarea
-            v-if="resolveMode === 'edit-approve'"
-            v-model="editedJson"
-            class="mrm-rp-json"
-            :placeholder="t('Отредактируйте JSON proposed_value')"
-            rows="8"
-            spellcheck="false"
-          ></textarea>
-          <div v-if="editedJsonError" class="mrm-rp-err">{{ editedJsonError }}</div>
+
+          <div v-if="resolveMode === 'reject'" class="mrm-rp-tip">
+            {{ t('Опишите, что нужно поправить — автор увидит комментарий в своих заявках и сможет прислать исправленный вариант.') }}
+          </div>
 
           <textarea
             v-model="resolveNote"
@@ -475,9 +447,6 @@ const visibleEntries = computed(() =>
             <template v-if="canResolve && ['pending','under_review'].includes(sub.status)">
               <button class="mrm-btn mrm-btn-ghost" :disabled="acting" @click="setReview">
                 <BIcon name="eye" :size="14" /> {{ t('На рассмотрение') }}
-              </button>
-              <button class="mrm-btn mrm-btn-ghost" :disabled="acting" @click="openResolvePanel('edit-approve')">
-                <BIcon name="edit" :size="14" /> {{ t('Изменить и принять') }}
               </button>
               <button class="mrm-btn mrm-btn-reject" :disabled="acting" @click="openResolvePanel('reject')">
                 <BIcon name="x" :size="14" /> {{ t('Отклонить') }}
@@ -793,7 +762,11 @@ const visibleEntries = computed(() =>
 }
 .mrm-rp-approve     { background: rgba(29,158,117,.04); }
 .mrm-rp-reject      { background: rgba(226,75,74,.04); }
-.mrm-rp-edit-approve { background: rgba(127,119,221,.04); }
+.mrm-rp-tip {
+  font-size: 11.5px; color: var(--t2, #4B5468); line-height: 1.5;
+  background: rgba(217,119,6,.07); border: 1px solid rgba(217,119,6,.18);
+  border-radius: 9px; padding: 8px 11px; margin-bottom: 8px;
+}
 .mrm-rp-hd {
   font-size: 11px; font-weight: 600; text-transform: uppercase;
   letter-spacing: .06em; color: var(--color-text-secondary);

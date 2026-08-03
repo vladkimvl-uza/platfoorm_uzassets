@@ -204,11 +204,9 @@ export const moderationApi = {
     const r = await api.post<Submission>(`/moderation/submissions/${id}/set-review`, { note });
     return r.data;
   },
-  async editAndApprove(id: string, proposed_value: Record<string, unknown>, note?: string): Promise<Submission> {
-    const r = await api.post<Submission>(`/moderation/submissions/${id}/edit-and-approve`, { proposed_value, note });
-    return r.data;
-  },
-  async withdraw(id: string): Promise<Submission> {
+  // «Изменить и принять» удалено: решение бинарное — принять или отклонить
+  // с комментарием (эндпоинта на бэкенде больше нет).
+    async withdraw(id: string): Promise<Submission> {
     const r = await api.post<Submission>(`/moderation/submissions/${id}/withdraw`);
     return r.data;
   },
