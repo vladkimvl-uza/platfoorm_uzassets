@@ -86,6 +86,10 @@ export interface FinancialReportListItem {
   is_audited: boolean;
   lines_count: number;
   updated_at: string;
+  /** Срез: канон редактора (false) против детального импорта (true). */
+  is_detailed?: boolean;
+  is_consolidated?: boolean;
+  source?: string | null;
 }
 
 export interface FinancialReportCreatePayload {

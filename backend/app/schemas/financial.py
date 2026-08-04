@@ -115,6 +115,11 @@ class FinancialReportListItem(BaseModel):
     is_audited: bool
     lines_count: int = 0
     updated_at: datetime
+    # Признак среза: канон редактора (summary) против детального импорта.
+    # Без него клиент не мог отличить два отчёта на один год и брал случайный.
+    is_detailed: bool = False
+    is_consolidated: bool = True
+    source: Optional[str] = None
 
 
 class FinancialReportCreatePayload(BaseModel):

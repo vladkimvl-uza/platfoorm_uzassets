@@ -1183,7 +1183,15 @@ async function loadFinReports() {
     // Для выбранного года берём только непустые отчёты, если они есть.
     const yearRows = allArr.filter(r => r.year === targetYear);
     const nonEmpty = yearRows.filter(r => (r.lines_count || 0) > 0);
-    const list = nonEmpty.length ? nonEmpty : yearRows;
+    // Единственный источник — канонический срез редактора. На один год+тип
+    // могут существовать ДВА отчёта: канон редактора и детальный импорт из
+    // Excel; раньше побеждал произвольный (порядок ответа), и вкладка могла
+    // показать данные старого файла. Детальный берём только если канона нет.
+    const preferCanon = (rows: FinancialReportListItem[]) => {
+      const canon = rows.filter(r => r.is_detailed !== true);
+      return canon.length ? canon : rows;
+    };
+    const list = preferCanon(nonEmpty.length ? nonEmpty : yearRows);
     finReports.value = list;
     finLoadedFor.value = key;
 

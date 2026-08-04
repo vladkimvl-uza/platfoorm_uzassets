@@ -351,62 +351,12 @@ class FinancialsPortfolioService:
             if existing is None or abs(value_raw) > abs(float(existing)):
                 ydict[canon] = value_raw
 
-        # ─── Inject cash-flow metrics from HLF ───────────────────────
-        # CFO/CFI/CFF/dividends are NOT stored in financial_lines; they live
-        # in `company.extra["hlf"]`. Extract them and place onto the SAME
-        # scale as the aggregated P&L/BS values so the CF tab is comparable:
-        #   * financial_lines values above are `float(val) * 1e9` (val is in
-        #     bln UZS) → response is absolute UZS.
-        #   * HLF cash values are likewise stored in **bln UZS** (the HLF
-        #     importer always writes unit="bln", currency="UZS"), so we apply
-        #     the identical `* 1e9` factor.
-        #   * Currency conversion: HLF is UZS, so no inverse rate is needed
-        #     (UZS→UZS = 1.0); when the request currency != UZS we divide by
-        #     the same per-year target rate used for financial_lines.
-        # Cash keys (cfo/cfi/cff/dividendsPaid) never collide with P&L/BS
-        # keys, but we still only set when no value is already present.
-        try:
-            hlf_blobs = await repo.list_hlf_blobs(
-                allowed_company_ids=allowed_set,
-            )
-        except Exception:  # pragma: no cover - defensive: never break summary
-            log.exception("[portfolio_summary] HLF cash injection failed")
-            hlf_blobs = {}
-        for co_code, hlf in hlf_blobs.items():
-            co = by_co.get(co_code)
-            if co is None:
-                continue  # no P&L/BS rows in range → nothing to attach to
-            unit_str = str(hlf.get("unit") or "bln").lower()
-            hlf_cur = str(hlf.get("currency") or "UZS").upper()
-            # Scale factor to reach absolute units (matches financial_lines
-            # path which assumes bln → *1e9). "mln" would be *1e6.
-            unit_scale = 1_000_000.0 if unit_str == "mln" else 1_000_000_000.0
-            cash_by_year = _extract_hlf_cash(hlf)
-            for yr, metrics in cash_by_year.items():
-                if yr not in year_list:
-                    continue
-                ydict = co["by_year"].setdefault(yr, {})
-                for mkey, mval in metrics.items():
-                    if mval is None:
-                        continue
-                    value_raw = float(mval) * unit_scale
-                    # Inverse-convert HLF source currency → UZS (UZS=1.0).
-                    if hlf_cur != "UZS":
-                        inv = _rate_for(yr, hlf_cur)
-                        if inv > 0:
-                            value_raw = value_raw * inv
-                        else:
-                            continue
-                    # Convert UZS → requested currency.
-                    if cur != "UZS":
-                        target_rate = _rate_for(yr, cur)
-                        if target_rate > 0:
-                            value_raw = value_raw / target_rate
-                        else:
-                            continue
-                    if ydict.get(mkey) is None:
-                        ydict[mkey] = value_raw
-
+        # ─── Единственный источник — канонический срез редактора ───────
+        # Раньше здесь CFO/CFI/CFF/дивиденды добирались из company.extra.hlf,
+        # когда их не было в financial_lines. После импорта HLF v5 канон полон
+        # (сверка: в блобах 271 значение, вне канона — только нули и три
+        # значения, перенесённые отдельно), поэтому фолбэк снят: цифра на
+        # экране не должна зависеть от того, какой из двух источников успел.
         items = list(by_co.values())
         items.sort(key=lambda x: x["company_code"] or "")
 
