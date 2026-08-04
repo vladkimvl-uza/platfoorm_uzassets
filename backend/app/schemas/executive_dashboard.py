@@ -325,7 +325,7 @@ class ExecTaxKpi(BaseModel):
     yoy_vat_pct: Optional[float] = None
     budget_share_pct: Optional[float] = None  # % бюджета РУ
     budget: Optional[float] = None             # годовой бюджет РУ для сравнения (млрд)
-    vat_is_estimate: bool = True               # Pack 7.9h: НДС оценочный (revenue×12%)
+    vat_is_estimate: bool = True               # НДС оценочный (выручка × ставка)
 
 
 class ExecTaxTopPayer(BaseModel):
@@ -342,7 +342,12 @@ class ExecTaxBlock(BaseModel):
     has_data: bool
     standard: str
     cos_count: int
-    missing_companies: List[str] = []  # Pack 7.9h: компании без NSBU PL за год
+    missing_companies: List[str] = []  # компании без PL-данных за год
+    # Ставка НДС того года, по которой считалась оценка (до 2023 — 15%).
+    vat_rate_pct: float = 12.0
+    # По скольким компаниям корректно сравнение «год к году»: те, у кого есть
+    # данные в ОБА года. Раньше рост считался против неполной базы.
+    cos_compared: int = 0
     kpi: ExecTaxKpi
     top_payers: List[ExecTaxTopPayer]
     requested_year: Optional[int] = None  # year-fallback: исходно выбранный год

@@ -33,6 +33,10 @@ export interface FieldDef {
   canonical?: string;
   /** Custom user-added — НЕ из стандартного списка */
   isCustom?: boolean;
+  /** Куда строка уходит за пределами редактора (налоговый вклад и т.п.).
+   *  Показывается подсказкой у названия: редактор должен объяснять, что
+   *  правка этой цифры меняет цифры на других экранах. */
+  feedsInto?: string;
 }
 
 export interface SectionDef {
@@ -205,7 +209,8 @@ export const STANDARD_SCHEMA: SectionDef[] = [
     id: "pnl",
     label: i18nKey("ОФР · Profit & Loss"),
     fields: [
-      { id: "revenue",       label: i18nKey("Revenue · Выручка"),                  canonical: "revenue", groupHeader: "CONTINUING OPERATIONS" },
+      { id: "revenue",       label: i18nKey("Revenue · Выручка"),                  canonical: "revenue", groupHeader: "CONTINUING OPERATIONS",
+        feedsInto: i18nKey("Идёт в налоговый вклад: НДС оценивается как выручка × ставка года (12%, до 2023 — 15%)") },
       { id: "cogs",          label: i18nKey("Cost of sales · Себестоимость"),      canonical: "cogs", positiveOnly: true },
       { id: "grossProfit",   label: i18nKey("Gross profit · Валовая прибыль"),     canonical: "grossProfit", autoFormula: "grossProfit", isSubtotal: true },
       { id: "opProfit",      label: i18nKey("Operating profit · Опер. прибыль"),   canonical: "opProfit", groupHeader: "OPERATING RESULT" },
@@ -215,7 +220,8 @@ export const STANDARD_SCHEMA: SectionDef[] = [
       { id: "interestExp",   label: i18nKey("  Interest expense (детализация)"),  canonical: "interestExp", positiveOnly: true },
       { id: "forex",         label: i18nKey("Forex gains/losses · Курсовая разница"), canonical: "forex" },
       { id: "pbt",           label: i18nKey("Profit before tax · Прибыль до налога"), canonical: "pbt", autoFormula: "pbt", isSubtotal: true, groupHeader: "PERIOD RESULTS" },
-      { id: "tax",           label: i18nKey("Income tax · Налог на прибыль"),      canonical: "tax" },
+      { id: "tax",           label: i18nKey("Income tax · Налог на прибыль"),      canonical: "tax",
+        feedsInto: i18nKey("Идёт в налоговый вклад: суммируется по портфелю как налог на прибыль") },
       { id: "profit",        label: i18nKey("Net profit · Чистая прибыль"),        canonical: "profit", autoFormula: "profit", isSubtotal: true },
       { id: "ebitda",        label: "EBITDA",                              canonical: "ebitda", autoFormula: "ebitda", isSubtotal: true },
     ],

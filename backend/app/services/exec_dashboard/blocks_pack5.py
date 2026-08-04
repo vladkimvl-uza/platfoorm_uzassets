@@ -39,8 +39,17 @@ _UZ_BUDGET_TRLN: Dict[int, float] = {
     2026: 380.0,
 }
 
-# VAT rate (Узбекистан)
-_VAT_RATE = 0.12
+# Ставка НДС в Узбекистане менялась: до 2023 года — 15%, с 1 января 2023 — 12%.
+# Единая ставка 12% занижала оценку НДС за 2021-2022 на пятую часть и делала
+# рост «год к году» неправдоподобно большим на стыке 2022→2023.
+_VAT_RATE_BY_YEAR: Dict[int, float] = {
+    2019: 0.15, 2020: 0.15, 2021: 0.15, 2022: 0.15,
+}
+_VAT_RATE_DEFAULT = 0.12
+
+
+def _vat_rate(year: int) -> float:
+    return _VAT_RATE_BY_YEAR.get(year, _VAT_RATE_DEFAULT)
 
 # IFRS PL canonical line_codes (из data check)
 _IFRS_PL_REVENUE = "revenue"
@@ -679,6 +688,17 @@ async def build_tax_contribution_block(
 
     per_company: Dict[Any, float] = {}
     cos_seen: set = set()
+    # суммы текущего года по компаниям, присутствующим и в прошлом году
+    cur_comparable_tax = 0.0
+    cur_comparable_vat = 0.0
+
+    # Сравнение «год к году» — ТОЛЬКО по компаниям, у которых есть данные в
+    # ОБА года. Раньше в текущий год попадала компания без прошлогодних
+    # цифр и добавляла ноль в базу сравнения: рост завышался на ровном месте
+    # (покрытие NSBU по годам разное — 17/22/22/22/19 компаний).
+    rate_cur = _vat_rate(year)
+    rate_prev = _vat_rate(prev_year)
+    cos_both = 0
 
     for co_id in co_id_to_name.keys():
         if sec_set and co_id_to_sector.get(co_id, "other") not in sec_set:
@@ -687,22 +707,36 @@ async def build_tax_contribution_block(
         r = rev_cur.get(co_id, 0.0)
         if t == 0.0 and r == 0.0:
             continue
-        v = r * _VAT_RATE
+        v = r * rate_cur
         sum_tax += t
         sum_vat += v
         per_company[co_id] = t + v
         cos_seen.add(co_id)
 
-        sum_tax_prev += tax_prev.get(co_id, 0.0)
-        sum_vat_prev += rev_prev.get(co_id, 0.0) * _VAT_RATE
+        t_prev = tax_prev.get(co_id, 0.0)
+        r_prev = rev_prev.get(co_id, 0.0)
+        if t_prev == 0.0 and r_prev == 0.0:
+            continue  # прошлого года у компании нет — из базы сравнения исключаем
+        cos_both += 1
+        sum_tax_prev += t_prev
+        sum_vat_prev += r_prev * rate_prev
+        cur_comparable_tax += t
+        cur_comparable_vat += v
 
     has_data = sum_tax > 0 or sum_vat > 0
     total = sum_tax + sum_vat
     total_prev = sum_tax_prev + sum_vat_prev
 
-    yoy_total = ((total / total_prev) - 1.0) * 100 if total_prev > 0 else None
-    yoy_tax = ((sum_tax / sum_tax_prev) - 1.0) * 100 if sum_tax_prev > 0 else None
-    yoy_vat = ((sum_vat / sum_vat_prev) - 1.0) * 100 if sum_vat_prev > 0 else None
+    cur_comparable_total = cur_comparable_tax + cur_comparable_vat
+    yoy_total = (
+        ((cur_comparable_total / total_prev) - 1.0) * 100 if total_prev > 0 else None
+    )
+    yoy_tax = (
+        ((cur_comparable_tax / sum_tax_prev) - 1.0) * 100 if sum_tax_prev > 0 else None
+    )
+    yoy_vat = (
+        ((cur_comparable_vat / sum_vat_prev) - 1.0) * 100 if sum_vat_prev > 0 else None
+    )
 
     # value = МЛРД сум (аудит P1) → total в млрд; млрд/1e3 = трлн. Никакой
     # «legacy convention»: 73 459 млрд = 73.5 трлн ≈ 21-28% бюджета РУз —
@@ -758,6 +792,8 @@ async def build_tax_contribution_block(
         prev_year=prev_year,
         has_data=has_data,
         standard=standard_used,
+        vat_rate_pct=round(rate_cur * 100, 1),
+        cos_compared=cos_both,
         cos_count=len(cos_seen),
         missing_companies=missing_companies,
         kpi=ExecTaxKpi(

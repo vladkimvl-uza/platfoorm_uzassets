@@ -1322,6 +1322,7 @@ function formatHistoryDate(iso: string | null): string {
                               @click="startEditCanonical(field)"
                             >→ {{ getFieldCanonical(field) }}</span>
                             <span class="ne-row-name" @dblclick="startRename(field)" :title="t('Двойной клик — переименовать')">{{ t(getFieldLabel(field)) }}</span>
+                            <span v-if="(field as any).feedsInto" class="ne-feeds-badge" :title="t((field as any).feedsInto)">{{ t("налоги") }}</span>
                             <span v-if="field.positiveOnly" class="ne-pos-hint">(+)</span>
                             <span v-if="getFieldFormula(field)" class="ne-formula-hint" @click="startEditFormula(field)" :title="t('Кликни — редактировать формулу')">= {{ t(getFieldFormula(field)) }}</span>
                             <button
@@ -1679,4 +1680,14 @@ function formatHistoryDate(iso: string | null): string {
 .ne-hist-fields { font-size: 10px; font-family: monospace; color: var(--t3, var(--t3)); line-height: 1.45; padding-left: 4px; border-left: 2px solid var(--border-input); padding-top: 1px; }
 
 .ne-empty { padding: 24px; text-align: center; color: var(--t3, #94A3B8); font-size: 12px; }
+
+/* Метка «строка уходит во внешний расчёт» (налоговый вклад руководителя).
+   Редактор обязан показывать, что правка этой цифры меняет числа на других
+   экранах — иначе связь видна только тому, кто читал код. */
+.ne-feeds-badge {
+  font-size: 8.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  padding: 1px 5px; border-radius: 3px; white-space: nowrap; flex-shrink: 0;
+  color: #B45309; background: rgba(217, 119, 6, .10); border: 0.5px solid rgba(217, 119, 6, .28);
+  cursor: help;
+}
 </style>

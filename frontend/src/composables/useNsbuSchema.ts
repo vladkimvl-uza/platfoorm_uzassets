@@ -30,6 +30,8 @@ export interface FieldDef {
   canonical?: string;
   /** Custom user-added — НЕ из стандартного списка */
   isCustom?: boolean;
+  /** Куда строка уходит за пределами редактора (налоговый вклад и т.п.). */
+  feedsInto?: string;
 }
 
 /**
@@ -156,7 +158,8 @@ export const STANDARD_SCHEMA: SectionDef[] = [
     id: "pnl",
     label: i18nKey("ОФР · Форма 2"),
     fields: [
-      { id: "revenue",       label: i18nKey("Выручка"),                          nsbuCode: "010", canonical: "revenue", groupHeader: i18nKey("ДОХОДЫ И РАСХОДЫ") },
+      { id: "revenue",       label: i18nKey("Выручка"),                          nsbuCode: "010", canonical: "revenue", groupHeader: i18nKey("ДОХОДЫ И РАСХОДЫ"),
+        feedsInto: i18nKey("Идёт в налоговый вклад: НДС оценивается как выручка × ставка года (12%, до 2023 — 15%)") },
       { id: "cogs",          label: i18nKey("Себестоимость"),                    nsbuCode: "020", canonical: "cogs", positiveOnly: true },
       { id: "grossProfit",   label: i18nKey("Валовая прибыль"),                  nsbuCode: "030", canonical: "grossProfit", autoFormula: "grossProfit", isSubtotal: true },
       { id: "opProfit",      label: i18nKey("Операционная прибыль"),             nsbuCode: "060", canonical: "opProfit", groupHeader: i18nKey("ОПЕРАЦИОННЫЙ РЕЗУЛЬТАТ") },
@@ -165,7 +168,8 @@ export const STANDARD_SCHEMA: SectionDef[] = [
       { id: "finCost",       label: i18nKey("Расходы от фин. деятельности"),     nsbuCode: "170", canonical: "finCost", positiveOnly: true },
       { id: "forex",         label: i18nKey("Курсовая разница (справочно)"),     nsbuCode: "180", canonical: "forex" },
       { id: "pbt",           label: i18nKey("Прибыль до налога"),                nsbuCode: "190", canonical: "pbt", autoFormula: "pbt", isSubtotal: true, groupHeader: i18nKey("ИТОГИ ПЕРИОДА") },
-      { id: "tax",           label: i18nKey("Налог на прибыль"),                 nsbuCode: "220", canonical: "tax", positiveOnly: true },
+      { id: "tax",           label: i18nKey("Налог на прибыль"),                 nsbuCode: "220", canonical: "tax", positiveOnly: true,
+        feedsInto: i18nKey("Идёт в налоговый вклад: суммируется по портфелю как налог на прибыль. Налоговый блок берёт НСБУ, МСФО — только если НСБУ за год нет") },
       { id: "profit",        label: i18nKey("Чистая прибыль"),                   nsbuCode: "270", canonical: "profit", autoFormula: "profit", isSubtotal: true },
       { id: "ebitda",        label: "EBITDA",                            canonical: "ebitda", autoFormula: "ebitda", isSubtotal: true },
     ],
