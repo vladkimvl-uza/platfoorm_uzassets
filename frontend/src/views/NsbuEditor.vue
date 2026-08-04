@@ -73,6 +73,10 @@ const loadingCompany = ref(false);
 
 // UI sub-state
 const showAddFieldDialog = ref(false);
+// Вставка строки в конкретное место таблицы: id строки, ПОСЛЕ которой вставляем.
+const insertAfterField = ref<FieldDef | null>(null);
+// Куда включить новую строку: id авто-поля (итога) и знак слагаемого.
+const includeInto = ref<{ target: string; sign: "+" | "-" }>({ target: "", sign: "+" });
 const newFieldDraft = ref({ label: "", section: "pnl" as SectionId, formula: "", canonical: "" });
 const renamingFieldId = ref<string | null>(null);
 const renameDraft = ref("");
@@ -127,7 +131,18 @@ const displaySchema = computed(() => {
   // Merge standard + custom; renames + overrides applied at render
   return STANDARD_SCHEMA.map((section) => {
     const customForSection = state.customFields.filter((f) => f.id.startsWith(`__custom_${section.id}_`));
-    return { ...section, fields: [...section.fields, ...customForSection] };
+    // Пользовательские строки встают ТУДА, куда их вставили: у поля есть
+    // afterId — id строки, после которой оно должно идти. Без него (строки,
+    // добавленные старой кнопкой в шапке) — в конец секции, как раньше.
+    const fields = [...section.fields];
+    const tail: FieldDef[] = [];
+    for (const cf of customForSection) {
+      const anchor = (cf as FieldDef & { afterId?: string }).afterId;
+      const idx = anchor ? fields.findIndex((f) => f.id === anchor) : -1;
+      if (idx >= 0) fields.splice(idx + 1, 0, cf);
+      else tail.push(cf);
+    }
+    return { ...section, fields: [...fields, ...tail] };
   });
 });
 
@@ -344,6 +359,48 @@ function isManualOverride(field: FieldDef, year: number): boolean {
 }
 
 // ─── Custom field operations ───────────────────────────────────
+
+// ─── Вставка строки в нужное место ───────────────────────────────
+/** Авто-итоги текущей секции — кандидаты «куда включить» новую строку. */
+const autoTargets = computed<FieldDef[]>(() => {
+  // Итоги берём из секции, выбранной В ФОРМЕ (её можно сменить), а не из вкладки
+  const sec = displaySchema.value.find((s) => s.id === newFieldDraft.value.section);
+  if (!sec) return [];
+  return sec.fields.filter((f) => !!f.autoFormula || !!currentState.value?.formulaOverrides[f.id]);
+});
+
+function openInsertAfter(field: FieldDef) {
+  insertAfterField.value = field;
+  includeInto.value = { target: "", sign: "+" };
+  newFieldDraft.value = { label: "", section: selectedSection.value, formula: "", canonical: "" };
+  showAddFieldDialog.value = true;
+}
+
+function closeAddFieldDialog() {
+  showAddFieldDialog.value = false;
+  insertAfterField.value = null;
+  includeInto.value = { target: "", sign: "+" };
+}
+
+function openAddAtEnd() {
+  insertAfterField.value = null;
+  includeInto.value = { target: "", sign: "+" };
+  newFieldDraft.value = { label: "", section: selectedSection.value, formula: "", canonical: "" };
+  showAddFieldDialog.value = true;
+}
+
+/** Включить поле в формулу итога: дописываем слагаемое к текущему выражению. */
+function attachToFormula(state: CompanyState, fieldId: string, targetId: string, sign: "+" | "-") {
+  const target = autoTargets.value.find((f) => f.id === targetId);
+  if (!target) return;
+  const base = state.formulaOverrides[targetId]
+    || (target.autoFormula && AUTO_FORMULAS[target.autoFormula]?.expr)
+    || "";
+  // Базовая формула эталона записана человекочитаемо (revenue − |cogs|) —
+  // она же валидна как выражение, поэтому просто дописываем слагаемое.
+  state.formulaOverrides[targetId] = base ? `${base} ${sign} ${fieldId}` : `${sign}${fieldId}`;
+}
+
 function addCustomField() {
   const state = currentState.value;
   if (!state) return;
@@ -362,13 +419,32 @@ function addCustomField() {
     state.formulaOverrides[id] = formula;
     (newField as FieldDef & { autoFormula?: string }).autoFormula = "__custom__";
   }
+  // Место вставки: строка встаёт сразу после той, у которой нажали «+ строка».
+  const anchor = insertAfterField.value;
+  if (anchor) (newField as FieldDef & { afterId?: string }).afterId = anchor.id;
   state.customFields.push(newField);
+
+  // Включение в итог — необязательный шаг: по умолчанию строка ни на что не
+  // влияет, просто хранится. Если итог выбран — дописываем слагаемое в формулу.
+  const into = includeInto.value;
+  const target = into.target ? autoTargets.value.find((f) => f.id === into.target) : null;
+  if (target) attachToFormula(state, id, into.target, into.sign);
+
   state.dirty = true;
   showAddFieldDialog.value = false;
+  insertAfterField.value = null;
+  includeInto.value = { target: "", sign: "+" };
   newFieldDraft.value = { label: "", section: "pnl", formula: "", canonical: "" };
   recomputeAutoFields();
   scheduleBackup();
-  toast.success(t("Добавлен показатель «{label}»", { label }));
+  toast.success(
+    target
+      ? t("Строка «{label}» добавлена и включена в «{target}»", {
+          label,
+          target: t(getFieldLabel(target)),
+        })
+      : t("Добавлен показатель «{label}»", { label }),
+  );
 }
 
 function startEditCanonical(field: FieldDef) {
@@ -728,6 +804,8 @@ async function saveCurrent() {
         section: f.id.startsWith("__custom_pnl_") ? "pnl" : "sofp",
         autoFormula: (f as FieldDef & { autoFormula?: string }).autoFormula,
         canonical: f.canonical,
+        // место вставки — иначе после перезагрузки строка уедет в конец секции
+        afterId: (f as FieldDef & { afterId?: string }).afterId,
         isCustom: true,
       })),
       renames: state.renames,
@@ -1190,20 +1268,20 @@ function formatHistoryDate(iso: string | null): string {
                 >{{ t(tab.label) }}</button>
                 <div class="ne-spc"></div>
                 <button class="ne-btn-ghost" @click="addYear">{{ t("+ Год") }}</button>
-                <button class="ne-btn-ghost" @click="showAddFieldDialog = true; newFieldDraft.section = selectedSection">{{ t("+ Показатель") }}</button>
+                <button class="ne-btn-ghost" @click="openAddAtEnd()">{{ t("+ Показатель") }}</button>
               </div>
 
               <!-- Add field dialog -->
-              <div v-if="showAddFieldDialog" class="ne-dlg-bg" @click.self="showAddFieldDialog = false">
+              <div v-if="showAddFieldDialog" class="ne-dlg-bg" @click.self="closeAddFieldDialog()">
                 <div class="ne-dlg">
-                  <div class="ne-dlg-hdr">{{ t("Новый показатель") }}</div>
+                  <div class="ne-dlg-hdr">{{ insertAfterField ? t("Новая строка после «{label}»", { label: t(getFieldLabel(insertAfterField)) }) : t("Новый показатель") }}</div>
                   <div class="ne-dlg-row">
                     <label>{{ t("Название") }}</label>
                     <input v-model="newFieldDraft.label" :placeholder="t('Например, «Дивидендная доходность»')" />
                   </div>
                   <div class="ne-dlg-row">
                     <label>{{ t("Секция") }}</label>
-                    <select v-model="newFieldDraft.section">
+                    <select v-model="newFieldDraft.section" @change="includeInto.target = ''">
                       <option value="pnl">{{ t("ОФР") }}</option>
                       <option value="sofp">{{ t("Баланс") }}</option>
                     </select>
@@ -1235,8 +1313,28 @@ function formatHistoryDate(iso: string | null): string {
                       {{ t("Если выбрать — значения поля будут учитываться в портфельных агрегациях (Дашборд, Financials KPI карточки) как указанная метрика.") }}
                     </div>
                   </div>
+                  <div class="ne-dlg-row">
+                    <label>{{ t("Включить в итог (опционально)") }}</label>
+                    <div class="ne-include-row">
+                      <select v-model="includeInto.target">
+                        <option value="">{{ t("— не включать никуда —") }}</option>
+                        <option v-for="tg in autoTargets" :key="tg.id" :value="tg.id">
+                          {{ t(getFieldLabel(tg)) }}
+                        </option>
+                      </select>
+                      <span v-if="includeInto.target" class="ne-include-sign">
+                        <button :class="{ on: includeInto.sign === '+' }" @click="includeInto.sign = '+'" :title="t('Прибавлять к итогу')">+</button>
+                        <button :class="{ on: includeInto.sign === '-' }" @click="includeInto.sign = '-'" :title="t('Вычитать из итога')">−</button>
+                      </span>
+                    </div>
+                    <div class="ne-dlg-hint">
+                      {{ includeInto.target
+                        ? t("Формула выбранного итога получит слагаемое, и он начнёт пересчитываться с учётом новой строки.")
+                        : t("По умолчанию строка ни на что не влияет — просто хранится. Включить в итог можно и потом, кликом по формуле итога.") }}
+                    </div>
+                  </div>
                   <div class="ne-dlg-ftr">
-                    <button class="ne-btn-g" @click="showAddFieldDialog = false">{{ t("Отмена") }}</button>
+                    <button class="ne-btn-g" @click="closeAddFieldDialog()">{{ t("Отмена") }}</button>
                     <button class="ne-btn-p" @click="addCustomField">{{ t("Добавить") }}</button>
                   </div>
                 </div>
@@ -1382,6 +1480,15 @@ function formatHistoryDate(iso: string | null): string {
                           </select>
                           <button class="ne-btn-g" @click="cancelEditCanonical">{{ t("Отмена") }}</button>
                           <button class="ne-btn-p" @click="commitCanonical">{{ t("Применить") }}</button>
+                        </td>
+                      </tr>
+                      <tr class="ne-insert-tr">
+                        <td :colspan="years.length + 2">
+                          <button
+                            class="ne-insert-btn"
+                            :title="t('Вставить новую строку сразу после «{label}»', { label: t(getFieldLabel(field)) })"
+                            @click="openInsertAfter(field)"
+                          ><span class="ne-insert-plus">+</span>{{ t("строка") }}</button>
                         </td>
                       </tr>
                     </template>
@@ -1690,4 +1797,34 @@ function formatHistoryDate(iso: string | null): string {
   color: #B45309; background: rgba(217, 119, 6, .10); border: 0.5px solid rgba(217, 119, 6, .28);
   cursor: help;
 }
+
+/* Вставка строки в НУЖНОЕ место: полоса со знаком «+» между строками,
+   проявляется при наведении. Кнопка «+ Показатель» в шапке кладёт строку
+   только в конец секции — куда она попадёт, приходилось угадывать. */
+.ne-insert-tr td { padding: 0 !important; border: none !important; height: 0; position: relative; }
+.ne-insert-btn {
+  position: absolute; left: 10px; top: -10px; z-index: 3;
+  display: inline-flex; align-items: center; gap: 4px;
+  height: 19px; padding: 0 9px 0 7px;
+  border: 1px dashed rgba(124, 111, 247, .5); border-radius: 999px;
+  background: var(--bg1, #fff); color: var(--p-deep, #534AB7);
+  font: inherit; font-size: 10.5px; font-weight: 600; white-space: nowrap;
+  cursor: pointer; opacity: 0; transform: translateY(2px);
+  transition: opacity .14s ease, transform .14s ease, background .14s ease;
+}
+tbody tr:hover + .ne-insert-tr .ne-insert-btn,
+.ne-insert-tr:hover .ne-insert-btn { opacity: 1; transform: translateY(0); }
+.ne-insert-btn:hover { background: rgba(124, 111, 247, .10); border-style: solid; }
+.ne-insert-btn:focus-visible { opacity: 1; outline: 2px solid var(--uza-purple, #7C6FF7); outline-offset: 1px; }
+.ne-insert-plus { font-size: 13px; line-height: 1; }
+
+/* «Включить в итог» — необязательный шаг формы */
+.ne-include-row { display: flex; gap: 8px; align-items: center; }
+.ne-include-row select { flex: 1; min-width: 0; }
+.ne-include-sign { display: inline-flex; border: 1px solid var(--border-hard, #e2e5ec); border-radius: 7px; overflow: hidden; flex: none; }
+.ne-include-sign button {
+  width: 30px; height: 28px; border: none; background: #fff; font: inherit;
+  font-size: 13px; font-weight: 700; color: var(--t2, #475569); cursor: pointer;
+}
+.ne-include-sign button.on { background: rgba(124, 111, 247, .12); color: var(--p-deep, #534AB7); }
 </style>

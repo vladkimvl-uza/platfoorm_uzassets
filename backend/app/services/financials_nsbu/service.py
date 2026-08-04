@@ -95,6 +95,8 @@ class NsbuCustomFieldDef(BaseModel):
     autoFormula: Optional[str] = None
     isCustom: Optional[bool] = True
     canonical: Optional[str] = None
+    # id строки, ПОСЛЕ которой пользователь вставил эту; без него — в конец секции
+    afterId: Optional[str] = None
 
 
 class NsbuEditorSavePayload(BaseModel):

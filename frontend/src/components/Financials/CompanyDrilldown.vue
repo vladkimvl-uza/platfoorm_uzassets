@@ -495,8 +495,20 @@ const kpiCards = computed<KpiCardData[]>(() => {
     const indCurr = curRaw(kpi.id, localYear.value);
     // «Сотрудники»: годовой индикатор, иначе текущий штат компании (employees_count).
     const usingEmpFallback = kpi.id === "headcount" && indCurr == null && companyEmployees.value != null;
-    const curr = usingEmpFallback ? companyEmployees.value : indCurr;
-    const prev = curRaw(kpi.id, localYear.value - 1);
+    // «Налоги»: если годовой индикатор не заполнен вручную, показываем налог на
+    // прибыль из отчётности — ту же строку, что питает налоговый вклад у
+    // руководителя. Карточка стояла пустой при заполненной отчётности, и связь
+    // между «Налог на прибыль» в редакторе и этой плиткой была не видна.
+    const taxFromReport = kpi.id === "taxes" && indCurr == null
+      ? getValue("tax", localYear.value) : null;
+    const usingTaxFallback = taxFromReport != null;
+    const curr = usingEmpFallback
+      ? companyEmployees.value
+      : (usingTaxFallback ? Math.abs(taxFromReport as number) : indCurr);
+    const prevRaw = curRaw(kpi.id, localYear.value - 1);
+    const prevTax = kpi.id === "taxes" && prevRaw == null
+      ? getValue("tax", localYear.value - 1) : null;
+    const prev = prevTax != null ? Math.abs(prevTax) : prevRaw;
     const yoy = fmtYoY(curr, prev);
     // Default subtext: YoY comparison
     let subtext = `${yoy.text} vs ${localYear.value - 1}`;
@@ -508,6 +520,10 @@ const kpiCards = computed<KpiCardData[]>(() => {
     if (usingEmpFallback) {
       subtext = t("штат компании");
       subColor = "#94A3B8";
+    }
+    if (usingTaxFallback) {
+      subtext = t("налог на прибыль из отчётности");
+      subColor = "#B45309";
     }
     // Special: EBITDA → show margin instead of YoY
     if (kpi.id === "ebitda") {
