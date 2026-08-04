@@ -366,12 +366,28 @@ class RbacV3Repository:
         """Все существующие коды прав (для фильтрации мусорных грантов)."""
         return set((await self._session.execute(select(Permission.code))).scalars().all())
 
-    async def set_user_grants(self, user_id: UUID, rows: list[tuple[str, str]], granted_by: Optional[UUID]) -> None:
-        """Полностью заменить прямые user-гранты (rows = [(code, grant_type)])."""
+    async def set_user_grants(
+        self,
+        user_id: UUID,
+        rows: list[tuple[str, str]],
+        granted_by: Optional[UUID],
+        manage_codes: Optional[set[str]] = None,
+    ) -> None:
+        """Заменить прямые user-гранты (rows = [(code, grant_type)]).
+
+        `manage_codes` ограничивает зачистку кодами, которыми вызывающий
+        действительно управляет. Без него сохранение сетки «Доступ к модулям»
+        сносило ВСЕ оверлеи пользователя, включая те, которые сетка не умеет
+        показать и восстановить: `moderation.review` выдаётся при назначении
+        согласующим и отзывается кнопкой «убрать из модераторов», а после
+        любого сохранения сетки и выдача, и отзыв молча исчезали.
+        """
         import uuid as _uuid
-        await self._session.execute(
-            delete(UserPermissionGrant).where(UserPermissionGrant.user_id == user_id)
-        )
+        stmt = delete(UserPermissionGrant).where(UserPermissionGrant.user_id == user_id)
+        if manage_codes is not None:
+            touched = set(manage_codes) | {c for c, _ in rows}
+            stmt = stmt.where(UserPermissionGrant.permission_code.in_(touched))
+        await self._session.execute(stmt)
         for code, gtype in rows:
             self._session.add(UserPermissionGrant(
                 id=_uuid.uuid4(), user_id=user_id,

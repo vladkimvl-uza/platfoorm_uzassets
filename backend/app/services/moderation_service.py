@@ -165,21 +165,11 @@ async def moderator_ids(db: AsyncSession) -> list[UUID]:
 
     Раньше согласующий был полем в правиле, поэтому без правила заявку не мог
     закрыть никто, кроме владельца. Теперь источник один — RBAC, как и во всём
-    остальном продукте.
+    остальном продукте. Сам расчёт — в `moderation_authority`: он учитывает и
+    персональный грант, и персональный отзыв права, чего этот SQL не делал.
     """
-    rows = (await db.execute(text("""
-        SELECT DISTINCT u.id FROM users u
-        WHERE u.is_active AND (
-            u.is_owner
-            OR EXISTS (
-                SELECT 1 FROM user_role ur
-                JOIN role_permission rp ON rp.role_id = ur.role_id
-                JOIN permissions p ON p.id = rp.permission_id
-                WHERE ur.user_id = u.id AND p.code = 'moderation.review'
-            )
-        )
-    """))).scalars().all()
-    return [r for r in rows]
+    from app.services import moderation_authority
+    return await moderation_authority.moderator_ids(db)
 
 
 async def resolve_moderators(
@@ -199,27 +189,35 @@ async def resolve_moderators(
     Фолбэк обязателен: иначе заявка с выключенным/удалённым согласующим
     зависла бы навсегда, а таких «тихих зависаний» мы уже наелись.
     """
+    from app.services import moderation_authority
+
+    # Персональные согласующие и кураторы секторов лежат в JSONB-полях
+    # пользователя и НЕ пересчитываются, когда у человека забирают право
+    # согласования. Поэтому оба списка прогоняем через тот же предикат, что
+    # строит список модераторов: снятый согласующий выпадает, и заявка идёт
+    # дальше по цепочке, а не повисает на том, кому approve вернёт 403.
     explicit = [x for x in (getattr(proposer, "moderator_ids", None) or []) if x]
     if explicit:
-        rows = (await db.execute(text("""
-            SELECT id FROM users
-            WHERE is_active AND id = ANY(CAST(:ids AS uuid[]))
-        """), {"ids": [str(x) for x in explicit]})).scalars().all()
+        rows = await moderation_authority.filter_moderators(db, explicit)
         if rows:
             return list(rows), "explicit"
 
     if proposer.organization_id:
-        rows = (await db.execute(text("""
+        rows = (await db.execute(text(f"""
             SELECT DISTINCT u.id
             FROM users u
             JOIN companies c ON c.id = CAST(:org AS uuid)
             JOIN sectors s   ON s.id = c.sector_id
-            WHERE u.is_active
-              AND NOT u.is_external
+            WHERE NOT u.is_external
               AND u.id <> CAST(:self AS uuid)
               AND u.moderated_sector_codes IS NOT NULL
               AND u.moderated_sector_codes ? s.code
-        """), {"org": str(proposer.organization_id), "self": str(proposer.id)})).scalars().all()
+              AND {moderation_authority.moderator_predicate('u')}
+        """), {
+            **moderation_authority.PARAMS,
+            "org": str(proposer.organization_id),
+            "self": str(proposer.id),
+        })).scalars().all()
         if rows:
             return list(rows), "sector"
 
@@ -666,6 +664,25 @@ async def _dispatch_apply(
         await db.commit()
 
 
+
+async def _assert_can_resolve(
+    db: AsyncSession, sub: ModerationSubmission, user: User,
+) -> None:
+    """Единая проверка «этот человек вправе закрыть заявку».
+
+    `_can_resolve` синхронный и смотрит только роли пользователя, поэтому
+    персональный отзыв права (`user_permission_grant`, grant_type='deny') он не
+    видит. На HTTP-путях это прикрыто `require_permission`, но Telegram-кнопки
+    «Принять/Отклонить» идут через `bot_callbacks` мимо любых HTTP-гейтов —
+    снятый модератор мог бы закрыть заявку из старого уведомления. Отзыв
+    проверяем здесь, до всех остальных условий.
+    """
+    from app.services import moderation_authority
+    if await moderation_authority.review_denied(db, user):
+        raise PermissionError("Not authorized to resolve this submission")
+    await _assert_can_resolve(db, sub, user)
+
+
 async def approve(
     db: AsyncSession, *, sub: ModerationSubmission, user: User, note: Optional[str] = None,
 ) -> ModerationSubmission:
@@ -674,8 +691,7 @@ async def approve(
     On terminal approval, dispatches to the apply-handler that actually
     writes the change to the target entity (see APPLY_HANDLERS).
     """
-    if not _can_resolve(sub, user):
-        raise PermissionError("Not authorized to resolve this submission")
+    await _assert_can_resolve(db, sub, user)
     sub = await _lock_and_reload(db, sub)  # serialize concurrent approvals
     _guard_open(sub)
 
@@ -725,8 +741,7 @@ async def approve(
 async def reject(
     db: AsyncSession, *, sub: ModerationSubmission, user: User, note: Optional[str] = None,
 ) -> ModerationSubmission:
-    if not _can_resolve(sub, user):
-        raise PermissionError("Not authorized to resolve this submission")
+    await _assert_can_resolve(db, sub, user)
     sub = await _lock_and_reload(db, sub)
     _guard_open(sub)
     now = datetime.now(UTC)

@@ -38,7 +38,12 @@ class ModerationQueryService:
             external    = await r.count_external_users()
             rules_act   = await r.count_rules(active_only=True)
             rules_total = await r.count_rules()
-            mod_ids     = await r.all_rule_moderator_ids()
+            # Счётчик на вкладке «Модераторы» брался из полей правил, а
+            # конструктор правил удалён 03.08.2026 — таблица пустая, и вкладка
+            # показывала 0 при непустом списке. Источник теперь тот же, что у
+            # самого списка.
+            from app.services import moderation_authority
+            mod_ids     = await moderation_authority.moderator_ids(self.uow.session)
 
         return ModerationOverview(
             pending=pending, under_review=under_rev,
@@ -116,26 +121,56 @@ class ModerationQueryService:
         после удаления конструктора правил он бы опустел. Источник теперь один —
         RBAC, тот же, что открывает саму очередь.
         """
-        from sqlalchemy import text as _text
+        from app.services import moderation_authority
         async with self.uow:
-            rows = (await self.uow.session.execute(_text("""
-                SELECT DISTINCT u.id FROM users u
-                WHERE u.is_active AND (
-                    u.is_owner
-                    OR EXISTS (
-                        SELECT 1 FROM user_role ur
-                        JOIN role_permission rp ON rp.role_id = ur.role_id
-                        JOIN permissions p ON p.id = rp.permission_id
-                        WHERE ur.user_id = u.id AND p.code = 'moderation.review'
-                    )
-                )
-            """))).scalars().all()
+            rows = await moderation_authority.moderator_ids(self.uow.session)
             users = await self.uow.moderation.users_by_ids(list(rows))
+            # Снять можно с любого, включая владельца, — но владельца снимает
+            # только владелец. Фронт по этому признаку решает, показывать ли
+            # кнопку, чтобы не предлагать действие, которое вернёт 403.
+            owner_only = {str(u.id) for u in users if u.is_owner}
         return [
             {
                 "id": str(u.id), "email": u.email, "full_name": u.full_name,
                 "is_owner": u.is_owner, "is_active": u.is_active,
                 "job_title": u.job_title, "department": u.department,
+                "owner_only_removal": str(u.id) in owner_only,
+            }
+            for u in users
+        ]
+
+    async def list_removed_moderators(self) -> list[dict]:
+        """Кого сняли с модерации персональным отзывом права.
+
+        Нужен, чтобы снятие было обратимым: вернуть право сеткой «Доступ к
+        модулям» нельзя (кода `moderation.review` в ней нет), и без этого
+        списка человек исчезал бы со страницы навсегда.
+        """
+        from sqlalchemy import text as _text
+
+        from app.services import moderation_authority
+        async with self.uow:
+            rows = (await self.uow.session.execute(_text("""
+                SELECT g.user_id, g.created_at
+                  FROM user_permission_grant g
+                 WHERE g.permission_code = :review_code
+                   AND g.grant_type = :gtype_deny
+                   AND (g.expires_at IS NULL OR g.expires_at > now())
+                 ORDER BY g.created_at DESC
+            """), moderation_authority.PARAMS)).all()
+            by_id = {str(uid): created for uid, created in rows}
+            users = await self.uow.moderation.users_by_ids(
+                [uid for uid, _ in rows]
+            )
+        return [
+            {
+                "id": str(u.id), "email": u.email, "full_name": u.full_name,
+                "is_owner": u.is_owner, "is_active": u.is_active,
+                "job_title": u.job_title, "department": u.department,
+                "removed_at": (
+                    by_id.get(str(u.id)).isoformat()
+                    if by_id.get(str(u.id)) else None
+                ),
             }
             for u in users
         ]

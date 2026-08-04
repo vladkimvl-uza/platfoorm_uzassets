@@ -183,8 +183,15 @@ class ModerationRepository:
     async def users_by_ids(self, ids: Sequence[UUID]):
         if not ids:
             return []
+        # Роли грузим сразу: вызывающий (список модераторов) отличает по ним
+        # структурный авторитет (роль `admin`), а ленивая подгрузка в async-
+        # сессии падает MissingGreenlet.
+        from sqlalchemy.orm import selectinload
         rows = (await self.session.execute(
-            select(User).where(User.id.in_(ids)).order_by(User.full_name.asc())
+            select(User)
+            .options(selectinload(User.roles))
+            .where(User.id.in_(ids))
+            .order_by(User.full_name.asc())
         )).scalars().all()
         return list(rows)
 

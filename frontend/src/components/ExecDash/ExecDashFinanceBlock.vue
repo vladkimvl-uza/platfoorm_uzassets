@@ -284,7 +284,10 @@ function onKpiKeydown(e: KeyboardEvent, kind: FinKpiKind) {
 // ─── Расширенные KPI ───────────────────────────────────────────
 interface ExtKpis {
   totalRevenue: number;
-  revenueYoYPct: number;
+  /** null — сравнивать не с чем; см. пояснение у карточки выручки */
+  revenueYoYPct: number | null;
+  revenueYoYPairCount: number;
+  revenueMissingVsPrev: number;
   netProfit: number;
   netMargin: number;
   ebitda: number;
@@ -318,6 +321,8 @@ const extKpis = computed<ExtKpis | null>(() => {
   return {
     totalRevenue: kpis.value.totalRevenue,
     revenueYoYPct: kpis.value.revenueYoYPct,
+    revenueYoYPairCount: kpis.value.revenueYoYPairCount,
+    revenueMissingVsPrev: kpis.value.revenueMissingVsPrev,
     netProfit, netMargin: kpis.value.netMargin,
     ebitda: kpis.value.totalEbitda, ebitdaMargin: kpis.value.ebitdaMargin,
     totalAssets, totalDebt: debt, debtToEquity: dToE,
@@ -327,6 +332,24 @@ const extKpis = computed<ExtKpis | null>(() => {
     accountsReceivable: get("accountsReceivable"),
     accountsPayable: get("accountsPayable"),
   };
+});
+
+const revenueYoYNote = computed(() => {
+  const k = extKpis.value;
+  if (!k || k.revenueYoYPct == null) return "";
+  const base = t("сравнение по {n} сопоставимым", { n: k.revenueYoYPairCount });
+  return k.revenueMissingVsPrev > 0
+    ? `${base} · ${t("{n} ещё не сдали отчётность", { n: k.revenueMissingVsPrev })}`
+    : base;
+});
+const revenueTitle = computed(() => {
+  const k = extKpis.value;
+  if (!k) return t("Подробнее: Совокупная выручка");
+  return k.revenueMissingVsPrev > 0
+    ? t("Итог — сумма по {inYear} компаниям, сдавшим отчётность за год. Процент — рост по {pair} компаниям, у которых есть данные и за прошлый год. Ещё {gone} компаний отчитались за прошлый год, но не за текущий, поэтому итог меньше прошлогоднего.",
+        { inYear: k.cosWithData, pair: k.revenueYoYPairCount, gone: k.revenueMissingVsPrev })
+    : t("Итог — сумма по {inYear} компаниям; процент — рост по {pair} сопоставимым.",
+        { inYear: k.cosWithData, pair: k.revenueYoYPairCount });
 });
 
 // 2026-05-26: countup для 6 KPI cards (Revenue, NetProfit, EBITDA, Assets,
@@ -781,12 +804,16 @@ onBeforeUnmount(() => {
           tabindex="0"
           @click="openDrill('revenue')"
           @keydown="onKpiKeydown($event, 'revenue')"
-          :title="t('Подробнее: Совокупная выручка')"
+          :title="revenueTitle"
         >
           <div class="ed-fin-kpi-bar"></div>
           <div class="ed-fin-kpi-lbl">{{ t("Совокупная выручка") }}</div>
           <div class="ed-fin-kpi-val">{{ fmtNum(tRevenue) }}<span>{{ t(unitLabel) }} {{ t(currencyLabel) }}</span></div>
-          <div class="ed-fin-kpi-d" :class="extKpis.revenueYoYPct >= 0 ? 'p' : 'n'">{{ fmtPctSigned(tRevenueYoY, 0) }} {{ t("к пред. году") }}</div>
+          <div v-if="extKpis.revenueYoYPct == null" class="ed-fin-kpi-d">{{ t("нет сопоставимого прошлого года") }}</div>
+          <div v-else class="ed-fin-kpi-d" :class="extKpis.revenueYoYPct >= 0 ? 'p' : 'n'">{{ fmtPctSigned(tRevenueYoY, 0) }} {{ t("к пред. году") }}</div>
+          <!-- Итог считается по сдавшим отчётность за год, процент — по сопоставимым.
+               Без этой строки падение итога рядом с плюсовым процентом читается как ошибка. -->
+          <div v-if="revenueYoYNote" class="ed-fin-kpi-note">{{ revenueYoYNote }}</div>
         </div>
         <div
           class="ed-fin-kpi-card ed-fin-kpi-card--clickable"
@@ -1422,4 +1449,11 @@ onBeforeUnmount(() => {
   text-align: right;
 }
 .ed-fin-exp-num.c-neg { color: var(--sev-high); }
+
+/* Уточнение базы процента на карточке выручки (см. computePortfolioKpis). */
+.ed-fin-kpi-note {
+  font-size: 9px; margin-top: 3px; line-height: 1.35;
+  color: var(--t3, #94A3B8);
+  font-variant-numeric: tabular-nums;
+}
 </style>

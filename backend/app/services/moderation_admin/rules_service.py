@@ -113,6 +113,127 @@ class ModerationRulesService:
                 "external_org_name": u.external_org_name,
             }
 
+    # ─── состав модераторов ───────────────────────────────────────
+
+    async def set_moderator(
+        self, user_id: UUID, *, active: bool, actor,
+    ) -> dict:
+        """Убрать человека из модераторов или вернуть обратно.
+
+        Механика — персональный оверлей прав (`user_permission_grant`), тот же,
+        которым сетка «Доступ к модулям» уже точечно правит права: строка
+        `deny` перебивает право, пришедшее из роли, а `grant` — выдаёт его без
+        роли. Роли не трогаем: они несут десяток других прав, и снятие роли
+        ради модерации отобрало бы у человека половину продукта.
+
+        Чего эта операция НЕ делает намеренно: не чистит `moderator_ids` у
+        других пользователей и не переписывает открытые заявки. Маршрутизация
+        сама пропускает снятого (см. `resolve_moderators`), поэтому снятие
+        обратимо — вернули право, и все прежние назначения снова работают.
+        """
+        from sqlalchemy import text as _text
+
+        from app.core.security import has_effective_permission, is_super_admin
+        from app.services import moderation_authority
+
+        async with self.uow:
+            db = self.uow.session
+            target = await self.uow.moderation.get_user(user_id)
+            if not target:
+                raise HTTPException(404, "Пользователь не найден")
+
+            # Владельца снимает только владелец (решение владельца 04.08.2026).
+            # Держателю admin.users это закрыто: иначе администратор мог бы
+            # отключить согласование у того, кто выдал ему сам доступ.
+            if target.is_owner and not actor.is_owner:
+                raise HTTPException(
+                    403,
+                    "Снять согласование с владельца платформы может только "
+                    "владелец.",
+                )
+
+            if not active:
+                # Хотя бы один модератор обязан остаться: заявки внешних авторов
+                # иначе некому закрыть, а срока годности у них нет — повиснут
+                # навсегда. Считаем всех действующих, включая владельца: после
+                # решения 04.08.2026 отзыв действует и на него, значит и он
+                # может оказаться последним.
+                working = (await db.execute(_text(f"""
+                    SELECT count(*) FROM users u
+                     WHERE {moderation_authority.moderator_predicate('u')}
+                """), moderation_authority.PARAMS)).scalar() or 0
+                if working <= 1:
+                    raise HTTPException(
+                        409,
+                        "Это последний действующий модератор. Сначала назначьте "
+                        "другого — иначе заявки будет некому разбирать.",
+                    )
+            else:
+                # Возврат = выдача права. Потолок привилегий как в RBAC: не-владелец
+                # не может выдать то, чего у него нет, иначе держатель admin.users
+                # сделает модератором сам себя.
+                if not actor.is_owner and not is_super_admin(actor):
+                    if not await has_effective_permission(db, actor, "moderation.review"):
+                        raise HTTPException(
+                            403,
+                            "Вернуть человека в модераторы может только тот, у кого "
+                            "право согласования есть у самого.",
+                        )
+
+            await db.execute(
+                _text("""
+                    DELETE FROM user_permission_grant
+                     WHERE user_id = :uid AND permission_code = :code
+                """),
+                {"uid": str(user_id), "code": moderation_authority.REVIEW_CODE},
+            )
+            await db.execute(
+                _text("""
+                    INSERT INTO user_permission_grant
+                        (id, user_id, permission_code, grant_type, granted_by_id,
+                         created_at, updated_at)
+                    VALUES (gen_random_uuid(), :uid, :code, :gtype, :actor,
+                            now(), now())
+                """),
+                {
+                    "uid": str(user_id),
+                    "code": moderation_authority.REVIEW_CODE,
+                    "gtype": "grant" if active else "deny",
+                    "actor": str(actor.id),
+                },
+            )
+
+            still = await moderation_authority.is_moderator(db, user_id)
+            label = target.full_name or target.email
+
+            from app.services import audit_service
+            await audit_service.write_event(
+                db,
+                actor_id=actor.id, actor_email=actor.email,
+                actor_role=(actor.roles[0].code if getattr(actor, "roles", None) else None),
+                action="moderation.moderator_added" if active else "moderation.moderator_removed",
+                module="moderation",
+                entity_type="user", entity_id=str(user_id),
+                entity_label=label[:140],
+                notes=(
+                    f"{label} возвращён в модераторы"
+                    if active else
+                    f"{label} снят с модерации: право согласования отозвано персонально"
+                ),
+                is_critical=not active,
+                meta={"permission": moderation_authority.REVIEW_CODE,
+                      "grant_type": "grant" if active else "deny"},
+            )
+            # Коммит делает выход из `async with`: правка прав и запись в
+            # аудит уходят одной транзакцией.
+
+        return {
+            "id": str(user_id),
+            "is_moderator": still,
+            "full_name": target.full_name,
+            "email": target.email,
+        }
+
     # ─── comments listing (read-only) ─────────────────────────────
 
     async def list_comments(

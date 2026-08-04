@@ -42,6 +42,7 @@ const PATHS: Record<string, string> = {
   "shield-check": '<path d="M12 3 5 6v6c0 4 3 7 7 9 4-2 7-5 7-9V6l-7-3Z"/><path d="m9 12 2 2 4-4"/>',
   "user-check": '<circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="m16 11 2 2 4-4"/>',
   "user-exclamation": '<circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.3 2.7-6 6-6s4 .6 5 1.5"/><path d="M19 8v4M19 16h.01"/>',
+  "user-minus": '<circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M16 12h6"/>',
   // ── module icons (MODERATABLE_MODULES catalog) ──
   "chart-line": '<path d="M4 4v16h16"/><path d="m7 14 3-3 3 3 5-6"/>',
   cash: '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 9v6M18 9v6"/>',

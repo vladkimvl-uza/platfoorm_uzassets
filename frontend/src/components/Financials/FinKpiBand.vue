@@ -66,6 +66,35 @@ const netProfitTxt = computed(() =>
 const lossOutOf = computed(() =>
   props.kpis ? t("из {n} с данными по прибыли", { n: props.kpis.companiesWithProfit }) : "",
 );
+
+// Крупное число суммирует всех, кто сдал отчётность за год, а процент считается
+// like-for-like. Когда часть компаний ещё не сдала текущий год, итог оказывается
+// МЕНЬШЕ прошлогоднего, а процент — плюсовым, и это читается как ошибка. Поэтому
+// под процентом всегда пишем, по скольким компаниям он посчитан, и сколько
+// выпало из итога.
+const revenueYoYTxt = computed(() => {
+  const k = props.kpis;
+  if (!k) return "";
+  if (k.revenueYoYPct == null) return t("нет сопоставимого прошлого года");
+  return t("{v} к пред. году", { v: fmtPctSigned(k.revenueYoYPct) });
+});
+const revenueYoYNote = computed(() => {
+  const k = props.kpis;
+  if (!k || k.revenueYoYPct == null) return "";
+  const base = t("сравнение по {n} сопоставимым", { n: k.revenueYoYPairCount });
+  return k.revenueMissingVsPrev > 0
+    ? `${base} · ${t("{n} ещё не сдали отчётность", { n: k.revenueMissingVsPrev })}`
+    : base;
+});
+const revenueTitle = computed(() => {
+  const k = props.kpis;
+  if (!k) return "";
+  return k.revenueMissingVsPrev > 0
+    ? t("Итог — сумма по {inYear} компаниям, сдавшим отчётность за год. Процент — рост по {pair} компаниям, у которых есть данные и за прошлый год. Ещё {gone} компаний отчитались за прошлый год, но не за текущий, поэтому итог меньше прошлогоднего.",
+        { inYear: k.revenueCompaniesInYear, pair: k.revenueYoYPairCount, gone: k.revenueMissingVsPrev })
+    : t("Итог — сумма по {inYear} компаниям; процент — рост по {pair} сопоставимым.",
+        { inYear: k.revenueCompaniesInYear, pair: k.revenueYoYPairCount });
+});
 </script>
 
 <template>
@@ -89,15 +118,18 @@ const lossOutOf = computed(() =>
   <div class="fkb-grid kpi-rail">
     <!-- 1. Совокупная выручка -->
     <div class="fkb-card fkb-card-clickable" style="--accent:#1D9E75; --d:0ms;"
+         :title="revenueTitle"
          @click="drill('revenue')">
       <div class="fkb-lbl">{{ t("Совокупная выручка") }}</div>
       <div class="fkb-val">
         <span class="fkb-num"><Odometer :value="kpis ? fmtBigNumber(kpis.totalRevenue, unit) : '—'" /></span>
         <span class="fkb-unit">{{ unitSuffix }}</span>
       </div>
-      <div class="fkb-sub" :style="{ color: (kpis?.revenueYoYPct ?? 0) >= 0 ? '#1D9E75' : '#E24B4A' }">
-        {{ kpis ? t("{v} к пред. году", { v: fmtPctSigned(kpis.revenueYoYPct) }) : '' }}
+      <div class="fkb-sub"
+           :style="{ color: kpis?.revenueYoYPct == null ? 'var(--t3, #94A3B8)' : (kpis.revenueYoYPct >= 0 ? '#1D9E75' : '#E24B4A') }">
+        {{ revenueYoYTxt }}
       </div>
+      <div v-if="revenueYoYNote" class="fkb-note">{{ revenueYoYNote }}</div>
     </div>
 
     <!-- 2. Операционная маржа -->
@@ -303,6 +335,14 @@ const lossOutOf = computed(() =>
 .fkb-sub {
   font-size: 11px; margin-top: 6px; font-weight: 500;
   color: var(--t1, #1E2A4A);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Уточнение под процентом: по какой базе он посчитан. Тише подписи, но всегда
+   на виду — без него «+16%» рядом с упавшим итогом читается как ошибка. */
+.fkb-note {
+  font-size: 9.5px; margin-top: 3px; line-height: 1.35;
+  color: var(--t3, #94A3B8);
   font-variant-numeric: tabular-nums;
 }
 

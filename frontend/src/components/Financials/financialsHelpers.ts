@@ -313,7 +313,14 @@ export interface PortfolioKpis {
   lossMakingCount: number;
   totalCompaniesWithData: number;
   prevYearRevenue: number;
-  revenueYoYPct: number;
+  /** null — сравнивать не с чем (ни одной компании с выручкой в обоих годах) */
+  revenueYoYPct: number | null;
+  /** Сколько компаний реально участвовало в сравнении (данные в ОБА года) */
+  revenueYoYPairCount: number;
+  /** Компании с выручкой в текущем году — знаменатель крупного числа */
+  revenueCompaniesInYear: number;
+  /** Были в прошлом году, но за текущий отчётности нет — из-за них итог «падает» */
+  revenueMissingVsPrev: number;
   netProfitDeltaPp: number;
   companiesInYear: number;
   companiesWithProfit: number;
@@ -351,19 +358,35 @@ export function computePortfolioKpis(
   const netMargin = revenue ? (netProfit / revenue) * 100 : 0;
   const prevNetMargin = prevRevenue ? (prevNetProfit / prevRevenue) * 100 : 0;
 
+  // YoY считаем like-for-like — только по компаниям с выручкой в ОБА года.
+  // Крупное число рядом при этом суммирует всех, кто сдал отчётность за год,
+  // поэтому наборы расходятся: если часть компаний ещё не сдала текущий год,
+  // итог падает, а честный рост по сопоставимым остаётся плюсовым. Считаем
+  // счётчики, чтобы карточка могла это объяснить, а не показывать «+16%»
+  // рядом с числом, которое меньше прошлогоднего, без единого слова.
   let prevRevenueLL = 0;
   let currentRevenueLL = 0;
+  let revenueYoYPairCount = 0;
+  let revenueCompaniesInYear = 0;
+  let revenueMissingVsPrev = 0;
   for (const item of summary.items) {
     const yCur = item.by_year[year];
     const yPrev = item.by_year[year - 1];
-    if (yCur?.revenue != null && yPrev?.revenue != null) {
-      currentRevenueLL += yCur.revenue;
-      prevRevenueLL += yPrev.revenue;
+    const hasCur = yCur?.revenue != null;
+    const hasPrev = yPrev?.revenue != null;
+    if (hasCur) revenueCompaniesInYear += 1;
+    if (hasCur && hasPrev) {
+      revenueYoYPairCount += 1;
+      currentRevenueLL += yCur!.revenue as number;
+      prevRevenueLL += yPrev!.revenue as number;
+    } else if (hasPrev) {
+      revenueMissingVsPrev += 1;
     }
   }
+  // Честный null вместо «+0%»: сравнивать не с чем — так и говорим.
   const revenueYoYPct = prevRevenueLL > 0
     ? ((currentRevenueLL - prevRevenueLL) / prevRevenueLL) * 100
-    : 0;
+    : null;
 
   let lossMaking = 0;
   let inYear = 0;
@@ -392,6 +415,9 @@ export function computePortfolioKpis(
     totalCompaniesWithData: summary.coverage.companies_total,
     prevYearRevenue: prevRevenue,
     revenueYoYPct,
+    revenueYoYPairCount,
+    revenueCompaniesInYear,
+    revenueMissingVsPrev,
     netProfitDeltaPp: netMargin - prevNetMargin,
     companiesInYear: inYear,
     companiesWithProfit: withProfit,

@@ -987,7 +987,12 @@ class RbacV3Service:
                     ),
                 )
         rows = [(c, "grant") for c in grants] + [(c, "deny") for c in denies]
-        await repo.set_user_grants(user_id, rows, user.id)
+        # Зачищаем только то, чем управляет сама сетка: коды вне неё (например
+        # moderation.review) сетка не показывает и восстановить не может, а
+        # раньше replace-all стирал их при каждом сохранении.
+        await repo.set_user_grants(
+            user_id, rows, user.id, manage_codes=set(_GRID_MANAGEABLE_CODES),
+        )
         await db.commit()
 
         return await self.get_user(user_id, db, user)

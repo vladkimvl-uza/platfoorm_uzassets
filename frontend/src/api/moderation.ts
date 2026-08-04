@@ -144,6 +144,10 @@ export interface ModeratorUser {
   id: string; email: string; full_name: string;
   is_owner: boolean; is_active: boolean;
   job_title: string | null; department: string | null;
+  /** Снять согласование с этого человека может только владелец платформы */
+  owner_only_removal?: boolean;
+  /** Только для снятых: когда отозвали право */
+  removed_at?: string | null;
 }
 export interface SubmittedUser {
   id: string; email: string; full_name: string;
@@ -234,6 +238,19 @@ export const moderationApi = {
   // Users
   async moderators(): Promise<{ items: ModeratorUser[] }> {
     const r = await api.get<{ items: ModeratorUser[] }>("/moderation/moderators");
+    return r.data;
+  },
+  /** Снятые с модерации — чтобы снятие можно было отменить */
+  async removedModerators(): Promise<{ items: ModeratorUser[] }> {
+    const r = await api.get<{ items: ModeratorUser[] }>("/moderation/moderators/removed");
+    return r.data;
+  },
+  async removeModerator(userId: string): Promise<{ id: string; is_moderator: boolean }> {
+    const r = await api.delete<{ id: string; is_moderator: boolean }>(`/moderation/moderators/${userId}`);
+    return r.data;
+  },
+  async restoreModerator(userId: string): Promise<{ id: string; is_moderator: boolean }> {
+    const r = await api.post<{ id: string; is_moderator: boolean }>(`/moderation/moderators/${userId}`);
     return r.data;
   },
   async submittedUsers(): Promise<{ items: SubmittedUser[] }> {

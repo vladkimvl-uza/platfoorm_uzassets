@@ -135,11 +135,18 @@ async def get_submission(
     sub = await db.get(ModerationSubmission, submission_id)
     if not sub:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Not found")
+    # Держатель moderation.review и назначенные через reviewer_ids раньше сюда
+    # не попадали: очередь показывала заявку, а по клику приходил 403. Особенно
+    # больно после снятия модератора — его заявки не мог разобрать НИКТО, кроме
+    # владельца, а срока годности у заявки нет.
+    from app.core.security import has_effective_permission
     allowed = (
         user.is_owner
         or sub.proposer_user_id == user.id
         or sub.assigned_moderator_id == user.id
         or sub.coapprover_id == user.id
+        or any(str(x) == str(user.id) for x in (sub.reviewer_ids or []))
+        or await has_effective_permission(db, user, "moderation.review")
     )
     if not allowed:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "No access")
@@ -301,6 +308,36 @@ async def list_moderators(
     _u: User = Depends(get_current_user),
 ):
     return {"items": await service.list_moderators()}
+
+
+@router.get("/moderators/removed")
+async def list_removed_moderators(
+    service: ModerationQueryServiceDep,
+    _u: User = Depends(require_permission("admin.users")),
+):
+    return {"items": await service.list_removed_moderators()}
+
+
+@router.delete("/moderators/{user_id}")
+async def remove_moderator(
+    user_id: UUID,
+    service: ModerationRulesServiceDep,
+    user: User = Depends(require_permission("admin.users")),
+):
+    """Убрать человека из модераторов (право согласования отзывается персонально)."""
+    return await service.set_moderator(user_id, active=False, actor=user)
+
+
+@router.post("/moderators/{user_id}")
+async def restore_moderator(
+    user_id: UUID,
+    service: ModerationRulesServiceDep,
+    user: User = Depends(require_permission("admin.users")),
+):
+    """Вернуть человека в модераторы. Обратная операция к удалению —
+    без неё снятие было бы необратимым: выдать `moderation.review` сеткой
+    «Доступ к модулям» нельзя, этого кода в сетке нет."""
+    return await service.set_moderator(user_id, active=True, actor=user)
 
 
 @router.get("/submitted-users")

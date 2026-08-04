@@ -40,7 +40,8 @@ export type FinKpiKind =
 
 export interface FinExtKpis {
   totalRevenue: number;
-  revenueYoYPct: number;
+  /** null — нет компаний с выручкой в обоих годах, сравнивать не с чем */
+  revenueYoYPct: number | null;
   netProfit: number;
   netMargin: number;
   ebitda: number;
