@@ -394,7 +394,7 @@ const seriesYears = computed(() => data.value?.series?.years || []);
                 <span v-if="f.pct != null"><Odometer :value="f.pct.toFixed(1)" /><span class="sh-fiscal-u">{{ tr('% ВВП') }}</span></span>
                 <span v-else>—</span>
               </div>
-              <div class="sh-fiscal-abs">{{ fmtTrln(f.abs) }} {{ tr('сум') }}</div>
+              <div class="sh-fiscal-abs"><Odometer :value="fmtTrln(f.abs)" /> {{ tr('сум') }}</div>
             </div>
           </div>
         </div>

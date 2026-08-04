@@ -61,32 +61,32 @@
     <div class="cnt-kpi-grid" v-if="summary">
       <div class="cnt-kpi" style="--kc:#534AB7;">
         <div class="cnt-kpi-l">Outstanding<span class="cnt-tip" :title="t(TT.outstanding)">?</span></div>
-        <div class="cnt-kpi-v">{{ fmtUsdMlrd(summary.debt_outstanding_usd) }}</div>
+        <div class="cnt-kpi-v"><Odometer :value="fmtUsdMlrd(summary.debt_outstanding_usd)" /></div>
         <div class="cnt-kpi-d">{{ t('из $') }}{{ (Number(summary.sum_total_usd) / 1e9).toFixed(2) }} {{ t('млрд программы') }}</div>
       </div>
       <div class="cnt-kpi" style="--kc:#1D9E75;">
         <div class="cnt-kpi-l">{{ t('Возвращено') }}<span class="cnt-tip" :title="t(TT.repaid)">?</span></div>
-        <div class="cnt-kpi-v">{{ fmtUsdMlrd(summary.repaid_usd) }}</div>
+        <div class="cnt-kpi-v"><Odometer :value="fmtUsdMlrd(summary.repaid_usd)" /></div>
         <div class="cnt-kpi-d">{{ fmtPct(summary.repaid_pct) }}</div>
       </div>
       <div class="cnt-kpi" style="--kc:#EF9F27;">
         <div class="cnt-kpi-l">{{ t('Средневзв. ставка') }}<span class="cnt-tip" :title="t(TT.rate)">?</span></div>
-        <div class="cnt-kpi-v">{{ fmtPct(summary.avg_rate_pct, 2) }}</div>
+        <div class="cnt-kpi-v"><Odometer :value="fmtPct(summary.avg_rate_pct, 2)" /></div>
         <div class="cnt-kpi-d">{{ t('взвеш. по долгу') }}</div>
       </div>
       <div class="cnt-kpi" style="--kc:#378ADD;">
         <div class="cnt-kpi-l">{{ t('С госгарантией') }}<span class="cnt-tip" :title="t(TT.guaranteed)">?</span></div>
-        <div class="cnt-kpi-v">{{ fmtPct(summary.guaranteed_pct) }}</div>
+        <div class="cnt-kpi-v"><Odometer :value="fmtPct(summary.guaranteed_pct)" /></div>
         <div class="cnt-kpi-d">{{ fmtUsdMlrd(summary.guaranteed_usd) }}</div>
       </div>
       <div class="cnt-kpi" style="--kc:#7F77DD;">
         <div class="cnt-kpi-l">{{ t('К погашению 12мес') }}<span class="cnt-tip" :title="t(TT.due12)">?</span></div>
-        <div class="cnt-kpi-v">{{ fmtUsdMlrd(summary.next_12mo_payments_usd) }}</div>
+        <div class="cnt-kpi-v"><Odometer :value="fmtUsdMlrd(summary.next_12mo_payments_usd)" /></div>
         <div class="cnt-kpi-d">{{ summary.debt_outstanding_usd > 0 ? fmtPct(summary.next_12mo_payments_usd / summary.debt_outstanding_usd * 100) : '—' }} {{ t('от долга') }}</div>
       </div>
       <div class="cnt-kpi" style="--kc:#E24B4A;">
         <div class="cnt-kpi-l">{{ t('Ожидаемые потери EL') }}<span class="cnt-tip" :title="t(TT.el)">?</span></div>
-        <div class="cnt-kpi-v">{{ fmtUsdMlrd(summary.expected_loss_usd) }}</div>
+        <div class="cnt-kpi-v"><Odometer :value="fmtUsdMlrd(summary.expected_loss_usd)" /></div>
         <div class="cnt-kpi-d">{{ fmtCount(summary.flagged_loans_count) }} {{ t('флагнуто') }}</div>
       </div>
     </div>
@@ -327,6 +327,7 @@
 </template>
 
 <script setup lang="ts">
+import Odometer from "@/components/Odometer.vue";
 import { computed, onMounted, reactive, ref, watch } from "vue"
 import { useCreditScenario, fmtUsdMlrd, fmtUsdMln, fmtPct, fmtCount } from "@/composables/useCreditScenario"
 import * as creditApi from "@/api/creditScenario"

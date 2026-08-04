@@ -268,12 +268,12 @@ function donutHover(e: DonutEntry, total: number): [string, string] {
         <div class="uc-kpi-band kpi-rail">
           <div class="uc-kpi uc-kpi-clk" role="button" tabindex="0" @click="onKpiClick" style="--accent:#7F77DD; --d:0ms;">
             <div class="uc-kpi-l">{{ t("Совокупная себестоимость") }}</div>
-            <div class="uc-kpi-v">{{ fmtSum(pf.total_cost) }}</div>
+            <div class="uc-kpi-v"><Odometer :value="fmtSum(pf.total_cost)" /></div>
             <div class="uc-kpi-s">{{ t("по заполненному выпуску") }}</div>
           </div>
           <div class="uc-kpi uc-kpi-clk" role="button" tabindex="0" @click="onKpiClick" style="--accent:#EF9F27; --d:80ms;">
             <div class="uc-kpi-l">{{ t("Энергозатраты") }}</div>
-            <div class="uc-kpi-v">{{ fmtSum(pf.energy_cost) }}</div>
+            <div class="uc-kpi-v"><Odometer :value="fmtSum(pf.energy_cost)" /></div>
             <div class="uc-kpi-s">{{ t("из совокупной") }}</div>
           </div>
           <div class="uc-kpi uc-kpi-clk" role="button" tabindex="0" @click="onKpiClick" style="--accent:#E24B4A; --d:160ms;">
@@ -286,7 +286,7 @@ function donutHover(e: DonutEntry, total: number): [string, string] {
           </div>
           <div class="uc-kpi uc-kpi-clk" role="button" tabindex="0" @click="onKpiClick" style="--accent:#1D9E75; --d:240ms;">
             <div class="uc-kpi-l">{{ t("Заполнено продуктов") }}</div>
-            <div class="uc-kpi-v">{{ pf.priced_count }}<span class="uc-kpi-u">/ {{ pf.product_count }}</span></div>
+            <div class="uc-kpi-v"><Odometer :value="pf.priced_count" /><span class="uc-kpi-u">/ {{ pf.product_count }}</span></div>
             <div class="uc-kpi-s">{{ t("{n} компаний", { n: pf.company_count }) }}</div>
           </div>
           <div class="uc-kpi"
@@ -295,7 +295,7 @@ function donutHover(e: DonutEntry, total: number): [string, string] {
             <div class="uc-kpi-l">{{ t("Перерасход / Экономия") }}</div>
             <div class="uc-kpi-v" :style="{ color: overrunColor }">
               <template v-if="overrun != null">
-                <span class="uc-ov-sign">{{ overrunState === 'over' ? '+' : '−' }}</span>{{ fmtSum(Math.abs(overrun)) }}
+                <span class="uc-ov-sign">{{ overrunState === 'over' ? '+' : '−' }}</span><Odometer :value="fmtSum(Math.abs(overrun))" />
               </template>
               <span v-else>—</span>
             </div>

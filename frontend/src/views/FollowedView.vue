@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Odometer from "@/components/Odometer.vue";
 import { ref, onMounted, computed, watch } from "vue";
 import { watchesApi, type WatchedItem } from "@/api/watches";
 import { getPlatformUpdatingMessage } from "@/api/client";
@@ -152,7 +153,7 @@ async function unfollow(it: WatchedItem, ev: Event) {
         <div class="fl-sub">{{ t('Проекты и задачи, об изменениях которых вы получаете уведомления') }}</div>
       </div>
       <div class="fl-live" :title="t('{value0} в отслеживании', { value0: items.length })">
-        <span class="fl-live-dot"></span>{{ items.length }}
+        <span class="fl-live-dot"></span><Odometer :value="items.length" />
       </div>
     </div>
 

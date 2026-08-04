@@ -10,6 +10,7 @@
  *     • Поставщики  — supplier breakdown (this company × suppliers)
  *     • Закупки     — full purchases list (sortable, clickable)
  */
+import Odometer from "@/components/Odometer.vue";
 import { computed, ref } from "vue";
 import {
   paFmtMoney,
@@ -182,31 +183,31 @@ function devComparable(p: ClosureRow): boolean {
     <template #stats>
       <div class="pms-stat">
         <div class="pms-stat-lbl">{{ t("Ранг") }}</div>
-        <div class="pms-stat-val">#{{ rank }}<small>{{ t("из") }} {{ totalCompanies }}</small></div>
+        <div class="pms-stat-val"><Odometer :value="'#' + rank" /><small>{{ t("из") }} {{ totalCompanies }}</small></div>
       </div>
       <div class="pms-stat">
         <div class="pms-stat-lbl">{{ t("Средн. отклонение") }}</div>
         <div class="pms-stat-val" :class="(company.company_deviation ?? 0) >= 0 ? 'neg' : 'pos'">
-          {{ fmt.fmtNumber(company.company_deviation, { decimals: 1, signed: true }) }}<small>%</small>
+          <Odometer :value="fmt.fmtNumber(company.company_deviation, { decimals: 1, signed: true })" /><small>%</small>
         </div>
       </div>
       <div class="pms-stat">
         <div class="pms-stat-lbl">{{ overpay > 0 ? t('Переплата') : t('Экономия') }}</div>
         <div class="pms-stat-val" :class="overpay > 0 ? 'neg' : 'pos'">
-          {{ paFmtMoneyShort(overpay > 0 ? overpay : savings) }}<small>{{ t("сум") }}</small>
+          <Odometer :value="paFmtMoneyShort(overpay > 0 ? overpay : savings)" /><small>{{ t("сум") }}</small>
         </div>
       </div>
       <div class="pms-stat">
         <div class="pms-stat-lbl">{{ t("Объём") }}</div>
-        <div class="pms-stat-val">{{ paFmtMoneyShort(totalVol) }}<small>{{ t("сум") }}</small></div>
+        <div class="pms-stat-val"><Odometer :value="paFmtMoneyShort(totalVol)" /><small>{{ t("сум") }}</small></div>
       </div>
       <div class="pms-stat">
         <div class="pms-stat-lbl">{{ t("Категорий") }}</div>
-        <div class="pms-stat-val">{{ categoryStats.length }}</div>
+        <div class="pms-stat-val"><Odometer :value="categoryStats.length" /></div>
       </div>
       <div class="pms-stat">
         <div class="pms-stat-lbl">{{ t("Закупок") }}</div>
-        <div class="pms-stat-val">{{ purchases.length }}</div>
+        <div class="pms-stat-val"><Odometer :value="purchases.length" /></div>
       </div>
     </template>
 

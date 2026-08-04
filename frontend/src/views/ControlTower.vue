@@ -8,6 +8,7 @@
  * Срезы можно фиксировать (вручную/авто) и удалять. Клик по компании →
  * модалка с лентой изменений.
  */
+import Odometer from "@/components/Odometer.vue";
 import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { api } from "@/api/client";
 import { useToast } from "@/composables/useToast";
@@ -357,7 +358,7 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
         <div class="ph-hero" :class="statusClass">
           <div class="ph-hero-l">
             <div class="ph-hero-eyebrow">{{ t("Исполнение обязательств") }} · {{ t(periodLabel) }} · FY {{ year }}</div>
-            <div class="ph-hero-num">{{ cur.fact_now ?? '—' }}<small v-if="cur.fact_now != null">%</small>
+            <div class="ph-hero-num"><Odometer v-if="cur.fact_now != null" :value="cur.fact_now" /><template v-else>—</template><small v-if="cur.fact_now != null">%</small>
               <span class="ph-hero-chip">{{ statusWord }}</span>
             </div>
             <div class="ph-hero-sub">
@@ -368,7 +369,7 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
           </div>
           <div class="ph-hero-r">
             <div class="ph-hero-eyebrow alt">{{ t("Взвешенный прогресс") }}</div>
-            <div class="ph-hero-num alt">{{ cur.progress_now }}<small>%</small>
+            <div class="ph-hero-num alt"><Odometer :value="cur.progress_now" /><small>%</small>
               <span v-if="period === 'all'" class="ph-hero-trend" :class="heroTrend.dir">
                 {{ heroTrend.dir === 'up' ? '↑' : heroTrend.dir === 'down' ? '↓' : '→' }} {{ heroTrendWord }}
               </span>
@@ -384,10 +385,10 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
 
         <!-- KEY TILES -->
         <div class="ph-tiles">
-          <div class="ph-tile"><div class="ph-tile-n">{{ cur.tasks_done }}<em>/{{ cur.tasks_total }}</em></div><div class="ph-tile-l">{{ t("задач полностью завершено") }}</div></div>
-          <div class="ph-tile" :class="{ on: cur.overdue > 0 }" data-tone="danger"><div class="ph-tile-n">{{ cur.overdue }}</div><div class="ph-tile-l">{{ t("просрочено сейчас") }}</div></div>
-          <div class="ph-tile" :class="{ on: riskCount > 0 }" data-tone="warn"><div class="ph-tile-n">{{ riskCount }}</div><div class="ph-tile-l">{{ t("компаний в зоне риска") }}</div></div>
-          <div class="ph-tile"><div class="ph-tile-n">{{ cur.companies.length }}</div><div class="ph-tile-l">{{ t("компаний в портфеле") }}</div></div>
+          <div class="ph-tile"><div class="ph-tile-n"><Odometer :value="cur.tasks_done" /><em>/{{ cur.tasks_total }}</em></div><div class="ph-tile-l">{{ t("задач полностью завершено") }}</div></div>
+          <div class="ph-tile" :class="{ on: cur.overdue > 0 }" data-tone="danger"><div class="ph-tile-n"><Odometer :value="cur.overdue" /></div><div class="ph-tile-l">{{ t("просрочено сейчас") }}</div></div>
+          <div class="ph-tile" :class="{ on: riskCount > 0 }" data-tone="warn"><div class="ph-tile-n"><Odometer :value="riskCount" /></div><div class="ph-tile-l">{{ t("компаний в зоне риска") }}</div></div>
+          <div class="ph-tile"><div class="ph-tile-n"><Odometer :value="cur.companies.length" /></div><div class="ph-tile-l">{{ t("компаний в портфеле") }}</div></div>
         </div>
 
         <!-- AI EXECUTIVE BRIEF -->

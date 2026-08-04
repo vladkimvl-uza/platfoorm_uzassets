@@ -12,6 +12,7 @@
  * Все save (комментарий) через kpiApi → backend → PostgreSQL.
  * Attention + comment загружаются здесь же при mount/period change.
  */
+import Odometer from "@/components/Odometer.vue";
 import { computed, onMounted, ref, watch } from "vue";
 import {
   kpiApi,
@@ -574,7 +575,7 @@ function fmtNum(v: number | null): string {
           :style="{ '--kpi2-accent': s.accent, '--kpi2-d': s.delay + 'ms', '--d': s.delay + 'ms' }"
         >
           <div class="kpi2-lbl kpv-stat-lbl">{{ t(s.label) }}</div>
-          <div class="kpi2-val kpv-stat-val">{{ s.value }}</div>
+          <div class="kpi2-val kpv-stat-val"><Odometer :value="s.value" /></div>
           <div class="kpi2-sub kpv-stat-sub">{{ s.sub }}</div>
         </div>
       </div>
@@ -609,7 +610,7 @@ function fmtNum(v: number | null): string {
 
           <div class="kpv-mgr-pct-row">
             <div class="kpv-mgr-pct-main">
-              <span class="kpi2-val kpv-mgr-pct-v" :style="{ color: card.pctColor }">{{ card.pct != null ? card.pct : "—" }}</span>
+              <span class="kpi2-val kpv-mgr-pct-v" :style="{ color: card.pctColor }"><Odometer :value="card.pct != null ? card.pct : '—'" /></span>
               <span v-if="card.pct != null" class="kpv-mgr-pct-suffix" :style="{ color: card.pctColor }">%</span>
             </div>
             <div class="kpv-mgr-pct-side">
