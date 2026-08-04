@@ -206,13 +206,6 @@ function medalColor(rank: number): string {
   flex: 1;
   text-align: center;
   border-right: 0.5px solid rgba(0, 0, 0, 0.06);
-  position: relative; overflow: hidden;
-}
-.edg-kpi::before {
-  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
-  background: var(--accent, var(--kpi2-accent, #7F77DD));
-  border-radius: inherit; border-bottom-left-radius: 0; border-bottom-right-radius: 0;
-  pointer-events: none;
 }
 
 .edg-kpi-last {
