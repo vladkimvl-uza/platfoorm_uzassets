@@ -440,15 +440,27 @@ def kpi_year_pair(ind: KpiIndicator) -> tuple:
         # Нарастающий итог: берём последний квартал, где есть ПАРА план+факт
         # (иначе сравнивали бы план девяти месяцев с фактом полугодия).
         last_p = last_f = None
+        last_q = None
         for q in ("q1", "q2", "q3", "q4"):
             qp = getattr(ind, f"{q}_plan", None)
             qf = getattr(ind, f"{q}_fact", None)
             if qp is not None and qf is not None and float(qp) != 0:
-                last_p, last_f = float(qp), float(qf)
+                last_p, last_f, last_q = float(qp), float(qf), q
         if last_p is not None:
-            # Годовой план известен явно — он точнее последнего закрытого квартала.
-            plan_out = float(plan) if (plan is not None and float(plan) != 0) else last_p
-            return (plan_out, last_f, "ytd_q4")
+            # P0 аудита KPI (08.2026): здесь годовой план подставлялся ВСЕГДА,
+            # и факт нарастающим итогом на конец закрытого квартала делился на
+            # план целого года. В середине года выполнение падало примерно
+            # вдвое просто потому, что год ещё не кончился: /kpi показывал
+            # ~100%, а блок «в зоне риска» на дашборде министра — 46%, и
+            # ИИ-прогноз рисовал по этому обвал.
+            #
+            # Сравниваем сопоставимые периоды: факт на конец квартала — с
+            # планом ТОГО ЖЕ периода (кварталы хранятся нарастающим итогом,
+            # поэтому q*_plan это и есть план с начала года). Годовой план
+            # берём только когда закрыт q4.
+            if last_q == "q4" and plan is not None and float(plan) != 0:
+                return (float(plan), last_f, "ytd_q4")
+            return (last_p, last_f, f"ytd_{last_q}")
         return (None, None, None)
 
     sum_p, sum_f = 0.0, 0.0
