@@ -55,14 +55,32 @@ const unitSuffix = computed(() => `${t(unitKey.value)} ${props.currency}`);
 const opProfitTxt = computed(() =>
   props.kpis ? t("Опер. прибыль {v}", { v: fmtBigNumber(props.kpis.totalOpProfit, props.unit) }) : "—",
 );
-const netProfitTxt = computed(() =>
-  props.kpis
-    ? t("Чистая прибыль {v} {pp} п.п.", {
-        v: fmtBigNumber(props.kpis.totalNetProfit, props.unit),
-        pp: fmt.fmtNumber(props.kpis.netProfitDeltaPp, { decimals: 0, signed: true }),
-      })
-    : "",
-);
+const netProfitTxt = computed(() => {
+  const k = props.kpis;
+  if (!k) return "";
+  const money = fmtBigNumber(k.totalNetProfit, props.unit);
+  // Без прошлого года дельта равнялась всей текущей марже и печаталась как
+  // скачок «+12 п.п.» — теперь в таком случае её просто нет.
+  if (!k.netProfitDeltaPpAvailable) return t("Чистая прибыль {v}", { v: money });
+  return t("Чистая прибыль {v} {pp} п.п.", {
+    v: money,
+    pp: fmt.fmtNumber(k.netProfitDeltaPp, { decimals: 0, signed: true }),
+  });
+});
+// Маржи считаются по компаниям, у которых заполнены И метрика, И выручка.
+// Их обычно меньше, чем компаний в итоге, и без подписи маржа выглядит как
+// характеристика всего портфеля.
+function marginNote(pairs: number | undefined): string {
+  const k = props.kpis;
+  if (!k || !pairs) return "";
+  return pairs < k.revenueCompaniesInYear
+    ? t("по {n} компаниям с обеими строками", { n: pairs })
+    : "";
+}
+const opMarginNote = computed(() => marginNote(props.kpis?.opMarginPairs));
+const ebitdaMarginNote = computed(() => marginNote(props.kpis?.ebitdaMarginPairs));
+const netMarginNote = computed(() => marginNote(props.kpis?.netMarginPairs));
+
 const lossOutOf = computed(() =>
   props.kpis ? t("из {n} с данными по прибыли", { n: props.kpis.companiesWithProfit }) : "",
 );
@@ -112,7 +130,7 @@ const revenueTitle = computed(() => {
       </svg>
       {{ t("{n} без данных", { n: noDataCount }) }}
     </span>
-    <span class="fkb-cover-note">{{ t("YoY рассчитан по like-for-like basket (только компании с данными в обоих годах)") }}</span>
+    <span class="fkb-cover-note">{{ t("Проценты и маржи считаются по сопоставимым компаниям — база подписана под каждой цифрой") }}</span>
   </div>
 
   <div class="fkb-grid kpi-rail">
@@ -141,6 +159,7 @@ const revenueTitle = computed(() => {
         <span class="fkb-unit fkb-unit-pct">%</span>
       </div>
       <div class="fkb-sub">{{ opProfitTxt }}</div>
+      <div v-if="opMarginNote" class="fkb-note">{{ opMarginNote }}</div>
     </div>
 
     <!-- 3. EBITDA -->
@@ -155,6 +174,7 @@ const revenueTitle = computed(() => {
         <span style="color: var(--t1, #1E2A4A);">{{ t("Маржа") }} </span>
         <span style="color: #EF9F27; font-weight: 600;">{{ kpis ? fmt.fmtPercent(kpis.ebitdaMargin, { decimals: 0 }) : '' }}</span>
       </div>
+      <div v-if="ebitdaMarginNote" class="fkb-note">{{ ebitdaMarginNote }}</div>
     </div>
 
     <!-- 4. Чистая маржа -->
@@ -166,6 +186,7 @@ const revenueTitle = computed(() => {
         <span class="fkb-unit fkb-unit-pct">%</span>
       </div>
       <div class="fkb-sub">{{ netProfitTxt }}</div>
+      <div v-if="netMarginNote" class="fkb-note">{{ netMarginNote }}</div>
     </div>
 
     <!-- 5. Убыточные -->

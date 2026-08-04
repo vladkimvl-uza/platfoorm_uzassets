@@ -18,7 +18,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 // Обновлено 2026-08-03: null-guard у степпера года (было 55 → стало 54).
-const BUDGET = 54;
+const BUDGET = 52;
 
 // --force не даёт incremental-кэшу скрыть ошибки из предыдущего запуска.
 // Локальный bin запускаем через Node, чтобы не зависеть от shell/npx на Windows.

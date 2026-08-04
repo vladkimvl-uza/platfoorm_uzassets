@@ -31,6 +31,18 @@ export const uz: Record<string, string> = {
   "Не удалось вернуть в модераторы": "Moderatorlarga qaytarib boʻlmadi",
 
   // ── Уточнения к KPI-плиткам ──
+  "НДС {r}%": "QQS {r}%",
+  "Сумма — по {n} компаниям; изменение к прошлому году — по {m} сопоставимым":
+    "Yigʻindi — {n} ta kompaniya boʻyicha; oʻtgan yilga nisbatan oʻzgarish — {m} ta taqqoslanadigan kompaniya boʻyicha",
+  "Проценты и маржи считаются по сопоставимым компаниям — база подписана под каждой цифрой":
+    "Foizlar va marjalar taqqoslanadigan kompaniyalar boʻyicha hisoblanadi — asos har bir raqam ostida koʻrsatilgan",
+  "Чистая прибыль {v}": "Sof foyda {v}",
+  "по {n} компаниям с обеими строками": "har ikki qatori toʻldirilgan {n} ta kompaniya boʻyicha",
+  "в работе и не начато": "ishda va boshlanmagan",
+  "Осталось": "Qoldi",
+  "Кольцо сверху — взвешенный прогресс по статусам задач, здесь — доля полностью завершённых. Числа расходятся: задача в работе даёт вклад в кольцо, но не в «завершено».":
+    "Yuqoridagi halqa — vazifalar holati boʻyicha vaznli progress, bu yerda esa — toʻliq yakunlanganlar ulushi. Raqamlar farq qiladi: ishdagi vazifa halqaga hissa qoʻshadi, ammo «yakunlangan»ga emas.",
+  "Расходная строка: больше 100% — перерасход": "Xarajat qatori: 100% dan ortigʻi — ortiqcha sarf",
   "сравнение по {n} сопоставимым": "{n} ta taqqoslanadigan kompaniya boʻyicha",
   "{n} ещё не сдали отчётность": "{n} tasi hisobotni hali topshirmagan",
   "нет сопоставимого прошлого года": "taqqoslanadigan oʻtgan yil yoʻq",
@@ -65,6 +77,18 @@ export const en: Record<string, string> = {
   "Не удалось вернуть в модераторы": "Could not restore as moderator",
 
   // ── KPI tile clarifications ──
+  "НДС {r}%": "VAT {r}%",
+  "Сумма — по {n} компаниям; изменение к прошлому году — по {m} сопоставимым":
+    "The total covers {n} companies; the year-on-year change covers {m} like-for-like ones",
+  "Проценты и маржи считаются по сопоставимым компаниям — база подписана под каждой цифрой":
+    "Percentages and margins are computed across like-for-like companies — the base is stated under each figure",
+  "Чистая прибыль {v}": "Net profit {v}",
+  "по {n} компаниям с обеими строками": "across {n} companies that report both lines",
+  "в работе и не начато": "in progress and not started",
+  "Осталось": "Remaining",
+  "Кольцо сверху — взвешенный прогресс по статусам задач, здесь — доля полностью завершённых. Числа расходятся: задача в работе даёт вклад в кольцо, но не в «завершено».":
+    "The ring above is weighted progress across task statuses; this is the share of fully completed tasks. The two differ: a task in progress counts toward the ring but not toward “completed”.",
+  "Расходная строка: больше 100% — перерасход": "Cost line: above 100% means overspending",
   "сравнение по {n} сопоставимым": "compared across {n} like-for-like companies",
   "{n} ещё не сдали отчётность": "{n} have not reported yet",
   "нет сопоставимого прошлого года": "no comparable prior year",

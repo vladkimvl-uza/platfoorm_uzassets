@@ -133,7 +133,7 @@ const tYoYTotal     = useNumberTween(() => Number(kpi.value?.yoy_total_pct) || 0
             ? t('Без NSBU PL за {y}:', { y: block.year }) + '\n• ' + block.missing_companies.join('\n• ')
             : t('Все компании портфеля учтены')"
         >
-          {{ block.cos_count }} {{ t("компаний") }} · {{ block.standard }}
+          {{ block.cos_count }} {{ t("компаний") }} · {{ block.standard }}<template v-if="block.vat_rate_pct"> · {{ t("НДС {r}%", { r: block.vat_rate_pct }) }}</template>
           <sup
             v-if="block.missing_companies && block.missing_companies.length"
             class="etx-missing"
@@ -141,6 +141,13 @@ const tYoYTotal     = useNumberTween(() => Number(kpi.value?.yoy_total_pct) || 0
         </span>
       </div>
     </header>
+    <!-- Крупная сумма — по всем компаниям года, YoY — только по тем, у кого
+         есть оба года. Бэкенд отдаёт cos_compared; без подписи рост читался
+         как противоречие сумме. -->
+    <div v-if="block && block.has_data && block.cos_compared && block.cos_compared < block.cos_count"
+         class="etx-basis">
+      {{ t("Сумма — по {n} компаниям; изменение к прошлому году — по {m} сопоставимым", { n: block.cos_count, m: block.cos_compared }) }}
+    </div>
 
     <!-- Empty state -->
     <div v-if="!block || !block.has_data" class="etx-empty">
@@ -553,5 +560,10 @@ const tYoYTotal     = useNumberTween(() => Number(kpi.value?.yoy_total_pct) || 0
 
 @media (max-width: 1100px) {
   .etx-kpi-band { grid-template-columns: 1fr 1fr; }
+}
+
+.etx-basis {
+  font-size: 9.5px; line-height: 1.4; color: var(--t3, #94A3B8);
+  margin: 2px 0 6px;
 }
 </style>

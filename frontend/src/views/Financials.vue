@@ -564,10 +564,13 @@ function onModalClose() {
       @close="onModalClose" />
 
     <!-- ═══ Pack 7.48: KPI drill-down modal ═══ -->
+    <!-- narrowedSummary, а не summary: в модалку уходили СЫРЫЕ сумы, но с
+         подписью выбранной валюты (в USD завышение в ~12 500 раз), и без
+         сужения по сектору — дрилл не сходился с плиткой, по которой кликнули. -->
     <FinKpiDrillModal
-      v-if="kpiDrill && summary"
+      v-if="kpiDrill && narrowedSummary"
       :kpi="kpiDrill"
-      :summary="summary"
+      :summary="narrowedSummary"
       :companies="companies"
       :sectors="sectors"
       :year="year"

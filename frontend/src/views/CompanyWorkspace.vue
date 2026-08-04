@@ -1587,6 +1587,8 @@ interface BpFieldView {
   fact: number | null;
   pct: number | null;        // fact / plan * 100, only if both present
   hasFact: boolean;
+  /** Расходная строка: >100% плана — перерасход, а не перевыполнение */
+  expense: boolean;
 }
 
 const bpFieldViews = computed<BpFieldView[]>(() => {
@@ -1598,7 +1600,9 @@ const bpFieldViews = computed<BpFieldView[]>(() => {
     const fact = maybeNum(cell.fact);
     const hasFact = fact !== null;
     let pct: number | null = null;
-    if (plan !== null && plan !== 0 && fact !== null) {
+    // plan > 0: при отрицательном плане отношение факт/план меняет знак и даёт
+    // бессмысленный процент (убыток «выполнен на −187%»).
+    if (plan !== null && plan > 0 && fact !== null) {
       pct = Math.round((fact / plan) * 100);
     }
     return {
@@ -1607,6 +1611,10 @@ const bpFieldViews = computed<BpFieldView[]>(() => {
       group: meta.group,
       auto: meta.auto,
       sub: !!meta.sub,
+      // Расходная строка: превышение плана — это плохо, а не «перевыполнение».
+      // Модуль БП признак уважает (BpEditor.deltaClass), карточка компании —
+      // нет, и себестоимость 130% плана горела зелёным.
+      expense: !!meta.positive,
       plan, expect, fact, pct, hasFact,
     };
   });
@@ -1641,8 +1649,15 @@ function bpFmt(v: number | null | undefined): string {
   return fmt.fmtMoneyCompact(v * 1_000_000_000, "UZS", { decimals: 1 });
 }
 
-function bpPctColor(pct: number | null): string {
+function bpPctColor(pct: number | null, expense = false): string {
   if (pct === null) return "#94A3B8";
+  if (expense) {
+    // Для расходов «хорошо» — уложиться в план: 100% и ниже зелёное,
+    // перерасход — предупреждение, значительный перерасход — критично.
+    if (pct <= 100) return "#1D9E75";
+    if (pct <= 110) return "#D97706";
+    return "#E24B4A";
+  }
   if (pct >= 95) return "#1D9E75";
   if (pct >= 80) return "#D97706";
   return "#E24B4A";
@@ -3645,7 +3660,9 @@ function onEditorClose() {
                   <div class="cw-bp-cell cw-bp-cell-num">{{ bpFmt(row.plan) }}</div>
                   <div class="cw-bp-cell cw-bp-cell-num">{{ bpFmt(row.expect) }}</div>
                   <div class="cw-bp-cell cw-bp-cell-num cw-bp-cell-fact">{{ bpFmt(row.fact) }}</div>
-                  <div class="cw-bp-cell cw-bp-cell-pct" :style="row.pct !== null ? `color: ${bpPctColor(row.pct)}` : ''">
+                  <div class="cw-bp-cell cw-bp-cell-pct"
+                       :title="row.expense ? t('Расходная строка: больше 100% — перерасход') : ''"
+                       :style="row.pct !== null ? `color: ${bpPctColor(row.pct, row.expense)}` : ''">
                     {{ row.pct === null ? "—" : row.pct + "%" }}
                   </div>
                 </div>

@@ -247,10 +247,16 @@ export interface ExecTaxTopPayer {
 
 export interface ExecTaxBlock {
   year: number;
+  /** year-fallback: исходно выбранный год, если данные взяты за другой */
+  requested_year?: number | null;
   prev_year: number;
   has_data: boolean;
   standard: string;
   cos_count: number;
+  /** Ставка НДС года: 12%, до 2023 — 15% */
+  vat_rate_pct?: number;
+  /** По скольким компаниям посчитан YoY (данные есть в обоих годах) */
+  cos_compared?: number;
   missing_companies?: string[]; // Pack 7.9h: компании без NSBU PL
   kpi: ExecTaxKpi;
   top_payers: ExecTaxTopPayer[];

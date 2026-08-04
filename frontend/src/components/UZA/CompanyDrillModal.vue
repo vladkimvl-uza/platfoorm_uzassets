@@ -100,17 +100,15 @@ const sectorChipLabel = computed(() => sectorDisplayName(detail.value?.sector ||
 }) || props.sectorLabel || "");
 
 // Task math
-const taskInProgress = computed(() => {
-  // We don't have direct "in progress" count; approximate as remainder split.
-  // Real backend would supply it; for now: assume ~70% of remainder is in-progress, rest not-started.
-  const remainder = Math.max(0, props.taskTotal - props.taskDone);
-  return Math.round(remainder * 0.7);
-});
-const taskNotStarted = computed(() => Math.max(0, props.taskTotal - props.taskDone - taskInProgress.value));
+// Здесь стояло «assume ~70% of remainder is in-progress»: разбивка «в работе /
+// не начато» ВЫДУМЫВАЛАСЬ константой и печаталась как факт. Экран-источник
+// (ExecDashSectorGrid) отдаёт только total и done, разбивки по статусам в
+// payload нет — поэтому показываем то, что действительно известно: завершено и
+// осталось. Появится разбивка в данных — вернём три сегмента.
+const taskRemaining = computed(() => Math.max(0, props.taskTotal - props.taskDone));
 
 const pctDone = computed(() => props.taskTotal > 0 ? (props.taskDone / props.taskTotal) * 100 : props.initialPct);
-const pctInProgress = computed(() => props.taskTotal > 0 ? (taskInProgress.value / props.taskTotal) * 100 : 0);
-const pctNotStarted = computed(() => props.taskTotal > 0 ? (taskNotStarted.value / props.taskTotal) * 100 : 0);
+const pctRemaining = computed(() => props.taskTotal > 0 ? (taskRemaining.value / props.taskTotal) * 100 : 0);
 
 // Ring math: r=52 → C = 326.7
 const RING_C = 2 * Math.PI * 52;
@@ -386,21 +384,20 @@ onMounted(() => {
               <div class="cdm-task-sum">
                 <span class="cdm-num-em">{{ taskDone }}</span> {{ tr('завершено') }}
                 <span class="cdm-sep">·</span>
-                <span class="cdm-num-em">{{ taskInProgress }}</span> {{ tr('в работе') }}
-                <span class="cdm-sep">·</span>
-                <span class="cdm-num-em">{{ taskNotStarted }}</span> {{ tr('не начато') }}
+                <span class="cdm-num-em">{{ taskRemaining }}</span> {{ tr('в работе и не начато') }}
               </div>
 
               <div class="cdm-bar">
                 <div class="cdm-bar-seg cdm-bar-done" :style="{ flex: '0 0 ' + pctDone + '%' }" />
-                <div class="cdm-bar-seg cdm-bar-prog" :style="{ flex: '0 0 ' + pctInProgress + '%' }" />
-                <div class="cdm-bar-seg cdm-bar-none" :style="{ flex: '0 0 ' + pctNotStarted + '%' }" />
+                <div class="cdm-bar-seg cdm-bar-none" :style="{ flex: '0 0 ' + pctRemaining + '%' }" />
               </div>
 
               <div class="cdm-leg">
                 <span><i class="cdm-leg-dot" style="background:#1D9E75" />{{ tr('Завершено') }} {{ Math.round(pctDone) }}%</span>
-                <span><i class="cdm-leg-dot" style="background:#EF9F27" />{{ tr('В работе') }} {{ Math.round(pctInProgress) }}%</span>
-                <span><i class="cdm-leg-dot" style="background:#D3D1C7" />{{ tr('Не начато') }} {{ Math.round(pctNotStarted) }}%</span>
+                <span><i class="cdm-leg-dot" style="background:#D3D1C7" />{{ tr('Осталось') }} {{ Math.round(pctRemaining) }}%</span>
+              </div>
+              <div class="cdm-note">
+                {{ tr('Кольцо сверху — взвешенный прогресс по статусам задач, здесь — доля полностью завершённых. Числа расходятся: задача в работе даёт вклад в кольцо, но не в «завершено».') }}
               </div>
             </div>
           </div>
@@ -874,5 +871,10 @@ onMounted(() => {
   .cdm-fact .lbl { flex: 0 0 100px; }
   .cdm-ftr { flex-direction: column-reverse; align-items: stretch; }
   .cdm-ftr-actions { justify-content: flex-end; }
+}
+
+.cdm-note {
+  margin-top: 6px; font-size: 9.5px; line-height: 1.4;
+  color: var(--t3, #94A3B8);
 }
 </style>

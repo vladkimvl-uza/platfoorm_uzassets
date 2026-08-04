@@ -322,6 +322,12 @@ export interface PortfolioKpis {
   /** Были в прошлом году, но за текущий отчётности нет — из-за них итог «падает» */
   revenueMissingVsPrev: number;
   netProfitDeltaPp: number;
+  /** По скольким компаниям посчитаны маржи (есть и метрика, и выручка) */
+  opMarginPairs: number;
+  ebitdaMarginPairs: number;
+  netMarginPairs: number;
+  /** null — нет ни одной пары «метрика + выручка» */
+  netProfitDeltaPpAvailable: boolean;
   companiesInYear: number;
   companiesWithProfit: number;
   totalAccountsReceivable: number;
@@ -353,10 +359,30 @@ export function computePortfolioKpis(
   const prevRevenue = prev.revenue || 0;
   const prevNetProfit = prev.profit || 0;
 
-  const opMargin = revenue ? (opProfit / revenue) * 100 : 0;
-  const ebitdaMargin = revenue ? (ebitda / revenue) * 100 : 0;
-  const netMargin = revenue ? (netProfit / revenue) * 100 : 0;
-  const prevNetMargin = prevRevenue ? (prevNetProfit / prevRevenue) * 100 : 0;
+  // Маржа = отношение двух портфельных сумм, а бэкенд собирает каждую метрику
+  // ОТДЕЛЬНО по тем компаниям, у кого заполнена именно эта строка
+  // (financials_portfolio/service.py: t[m] += v). Прибыль 16 компаний, делённая
+  // на выручку 21, занижала операционную маржу на 3-4 п.п. Считаем по парам:
+  // компания попадает в дробь, только если у неё есть И числитель, И выручка.
+  const marginOf = (field: "opProfit" | "ebitda" | "profit", y: number) => {
+    let num = 0, den = 0, pairs = 0;
+    for (const item of summary.items) {
+      const d = item.by_year[y];
+      const v = d?.[field];
+      const rev = d?.revenue;
+      if (v != null && rev != null) { num += v; den += rev; pairs += 1; }
+    }
+    return { pct: den > 0 ? (num / den) * 100 : null, pairs, den };
+  };
+  const opM = marginOf("opProfit", year);
+  const ebitdaM = marginOf("ebitda", year);
+  const netM = marginOf("profit", year);
+  const prevNetM = marginOf("profit", year - 1);
+
+  const opMargin = opM.pct ?? 0;
+  const ebitdaMargin = ebitdaM.pct ?? 0;
+  const netMargin = netM.pct ?? 0;
+  const prevNetMargin = prevNetM.pct ?? 0;
 
   // YoY считаем like-for-like — только по компаниям с выручкой в ОБА года.
   // Крупное число рядом при этом суммирует всех, кто сдал отчётность за год,
@@ -419,6 +445,12 @@ export function computePortfolioKpis(
     revenueCompaniesInYear,
     revenueMissingVsPrev,
     netProfitDeltaPp: netMargin - prevNetMargin,
+    opMarginPairs: opM.pairs,
+    ebitdaMarginPairs: ebitdaM.pairs,
+    netMarginPairs: netM.pairs,
+    // Без прошлого года дельта равнялась всей текущей марже и читалась как
+    // скачок «+12 п.п.» на пустом месте.
+    netProfitDeltaPpAvailable: netM.pct != null && prevNetM.pct != null,
     companiesInYear: inYear,
     companiesWithProfit: withProfit,
     totalAccountsReceivable: accountsReceivable,

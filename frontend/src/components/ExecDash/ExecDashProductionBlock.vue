@@ -39,16 +39,22 @@ const hasData = computed(() => !!kpis.value && kpis.value.with_data > 0);
 const execPct = computed(() => kpis.value?.exec_pct ?? null);
 
 const tExec = useNumberTween(() => Number(execPct.value) || 0, { duration: 900 });
-const tPlan = useNumberTween(() => (kpis.value ? kpis.value.plan_total / 100 : 0), { duration: 900 });
-const tExp = useNumberTween(() => (kpis.value ? kpis.value.expect_total / 100 : 0), { duration: 900 });
+// Значения приходят в млрд сум, подпись — «трлн»: делитель 1000, как в модуле
+// (BpProductionDashboard.fmtTrln). С делителем 100 портфельный план выходил
+// 450 трлн вместо 45 — больше ВВП страны.
+const tPlan = useNumberTween(() => (kpis.value ? kpis.value.plan_total / 1000 : 0), { duration: 900 });
+const tExp = useNumberTween(() => (kpis.value ? kpis.value.expect_total / 1000 : 0), { duration: 900 });
 
+// Пороги — платформенный канон execBand (80/50, переисполнение >110), а не
+// местные 90/75: одно и то же 82% на одном экране читалось «в норме», на
+// другом «отставание».
 function pctCol(p: number | null): string {
   if (p == null) return "#94A3B8";
-  if (p > 110) return "#7C3AED"; if (p >= 90) return "#1D9E75"; if (p >= 75) return "#EF9F27"; return "#E24B4A";
+  if (p > 110) return "#7C3AED"; if (p >= 80) return "#1D9E75"; if (p >= 50) return "#EF9F27"; return "#E24B4A";
 }
 function pctZone(p: number | null): string {
   if (p == null) return t("нет данных");
-  if (p > 110) return t("переисполнение"); if (p >= 90) return t("в норме"); if (p >= 75) return t("отставание"); return t("критично");
+  if (p > 110) return t("переисполнение"); if (p >= 80) return t("в норме"); if (p >= 50) return t("отставание"); return t("критично");
 }
 const withPct = computed(() => (data.value?.companies || []).filter((c) => c.execPct != null && c.has_data));
 const leaders = computed(() => withPct.value.slice().sort((a, b) => (b.execPct || 0) - (a.execPct || 0)).slice(0, 3));
