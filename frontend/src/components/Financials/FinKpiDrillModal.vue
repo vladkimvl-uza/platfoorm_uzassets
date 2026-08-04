@@ -110,14 +110,61 @@ function getMetricValue(it: PortfolioCompanyMetrics, year: number): number {
 
 const totalsForYear = computed(() => props.summary.portfolio_totals_by_year[props.year] || {});
 
+// Дрилл считал маржи и YoY заново, из портфельных сумм, — и расходился с
+// плиткой, по которой в него кликнули (на плитке +16% like-for-like, здесь
+// −8% по сырым итогам). Формулы здесь те же, что в computePortfolioKpis:
+// в дробь попадает компания, у которой есть ОБА слагаемых.
+function pairMargin(field: "opProfit" | "ebitda" | "profit", y: number) {
+  let num = 0, den = 0, pairs = 0;
+  for (const item of props.summary.items) {
+    const d = item.by_year[y];
+    const v = d?.[field];
+    const rev = d?.revenue;
+    if (v != null && rev != null) { num += v; den += rev; pairs += 1; }
+  }
+  return { pct: den > 0 ? (num / den) * 100 : null, pairs };
+}
+function pairYoY(field: "revenue" | "ebitda", y: number) {
+  let cur = 0, prev = 0, pairs = 0;
+  for (const item of props.summary.items) {
+    const c = item.by_year[y]?.[field];
+    const p = item.by_year[y - 1]?.[field];
+    if (c != null && p != null) { cur += c; prev += p; pairs += 1; }
+  }
+  return { pct: prev > 0 ? ((cur - prev) / prev) * 100 : null, pairs };
+}
+const revenueYoYPair = computed(() => pairYoY("revenue", props.year));
+const ebitdaYoYPair = computed(() => pairYoY("ebitda", props.year));
+/** Подпись «по скольким компаниям» — та же логика, что на плитке. */
+const basisNote = computed(() => {
+  if (mode.value !== "financial") return "";
+  if (props.kpi === "revenue") {
+    const n = revenueYoYPair.value.pairs;
+    return n ? t("сравнение по {n} сопоставимым", { n }) : "";
+  }
+  if (props.kpi === "ebitda") {
+    const n = ebitdaYoYPair.value.pairs;
+    return n ? t("сравнение по {n} сопоставимым", { n }) : "";
+  }
+  if (props.kpi === "opMargin") {
+    const n = pairMargin("opProfit", props.year).pairs;
+    return n ? t("по {n} компаниям с обеими строками", { n }) : "";
+  }
+  if (props.kpi === "netMargin") {
+    const n = pairMargin("profit", props.year).pairs;
+    return n ? t("по {n} компаниям с обеими строками", { n }) : "";
+  }
+  return "";
+});
+
 const heroValue = computed<number>(() => {
   const t = totalsForYear.value;
   const revenue = t.revenue || 0;
   switch (props.kpi) {
     case "revenue":   return revenue;
-    case "opMargin":  return revenue ? ((t.opProfit || 0) / revenue) * 100 : 0;
+    case "opMargin":  return pairMargin("opProfit", props.year).pct ?? 0;
     case "ebitda":    return t.ebitda || 0;
-    case "netMargin": return revenue ? ((t.profit || 0) / revenue) * 100 : 0;
+    case "netMargin": return pairMargin("profit", props.year).pct ?? 0;
     case "loss":      return countLossMakers.value;
   }
   return 0;
@@ -140,7 +187,7 @@ const marginText = computed(() => {
   const m = cfg.value.showMargin;
   if (!m || !r) return "";
   const u = localizedUnit();
-  if (m === "ebitdaMargin") return t("маржа {v}", { v: fmt.fmtPercent(((tot.ebitda || 0) / r * 100), { decimals: 0 }) });
+  if (m === "ebitdaMargin") return t("маржа {v}", { v: fmt.fmtPercent(pairMargin("ebitda", props.year).pct ?? 0, { decimals: 0 }) });
   if (m === "opMargin")     return t("опер. прибыль {v} {u}", { v: fmtBigNumber(tot.opProfit || 0, props.unit), u });
   if (m === "netMargin")    return t("чистая прибыль {v} {u}", { v: fmtBigNumber(tot.profit || 0, props.unit), u });
   return "";
@@ -149,30 +196,18 @@ const marginText = computed(() => {
 // YoY for financial mode
 const yoyPct = computed<number | null>(() => {
   if (mode.value !== "financial") return null;
-  const t = totalsForYear.value;
-  const prev = props.summary.portfolio_totals_by_year[props.year - 1] || {};
   switch (props.kpi) {
-    case "revenue": {
-      const c = t.revenue || 0;
-      const p = prev.revenue || 0;
-      return p ? ((c - p) / p) * 100 : null;
-    }
-    case "ebitda": {
-      const c = t.ebitda || 0;
-      const p = prev.ebitda || 0;
-      return p ? ((c - p) / p) * 100 : null;
-    }
+    case "revenue": return revenueYoYPair.value.pct;
+    case "ebitda":  return ebitdaYoYPair.value.pct;
     case "opMargin": {
-      const cr = t.revenue || 0; const pr = prev.revenue || 0;
-      const c = cr ? ((t.opProfit || 0) / cr) * 100 : 0;
-      const p = pr ? ((prev.opProfit || 0) / pr) * 100 : 0;
-      return c - p; // delta in p.p.
+      const c = pairMargin("opProfit", props.year).pct;
+      const p = pairMargin("opProfit", props.year - 1).pct;
+      return c != null && p != null ? c - p : null; // delta in p.p.
     }
     case "netMargin": {
-      const cr = t.revenue || 0; const pr = prev.revenue || 0;
-      const c = cr ? ((t.profit || 0) / cr) * 100 : 0;
-      const p = pr ? ((prev.profit || 0) / pr) * 100 : 0;
-      return c - p;
+      const c = pairMargin("profit", props.year).pct;
+      const p = pairMargin("profit", props.year - 1).pct;
+      return c != null && p != null ? c - p : null;
     }
   }
   return null;
@@ -469,6 +504,7 @@ const countWithData = computed(() => {
                 <template v-if="mode === 'financial' && yoyPct != null">
                   <div :style="{ color: yoyPct >= 0 ? '#0F6E56' : '#A32D2D' }">
                     {{ t("{v} к прошлому году", { v: fmtSigned(yoyPct, yoyIsPp) }) }}
+                    <span v-if="basisNote" class="fkd-basis"> · {{ basisNote }}</span>
                   </div>
                 </template>
                 <template v-else-if="kpi === 'loss'">
@@ -713,4 +749,6 @@ const countWithData = computed(() => {
   .ddm-bord-row .ddm-itm-status,
   .ddm-bord-row .ddm-itm-meta { display: none; }
 }
+
+.fkd-basis { color: var(--t3, #94A3B8); font-weight: 400; }
 </style>
