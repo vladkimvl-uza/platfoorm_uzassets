@@ -77,7 +77,9 @@ const coverage = computed(() => {
   const d = data.value;
   if (!d) return { costPct: 0, schedPct: 0, enough: false, total: 0 };
   const total = d.total_count || 0;
-  const costPct = total ? Math.round((d.budgeted_count / total) * 100) : 0;
+  // База стоимостных метрик — пары «бюджет + факт затрат», не просто бюджет:
+  // CPI по проектам без внесённых затрат не считается вовсе.
+  const costPct = total ? Math.round(((d.costed_count ?? d.budgeted_count) / total) * 100) : 0;
   const schedPct = total ? Math.round(((d.scheduled_count ?? 0) / total) * 100) : 0;
   return { costPct, schedPct, enough: costPct >= 50, total };
 });
@@ -156,7 +158,12 @@ function metricNeg(p: EvmProject, m: MetricDef): boolean {
             <div class="ev-bar-mid"></div>
             <div class="ev-bar-mark" :style="{ left: idxPos(data.cpi) + '%' }"></div>
           </div>
-          <div class="ev-gauge-verdict">{{ idxVerdict(data.cpi, "cpi") }}</div>
+          <div class="ev-gauge-verdict">
+            {{ idxVerdict(data.cpi, "cpi") }}
+            <span v-if="data.cpi != null && (data.costed_count ?? 0) > 0" class="ev-gauge-basis">
+              · {{ t('по {n} проектам с бюджетом и затратами', { n: data.costed_count }) }}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -165,7 +172,7 @@ function metricNeg(p: EvmProject, m: MetricDef): boolean {
         <span class="ev-cover-badge">{{ t('Данных недостаточно') }}</span>
         <span class="ev-cover-txt">
           {{ t('Стоимостные метрики — по {value0} из {value1} проектов ({value2}%), индекс срока — по {value3} ({value4}%).', {
-            value0: data.budgeted_count, value1: coverage.total, value2: coverage.costPct,
+            value0: data.costed_count ?? data.budgeted_count, value1: coverage.total, value2: coverage.costPct,
             value3: data.scheduled_count ?? 0, value4: coverage.schedPct,
           }) }}
           {{ t('Цифры ниже описывают только эту часть портфеля — заполните бюджет, факт затрат и плановые даты в карточках проектов.') }}
@@ -422,4 +429,6 @@ function metricNeg(p: EvmProject, m: MetricDef): boolean {
     scroll-behavior: auto !important;
   }
 }
+
+.ev-gauge-basis { color: var(--t3, #94A3B8); font-weight: 400; }
 </style>

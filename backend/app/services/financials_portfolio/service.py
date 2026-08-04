@@ -55,6 +55,12 @@ _PORTFOLIO_METRIC_ALIASES: dict[str, str] = {
     "ltBorrowings": "ltBorrowings",
     "stBorrowings": "stBorrowings",
     "ltBankLoans": "ltBankLoans",
+    # Строки займов НСБУ (7810/7820/6810/6820) — честный фолбэк «долга», когда
+    # авто-строка debt не заполнена. Раньше в срезе была только 7810, и фронт
+    # падал на 590+780 (итоги обязательств) — долг завышался до всех пассивов.
+    "ltOtherLoans": "ltOtherLoans",
+    "stBankLoans": "stBankLoans",
+    "stOtherLoans": "stOtherLoans",
     "inventories": "inventories",
     "tradeReceivables": "tradeReceivables",
     # Дебиторская / кредиторская задолженность (НСБУ ввод пользователя)

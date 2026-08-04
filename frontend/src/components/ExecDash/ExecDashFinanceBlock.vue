@@ -305,13 +305,34 @@ interface ExtKpis {
   accountsPayable: number;
 }
 
+// Фолбэк «долга», когда авто-строка debt не заполнена. Займы — это
+// 7810/7820/6810/6820; строки 590/780 в НСБУ — ИТОГИ долгосрочных и
+// краткосрочных обязательств, и старый фолбэк на них выдавал за долг все
+// пассивы компании (D/E 1.8x вместо 0.6x у ugt/uks). В МСФО ltBorrowings/
+// stBorrowings — настоящие займы, там прежняя сумма корректна.
+function debtOf(y: Record<string, unknown>): number | null {
+  const n = (k: string): number | null => {
+    const v = Number((y as Record<string, unknown>)[k]);
+    return Number.isFinite(v) && v !== 0 ? v : null;
+  };
+  const direct = n("debt");
+  if (direct != null) return direct;
+  const loans = [n("ltBankLoans"), n("ltOtherLoans"), n("stBankLoans"), n("stOtherLoans")];
+  if (loans.some((v) => v != null)) return loans.reduce((s: number, v) => s + (v || 0), 0);
+  if (fin.standard.value === "IFRS") {
+    const lt = n("ltBorrowings"), st = n("stBorrowings");
+    if (lt != null || st != null) return (lt || 0) + (st || 0);
+  }
+  return null;
+}
+
 const extKpis = computed<ExtKpis | null>(() => {
   if (!narrowedSummary.value || !kpis.value) return null;
   const totals = narrowedSummary.value.portfolio_totals_by_year[effectiveFinYear.value] || {};
   const get = (k: string): number => Number(totals[k]) || 0;
   const totalAssets = get("totalAssets");
   const equity = get("equity");
-  const debt = get("debt") || (get("ltBorrowings") + get("stBorrowings"));
+  const debt = debtOf(totals) ?? 0;
   const cfo = get("cfo");
   const cfi = get("cfi");
   const fcf = cfo + cfi;
@@ -452,7 +473,7 @@ const tableRows = computed<CompanyRow[]>(() => {
     const revenue = arr(yCur.revenue);
     const profit = arr(yCur.profit);
     const assets = arr(yCur.totalAssets);
-    const debt = arr(yCur.debt) ?? ((arr(yCur.ltBorrowings) ?? 0) + (arr(yCur.stBorrowings) ?? 0) || null);
+    const debt = debtOf(yCur);
     const cfo = arr(yCur.cfo);
     const cfi = arr(yCur.cfi);
     const ebitda = arr(yCur.ebitda);
@@ -575,16 +596,22 @@ function buildBriefMetrics(): BriefMetric[] | null {
     altKey?: string
   ): BriefMetric | null => {
     let serie = buildSerie(key);
-    // fallback: для долга часто используется "debt" но может быть пусто — попробуем сумму ltBorrowings+stBorrowings
+    // fallback: строка debt пуста — берём займы (7810/7820/6810/6820); в МСФО
+    // ltBorrowings/stBorrowings — сами займы. НИКОГДА не 590+780 в НСБУ: это
+    // итоги обязательств, не долг.
     if (altKey && serie.every(p => p.value == null)) {
-      const lt = buildSerie("ltBorrowings");
-      const st = buildSerie("stBorrowings");
-      serie = lt.map((p, i) => ({
-        year: p.year,
-        value: (p.value != null || st[i].value != null)
-          ? ((p.value || 0) + (st[i].value || 0))
-          : null,
-      }));
+      const parts = fin.standard.value === "IFRS"
+        ? ["ltBorrowings", "stBorrowings"]
+        : ["ltBankLoans", "ltOtherLoans", "stBankLoans", "stOtherLoans"];
+      const series = parts.map(buildSerie);
+      serie = series[0].map((p, i) => {
+        let sum: number | null = null;
+        for (const sr of series) {
+          const v = sr[i]?.value;
+          if (v != null) sum = (sum ?? 0) + v;
+        }
+        return { year: p.year, value: sum };
+      });
     }
     const validIdx = serie.map((p, i) => p.value != null ? i : -1).filter(i => i >= 0);
     if (validIdx.length === 0) return null;
@@ -637,7 +664,7 @@ function buildBriefMetrics(): BriefMetric[] | null {
   );
 
   const debt = buildOne(
-    t("Чистый долг"), "red", "debt", false,
+    t("Финансовый долг"), "red", "debt", false,
     (m) => {
       const ratio = (extKpis.value && extKpis.value.ebitda > 0)
         ? (m.current * unitScale.value) / extKpis.value.ebitda : null;
@@ -868,10 +895,10 @@ onBeforeUnmount(() => {
           tabindex="0"
           @click="openDrill('net_debt')"
           @keydown="onKpiKeydown($event, 'net_debt')"
-          :title="t('Подробнее: Чистый долг')"
+          :title="t('Подробнее: Финансовый долг (валовый — деньги не вычитаются)')"
         >
           <div class="ed-fin-kpi-bar"></div>
-          <div class="ed-fin-kpi-lbl">{{ t("Чистый долг") }}</div>
+          <div class="ed-fin-kpi-lbl">{{ t("Финансовый долг") }}</div>
           <div class="ed-fin-kpi-val">{{ fmtNum(tDebt) }}<span>{{ t(unitLabel) }} {{ t(currencyLabel) }}</span></div>
           <div class="ed-fin-kpi-d">
             <span v-if="extKpis.debtToEquity != null">D/E <strong>{{ tDebtToEquity.toFixed(1) }}x</strong></span>

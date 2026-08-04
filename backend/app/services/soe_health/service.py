@@ -153,6 +153,11 @@ def _band(value: float, direction: str, thr: list[float]) -> int:
     return 5
 
 
+# Минимум заполненных коэффициентов, чтобы Overall Rating вообще считался.
+# Тот же порог, что у счётчиков зон и exec-блока «Здоровье» — источник один.
+MIN_AVAILABLE_FOR_RATING = 5
+
+
 def _zone(score: Optional[float]) -> Optional[dict]:
     if score is None:
         return None
@@ -599,9 +604,18 @@ class SoeHealthService:
         for code, co in cur.items():
             rows = _compute_ratios(co["metrics"], ratios_eff)
             overall, n_avail = _overall(rows)
+            # Порог достаточности — К САМОЙ ОЦЕНКЕ, а не только к счётчикам зон:
+            # среднее по 1 коэффициенту из 13 давало компании зелёный чип
+            # «1.0 · Низкий риск», при этом в зоны и в средний портфель она не
+            # попадала — цветных строк было больше, чем Σ зон. Ниже порога
+            # оценки нет: строка честно показывает «нет данных» и коэффициенты.
+            if n_avail < MIN_AVAILABLE_FOR_RATING:
+                overall = None
             prev_overall = None
             if code in prev:
                 prev_overall, _n = _overall(_compute_ratios(prev[code]["metrics"], ratios_eff))
+                if _n < MIN_AVAILABLE_FOR_RATING:
+                    prev_overall = None
             m = co["metrics"]
             companies.append({
                 "code": code, "name": co["name"], "company_id": co["company_id"],
@@ -622,7 +636,10 @@ class SoeHealthService:
         # худшие сверху (внимание министра), н/д — в конец
         companies.sort(key=lambda x: (x["overall"] is None, -(x["overall"] or 0)))
 
-        scored = [c for c in companies if c["overall"] is not None and c["available"] >= 5]
+        # overall уже гейтится порогом при сборке компании — условие по
+        # available оставлено для читаемости, оно теперь эквивалентно.
+        scored = [c for c in companies if c["overall"] is not None
+                  and c["available"] >= MIN_AVAILABLE_FOR_RATING]
         zone_counts = {z["key"]: 0 for z in SOE_HEALTH_ZONES}
         for c in scored:
             zone_counts[c["zone"]["key"]] += 1

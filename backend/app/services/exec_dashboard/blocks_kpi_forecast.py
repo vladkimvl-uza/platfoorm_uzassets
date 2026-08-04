@@ -23,8 +23,10 @@ from app.schemas.executive_dashboard import (
     ExecKpiForecastCompany,
 )
 from app.services.bp_kpi_helpers import (
+    bp_resolve_for_linked,
     kpi_compute_completion,
     kpi_period_weight,
+    kpi_year_ratio_effective,
     sector_color,
 )
 
@@ -71,17 +73,21 @@ async def build_kpi_forecast_block(
     # (company, year) → [sum_weight, sum_weighted_ratio]; + имя/цвет компании.
     acc: dict[tuple[UUID, int], list[float]] = {}
     meta: dict[UUID, tuple[str, Optional[str]]] = {}
+    # Read-through в БП для связанных строк — иначе прогноз строится по пустым
+    # q*-полям и рисует обвал там, где /kpi показывает норму.
+    bp_by_key = await bp_resolve_for_linked(session, mgrs)
     for m in mgrs:
         co = m.company
         meta.setdefault(m.company_id, (
             co.name_short or co.name_ru or co.code or "—", sector_color(co),
         ))
         agg = acc.setdefault((m.company_id, m.year), [0.0, 0.0])
+        comp = bp_by_key.get((m.company_id, m.year))
         for ind in m.indicators:
             w = kpi_period_weight(ind, "year")
             if w <= 0:
                 continue
-            r = kpi_compute_completion(ind, "year")
+            r = kpi_year_ratio_effective(ind, comp)
             if r is None:
                 continue
             agg[0] += w

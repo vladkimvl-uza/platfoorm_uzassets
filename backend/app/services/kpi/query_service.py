@@ -156,14 +156,28 @@ class KpiQueryService:
                 m.company_id for m in managers
                 for ind in m.indicators if getattr(ind, "bp_metric_key", None)
             }
+            bp_resolved_by_q: dict = {}
             if linked_cids:
                 session = self.uow._session  # type: ignore[attr-defined]
                 bp_period = "annual" if period == "year" else period
                 for cid in linked_cids:
                     bp_resolved[cid] = await bp_compute(session, cid, year, bp_period)
+                # Квартальный блок сводки идёт по q1..q4 независимо от периода
+                # страницы. Без поквартального резолва связанный KPI молча
+                # выпадал из бара: герой после клика показывал 104%, а бар Q3 —
+                # «нет данных». Компаний со связкой немного, N+1 нет.
+                for q in ("q1", "q2", "q3", "q4"):
+                    if q == bp_period:
+                        bp_resolved_by_q[q] = bp_resolved
+                        continue
+                    bp_resolved_by_q[q] = {
+                        cid: await bp_compute(session, cid, year, q)
+                        for cid in linked_cids
+                    }
 
         return _aggregate(
             managers, year, period, bp_resolved,
+            bp_resolved_by_q=bp_resolved_by_q,
             scope_company_ids=scope_company_ids,
         )
 
@@ -202,7 +216,8 @@ def _empty_summary(year: int, period: str) -> KpiSummary:
 
 def _aggregate(
     managers: list[KpiManager], year: int, period: str, bp_resolved: dict | None = None,
-    *, scope_company_ids: Optional[set[UUID]] = None,
+    *, bp_resolved_by_q: dict | None = None,
+    scope_company_ids: Optional[set[UUID]] = None,
 ) -> KpiSummary:
     """Pure aggregation — не делает I/O. Берёт preloaded managers/inds/companies
     и считает портфельную сводку по правилам легасиа `_kpiComputeSummary`.
@@ -367,18 +382,30 @@ def _aggregate(
     for q in ("q1", "q2", "q3", "q4"):
         co_pcts_q: list[float] = []
         has_plan = False
+        co_comp_by_cid_q = (bp_resolved_by_q or {}).get(q) or {}
         for cid, e in by_co.items():
+            co_comp_q = co_comp_by_cid_q.get(cid)
             co_sum_w_q = co_sum_wtd_q = 0.0
             for mgr in e["managers"]:
                 for ind in mgr.indicators:
                     qw = kpi_period_weight(ind, q)  # единый вес (квартал→год фолбэк)
                     if qw == 0:
                         continue
-                    qp = getattr(ind, f"{q}_plan", None)
-                    if qp is not None:
+                    # Связанный (bp_metric_key) индикатор живёт планом/фактом из
+                    # БП — как в годовой сводке выше. Раньше квартальный блок
+                    # смотрел только хранимые q*-поля, и связанная строка молча
+                    # выпадала из бара («нет данных» при герое 104%).
+                    bp_key = getattr(ind, "bp_metric_key", None)
+                    eff = (
+                        kpi_bp_effective(ind, q, co_comp_q.get(bp_key))
+                        if (bp_key and co_comp_q) else None
+                    )
+                    if eff is not None and eff[0] is not None:
+                        has_plan = True
+                    elif getattr(ind, f"{q}_plan", None) is not None:
                         has_plan = True
                     # direction-aware (для 'down' = план/факт); cap [0;150]%
-                    qr = kpi_compute_completion(ind, q)
+                    qr = kpi_ratio(*eff) if eff is not None else kpi_compute_completion(ind, q)
                     if qr is not None:
                         co_sum_wtd_q += max(0.0, min(qr, 1.5)) * qw
                         co_sum_w_q += qw

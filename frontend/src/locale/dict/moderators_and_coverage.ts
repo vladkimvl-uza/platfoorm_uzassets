@@ -32,6 +32,9 @@ export const uz: Record<string, string> = {
 
   // ── Уточнения к KPI-плиткам ──
   "НДС {r}%": "QQS {r}%",
+  "Подробнее: Финансовый долг (валовый — деньги не вычитаются)":
+    "Batafsil: moliyaviy qarz (yalpi — pul mablagʻlari ayirilmaydi)",
+  "по {n} проектам с бюджетом и затратами": "byudjeti va xarajatlari bor {n} ta loyiha boʻyicha",
   "Сумма — по {n} компаниям; изменение к прошлому году — по {m} сопоставимым":
     "Yigʻindi — {n} ta kompaniya boʻyicha; oʻtgan yilga nisbatan oʻzgarish — {m} ta taqqoslanadigan kompaniya boʻyicha",
   "Проценты и маржи считаются по сопоставимым компаниям — база подписана под каждой цифрой":
@@ -78,6 +81,9 @@ export const en: Record<string, string> = {
 
   // ── KPI tile clarifications ──
   "НДС {r}%": "VAT {r}%",
+  "Подробнее: Финансовый долг (валовый — деньги не вычитаются)":
+    "Details: financial debt (gross — cash is not subtracted)",
+  "по {n} проектам с бюджетом и затратами": "across {n} projects with both budget and actual cost",
   "Сумма — по {n} компаниям; изменение к прошлому году — по {m} сопоставимым":
     "The total covers {n} companies; the year-on-year change covers {m} like-for-like ones",
   "Проценты и маржи считаются по сопоставимым компаниям — база подписана под каждой цифрой":

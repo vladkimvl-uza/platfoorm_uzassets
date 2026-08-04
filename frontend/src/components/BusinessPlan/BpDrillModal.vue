@@ -507,7 +507,12 @@ const sectorShare = computed(() =>
 const sectorBenchmarks = computed(() => {
   const rows = sectorRows.value;
   if (!rows.length) return null;
-  const avgPct = rows.reduce((s, c) => s + (c.pct ?? 0), 0) / rows.length;
+  // Среднее — только по компаниям с посчитанным %: строка «нет данных»
+  // (pct=null) не должна тянуть средний вниз как нулевое исполнение.
+  const withPct = rows.filter((c) => c.pct != null);
+  const avgPct = withPct.length
+    ? withPct.reduce((s, c) => s + (c.pct as number), 0) / withPct.length
+    : 0;
   const leader = rows.reduce((best, c) => (best == null || num(c.rev_fact) > num(best.rev_fact)) ? c : best, rows[0]);
   return {
     avgPct,

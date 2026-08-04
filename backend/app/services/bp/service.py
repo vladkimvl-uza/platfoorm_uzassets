@@ -301,10 +301,16 @@ class BpService:
 
                 m_plan = comp[headline_metric]["plan"]
                 m_fact = comp[headline_metric]["fact"]
+                # Несданный факт — это «нет данных», а не честные 0,0%: раньше
+                # `fact or 0` отправлял компанию без квартального отчёта в
+                # «Топ-3 отстающие» на министерском обзоре наравне с реально
+                # провалившими план. pct считается только по паре план+факт;
+                # строка без факта остаётся в списке с pct=None — фронт её в
+                # антирейтинг не берёт (sort ?? 1e9) и подписывает «нет данных».
                 pct = None
-                if m_plan is not None and m_plan != 0:
-                    pct = float(m_fact or 0) / float(m_plan) * 100
-                if pct is not None:
+                if m_plan is not None and m_plan != 0 and m_fact is not None:
+                    pct = float(m_fact) / float(m_plan) * 100
+                if m_plan is not None or m_fact is not None:
                     sec_code = sector_code_fn(co)
                     sec_color = sector_color_fn(co)
                     by_company.append(BpCompanyRow(
@@ -313,7 +319,11 @@ class BpService:
                         sector_code=sec_code, sector_color=sec_color,
                         rev_fact=m_fact, rev_plan=m_plan, pct=pct,
                     ))
-                    if sec_code:
+                    # Суммы секторов — по ФАКТУ, независимо от наличия плана:
+                    # аккумулятор был заперт внутри `if pct is not None`, и
+                    # компания с фактом без плана выпадала из Σ секторов, а в
+                    # крупном числе «Выручка» участвовала — суммы не сходились.
+                    if sec_code and m_fact is not None:
                         if sec_code not in sector_sums:
                             sector_sums[sec_code] = {
                                 "label": (
@@ -323,8 +333,7 @@ class BpService:
                                 ),
                                 "sum": Decimal(0),
                             }
-                        if m_fact is not None:
-                            sector_sums[sec_code]["sum"] += Decimal(m_fact)
+                        sector_sums[sec_code]["sum"] += Decimal(m_fact)
 
             by_company.sort(key=lambda r: -(r.pct or -1e9))
             by_sector = [

@@ -155,11 +155,24 @@ async def compute_evm(
     # ── Портфельный rollup (бюджетные проекты) ──
     budgeted = [p for p in projects if p.bac is not None]
     BAC = sum(p.bac for p in budgeted) if budgeted else None
-    EV = sum(p.ev for p in budgeted if p.ev is not None) if budgeted else None
-    PV = sum(p.pv for p in budgeted if p.pv is not None) if budgeted else None
-    AC = sum(p.ac for p in budgeted if p.ac is not None) if budgeted else None
 
-    spi = (EV / PV) if (EV is not None and PV and PV > 0) else None
+    # Каждый индекс — по СВОЕЙ паре: EV есть у любого бюджетного проекта,
+    # AC — только где внесли факт затрат, PV — только где есть плановые даты.
+    # Раньше CPI делил EV всех бюджетных на AC подмножества: портфель показывал
+    # CPI 3.4 и «экономию» зелёным, хотя ни один проект такого CPI не имел.
+    # Правило то же, что у портфельных марж: в дробь попадает проект, у
+    # которого есть ОБА слагаемых.
+    sched_pair = [p for p in budgeted if p.ev is not None and p.pv is not None]
+    cost_pair = [p for p in budgeted if p.ev is not None and p.ac is not None]
+    EV_s = sum(p.ev for p in sched_pair) if sched_pair else None
+    PV = sum(p.pv for p in sched_pair) if sched_pair else None
+    EV_c = sum(p.ev for p in cost_pair) if cost_pair else None
+    AC = sum(p.ac for p in cost_pair) if cost_pair else None
+    BAC_c = sum(p.bac for p in cost_pair) if cost_pair else None
+    # EV в ответе — общий освоенный объём портфеля (по всем бюджетным).
+    EV = sum(p.ev for p in budgeted if p.ev is not None) if budgeted else None
+
+    spi = (EV_s / PV) if (EV_s is not None and PV and PV > 0) else None
     # SPI без бюджета — ВЗВЕШЕННЫЙ по объёму работ проекта (числу задач), а не
     # среднее арифметическое проектных SPI: маленький проект иначе тянул индекс
     # наравне с крупным и портфельная цифра переставала описывать портфель.
@@ -173,15 +186,18 @@ async def compute_evm(
             num += p.spi * w
             den += w
         spi = (num / den) if den > 0 else None
-    cpi = (EV / AC) if (EV is not None and AC and AC > 0) else None
-    sv = (EV - PV) if (EV is not None and PV is not None) else None
-    cv = (EV - AC) if (EV is not None and AC is not None) else None
-    eac = (BAC / cpi) if (BAC is not None and cpi and cpi > 0) else None
+    # Стоимостные метрики — строго по cost_pair: и числитель, и знаменатель,
+    # и бюджет для прогнозов из одного набора проектов, иначе EAC/VAC
+    # «предсказывают» экономию там, где просто не внесли затраты.
+    cpi = (EV_c / AC) if (EV_c is not None and AC and AC > 0) else None
+    sv = (EV_s - PV) if (EV_s is not None and PV is not None) else None
+    cv = (EV_c - AC) if (EV_c is not None and AC is not None) else None
+    eac = (BAC_c / cpi) if (BAC_c is not None and cpi and cpi > 0) else None
     etc = (eac - AC) if (eac is not None and AC is not None) else None
-    vac = (BAC - eac) if (BAC is not None and eac is not None) else None
+    vac = (BAC_c - eac) if (BAC_c is not None and eac is not None) else None
     tcpi = None
-    if BAC is not None and EV is not None and AC is not None and (BAC - AC) != 0:
-        tcpi = (BAC - EV) / (BAC - AC)
+    if BAC_c is not None and EV_c is not None and AC is not None and (BAC_c - AC) != 0:
+        tcpi = (BAC_c - EV_c) / (BAC_c - AC)
 
     return EvmResponse(
         company_code=company_code,
@@ -194,4 +210,5 @@ async def compute_evm(
         budgeted_count=len(budgeted),
         total_count=len(projects),
         scheduled_count=sum(1 for p in projects if p.spi is not None),
+        costed_count=len(cost_pair),
     )

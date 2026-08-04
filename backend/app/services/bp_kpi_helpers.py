@@ -493,6 +493,38 @@ def kpi_compute_completion(ind: KpiIndicator, period: str) -> Optional[float]:
     )
 
 
+async def bp_resolve_for_linked(db, managers) -> dict:
+    """{(company_id, year): bp_compute(...)} для менеджеров со связанными строками.
+
+    Один bp_compute на пару (компания, год) — связанных компаний немного, N+1
+    нет. Нужен всем поверхностям, которые считают ГОДОВОЕ выполнение по
+    нескольким годам сразу (прогноз KPI, exec-блок прогноза): без него
+    связанная строка либо выпадала из ряда, либо считалась по пустым q*-полям.
+    """
+    out: dict = {}
+    for m in managers:
+        if not any(getattr(i, "bp_metric_key", None) for i in m.indicators):
+            continue
+        key = (m.company_id, m.year)
+        if key not in out:
+            out[key] = await bp_compute(db, m.company_id, m.year, "annual")
+    return out
+
+
+def kpi_year_ratio_effective(ind: KpiIndicator, comp: Optional[dict]) -> Optional[float]:
+    """Годовое выполнение строки с read-through в БП — как в сводке /kpi.
+
+    Зеркалит _aggregate: связанная строка живёт планом/фактом из БП (пустая
+    BP-ячейка = «нет данных», без тихого фолбэка на хранимые поля), обычная —
+    kpi_compute_completion. Единственная точка правды для «года» вне сводки.
+    """
+    bp_key = getattr(ind, "bp_metric_key", None)
+    eff = kpi_bp_effective(ind, "year", comp.get(bp_key)) if (bp_key and comp) else None
+    if eff is not None:
+        return kpi_ratio(*eff)
+    return kpi_compute_completion(ind, "year")
+
+
 def kpi_status_for_pct(pct: float) -> str:
     if pct >= 100:
         return "over"

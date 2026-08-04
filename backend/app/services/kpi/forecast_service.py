@@ -37,11 +37,13 @@ from app.schemas.kpi_forecast import (
     SeriesPoint,
 )
 from app.services.bp_kpi_helpers import (
+    bp_resolve_for_linked,
     kpi_compute_completion,
     kpi_is_cumulative,
     kpi_period_weight,
     kpi_quarter_deltas,
     kpi_year_pair,
+    kpi_year_ratio_effective,
 )
 from app.uow.ports import UnitOfWorkABC
 
@@ -255,15 +257,21 @@ class KpiForecastService:
                 idx_by_year[y] = d
 
             # Сводный % выполнения за каждый год (для прогноза выполнения компании).
+            # Read-through в БП для связанных строк — та же логика, что в сводке
+            # /kpi: иначе ряд строится по пустым q*-полям, точка года проседает,
+            # и прогноз рисует обвал, которого нет.
+            session = self.uow._session  # type: ignore[attr-defined]
+            bp_by_key = await bp_resolve_for_linked(session, mgrs)
             comp_series: dict[int, float] = {}
             for y, ms in by_year.items():
                 tw = sw = 0.0
                 for m in ms:
+                    comp = bp_by_key.get((m.company_id, m.year))
                     for ind in m.indicators:
                         w = kpi_period_weight(ind, "year")
                         if w <= 0:
                             continue
-                        r = kpi_compute_completion(ind, "year")
+                        r = kpi_year_ratio_effective(ind, comp)
                         if r is None:
                             continue
                         tw += w

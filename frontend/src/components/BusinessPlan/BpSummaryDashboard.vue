@@ -394,7 +394,7 @@ const headlineGenitive = computed(() => {
 // For revenue: leader = highest pct (exceeded plan). Laggard = lowest pct (missed plan).
 // For expenses: leader = LOWEST pct (under budget — best cost control). Laggard = highest pct (overran).
 const leaders = computed(() => {
-  const arr = props.summary.by_company.slice();
+  const arr = props.summary.by_company.filter((c) => c.pct != null);
   if (props.lens === "expenses") {
     arr.sort((a, b) => (a.pct ?? 1e9) - (b.pct ?? 1e9));  // ascending — lowest first
   } else {
@@ -403,7 +403,7 @@ const leaders = computed(() => {
   return arr.slice(0, 3);
 });
 const laggards = computed(() => {
-  const arr = props.summary.by_company.slice();
+  const arr = props.summary.by_company.filter((c) => c.pct != null);
   if (props.lens === "expenses") {
     arr.sort((a, b) => (b.pct ?? -1e9) - (a.pct ?? -1e9));  // descending — overruns first
   } else {

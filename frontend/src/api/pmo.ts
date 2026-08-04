@@ -268,6 +268,8 @@ export interface EvmResponse {
   total_count: number;
   /** Проектов, у которых есть плановые даты — основа SPI. */
   scheduled_count: number;
+  /** Проектов с бюджетом И фактом затрат — база CPI/CV/EAC/VAC. */
+  costed_count?: number;
 }
 
 // ── P3: Команда / загрузка + RACI ──

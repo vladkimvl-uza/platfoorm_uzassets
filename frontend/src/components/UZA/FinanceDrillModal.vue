@@ -137,7 +137,9 @@ const KPI_META: Record<FinKpiKind, KpiMeta> = {
     badgeGetter: (k) => ({ text: tr("{count} компаний с данными", { count: k.cosWithData }), tone: "neutral" }),
   },
   net_debt: {
-    label: i18nKey("Чистый долг"),
+    // Значение — валовый долг (займы и кредиты), деньги не вычитаются;
+    // прежний ярлык «Чистый долг» обещал вычет и вводил в заблуждение.
+    label: i18nKey("Финансовый долг"),
     color: "#E24B4A",
     valueGetter: (k) => k.totalDebt,
     rowField: (r) => r.debt,
