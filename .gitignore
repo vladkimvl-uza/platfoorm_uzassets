@@ -124,3 +124,4 @@ nul
 
 # Playwright-артефакты прогонов (скриншоты/трейсы) — не в репозиторий
 frontend/test-results/
+frontend/__ph_repro.mjs
