@@ -99,6 +99,39 @@ def compute_done_total(items: Iterable[Tuple[Optional[str], Any]]) -> Tuple[int,
     return done, total
 
 
+RECURRENT_STATUSES = frozenset({"quarterly", "monthly", "ongoing"})
+
+
+def derive_project_status(task_statuses: Iterable[Optional[str]]) -> Optional[str]:
+    """Авто-статус проекта из статусов его живых (не архивных) задач.
+
+    Правила (решение владельца 05.08.2026):
+      • нет задач            → None: статус проекта остаётся ручным;
+      • ВСЕ задачи done      → 'done';
+      • ВСЕ задачи рекуррентные (quarterly/monthly/ongoing) → тот же статус;
+        смесь разных периодичностей → 'ongoing' (постоянный — самый общий);
+      • хотя бы одна задача начата (не new/deferred) → 'active';
+      • ВСЕ отложены         → 'deferred';
+      • иначе (все new)      → 'new'.
+
+    Порядок веток важен: done и рекуррентные проверяются до «начата», потому
+    что done и quarterly — тоже «не new», и общая ветка съела бы частные.
+    """
+    statuses = [(s or "new") for s in task_statuses]
+    if not statuses:
+        return None
+    uniq = set(statuses)
+    if uniq == {"done"}:
+        return "done"
+    if uniq <= RECURRENT_STATUSES:
+        return statuses[0] if len(uniq) == 1 else "ongoing"
+    if any(s not in ("new", "deferred") for s in statuses):
+        return "active"
+    if uniq == {"deferred"}:
+        return "deferred"
+    return "new"
+
+
 def is_task_overdue(
     status: Optional[str], due: Optional[date], *, today: Optional[date] = None
 ) -> bool:

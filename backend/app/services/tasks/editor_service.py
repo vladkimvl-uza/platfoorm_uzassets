@@ -96,6 +96,11 @@ class TasksEditorService:
             if payload.consultant is not None:
                 await self._sync_consultant_assignments(task.id, payload.consultant)
 
+            # Авто-статус проекта: новая задача может перевести проект из
+            # «не начато» в «в процессе» и т.д. — в той же транзакции.
+            from app.services.tasks.project_status import recompute_project_status
+            await recompute_project_status(self.uow.session, task.project_id)
+
             # implicit commit on __aexit__
             await self.uow.tasks.refresh(task)
 
@@ -135,6 +140,7 @@ class TasksEditorService:
             changes = payload.model_dump(exclude_unset=True)
             old_assignee_email = task.assignee_email
             old_status = task.status
+            old_project_id = task.project_id
 
             extra_updates = {k: changes.pop(k) for k in list(changes.keys()) if k in EXTRA_FIELDS}
 
@@ -190,6 +196,12 @@ class TasksEditorService:
             # row (now matching the new values) to keep `task` usable after
             # the __aexit__ commit closes the session.
             await self.uow.flush()
+            # Авто-статус проекта: смена статуса задачи (или её перенос между
+            # проектами — тогда пересчитываются оба) двигает статус проекта.
+            from app.services.tasks.project_status import recompute_many
+            await recompute_many(
+                self.uow.session, {old_project_id, task.project_id},
+            )
             await self.uow.tasks.refresh(task)
 
         new_status = changes.get("status")
@@ -313,6 +325,11 @@ class TasksEditorService:
                 if task.company_id is None or task.company_id not in scope_company_ids:
                     raise HTTPException(http_status.HTTP_403_FORBIDDEN, "No access to this task")
             task.is_archived = True
+            # Архив выводит задачу из расчёта — статус проекта пересчитываем:
+            # архивировали последнюю незавершённую, остальные done → проект done.
+            await self.uow.flush()
+            from app.services.tasks.project_status import recompute_project_status
+            await recompute_project_status(self.uow.session, task.project_id)
             self.uow.tasks.add(TaskHistory(
                 task_id=task.id, actor_id=actor_id, action="archived",
             ))

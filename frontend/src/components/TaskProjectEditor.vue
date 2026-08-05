@@ -319,6 +319,14 @@ const recurringStatusOptions = computed(() => {
   return RECURRING_STATUSES;
 });
 
+// Статус проекта с задачами считается бэкендом из статусов задач (канон
+// derive_project_status): ручной клик по степперу переживёт только до
+// следующего изменения любой задачи. Показываем это честно, а не даём
+// молча «выбрать» статус, который тут же перепишется.
+const projectStatusIsDerived = computed(() =>
+  props.kind === "project" && Number((props.entity as any)?.tasks_total || 0) > 0,
+);
+
 // Индекс текущего статуса в линейном степпере (−1 если статус регулярный)
 const stepIdx = computed(() => statusOptions.value.indexOf(formStatus.value));
 
@@ -1156,6 +1164,9 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 
         <!-- Status row (clickable pills) + progress bar + due summary -->
         <div class="hero-status-row">
+          <div v-if="projectStatusIsDerived" class="tpe-status-auto">
+            {{ tr('Статус проекта считается автоматически из задач: есть начатая — «в процессе», все завершены — «завершён», все регулярные — по их периодичности.') }}
+          </div>
           <div class="status-group-wrap">
             <!-- Status stepper (стандартные статусы) -->
             <div class="tpe-stepper">
@@ -2645,5 +2656,12 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
     animation: none !important;
     transition: none !important;
   }
+}
+
+.tpe-status-auto {
+  flex-basis: 100%;
+  font-size: 10.5px; line-height: 1.4;
+  color: var(--t3, #94A3B8);
+  margin-bottom: 4px;
 }
 </style>

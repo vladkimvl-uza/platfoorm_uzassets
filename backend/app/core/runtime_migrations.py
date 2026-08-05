@@ -258,6 +258,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_kpi_quarters_mode(conn)
             await _patch_user_ui_locale(conn)
             await _patch_company_sector_uz_cyr_names(conn)
+            await _patch_project_status_backfill(conn)
             await _bump_alembic(conn)
     except Exception as e:
         # Never crash the app on a self-heal failure - just log and continue.
@@ -2829,6 +2830,64 @@ async def _patch_scenarios_tables(conn) -> None:
 # ─────────────────────────────────────────────────────────────────────
 # Company and sector names in both Uzbek scripts
 # ─────────────────────────────────────────────────────────────────────
+
+async def _patch_project_status_backfill(conn) -> None:
+    """Разовый пересчёт статусов проектов из статусов их задач.
+
+    Правило владельца (05.08.2026): статус проекта — производный (см.
+    core.progress.derive_project_status). Дальше его поддерживают хуки на всех
+    путях записи задач; этот бэкфил выравнивает накопившиеся расхождения
+    (проект «не начато» при живых задачах, «завершён» при незакрытых и т.п.).
+    SQL зеркалит канон: тот же порядок веток, что в derive_project_status.
+    """
+    already = (await conn.execute(text(
+        "SELECT 1 FROM system_config WHERE key = 'project_status_backfilled' LIMIT 1"
+    ))).first()
+    if already:
+        return
+    res = await conn.execute(text("""
+        WITH agg AS (
+            SELECT t.project_id AS pid,
+                   count(*) AS n,
+                   count(*) FILTER (WHERE t.status = 'done') AS n_done,
+                   count(*) FILTER (WHERE t.status IN ('quarterly','monthly','ongoing')) AS n_rec,
+                   count(*) FILTER (WHERE t.status NOT IN ('new','deferred')) AS n_started,
+                   count(*) FILTER (WHERE t.status = 'deferred') AS n_def,
+                   min(t.status) FILTER (WHERE t.status IN ('quarterly','monthly','ongoing')) AS rec_min,
+                   max(t.status) FILTER (WHERE t.status IN ('quarterly','monthly','ongoing')) AS rec_max
+              FROM tasks t
+             WHERE t.is_archived = false AND t.project_id IS NOT NULL
+             GROUP BY t.project_id
+        ), derived AS (
+            SELECT pid,
+                   CASE
+                     WHEN n_done = n THEN 'done'
+                     WHEN n_rec = n THEN CASE WHEN rec_min = rec_max THEN rec_min ELSE 'ongoing' END
+                     WHEN n_started > 0 THEN 'active'
+                     WHEN n_def = n THEN 'deferred'
+                     ELSE 'new'
+                   END AS st
+              FROM agg
+        )
+        UPDATE projects p
+           SET status = d.st,
+               completed_at = CASE
+                   WHEN d.st = 'done' THEN COALESCE(p.completed_at, now())
+                   ELSE NULL
+               END
+          FROM derived d
+         WHERE p.id = d.pid AND p.status IS DISTINCT FROM d.st
+    """))
+    logger.info("project status backfill: изменено %s проектов", res.rowcount)
+    await conn.execute(text(
+        "INSERT INTO system_config (id, key, value, description, is_secret) "
+        "VALUES (gen_random_uuid(), 'project_status_backfilled', "
+        "'{\"done\": true}'::jsonb, "
+        "'Разовый пересчёт статусов проектов из задач (авто-статус)', false) "
+        "ON CONFLICT (key) DO NOTHING"
+    ))
+
+
 
 async def _patch_company_sector_uz_cyr_names(conn) -> None:
     """Add explicit Uzbek Cyrillic fields without rewriting manual names."""

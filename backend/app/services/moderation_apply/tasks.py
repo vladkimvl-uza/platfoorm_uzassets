@@ -54,6 +54,9 @@ async def apply(db, *, sub: ModerationSubmission, user: User) -> dict:
             task_id=task.id, actor_id=user.id, action="created",
             new_value=f"{task.title}",
         ))
+        # Авто-статус проекта — тем же правилом, что и прямой редактор.
+        from app.services.tasks.project_status import recompute_project_status
+        await recompute_project_status(db, task.project_id)
         await db.commit()
         return {"action": "create", "task_id": str(task.id)}
 
@@ -72,6 +75,7 @@ async def apply(db, *, sub: ModerationSubmission, user: User) -> dict:
 
         payload = TaskUpdate.model_validate(sub.proposed_value)
         changes = payload.model_dump(exclude_unset=True)
+        old_project_id = task.project_id
 
         # Split legacy-specific fields → extra JSONB
         extra = dict(task.extra or {})
@@ -86,6 +90,10 @@ async def apply(db, *, sub: ModerationSubmission, user: User) -> dict:
         for field, value in changes.items():
             setattr(task, field, value)
 
+        await db.flush()
+        # Авто-статус проекта (обоих — если задачу перенесли между проектами).
+        from app.services.tasks.project_status import recompute_many
+        await recompute_many(db, {old_project_id, task.project_id})
         await db.commit()
         return {"action": "update", "task_id": str(tid)}
 

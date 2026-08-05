@@ -85,6 +85,17 @@ class ProjectsEditorService:
             for field, value in changes.items():
                 setattr(p, field, value)
 
+            # Статус проекта с задачами — производный (решение владельца
+            # 05.08.2026): выводится из статусов задач. Ручную установку не
+            # отклоняем ошибкой, а сразу пересчитываем поверх — ответ вернёт
+            # фактический статус, и редактор его покажет. У проекта без задач
+            # статус остаётся ручным (recompute вернёт None и ничего не тронет).
+            if "status" in changes:
+                from app.services.tasks.project_status import (
+                    recompute_project_status,
+                )
+                await recompute_project_status(self.uow.session, p.id)
+
             if extra_updates:
                 from app.core.direction_normalize import normalize_direction
                 merged = dict(p.extra or {})

@@ -32,6 +32,8 @@ export const uz: Record<string, string> = {
 
   // ── Уточнения к KPI-плиткам ──
   "НДС {r}%": "QQS {r}%",
+  "Статус проекта считается автоматически из задач: есть начатая — «в процессе», все завершены — «завершён», все регулярные — по их периодичности.":
+    "Loyiha holati vazifalardan avtomatik hisoblanadi: boshlangani bor — «jarayonda», hammasi yakunlangan — «yakunlangan», hammasi muntazam — ularning davriyligi boʻyicha.",
   "по {n} из {m} компаний": "{m} ta kompaniyadan {n} tasi boʻyicha",
   "Подробнее: Финансовый долг (валовый — деньги не вычитаются)":
     "Batafsil: moliyaviy qarz (yalpi — pul mablagʻlari ayirilmaydi)",
@@ -82,6 +84,8 @@ export const en: Record<string, string> = {
 
   // ── KPI tile clarifications ──
   "НДС {r}%": "VAT {r}%",
+  "Статус проекта считается автоматически из задач: есть начатая — «в процессе», все завершены — «завершён», все регулярные — по их периодичности.":
+    "The project status is derived from its tasks automatically: any started task — “in progress”, all completed — “completed”, all recurring — their periodicity.",
   "по {n} из {m} компаний": "across {n} of {m} companies",
   "Подробнее: Финансовый долг (валовый — деньги не вычитаются)":
     "Details: financial debt (gross — cash is not subtracted)",
