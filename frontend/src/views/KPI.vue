@@ -234,7 +234,13 @@ const headerTitle = computed(() =>
 const headerSub = computed(() => {
   const p = PERIODS.find((x) => x.key === state.selectedPeriod.value);
   if (state.viewMode.value === "summary" && state.summary.value) {
-    return `FY ${state.selectedYear.value} · ${p?.label} · ${t("{n} компаний", { n: state.summary.value.co_count })}`;
+    const sm = state.summary.value;
+    // «96,4% · 22 компаний» при среднем по 8 отчитавшимся читалось как
+    // портфельная цифра — показываем базу честно.
+    const cos = (sm.co_with_data ?? sm.co_count) < sm.co_count
+      ? t("по {n} из {m} компаний", { n: sm.co_with_data, m: sm.co_count })
+      : t("{n} компаний", { n: sm.co_count });
+    return `FY ${state.selectedYear.value} · ${p?.label} · ${cos}`;
   }
   return `FY ${state.selectedYear.value} · ${p?.label}`;
 });

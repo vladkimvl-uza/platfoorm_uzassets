@@ -350,6 +350,10 @@ class KpiSummary(BaseModel):
     year: int
     period: str                         # 'year' | 'q1'..'q4'
     co_count: int
+    # Компаний, по которым РЕАЛЬНО посчитан % (есть план+факт с весом) — база
+    # `overall`. co_count — у скольких вообще заведена структура KPI; шапка
+    # «22 компаний · 96,4%» без этой цифры выдавала среднее по 8 за портфельное.
+    co_with_data: int = 0
     total_count: int
     overall: Optional[float] = None     # weighted overall %
     low_sample: bool = False            # портфель/выборка слишком малы для уверенности

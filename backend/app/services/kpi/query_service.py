@@ -435,7 +435,8 @@ def _aggregate(
 
     return KpiSummary(
         year=year, period=period,
-        co_count=len(by_co), total_count=total_count,
+        co_count=len(by_co), co_with_data=len(by_company),
+        total_count=total_count,
         overall=overall,
         low_sample=(len(by_co) < 3 or total_count < 5),
         has_plan=any_plan,

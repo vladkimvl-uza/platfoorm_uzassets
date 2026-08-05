@@ -500,6 +500,8 @@ export interface KpiSummary {
   year: number;
   period: string;
   co_count: number;
+  /** По скольким компаниям реально посчитан % — база overall */
+  co_with_data?: number;
   total_count: number;
   overall: number | null;
   low_sample?: boolean;

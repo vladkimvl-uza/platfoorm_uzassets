@@ -5,7 +5,7 @@
       <div class="kps-hero">
         <div class="kps-hero-l">
           <div class="kps-hero-top">
-            <div class="kps-hero-eyebrow">{{ t("Общее выполнение KPI") }} · FY {{ summary.year }} · {{ t(periodLabel) }} · {{ t("{n} компаний", { n: summary.co_count }) }}</div>
+            <div class="kps-hero-eyebrow">{{ t("Общее выполнение KPI") }} · FY {{ summary.year }} · {{ t(periodLabel) }} · {{ (summary.co_with_data ?? summary.co_count) < summary.co_count ? t("по {n} из {m} компаний", { n: summary.co_with_data, m: summary.co_count }) : t("{n} компаний", { n: summary.co_count }) }}</div>
             <span class="kps-status" :class="execStatus.cls">{{ t(execStatus.label) }}</span>
           </div>
           <div class="kps-hero-v">
