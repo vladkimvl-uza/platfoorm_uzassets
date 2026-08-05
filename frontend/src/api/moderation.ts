@@ -43,6 +43,8 @@ export interface Submission {
   apply_status: "pending" | "applied" | "failed" | "skipped" | null;
   apply_error: string | null;
   apply_result: Record<string, unknown> | null;
+  /** Вправе ли текущий пользователь решать по заявке (считает бэкенд) */
+  can_resolve?: boolean;
 }
 
 export interface SubmissionListItem extends Pick<Submission,

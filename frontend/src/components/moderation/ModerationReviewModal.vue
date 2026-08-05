@@ -52,11 +52,17 @@ type ResolveMode = "approve" | "reject" | null;
 const resolveMode = ref<ResolveMode>(null);
 const resolveNote = ref("");
 
+// Право решать считает БЭКЕНД и отдаёт полем can_resolve. Здесь было своё
+// правило (owner || assigned || coapprover), а при штатной маршрутизации оба
+// поля пусты — у обычного модератора не было ни «Принять», ни «Отклонить».
+// Фолбэк на старое правило — для ответов, отданных до выката этого поля.
 const canResolve = computed(() => {
-  if (!sub.value) return false;
-  if (auth.isOwner) return true;
-  return auth.user?.id === sub.value.assigned_moderator_id ||
-         auth.user?.id === sub.value.coapprover_id;
+  const s = sub.value as (typeof sub.value & { can_resolve?: boolean }) | null;
+  if (!s) return false;
+  if (typeof s.can_resolve === "boolean") return s.can_resolve;
+  return auth.isOwner ||
+         auth.user?.id === s.assigned_moderator_id ||
+         auth.user?.id === s.coapprover_id;
 });
 const canWithdraw = computed(() => {
   if (!sub.value) return false;
@@ -68,10 +74,13 @@ async function load() {
   loading.value = true;
   error.value = null;
   try {
-    [sub.value, comments.value] = await Promise.all([
-      moderationApi.get(props.submissionId),
-      moderationApi.listComments(props.submissionId),
-    ]);
+    // Комментарии грузим отдельной веткой с мягким провалом: раньше они шли
+    // одним Promise.all с заявкой, и 403 на комментариях ронял ОБЕ ветки —
+    // карточка не открывалась вовсе, вместе с крестиком.
+    sub.value = await moderationApi.get(props.submissionId);
+    comments.value = await moderationApi
+      .listComments(props.submissionId)
+      .catch(() => []);
     await dir.ensureLoaded();
   } catch (e: any) {
     error.value = e?.response?.data?.detail || e?.message || t('Не удалось загрузить');

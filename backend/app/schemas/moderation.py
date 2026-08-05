@@ -52,6 +52,10 @@ class SubmissionRead(BaseModel):
     assigned_moderator_id: Optional[UUID] = None
     coapprover_id: Optional[UUID] = None
     reviewer_ids: Optional[list[UUID]] = None
+    # Вправе ли ТЕКУЩИЙ пользователь решать по заявке. Считает бэкенд: раньше
+    # фронт вычислял это сам по устаревшему правилу (owner/assigned/coapprover)
+    # и у обычного модератора кнопок «Принять/Отклонить» не было вовсе.
+    can_resolve: bool = False
     approval_mode: ApprovalMode
     approvals_given: list[dict[str, Any]]
     resolved_at: Optional[datetime] = None

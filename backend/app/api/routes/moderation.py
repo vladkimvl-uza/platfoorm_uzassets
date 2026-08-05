@@ -48,10 +48,37 @@ router = APIRouter(prefix="/moderation", tags=["moderation"])
 
 # ─── Overview / Catalog ───────────────────────────────────────────
 
+async def _is_reviewer(db: AsyncSession, sub, user: User) -> bool:
+    """Может ли этот человек РАЗБИРАТЬ заявку (видеть внутреннее, решать).
+
+    Одно определение на весь роутер. Раньше их было три разных: карточка
+    заявки (:143) уже пускала держателя `moderation.review` и reviewer_ids, а
+    комментарии — только владельца/assigned/coapprover. При штатной
+    маршрутизации assigned и coapprover пусты, поэтому модератор получал 403 на
+    комментариях, фронт грузил их вместе с заявкой одним Promise.all — и
+    карточка не открывалась вовсе.
+    """
+    from app.core.security import has_effective_permission
+    if user.is_owner:
+        return True
+    if sub.assigned_moderator_id == user.id or sub.coapprover_id == user.id:
+        return True
+    if any(str(x) == str(user.id) for x in (sub.reviewer_ids or [])):
+        return True
+    return await has_effective_permission(db, user, "moderation.review")
+
+
+async def _read(db: AsyncSession, sub, user: User) -> SubmissionRead:
+    """SubmissionRead + вычисленный для этого пользователя can_resolve."""
+    out = SubmissionRead.model_validate(sub)
+    out.can_resolve = await _is_reviewer(db, sub, user)
+    return out
+
+
 @router.get("/overview", response_model=ModerationOverview)
 async def overview(
     service: ModerationQueryServiceDep,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_permission("moderation.review")),
 ):
     return await service.overview(user_id=user.id)
 
@@ -75,7 +102,10 @@ async def queue(
     proposer_user_id: Optional[UUID] = Query(None),
     page: int = Query(1, ge=1),
     per_page: int = Query(30, ge=1, le=100),
-    user: User = Depends(get_current_user),
+    # Очередь висела на голом get_current_user: её читал ЛЮБОЙ вошедший,
+    # включая самого внешнего автора — вместе с diff_summary всех 22 компаний
+    # и досье на коллег. Своя лента автора живёт отдельно (/my-submissions).
+    user: User = Depends(require_permission("moderation.review")),
 ):
     return await service.list_queue(
         status_in=status, assigned_to=assigned_to,
@@ -123,7 +153,7 @@ async def create_submission(
         source_ip=request.client.host if request.client else None,
         source_user_agent=request.headers.get("user-agent"),
     )
-    return SubmissionRead.model_validate(sub)
+    return await _read(db, sub, user)
 
 
 @router.get("/submissions/{submission_id}", response_model=SubmissionRead)
@@ -139,18 +169,13 @@ async def get_submission(
     # не попадали: очередь показывала заявку, а по клику приходил 403. Особенно
     # больно после снятия модератора — его заявки не мог разобрать НИКТО, кроме
     # владельца, а срока годности у заявки нет.
-    from app.core.security import has_effective_permission
     allowed = (
-        user.is_owner
-        or sub.proposer_user_id == user.id
-        or sub.assigned_moderator_id == user.id
-        or sub.coapprover_id == user.id
-        or any(str(x) == str(user.id) for x in (sub.reviewer_ids or []))
-        or await has_effective_permission(db, user, "moderation.review")
+        sub.proposer_user_id == user.id
+        or await _is_reviewer(db, sub, user)
     )
     if not allowed:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "No access")
-    return SubmissionRead.model_validate(sub)
+    return await _read(db, sub, user)
 
 
 # ─── Submission state transitions ─────────────────────────────────
@@ -183,7 +208,7 @@ async def approve_submission(
 ):
     sub = await _load_sub(db, submission_id)
     result = await _wrap_state_change(svc.approve(db, sub=sub, user=user, note=body.note))
-    return SubmissionRead.model_validate(result)
+    return await _read(db, result, user)
 
 
 @router.post("/submissions/{submission_id}/reject", response_model=SubmissionRead)
@@ -195,7 +220,7 @@ async def reject_submission(
 ):
     sub = await _load_sub(db, submission_id)
     result = await _wrap_state_change(svc.reject(db, sub=sub, user=user, note=body.note))
-    return SubmissionRead.model_validate(result)
+    return await _read(db, result, user)
 
 
 @router.post("/submissions/{submission_id}/set-review", response_model=SubmissionRead)
@@ -207,7 +232,7 @@ async def set_review_submission(
 ):
     sub = await _load_sub(db, submission_id)
     result = await _wrap_state_change(svc.set_review(db, sub=sub, user=user, note=body.note))
-    return SubmissionRead.model_validate(result)
+    return await _read(db, result, user)
 
 
 # «Изменить и принять» удалено (решение владельца 03.08.2026): модератор правил
@@ -229,9 +254,27 @@ async def retry_apply_submission(
             status.HTTP_409_CONFLICT,
             f"Only approved submissions can be re-applied (current: {sub.status})",
         )
+    # Повтор применения — это ещё одна запись в целевой модуль, поэтому здесь
+    # нужны те же гарантии, что и у approve:
+    #  • право решать по ЭТОЙ заявке (единственное место, где виден
+    #    персональный отзыв moderation.review — has_effective_permission для
+    #    роли admin выходит раньше любых deny);
+    #  • запрет на повтор уже применённой заявки: старый payload прогонял
+    #    delete-and-replace и откатывал всё, что ввели после одобрения.
+    if not await _is_reviewer(db, sub, user):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Not authorized to resolve this submission")
+    from app.services import moderation_authority
+    if await moderation_authority.review_denied(db, user):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Not authorized to resolve this submission")
+    if (sub.apply_status or "") == "applied":
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "Заявка уже применена — повторное применение перезапишет данные "
+            "старым значением",
+        )
     await svc._dispatch_apply(db, sub, user)
     await db.refresh(sub)
-    return SubmissionRead.model_validate(sub)
+    return await _read(db, sub, user)
 
 
 @router.post("/submissions/{submission_id}/withdraw", response_model=SubmissionRead)
@@ -242,7 +285,7 @@ async def withdraw_submission(
 ):
     sub = await _load_sub(db, submission_id)
     result = await _wrap_state_change(svc.withdraw(db, sub=sub, user=user))
-    return SubmissionRead.model_validate(result)
+    return await _read(db, result, user)
 
 
 # ─── Comments ─────────────────────────────────────────────────────
@@ -251,16 +294,13 @@ async def withdraw_submission(
 async def list_comments(
     submission_id: UUID,
     service: ModerationRulesServiceDep,
+    db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     sub = await service.get_submission_for_access(submission_id)
     if not sub:
         raise HTTPException(404, "Not found")
-    is_moderator = (
-        user.is_owner
-        or sub.assigned_moderator_id == user.id
-        or sub.coapprover_id == user.id
-    )
+    is_moderator = await _is_reviewer(db, sub, user)
     is_proposer = sub.proposer_user_id == user.id
     if not (is_moderator or is_proposer):
         raise HTTPException(403, "No access")
@@ -276,11 +316,7 @@ async def add_comment(
     user: User = Depends(get_current_user),
 ):
     sub = await _load_sub(db, submission_id)
-    is_moderator = (
-        user.is_owner
-        or sub.assigned_moderator_id == user.id
-        or sub.coapprover_id == user.id
-    )
+    is_moderator = await _is_reviewer(db, sub, user)
     is_proposer = sub.proposer_user_id == user.id
     if not (is_moderator or is_proposer):
         raise HTTPException(403, "No access")
@@ -305,7 +341,7 @@ async def add_comment(
 @router.get("/moderators")
 async def list_moderators(
     service: ModerationQueryServiceDep,
-    _u: User = Depends(get_current_user),
+    _u: User = Depends(require_permission("admin.users")),
 ):
     return {"items": await service.list_moderators()}
 
@@ -343,7 +379,9 @@ async def restore_moderator(
 @router.get("/submitted-users")
 async def list_submitted_users(
     service: ModerationQueryServiceDep,
-    _u: User = Depends(get_current_user),
+    # Список внешних авторов с их почтой, должностью, организацией и флагом
+    # обхода модерации — административные данные, не для всех вошедших.
+    _u: User = Depends(require_permission("admin.users")),
 ):
     return {"items": await service.list_external_users()}
 
