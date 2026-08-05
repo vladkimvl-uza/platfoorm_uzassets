@@ -2723,21 +2723,8 @@ watch(
   padding: 6px 10px;
   background: rgba(127, 119, 221, 0.05);
   border-radius: 6px;
-  /* top-stripe via shared uza-top-stripe utility (replaces former border-left) */
-  position: relative;
-  overflow: hidden;
-}
-.cox-kpi-summary::before {
-  content: "";
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 3px;
-  background: #7F77DD;
-  transform-origin: left center;
-  animation:
-    uzaStripeDrawIn .8s var(--ease-standard) 100ms both,
-    uzaStripeBreathe 2.8s ease-in-out 1s infinite;
-  pointer-events: none;
+  /* Верхняя полоска снята по просьбе владельца (05.08.2026): это служебная
+     сводка-строка внутри блока, а не карточка — акцентная полоса здесь шумела. */
 }
 .cox-kpi-summary-num {
   font-size: 22px;
