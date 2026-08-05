@@ -780,20 +780,14 @@ onMounted(() => { void companiesStore.ensureLoaded(); load(); loadMaturity(); lo
                 <div class="kpi2-val"><Odometer :value="heatmap.iso_full_count" /><span class="ev-kpi-unit"> / {{ totalD1 }}</span></div>
                 <div class="kpi2-sub">{{ t('все три стандарта') }}</div>
               </div>
-              <!-- 2. Отчётность 2024 (плейсхолдер — данные вносятся) -->
-              <div class="kpi2 fin-shimmer ev-kpi ev-kpi-ph" style="--kpi2-accent:#94A3B8; --kpi2-d:80ms" :title="t('Данные за 2024 отчётный год вносятся')">
-                <div class="kpi2-lbl">{{ t('Отчётность 2024') }}</div>
-                <div class="kpi2-val ev-kpi-xx">—</div>
-                <div class="kpi2-sub">{{ t('по результатам 2024 года · вносится') }}</div>
-              </div>
               <!-- 3. Отчётность 2025 · IFRS SDS (выделен ярко) -->
-              <div class="kpi2 fin-shimmer ev-kpi ev-kpi-hl" style="--kpi2-accent:#7C6FF7; --kpi2-d:160ms" @click="openKpiDrill('ifrssds')">
+              <div class="kpi2 fin-shimmer ev-kpi ev-kpi-hl" style="--kpi2-accent:#7C6FF7; --kpi2-d:80ms" @click="openKpiDrill('ifrssds')">
                 <div class="kpi2-lbl">{{ t('Отчётность 2025') }} <span class="ev-kpi-badge">IFRS SDS</span></div>
                 <div class="kpi2-val"><Odometer :value="ifrsSdsCount" /><span class="ev-kpi-unit"> / {{ totalD2 }}</span></div>
                 <div class="kpi2-sub">{{ t('подготовка в процессе · обновляется в июле') }}</div>
               </div>
               <!-- 4. Климатические стратегии (разработанные / в процессе) -->
-              <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#1D9E75; --kpi2-d:240ms" @click="openKpiDrill('climate')">
+              <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#1D9E75; --kpi2-d:160ms" @click="openKpiDrill('climate')">
                 <div class="kpi2-lbl">{{ t('Климатические стратегии') }}</div>
                 <div class="kpi2-val ev-baskets">
                   <span style="color:#1D9E75">{{ climateDeveloped }}</span><span class="ev-bsep">/</span><span style="color:#D97706">{{ climateInProgress }}</span>
@@ -801,13 +795,13 @@ onMounted(() => { void companiesStore.ensureLoaded(); load(); loadMaturity(); lo
                 <div class="kpi2-sub">{{ t('разработанные · в процессе') }}</div>
               </div>
               <!-- 5. Кол-во рейтингов в предприятиях -->
-              <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#D97706; --kpi2-d:320ms" @click="openKpiDrill('coverage')">
+              <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#D97706; --kpi2-d:240ms" @click="openKpiDrill('coverage')">
                 <div class="kpi2-lbl">{{ t('Рейтинги в предприятиях') }}</div>
                 <div class="kpi2-val"><Odometer :value="heatmap.rated_count" /><span class="ev-kpi-unit"> / {{ totalD3 }}</span></div>
                 <div class="kpi2-sub">{{ coveragePct }}{{ t('% портфеля') }}</div>
               </div>
               <!-- 6. Уровни зрелости по цветам -->
-              <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#378ADD; --kpi2-d:400ms" @click="openKpiDrill('baskets')">
+              <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#378ADD; --kpi2-d:320ms" @click="openKpiDrill('baskets')">
                 <div class="kpi2-lbl">{{ t('Уровни зрелости') }}</div>
                 <div class="kpi2-val ev-baskets">
                   <span style="color:#1D9E75">{{ heatmap.baskets.mature }}</span><span class="ev-bsep">/</span><span style="color:#D97706">{{ heatmap.baskets.developing }}</span><span class="ev-bsep">/</span><span style="color:#E24B4A">{{ heatmap.baskets.starting }}</span>
