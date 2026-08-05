@@ -392,6 +392,7 @@ class ESGMaturityService:
                 id=it.id, kind=it.kind, scope=it.scope, company_id=it.company_id,
                 company_code=code, company_name=name,
                 title=it.title, body=it.body, severity=it.severity, order_idx=it.order_idx,
+                created_by_name=it.created_by_name, created_by_org=it.created_by_org,
             )
 
         ps, pw, comp = [], [], []
@@ -409,9 +410,30 @@ class ESGMaturityService:
             generated_at=datetime.now(UTC),
         )
 
+    @staticmethod
+    async def swot_author_snapshot(db: AsyncSession, user) -> tuple:
+        """(id, имя, организация) автора — снимок на момент создания.
+
+        Организация: компания из профиля пользователя; у сотрудников самой
+        платформы (organization_id пуст) — «UzAssets». Снимок, а не join по
+        FK: подпись должна пережить переименование компании и удаление
+        аккаунта.
+        """
+        org = "UzAssets"
+        if getattr(user, "organization_id", None):
+            row = (await db.execute(
+                select(Company.name_short, Company.name_ru)
+                .where(Company.id == user.organization_id)
+            )).first()
+            if row:
+                org = row[0] or row[1] or org
+        name = user.full_name or user.email
+        return user.id, name, org
+
     async def upsert_swot(
         self, db: AsyncSession, payload: ESGSwotUpsert,
         *, scope_company_ids: Optional[Sequence[UUID]],
+        actor=None,
     ) -> ESGSwotItemBrief:
         if payload.scope == "company" and scope_company_ids is not None \
                 and payload.company_id not in scope_company_ids:
@@ -421,6 +443,13 @@ class ESGMaturityService:
             item = (await db.execute(select(ESGSwotItem).where(ESGSwotItem.id == payload.id))).scalar_one_or_none()
         if item is None:
             item = ESGSwotItem(kind=payload.kind, scope=payload.scope)
+            # Автор фиксируется при создании и правками не переписывается:
+            # вопрос «кто это добавил» должен иметь один ответ навсегда.
+            if actor is not None:
+                _uid, _name, _org = await self.swot_author_snapshot(db, actor)
+                item.created_by = _uid
+                item.created_by_name = _name
+                item.created_by_org = _org
             db.add(item)
         item.kind = payload.kind
         item.scope = payload.scope
@@ -434,6 +463,7 @@ class ESGMaturityService:
         return ESGSwotItemBrief(
             id=item.id, kind=item.kind, scope=item.scope, company_id=item.company_id,
             title=item.title, body=item.body, severity=item.severity, order_idx=item.order_idx,
+            created_by_name=item.created_by_name, created_by_org=item.created_by_org,
         )
 
     # ─── Годовые ESG-отчёты компании (с 2021) ─────────────────────

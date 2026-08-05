@@ -251,7 +251,12 @@ const kpiCompanies = computed(() =>
                       <button class="swe-no" @click="cancelEdit">✕</button>
                     </div>
                   </template>
-                  <p v-else class="swe-item-body" :class="{ ed: canEdit }" @click="startEdit(it)">{{ it.body }}</p>
+                  <p v-else class="swe-item-body" :class="{ ed: canEdit }" @click="startEdit(it)">
+                    {{ it.body }}
+                    <span v-if="it.created_by_name" class="swe-item-author">
+                      {{ it.created_by_name }}<template v-if="it.created_by_org"> · {{ it.created_by_org }}</template>
+                    </span>
+                  </p>
                 </div>
 
                 <div v-if="editKey === newKey(row.scope!, kind, row.cid!)" class="swe-item swe-item-new" :class="kind === 'strength' ? 'good' : 'bad'">
@@ -423,5 +428,11 @@ const kpiCompanies = computed(() =>
 @media (min-width: 2200px) {
   .swe-title { font-size: 21px; } .swe-item-body { font-size: 14px; } .swe-obj-h { font-size: 13.5px; }
   .swe-w-t { font-size: 12.5px; }
+}
+
+/* Автор вывода и его компания — снимок на момент создания */
+.swe-item-author {
+  display: block; margin-top: 3px;
+  font-size: 10px; line-height: 1.3; color: var(--t3, #94A3B8);
 }
 </style>

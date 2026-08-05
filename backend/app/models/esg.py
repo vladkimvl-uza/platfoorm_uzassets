@@ -154,6 +154,14 @@ class ESGSwotItem(Base, UUIDMixin, TimestampMixin):
     body: Mapped[str] = mapped_column(Text, nullable=False)
     severity: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)  # для weakness
     order_idx: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # Автор вывода (решение владельца 05.08.2026: видно, кто что добавил и из
+    # какой он компании). Имя и организация — снимки на момент создания, чтобы
+    # подпись переживала переименования и удаление аккаунта (FK — SET NULL).
+    created_by: Mapped[Optional[UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_by_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    created_by_org: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     extra: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
 
 

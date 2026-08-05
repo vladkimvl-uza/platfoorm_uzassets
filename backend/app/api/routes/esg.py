@@ -163,7 +163,9 @@ async def upsert_swot(
             status_code=http_status.HTTP_202_ACCEPTED,
             content={"queued": True, "submission_id": str(sub.id), "status": sub.status},
         )
-    return await service.upsert_swot(db, payload, scope_company_ids=await _scope(db, user))
+    return await service.upsert_swot(
+        db, payload, scope_company_ids=await _scope(db, user), actor=user,
+    )
 
 
 # ─── годовые ESG-отчёты компании (таблица с 2021) ─────────────────

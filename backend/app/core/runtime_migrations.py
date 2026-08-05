@@ -260,6 +260,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_company_sector_uz_cyr_names(conn)
             await _patch_project_status_backfill(conn)
             await _patch_direction_values_normalize(conn)
+            await _patch_esg_swot_author(conn)
             await _bump_alembic(conn)
     except Exception as e:
         # Never crash the app on a self-heal failure - just log and continue.
@@ -2831,6 +2832,56 @@ async def _patch_scenarios_tables(conn) -> None:
 # ─────────────────────────────────────────────────────────────────────
 # Company and sector names in both Uzbek scripts
 # ─────────────────────────────────────────────────────────────────────
+
+async def _patch_esg_swot_author(conn) -> None:
+    """Автор вывода ESG SWOT: колонки + разовый бэкфил.
+
+    Решение владельца (05.08.2026): у каждого вывода видно, кто его добавил и
+    из какой он компании. Имя/организация — снимки на момент создания. Все
+    существующие на этот момент выводы добавила Дарья Соболева (подтверждено
+    владельцем) — бэкфил подписывает их её именем; дальше автора пишут роут и
+    модерация (автор заявки, не модератор).
+    """
+    await conn.execute(text(
+        "ALTER TABLE esg_swot_items "
+        "ADD COLUMN IF NOT EXISTS created_by uuid REFERENCES users(id) ON DELETE SET NULL"
+    ))
+    await conn.execute(text(
+        "ALTER TABLE esg_swot_items ADD COLUMN IF NOT EXISTS created_by_name varchar(255)"
+    ))
+    await conn.execute(text(
+        "ALTER TABLE esg_swot_items ADD COLUMN IF NOT EXISTS created_by_org varchar(255)"
+    ))
+
+    already = (await conn.execute(text(
+        "SELECT 1 FROM system_config WHERE key = 'esg_swot_author_backfilled' LIMIT 1"
+    ))).first()
+    if already:
+        return
+    row = (await conn.execute(text(
+        "SELECT u.id, u.full_name, COALESCE(c.name_short, c.name_ru, 'UzAssets') "
+        "FROM users u LEFT JOIN companies c ON c.id = u.organization_id "
+        "WHERE lower(u.email) = 'd.soboleva@uz-assets.uz' LIMIT 1"
+    ))).first()
+    if row:
+        res = await conn.execute(text(
+            "UPDATE esg_swot_items SET created_by = :uid, created_by_name = :nm, "
+            "created_by_org = :org WHERE created_by IS NULL AND created_by_name IS NULL"
+        ), {"uid": str(row[0]), "nm": row[1] or "Darya Soboleva", "org": row[2] or "UzAssets"})
+        logger.info("esg swot author backfill: подписано %s выводов", res.rowcount)
+    else:
+        # Аккаунта нет в этой среде (локалка/тесты) — не подписываем никого,
+        # маркер всё равно ставим: бэкфил осмыслен только на проде.
+        logger.info("esg swot author backfill: пользователь не найден, пропуск")
+    await conn.execute(text(
+        "INSERT INTO system_config (id, key, value, description, is_secret) "
+        "VALUES (gen_random_uuid(), 'esg_swot_author_backfilled', "
+        "'{\"done\": true}'::jsonb, "
+        "'Разовая подпись существующих выводов ESG SWOT автором', false) "
+        "ON CONFLICT (key) DO NOTHING"
+    ))
+
+
 
 async def _patch_direction_values_normalize(conn) -> None:
     """Разовая нормализация направлений в tasks/projects.extra->direction.

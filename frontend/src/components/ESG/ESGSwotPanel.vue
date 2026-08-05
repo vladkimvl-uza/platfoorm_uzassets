@@ -106,7 +106,12 @@ async function save() {
                   <button class="sw-x" @click.stop="cancel">{{ t('Отмена') }}</button>
                 </div>
               </template>
-              <span v-else class="sw-body">{{ it.body }}</span>
+              <template v-else>
+                <span class="sw-body">{{ it.body }}</span>
+                <span v-if="it.created_by_name" class="sw-author">
+                  {{ it.created_by_name }}<template v-if="it.created_by_org"> · {{ it.created_by_org }}</template>
+                </span>
+              </template>
             </div>
             <div v-if="editing && editing.id === null && editing.kind === 'strength'" class="sw-item sw-item-new">
               <textarea v-model="draft" class="sw-ta" rows="2" :disabled="saving" :placeholder="t('Новая сильная сторона…')" @click.stop></textarea>
@@ -135,7 +140,12 @@ async function save() {
                   <button class="sw-x" @click.stop="cancel">{{ t('Отмена') }}</button>
                 </div>
               </template>
-              <span v-else class="sw-body">{{ it.body }}</span>
+              <template v-else>
+                <span class="sw-body">{{ it.body }}</span>
+                <span v-if="it.created_by_name" class="sw-author">
+                  {{ it.created_by_name }}<template v-if="it.created_by_org"> · {{ it.created_by_org }}</template>
+                </span>
+              </template>
             </div>
             <div v-if="editing && editing.id === null && editing.kind === 'weakness'" class="sw-item sw-item-new">
               <textarea v-model="draft" class="sw-ta" rows="2" :disabled="saving" :placeholder="t('Новая проблемная зона…')" @click.stop></textarea>
@@ -177,4 +187,12 @@ async function save() {
 .sw-ok:disabled { opacity: .6; cursor: default; }
 .sw-x { font-size: 11.5px; color: var(--t2, #6B6880); background: var(--bg3, #F1F0F7); border: none; border-radius: 7px; padding: 4px 12px; cursor: pointer; font-family: inherit; }
 .sw-empty { font-size: 11.5px; color: var(--t3, #A6A3B8); font-style: italic; padding: 4px 2px; }
+
+/* Кто добавил вывод и из какой компании — снимок на момент создания.
+   Тихим кеглем: подпись — метаданные, не часть вывода. */
+.sw-author {
+  display: block; margin-top: 4px;
+  font-size: 10px; line-height: 1.3;
+  color: var(--t3, #94A3B8);
+}
 </style>

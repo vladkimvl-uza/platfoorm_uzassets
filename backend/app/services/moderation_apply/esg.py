@@ -16,7 +16,7 @@ from uuid import UUID
 
 from sqlalchemy import and_, select
 
-from app.models.esg import ESGIssue, ESGMaturityCell, ESGMetric, ESGReport
+from app.models.esg import ESGIssue, ESGMaturityCell, ESGMetric, ESGReport, ESGSwotItem
 from app.models.moderation import ModerationSubmission
 from app.models.user import User
 from app.schemas.esg import (
@@ -25,6 +25,7 @@ from app.schemas.esg import (
     ESGMaturityCellUpsert,
     ESGMetricUpsert,
     ESGReportUpsert,
+    ESGSwotUpsert,
 )
 from app.services.moderation_service import register_apply_handler
 
@@ -155,6 +156,41 @@ async def apply(db, *, sub: ModerationSubmission, user: User) -> dict:
             setattr(i, field, value)
         await db.commit()
         return {"action": "update_issue", "issue_id": str(iid)}
+
+    if action == "upsert_swot":
+        # Ветки не было, хотя роут PUT /esg/swot гейтится модерацией, —
+        # одобренная заявка внешнего автора падала «unknown esg action».
+        payload = ESGSwotUpsert.model_validate(sub.proposed_value)
+        item = None
+        if payload.id is not None:
+            item = (await db.execute(
+                select(ESGSwotItem).where(ESGSwotItem.id == payload.id)
+            )).scalar_one_or_none()
+        if item is None:
+            item = ESGSwotItem(kind=payload.kind, scope=payload.scope)
+            # Автор — тот, кто ПРЕДЛОЖИЛ вывод, а не модератор, который нажал
+            # «принять»: подпись «кто добавил» должна вести к автору заявки.
+            proposer = (await db.execute(
+                select(User).where(User.id == sub.proposer_user_id)
+            )).scalar_one_or_none()
+            if proposer is not None:
+                from app.services.esg.maturity_service import ESGMaturityService
+                _uid, _name, _org = await ESGMaturityService.swot_author_snapshot(
+                    db, proposer,
+                )
+                item.created_by = _uid
+                item.created_by_name = _name
+                item.created_by_org = _org
+            db.add(item)
+        item.kind = payload.kind
+        item.scope = payload.scope
+        item.company_id = payload.company_id if payload.scope == "company" else None
+        item.title = payload.title
+        item.body = payload.body
+        item.severity = payload.severity
+        item.order_idx = payload.order_idx
+        await db.commit()
+        return {"action": "upsert_swot", "item_id": str(item.id)}
 
     raise ValueError(f"unknown esg action: {action!r}")
 
