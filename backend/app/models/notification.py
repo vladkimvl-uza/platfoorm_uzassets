@@ -15,6 +15,9 @@ from app.models.base import TimestampMixin, UUIDMixin
 NOTIFICATION_TYPES = {
     # Moderation will create these)
     "moderation.pending":          {"priority": "high",     "label": "Новое предложение на модерацию"},
+    # Автору: его правка не сохранена сразу, а ушла на согласование. Без этого
+    # модерируемый пользователь видел только тост и терял нить — что с правкой.
+    "moderation.submitted":        {"priority": "normal",   "label": "Ваше изменение отправлено на согласование"},
     "moderation.approved":         {"priority": "normal",   "label": "Ваше предложение одобрено"},
     "moderation.rejected":         {"priority": "high",     "label": "Ваше предложение отклонено"},
     "moderation.review_requested": {"priority": "high",     "label": "Запрошено дополнительное рассмотрение"},

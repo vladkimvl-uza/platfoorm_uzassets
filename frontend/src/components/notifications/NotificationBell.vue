@@ -125,6 +125,12 @@ async function handleItemClick(n: any) {
  * открывает карточку заявки — по решению владельца отказ всегда с причиной,
  * а её надо где-то написать.
  */
+// Состояние быстрых действий по карточке: пока идёт запрос — спиннер и
+// блокировка (двойной клик отправлял второй approve и ловил 409), после
+// успеха — карточка помечается решённой и красиво сворачивается.
+const quickBusy = ref<Record<string, boolean>>({});
+const quickDone = ref<Record<string, "approved" | "rejected">>({});
+
 async function quickAction(id: string, action: "approve" | "reject" | "open") {
   const item = store.recent.find((n) => n.id === id);
   const subId = (item?.payload as any)?.submission_id as string | undefined;
@@ -150,14 +156,21 @@ async function quickAction(id: string, action: "approve" | "reject" | "open") {
     toast.error(t("Не удалось определить заявку — откройте её в очереди"));
     return;
   }
+  if (quickBusy.value[id] || quickDone.value[id]) return;
+  quickBusy.value = { ...quickBusy.value, [id]: true };
   try {
     const { moderationApi } = await import("@/api/moderation");
     await moderationApi.approve(subId);
     toast.success(t("Заявка принята"));
-    await store.markRead(id);
+    // Сначала показываем «Принято» на самой карточке, и лишь потом гасим:
+    // мгновенное исчезновение читалось как «кнопка не сработала».
+    quickDone.value = { ...quickDone.value, [id]: "approved" };
     await store.refreshCount();
+    setTimeout(() => { void store.markRead(id); }, 1400);
   } catch (e: any) {
     toast.error(e?.response?.data?.detail || t("Не удалось принять заявку"));
+  } finally {
+    quickBusy.value = { ...quickBusy.value, [id]: false };
   }
 }
 
@@ -298,15 +311,22 @@ function priorityColorFor(p: string): string { return PRIORITY_LABELS[p as "crit
               </div>
 
               <div v-if="n.type.startsWith('moderation.pending')" class="nb-quick">
-                <button class="nb-q-approve" @click.stop="quickAction(n.id, 'approve')">
-                  <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M3 8l4 4 6-8"/></svg>
-                  {{ t('Принять') }}
-                </button>
-                <button class="nb-q-reject" @click.stop="quickAction(n.id, 'reject')">
-                  <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13"/></svg>
-                  {{ t('Отклонить') }}
-                </button>
-                <button class="nb-q-open" @click.stop="quickAction(n.id, 'open')">{{ t('Открыть') }}</button>
+                <div v-if="quickDone[n.id]" class="nb-q-done">
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l4 4 6-8"/></svg>
+                  {{ t('Принято') }}
+                </div>
+                <template v-else>
+                  <button class="nb-q-approve" :disabled="quickBusy[n.id]" @click.stop="quickAction(n.id, 'approve')">
+                    <span v-if="quickBusy[n.id]" class="nb-q-spin" aria-hidden="true"></span>
+                    <svg v-else width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M3 8l4 4 6-8"/></svg>
+                    {{ t('Принять') }}
+                  </button>
+                  <button class="nb-q-reject" :disabled="quickBusy[n.id]" @click.stop="quickAction(n.id, 'reject')">
+                    <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13"/></svg>
+                    {{ t('Отклонить') }}
+                  </button>
+                  <button class="nb-q-open" :disabled="quickBusy[n.id]" @click.stop="quickAction(n.id, 'open')">{{ t('Открыть') }}</button>
+                </template>
               </div>
             </div>
             <span v-if="!n.is_read" class="nb-dot" :style="{ background: priorityColorFor(n.priority) }"></span>
@@ -647,4 +667,39 @@ function priorityColorFor(p: string): string { return PRIORITY_LABELS[p as "crit
   background: var(--green);
 }
 .nb-conn.offline .nb-conn-dot { background: var(--amber); }
+
+/* ── Быстрые действия: живое состояние вместо «нажал и гадай» ── */
+.nb-q-approve:disabled, .nb-q-reject:disabled, .nb-q-open:disabled {
+  opacity: .55; cursor: default;
+}
+.nb-q-spin {
+  width: 10px; height: 10px; flex: none; border-radius: 50%;
+  border: 1.6px solid currentColor; border-right-color: transparent;
+  animation: nbSpin .62s linear infinite;
+}
+@keyframes nbSpin { to { transform: rotate(360deg); } }
+
+/* Подтверждение решения: галочка «прорисовывается», плашка мягко въезжает —
+   пользователь видит результат до того, как карточка уйдёт из списка. */
+.nb-q-done {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 24px; padding: 0 11px; border-radius: 999px;
+  background: rgba(29, 158, 117, .12); color: #0F6E56;
+  font-size: 11px; font-weight: 600;
+  animation: nbDonePop .34s cubic-bezier(.34, 1.56, .64, 1) both;
+}
+.nb-q-done svg {
+  stroke-dasharray: 16; stroke-dashoffset: 16;
+  animation: nbCheckDraw .38s ease .10s forwards;
+}
+@keyframes nbDonePop {
+  from { opacity: 0; transform: translateY(3px) scale(.94); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes nbCheckDraw { to { stroke-dashoffset: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .nb-q-spin, .nb-q-done, .nb-q-done svg { animation: none; }
+  .nb-q-done svg { stroke-dashoffset: 0; }
+}
 </style>

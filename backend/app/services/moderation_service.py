@@ -450,6 +450,26 @@ async def _notify_on_create(
             source_user_id=sub.proposer_user_id,
         )
 
+    # Автор заявки тоже должен знать, что его правка НЕ сохранена, а ушла на
+    # согласование, и видеть её в колокольчике наравне с остальным (решение
+    # владельца 05.08.2026). Ссылка ведёт в «Мои заявки» — в очередь
+    # модерации у внешнего автора доступа нет.
+    if sub.proposer_user_id and sub.proposer_user_id not in set(recipients):
+        await notify(
+            db, recipient_id=sub.proposer_user_id,
+            type="moderation.submitted",
+            title=f"Отправлено на согласование: {sub.target_entity_label or sub.target_module}",
+            body=sub.diff_summary or sub.reason or None,
+            title_template="Отправлено на согласование: {entity}",
+            template_vars={"entity": sub.target_entity_label or sub.target_module},
+            priority="normal",
+            link_url="/my-submissions",
+            payload={**payload, "role": "author"},
+            source_module="moderation",
+            source_entity_id=str(sub.id),
+            source_user_id=sub.proposer_user_id,
+        )
+
     sub.last_notified_at = datetime.now(UTC)
     await db.commit()
 

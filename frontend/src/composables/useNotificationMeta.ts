@@ -284,6 +284,11 @@ export function describeNotification(n: NotifEntity): NotifDescriptor {
     return { verb: translateUi("Отправил на согласование"), accent: C.amber, icon: "moderation",
              entity: entity || titleEntity(n.title) || n.title || undefined, detail: bodyDetail() };
   }
+  // — Модерация: автору, что его правка ушла на согласование —
+  if (t === "moderation.submitted") {
+    return { verb: translateUi("Ждёт согласования"), accent: C.amber, icon: "moderation",
+             entity: entity || titleEntity(n.title) || n.title || undefined, detail: bodyDetail() };
+  }
   // — Модерация: решение —
   if (t === "approved") {
     return { verb: translateUi("Согласовал"), accent: C.green, icon: "result", entity: entity || titleEntity(n.title) || n.title || undefined, detail: bodyDetail() };

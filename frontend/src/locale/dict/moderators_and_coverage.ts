@@ -32,6 +32,10 @@ export const uz: Record<string, string> = {
 
   // ── Уточнения к KPI-плиткам ──
   "НДС {r}%": "QQS {r}%",
+  "Принято": "Qabul qilindi",
+  "Ждёт согласования": "Kelishuvni kutmoqda",
+  "Отправлено на согласование: {entity}": "Kelishuvga yuborildi: {entity}",
+  "Ваше изменение отправлено на согласование": "Oʻzgarishingiz kelishuvga yuborildi",
   "Удалить вывод": "Xulosani oʻchirish",
   "«{text}» будет удалён. Действие необратимо.": "«{text}» oʻchiriladi. Amalni qaytarib boʻlmaydi.",
   "Вывод удалён": "Xulosa oʻchirildi",
@@ -88,6 +92,10 @@ export const en: Record<string, string> = {
 
   // ── KPI tile clarifications ──
   "НДС {r}%": "VAT {r}%",
+  "Принято": "Approved",
+  "Ждёт согласования": "Awaiting approval",
+  "Отправлено на согласование: {entity}": "Sent for approval: {entity}",
+  "Ваше изменение отправлено на согласование": "Your change was sent for approval",
   "Удалить вывод": "Delete this finding",
   "«{text}» будет удалён. Действие необратимо.": "“{text}” will be deleted. This cannot be undone.",
   "Вывод удалён": "Finding deleted",
