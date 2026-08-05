@@ -684,7 +684,11 @@ async def _assert_can_resolve(
     from app.services import moderation_authority
     if await moderation_authority.review_denied(db, user):
         raise PermissionError("Not authorized to resolve this submission")
-    await _assert_can_resolve(db, sub, user)
+    # ВНИМАНИЕ: здесь именно синхронный _can_resolve. Рекурсивный вызов самого
+    # себя (регрессия 05.08.2026) уводил approve в RecursionError на 950-м
+    # витке — заявку нельзя было ни принять, ни отклонить.
+    if not _can_resolve(sub, user):
+        raise PermissionError("Not authorized to resolve this submission")
 
 
 async def approve(
@@ -768,8 +772,7 @@ async def reject(
 async def set_review(
     db: AsyncSession, *, sub: ModerationSubmission, user: User, note: Optional[str] = None,
 ) -> ModerationSubmission:
-    if not _can_resolve(sub, user):
-        raise PermissionError("Not authorized")
+    await _assert_can_resolve(db, sub, user)
     sub = await _lock_and_reload(db, sub)
     _guard_open(sub)
     now = datetime.now(UTC)
@@ -805,8 +808,7 @@ async def edit_and_approve(
     proposed_value: dict[str, Any], note: Optional[str] = None,
 ) -> ModerationSubmission:
     """Moderator edits the proposed value before approving."""
-    if not _can_resolve(sub, user):
-        raise PermissionError("Not authorized")
+    await _assert_can_resolve(db, sub, user)
     _guard_open(sub)
     sub.proposed_value = proposed_value
     sub.updated_at = datetime.now(UTC)
