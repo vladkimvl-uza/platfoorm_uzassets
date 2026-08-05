@@ -10,6 +10,7 @@ import { computed, nextTick, onMounted, ref, watch } from "vue";
 import ModalShell from "@/components/ModalShell.vue";
 import { esgApi, type ESGSwotResponse, type ESGSwotItemBrief, type ESGKpiBrief, type ESGKpiManagerBrief } from "@/api/esg";
 import { useToast } from "@/composables/useToast";
+import { useConfirm } from "@/composables/useConfirm";
 import { useCompanyScope } from "@/composables/useCompanyScope";
 import { useI18n } from "@/composables/useI18n";
 import { getCurrentIntlLocale } from "@/locale/i18n";
@@ -54,6 +55,7 @@ const props = defineProps<{
 const emit = defineEmits<{ (e: "saved"): void }>();
 
 const toast = useToast();
+const { confirmDialog } = useConfirm();
 
 // ── ESG-релевантные KPI по компаниям (read-only, подтянуты из модуля KPI) ──
 const kpiMap = ref<Map<string, ESGKpiBrief[]>>(new Map());
@@ -227,6 +229,26 @@ async function commit(scope: Scope, kind: Kind, cid: string, existing: ESGSwotIt
   } finally { saving.value = false; }
 }
 
+async function removeItem(it: ESGSwotItemBrief) {
+  if (!props.canEdit || !it.id || saving.value) return;
+  const ok = await confirmDialog({
+    title: t("Удалить вывод"),
+    message: t("«{text}» будет удалён. Действие необратимо.", { text: (it.body || "").slice(0, 120) }),
+    confirmText: t("Удалить"),
+    danger: true,
+  });
+  if (!ok) return;
+  saving.value = true;
+  try {
+    const r = await esgApi.deleteSwot(it.id);
+    if ((r as { queued?: boolean }).queued) toast.info(t('Отправлено на согласование'));
+    else { toast.success(t('Вывод удалён')); emit("saved"); }
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { detail?: string } }; message?: string };
+    toast.error(t('Не удалено: {value0}', { value0: (err?.response?.data?.detail || err?.message || t("ошибка")) }));
+  } finally { saving.value = false; }
+}
+
 const KIND_AC: Record<Kind, string> = { strength: "#1D9E75", weakness: "#E24B4A" };
 const KIND_TITLE: Record<Kind, string> = { strength: i18nKey("↑ Сильные стороны"), weakness: i18nKey("↓ Проблемные зоны") };
 const KINDS: Kind[] = ["strength", "weakness"];
@@ -281,6 +303,11 @@ const kpiCompanies = computed(() =>
                     <span v-if="authorDate(it)" class="swe-author-date">{{ authorDate(it) }}</span>
                   </div>
                   </div>
+                  <button v-if="canEdit && it.id && editKey !== keyOf(it)"
+                          class="swe-del" :disabled="saving"
+                          :title="t('Удалить вывод')" @click.stop="removeItem(it)">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2m1 0-1 14H8L7 6"/></svg>
+                  </button>
                 </div>
 
                 <div v-if="editKey === newKey(row.scope!, kind, row.cid!)" class="swe-item swe-item-new" :class="kind === 'strength' ? 'good' : 'bad'">
@@ -484,4 +511,16 @@ const kpiCompanies = computed(() =>
   font-size: 9.5px; color: var(--t3, #94A3B8);
   font-variant-numeric: tabular-nums;
 }
+
+/* Удаление вывода: тихая кнопка, проявляется при наведении на карточку */
+.swe-del {
+  flex: none; width: 24px; height: 24px; margin-left: 2px;
+  border: none; border-radius: 6px; background: transparent;
+  color: var(--t3, #94A3B8); cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity .12s, background .12s, color .12s;
+}
+.swe-item:hover .swe-del { opacity: 1; }
+.swe-del:hover { background: rgba(226, 75, 74, .10); color: #E24B4A; }
+.swe-del:disabled { opacity: .4; cursor: default; }
 </style>

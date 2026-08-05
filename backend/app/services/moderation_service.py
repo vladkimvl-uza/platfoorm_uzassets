@@ -45,6 +45,10 @@ _ACTION_ALIASES: dict[str, str] = {
     "update_member": "edit",
     "upsert_data": "edit",
     "upsert_metric": "edit",
+    # ESG SWOT: без алиасов канон не совпадал с MODERATED_ACTIONS, и правки/
+    # удаления выводов у внешних авторов проходили МИМО модерации.
+    "upsert_swot": "edit",
+    "delete_swot": "delete",
     "bulk_upsert": "edit",
     "auto_aligned": "edit",
     "save_report": "edit",

@@ -438,6 +438,12 @@ export const esgApi = {
     return r.data;
   },
 
+  /** Удаление вывода — под модерацией, как и создание (202 = ушло в очередь) */
+  async deleteSwot(itemId: string): Promise<{ deleted?: boolean } | ModerationQueuedTag> {
+    const r = await api.delete<{ deleted?: boolean } | ModerationQueuedTag>(`/esg/swot/${itemId}`);
+    return r.data;
+  },
+
   async getCompanyReports(companyId: string): Promise<ESGReportListResponse> {
     const r = await api.get<ESGReportListResponse>(`/esg/companies/${companyId}/reports`);
     return r.data;

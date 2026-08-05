@@ -8,6 +8,7 @@ import { computed, ref, watch } from "vue";
 import { esgApi, type ESGSwotItemBrief } from "@/api/esg";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import { useToast } from "@/composables/useToast";
+import { useConfirm } from "@/composables/useConfirm";
 import { isModerationQueued } from "@/api/client";
 import { useI18n } from "@/composables/useI18n";
 import { getCurrentIntlLocale } from "@/locale/i18n";
@@ -75,6 +76,27 @@ function startAdd(kind: "strength" | "weakness") {
 }
 function cancel() { editing.value = null; draft.value = ""; }
 
+const { confirmDialog } = useConfirm();
+async function removeItem(it: ESGSwotItemBrief) {
+  if (!props.canEdit || !it.id || saving.value) return;
+  const ok = await confirmDialog({
+    title: t("Удалить вывод"),
+    message: t("«{text}» будет удалён. Действие необратимо.", { text: (it.body || "").slice(0, 120) }),
+    confirmText: t("Удалить"),
+    danger: true,
+  });
+  if (!ok) return;
+  saving.value = true;
+  try {
+    const r = await esgApi.deleteSwot(it.id);
+    if (isModerationQueued(r)) toast.info(t('Отправлено на согласование'));
+    else { toast.success(t('Вывод удалён')); emit("changed"); }
+    await load();
+  } catch (e: any) {
+    toast.error(t('Не удалено: {value0}', { value0: (e?.response?.data?.detail || e?.message || t("ошибка")) }));
+  } finally { saving.value = false; }
+}
+
 async function save() {
   if (!editing.value) return;
   const body = draft.value.trim();
@@ -127,6 +149,10 @@ async function save() {
                 </div>
               </template>
               <template v-else>
+                <button v-if="canEdit && it.id" class="sw-del" :disabled="saving"
+                        :title="t('Удалить вывод')" @click.stop="removeItem(it)">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2m1 0-1 14H8L7 6"/></svg>
+                </button>
                 <span class="sw-body">{{ it.body }}</span>
                 <div v-if="it.created_by_name" class="sw-author">
                   <span class="sw-author-ava">{{ authorInitials(it.created_by_name) }}</span>
@@ -166,6 +192,10 @@ async function save() {
                 </div>
               </template>
               <template v-else>
+                <button v-if="canEdit && it.id" class="sw-del" :disabled="saving"
+                        :title="t('Удалить вывод')" @click.stop="removeItem(it)">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2m1 0-1 14H8L7 6"/></svg>
+                </button>
                 <span class="sw-body">{{ it.body }}</span>
                 <div v-if="it.created_by_name" class="sw-author">
                   <span class="sw-author-ava">{{ authorInitials(it.created_by_name) }}</span>
@@ -242,4 +272,17 @@ async function save() {
   font-size: 9.5px; color: var(--t3, #94A3B8);
   font-variant-numeric: tabular-nums;
 }
+
+/* Удаление вывода: тихая кнопка в углу карточки, видна при наведении */
+.sw-item { position: relative; }
+.sw-del {
+  position: absolute; top: 6px; right: 6px;
+  width: 24px; height: 24px; border: none; border-radius: 6px;
+  background: transparent; color: var(--t3, #94A3B8); cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity .12s, background .12s, color .12s;
+}
+.sw-item:hover .sw-del { opacity: 1; }
+.sw-del:hover { background: rgba(226, 75, 74, .10); color: #E24B4A; }
+.sw-del:disabled { opacity: .4; cursor: default; }
 </style>

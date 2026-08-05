@@ -315,6 +315,38 @@ async def delete_metric(
     await service.delete_metric(metric_id, scope_company_ids=await _scope(db, user))
 
 
+@router.delete("/swot/{item_id}", status_code=http_status.HTTP_200_OK)
+async def delete_swot(
+    item_id: UUID,
+    service: ESGMaturityServiceDep,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Удаление вывода — под модерацией, как и его создание (PUT /swot):
+    внешний автор не должен уметь тихо стирать выводы напрямую."""
+    await _require(db, user, "esg.edit")
+    from app.models.esg import ESGSwotItem as _SW
+    _item = (await db.execute(select(_SW).where(_SW.id == item_id))).scalar_one_or_none()
+    if _item is None:
+        raise HTTPException(http_status.HTTP_404_NOT_FOUND, "SWOT item not found")
+    from app.services.moderation_service import gate_or_apply
+    queued, sub = await gate_or_apply(
+        db, user=user, module="esg", action="delete_swot",
+        entity_id=str(item_id),
+        entity_label=f"ESG вывод ({_item.kind}): {(_item.body or '')[:80]}",
+        company_id=_item.company_id, sector_id=None, year=None,
+        payload={"id": str(item_id)},
+        diff_summary=f"Удаление ESG SWOT · {_item.scope}/{_item.kind}",
+    )
+    if queued:
+        return JSONResponse(
+            status_code=http_status.HTTP_202_ACCEPTED,
+            content={"queued": True, "submission_id": str(sub.id), "status": sub.status},
+        )
+    await service.delete_swot(db, item_id, scope_company_ids=await _scope(db, user))
+    return {"deleted": True}
+
+
 # ─── issues CRUD ──────────────────────────────────────────────────
 
 @router.get("/issues", response_model=list[ESGIssueBrief])

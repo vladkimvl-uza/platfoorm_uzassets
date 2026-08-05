@@ -193,6 +193,24 @@ async def apply(db, *, sub: ModerationSubmission, user: User) -> dict:
         await db.commit()
         return {"action": "upsert_swot", "item_id": str(item.id)}
 
+    if action == "delete_swot":
+        if not sub.target_entity_id:
+            raise ValueError("missing target_entity_id for delete_swot")
+        try:
+            sid = UUID(sub.target_entity_id)
+        except Exception as e:
+            raise ValueError(f"invalid swot id: {sub.target_entity_id}") from e
+        item = (await db.execute(
+            select(ESGSwotItem).where(ESGSwotItem.id == sid)
+        )).scalar_one_or_none()
+        if item is None:
+            # Уже удалён — считаем применённым, а не падаем: заявка могла
+            # висеть, пока вывод убрали напрямую.
+            return {"action": "delete_swot", "item_id": str(sid), "already_gone": True}
+        await db.delete(item)
+        await db.commit()
+        return {"action": "delete_swot", "item_id": str(sid)}
+
     raise ValueError(f"unknown esg action: {action!r}")
 
 

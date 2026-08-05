@@ -469,6 +469,24 @@ class ESGMaturityService:
             created_by_org=item.created_by_org, created_at=item.created_at,
         )
 
+    async def delete_swot(
+        self, db: AsyncSession, item_id: UUID,
+        *, scope_company_ids: Optional[Sequence[UUID]],
+    ) -> None:
+        """Удалить вывод. Company-scoped пользователь может удалять только
+        выводы своих компаний; портфельные — только пользователь без
+        ограничения области (scope None)."""
+        item = (await db.execute(
+            select(ESGSwotItem).where(ESGSwotItem.id == item_id)
+        )).scalar_one_or_none()
+        if item is None:
+            raise HTTPException(404, "SWOT item not found")
+        if scope_company_ids is not None:
+            if item.scope != "company" or item.company_id not in scope_company_ids:
+                raise HTTPException(403, "No access to this item")
+        await db.delete(item)
+        await db.commit()
+
     # ─── Годовые ESG-отчёты компании (с 2021) ─────────────────────
     @staticmethod
     def _report_brief(r: ESGReport) -> ESGReportBrief:
