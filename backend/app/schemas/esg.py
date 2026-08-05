@@ -352,9 +352,11 @@ class ESGSwotItemBrief(BaseModel):
     body: str
     severity: Optional[str] = None
     order_idx: int = 0
-    # Кто добавил вывод и из какой компании (снимки на момент создания)
+    # Кто добавил вывод: имя/должность/компания — снимки на момент создания
     created_by_name: Optional[str] = None
+    created_by_title: Optional[str] = None
     created_by_org: Optional[str] = None
+    created_at: Optional[datetime] = None
 
 
 class ESGSwotResponse(BaseModel):

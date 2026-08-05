@@ -392,7 +392,8 @@ class ESGMaturityService:
                 id=it.id, kind=it.kind, scope=it.scope, company_id=it.company_id,
                 company_code=code, company_name=name,
                 title=it.title, body=it.body, severity=it.severity, order_idx=it.order_idx,
-                created_by_name=it.created_by_name, created_by_org=it.created_by_org,
+                created_by_name=it.created_by_name, created_by_title=it.created_by_title,
+                created_by_org=it.created_by_org, created_at=it.created_at,
             )
 
         ps, pw, comp = [], [], []
@@ -412,7 +413,7 @@ class ESGMaturityService:
 
     @staticmethod
     async def swot_author_snapshot(db: AsyncSession, user) -> tuple:
-        """(id, имя, организация) автора — снимок на момент создания.
+        """(id, имя, должность, организация) автора — снимок на момент создания.
 
         Организация: компания из профиля пользователя; у сотрудников самой
         платформы (organization_id пуст) — «UzAssets». Снимок, а не join по
@@ -428,7 +429,7 @@ class ESGMaturityService:
             if row:
                 org = row[0] or row[1] or org
         name = user.full_name or user.email
-        return user.id, name, org
+        return user.id, name, getattr(user, "job_title", None), org
 
     async def upsert_swot(
         self, db: AsyncSession, payload: ESGSwotUpsert,
@@ -446,9 +447,10 @@ class ESGMaturityService:
             # Автор фиксируется при создании и правками не переписывается:
             # вопрос «кто это добавил» должен иметь один ответ навсегда.
             if actor is not None:
-                _uid, _name, _org = await self.swot_author_snapshot(db, actor)
+                _uid, _name, _title, _org = await self.swot_author_snapshot(db, actor)
                 item.created_by = _uid
                 item.created_by_name = _name
+                item.created_by_title = _title
                 item.created_by_org = _org
             db.add(item)
         item.kind = payload.kind
@@ -463,7 +465,8 @@ class ESGMaturityService:
         return ESGSwotItemBrief(
             id=item.id, kind=item.kind, scope=item.scope, company_id=item.company_id,
             title=item.title, body=item.body, severity=item.severity, order_idx=item.order_idx,
-            created_by_name=item.created_by_name, created_by_org=item.created_by_org,
+            created_by_name=item.created_by_name, created_by_title=item.created_by_title,
+            created_by_org=item.created_by_org, created_at=item.created_at,
         )
 
     # ─── Годовые ESG-отчёты компании (с 2021) ─────────────────────

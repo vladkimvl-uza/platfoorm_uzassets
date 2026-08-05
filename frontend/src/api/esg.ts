@@ -308,9 +308,11 @@ export interface ESGSwotItemBrief {
   body: string;
   severity?: string | null;
   order_idx: number;
-  /** Кто добавил вывод и из какой компании (снимки на момент создания) */
+  /** Кто добавил вывод: имя/должность/компания — снимки на момент создания */
   created_by_name?: string | null;
+  created_by_title?: string | null;
   created_by_org?: string | null;
+  created_at?: string | null;
 }
 export interface ESGSwotResponse {
   portfolio_strengths: ESGSwotItemBrief[];

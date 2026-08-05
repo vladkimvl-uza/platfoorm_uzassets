@@ -175,11 +175,12 @@ async def apply(db, *, sub: ModerationSubmission, user: User) -> dict:
             )).scalar_one_or_none()
             if proposer is not None:
                 from app.services.esg.maturity_service import ESGMaturityService
-                _uid, _name, _org = await ESGMaturityService.swot_author_snapshot(
+                _uid, _name, _title, _org = await ESGMaturityService.swot_author_snapshot(
                     db, proposer,
                 )
                 item.created_by = _uid
                 item.created_by_name = _name
+                item.created_by_title = _title
                 item.created_by_org = _org
             db.add(item)
         item.kind = payload.kind

@@ -18,6 +18,25 @@ import { resolveCompanyDisplayName, resolveSectorDisplayName } from "@/utils/dis
 
 const { t } = useI18n();
 
+// ── Подпись автора: инициалы + локализованная дата ──
+function authorInitials(name: string): string {
+  const parts = name.split(" ").filter(Boolean);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return name.slice(0, 2).toUpperCase();
+}
+function authorSub(it: ESGSwotItemBrief): string {
+  return [it.created_by_title, it.created_by_org].filter(Boolean).join(" · ");
+}
+function authorDate(it: ESGSwotItemBrief): string {
+  if (!it.created_at) return "";
+  try {
+    return new Date(it.created_at).toLocaleDateString(getCurrentIntlLocale(), {
+      day: "numeric", month: "short", year: "numeric",
+    });
+  } catch { return ""; }
+}
+
+
 
 interface CoBrief {
   company_id: string; company_name: string;
@@ -251,12 +270,17 @@ const kpiCompanies = computed(() =>
                       <button class="swe-no" @click="cancelEdit">✕</button>
                     </div>
                   </template>
-                  <p v-else class="swe-item-body" :class="{ ed: canEdit }" @click="startEdit(it)">
-                    {{ it.body }}
-                    <span v-if="it.created_by_name" class="swe-item-author">
-                      {{ it.created_by_name }}<template v-if="it.created_by_org"> · {{ it.created_by_org }}</template>
+                  <div v-else class="swe-item-main" :class="{ ed: canEdit }" @click="startEdit(it)">
+                    <p class="swe-item-body">{{ it.body }}</p>
+                  <div v-if="it.created_by_name" class="swe-author">
+                    <span class="swe-author-ava">{{ authorInitials(it.created_by_name) }}</span>
+                    <span class="swe-author-col">
+                      <span class="swe-author-name">{{ it.created_by_name }}</span>
+                      <span v-if="authorSub(it)" class="swe-author-sub">{{ authorSub(it) }}</span>
                     </span>
-                  </p>
+                    <span v-if="authorDate(it)" class="swe-author-date">{{ authorDate(it) }}</span>
+                  </div>
+                  </div>
                 </div>
 
                 <div v-if="editKey === newKey(row.scope!, kind, row.cid!)" class="swe-item swe-item-new" :class="kind === 'strength' ? 'good' : 'bad'">
@@ -430,9 +454,34 @@ const kpiCompanies = computed(() =>
   .swe-w-t { font-size: 12.5px; }
 }
 
-/* Автор вывода и его компания — снимок на момент создания */
-.swe-item-author {
-  display: block; margin-top: 3px;
-  font-size: 10px; line-height: 1.3; color: var(--t3, #94A3B8);
+.swe-item-main { flex: 1; min-width: 0; }
+.swe-item-main.ed { cursor: text; }
+.swe-item-main.ed:hover .swe-item-body { color: var(--t1, #1E2A4A); }
+
+/* ── Подпись автора: премиум-футер карточки вывода ──
+   Аватар — единый пурпур-градиент платформы; имя — основной кегль,
+   должность · компания — тихие; дата — справа, табличные цифры. */
+.swe-author {
+  display: flex; align-items: center; gap: 8px;
+  margin-top: 8px; padding-top: 7px;
+  border-top: 1px solid rgba(127, 119, 221, .14);
+}
+.swe-author-ava {
+  width: 22px; height: 22px; border-radius: 50%; flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, #8B83E8 0%, #534AB7 100%);
+  color: #fff; font-size: 8.5px; font-weight: 600; letter-spacing: .03em;
+  box-shadow: 0 1px 3px rgba(83, 74, 183, .30);
+}
+.swe-author-col { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+.swe-author-name { font-size: 10.5px; font-weight: 600; color: var(--t1, #1E2A4A); }
+.swe-author-sub {
+  font-size: 9.5px; color: var(--t3, #94A3B8);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.swe-author-date {
+  margin-left: auto; flex: none;
+  font-size: 9.5px; color: var(--t3, #94A3B8);
+  font-variant-numeric: tabular-nums;
 }
 </style>

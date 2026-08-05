@@ -161,6 +161,7 @@ class ESGSwotItem(Base, UUIDMixin, TimestampMixin):
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
     created_by_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    created_by_title: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     created_by_org: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     extra: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
 

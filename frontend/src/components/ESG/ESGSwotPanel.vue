@@ -10,7 +10,27 @@ import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import { useToast } from "@/composables/useToast";
 import { isModerationQueued } from "@/api/client";
 import { useI18n } from "@/composables/useI18n";
+import { getCurrentIntlLocale } from "@/locale/i18n";
 const { t } = useI18n();
+
+// ── Подпись автора: инициалы + локализованная дата ──
+function authorInitials(name: string): string {
+  const parts = name.split(" ").filter(Boolean);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return name.slice(0, 2).toUpperCase();
+}
+function authorSub(it: ESGSwotItemBrief): string {
+  return [it.created_by_title, it.created_by_org].filter(Boolean).join(" · ");
+}
+function authorDate(it: ESGSwotItemBrief): string {
+  if (!it.created_at) return "";
+  try {
+    return new Date(it.created_at).toLocaleDateString(getCurrentIntlLocale(), {
+      day: "numeric", month: "short", year: "numeric",
+    });
+  } catch { return ""; }
+}
+
 
 
 const props = defineProps<{ companyId: string; canEdit?: boolean }>();
@@ -108,9 +128,14 @@ async function save() {
               </template>
               <template v-else>
                 <span class="sw-body">{{ it.body }}</span>
-                <span v-if="it.created_by_name" class="sw-author">
-                  {{ it.created_by_name }}<template v-if="it.created_by_org"> · {{ it.created_by_org }}</template>
-                </span>
+                <div v-if="it.created_by_name" class="sw-author">
+                  <span class="sw-author-ava">{{ authorInitials(it.created_by_name) }}</span>
+                  <span class="sw-author-col">
+                    <span class="sw-author-name">{{ it.created_by_name }}</span>
+                    <span v-if="authorSub(it)" class="sw-author-sub">{{ authorSub(it) }}</span>
+                  </span>
+                  <span v-if="authorDate(it)" class="sw-author-date">{{ authorDate(it) }}</span>
+                </div>
               </template>
             </div>
             <div v-if="editing && editing.id === null && editing.kind === 'strength'" class="sw-item sw-item-new">
@@ -142,9 +167,14 @@ async function save() {
               </template>
               <template v-else>
                 <span class="sw-body">{{ it.body }}</span>
-                <span v-if="it.created_by_name" class="sw-author">
-                  {{ it.created_by_name }}<template v-if="it.created_by_org"> · {{ it.created_by_org }}</template>
-                </span>
+                <div v-if="it.created_by_name" class="sw-author">
+                  <span class="sw-author-ava">{{ authorInitials(it.created_by_name) }}</span>
+                  <span class="sw-author-col">
+                    <span class="sw-author-name">{{ it.created_by_name }}</span>
+                    <span v-if="authorSub(it)" class="sw-author-sub">{{ authorSub(it) }}</span>
+                  </span>
+                  <span v-if="authorDate(it)" class="sw-author-date">{{ authorDate(it) }}</span>
+                </div>
               </template>
             </div>
             <div v-if="editing && editing.id === null && editing.kind === 'weakness'" class="sw-item sw-item-new">
@@ -188,11 +218,28 @@ async function save() {
 .sw-x { font-size: 11.5px; color: var(--t2, #6B6880); background: var(--bg3, #F1F0F7); border: none; border-radius: 7px; padding: 4px 12px; cursor: pointer; font-family: inherit; }
 .sw-empty { font-size: 11.5px; color: var(--t3, #A6A3B8); font-style: italic; padding: 4px 2px; }
 
-/* Кто добавил вывод и из какой компании — снимок на момент создания.
-   Тихим кеглем: подпись — метаданные, не часть вывода. */
+/* ── Подпись автора: премиум-футер карточки вывода ── */
 .sw-author {
-  display: block; margin-top: 4px;
-  font-size: 10px; line-height: 1.3;
-  color: var(--t3, #94A3B8);
+  display: flex; align-items: center; gap: 8px;
+  margin-top: 7px; padding-top: 7px;
+  border-top: 1px solid rgba(127, 119, 221, .14);
+}
+.sw-author-ava {
+  width: 22px; height: 22px; border-radius: 50%; flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, #8B83E8 0%, #534AB7 100%);
+  color: #fff; font-size: 8.5px; font-weight: 600; letter-spacing: .03em;
+  box-shadow: 0 1px 3px rgba(83, 74, 183, .30);
+}
+.sw-author-col { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+.sw-author-name { font-size: 10.5px; font-weight: 600; color: var(--t1, #1E2A4A); }
+.sw-author-sub {
+  font-size: 9.5px; color: var(--t3, #94A3B8);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sw-author-date {
+  margin-left: auto; flex: none;
+  font-size: 9.5px; color: var(--t3, #94A3B8);
+  font-variant-numeric: tabular-nums;
 }
 </style>

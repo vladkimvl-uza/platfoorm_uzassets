@@ -2852,6 +2852,16 @@ async def _patch_esg_swot_author(conn) -> None:
     await conn.execute(text(
         "ALTER TABLE esg_swot_items ADD COLUMN IF NOT EXISTS created_by_org varchar(255)"
     ))
+    await conn.execute(text(
+        "ALTER TABLE esg_swot_items ADD COLUMN IF NOT EXISTS created_by_title varchar(255)"
+    ))
+    # Должность автора — дозаполняем из профиля только там, где пусто:
+    # идемпотентно, маркера не требует (снимок делается один раз).
+    await conn.execute(text(
+        "UPDATE esg_swot_items i SET created_by_title = u.job_title "
+        "FROM users u WHERE i.created_by = u.id "
+        "AND i.created_by_title IS NULL AND u.job_title IS NOT NULL"
+    ))
 
     already = (await conn.execute(text(
         "SELECT 1 FROM system_config WHERE key = 'esg_swot_author_backfilled' LIMIT 1"
