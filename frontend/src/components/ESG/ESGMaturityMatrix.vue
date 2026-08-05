@@ -402,9 +402,9 @@ async function commitLink(c: ESGMaturityCompany) {
                 <button type="button" class="mm-pill" :class="{ ed: canEdit, pend: isPending(c,'D2','') || isPending(c,'nr','D2'), nr: isDimNr(c,'D2') }"
                         :style="isDimNr(c,'D2') ? {} : { color: REP_COLORS[repStage(c)], background: REP_COLORS[repStage(c)] + '1E' }"
                         :disabled="!canEdit"
-                        :title="isDimNr(c,'D2') ? t('Подготовка отчётности: не требуется · клик → вернуть статус') : t('Подготовка ESG-отчётности: {value0} · клик циклит, после «IFRS SDS» → не требуется', { value0: REP_LABELS[repStage(c)] })"
+                        :title="isDimNr(c,'D2') ? t('Подготовка отчётности: не требуется · клик → вернуть статус') : t('Подготовка ESG-отчётности: {value0} · клик циклит, после «IFRS SDS» → не требуется', { value0: t(REP_LABELS[repStage(c)]) })"
                         @click="cycleRep(c)">
-                  {{ isDimNr(c,'D2') ? t('не требуется') : REP_LABELS[repStage(c)] }}
+                  {{ isDimNr(c,'D2') ? t('не требуется') : t(REP_LABELS[repStage(c)]) }}
                 </button>
                 <template v-if="!isDimNr(c,'D2')">
                   <a v-if="cellEvidence(c,'D2') && !isLinkEdit(c)" class="mm-rchip-lnk" :href="cellEvidence(c,'D2') || undefined"
@@ -430,9 +430,9 @@ async function commitLink(c: ESGMaturityCompany) {
                       :class="{ ed: canEdit, pend: isPending(c,'D2A','') || isPending(c,'nr','D2A'), nr: isDimNr(c,'D2A') }"
                       :style="isDimNr(c,'D2A') ? {} : { color: ASSUR_COLORS[dStage(c,'D2A','')], background: ASSUR_COLORS[dStage(c,'D2A','')] + '1E' }"
                       :disabled="!canEdit"
-                      :title="isDimNr(c,'D2A') ? t('Независимое заверение: не требуется · клик → вернуть статус') : t('Прохождение независимого заверения: {value0} · клик циклит нет → запланировано → пройдено', { value0: ASSUR_LABELS[dStage(c,'D2A','')] })"
+                      :title="isDimNr(c,'D2A') ? t('Независимое заверение: не требуется · клик → вернуть статус') : t('Прохождение независимого заверения: {value0} · клик циклит нет → запланировано → пройдено', { value0: t(ASSUR_LABELS[dStage(c,'D2A','')]) })"
                       @click="cycleAssur(c)">
-                {{ isDimNr(c,'D2A') ? t('не требуется') : ASSUR_LABELS[dStage(c,'D2A','')] }}
+                {{ isDimNr(c,'D2A') ? t('не требуется') : t(ASSUR_LABELS[dStage(c,'D2A','')]) }}
               </button>
               <button v-if="canEdit" type="button" class="mm-nr-tg" :class="{ on: isDimNr(c,'D2A') }"
                       @click.stop="toggleDimNr(c,'D2A')" :title="isDimNr(c,'D2A') ? t('Вернуть заверение в статистику') : t('Не требуется — исключить заверение из статистики')">{{ t('н/т') }}</button>
