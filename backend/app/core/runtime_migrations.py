@@ -259,6 +259,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_user_ui_locale(conn)
             await _patch_company_sector_uz_cyr_names(conn)
             await _patch_project_status_backfill(conn)
+            await _patch_direction_values_normalize(conn)
             await _bump_alembic(conn)
     except Exception as e:
         # Never crash the app on a self-heal failure - just log and continue.
@@ -2830,6 +2831,61 @@ async def _patch_scenarios_tables(conn) -> None:
 # ─────────────────────────────────────────────────────────────────────
 # Company and sector names in both Uzbek scripts
 # ─────────────────────────────────────────────────────────────────────
+
+async def _patch_direction_values_normalize(conn) -> None:
+    """Разовая нормализация направлений в tasks/projects.extra->direction.
+
+    Свободный текст писали три пути; нормализатор часть из них не знал
+    (каталожное имя «Корпоративное управление и инвестиции» после
+    переименования) и опускал регистр незнакомых строк — списки пестрели
+    дублями «Корпоративное управлени…»/«корпоративное управлени…» с разными
+    цветами. Сводим всё к канону: метка каталога (любым регистром, по всем
+    языкам) или алиас → код направления; прочее — регистр с заглавной.
+    Дальше чистоту держат normalize_direction на всех путях записи.
+    """
+    already = (await conn.execute(text(
+        "SELECT 1 FROM system_config WHERE key = 'direction_values_normalized' LIMIT 1"
+    ))).first()
+    if already:
+        return
+    from app.core.direction_normalize import normalize_direction
+
+    # Живой каталог — на случай переименований, о которых статичный канон
+    # ещё не знает: name_ru/uz/en → code.
+    catalog = {}
+    for code, *names in (await conn.execute(text(
+        "SELECT code, name_ru, name_uz, name_en FROM directions"
+    ))).all():
+        for nm in names:
+            if nm and str(nm).strip():
+                catalog[str(nm).strip().lower()] = code
+
+    changed = 0
+    for table in ("tasks", "projects"):
+        rows = (await conn.execute(text(
+            f"SELECT DISTINCT extra->>'direction' AS d FROM {table} "
+            "WHERE extra ? 'direction' AND extra->>'direction' IS NOT NULL"
+        ))).scalars().all()
+        for raw in rows:
+            canon = catalog.get(str(raw).strip().lower()) or normalize_direction(raw)
+            if canon is None or canon == raw:
+                continue
+            res = await conn.execute(text(
+                f"UPDATE {table} SET extra = jsonb_set(extra, '{{direction}}', "
+                "to_jsonb(CAST(:canon AS text))) "
+                "WHERE extra->>'direction' = :raw"
+            ), {"canon": canon, "raw": raw})
+            changed += res.rowcount or 0
+    logger.info("direction normalize backfill: обновлено %s строк", changed)
+    await conn.execute(text(
+        "INSERT INTO system_config (id, key, value, description, is_secret) "
+        "VALUES (gen_random_uuid(), 'direction_values_normalized', "
+        "'{\"done\": true}'::jsonb, "
+        "'Разовая нормализация extra.direction в tasks/projects к кодам каталога', false) "
+        "ON CONFLICT (key) DO NOTHING"
+    ))
+
+
 
 async def _patch_project_status_backfill(conn) -> None:
     """Разовый пересчёт статусов проектов из статусов их задач.

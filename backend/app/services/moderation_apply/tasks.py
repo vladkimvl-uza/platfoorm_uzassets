@@ -36,6 +36,9 @@ async def apply(db, *, sub: ModerationSubmission, user: User) -> dict:
         for f in _EXTRA_FIELDS:
             v = getattr(payload, f, None)
             if v is not None:
+                if f == "direction":
+                    from app.core.direction_normalize import normalize_direction
+                    v = normalize_direction(v)
                 extra[f] = v
         task = Task(
             title=payload.title, description=payload.description, num=payload.num,
@@ -82,7 +85,14 @@ async def apply(db, *, sub: ModerationSubmission, user: User) -> dict:
         extra_dirty = False
         for f in _EXTRA_FIELDS:
             if f in changes:
-                extra[f] = changes.pop(f)
+                v = changes.pop(f)
+                if f == "direction":
+                    # Тот же нормализатор, что в прямом редакторе, — иначе
+                    # одобренная заявка внешнего автора писала сырую метку и
+                    # плодила регистровые дубли направлений.
+                    from app.core.direction_normalize import normalize_direction
+                    v = normalize_direction(v)
+                extra[f] = v
                 extra_dirty = True
         if extra_dirty:
             task.extra = extra or None

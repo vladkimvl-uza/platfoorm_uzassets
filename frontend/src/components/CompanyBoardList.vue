@@ -529,10 +529,13 @@ async function onToggleResult(kind: "task" | "project", id: string) {
 function directionInfo(t: ProjectItem | TaskItem): { label: string; color: string } | null {
   const code = (t as any).direction || ((t as any).direction_meta && (t as any).direction_meta.code) || null;
   if (code) {
-    const codeStr = String(code).toLowerCase();
-    // Prefer legacy DIRS_META label, fallback to backend name_ru, then raw code
+    // Через нормализатор, а не голый lowercase: легаси-строка «Корпоративное
+    // управление и инвестиции» (любым регистром) должна резолвиться в код
+    // governance с каталожным ярлыком и цветом, а не висеть серой строкой
+    // «как записано» рядом с розовым дублем. Чипы-фильтры уже так делают.
+    const codeStr = _normalizeDirection(String(code)) || String(code).toLowerCase();
     const d = directions.value.find((x) => x.code === codeStr);
-    const label = DIRS_META.value[codeStr]?.label || d?.name_ru || codeStr;
+    const label = DIRS_META.value[codeStr]?.label || d?.name_ru || String(code);
     return { label, color: colorForDirCode(codeStr) };
   }
   if ((t as any).direction_id) {
