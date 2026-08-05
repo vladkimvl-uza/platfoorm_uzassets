@@ -1068,7 +1068,9 @@ onMounted(() => { void companiesStore.ensureLoaded(); load(); loadMaturity(); lo
 .ev-tabs { align-self: center; }
 .ev-mat-kpis { margin-bottom: 16px; }
 /* 6 KPI-блоков «база → результат» в ОДИН ряд (специфичность выше базы) */
-.ev-kpi-strip.ev-mat-kpis { grid-template-columns: repeat(6, 1fr); }
+/* 5 карточек после удаления плейсхолдера «Отчётность 2024» — сетка 6 колонок
+   оставляла пустой хвост справа; лента растянута на всю ширину. */
+.ev-kpi-strip.ev-mat-kpis { grid-template-columns: repeat(5, 1fr); }
 @media (max-width: 1280px) { .ev-kpi-strip.ev-mat-kpis { grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 760px)  { .ev-kpi-strip.ev-mat-kpis { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 480px)  { .ev-kpi-strip.ev-mat-kpis { grid-template-columns: 1fr; } }
