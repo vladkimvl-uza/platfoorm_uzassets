@@ -508,7 +508,7 @@ async function forceDisableMfa() {
     return;
   }
   if (!(await confirmDialog({
-    message: t('Принудительно отключить 2FA у {email}?\n\nБудет очищено: TOTP-секрет, привязка Telegram, recovery-коды.\nПользователь сможет войти только по паролю. Действие записывается в аудит.', {
+    message: t('Принудительно отключить 2FA у {email}?\n\nБудет очищено: TOTP-секрет и recovery-коды.\nПользователь сможет войти только по паролю. Действие записывается в аудит.', {
       email: detail.value.email,
     }),
     danger: true,

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * ForgotPasswordPage — восстановление пароля через Telegram-код (Pack 152).
+ * ForgotPasswordPage — восстановление пароля кодом на e-mail.
  *
  * Шаги (single view, state machine):
  *   1) email/username → POST /auth/forgot-password → reset_id + ttl + masked_tg
@@ -29,39 +29,33 @@ const busy = ref(false);
 const login = ref("");
 const resetId = ref("");
 const ttlMin = ref(5);
-const maskedTg = ref<string | null>(null);
 const maskedEmail = ref<string | null>(null);
 const initMessage = ref("");
-const sentVia = ref<"telegram" | "email">("telegram");
+const sentVia = ref<"email">("email");
 
 // Доступные каналы для введённого login (телеграм-опция скрывается, если бот
 // не привязан). Загружается с debounce при вводе.
-const chTelegram = ref(false);
 const chEmail = ref(false);
-const chMaskedTg = ref<string | null>(null);
 const chMaskedEmail = ref<string | null>(null);
-const channel = ref<"telegram" | "email" | null>(null);
+const channel = ref<"email" | null>(null);
 const checkingCh = ref(false);
 let chTimer: ReturnType<typeof setTimeout> | null = null;
 
 async function loadChannels() {
   const l = login.value.trim();
-  if (l.length < 3) { chTelegram.value = false; chEmail.value = false; channel.value = null; return; }
+  if (l.length < 3) { chEmail.value = false; channel.value = null; return; }
   checkingCh.value = true;
   try {
     const { data } = await api.get<{ telegram: boolean; email: boolean; masked_telegram: string | null; masked_email: string | null }>(
       "/auth/forgot-password/channels", { params: { login: l } },
     );
-    chTelegram.value = data.telegram;
     chEmail.value = data.email;
-    chMaskedTg.value = data.masked_telegram;
     chMaskedEmail.value = data.masked_email;
     // авто-выбор: телеграм приоритетнее; если выбранного больше нет — сбросить
-    if (channel.value === "telegram" && !data.telegram) channel.value = null;
     if (channel.value === "email" && !data.email) channel.value = null;
-    if (!channel.value) channel.value = data.telegram ? "telegram" : data.email ? "email" : null;
+    if (!channel.value) channel.value = data.email ? "email" : null;
   } catch {
-    chTelegram.value = false; chEmail.value = false; channel.value = null;
+    chEmail.value = false; channel.value = null;
   } finally {
     checkingCh.value = false;
   }
@@ -70,7 +64,7 @@ function onLoginInput() {
   if (chTimer) clearTimeout(chTimer);
   chTimer = setTimeout(loadChannels, 350);
 }
-const noChannels = computed(() => login.value.trim().length >= 3 && !checkingCh.value && !chTelegram.value && !chEmail.value);
+const noChannels = computed(() => login.value.trim().length >= 3 && !checkingCh.value && !chEmail.value);
 
 const code = ref("");
 const newPwd = ref("");
@@ -101,8 +95,7 @@ async function submitInit() {
 
     resetId.value = data.reset_id;
     ttlMin.value = data.ttl_minutes ?? 5;
-    sentVia.value = data.channel;
-    maskedTg.value = data.masked_telegram;
+    sentVia.value = "email";
     maskedEmail.value = data.masked_email;
     initMessage.value = data.message;
     step.value = 2;
@@ -220,28 +213,12 @@ function parseErr(e: unknown, fallback: string): string {
             <input v-model="login" type="text" autocomplete="username" :disabled="busy" class="fp-input" @input="onLoginInput"/>
           </div>
 
-          <!-- Выбор канала: показываем только доступные -->
-          <div v-if="chTelegram || chEmail" class="fp-field">
-            <label class="fp-label">{{ t("Куда отправить код") }}</label>
-            <div class="fp-channels">
-              <button
-                v-if="chTelegram" type="button" class="fp-ch" :class="{ on: channel === 'telegram' }"
-                @click="channel = 'telegram'"
-              >
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M21.94 4.5L18.7 19.78c-.24 1.08-.88 1.35-1.78.84l-4.92-3.63-2.37 2.28c-.26.26-.48.48-.99.48l.35-5.02 9.13-8.25c.4-.35-.09-.55-.62-.2L4.93 13.14l-4.86-1.52c-1.06-.33-1.08-1.06.22-1.57L20.58 2.9c.88-.33 1.65.2 1.36 1.6z"/></svg>
-                <span><b>{{ t("Telegram-бот") }}</b><i>{{ chMaskedTg || t("привязанный бот") }}</i></span>
-              </button>
-              <button
-                v-if="chEmail" type="button" class="fp-ch" :class="{ on: channel === 'email' }"
-                @click="channel = 'email'"
-              >
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 6 10-6"/></svg>
-                <span><b>{{ t("Электронная почта") }}</b><i>{{ chMaskedEmail || t("ваш email") }}</i></span>
-              </button>
-            </div>
+          <!-- Канал один — почта (Telegram удалён 05.08.2026) -->
+          <div v-if="chEmail" class="fp-hint">
+            {{ t("Код придёт на почту {mail}", { mail: chMaskedEmail || t("вашего аккаунта") }) }}
           </div>
           <div v-else-if="noChannels" class="fp-warn">
-            {{ t("К аккаунту не привязан Telegram-бот и недоступна почта. Обратитесь к администратору для сброса пароля.") }}
+            {{ t("К аккаунту не привязана почта. Обратитесь к администратору для сброса пароля.") }}
           </div>
 
           <button type="submit" :disabled="!canInit" class="fp-btn">
@@ -254,9 +231,7 @@ function parseErr(e: unknown, fallback: string): string {
         <!-- ─── Step 2: code + new password ─── -->
         <form v-else-if="step === 2" @submit.prevent="submitVerify" class="fp-form">
           <p class="fp-sub">
-            {{ sentVia === 'email'
-              ? t("Код отправлен на {dest}.", { dest: maskedEmail ?? t("вашу почту") })
-              : t("Код отправлен в {dest}.", { dest: maskedTg ?? t("Telegram-бот") }) }}
+            {{ t("Код отправлен на {dest}.", { dest: maskedEmail ?? t("вашу почту") }) }}
             <strong>{{ t("Действителен {n} мин", { n: ttlMin }) }}</strong>.
           </p>
           <div class="fp-field">

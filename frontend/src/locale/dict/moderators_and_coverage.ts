@@ -19,7 +19,7 @@ export const uz: Record<string, string> = {
   "только владелец": "faqat egasi",
   "Снять согласование с владельца платформы может только владелец":
     "Platforma egasidan kelishuv huquqini faqat egasi olib tashlay oladi",
-  "«{name}» перестанет получать заявки и не сможет их согласовывать — ни в платформе, ни из Telegram. Роли и остальные права не меняются, вернуть в модераторы можно в любой момент.":
+  "«{name}» перестанет получать заявки и не сможет их согласовывать. Роли и остальные права не меняются, вернуть в модераторы можно в любой момент.":
     "«{name}» endi arizalarni olmaydi va ularni kelisha olmaydi — na platformada, na Telegramda. Rollar va boshqa huquqlar oʻzgarmaydi, istalgan vaqtda moderatorlarga qaytarish mumkin.",
   "Вы снимаете право согласования С СЕБЯ: заявки перестанут открываться. Вернуть себя сможете здесь же, в блоке «Сняты с модерации». Продолжить?":
     "Siz kelishuv huquqini OʻZINGIZDAN olib tashlayapsiz: arizalar ochilmay qoladi. Oʻzingizni shu yerda, «Moderatsiyadan olib tashlanganlar» blokida qaytara olasiz. Davom etilsinmi?",
@@ -79,7 +79,7 @@ export const en: Record<string, string> = {
   "только владелец": "owner only",
   "Снять согласование с владельца платформы может только владелец":
     "Only the platform owner can revoke review rights from an owner",
-  "«{name}» перестанет получать заявки и не сможет их согласовывать — ни в платформе, ни из Telegram. Роли и остальные права не меняются, вернуть в модераторы можно в любой момент.":
+  "«{name}» перестанет получать заявки и не сможет их согласовывать. Роли и остальные права не меняются, вернуть в модераторы можно в любой момент.":
     "“{name}” will stop receiving submissions and will not be able to approve them — neither in the platform nor from Telegram. Roles and other permissions stay as they are, and you can restore them at any time.",
   "Вы снимаете право согласования С СЕБЯ: заявки перестанут открываться. Вернуть себя сможете здесь же, в блоке «Сняты с модерации». Продолжить?":
     "You are revoking review rights FROM YOURSELF: submissions will stop opening. You can restore yourself right here, under “Removed from moderation”. Continue?",

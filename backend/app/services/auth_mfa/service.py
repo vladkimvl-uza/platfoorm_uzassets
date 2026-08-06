@@ -152,25 +152,8 @@ class AuthMfaService:
                 expires_in=settings.JWT_EXPIRE_MINUTES * 60,
             )
 
-        await self._revoke_session_by_refresh(db, refresh)
-
-        try:
-            challenge, _plain_code = await mfa_service.emit_login_challenge(
-                db, user, ip=ip, ua=ua,
-            )
-        except ValueError as e:
-            await db.rollback()
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
-
-        await db.commit()
-
-        return LoginMfaResponse(
-            mfa_required=True,
-            challenge_id=str(challenge.id),
-            method=mfa_method if mfa_method in ("telegram", "totp", "both") else "telegram",
-            masked_destination=_mask_destination(user),
-            ttl_minutes=mfa_service.LOGIN_CODE_TTL_MINUTES,
-        )
+        # Ветка выдачи кода удалена вместе с Telegram: канала доставки нет,
+        # ветка выше всегда возвращает вход без второго фактора.
 
     async def verify_mfa(
         self,

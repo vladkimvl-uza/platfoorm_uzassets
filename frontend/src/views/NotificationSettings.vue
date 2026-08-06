@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * Per-type notification preferences at /notifications/settings.
- * For Pack 11.0 only in_app channel is wired; email/telegram are visible but disabled
+ * Каналы: in-app и e-mail (Telegram удалён 05.08.2026)
  * with hint "будет в Pack 11.2".
  */
 import { onMounted, ref } from "vue";
@@ -65,16 +65,7 @@ function toggleEmail(code: string) {
   const p = getPref(code);
   p.channels = { ...p.channels, email: !emailEnabled(code) };
 }
-// Telegram-канал (per-type opt-out поверх категорий UserTelegramPref).
 // Дефолт зеркалит backend: статусные смены выкл, остальные вкл.
-function telegramEnabled(code: string): boolean {
-  const ch = getPref(code).channels as Record<string, boolean>;
-  return ch.telegram === undefined ? emailDefault(code) : ch.telegram !== false;
-}
-function toggleTelegram(code: string) {
-  const p = getPref(code);
-  p.channels = { ...p.channels, telegram: !telegramEnabled(code) };
-}
 
 function toggleChannel(code: string, channel: string) {
   const p = getPref(code);
@@ -149,7 +140,6 @@ function typesIn(category: string): NotificationType[] {
           <div class="np-row-prio">{{ t('Приоритет') }}</div>
           <div class="np-row-ch">In-app</div>
           <div class="np-row-ch">Email</div>
-          <div class="np-row-ch">Telegram</div>
           <div class="np-row-mute">Mute</div>
         </div>
 
@@ -176,15 +166,6 @@ function typesIn(category: string): NotificationType[] {
                      :checked="emailEnabled(nt.code)"
                      :disabled="getPref(nt.code).is_muted"
                      @change="toggleEmail(nt.code)"/>
-              <span class="np-switch-tr"></span>
-            </label>
-          </div>
-          <div class="np-row-ch">
-            <label class="np-switch">
-              <input type="checkbox"
-                     :checked="telegramEnabled(nt.code)"
-                     :disabled="getPref(nt.code).is_muted"
-                     @change="toggleTelegram(nt.code)"/>
               <span class="np-switch-tr"></span>
             </label>
           </div>
@@ -245,7 +226,8 @@ function typesIn(category: string): NotificationType[] {
 
 .np-row {
   display: grid;
-  grid-template-columns: 1fr 90px 70px 90px 100px 60px;
+  /* Колонка Telegram удалена 05.08.2026 — было 6 колонок */
+  grid-template-columns: 1fr 90px 70px 90px 60px;
   align-items: center;
   padding: 9px 16px;
   border-bottom: 0.5px solid rgba(0,0,0,.04);

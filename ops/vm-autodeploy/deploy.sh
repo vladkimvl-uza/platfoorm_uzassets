@@ -48,13 +48,13 @@ dc() { docker compose --project-directory . -f "$COMPOSE_FILE" --profile "$PROFI
 
 log "rebuilding nginx (frontend) ..."
 dc build nginx
-log "rebuilding Telegram bot ..."
-dc build bot
 log "recreating nginx ..."
 dc up -d --force-recreate nginx
 log "restarting backend (runtime migrations + seeds) ..."
 dc restart backend
-log "recreating Telegram bot ..."
-dc up -d --force-recreate bot
+# Telegram-бот удалён 05.08.2026 — сервиса больше нет в compose.
+# --remove-orphans убирает оставшийся от прежних выкатов контейнер uza-tg-bot.
+log "removing orphan containers ..."
+dc up -d --remove-orphans
 
 log "deployed ${REMOTE:0:9} OK"

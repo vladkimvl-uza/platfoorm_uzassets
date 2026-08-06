@@ -175,7 +175,7 @@ function dismissRecoveryCodes() {
     <div class="ss-topbar">
       <div class="ss-eyebrow">{{ t('UzAssets · настройки') }}</div>
       <div class="ss-title">{{ t('Безопасность') }}</div>
-      <div class="ss-sub">{{ t('Двухфакторная аутентификация и уведомления через Telegram') }}</div>
+      <div class="ss-sub">{{ t('Активные сессии и доступ к аккаунту') }}</div>
     </div>
 
     <div v-if="loading" class="ss-loading">{{ t('Загрузка…') }}</div>
@@ -239,7 +239,7 @@ function dismissRecoveryCodes() {
         </div>
         <div class="ss-modal-body">
           <p class="ss-warn-strong">
-            {{ t('Сохраните эти коды в надёжном месте. Это единственный раз, когда они отображаются. Каждый код можно использовать один раз для входа при потере доступа к Telegram.') }}
+            {{ t('Сохраните эти коды в надёжном месте. Это единственный раз, когда они отображаются. Каждый код можно использовать один раз для входа.') }}
           </p>
           <div class="ss-codes-grid">
             <div v-for="code in recoveryCodes" :key="code" class="ss-code">{{ code }}</div>

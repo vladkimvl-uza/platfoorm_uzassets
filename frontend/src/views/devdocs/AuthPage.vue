@@ -36,7 +36,7 @@ Content-Type: application/json
 
     <section class="dp-section">
       <h2 class="dp-h2">4. MFA (2FA)</h2>
-      <p>{{ t('Если у пользователя включена 2FA,') }} <code>/auth/login</code> {{ t('вернёт 200 с') }} <code>{"need_mfa": true, "mfa_token": "..."}</code>{{ t('. Вторым шагом —') }} <code>POST /auth/login-mfa</code> {{ t('с кодом из Telegram или TOTP.') }}</p>
+      <p>{{ t('Если у пользователя включена 2FA,') }} <code>/auth/login</code> {{ t('вернёт 200 с') }} <code>{"need_mfa": true, "mfa_token": "..."}</code>{{ t('. Вторым шагом —') }} <code>POST /auth/login-mfa</code> {{ t('с кодом подтверждения.') }}</p>
     </section>
 
     <section class="dp-section">

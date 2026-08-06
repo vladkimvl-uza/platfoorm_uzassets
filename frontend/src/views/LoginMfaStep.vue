@@ -260,7 +260,7 @@ function backToLogin() {
 
       <div class="mfa-links">
         <button type="button" class="mfa-link" @click="toggleMode">
-          {{ mode === "code" ? t("Использовать recovery-код") : t("Ввести код из Telegram") }}
+          {{ mode === "code" ? t("Использовать recovery-код") : t("Ввести код подтверждения") }}
         </button>
         <span class="mfa-sep">·</span>
         <button type="button" class="mfa-link" @click="backToLogin">

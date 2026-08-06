@@ -65,19 +65,8 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
     detail = tr(detail, locale_from_request(request))
     body = _payload("HTTPError", detail, request)
 
-    # Alert on server-side HTTPException (rare but legitimate — e.g. 503 from /health/ready).
-    if exc.status_code >= 500:
-        try:
-            from app.services.error_alerter import send_5xx_alert
-            asyncio.create_task(send_5xx_alert(
-                exc=exc,
-                method=request.method,
-                path=request.url.path,
-                request_id=_request_id(request),
-                user_id=_user_id(request),
-            ))
-        except Exception:
-            logger.exception("Failed to dispatch 5xx alert for HTTPException")
+    # 5xx-алерты уходили в Telegram; канал удалён 05.08.2026 — остаётся
+    # локальный лог (пишется выше) и запись в аудит.
 
     return JSONResponse(status_code=exc.status_code, content=body)
 
@@ -90,18 +79,6 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
         exc_info=True,
     )
 
-    try:
-        from app.services.error_alerter import send_5xx_alert
-        # Fire-and-forget — do not await; user gets 500 response immediately.
-        asyncio.create_task(send_5xx_alert(
-            exc=exc,
-            method=request.method,
-            path=request.url.path,
-            request_id=_request_id(request),
-            user_id=_user_id(request),
-        ))
-    except Exception:
-        logger.exception("Failed to dispatch 5xx alert")
 
     return JSONResponse(
         status_code=500,
