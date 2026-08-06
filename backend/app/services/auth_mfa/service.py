@@ -18,6 +18,7 @@ from typing import Optional
 
 from fastapi import HTTPException, status
 from sqlalchemy import or_, select, text
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -125,14 +126,30 @@ class AuthMfaService:
                 expires_in=settings.JWT_EXPIRE_MINUTES * 60,
             )
 
-        if mfa_method in ("telegram", "both") and not tg_linked:
+        # Telegram-канал удалён (05.08.2026), а другого способа доставки кода
+        # не было — TOTP в enum есть, но не реализован. Поэтому включённый
+        # где-то ещё 2FA НЕ должен запирать вход: пропускаем и гасим флаг,
+        # чтобы человек не остался без доступа (раньше здесь был 500).
+        if mfa_method in ("telegram", "both") or not tg_linked:
             log.warning(
-                "User %s has mfa_enabled but no telegram link", user.email
+                "MFA у %s включён, но канал доставки удалён — вход без второго "
+                "фактора, флаг снят", user.email,
             )
-            raise HTTPException(
-                status.HTTP_500_INTERNAL_SERVER_ERROR,
-                "Включён 2FA, но способ доставки не настроен. "
-                "Обратитесь с администратором.",
+            try:
+                await db.execute(
+                    text("UPDATE users SET mfa_enabled = false, "
+                         "mfa_method = 'none' WHERE id = :uid"),
+                    {"uid": str(user.id)},
+                )
+                await db.commit()
+            except Exception:
+                await db.rollback()
+            return LoginMfaResponse(
+                mfa_required=False,
+                access_token=access,
+                refresh_token=refresh,
+                token_type="Bearer",
+                expires_in=settings.JWT_EXPIRE_MINUTES * 60,
             )
 
         await self._revoke_session_by_refresh(db, refresh)

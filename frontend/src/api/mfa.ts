@@ -84,15 +84,8 @@ export const mfaApi = {
   },
 
   /** Start Telegram link flow → returns deep_link to bot. */
-  async linkTelegram(): Promise<MfaLinkOut> {
-    const { data } = await api.post<MfaLinkOut>("/mfa/link-telegram");
-    return data;
-  },
 
   /** Wipe Telegram link. May disable MFA if mode was telegram-only. */
-  async unlinkTelegram(): Promise<void> {
-    await api.delete("/mfa/unlink-telegram", { data: { confirm: true } });
-  },
 
   /** Turn on 2FA — returns 10 recovery codes (shown ONCE). */
   async enable(method: "telegram" | "totp" | "both" = "telegram"): Promise<MfaEnableOut> {
@@ -112,10 +105,6 @@ export const mfaApi = {
   },
 
   /** Get notification routing preferences. */
-  async getPrefs(): Promise<TelegramPref> {
-    const { data } = await api.get<TelegramPref>("/mfa/notification-prefs");
-    return data;
-  },
 
   /** Update notification routing preferences (partial). */
   async updatePrefs(patch: Partial<TelegramPref>): Promise<TelegramPref> {
@@ -124,29 +113,14 @@ export const mfaApi = {
   },
 
   /** Send a test message to the user's Telegram. */
-  async testNotification(): Promise<{ enqueued: boolean; outbox_id?: string; detail?: string }> {
-    const { data } = await api.post("/mfa/test-notification");
-    return data;
-  },
 
   // ─── onboarding wizard ────────────────────────────────────
 
   /** Check whether the first-login MFA wizard should run. */
-  async onboardingStatus(): Promise<MfaOnboardingStatus> {
-    const { data } = await api.get<MfaOnboardingStatus>("/mfa/onboarding/status");
-    return data;
-  },
 
   /** User clicked "Remind me in 7 days". */
-  async onboardingSkip(): Promise<MfaOnboardingSkipOut> {
-    const { data } = await api.post<MfaOnboardingSkipOut>("/mfa/onboarding/skip");
-    return data;
-  },
 
   /** User finished the wizard (recovery codes saved). */
-  async onboardingComplete(): Promise<void> {
-    await api.post("/mfa/onboarding/complete");
-  },
 
   // ─── Login flow endpoints (under /auth namespace but MFA-related) ───────
 
@@ -170,10 +144,6 @@ export const mfaApi = {
   // ─── .2: onboarding code delivery ─────────────────────────
 
   /** Send a 6-digit code to user's Telegram (during onboarding). */
-  async onboardingSendCode(): Promise<MfaOnboardingSendCodeOut> {
-    const { data } = await api.post<MfaOnboardingSendCodeOut>("/mfa/onboarding/send-code");
-    return data;
-  },
 
   /** Verify the 6-digit code AND enable MFA in one shot. */
   async onboardingVerifyAndEnable(challenge_id: string, code: string): Promise<MfaEnableOut> {

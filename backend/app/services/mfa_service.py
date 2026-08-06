@@ -96,11 +96,32 @@ async def enqueue_telegram_message(
     payload: dict,
     inline_buttons: Optional[list[dict]] = None,
 ) -> TelegramOutbox:
-    """Insert a row into telegram_outbox; uza-tg-bot worker picks it up.
+    """НЕ ОТПРАВЛЯЕТ НИЧЕГО: интеграция с Telegram удалена 05.08.2026.
 
-    payload structure depends on msg_type — see services/telegram_format.py
-    (which the bot worker reads to render the actual message).
+    Функция оставлена заглушкой, потому что на неё ссылаются внутренние ветки
+    MFA/привязки, которые сами уже недостижимы (роуты сняты, бот удалён, MFA
+    выключен у всех). Возвращаем пустую строку outbox в память, не трогая БД:
+    так ни один забытый путь не создаст «вечно ожидающее» сообщение.
     """
+    import logging as _lg
+    _lg.getLogger(__name__).warning(
+        "enqueue_telegram_message вызван после удаления интеграции — "
+        "сообщение отброшено (user=%s, type=%s)", user_id, msg_type,
+    )
+    return TelegramOutbox(
+        user_id=user_id, msg_type=msg_type, payload=dict(payload or {}),
+        status=OutboxStatus.DISCARDED,
+    )
+
+
+async def _enqueue_telegram_message_disabled(
+    db: AsyncSession,
+    user_id: str,
+    msg_type: OutboxType,
+    payload: dict,
+    inline_buttons: Optional[list[dict]] = None,
+) -> TelegramOutbox:
+    """Прежняя реализация — сохранена как справка, не вызывается."""
     payload = dict(payload or {})
     if "locale" not in payload:
         raw_locale = (await db.execute(

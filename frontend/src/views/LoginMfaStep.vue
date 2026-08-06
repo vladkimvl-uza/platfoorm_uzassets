@@ -143,14 +143,6 @@ async function handleVerify() {
     const me = await authApi.me();
     auth.setUser(me);
     sessionStorage.removeItem("uza_mfa_challenge");
-    // Pack 13.3.4: check onboarding BEFORE redirect — no flash of dashboard
-    try {
-      const ob = await mfaApi.onboardingStatus();
-      if (ob.needed) {
-        void router.replace({ name: "mfa-onboarding" });
-        return;
-      }
-    } catch { /* non-fatal: fall through to default redirect */ }
     const target = (route.query.redirect as string | undefined) ?? auth.defaultLanding();
     void router.push(target);
   } catch (e) {

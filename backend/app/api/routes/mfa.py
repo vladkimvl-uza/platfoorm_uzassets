@@ -11,13 +11,8 @@ from app.schemas.mfa import (
     MfaDisableIn,
     MfaEnableIn,
     MfaEnableOut,
-    MfaLinkTelegramOut,
     MfaRecoveryCodesOut,
     MfaStatusOut,
-    MfaTestNotificationOut,
-    MfaUnlinkTelegramIn,
-    TelegramPrefIn,
-    TelegramPrefOut,
 )
 
 # Auto-detect the project's auth + db dependency conventions
@@ -30,12 +25,6 @@ except ImportError:
         from app.dependencies import get_current_user, get_db
 
 from app.dependencies.mfa_user import MfaUserServiceDep
-from app.services.mfa_user.service import (
-    OnboardingSendCodeOut,
-    OnboardingSkipOut,
-    OnboardingStatusOut,
-    OnboardingVerifyEnableIn,
-)
 
 router = APIRouter(prefix="/mfa", tags=["mfa"])
 
@@ -72,27 +61,6 @@ async def disable_mfa(
 
 # ─── Telegram link / unlink ───────────────────────────────────────
 
-@router.post("/link-telegram", response_model=MfaLinkTelegramOut)
-async def link_telegram(
-    service: MfaUserServiceDep,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    return await service.link_telegram(current_user, db)
-
-
-@router.delete("/unlink-telegram", status_code=status.HTTP_204_NO_CONTENT)
-async def unlink_telegram(
-    body: MfaUnlinkTelegramIn,
-    service: MfaUserServiceDep,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    await service.unlink_telegram(body, current_user, db)
-
-
-# ─── Recovery codes ───────────────────────────────────────────────
-
 @router.post("/recovery-codes/regenerate", response_model=MfaRecoveryCodesOut)
 async def regenerate_recovery_codes(
     service: MfaUserServiceDep,
@@ -104,76 +72,3 @@ async def regenerate_recovery_codes(
 
 # ─── Notification prefs ───────────────────────────────────────────
 
-@router.get("/notification-prefs", response_model=TelegramPrefOut)
-async def get_notification_prefs(
-    service: MfaUserServiceDep,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    return await service.get_notification_prefs(current_user, db)
-
-
-@router.patch("/notification-prefs", response_model=TelegramPrefOut)
-async def patch_notification_prefs(
-    body: TelegramPrefIn,
-    service: MfaUserServiceDep,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    return await service.patch_notification_prefs(body, current_user, db)
-
-
-@router.post("/test-notification", response_model=MfaTestNotificationOut)
-async def test_notification(
-    service: MfaUserServiceDep,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    return await service.test_notification(current_user, db)
-
-
-# ─── Onboarding wizard ────────────────────────────────
-
-@router.get("/onboarding/status", response_model=OnboardingStatusOut)
-async def onboarding_status(
-    service: MfaUserServiceDep,
-    current_user: User = Depends(get_current_user),
-):
-    return service.onboarding_status(current_user)
-
-
-@router.post("/onboarding/skip", response_model=OnboardingSkipOut)
-async def onboarding_skip(
-    service: MfaUserServiceDep,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    return await service.onboarding_skip(current_user, db)
-
-
-@router.post("/onboarding/complete", status_code=status.HTTP_204_NO_CONTENT)
-async def onboarding_complete(
-    service: MfaUserServiceDep,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    await service.onboarding_complete(current_user, db)
-
-
-@router.post("/onboarding/send-code", response_model=OnboardingSendCodeOut)
-async def onboarding_send_code(
-    service: MfaUserServiceDep,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    return await service.onboarding_send_code(current_user, db)
-
-
-@router.post("/onboarding/verify-and-enable", response_model=MfaEnableOut)
-async def onboarding_verify_and_enable(
-    body: OnboardingVerifyEnableIn,
-    service: MfaUserServiceDep,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    return await service.onboarding_verify_and_enable(body, current_user, db)

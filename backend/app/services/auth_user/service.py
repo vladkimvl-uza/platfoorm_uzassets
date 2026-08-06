@@ -30,13 +30,9 @@ from app.schemas.auth import (
     TokenPair,
     UserPublic,
 )
-from app.services import auth_service, twa_auth_service
+from app.services import auth_service
 
 log = logging.getLogger(__name__)
-
-
-class TwaLoginIn(BaseModel):
-    init_data: str
 
 
 def _client_ip(request: Request) -> Optional[str]:
@@ -96,7 +92,10 @@ def _user_to_public(
     return UserPublic(
         id=user.id,
         email=user.email,
-        mfa_setup_required=_is_privileged(user) and not getattr(user, "mfa_enabled", False),
+        # Канал доставки второго фактора был только Telegram и удалён
+        # (05.08.2026) — требовать настройку 2FA больше нечем, иначе фронт
+        # держал бы привилегированных на несуществующем онбординге.
+        mfa_setup_required=False,
         username=user.username,
         full_name=user.full_name,
         is_owner=user.is_owner,
@@ -244,22 +243,4 @@ class AuthUserService:
             current=body.current_password,
             new=body.new_password,
             ip=ip, user_agent=ua,
-        )
-
-    async def twa_login(
-        self, body: TwaLoginIn, request: Request, db: AsyncSession,
-    ) -> TokenPair:
-        ip = _client_ip(request)
-        ua = request.headers.get("user-agent", "")[:512]
-        user, access, refresh = await twa_auth_service.authenticate_via_initdata(
-            db,
-            init_data=body.init_data,
-            ip=ip,
-            user_agent=ua,
-        )
-        return TokenPair(
-            access_token=access,
-            refresh_token=refresh,
-            token_type="Bearer",
-            expires_in=settings.JWT_EXPIRE_MINUTES * 60,
         )

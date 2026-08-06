@@ -41,25 +41,6 @@ RUN npx vite build
 # Node имеет встроенный zlib.brotli — внешние пакеты не нужны.
 RUN node -e "const fs=require('fs'),z=require('zlib'),p=require('path');const E=new Set(['.js','.css','.html','.json','.svg','.wasm']);let n=0;(function w(d){for(const f of fs.readdirSync(d)){const q=p.join(d,f),s=fs.statSync(q);if(s.isDirectory())w(q);else if(E.has(p.extname(q))&&s.size>=1024){fs.writeFileSync(q+'.br',z.brotliCompressSync(fs.readFileSync(q),{params:{[z.constants.BROTLI_PARAM_QUALITY]:11}}));n++;}}})('dist');console.log('brotli-precompressed '+n+' files');"
 
-# ─── Stage 1b: build Telegram Mini App (TWA) ────────────────────────
-# Separate Vue bundle with base "/twa/". Lives at the same domain under
-# /twa/* so the bot's Mini App URL points at the platform itself.
-FROM node:20-alpine AS twa-builder
-WORKDIR /app
-
-COPY frontend-twa/package*.json ./
-RUN if [ -f package-lock.json ]; then \
-      npm ci --no-fund || true; \
-    else \
-      npm install --no-fund; \
-    fi
-
-COPY frontend-twa/ ./
-ENV NODE_OPTIONS=--max-old-space-size=2048
-RUN npx vite build
-# Pre-compress TWA-бандл (то же, что в stage 1a)
-RUN node -e "const fs=require('fs'),z=require('zlib'),p=require('path');const E=new Set(['.js','.css','.html','.json','.svg','.wasm']);let n=0;(function w(d){for(const f of fs.readdirSync(d)){const q=p.join(d,f),s=fs.statSync(q);if(s.isDirectory())w(q);else if(E.has(p.extname(q))&&s.size>=1024){fs.writeFileSync(q+'.br',z.brotliCompressSync(fs.readFileSync(q),{params:{[z.constants.BROTLI_PARAM_QUALITY]:11}}));n++;}}})('dist');console.log('brotli-precompressed '+n+' files');"
-
 # ─── Stage 1c: build brotli dynamic modules for nginx ───────────────
 # ngx_brotli .so files must be compiled against the exact same nginx
 # version as the runtime image — so we build inside nginx:1.27-alpine
@@ -103,9 +84,8 @@ COPY nginx/templates/       /etc/nginx/templates/
 ENV BACKEND_HOST=backend
 ENV BACKEND_PORT=8000
 
-# Main SPA at /, TWA bundle at /twa
+# Main SPA at /
 COPY --from=frontend-builder /app/dist     /usr/share/nginx/html
-COPY --from=twa-builder      /app/dist     /usr/share/nginx/html/twa
 
 # Healthcheck
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \

@@ -18,14 +18,7 @@ const router = createRouter({
       component: () => import("@/views/LoginMfaStep.vue"),
       meta: { layout: "blank" },
     },
-    // MFA onboarding wizard — fullscreen, requires auth, runs after login
-    {
-      path: "/mfa-onboarding",
-      name: "mfa-onboarding",
-      component: () => import("@/views/MfaOnboarding.vue"),
-      meta: { layout: "blank", requiresAuth: true },
-    },
-    // forgot-password via Telegram code
+    // forgot-password по e-mail
     {
       path: "/forgot-password",
       name: "forgot-password",
@@ -511,17 +504,8 @@ const router = createRouter({
 // в”Ђв”Ђв”Ђ Auth guard в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 // Synchronous вЂ” auth store reads tokens from localStorage at creation,
 // no bootstrap step is needed.
-// onboarding check — async guard, runs after standard auth check
-let onboardingChecked = false;
-async function checkOnboardingNeeded(): Promise<boolean> {
-  const { mfaApi } = await import("@/api/mfa");
-  try {
-    const st = await mfaApi.onboardingStatus();
-    return st.needed;
-  } catch {
-    return false;
-  }
-}
+// MFA-онбординг удалён вместе с Telegram (05.08.2026): канала доставки
+// второго фактора не осталось.
 
 // refresh user from /auth/me once per session, чтобы stale
 // must_change_password из localStorage не пропускал change-password шаг
@@ -555,16 +539,11 @@ router.beforeEach(async (to) => {
   // Сбрасываем флаги при logout чтобы следующий login снова refresh'нул.
   if (!auth.isAuthenticated) {
     userRefreshed = false;
-    onboardingChecked = false;
   } else if (!userRefreshed) {
     await refreshUserFromBackend(auth);
   }
 
   // Force password change: must run FIRST and win.
-  // Раньше mfa-onboarding был в исключениях → wizard MFA мог запуститься
-  // до смены пароля. Это нарушает сценарий "change-password → mfa-onboarding".
-  // Теперь mfa-onboarding убран из exceptions — wizard MFA не покажется
-  // пока пароль не сменён.
   if (
     auth.isAuthenticated &&
     auth.user?.must_change_password === true &&
@@ -575,39 +554,6 @@ router.beforeEach(async (to) => {
     return { name: "change-password" };
   }
 
-  // Обязательная MFA для привилегированных (owner/admin): бэкенд выставляет
-  // mfa_setup_required в /auth/me. Пока 2FA не настроена — держим на онбординге
-  // (149 п.6.14, 841 5.3.3.1). Идёт ПОСЛЕ смены пароля, ДО обычного онбординга.
-  if (
-    auth.isAuthenticated &&
-    auth.user?.must_change_password !== true &&
-    (auth.user as any)?.mfa_setup_required === true &&
-    to.name !== "mfa-onboarding" &&
-    to.name !== "change-password" &&
-    to.name !== "login" &&
-    to.name !== "login-mfa-step"
-  ) {
-    return { name: "mfa-onboarding" };
-  }
-
-  // redirect to onboarding wizard on first authenticated nav.
-  // Runs once per session to avoid hitting backend on every route change.
-  // НЕ запускаем onboarding-check если still need password change
-  // (password-check выше уже должен был перенаправить).
-  if (
-    auth.isAuthenticated &&
-    auth.user?.must_change_password !== true &&
-    !onboardingChecked &&
-    to.name !== "mfa-onboarding" &&
-    to.name !== "login" &&
-    to.name !== "login-mfa-step"
-  ) {
-    onboardingChecked = true;
-    const needed = await checkOnboardingNeeded();
-    if (needed) {
-      return { name: "mfa-onboarding" };
-    }
-  }
 
   // Enforce requiresPermission meta. Walks matched route chain (parent +
   // child) so nested admin routes inherit the gate from their parent.

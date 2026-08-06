@@ -148,39 +148,6 @@ server {
         proxy_read_timeout 300s;
     }
 
-    # ---- Telegram Web App (Phase C) — separate Vue bundle, base "/twa/".
-    #      Built into THIS image via Dockerfile stage `twa-builder`; was
-    #      previously a separate `frontend-twa` container behind proxy_pass.
-    #      Hashed /twa/assets/* get a long-cache, navigation falls back to
-    #      /twa/index.html so Vue Router inside the Mini App handles deep
-    #      links. X-Frame-Options is stripped because TG webview must embed. ----
-    location /twa/ {
-        alias       /usr/share/nginx/html/twa/;
-        index       index.html;
-        # TG webview embeds the Mini App in an iframe-like surface — DENY would
-        # block it. Override to empty (the global add_header is `always`, but
-        # `""` removes it from the response). CSP frame-ancestors still applies.
-        add_header  X-Frame-Options "" always;
-        # Security (audit L-22): локальный add_header выше СБРАСЫВАЕТ наследование
-        # server-level заголовков для всего /twa/ → восстанавливаем критичные для
-        # HTML Mini App. frame-ancestors НЕ задаём (TG webview должен встраивать),
-        # но script-src 'self' + nosniff + HSTS оставляем.
-        add_header  X-Content-Type-Options nosniff always;
-        add_header  Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
-        add_header  Referrer-Policy "strict-origin-when-cross-origin" always;
-        add_header  Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' wss: https://wttr.in https://*.open-meteo.com https://cbu.uz; base-uri 'self'; form-action 'self'; object-src 'none'" always;
-
-        # Hashed assets — long-cache, immutable
-        location ~* ^/twa/assets/.*\.(js|css|woff2?|ttf|svg|png|jpg|jpeg|webp|ico)$ {
-            access_log off;
-            expires    1y;
-            add_header Cache-Control "public, max-age=31536000, immutable";
-            alias      /usr/share/nginx/html/twa/assets/;
-            try_files  $uri =404;
-        }
-        # SPA fallback — every unmatched path returns /twa/index.html
-        try_files   $uri $uri/ /twa/index.html;
-    }
 
     # ---- Frontend SPA — static built into this image via multi-stage
     #      Dockerfile (stage `frontend-builder`). Previously proxied to a

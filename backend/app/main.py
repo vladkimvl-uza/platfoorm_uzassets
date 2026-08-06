@@ -409,8 +409,6 @@ ROUTER_MODULES = [
     "db_admin",   # Pack 149 — DB console for is_owner/is_admin
     "tls_admin",  # Pack 150 — TLS cert management (Let's Encrypt + manual upload)
     "forgot_password",  # Pack 152 — forgot-password via Telegram-code
-    "bot_callbacks",  # Pack 13.2
-    "tg_banners",     # Pack 147 / Phase B — Telegram banner images
     "rbac_v3",          # Единый RBAC (заменяет старые rbac.py и rbac_v2.py)
     "presence",         # Presence heartbeat (online/away/offline индикаторы)
     "status_updates",   # «Текущий статус проекта» — нарративные апдейты + история

@@ -157,12 +157,6 @@ async def notify_comment_participants(
             log.warning("comment-participant notify failed for uid=%s: %s", uid, e)
             continue
 
-    if notification_ids:
-        try:
-            from app.services.telegram_notify_hook_bg import schedule_forward
-            for nid in notification_ids:
-                schedule_forward(nid)
-        except Exception as e:
-            log.warning("comment-participant: tg-forward schedule failed: %s", e)
+    # Telegram-канал удалён (05.08.2026): участники получают in-app и почту.
 
     return notified

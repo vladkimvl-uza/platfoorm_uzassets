@@ -261,6 +261,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_project_status_backfill(conn)
             await _patch_direction_values_normalize(conn)
             await _patch_esg_swot_author(conn)
+            await _patch_drop_telegram_integration(conn)
             await _bump_alembic(conn)
     except Exception as e:
         # Never crash the app on a self-heal failure - just log and continue.
@@ -2832,6 +2833,57 @@ async def _patch_scenarios_tables(conn) -> None:
 # ─────────────────────────────────────────────────────────────────────
 # Company and sector names in both Uzbek scripts
 # ─────────────────────────────────────────────────────────────────────
+
+async def _patch_drop_telegram_integration(conn) -> None:
+    """Отключение Telegram: MFA у всех снимается, привязки очищаются.
+
+    Решение владельца (05.08.2026): интеграция с ботом и MFA через него
+    удалены целиком. Второй фактор доставлялся ТОЛЬКО в Telegram (TOTP в
+    enum есть, но не реализован), поэтому оставить mfa_enabled=true значило бы
+    запереть 71 человека без канала получения кода. Снимаем флаг и чистим
+    привязки; колонки не удаляем — данные аудита и история входов на них
+    ссылаются, а пустые поля никому не мешают.
+
+    Идемпотентно по маркеру: ручное включение MFA после выката не сбросится.
+    """
+    already = (await conn.execute(text(
+        "SELECT 1 FROM system_config WHERE key = 'telegram_integration_removed' LIMIT 1"
+    ))).first()
+    if already:
+        return
+    res = await conn.execute(text("""
+        UPDATE users
+           SET mfa_enabled = false,
+               mfa_method = 'none',
+               telegram_chat_id_encrypted = NULL,
+               telegram_username = NULL,
+               telegram_linked_at = NULL,
+               telegram_link_token_hashed = NULL,
+               telegram_link_token_expires_at = NULL
+         WHERE mfa_enabled = true
+            OR mfa_method <> 'none'
+            OR telegram_chat_id_encrypted IS NOT NULL
+    """))
+    logger.info("telegram removal: у %s пользователей снят MFA и очищена привязка",
+                res.rowcount)
+
+    # Очереди и настройки бота больше некому обслуживать — чистим, чтобы не
+    # копились «вечно ожидающие» сообщения.
+    for table in ("telegram_outbox", "user_telegram_pref", "mfa_login_challenge"):
+        try:
+            await conn.execute(text(f"DELETE FROM {table}"))
+        except Exception as e:  # noqa: BLE001 — таблицы может не быть в свежей БД
+            logger.info("telegram removal: %s пропущена (%s)", table, e)
+
+    await conn.execute(text(
+        "INSERT INTO system_config (id, key, value, description, is_secret) "
+        "VALUES (gen_random_uuid(), 'telegram_integration_removed', "
+        "'{\"done\": true}'::jsonb, "
+        "'Удаление Telegram-интеграции: MFA снят у всех, привязки очищены', false) "
+        "ON CONFLICT (key) DO NOTHING"
+    ))
+
+
 
 async def _patch_esg_swot_author(conn) -> None:
     """Автор вывода ESG SWOT: колонки + разовый бэкфил.

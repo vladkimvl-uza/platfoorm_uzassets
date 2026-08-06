@@ -317,13 +317,7 @@ async def dispatch_template(
     template.next_run_at = compute_next_run_at(template, after=now)
 
     await db.commit()
-    # .3: fire-and-forget TG forward (own DB session, never blocks)
-    try:
-        from app.services.telegram_notify_hook_bg import schedule_forward
-        schedule_forward(str(notif.id))
-    except Exception as _e:
-        import logging
-        logging.getLogger(__name__).warning('tg-forward schedule failed: %s', _e)
+    # Telegram-канал удалён (05.08.2026) — рассылка идёт in-app и по почте.
     await db.refresh(dispatch)
 
     # WS push (best-effort, errors swallowed)

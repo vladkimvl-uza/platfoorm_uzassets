@@ -13,7 +13,6 @@ if TYPE_CHECKING:
     from app.repositories.api_catalog_repository import ApiCatalogRepository
     from app.repositories.api_keys_repository import ApiKeysRepository
     from app.repositories.attachments_repository import AttachmentsRepository
-    from app.repositories.bot_callbacks_repository import BotCallbacksRepository
     from app.repositories.bp_repository import BpRepository
     from app.repositories.comments_repository import CommentsRepository
     from app.repositories.companies_admin_v2_repository import CompaniesAdminV2Repository
@@ -50,7 +49,6 @@ class UnitOfWorkABC(ABC):
     api_catalog: "ApiCatalogRepository"
     api_keys: "ApiKeysRepository"
     attachments: "AttachmentsRepository"
-    bot_callbacks: "BotCallbacksRepository"
     bp: "BpRepository"
     comments: "CommentsRepository"
     companies: "CompaniesRepository"

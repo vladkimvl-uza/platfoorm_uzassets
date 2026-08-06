@@ -15,7 +15,6 @@ from app.repositories.ai_repository import AiRepository
 from app.repositories.api_catalog_repository import ApiCatalogRepository
 from app.repositories.api_keys_repository import ApiKeysRepository
 from app.repositories.attachments_repository import AttachmentsRepository
-from app.repositories.bot_callbacks_repository import BotCallbacksRepository
 from app.repositories.bp_repository import BpRepository
 from app.repositories.comments_repository import CommentsRepository
 from app.repositories.companies_admin_v2_repository import CompaniesAdminV2Repository
@@ -62,7 +61,6 @@ class UnitOfWork(UnitOfWorkABC):
         self.api_catalog = ApiCatalogRepository(self._session)
         self.api_keys = ApiKeysRepository(self._session)
         self.attachments = AttachmentsRepository(self._session)
-        self.bot_callbacks = BotCallbacksRepository(self._session)
         self.bp = BpRepository(self._session)
         self.comments = CommentsRepository(self._session)
         self.companies = CompaniesRepository(self._session)

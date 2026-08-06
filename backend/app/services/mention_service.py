@@ -181,14 +181,5 @@ async def notify_mentioned_users(
     # fire AFTER the parent transaction commits (own session, fire-and-forget).
     # The notify() helper itself only schedules when commit=True, so we do it
     # here explicitly for the commit=False path.
-    if notification_ids:
-        try:
-            from app.services.telegram_notify_hook_bg import schedule_forward
-            for nid in notification_ids:
-                schedule_forward(nid)
-        except Exception as e:
-            import logging
-            logging.getLogger(__name__).warning(
-                "mention: tg-forward schedule failed: %s", e,
-            )
+    # Telegram-канал удалён (05.08.2026): упоминания уходят in-app и на почту.
     return user_ids

@@ -424,13 +424,8 @@ async def notify(
     if commit:
         await db.commit()
         if not in_app_only:
-            # .3: fire-and-forget TG forward (own DB session, never blocks)
-            try:
-                from app.services.telegram_notify_hook_bg import schedule_forward
-                schedule_forward(str(n.id))
-            except Exception as _e:
-                import logging
-                logging.getLogger(__name__).warning('tg-forward schedule failed: %s', _e)
+            # Telegram-канал удалён (решение владельца 05.08.2026) — остаются
+            # in-app и e-mail.
             # E-mail-канал: дублируем уведомление на почту (best-effort, кроме MFA).
             try:
                 await _forward_notification_email(

@@ -1,9 +1,9 @@
-"""Auth endpoints: login, refresh, logout, me, change-password, twa-login.
+"""Auth endpoints: login, refresh, logout, me, change-password.
 
 Thin HTTP shim (refactored 2026-05-25). Logic in `services/auth_user/`.
-Core `app.services.auth_service` + `twa_auth_service` NOT touched.
+Core `app.services.auth_service` NOT touched.
 
-Rate-limit RATE_LIMIT_AUTH applies to login/refresh/change-password/twa-login.
+Rate-limit RATE_LIMIT_AUTH applies to login/refresh/change-password.
 """
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
@@ -24,7 +24,6 @@ from app.schemas.auth import (
     UpdateMeRequest,
     UserPublic,
 )
-from app.services.auth_user.service import TwaLoginIn
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -285,16 +284,3 @@ async def change_password(
     await service.change_password(body, user, request, db)
 
 
-@router.post("/twa-login", response_model=TokenPair, status_code=status.HTTP_200_OK)
-@limiter.limit(settings.RATE_LIMIT_AUTH)
-async def twa_login(
-    request: Request,
-    body: TwaLoginIn,
-    service: AuthUserServiceDep,
-    db: AsyncSession = Depends(get_db),
-) -> TokenPair:
-    """Telegram Web App auto-login: verifies `initData` HMAC against bot token,
-    finds the linked user by `telegram_user_id`, and returns a regular JWT pair.
-
-    Bypasses MFA — the Telegram link itself is the second factor."""
-    return await service.twa_login(body, request, db)

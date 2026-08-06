@@ -13,17 +13,11 @@ const fmt = useFormatters();
 // ─── State ──────────────────────────────────────────────────────────────
 
 const status = ref<MfaStatus | null>(null);
-const prefs = ref<TelegramPref | null>(null);
 const loading = ref(true);
 const error = ref<string | null>(null);
 const notice = ref<string | null>(null);
 
 // Telegram link flow
-const linkDeepLink = ref<string | null>(null);
-const linkToken = ref<string | null>(null);
-const linkExpiresAt = ref<string | null>(null);
-const linkPolling = ref(false);
-let pollTimer: number | null = null;
 
 // Enable 2FA — recovery codes returned ONCE
 const showRecoveryCodes = ref(false);
@@ -34,7 +28,6 @@ const disableModalOpen = ref(false);
 const disableCode = ref("");
 
 // Unlink confirmation
-const unlinkModalOpen = ref(false);
 
 // Regenerate recovery codes
 const regenModalOpen = ref(false);
@@ -108,7 +101,6 @@ async function refresh() {
   error.value = null;
   try {
     status.value = await mfaApi.status();
-    prefs.value = await mfaApi.getPrefs();
   } catch (e) {
     error.value = formatError(e);
   } finally {
@@ -128,71 +120,12 @@ function flash(msg: string) {
   setTimeout(() => { if (notice.value === msg) notice.value = null; }, 3500);
 }
 
-// ─── Telegram link flow ─────────────────────────────────────────────────
 
-async function startLink() {
-  try {
-    const r = await mfaApi.linkTelegram();
-    linkDeepLink.value = r.deep_link;
-    linkToken.value = r.token;
-    linkExpiresAt.value = r.expires_at;
-    // Poll status every 3s for up to 5 min — auto-detect when bot confirms
-    linkPolling.value = true;
-    let elapsed = 0;
-    pollTimer = window.setInterval(async () => {
-      elapsed += 3;
-      try {
-        const s = await mfaApi.status();
-        if (s.telegram_linked) {
-          status.value = s;
-          linkPolling.value = false;
-          linkDeepLink.value = null;
-          linkToken.value = null;
-          if (pollTimer) clearInterval(pollTimer);
-          flash(t("Telegram успешно привязан."));
-        } else if (elapsed >= 300) {
-          linkPolling.value = false;
-          if (pollTimer) clearInterval(pollTimer);
-        }
-      } catch {
-        // ignore
-      }
-    }, 3000);
-  } catch (e) {
-    error.value = formatError(e);
-  }
-}
 
-function cancelLink() {
-  linkDeepLink.value = null;
-  linkToken.value = null;
-  linkPolling.value = false;
-  if (pollTimer) clearInterval(pollTimer);
-}
 
-async function confirmUnlink() {
-  try {
-    await mfaApi.unlinkTelegram();
-    unlinkModalOpen.value = false;
-    await refresh();
-    flash(t("Telegram отвязан."));
-  } catch (e) {
-    error.value = formatError(e);
-  }
-}
 
 // ─── 2FA enable / disable ───────────────────────────────────────────────
 
-async function enable2fa() {
-  try {
-    const r = await mfaApi.enable("telegram");
-    recoveryCodes.value = r.recovery_codes;
-    showRecoveryCodes.value = true;
-    await refresh();
-  } catch (e) {
-    error.value = formatError(e);
-  }
-}
 
 async function confirmDisable() {
   try {
@@ -230,55 +163,11 @@ function dismissRecoveryCodes() {
 
 // ─── Test notification ──────────────────────────────────────────────────
 
-const testSending = ref(false);
-async function sendTest() {
-  testSending.value = true;
-  try {
-    const r = await mfaApi.testNotification();
-    if (r.enqueued) {
-      flash(t("Тест отправлен. Сообщение придёт в Telegram через несколько секунд."));
-    } else {
-      error.value = r.detail ?? t('Не удалось отправить.');
-    }
-  } catch (e) {
-    error.value = formatError(e);
-  } finally {
-    testSending.value = false;
-  }
-}
 
 // ─── Notification prefs ─────────────────────────────────────────────────
 
-const savingPrefs = ref(false);
-async function patchPref(field: keyof TelegramPref, value: unknown) {
-  if (!prefs.value) return;
-  savingPrefs.value = true;
-  // optimistic
-  (prefs.value as any)[field] = value;
-  try {
-    prefs.value = await mfaApi.updatePrefs({ [field]: value });
-  } catch (e) {
-    error.value = formatError(e);
-    await refresh();
-  } finally {
-    savingPrefs.value = false;
-  }
-}
 
-const linkUiState = computed(() => {
-  if (!status.value) return "loading";
-  if (linkDeepLink.value) return "linking";
-  if (status.value.telegram_linked && status.value.enabled) return "linked-with-mfa";
-  if (status.value.telegram_linked && !status.value.enabled) return "linked-no-mfa";
-  return "not-linked";
-});
 
-const linkExpiresIn = computed(() => {
-  if (!linkExpiresAt.value) return "";
-  const ms = new Date(linkExpiresAt.value).getTime() - Date.now();
-  if (ms <= 0) return t("истёк");
-  return t("{minutes} мин", { minutes: Math.ceil(ms / 60000) });
-});
 </script>
 
 <template>
@@ -301,212 +190,9 @@ const linkExpiresIn = computed(() => {
       </div>
     </transition>
 
-    <!-- ─── Section 1: Telegram link ─── -->
-    <section v-if="status" class="ss-card">
-      <div class="ss-card-head">
-        <div class="ss-card-icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M22 2 11 13"/><path d="m22 2-7 20-4-9-9-4 20-7Z"/>
-          </svg>
-        </div>
-        <div class="ss-card-title">Telegram</div>
-        <div class="ss-card-pill" :class="{
-          'pill-green': linkUiState === 'linked-with-mfa' || linkUiState === 'linked-no-mfa',
-          'pill-grey':  linkUiState === 'not-linked',
-        }">
-          {{ linkUiState === 'not-linked' ? t('не привязан') : t('привязан') }}
-        </div>
-      </div>
+    <!-- Telegram-привязка, 2FA и TG-уведомления удалены 05.08.2026 вместе с
+         интеграцией: канала доставки второго фактора не осталось. -->
 
-      <!-- Not linked -->
-      <div v-if="linkUiState === 'not-linked'" class="ss-card-body">
-        <p class="ss-desc">
-          {{ t('Привяжите Telegram, чтобы получать коды для 2FA и уведомления о задачах и дедлайнах.') }}
-        </p>
-        <button class="ss-btn-primary" @click="startLink">{{ t('Связать Telegram') }}</button>
-      </div>
-
-      <!-- Linking in progress (deep link issued) -->
-      <div v-else-if="linkUiState === 'linking'" class="ss-card-body">
-        <p class="ss-desc">{{ t('Откройте ссылку и нажмите Start в боте.') }}</p>
-        <a :href="linkDeepLink!" target="_blank" rel="noopener" class="ss-deep-link">
-          {{ linkDeepLink }}
-        </a>
-        <div class="ss-link-meta">
-          {{ t('Срок действия:') }} {{ linkExpiresIn }}.
-          <span v-if="linkPolling">{{ t('Ожидание подтверждения…') }}</span>
-        </div>
-        <button class="ss-btn-ghost" @click="cancelLink">{{ t('Отмена') }}</button>
-      </div>
-
-      <!-- Linked -->
-      <div v-else class="ss-card-body">
-        <div class="ss-info-row">
-          <span class="ss-label">{{ t('Аккаунт:') }}</span>
-          <span class="ss-value">{{ status.telegram_username ? '@' + status.telegram_username : t('без username') }}</span>
-        </div>
-        <div class="ss-info-row" v-if="status.telegram_linked_at">
-          <span class="ss-label">{{ t('Привязан:') }}</span>
-          <span class="ss-value">{{ fmt.fmtDateTime(status.telegram_linked_at) }}</span>
-        </div>
-        <div class="ss-actions">
-          <button class="ss-btn-ghost" :disabled="testSending" @click="sendTest">
-            {{ testSending ? t('Отправка…') : t('Отправить тест') }}
-          </button>
-          <button class="ss-btn-danger" @click="unlinkModalOpen = true">{{ t('Отвязать') }}</button>
-        </div>
-      </div>
-    </section>
-
-    <!-- ─── Section 2: 2FA ─── -->
-    <section v-if="status" class="ss-card">
-      <div class="ss-card-head">
-        <div class="ss-card-icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="11" width="18" height="11" rx="2"/>
-            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-          </svg>
-        </div>
-        <div class="ss-card-title">{{ t('Двухфакторная аутентификация') }}</div>
-        <div class="ss-card-pill" :class="{ 'pill-green': status.enabled, 'pill-grey': !status.enabled }">
-          {{ status.enabled ? t('включена') : t('отключена') }}
-        </div>
-      </div>
-
-      <div v-if="!status.enabled" class="ss-card-body">
-        <p class="ss-desc">
-          {{ t('При входе на платформу мы будем отправлять одноразовый код в Telegram. Дополнительно вы получите 10 recovery-кодов на случай потери доступа к телефону.') }}
-        </p>
-        <button
-          class="ss-btn-primary"
-          :disabled="!status.telegram_linked"
-          @click="enable2fa"
-        >
-          {{ t('Включить 2FA') }}
-        </button>
-        <p v-if="!status.telegram_linked" class="ss-warn">
-          {{ t('Сначала привяжите Telegram.') }}
-        </p>
-      </div>
-
-      <div v-else class="ss-card-body">
-        <div class="ss-info-row">
-          <span class="ss-label">{{ t('Метод:') }}</span>
-          <span class="ss-value">{{ status.method === 'telegram' ? 'Telegram' : status.method }}</span>
-        </div>
-        <div class="ss-info-row">
-          <span class="ss-label">{{ t('Recovery-коды:') }}</span>
-          <span class="ss-value">
-            {{ status.recovery_codes_remaining }} {{ t('из') }} {{ status.recovery_codes_total }} {{ t('осталось') }}
-          </span>
-        </div>
-        <div class="ss-actions">
-          <button class="ss-btn-ghost" @click="regenModalOpen = true">
-            {{ t('Сгенерировать заново') }}
-          </button>
-          <button class="ss-btn-danger" @click="disableModalOpen = true">
-            {{ t('Отключить 2FA') }}
-          </button>
-        </div>
-      </div>
-    </section>
-
-    <!-- ─── Section 3: Notification preferences ─── -->
-    <section v-if="status?.telegram_linked && prefs" class="ss-card">
-      <div class="ss-card-head">
-        <div class="ss-card-icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>
-            <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
-          </svg>
-        </div>
-        <div class="ss-card-title">{{ t('Уведомления') }}</div>
-      </div>
-      <div class="ss-card-body">
-        <p class="ss-desc">
-          {{ t('Дублирование уведомлений из платформы в Telegram. Изменения сохраняются автоматически.') }}
-        </p>
-
-        <div class="ss-toggle-row">
-          <div>
-            <div class="ss-toggle-name">{{ t('Уведомления включены') }}</div>
-            <div class="ss-toggle-hint">{{ t('Главный переключатель — отключает всё ниже') }}</div>
-          </div>
-          <label class="ss-switch">
-            <input
-              type="checkbox"
-              :checked="prefs.enabled"
-              @change="patchPref('enabled', ($event.target as HTMLInputElement).checked)"
-            />
-            <span class="ss-switch-track"></span>
-          </label>
-        </div>
-
-        <div class="ss-divider"></div>
-
-        <div v-for="(label, field) in {
-          type_assignments: t('Назначения задач'),
-          type_mentions:    t('Упоминания (@me)'),
-          type_deadlines:   t('Дедлайны и просрочки'),
-          type_moderation:  t('Очередь модерации'),
-          type_broadcasts:  t('Рассылки администратора'),
-          type_system:      t('Системные уведомления'),
-        }" :key="field" class="ss-toggle-row ss-toggle-row-thin">
-          <div class="ss-toggle-name">{{ t(label) }}</div>
-          <label class="ss-switch">
-            <input
-              type="checkbox"
-              :checked="(prefs as any)[field]"
-              :disabled="!prefs.enabled"
-              @change="patchPref(field as keyof TelegramPref, ($event.target as HTMLInputElement).checked)"
-            />
-            <span class="ss-switch-track"></span>
-          </label>
-        </div>
-
-        <div class="ss-divider"></div>
-
-        <div class="ss-toggle-row">
-          <div>
-            <div class="ss-toggle-name">{{ t('Тихие часы') }}</div>
-            <div class="ss-toggle-hint">{{ t('Не беспокоить в указанный период (критичные обходят)') }}</div>
-          </div>
-          <label class="ss-switch">
-            <input
-              type="checkbox"
-              :checked="prefs.quiet_hours_enabled"
-              :disabled="!prefs.enabled"
-              @change="patchPref('quiet_hours_enabled', ($event.target as HTMLInputElement).checked)"
-            />
-            <span class="ss-switch-track"></span>
-          </label>
-        </div>
-        <div v-if="prefs.quiet_hours_enabled" class="ss-quiet-times">
-          <div>
-            <label class="ss-label">{{ t('Начало') }}</label>
-            <input
-              type="time"
-              :value="(prefs.quiet_hours_start || '22:00:00').slice(0, 5)"
-              :disabled="!prefs.enabled"
-              class="ss-input"
-              @change="patchPref('quiet_hours_start', ($event.target as HTMLInputElement).value + ':00')"
-            />
-          </div>
-          <div>
-            <label class="ss-label">{{ t('Конец') }}</label>
-            <input
-              type="time"
-              :value="(prefs.quiet_hours_end || '07:00:00').slice(0, 5)"
-              :disabled="!prefs.enabled"
-              class="ss-input"
-              @change="patchPref('quiet_hours_end', ($event.target as HTMLInputElement).value + ':00')"
-            />
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ─── Активные сессии ─── -->
     <section class="ss-card">
       <div class="ss-card-head">
         <div class="ss-card-icon">
@@ -595,25 +281,6 @@ const linkExpiresIn = computed(() => {
       </div>
     </div>
 
-    <!-- ─── Unlink Telegram modal ─── -->
-    <div v-if="unlinkModalOpen" class="ss-modal-backdrop" @click.self="unlinkModalOpen = false">
-      <div class="ss-modal ss-modal-narrow">
-        <div class="ss-modal-head">
-          <h3>{{ t('Отвязать Telegram') }}</h3>
-          <button class="ss-modal-x" @click="unlinkModalOpen = false">×</button>
-        </div>
-        <div class="ss-modal-body">
-          <p>{{ t('Уведомления и коды 2FA больше не будут приходить в Telegram.') }}</p>
-          <p v-if="status?.enabled && status?.method === 'telegram'" class="ss-warn-strong">
-            {{ t('При отвязке 2FA будет автоматически отключена.') }}
-          </p>
-          <div class="ss-modal-actions">
-            <button class="ss-btn-ghost" @click="unlinkModalOpen = false">{{ t('Отмена') }}</button>
-            <button class="ss-btn-danger" @click="confirmUnlink">{{ t('Отвязать') }}</button>
-          </div>
-        </div>
-      </div>
-    </div>
 
     <!-- ─── Regenerate recovery codes modal ─── -->
     <div v-if="regenModalOpen" class="ss-modal-backdrop" @click.self="regenModalOpen = false">
