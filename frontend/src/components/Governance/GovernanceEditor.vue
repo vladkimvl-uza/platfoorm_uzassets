@@ -204,9 +204,9 @@ async function saveData(): Promise<void> {
       avg_attendance_pct: _num(form.avg_attendance_pct),
       notes: form.notes.trim() || null,
     });
-    if (isModerationQueued(res)) { queued.value = true; toast.info(t('Отправлено на модерацию')); setTimeout(() => emit("saved"), 1200); }
-    else { toast.success(t('Показатели сохранены')); emit("saved"); }
+    toast.success(t('Показатели сохранены')); emit("saved");
   } catch (e: any) {
+    if (isModerationQueued(e)) { queued.value = true; setTimeout(() => emit("saved"), 1200); return; }
     const msg = e?.response?.data?.detail || e?.message || t('Не удалось сохранить');
     err.value = msg; toast.error(msg);
   } finally { saving.value = false; }
@@ -267,23 +267,19 @@ async function saveMember(): Promise<void> {
     const res = editingMember.value
       ? await governanceApi.updateMember(editingMember.value.id, payload)
       : await governanceApi.createMember({ company_id: props.companyId, ...payload });
-    if (isModerationQueued(res)) {
-      queued.value = true; toast.info(t('Отправлено на модерацию'));
-      setTimeout(() => { showMemberForm.value = false; emit("saved"); }, 1200);
+    // Локально обновляем список (редактор остаётся открыт для следующих правок)
+    const saved = res as BoardMemberBrief;
+    if (editingMember.value) {
+      const i = localMembers.value.findIndex(x => x.id === editingMember.value!.id);
+      if (i >= 0) localMembers.value[i] = saved;
     } else {
-      // Локально обновляем список (редактор остаётся открыт для следующих правок)
-      const saved = res as BoardMemberBrief;
-      if (editingMember.value) {
-        const i = localMembers.value.findIndex(x => x.id === editingMember.value!.id);
-        if (i >= 0) localMembers.value[i] = saved;
-      } else {
-        localMembers.value.push(saved);
-      }
-      showMemberForm.value = false;
-      toast.success(editingMember.value ? t('Член совета обновлён') : t('Член совета добавлен'));
-      emit("saved");
+      localMembers.value.push(saved);
     }
+    showMemberForm.value = false;
+    toast.success(editingMember.value ? t('Член совета обновлён') : t('Член совета добавлен'));
+    emit("saved");
   } catch (e: any) {
+    if (isModerationQueued(e)) { queued.value = true; setTimeout(() => { showMemberForm.value = false; emit("saved"); }, 1200); return; }
     const msg = e?.response?.data?.detail || e?.message || t('Не удалось сохранить члена совета');
     err.value = msg; toast.error(msg);
   } finally { saving.value = false; }

@@ -78,6 +78,12 @@ class ModerationSubmission(Base):
     apply_error:  Mapped[Optional[str]]    = mapped_column(String(500), nullable=True)
     apply_result: Mapped[Optional[dict]]   = mapped_column(JSONB,       nullable=True)
 
+    # Оптимистичный editor-token целевого scope (company, year), снятый в момент
+    # ПОДАЧИ. Apply сверяет его с актуальным токеном ПЕРЕД delete-and-replace: если
+    # данные раздела изменились после подачи, одобрение НЕ затирает их молча, а
+    # падает с понятной ошибкой. NULL → проверки нет (legacy/не captured).
+    editor_token: Mapped[Optional[str]]    = mapped_column(String(64),  nullable=True)
+
 
 # ───── Comment ────────────────────────────────────────────────
 

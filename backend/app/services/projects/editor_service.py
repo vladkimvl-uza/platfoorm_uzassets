@@ -29,12 +29,20 @@ class ProjectsEditorService:
 
     # ─── create ───────────────────────────────────────────────────
 
-    async def create_project(
+    async def create_project_id(
         self,
         payload: ProjectCreate,
         *,
         creator_id: UUID,
-    ) -> tuple[Project, dict[str, Any]]:
+    ) -> UUID:
+        """Создать проект и вернуть ТОЛЬКО id — одной транзакцией, без гидрации.
+
+        Гидрация детали (`_fetch_and_hydrate`) открывает ВТОРУЮ транзакцию; её
+        сбой после уже закоммиченного INSERT превращал `create_project` в
+        исключение «создать не удалось», хотя проект создан — а повторное
+        применение из модерации плодило ДУБЛЬ. Модерационный apply-хендлер
+        зовёт этот метод: ему нужен только id, гидрация ему не нужна.
+        """
         raw = payload.model_dump(exclude_none=True)
         extra: dict = {}
         for k in list(raw.keys()):
@@ -49,8 +57,15 @@ class ProjectsEditorService:
             self.uow.projects.add(p)
             await self.uow.projects.flush()
             await self.uow.projects.refresh(p)
-            pid = p.id
+            return p.id
 
+    async def create_project(
+        self,
+        payload: ProjectCreate,
+        *,
+        creator_id: UUID,
+    ) -> tuple[Project, dict[str, Any]]:
+        pid = await self.create_project_id(payload, creator_id=creator_id)
         return await self._fetch_and_hydrate(pid), {}
 
     # ─── update ───────────────────────────────────────────────────

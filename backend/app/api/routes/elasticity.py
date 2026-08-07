@@ -6,12 +6,15 @@ from typing import Optional
 from uuid import UUID as PyUUID
 
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import JSONResponse
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
 from app.core.security import require_permission
 from app.dependencies.elasticity import ElasticityServiceDep
 from app.models.user import User
+from app.repositories.elasticity_repository import ElasticityRepository
 from app.schemas.elasticity import (
     DecompositionResult,
     ElasticityRead,
@@ -19,8 +22,18 @@ from app.schemas.elasticity import (
     ProjectEffectRead,
     ProjectEffectUpsert,
 )
+from app.services import moderation_service
+from app.services.elasticity.service import _admin_only
 
 router = APIRouter(prefix="/elasticity", tags=["elasticity"])
+
+
+async def _project_company_id(db: AsyncSession, project_id) -> object | None:
+    """Компания проектного эффекта — через его проект (для scope-модерации)."""
+    from app.models.project import Project
+    return (await db.execute(
+        select(Project.company_id).where(Project.id == project_id),
+    )).scalar_one_or_none()
 
 
 # ─── Constants ────────────────────────────────────────────────────
@@ -57,6 +70,23 @@ async def upsert_coefficient(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    # Право автора (то же, что применит сервис) проверяем ДО гейта: внешний
+    # не-админ получит 403 сразу и НЕ поставит правку вне своего доступа в очередь.
+    _admin_only(user)
+    queued, sub = await moderation_service.gate_or_apply(
+        db, user=user, module="elasticity", action="edit",
+        entity_id=None,
+        entity_label="Коэффициент эластичности",
+        company_id=payload.company_id, sector_id=None, year=None,
+        payload={**payload.model_dump(mode="json"), "_kind": "coefficient"},
+        diff_summary=(
+            f"Эластичность {payload.macro_factor}→{payload.target_metric} = {payload.beta}"
+        ),
+    )
+    if queued:
+        return JSONResponse(status_code=202, content={
+            "queued": True, "submission_id": str(sub.id), "status": sub.status,
+        })
     return await service.upsert_coefficient(payload, db, user)
 
 
@@ -67,6 +97,19 @@ async def delete_coefficient(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    _admin_only(user)
+    obj = await ElasticityRepository(db).get_coefficient(coef_id)
+    company_id = obj.company_id if obj is not None else None
+    queued, sub = await moderation_service.gate_or_apply(
+        db, user=user, module="elasticity", action="delete",
+        entity_id=str(coef_id),
+        entity_label="Коэффициент эластичности",
+        company_id=company_id, sector_id=None, year=None,
+        payload={"_kind": "coefficient", "id": str(coef_id)},
+        diff_summary="Удаление коэффициента эластичности",
+    )
+    if queued:
+        return {"queued": True, "submission_id": str(sub.id), "status": sub.status}
     return await service.delete_coefficient(coef_id, db, user)
 
 
@@ -96,6 +139,22 @@ async def upsert_project_effect(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    _admin_only(user)
+    company_id = await _project_company_id(db, payload.project_id)
+    queued, sub = await moderation_service.gate_or_apply(
+        db, user=user, module="elasticity", action="edit",
+        entity_id=None,
+        entity_label="Эффект проекта",
+        company_id=company_id, sector_id=None, year=payload.effective_year,
+        payload={**payload.model_dump(mode="json"), "_kind": "project_effect"},
+        diff_summary=(
+            f"Эффект проекта {payload.target_metric} за {payload.effective_year}"
+        ),
+    )
+    if queued:
+        return JSONResponse(status_code=202, content={
+            "queued": True, "submission_id": str(sub.id), "status": sub.status,
+        })
     return await service.upsert_project_effect(payload, db, user)
 
 
@@ -106,6 +165,21 @@ async def delete_project_effect(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    _admin_only(user)
+    obj = await ElasticityRepository(db).get_project_effect(effect_id)
+    company_id = (
+        await _project_company_id(db, obj.project_id) if obj is not None else None
+    )
+    queued, sub = await moderation_service.gate_or_apply(
+        db, user=user, module="elasticity", action="delete",
+        entity_id=str(effect_id),
+        entity_label="Эффект проекта",
+        company_id=company_id, sector_id=None, year=None,
+        payload={"_kind": "project_effect", "id": str(effect_id)},
+        diff_summary="Удаление эффекта проекта",
+    )
+    if queued:
+        return {"queued": True, "submission_id": str(sub.id), "status": sub.status}
     return await service.delete_project_effect(effect_id, db, user)
 
 

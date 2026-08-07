@@ -105,6 +105,17 @@ async def apply(db, *, sub: ModerationSubmission, user: User) -> dict:
         return {"action": "upsert_metric", "metric_id": str(m.id)}
 
     if action == "create_issue":
+        # Идемпотентность повтора: id столбим в sub.target_entity_id в том же
+        # коммите, что и риск, — повтор применения не плодит дубль.
+        if sub.target_entity_id:
+            try:
+                dup = (await db.execute(
+                    select(ESGIssue).where(ESGIssue.id == UUID(sub.target_entity_id))
+                )).scalar_one_or_none()
+            except Exception:
+                dup = None
+            if dup is not None:
+                return {"action": "create_issue", "issue_id": sub.target_entity_id, "idempotent": True}
         payload = ESGIssueCreate.model_validate(sub.proposed_value)
         issue = ESGIssue(
             company_id=payload.company_id, pillar=payload.pillar,
@@ -112,6 +123,8 @@ async def apply(db, *, sub: ModerationSubmission, user: User) -> dict:
             severity=payload.severity, status="open",
         )
         db.add(issue)
+        await db.flush()
+        sub.target_entity_id = str(issue.id)
         await db.commit()
         await db.refresh(issue)
         return {"action": "create_issue", "issue_id": str(issue.id)}

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 import BIcon from "@/components/broadcasts/BIcon.vue";
-import { moderationApi, type SubmittedUser } from "@/api/moderation";
+import { moderationApi, moduleLabel, type SubmittedUser, type ModerationPolicy } from "@/api/moderation";
 import { useI18n } from "@/composables/useI18n";
 const { t } = useI18n();
 
@@ -14,17 +14,60 @@ const saving = ref<Record<string, boolean>>({});
 const error = ref<string | null>(null);
 const query = ref("");
 
+// ── Глобальная политика: какие модули модерируются («всё настраиваемо») ──
+const policy = ref<ModerationPolicy | null>(null);
+const policySaving = ref(false);
+
 async function load() {
   loading.value = true;
   error.value = null;
   try {
-    const r = await moderationApi.submittedUsers();
+    const [r, p] = await Promise.all([
+      moderationApi.submittedUsers(),
+      moderationApi.getPolicy().catch(() => null),
+    ]);
     items.value = r.items;
+    if (p) policy.value = p;
   } catch (e: any) {
     error.value = e?.response?.data?.detail || e?.message;
   } finally { loading.value = false; }
 }
 onMounted(load);
+
+function isModerated(code: string): boolean {
+  return !!policy.value?.enabled_modules.includes(code);
+}
+async function toggleModule(code: string) {
+  if (!policy.value || policySaving.value) return;
+  const cur = new Set(policy.value.enabled_modules);
+  if (cur.has(code)) cur.delete(code); else cur.add(code);
+  policySaving.value = true;
+  try {
+    const res = await moderationApi.setPolicy([...cur]);
+    policy.value = { ...policy.value, enabled_modules: res.enabled_modules };
+  } catch (e: any) {
+    error.value = e?.response?.data?.detail || e?.message;
+  } finally { policySaving.value = false; }
+}
+
+// ── Персональный denylist: какие модули юзер пишет НАПРЯМУЮ ──
+const openFor = ref<string | null>(null);
+function toggleUserPanel(id: string) { openFor.value = openFor.value === id ? null : id; }
+function userBypasses(u: SubmittedUser, code: string): boolean {
+  return (u.moderation_bypass_modules || []).includes(code);
+}
+async function toggleUserModule(u: SubmittedUser, code: string) {
+  saving.value[u.id] = true;
+  try {
+    const cur = new Set(u.moderation_bypass_modules || []);
+    if (cur.has(code)) cur.delete(code); else cur.add(code);
+    const updated = await moderationApi.patchUserFlags(u.id, { moderation_bypass_modules: [...cur] });
+    const i = items.value.findIndex((x) => x.id === u.id);
+    if (i >= 0) items.value[i] = { ...items.value[i], moderation_bypass_modules: updated.moderation_bypass_modules ?? [...cur] };
+  } catch (e: any) {
+    error.value = e?.response?.data?.detail || e?.message;
+  } finally { saving.value[u.id] = false; }
+}
 
 async function patchFlag(u: SubmittedUser, key: "is_external" | "bypass_moderation", value: boolean) {
   saving.value[u.id] = true;
@@ -78,10 +121,30 @@ const filtered = () => {
     <div class="su-hd">
       <BIcon name="info-circle" :size="14" />
       <span>
-        {{ t('Все пользователи с активным') }} <code>is_external</code>{{ t('. Их записи матчатся правилами с') }} <code>trigger_is_external=true</code> {{ t('и попадают в очередь модерации.') }}
-        <code>bypass_moderation</code> {{ t('отключает модерацию для конкретного юзера, даже если') }} <code>is_external</code> {{ t('включён. Добавить/убрать') }}
-        <code>is_external</code> {{ t('у любого юзера — на странице пользователя (раздел «Безопасность» → «Модерация»).') }}
+        {{ t('Пользователи с флагом') }} <code>is_external</code> {{ t('— их правки данных идут на согласование. Выше — глобально какие модули модерируются; в колонке «прямая запись» — модули-исключения конкретного юзера (пишет напрямую в обход модерации).') }}
+        <code>bypass_moderation</code> {{ t('снимает модерацию с юзера полностью. Флаг') }} <code>is_external</code> {{ t('меняется на странице пользователя («Безопасность» → «Модерация»).') }}
       </span>
+    </div>
+
+    <!-- Глобальная политика: какие модули модерируются («всё настраиваемо») -->
+    <div v-if="policy" class="mp-policy">
+      <div class="mp-policy-hd">
+        <BIcon name="adjustments" :size="13" />
+        <span class="mp-policy-title">{{ t('Модерируемые модули') }}</span>
+        <span class="mp-hint">{{ t('правки внешних авторов в этих модулях идут на согласование') }}</span>
+      </div>
+      <div class="mp-chips">
+        <button v-for="code in policy.available_modules" :key="code"
+                class="mp-chip" :class="{ on: isModerated(code) }"
+                :disabled="policySaving" :title="code"
+                @click="toggleModule(code)">
+          <span class="mp-dot"></span>{{ moduleLabel(code) }}
+        </button>
+      </div>
+      <div v-if="policy.needs_handler.length" class="mp-need">
+        {{ t('Пока нельзя включить (готовится обработчик применения):') }}
+        {{ policy.needs_handler.map(moduleLabel).join(', ') }}
+      </div>
     </div>
 
     <div class="su-toolbar">
@@ -107,6 +170,7 @@ const filtered = () => {
           <th>{{ t('Организация') }}</th>
           <th class="su-c">external</th>
           <th class="su-c">{{ t('обход') }}</th>
+          <th class="su-c">{{ t('прямая запись') }}</th>
         </tr>
       </thead>
       <tbody>
@@ -141,6 +205,25 @@ const filtered = () => {
                      @change="patchFlag(u, 'bypass_moderation', ($event.target as HTMLInputElement).checked)"/>
               <span class="su-switch-tr"></span>
             </label>
+          </td>
+          <td class="su-c">
+            <div v-if="u.is_external && policy && !u.bypass_moderation" class="su-modwrap">
+              <button class="su-modbtn" :class="{ has: (u.moderation_bypass_modules?.length || 0) > 0 }"
+                      @click="toggleUserPanel(u.id)">
+                {{ (u.moderation_bypass_modules?.length || 0) || t('нет') }}
+                <BIcon name="chevron-down" :size="10" />
+              </button>
+              <div v-if="openFor === u.id" class="su-modpop">
+                <div class="su-modpop-hd">{{ t('Пишет напрямую (в обход модерации):') }}</div>
+                <label v-for="code in policy.enabled_modules" :key="code" class="su-modrow">
+                  <input type="checkbox" :checked="userBypasses(u, code)" :disabled="!!saving[u.id]"
+                         @change="toggleUserModule(u, code)"/>
+                  <span>{{ moduleLabel(code) }}</span>
+                </label>
+                <div v-if="!policy.enabled_modules.length" class="su-modempty">{{ t('Нет модерируемых модулей') }}</div>
+              </div>
+            </div>
+            <span v-else class="su-org-dash">—</span>
           </td>
         </tr>
       </tbody>
@@ -285,4 +368,54 @@ const filtered = () => {
 }
 .su-switch input:checked + .su-switch-tr { background: var(--green); }
 .su-switch input:checked + .su-switch-tr::before { left: 16px; }
+
+/* ── Глобальная политика модулей ── */
+.mp-policy {
+  border: 0.5px solid var(--color-border-tertiary);
+  border-radius: 9px; padding: 10px 12px;
+  background: var(--color-background-primary);
+  display: flex; flex-direction: column; gap: 8px;
+}
+.mp-policy-hd { display: flex; align-items: center; gap: 7px; font-size: 11.5px; color: var(--color-text-primary); flex-wrap: wrap; }
+.mp-policy-title { font-weight: 600; }
+.mp-hint { font-weight: 400; font-size: 10.5px; color: var(--color-text-tertiary); }
+.mp-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.mp-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px; border-radius: 20px;
+  border: 0.5px solid var(--color-border-tertiary);
+  background: var(--color-background-secondary);
+  color: var(--color-text-tertiary);
+  font-size: 11px; font-family: inherit; cursor: pointer; transition: all .14s;
+}
+.mp-chip:hover { border-color: var(--p-deep); }
+.mp-chip .mp-dot { width: 7px; height: 7px; border-radius: 50%; background: #C9C7BF; transition: background .14s; }
+.mp-chip.on { background: rgba(127,119,221,.12); border-color: rgba(127,119,221,.5); color: var(--p-deep); font-weight: 500; }
+.mp-chip.on .mp-dot { background: var(--p-deep); }
+.mp-chip:disabled { opacity: .6; cursor: default; }
+.mp-need { font-size: 10px; color: var(--color-text-tertiary); line-height: 1.4; }
+
+/* ── Per-user denylist popover ── */
+.su-modwrap { position: relative; display: inline-block; }
+.su-modbtn {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 9px; border-radius: 6px;
+  border: 0.5px solid var(--color-border-tertiary);
+  background: var(--color-background-primary);
+  color: var(--color-text-secondary);
+  font-size: 11px; font-family: inherit; cursor: pointer;
+}
+.su-modbtn.has { border-color: rgba(212,83,126,.5); color: #993556; background: rgba(212,83,126,.06); }
+.su-modpop {
+  position: absolute; right: 0; top: calc(100% + 4px); z-index: 20;
+  min-width: 190px; max-height: 260px; overflow: auto;
+  background: var(--color-background-primary);
+  border: 0.5px solid var(--color-border-tertiary);
+  border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.12);
+  padding: 8px; text-align: left;
+}
+.su-modpop-hd { font-size: 10px; color: var(--color-text-tertiary); margin-bottom: 6px; line-height: 1.4; }
+.su-modrow { display: flex; align-items: center; gap: 7px; padding: 4px; font-size: 11.5px; color: var(--color-text-primary); cursor: pointer; border-radius: 5px; }
+.su-modrow:hover { background: var(--color-background-secondary); }
+.su-modempty { font-size: 11px; color: var(--color-text-tertiary); padding: 4px; }
 </style>

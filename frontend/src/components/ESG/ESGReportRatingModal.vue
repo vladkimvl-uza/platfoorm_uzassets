@@ -14,6 +14,7 @@ import ModalShell from "@/components/ModalShell.vue";
 import { esgApi, type ESGMaturityCompany } from "@/api/esg";
 import { ratingsApi } from "@/api/ratings";
 import { useToast } from "@/composables/useToast";
+import { isModerationQueued } from "@/api/client";
 import { useI18n } from "@/composables/useI18n";
 import { i18nKey } from "@/locale/keys";
 import { resolveCompanyDisplayName } from "@/utils/displayNames";
@@ -117,11 +118,16 @@ async function save() {
   const before = JSON.parse(initial);
   saving.value = true;
   let queued = false;
-  const flag = (r: unknown) => { if ((r as { queued?: boolean })?.queued) queued = true; };
+  // На 202 «отправлено на модерацию» каждый вызов REJECT'ит ModerationQueuedError
+  // (тост уже показал интерцептор). Ловим его пер-вызов, помечаем queued и глотаем,
+  // чтобы одна поставленная в очередь правка не роняла весь Promise.all; реальные
+  // ошибки пробрасываем дальше в catch.
+  const track = (p: Promise<unknown>): Promise<unknown> =>
+    p.catch((e: unknown) => { if (isModerationQueued(e)) { queued = true; return; } throw e; });
   try {
     const calls: Promise<unknown>[] = [];
     const cell = (dimension: string, sub_key: string, extra: Record<string, unknown>) =>
-      esgApi.upsertMaturityCell({ company_id: cid, year, dimension, sub_key, ...extra }).then(flag);
+      track(esgApi.upsertMaturityCell({ company_id: cid, year, dimension, sub_key, ...extra }));
 
     // Отчётность (D2) + «не требуется»
     if (repNr.value !== before.repNr) calls.push(cell("nr", "D2", { stage: repNr.value ? 1 : 0 }));
@@ -136,28 +142,29 @@ async function save() {
     if (planned.value !== before.planned) calls.push(cell("rp", "", { stage: planned.value ? 1 : 0 }));
 
     // Рейтинги: удаления
-    for (const id of removedIds.value) calls.push(ratingsApi.remove(id).then(flag));
+    for (const id of removedIds.value) calls.push(track(ratingsApi.remove(id)));
     // Рейтинги: новые + правки существующих
     const beforeRows: { id: string | null; value: string; url: string }[] = before.rows;
     for (const r of rows.value) {
       const value = r.value.trim();
       const url = r.report_url.trim();
       if (r._new || !r.id) {
-        if (value) calls.push(ratingsApi.create({ company_id: cid, agency: r.agency, score: value, report_url: url || undefined }).then(flag));
+        if (value) calls.push(track(ratingsApi.create({ company_id: cid, agency: r.agency, score: value, report_url: url || undefined })));
       } else {
         const prev = beforeRows.find((b) => b.id === r.id);
         if (prev && (prev.value !== value || prev.url !== url)) {
           const payload: Record<string, unknown> = { score: value };
           if (prev.url !== url) payload.report_url = url;
-          calls.push(ratingsApi.update(r.id, payload as never).then(flag));
+          calls.push(track(ratingsApi.update(r.id, payload as never)));
         }
       }
     }
 
     if (!calls.length) { requestClose(); return; }
     await Promise.all(calls);
-    if (queued) toast.info(t('Часть изменений отправлена на согласование'));
-    else toast.success(t('Сохранено'));
+    // Тост модерации по каждому queued-вызову уже показал интерцептор — сводный
+    // тут не дублируем; на полностью успешном сохранении показываем success.
+    if (!queued) toast.success(t('Сохранено'));
     emit("saved");
     initial = snap();
     requestClose();

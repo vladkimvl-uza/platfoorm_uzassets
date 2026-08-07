@@ -9,6 +9,7 @@ import ModalShell from "@/components/ModalShell.vue";
 import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
 import { productionApi, type ProdCompany, type ProdLine } from "@/api/production";
+import { isModerationQueued } from "@/api/client";
 import { useI18n } from "@/composables/useI18n";
 import { i18nKey } from "@/locale/keys";
 
@@ -175,14 +176,15 @@ async function save() {
       baseN: l.baseN, baseM: l.baseM, planN: l.planN, planM: l.planM,
       expN: l.expN, expM: l.expM, factN: l.factN, factM: l.factM,
     }));
-    const r: unknown = await productionApi.upsertCompany(props.company.k, {
+    await productionApi.upsertCompany(props.company.k, {
       year: props.year, period: props.period, lines: payloadLines,
     });
-    if ((r as { queued?: boolean })?.queued) toast.info(t("Отправлено на модерацию"));
-    else toast.success(t("Производственные данные сохранены"));
+    toast.success(t("Производственные данные сохранены"));
     snapshot.value = JSON.stringify(working.value);
     emit("saved");
   } catch (e: unknown) {
+    // Ушло на модерацию (202): интерцептор показал тост — больше ничего не делаем.
+    if (isModerationQueued(e)) return;
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
     toast.error(t("Не сохранено: {e}", { e: err?.response?.data?.detail || err?.message || t("ошибка") }));
   } finally {

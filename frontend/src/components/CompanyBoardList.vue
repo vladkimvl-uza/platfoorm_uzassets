@@ -366,9 +366,7 @@ async function saveField(field: EditField, value: any): Promise<void> {
       ? await tasksApi.update(id, payload as any)
       : await projectsApi.update(id, payload as any);
     const row = _localRow(kind, id);
-    if (isModerationQueued(res)) {
-      toast.info(tr('Изменение отправлено на модерацию'));
-    } else if (row) {
+    if (row) {
       if (field === "status") row.status = value;
       else if (field === "direction") { row.direction = value || null; row.direction_id = null; }
       else if (field === "consultant") row.consultant = value || null;
@@ -377,6 +375,7 @@ async function saveField(field: EditField, value: any): Promise<void> {
       toast.success(tr('Сохранено'));
     }
   } catch (e: any) {
+    if (isModerationQueued(e)) { return; }   // интерцептор уже показал тост «на модерацию»
     toast.error(e?.response?.data?.detail || e?.message || tr('Не удалось сохранить'));
   } finally {
     savingCell.value = false;

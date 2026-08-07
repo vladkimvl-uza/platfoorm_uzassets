@@ -22,6 +22,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi import status as http_status
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -124,6 +125,20 @@ async def create_consultant(
     user: User = Depends(get_current_user),
 ):
     await _admin_gate(db, user)
+    # Модерация (Фаза 4): внешний автор → в очередь. Справочник консультантов
+    # глобальный (вне компаний) → company_id=None. Новой фирмы ещё нет →
+    # entity_id=None; apply-хендлер создаёт и штампует id.
+    from app.services.moderation_service import gate_or_apply
+    queued, sub = await gate_or_apply(
+        db, user=user, module="consultants", action="create",
+        entity_id=None, entity_label=f"Консультант: {payload.name}",
+        company_id=None, sector_id=None, year=None,
+        payload=payload.model_dump(mode="json"),
+        diff_summary=f"Создание консультанта «{payload.name}»",
+    )
+    if queued:
+        return JSONResponse(status_code=http_status.HTTP_202_ACCEPTED, content={
+            "queued": True, "submission_id": str(sub.id), "status": sub.status})
     return await service.create_consultant(payload=payload)
 
 
@@ -136,6 +151,20 @@ async def update_consultant(
     user: User = Depends(get_current_user),
 ):
     await _admin_gate(db, user)
+    # Модерация (Фаза 4): внешний автор → в очередь. Справочник глобальный
+    # (вне компаний) → company_id=None. payload с exclude_unset=True, чтобы
+    # apply-хендлер сохранил partial-семантику PATCH (не занулил неуказанные поля).
+    from app.services.moderation_service import gate_or_apply
+    queued, sub = await gate_or_apply(
+        db, user=user, module="consultants", action="edit",
+        entity_id=str(consultant_id), entity_label=f"Консультант {consultant_id}",
+        company_id=None, sector_id=None, year=None,
+        payload=payload.model_dump(mode="json", exclude_unset=True),
+        diff_summary=f"Изменение консультанта {consultant_id}",
+    )
+    if queued:
+        return JSONResponse(status_code=http_status.HTTP_202_ACCEPTED, content={
+            "queued": True, "submission_id": str(sub.id), "status": sub.status})
     return await service.update_consultant(consultant_id, payload=payload)
 
 
@@ -159,6 +188,20 @@ async def delete_consultant(
     user: User = Depends(get_current_user),
 ):
     await _admin_gate(db, user)
+    # Модерация (Фаза 4): внешний автор → в очередь. Справочник глобальный
+    # (вне компаний) → company_id=None. hard-флаг переносим как есть — apply
+    # реплеит с тем же режимом удаления.
+    from app.services.moderation_service import gate_or_apply
+    queued, sub = await gate_or_apply(
+        db, user=user, module="consultants", action="delete",
+        entity_id=str(consultant_id), entity_label=f"Консультант {consultant_id}",
+        company_id=None, sector_id=None, year=None,
+        payload={"hard": hard},
+        diff_summary=f"Удаление консультанта {consultant_id} (hard={hard})",
+    )
+    if queued:
+        return JSONResponse(status_code=http_status.HTTP_202_ACCEPTED, content={
+            "queued": True, "submission_id": str(sub.id), "status": sub.status})
     await service.delete_consultant(consultant_id, hard=hard)
 
 

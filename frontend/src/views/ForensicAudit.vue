@@ -19,7 +19,7 @@
  */
 import { computed, nextTick, onMounted, onBeforeUnmount, ref, watch } from "vue";
 import SidebarBurger from "@/components/SidebarBurger.vue";
-import { api } from "@/api/client";
+import { api, isModerationQueued } from "@/api/client";
 import { useCountUpScan } from "@/composables/useCountUp";
 import { useCompanyScope } from "@/composables/useCompanyScope";
 import { downloadForensicTemplate } from "@/utils/forensicTemplate";
@@ -494,15 +494,13 @@ async function onEditSaved(patches: { company: ProcCompany; year: number }[]) {
       };
     }
     try {
-      const r = await api.put(`/forensic/companies/${encodeURIComponent(company.k)}`, payload);
-      // 202 → moderation queued; 200 → applied
-      if (r.status === 202 || (r.data as { queued?: boolean })?.queued) {
-        queued++;
-      } else {
-        saved++;
-      }
-    } catch {
-      failed++;
+      await api.put(`/forensic/companies/${encodeURIComponent(company.k)}`, payload);
+      // 200 → applied
+      saved++;
+    } catch (e) {
+      // 202 → moderation queued (interceptor rejects with ModerationQueuedError)
+      if (isModerationQueued(e)) queued++;
+      else failed++;
     }
   }
   const parts = [t("Сохранено: {count}", { count: saved })];

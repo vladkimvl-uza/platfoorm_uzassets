@@ -262,12 +262,43 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_direction_values_normalize(conn)
             await _patch_esg_swot_author(conn)
             await _patch_drop_telegram_integration(conn)
+            await _patch_moderation_editor_token(conn)
+            await _patch_users_moderation_bypass(conn)
             await _bump_alembic(conn)
     except Exception as e:
         # Never crash the app on a self-heal failure - just log and continue.
         logger.warning(
             "[runtime_migration] self-heal failed (continuing): %s", e
         )
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Moderation — editor-token заявки (защита от затирания на apply)
+# ─────────────────────────────────────────────────────────────────────
+
+async def _patch_users_moderation_bypass(conn) -> None:
+    """Колонка users.moderation_bypass_modules (JSONB, nullable) — персональный
+    denylist модулей модерации (Фаза 5, «всё настраиваемо»). Идемпотентно;
+    NULL = модерируется всё включённое."""
+    await conn.execute(text(
+        "ALTER TABLE users "
+        "ADD COLUMN IF NOT EXISTS moderation_bypass_modules JSONB"
+    ))
+
+
+async def _patch_moderation_editor_token(conn) -> None:
+    """Колонка moderation_submission.editor_token (VARCHAR, nullable).
+
+    Хранит оптимистичный editor-token целевого scope на момент подачи заявки;
+    apply-хендлеры KPI/БП сверяют его перед delete-and-replace, чтобы одобрение
+    устаревшей заявки не затёрло данные, записанные уже после её создания.
+    Идемпотентно (ADD COLUMN IF NOT EXISTS); существующие заявки → NULL (без
+    проверки, как и было).
+    """
+    await conn.execute(text(
+        "ALTER TABLE moderation_submission "
+        "ADD COLUMN IF NOT EXISTS editor_token VARCHAR(64)"
+    ))
 
 
 # ─────────────────────────────────────────────────────────────────────

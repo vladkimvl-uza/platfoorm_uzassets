@@ -25,7 +25,7 @@ import { ref, computed, onMounted, watch, nextTick, onBeforeUnmount } from "vue"
 import { useAuthStore } from "@/stores/auth";
 import { useEntityEditor } from "@/composables/useEntityEditor";
 import { useConfirm } from "@/composables/useConfirm";
-import { api, isModerationQueued, type ModerationQueuedTag } from "@/api/client";
+import { api, isModerationQueued } from "@/api/client";
 import UserHover from "@/components/UserHover.vue";
 import { projectsApi, type ProjectDetail, type ProjectUpdate, type ProjectCreate } from "@/api/projects";
 import type { TaskDetail, TaskUpdate, TaskCreate, EconomicEffect, QuartersObject } from "@/api/tasks";
@@ -818,18 +818,18 @@ async function handleSave() {
     if (props.kind === "project") {
       if (isCreate.value) {
         const created = await projectsApi.create(payload as ProjectCreate);
-        if (!isModerationQueued(created)) savedId = created.id;
+        savedId = created.id;
       } else {
         const updated = await projectsApi.update(props.entity!.id, payload as ProjectUpdate);
-        if (!isModerationQueued(updated)) savedId = updated.id;
+        savedId = updated.id;
       }
     } else {
       if (isCreate.value) {
-        const { data } = await api.post<TaskDetail | ModerationQueuedTag>("/tasks", payload as TaskCreate);
-        if (!isModerationQueued(data)) savedId = data.id;
+        const { data } = await api.post<TaskDetail>("/tasks", payload as TaskCreate);
+        savedId = data.id;
       } else {
-        const { data } = await api.patch<TaskDetail | ModerationQueuedTag>(`/tasks/${props.entity!.id}`, payload as TaskUpdate);
-        if (!isModerationQueued(data)) savedId = data.id;
+        const { data } = await api.patch<TaskDetail>(`/tasks/${props.entity!.id}`, payload as TaskUpdate);
+        savedId = data.id;
       }
     }
 
@@ -840,13 +840,19 @@ async function handleSave() {
       } catch { /* не блокируем сохранение сущности */ }
     }
 
-    // Если изменение ушло на модерацию (202), savedId === null — глобальный
-    // интерсептор уже показал тост «Изменение отправлено на модерацию».
-    // Не эмитим "saved" (иначе родитель покажет «сохранено»), просто закрываем.
     initialSig.value = _formSig();  // сохранено → больше не dirty
     if (savedId !== null) emit("saved", savedId);
     emit("close");
   } catch (e: any) {
+    // Изменение ушло на модерацию (202) — интерсептор отклонил промис и уже
+    // показал тост «отправлено на модерацию». Не эмитим "saved" (иначе родитель
+    // покажет «сохранено» и вставит фантомную строку), сбрасываем dirty и просто
+    // закрываем. Без error-тоста.
+    if (isModerationQueued(e)) {
+      initialSig.value = _formSig();
+      emit("close");
+      return;
+    }
     error.value = e?.response?.data?.detail || e?.message || tr('Ошибка сохранения');
   } finally {
     saving.value = false;
@@ -892,19 +898,19 @@ async function handleAddComment() {
   if (!props.entity || !newCommentText.value.trim()) return;
   commentsBusy.value = true;
   try {
-    const { data } = await api.post<Comment | ModerationQueuedTag>(commentEndpoint(), { body: newCommentText.value.trim() });
-    if (isModerationQueued(data)) {
-      // Комментарий ушёл на модерацию (202) — глобальный интерсептор показал
-      // тост. Не добавляем в список (его ещё нет), чистим поле ввода.
-      newCommentText.value = "";
-      return;
-    }
+    const { data } = await api.post<Comment>(commentEndpoint(), { body: newCommentText.value.trim() });
     if (data && data.id) {
       comments.value = [data, ...comments.value];
     }
     newCommentText.value = "";
     await reloadComments();
   } catch (e: any) {
+    // Комментарий ушёл на модерацию (202) — интерсептор отклонил промис и уже
+    // показал тост. Не добавляем в список (его ещё нет), чистим поле ввода.
+    if (isModerationQueued(e)) {
+      newCommentText.value = "";
+      return;
+    }
     console.error("[editor] add comment failed:", e);
     error.value = e?.response?.data?.detail || tr('Не удалось добавить комментарий');
   } finally {

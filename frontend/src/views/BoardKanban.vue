@@ -194,13 +194,14 @@ async function onDrop(targetStatus: string, ev: DragEvent) {
   }
 
   try {
-    const resp = await tasksApi.update(task.id, { status: targetStatus as any });
-    if (isModerationQueued(resp)) {
-      // Gated. Rollback the optimistic drag so the user doesn't think it
-      // landed — the toast tells them it's in moderation now.
-      await load();
-    }
+    await tasksApi.update(task.id, { status: targetStatus as any });
   } catch (e: any) {
+    if (isModerationQueued(e)) {
+      // Gated. Rollback the optimistic drag so the user doesn't think it
+      // landed — the interceptor toast tells them it's in moderation now.
+      await load();
+      return;
+    }
     // Rollback
     error.value = t("Не удалось переместить задачу: {msg}", { msg: e?.response?.data?.detail || e?.message });
     await load();

@@ -45,6 +45,13 @@ _ACTION_ALIASES: dict[str, str] = {
     "update_member": "edit",
     "upsert_data": "edit",
     "upsert_metric": "edit",
+    # У этих трёх роут-действий уже были готовые apply-хендлеры (esg matrix/
+    # report, production upsert), но без алиаса их канон не попадал в
+    # MODERATED_ACTIONS — и правки внешних авторов шли МИМО модерации, ровно
+    # как раньше с upsert_swot ниже.
+    "upsert_maturity_cell": "edit",
+    "upsert_report": "edit",
+    "upsert_company": "edit",
     # ESG SWOT: без алиасов канон не совпадал с MODERATED_ACTIONS, и правки/
     # удаления выводов у внешних авторов проходили МИМО модерации.
     "upsert_swot": "edit",
@@ -144,22 +151,42 @@ def _eval_condition(payload: dict[str, Any], atom: dict[str, Any]) -> bool:
 # Исключения (пишут напрямую): владелец, users.bypass_moderation,
 # держатель права moderation.bypass — как и раньше.
 
+# Legacy-дефолт списка модерируемых модулей. Начиная с Фазы 3 фактический список
+# берётся из НАСТРАИВАЕМОГО конфига (`moderation_config.get_enabled_modules`) —
+# «всё должно быть настраиваемо». Эта константа больше НЕ гейтит (оставлена для
+# справки/совместимости); капабилити-карта модулей — в `core.moderation_routes`.
 MODERATED_MODULES: frozenset[str] = frozenset({
     "tasks", "projects", "comments", "kpi", "financials", "business_plan",
-    "esg", "governance", "ratings", "procurement", "production", "credit",
+    "esg", "governance", "ratings", "procurement", "production",
     "investment", "unit_cost", "companies",
 })
 
+# «create» тоже модерируется: без него внешний автор создавал задачи/проекты/
+# рейтинги/риски ESG/членов совета в обход очереди (правки той же сущности
+# уходили на согласование, а создание — нет). Apply-хендлеры create уже умеют
+# (tasks/projects/ratings/esg create_issue/governance create_member), фронт
+# обрабатывает 202 (isModerationQueued) во всех этих формах.
 MODERATED_ACTIONS: frozenset[str] = frozenset({
-    "edit", "replace", "delete", "status_change", "upload", "comment",
+    "edit", "replace", "delete", "status_change", "upload", "comment", "create",
 })
 
 
-def should_moderate(user: User, module: str, action: str) -> bool:
-    """Нужно ли отправить правку на согласование. Одно понятное правило."""
+async def should_moderate(db: AsyncSession, user: User, module: str, action: str) -> bool:
+    """Нужно ли отправить правку на согласование.
+
+    Настраиваемо (Фаза 3): список модерируемых модулей берётся из конфига
+    (`moderation_config.get_enabled_modules`), а не из хардкод-фрозсета. Конфиг
+    держит только модули, которые ВООБЩЕ можно модерировать (бакет A + есть
+    apply-хендлер), поэтому одобрение не уйдёт в skip.
+    """
     if not getattr(user, "is_external", False):
         return False
-    if module not in MODERATED_MODULES:
+    from app.services.moderation_config import get_enabled_modules
+    if module not in await get_enabled_modules(db):
+        return False
+    # Персональный denylist (Фаза 5): модуль в личном исключении юзера — пишет
+    # напрямую, остальное модерируется (fail-closed: новый модуль под модерацией).
+    if module in (getattr(user, "moderation_bypass_modules", None) or []):
         return False
     return _canon_action(action) in MODERATED_ACTIONS
 
@@ -348,6 +375,7 @@ async def create_submission(
     source_ip: Optional[str] = None,
     source_user_agent: Optional[str] = None,
     year: Optional[int] = None,
+    editor_token: Optional[str] = None,
 ) -> ModerationSubmission:
     """Create a pending submission, match a rule, assign moderator, fire notifications."""
     rule = await match_rule(
@@ -381,6 +409,7 @@ async def create_submission(
         approvals_given=[],
         source_ip=source_ip,
         source_user_agent=source_user_agent,
+        editor_token=editor_token,
     )
 
     # Маршрутизация: персональные согласующие → куратор сектора → общий пул.
@@ -391,8 +420,23 @@ async def create_submission(
 
     if rule:
         sub.rule_id = rule.id
-        sub.assigned_moderator_id = rule.moderator_primary_id
-        sub.coapprover_id          = rule.moderator_coapprover_id
+        # Правило перенаправляет заявку ТОЛЬКО если само называет согласующего.
+        # Правило без named-primary («внешние → на согласование») раньше
+        # безусловно затирало assigned_moderator_id в None, ломая явную/секторную
+        # маршрутизацию: заскоуплённый куратор получал 403 от scope-гейта (байпас
+        # reviewer_ids завязан на непустой assigned), а owner даже не уведомлялся
+        # (_notify_on_create шлёт по reviewer_ids) — заявка тихо висела.
+        if rule.moderator_primary_id:
+            sub.assigned_moderator_id = rule.moderator_primary_id
+            sub.coapprover_id = rule.moderator_coapprover_id
+            # …и сбрасываем пул ревьюеров на людей правила: иначе общий фолбэк-
+            # пул в reviewer_ids получил бы scope-байпас (assigned стал непустым).
+            rev = [rule.moderator_primary_id]
+            if rule.moderator_coapprover_id:
+                rev.append(rule.moderator_coapprover_id)
+            sub.reviewer_ids = [str(x) for x in rev]
+        elif rule.moderator_coapprover_id:
+            sub.coapprover_id = rule.moderator_coapprover_id
         sub.approval_mode          = rule.approval_mode
         sub.expires_at             = now + timedelta(days=rule.expire_after_days)
 
@@ -579,6 +623,16 @@ def _load_apply_handlers() -> None:
         "app.services.moderation_apply.procurement",
         "app.services.moderation_apply.production",
         "app.services.moderation_apply.comments",
+        "app.services.moderation_apply.unit_cost",
+        "app.services.moderation_apply.companies",
+        "app.services.moderation_apply.investment",
+        # Фаза 4, батч 1:
+        "app.services.moderation_apply.directions",
+        "app.services.moderation_apply.subsidies",
+        "app.services.moderation_apply.status_updates",
+        "app.services.moderation_apply.consultants",
+        "app.services.moderation_apply.notes",
+        "app.services.moderation_apply.elasticity",
         # Skipped (deliberately):
         #   - uploads:  path storage with freeform JSON
     )
@@ -586,7 +640,10 @@ def _load_apply_handlers() -> None:
         try:
             __import__(mod_path)
         except Exception as e:
-            log.warning("apply handler %s failed to load: %s", mod_path, e)
+            # ERROR, не warning: если хендлер не импортировался, его модуль
+            # выпадает из moderatable_modules() и молча ПЕРЕСТАЁТ модерироваться
+            # (fail-open). Должно быть заметно в логах/алертах.
+            log.error("apply handler %s failed to load: %s", mod_path, e)
 
 
 _load_apply_handlers()
@@ -610,6 +667,7 @@ async def gate_or_apply(
     payload: dict[str, Any],
     original: Optional[dict[str, Any]] = None,
     diff_summary: Optional[str] = None,
+    editor_token: Optional[str] = None,
 ):
     """Decide whether to write through or queue for moderation.
 
@@ -637,7 +695,7 @@ async def gate_or_apply(
     except Exception:
         pass
 
-    if not should_moderate(user, module, action):
+    if not await should_moderate(db, user, module, action):
         return False, None
     rule = None
 
@@ -654,6 +712,7 @@ async def gate_or_apply(
         original_value=original,
         diff_summary=diff_summary,
         year=year,
+        editor_token=editor_token,
     )
     return True, sub
 
@@ -674,6 +733,8 @@ async def _dispatch_apply(
         sub.apply_result = None
         await db.commit()
         return
+    sub_id = sub.id
+    module = sub.target_module
     try:
         result = await handler(db, sub=sub, user=user)
         sub.apply_status = "applied"
@@ -681,12 +742,89 @@ async def _dispatch_apply(
         sub.apply_result = result if isinstance(result, dict) else None
         await db.commit()
     except Exception as e:
-        log.exception("apply handler for %s failed", sub.target_module)
-        sub.apply_status = "failed"
-        sub.apply_error = str(e)[:500]
-        sub.apply_result = None
-        await db.commit()
+        log.exception("apply handler for %s failed", module)
+        # Хендлеры делают delete-and-replace (kpi/financials wipe+reinsert) и
+        # коммитят в самом конце. Если упало на середине, в сессии висит
+        # ЧАСТИЧНАЯ доменная мутация. Без отката commit ниже записал бы её
+        # вместе со статусом 'failed' (порча данных), а при DB-ошибке сам
+        # commit падал бы PendingRollbackError — и статус не сохранялся вовсе,
+        # а исключение уходило в approve() (уже закоммитивший 'approved').
+        # Откатываем частичную мутацию, затем ПЕРЕЧИТЫВАЕМ заявку (после
+        # rollback её атрибуты истекли) и в чистой транзакции пишем 'failed'.
+        try:
+            await db.rollback()
+        except Exception:
+            log.exception("rollback after failed apply of %s errored", module)
+        fresh = await db.get(ModerationSubmission, sub_id)
+        if fresh is not None:
+            fresh.apply_status = "failed"
+            fresh.apply_error = str(e)[:500]
+            fresh.apply_result = None
+            await db.commit()
 
+
+
+async def _effective_company_id(
+    db: AsyncSession, sub: ModerationSubmission,
+) -> Optional[UUID]:
+    """Компания заявки для scope-проверки.
+
+    Обычно это `target_company_id`. Но production/procurement несут компанию
+    КОДОМ в `target_entity_id` (в gate_or_apply company_id=None), поэтому для
+    них резолвим id по коду — иначе scope-гейт для этих модулей был бы no-op.
+    Покрывает и уже стоящие в очереди заявки (у них target_company_id=None).
+    """
+    if sub.target_company_id is not None:
+        return sub.target_company_id
+    if sub.target_module in ("production", "procurement", "unit_cost") and sub.target_entity_id:
+        from app.models.company import Company
+        code = str(sub.target_entity_id).strip().lower()
+        return (await db.execute(
+            select(Company.id).where(func.lower(Company.code) == code),
+        )).scalar_one_or_none()
+    return None
+
+
+async def in_resolve_scope(
+    db: AsyncSession, sub: ModerationSubmission, user: User,
+) -> bool:
+    """Область компаний модератора применительно к ЭТОЙ заявке.
+
+    Закрывает дыру аудита: держатель `moderation.review` из общего пула мог
+    принять/применить заявку для ЛЮБОЙ компании — apply писал в целевую
+    компанию без сверки со scope модератора (кросс-компанийная запись).
+
+    Правило:
+      • владелец и носитель `companies.view_all` — вся область (bypass);
+      • заявка без привязки к компании (`target_company_id` пуст) — область не
+        ограничивает (общие справочники и т. п.);
+      • ЯВНО смаршрутизированный согласующий (персональный модератор автора или
+        куратор сектора — признак: заполнен `assigned_moderator_id`, в фолбэке
+        он None) выбран под этого автора намеренно, поэтому scope его не режет —
+        иначе сломались бы обе фичи маршрутизации;
+      • иначе — держатель `moderation.review` из общего пула: только свои
+        компании (`allowed_company_ids`).
+
+    ВАЖНО: компания заявки берётся из `target_company_id`, а для
+    production/procurement — резолвится по коду в `target_entity_id` (эти роуты
+    зовут gate_or_apply с company_id=None). Без этого scope-гейт был бы для них
+    no-op, и заскоуплённый модератор мог применить их заявку по чужой компании.
+    """
+    from app.core.access import allowed_company_ids, has_unrestricted_view
+    if user.is_owner or has_unrestricted_view(user):
+        return True
+    if sub.assigned_moderator_id is not None:
+        if sub.assigned_moderator_id == user.id or sub.coapprover_id == user.id:
+            return True
+        if any(str(x) == str(user.id) for x in (sub.reviewer_ids or [])):
+            return True
+    company_id = await _effective_company_id(db, sub)
+    if company_id is None:
+        return True  # заявка без привязки к компании — область не ограничивает
+    allowed = await allowed_company_ids(db, user)
+    if allowed is None:  # без ограничения области
+        return True
+    return company_id in allowed
 
 
 async def _assert_can_resolve(
@@ -696,10 +834,8 @@ async def _assert_can_resolve(
 
     `_can_resolve` синхронный и смотрит только роли пользователя, поэтому
     персональный отзыв права (`user_permission_grant`, grant_type='deny') он не
-    видит. На HTTP-путях это прикрыто `require_permission`, но Telegram-кнопки
-    «Принять/Отклонить» идут через `bot_callbacks` мимо любых HTTP-гейтов —
-    снятый модератор мог бы закрыть заявку из старого уведомления. Отзыв
-    проверяем здесь, до всех остальных условий.
+    видит. На HTTP-путях это прикрыто `require_permission`, но был путь мимо
+    HTTP-гейтов, поэтому отзыв проверяем здесь, до всех остальных условий.
     """
     from app.services import moderation_authority
     if await moderation_authority.review_denied(db, user):
@@ -709,6 +845,12 @@ async def _assert_can_resolve(
     # витке — заявку нельзя было ни принять, ни отклонить.
     if not _can_resolve(sub, user):
         raise PermissionError("Not authorized to resolve this submission")
+    # Область компаний: модератор из общего пула решает только по своим
+    # компаниям. Владелец/полный доступ/явно назначенный — сквозь (см. helper).
+    if not await in_resolve_scope(db, sub, user):
+        raise PermissionError(
+            "Not authorized to resolve this submission (out of company scope)",
+        )
 
 
 async def approve(

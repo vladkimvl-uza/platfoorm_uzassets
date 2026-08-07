@@ -95,15 +95,13 @@ async function saveMetric(): Promise<void> {
       target: _num(mForm.target), benchmark: _num(mForm.benchmark),
       notes: mForm.notes.trim() || null,
     });
-    if (isModerationQueued(res)) { queued.value = true; setTimeout(() => { showMetricForm.value = false; emit("saved"); }, 1200); }
-    else {
-      const saved = res as ESGMetricBrief;
-      const i = localMetrics.value.findIndex(x => x.id === saved.id
-        || (x.pillar === saved.pillar && x.metric_code === saved.metric_code));
-      if (i >= 0) localMetrics.value[i] = saved; else localMetrics.value.push(saved);
-      showMetricForm.value = false; emit("saved");
-    }
+    const saved = res as ESGMetricBrief;
+    const i = localMetrics.value.findIndex(x => x.id === saved.id
+      || (x.pillar === saved.pillar && x.metric_code === saved.metric_code));
+    if (i >= 0) localMetrics.value[i] = saved; else localMetrics.value.push(saved);
+    showMetricForm.value = false; emit("saved");
   } catch (e: any) {
+    if (isModerationQueued(e)) { queued.value = true; setTimeout(() => { showMetricForm.value = false; emit("saved"); }, 1200); return; }
     err.value = e?.response?.data?.detail || e?.message || t('Не удалось сохранить метрику');
   } finally { saving.value = false; }
 }
@@ -156,16 +154,14 @@ async function saveIssue(): Promise<void> {
         description: iForm.description.trim() || null, severity: iForm.severity,
       }) as any;
     }
-    if (isModerationQueued(res)) { queued.value = true; setTimeout(() => { showIssueForm.value = false; emit("saved"); }, 1200); }
-    else {
-      const saved = res as ESGIssueBrief;
-      if (editingIssue.value) {
-        const i = localIssues.value.findIndex(x => x.id === editingIssue.value!.id);
-        if (i >= 0) localIssues.value[i] = saved;
-      } else localIssues.value.push(saved);
-      showIssueForm.value = false; emit("saved");
-    }
+    const saved = res as ESGIssueBrief;
+    if (editingIssue.value) {
+      const i = localIssues.value.findIndex(x => x.id === editingIssue.value!.id);
+      if (i >= 0) localIssues.value[i] = saved;
+    } else localIssues.value.push(saved);
+    showIssueForm.value = false; emit("saved");
   } catch (e: any) {
+    if (isModerationQueued(e)) { queued.value = true; setTimeout(() => { showIssueForm.value = false; emit("saved"); }, 1200); return; }
     err.value = e?.response?.data?.detail || e?.message || t('Не удалось сохранить риск');
   } finally { saving.value = false; }
 }

@@ -69,9 +69,17 @@ async def _is_reviewer(db: AsyncSession, sub, user: User) -> bool:
 
 
 async def _read(db: AsyncSession, sub, user: User) -> SubmissionRead:
-    """SubmissionRead + вычисленный для этого пользователя can_resolve."""
+    """SubmissionRead + вычисленный для этого пользователя can_resolve.
+
+    can_resolve = ревьюер ЭТОЙ заявки И заявка в его области компаний. Без
+    scope кнопки «Принять/Отклонить» показывались бы модератору из общего пула
+    и для чужих компаний, а backend всё равно вернул бы 403 при клике.
+    """
     out = SubmissionRead.model_validate(sub)
-    out.can_resolve = await _is_reviewer(db, sub, user)
+    out.can_resolve = (
+        await _is_reviewer(db, sub, user)
+        and await svc.in_resolve_scope(db, sub, user)
+    )
     return out
 
 
@@ -266,6 +274,13 @@ async def retry_apply_submission(
     from app.services import moderation_authority
     if await moderation_authority.review_denied(db, user):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Not authorized to resolve this submission")
+    # Та же scope-проверка, что и в approve: повтор применения — это запись в
+    # целевую компанию, модератор из общего пула не должен писать в чужую.
+    if not await svc.in_resolve_scope(db, sub, user):
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "Not authorized to resolve this submission (out of company scope)",
+        )
     if (sub.apply_status or "") == "applied":
         raise HTTPException(
             status.HTTP_409_CONFLICT,
@@ -394,3 +409,33 @@ async def patch_user_flags(
     _u: User = Depends(require_permission("admin.users")),
 ):
     return await service.patch_user_flags(user_id, body)
+
+
+# ─── Настраиваемая политика модерации (Фаза 3) ────────────────────
+# Какие модули модерируются — конфиг, а не хардкод. Капабилити (какие модули
+# ВООБЩЕ можно включить) — в коде (бакет A + apply-хендлер), из UI не выносится.
+
+@router.get("/policy")
+async def get_moderation_policy(
+    db: AsyncSession = Depends(get_db),
+    _u: User = Depends(require_permission("admin.users")),
+):
+    from app.services import moderation_config
+    return await moderation_config.get_policy(db)
+
+
+@router.patch("/policy")
+async def set_moderation_policy(
+    body: dict,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_permission("admin.users")),
+):
+    from app.services import moderation_config
+    mods = body.get("enabled_modules")
+    if not isinstance(mods, list):
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "enabled_modules (list) required",
+        )
+    return await moderation_config.set_enabled_modules(
+        db, mods, actor_email=user.email, actor_id=str(user.id),
+    )

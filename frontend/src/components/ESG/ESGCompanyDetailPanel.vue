@@ -92,11 +92,11 @@ async function saveEdit(m: ESGMetricBrief) {
       benchmark: m.benchmark, notes: m.notes,
     });
     editingId.value = null;
-    if (isModerationQueued(res)) toast.info(t("Изменение отправлено на модерацию"));
-    else toast.success(t("Сохранено"));
+    toast.success(t("Сохранено"));
     await load();
     emit("changed");
   } catch (e: any) {
+    if (isModerationQueued(e)) { editingId.value = null; await load(); emit("changed"); return; }
     toast.error(e?.response?.data?.detail || t("Не удалось сохранить"));
   } finally {
     savingId.value = null;

@@ -129,6 +129,15 @@ async def replace_company_year(
     await _require(db, user, "kpi.edit")
     await ensure_company_access(db, user, company_id)
 
+    # Год в пути — источник истины; тело обязано совпадать. Иначе прямой путь
+    # пишет в path-year (service.replace_year), а apply модерации — в body-year
+    # (moderation_apply/kpi), и editor-token#6 считался бы над разными scope.
+    if payload.year != year:
+        raise HTTPException(
+            http_status.HTTP_400_BAD_REQUEST,
+            "Год в теле запроса не совпадает с годом в URL",
+        )
+
     # Optimistic-lock — отдельный contract (раздаём token на GET).
     from app.core.editor_lock import check_editor_token, compute_kpi_editor_token
     current_token = await compute_kpi_editor_token(db, company_id=company_id, year=year)
@@ -148,6 +157,9 @@ async def replace_company_year(
         company_id=company_id, sector_id=None, year=year,
         payload=payload.model_dump(mode="json"),
         diff_summary=f"Замена дерева KPI на {len(payload.managers)} руководителей за {year}",
+        # editor-token на момент подачи: apply сверит его перед wipe+reinsert,
+        # чтобы одобрение устаревшей заявки не затёрло более новые данные.
+        editor_token=current_token,
     )
     if queued:
         return {

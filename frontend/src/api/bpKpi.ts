@@ -597,14 +597,14 @@ export const bpApi = {
   async bulkUpsert(
     records: BpRecordUpsert[],
     editorToken?: string | null,
-  ): Promise<{ upserted: number; editorToken: string | null } | ModerationQueuedTag> {
-    // If-Match — optimistic-lock (409 EditorConflict, если кто-то сохранил параллельно)
+  ): Promise<{ upserted: number; editorToken: string | null }> {
+    // If-Match — optimistic-lock (409 EditorConflict, если кто-то сохранил параллельно).
+    // На 202 (ушло в модерацию) интерцептор ОТКЛОНЯЕТ — вызывающий ловит в catch.
     const resp = await api.post(
       "/bp/bulk-upsert",
       { records },
       editorToken ? { headers: { "If-Match": editorToken } } : undefined,
     );
-    if (resp.data && resp.data.queued) return resp.data as ModerationQueuedTag;
     return {
       upserted: resp.data.upserted,
       editorToken: (resp.headers["x-editor-token"] as string) || null,

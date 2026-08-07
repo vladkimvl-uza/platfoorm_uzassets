@@ -37,6 +37,23 @@ async def apply(db, *, sub: ModerationSubmission, user: User) -> dict:
     except Exception as e:
         raise ValueError(f"proposed_value does not match BpBulkUpsert: {e}") from e
 
+    # Защита от затирания: токен scope (company, year) ПЕРВОЙ записи снят при
+    # подаче (как и проверяет живой роут). Если данные изменились после подачи —
+    # не применяем: даже upsert затёр бы новые значения затронутых ячеек. NULL →
+    # проверки нет (legacy/не captured).
+    if sub.editor_token and payload.records:
+        from app.core.editor_lock import compute_bp_editor_token
+        first = payload.records[0]
+        current_tok = await compute_bp_editor_token(
+            db, company_id=first.company_id, year=first.year,
+        )
+        if current_tok != sub.editor_token:
+            raise ValueError(
+                "Данные бизнес-плана этой компании за этот год изменились после "
+                "подачи заявки — применение затёрло бы новые правки. Отклоните "
+                "заявку и попросите автора пересоздать её на актуальных данных.",
+            )
+
     n = 0
     for rec in payload.records:
         if rec.period not in BP_PERIODS or rec.metric not in BP_METRIC_KEYS:

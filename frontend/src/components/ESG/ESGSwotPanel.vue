@@ -88,11 +88,11 @@ async function removeItem(it: ESGSwotItemBrief) {
   if (!ok) return;
   saving.value = true;
   try {
-    const r = await esgApi.deleteSwot(it.id);
-    if (isModerationQueued(r)) toast.info(t('Отправлено на согласование'));
-    else { toast.success(t('Вывод удалён')); emit("changed"); }
+    await esgApi.deleteSwot(it.id);
+    toast.success(t('Вывод удалён')); emit("changed");
     await load();
   } catch (e: any) {
+    if (isModerationQueued(e)) { await load(); return; }
     toast.error(t('Не удалено: {value0}', { value0: (e?.response?.data?.detail || e?.message || t("ошибка")) }));
   } finally { saving.value = false; }
 }
@@ -104,7 +104,7 @@ async function save() {
   saving.value = true;
   try {
     const nextIdx = items.value.filter(i => i.kind === editing.value!.kind).length;
-    const res = await esgApi.upsertSwot({
+    await esgApi.upsertSwot({
       id: editing.value.id,
       kind: editing.value.kind,
       scope: "company",
@@ -112,12 +112,12 @@ async function save() {
       body,
       order_idx: editing.value.id ? undefined as any : nextIdx,
     } as any);
-    if (isModerationQueued(res)) toast.info(t('Изменение отправлено на модерацию'));
-    else toast.success(t('Сохранено'));
+    toast.success(t('Сохранено'));
     editing.value = null; draft.value = "";
     await load();
     emit("changed");
   } catch (e: any) {
+    if (isModerationQueued(e)) { editing.value = null; draft.value = ""; await load(); emit("changed"); return; }
     toast.error(e?.response?.data?.detail || t('Не удалось сохранить'));
   } finally {
     saving.value = false;

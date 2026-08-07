@@ -29,6 +29,7 @@ import { useCompaniesStore } from "@/stores/companies";
 import { useToast } from "@/composables/useToast";
 import { useCanEdit } from "@/utils/permissions";
 import { companiesApi, type CompanyDetail, type FinancialReportBrief, type CompanyUpdatePayload } from "@/api/companies";
+import { isModerationQueued } from "@/api/client";
 import EditableField from "@/components/UZA/EditableField.vue";
 import EntityDrillShell from "@/components/UZA/EntityDrillShell.vue";
 import { useI18n } from "@/composables/useI18n";
@@ -223,9 +224,16 @@ async function load() {
 async function updateField<K extends keyof CompanyUpdatePayload>(field: K, value: CompanyUpdatePayload[K] | null) {
   if (!code.value) throw new Error(tr('Нет кода компании'));
   const payload = { [field]: value } as CompanyUpdatePayload;
-  const updated = await companiesApi.update(code.value, payload);
-  detail.value = updated;
-  toast.success(tr('Поле «{value0}» сохранено', { value0: RU_FIELD_LABELS[String(field)] || String(field) }));
+  try {
+    const updated = await companiesApi.update(code.value, payload);
+    detail.value = updated;
+    toast.success(tr('Поле «{value0}» сохранено', { value0: RU_FIELD_LABELS[String(field)] || String(field) }));
+  } catch (e) {
+    // Ушло на модерацию (202): интерцептор показал тост, правки ещё нет —
+    // не подменяем detail и не считаем это ошибкой поля.
+    if (isModerationQueued(e)) return;
+    throw e;   // реальную ошибку отдаём EditableField (inline-статус/откат)
+  }
 }
 
 const RU_FIELD_LABELS: Record<string, string> = {

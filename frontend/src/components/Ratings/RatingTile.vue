@@ -129,18 +129,21 @@ async function save(): Promise<void> {
       payload.outlook = buf.outlook || null;
     }
 
-    const res = props.rating?.id
-      ? await ratingsApi.update(props.rating.id, payload as Partial<AgencyRatingBrief>)
-      : await ratingsApi.create({ company_id: props.companyId, agency: props.agency, ...payload });
+    if (props.rating?.id) {
+      await ratingsApi.update(props.rating.id, payload as Partial<AgencyRatingBrief>);
+    } else {
+      await ratingsApi.create({ company_id: props.companyId, agency: props.agency, ...payload });
+    }
 
-    if (isModerationQueued(res)) {
+    editing.value = false;
+    emit("saved");
+  } catch (e: any) {
+    if (isModerationQueued(e)) {
+      // Interceptor already fired the «на модерацию» toast — keep the in-card queued badge.
       queued.value = true;
       setTimeout(() => { editing.value = false; emit("saved"); }, 1400);
-    } else {
-      editing.value = false;
-      emit("saved");
+      return;
     }
-  } catch (e: any) {
     err.value = e?.response?.data?.detail || e?.message || t('Не удалось сохранить');
   } finally {
     saving.value = false;

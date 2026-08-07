@@ -9,6 +9,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi import status as http_status
+from fastapi.responses import JSONResponse
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -36,6 +37,37 @@ async def _require(db: AsyncSession, user: User, code: str) -> None:
 
 def _can_modify(row: StatusUpdate, user: User) -> bool:
     return row.author_id == user.id or user.is_owner
+
+
+async def _resolve_entity_company(
+    db: AsyncSession, user: User, entity_type: str, entity_id: str,
+) -> tuple[UUID | None, str | None]:
+    """Компания и название сущности (project/task) по entity_id, с проверкой
+    доступа автора к этой компании.
+
+    Нужно ДО модерационного гейта: иначе внешний автор мог бы отправить в
+    очередь правку хода задачи/проекта ВНЕ своего доступа (мы уже даём company_id
+    модератору для scope на approve). Возвращает (company_id|None, title|None).
+    Если сущность не найдена — (None, None) (лениво, как раньше в create); если
+    найдена и привязана к компании — сверяем доступ (403 вне области)."""
+    try:
+        _eid = UUID(str(entity_id))
+    except (ValueError, TypeError):
+        raise HTTPException(http_status.HTTP_422_UNPROCESSABLE_ENTITY, "invalid entity_id")
+    if entity_type == "project":
+        from app.models.project import Project as _Ent
+    else:
+        from app.models.task import Task as _Ent
+    row = (await db.execute(
+        select(_Ent.company_id, _Ent.title).where(_Ent.id == _eid)
+    )).first()
+    if row is None:
+        return None, None
+    company_id, title = row[0], row[1]
+    if company_id is not None:
+        from app.core.access import ensure_company_access
+        await ensure_company_access(db, user, company_id)
+    return company_id, title
 
 
 @router.get("", response_model=list[StatusUpdateRead])
@@ -88,6 +120,27 @@ async def create_status_update(
         raise HTTPException(http_status.HTTP_422_UNPROCESSABLE_ENTITY, "invalid entity_type")
     if payload.health and payload.health not in HEALTH_VALUES:
         raise HTTPException(http_status.HTTP_422_UNPROCESSABLE_ENTITY, "invalid health")
+
+    # Модерация (Phase 4): внешний автор → в очередь. Область автора проверяем ДО
+    # гейта (ensure_company_access внутри резолвера) + получаем company_id для
+    # scope модератора на approve. Записи ещё нет → entity_id=None, apply
+    # штампует id созданной записи.
+    _cid, _title = await _resolve_entity_company(
+        db, user, payload.entity_type, payload.entity_id)
+    _label_kind = "проекта" if payload.entity_type == "project" else "задачи"
+    from app.services.moderation_service import gate_or_apply
+    queued, sub = await gate_or_apply(
+        db, user=user, module="status_updates", action="create",
+        entity_id=None,
+        entity_label=f"Ход {_label_kind}: {_title or payload.entity_id}",
+        company_id=_cid, sector_id=None, year=None,
+        payload=payload.model_dump(mode="json"),
+        diff_summary=f"Обновление хода {_label_kind}",
+    )
+    if queued:
+        return JSONResponse(status_code=http_status.HTTP_202_ACCEPTED, content={
+            "queued": True, "submission_id": str(sub.id), "status": sub.status})
+
     row = StatusUpdate(
         entity_type=payload.entity_type,
         entity_id=payload.entity_id,
@@ -164,11 +217,28 @@ async def update_status_update(
         raise HTTPException(http_status.HTTP_404_NOT_FOUND, "not found")
     if not _can_modify(row, user):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "only author or owner")
+    if payload.health is not None and payload.health and payload.health not in HEALTH_VALUES:
+        raise HTTPException(http_status.HTTP_422_UNPROCESSABLE_ENTITY, "invalid health")
+
+    # Модерация (Phase 4): внешний автор → в очередь. Область автора + company_id
+    # резолвим по сущности записи ДО гейта.
+    _cid, _ = await _resolve_entity_company(db, user, row.entity_type, row.entity_id)
+    from app.services.moderation_service import gate_or_apply
+    queued, sub = await gate_or_apply(
+        db, user=user, module="status_updates", action="edit",
+        entity_id=str(update_id),
+        entity_label=f"Ход {'проекта' if row.entity_type == 'project' else 'задачи'}",
+        company_id=_cid, sector_id=None, year=None,
+        payload=payload.model_dump(mode="json"),
+        diff_summary="Изменение записи хода",
+    )
+    if queued:
+        return JSONResponse(status_code=http_status.HTTP_202_ACCEPTED, content={
+            "queued": True, "submission_id": str(sub.id), "status": sub.status})
+
     if payload.body is not None:
         row.body = payload.body.strip()
     if payload.health is not None:
-        if payload.health and payload.health not in HEALTH_VALUES:
-            raise HTTPException(http_status.HTTP_422_UNPROCESSABLE_ENTITY, "invalid health")
         row.health = payload.health or None
     await db.commit()
     await db.refresh(row)
@@ -187,5 +257,22 @@ async def delete_status_update(
         raise HTTPException(http_status.HTTP_404_NOT_FOUND, "not found")
     if not _can_modify(row, user):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "only author or owner")
+
+    # Модерация (Phase 4): внешний автор → в очередь. Область автора + company_id
+    # резолвим по сущности записи ДО гейта.
+    _cid, _ = await _resolve_entity_company(db, user, row.entity_type, row.entity_id)
+    from app.services.moderation_service import gate_or_apply
+    queued, sub = await gate_or_apply(
+        db, user=user, module="status_updates", action="delete",
+        entity_id=str(update_id),
+        entity_label=f"Ход {'проекта' if row.entity_type == 'project' else 'задачи'}",
+        company_id=_cid, sector_id=None, year=None,
+        payload={"id": str(update_id)},
+        diff_summary="Удаление записи хода",
+    )
+    if queued:
+        return JSONResponse(status_code=http_status.HTTP_202_ACCEPTED, content={
+            "queued": True, "submission_id": str(sub.id), "status": sub.status})
+
     await db.delete(row)
     await db.commit()

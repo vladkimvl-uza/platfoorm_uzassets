@@ -155,7 +155,17 @@ export interface SubmittedUser {
   id: string; email: string; full_name: string;
   is_external: boolean;
   bypass_moderation: boolean; external_org_name: string | null;
+  /** Персональный denylist: модули, которые юзер пишет НАПРЯМУЮ (в обход модерации) */
+  moderation_bypass_modules: string[];
   is_active: boolean; job_title: string | null;
+}
+
+/** Настраиваемая политика модерации (какие модули модерируются глобально). */
+export interface ModerationPolicy {
+  enabled_modules: string[];      // включённые (модерируются)
+  available_modules: string[];    // можно включить (бакет A + есть apply-хендлер)
+  moderatable_all: string[];      // все модерируемые бакета A (справка)
+  needs_handler: string[];        // A-модули без хендлера (пока нельзя включить)
 }
 
 
@@ -259,11 +269,39 @@ export const moderationApi = {
     const r = await api.get<{ items: SubmittedUser[] }>("/moderation/submitted-users");
     return r.data;
   },
-  async patchUserFlags(userId: string, flags: Partial<Pick<SubmittedUser, "is_external" | "bypass_moderation" | "external_org_name">>) {
+  async patchUserFlags(userId: string, flags: Partial<Pick<SubmittedUser, "is_external" | "bypass_moderation" | "external_org_name" | "moderation_bypass_modules">>) {
     const r = await api.patch(`/moderation/users/${userId}/flags`, flags);
     return r.data;
   },
+
+  // ─── Настраиваемая политика (какие модули модерируются) ───────────
+  async getPolicy(): Promise<ModerationPolicy> {
+    const r = await api.get<ModerationPolicy>("/moderation/policy");
+    return r.data;
+  },
+  async setPolicy(enabled_modules: string[]): Promise<{ enabled_modules: string[]; rejected: string[] }> {
+    const r = await api.patch<{ enabled_modules: string[]; rejected: string[] }>("/moderation/policy", { enabled_modules });
+    return r.data;
+  },
 };
+
+/** Русские подписи модулей модерации для панели. */
+export const MODERATION_MODULE_LABELS: Record<string, string> = {
+  tasks: "Задачи", projects: "Проекты", comments: "Комментарии", kpi: "KPI",
+  financials: "Финансы", business_plan: "Бизнес-план", esg: "ESG",
+  governance: "Корп. управление", ratings: "Рейтинги", procurement: "Закупки",
+  production: "Производство", credit: "Кредиты", investment: "Инвестиции",
+  unit_cost: "Себестоимость", companies: "Компании", finmodel: "Финмодель",
+  subsidies: "Субсидии", scenarios: "Сценарии", elasticity: "Эластичность",
+  directions: "Направления", notes: "Заметки", documents: "Документы",
+  status_updates: "Статусы", consultants: "Консультанты",
+  company_library: "Библиотека компании", builder: "Импорт (AI)",
+  overview_matrix: "Матрица обзора", report_wizard: "Мастер отчётов", pmo: "PMO",
+  ifrs_report_history: "История IFRS",
+};
+export function moduleLabel(code: string): string {
+  return MODERATION_MODULE_LABELS[code] || code;
+}
 
 
 // ─── Display helpers ───────────────────────────────────────────

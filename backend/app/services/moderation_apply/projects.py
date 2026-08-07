@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from uuid import UUID
 
+from fastapi import HTTPException
+
 from app.database import AsyncSessionLocal
 from app.models.moderation import ModerationSubmission
 from app.models.user import User
@@ -48,9 +50,22 @@ async def apply(db, *, sub: ModerationSubmission, user: User) -> dict:
     if action in ("create", "created"):
         if not sub.proposed_value:
             raise ValueError("proposed_value is empty")
+        # Идемпотентность повторного применения: если прошлый apply уже создал
+        # проект и застолбил его id в sub.target_entity_id, повтор НЕ создаёт
+        # дубль. (create_project работал на отдельной сессии, поэтому rollback
+        # в _dispatch_apply не откатывал уже созданный проект.)
+        if sub.target_entity_id:
+            try:
+                existing = await service.hydrate_detail(UUID(sub.target_entity_id))
+                return {"action": "create", "project_id": str(existing.id), "idempotent": True}
+            except HTTPException:
+                pass  # проекта нет — прошлый create не прошёл, создаём заново
         payload = ProjectCreate.model_validate(sub.proposed_value)
-        detail, _info = await service.create_project(payload, creator_id=user.id)
-        return {"action": "create", "project_id": str(detail.id)}
+        # id-only путь: одна транзакция, без гидрации детали (её сбой во второй
+        # транзакции иначе рушил apply при уже созданном проекте → дубль).
+        pid = await service.create_project_id(payload, creator_id=user.id)
+        sub.target_entity_id = str(pid)  # застолбить id (коммитит _dispatch_apply)
+        return {"action": "create", "project_id": str(pid)}
 
     if action in ("update", "status_change", "edit"):
         if not sub.proposed_value:

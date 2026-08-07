@@ -10,6 +10,7 @@ import { computed, nextTick, onMounted, ref, watch } from "vue";
 import ModalShell from "@/components/ModalShell.vue";
 import { esgApi, type ESGSwotResponse, type ESGSwotItemBrief, type ESGKpiBrief, type ESGKpiManagerBrief } from "@/api/esg";
 import { useToast } from "@/composables/useToast";
+import { isModerationQueued } from "@/api/client";
 import { useConfirm } from "@/composables/useConfirm";
 import { useCompanyScope } from "@/composables/useCompanyScope";
 import { useI18n } from "@/composables/useI18n";
@@ -215,15 +216,15 @@ async function commit(scope: Scope, kind: Kind, cid: string, existing: ESGSwotIt
   if (saving.value) return;
   saving.value = true;
   try {
-    const r = await esgApi.upsertSwot({
+    await esgApi.upsertSwot({
       id: existing?.id ?? null, kind, scope,
       company_id: scope === "company" ? cid : null,
       body, order_idx: existing?.order_idx ?? listLen,
     });
-    if ((r as { queued?: boolean }).queued) toast.info(t('Отправлено на согласование'));
-    else { toast.success(t('Сохранено')); emit("saved"); }
+    toast.success(t('Сохранено')); emit("saved");
     cancelEdit();
   } catch (e: unknown) {
+    if (isModerationQueued(e)) { cancelEdit(); return; }
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
     toast.error(t('Не сохранено: {value0}', { value0: (err?.response?.data?.detail || err?.message || t("ошибка")) }));
   } finally { saving.value = false; }
@@ -240,10 +241,10 @@ async function removeItem(it: ESGSwotItemBrief) {
   if (!ok) return;
   saving.value = true;
   try {
-    const r = await esgApi.deleteSwot(it.id);
-    if ((r as { queued?: boolean }).queued) toast.info(t('Отправлено на согласование'));
-    else { toast.success(t('Вывод удалён')); emit("saved"); }
+    await esgApi.deleteSwot(it.id);
+    toast.success(t('Вывод удалён')); emit("saved");
   } catch (e: unknown) {
+    if (isModerationQueued(e)) return;
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
     toast.error(t('Не удалено: {value0}', { value0: (err?.response?.data?.detail || err?.message || t("ошибка")) }));
   } finally { saving.value = false; }

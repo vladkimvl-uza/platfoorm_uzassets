@@ -18,6 +18,7 @@ from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
@@ -37,6 +38,7 @@ from app.schemas.notes import (
     NoteUpdate,
     TagCount,
 )
+from app.services.moderation_service import gate_or_apply
 from app.services.notes.notifications import (
     diff_new_checklist_assignees,
     notify_checklist_assignment,
@@ -129,6 +131,19 @@ async def create_note(
     await _require_notes_write(db, user)
     if payload.company_id is not None:
         await ensure_company_access(db, user, payload.company_id)
+    # Модерация (deny-by-default): внешний автор → в очередь. Scope компании
+    # проверен ВЫШЕ, чтобы внешний автор не заводил заметку вне своего доступа.
+    # Новой заметки ещё нет → entity_id=None; apply-хендлер создаёт и штампует id.
+    queued, sub = await gate_or_apply(
+        db, user=user, module="notes", action="create",
+        entity_id=None, entity_label=(payload.title or "Заметка"),
+        company_id=payload.company_id, sector_id=None, year=None,
+        payload=payload.model_dump(mode="json"),
+        diff_summary=f"Создание заметки: {payload.title or payload.body[:80]}",
+    )
+    if queued:
+        return JSONResponse(status_code=status.HTTP_202_ACCEPTED, content={
+            "queued": True, "submission_id": str(sub.id), "status": sub.status})
     created = await service.create_note(payload, author_id=user.id)
     await _dispatch_assignments(db, before=None, after=created, actor=user)
     return created
@@ -149,6 +164,20 @@ async def update_note(
     new_company_id = getattr(payload, "company_id", None)
     if new_company_id is not None and new_company_id != pre.company_id:
         await ensure_company_access(db, user, new_company_id)
+    # Модерация: scope обеих компаний (текущей и целевой) проверен ВЫШЕ.
+    # exclude_unset — правим только присланные поля (apply зеркалит exclude_unset
+    # в update_note; полный дамп затёр бы неприсланные поля в None).
+    gate_company = new_company_id if new_company_id is not None else pre.company_id
+    queued, sub = await gate_or_apply(
+        db, user=user, module="notes", action="edit",
+        entity_id=str(note_id), entity_label=(pre.title or "Заметка"),
+        company_id=gate_company, sector_id=None, year=None,
+        payload=payload.model_dump(mode="json", exclude_unset=True),
+        diff_summary=f"Правка заметки: {pre.title or ''}".strip(),
+    )
+    if queued:
+        return JSONResponse(status_code=status.HTTP_202_ACCEPTED, content={
+            "queued": True, "submission_id": str(sub.id), "status": sub.status})
     updated = await service.update_note(note_id, payload)
     await _dispatch_assignments(db, before=pre, after=updated, actor=user)
     return updated
@@ -168,6 +197,20 @@ async def patch_checklist_item(
     company_id, _ = await service.checklist_item_context(item_id)
     if company_id is not None:
         await ensure_company_access(db, user, company_id)
+    # Модерация: второй edit-роут заметок. Дискриминатор checklist_item_id
+    # отличает точечную правку пункта от правки самой заметки в apply-хендлере;
+    # exclude_unset — правим только присланные поля пункта (см. update_note).
+    queued, sub = await gate_or_apply(
+        db, user=user, module="notes", action="edit",
+        entity_id=str(item_id), entity_label="Пункт чек-листа заметки",
+        company_id=company_id, sector_id=None, year=None,
+        payload={"checklist_item_id": str(item_id),
+                 "patch": payload.model_dump(mode="json", exclude_unset=True)},
+        diff_summary="Правка пункта чек-листа заметки",
+    )
+    if queued:
+        return JSONResponse(status_code=status.HTTP_202_ACCEPTED, content={
+            "queued": True, "submission_id": str(sub.id), "status": sub.status})
     note, newly_assigned = await service.patch_checklist_item(
         item_id, payload, actor_id=user.id,
     )
@@ -194,6 +237,19 @@ async def delete_note(
     pre = await service.get_for_scope_check(note_id)
     if pre.company_id is not None:
         await ensure_company_access(db, user, pre.company_id)
+    # Модерация: scope компании заметки проверен ВЫШЕ. Роут отдаёт 204, поэтому
+    # при постановке в очередь возвращаем JSONResponse(202), чтобы FastAPI
+    # пропустил тело сквозь response_class=Response.
+    queued, sub = await gate_or_apply(
+        db, user=user, module="notes", action="delete",
+        entity_id=str(note_id), entity_label=(pre.title or "Заметка"),
+        company_id=pre.company_id, sector_id=None, year=None,
+        payload={"note_id": str(note_id)},
+        diff_summary=f"Удаление заметки: {pre.title or ''}".strip(),
+    )
+    if queued:
+        return JSONResponse(status_code=status.HTTP_202_ACCEPTED, content={
+            "queued": True, "submission_id": str(sub.id), "status": sub.status})
     await service.delete_note(note_id)
     return Response(status_code=204)
 

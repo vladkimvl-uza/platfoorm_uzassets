@@ -1,4 +1,4 @@
-import { api, isModerationQueued, type ModerationQueuedTag } from "./client";
+import { api, type ModerationQueuedTag } from "./client";
 
 export interface AgencyRatingBrief {
   id: string;
@@ -91,8 +91,9 @@ export const ratingsApi = {
     const { data } = await api.patch<AgencyRatingBrief | ModerationQueuedTag>(`/ratings/${id}`, payload);
     return data;
   },
-  async remove(id: string): Promise<ModerationQueuedTag | undefined> {
-    const { data } = await api.delete<ModerationQueuedTag | undefined>(`/ratings/${id}`);
-    return isModerationQueued(data) ? data : undefined;
+  async remove(id: string): Promise<void> {
+    // На 202 (ушло в модерацию) интерцептор ОТКЛОНЯЕТ — сюда управление не
+    // доходит, вызывающий ловит в catch; на успешном удалении тело не нужно.
+    await api.delete(`/ratings/${id}`);
   },
 };

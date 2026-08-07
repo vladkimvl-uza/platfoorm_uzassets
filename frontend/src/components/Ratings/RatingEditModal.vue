@@ -138,14 +138,10 @@ async function save() {
 
   try {
     if (isEdit.value && props.existing) {
-      const r = await ratingsApi.update(props.existing.id, payload as Partial<AgencyRatingBrief>);
-      if (isModerationQueued(r)) {
-      result.value = t("Изменение отправлено на модерацию");
-      } else {
+      await ratingsApi.update(props.existing.id, payload as Partial<AgencyRatingBrief>);
       result.value = t("Сохранено");
-      }
     } else {
-      const r = await ratingsApi.create({
+      await ratingsApi.create({
         company_id: props.companyId,
         agency: props.agency,
         rating: rating.value.trim() || undefined,
@@ -155,15 +151,17 @@ async function save() {
         rating_date: (payload.rating_date as string) || undefined,
         report_url: reportUrl.value.trim() || undefined,
       });
-      if (isModerationQueued(r)) {
-      result.value = t("Создание отправлено на модерацию");
-      } else {
       result.value = t("Создано");
-      }
     }
     emit("saved");
     setTimeout(() => emit("close"), 1000);
   } catch (e: unknown) {
+    if (isModerationQueued(e)) {
+      // Interceptor already fired the «на модерацию» toast — just close as on success.
+      emit("saved");
+      setTimeout(() => emit("close"), 1000);
+      return;
+    }
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
     error.value = err?.response?.data?.detail || err?.message || t('Ошибка сохранения');
   } finally {
@@ -181,15 +179,17 @@ async function remove() {
   error.value = null;
   result.value = null;
   try {
-    const r = await ratingsApi.remove(props.existing.id);
-    if (r && isModerationQueued(r)) {
-      result.value = t("Удаление отправлено на модерацию");
-    } else {
-      result.value = t("Удалено");
-    }
+    await ratingsApi.remove(props.existing.id);
+    result.value = t("Удалено");
     emit("saved");
     setTimeout(() => emit("close"), 1000);
   } catch (e: unknown) {
+    if (isModerationQueued(e)) {
+      // Interceptor already fired the «на модерацию» toast — just close as on success.
+      emit("saved");
+      setTimeout(() => emit("close"), 1000);
+      return;
+    }
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
     error.value = err?.response?.data?.detail || err?.message || t('Ошибка удаления');
   } finally {

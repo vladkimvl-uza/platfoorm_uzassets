@@ -91,6 +91,10 @@ class CreditPortfolioService:
     async def _require(self, user: User, perm: str) -> None:
         if not await has_effective_permission(self.uow._session, user, perm):  # type: ignore[attr-defined]
             raise HTTPException(http_status.HTTP_403_FORBIDDEN, f"{perm} required")
+        # (Прежний стопгап на запись внешним авторам снят: при выкате модерация
+        # ВЫКЛючена по умолчанию, поэтому credit ведёт себя как остальные пока-не-
+        # включённые модули — прямая запись, как и раньше. Полноценная модерация
+        # credit появится в Фазе 4 с его apply-хендлером, дальше — тумблером панели.)
 
     async def _scope_ids(self, user: User) -> Optional[set[UUID]]:
         return await allowed_company_ids(self.uow._session, user)  # type: ignore[attr-defined]

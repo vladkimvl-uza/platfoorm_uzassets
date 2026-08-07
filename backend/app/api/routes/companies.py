@@ -7,6 +7,8 @@ from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import JSONResponse
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.access import allowed_company_ids
@@ -14,6 +16,7 @@ from app.core.audit_chain import append_audit_entry
 from app.core.security import get_current_user, has_effective_permission
 from app.database import get_db
 from app.dependencies.companies import CompaniesServiceDep, SectorsServiceDep
+from app.models.company import Company
 from app.models.user import User
 from app.schemas.company import (
     CompanyCreatePayload,
@@ -43,6 +46,22 @@ async def _scope(db: AsyncSession, user: User) -> Optional[list[UUID]]:
 async def _can_view(db: AsyncSession, user: User) -> bool:
     return (await has_effective_permission(db, user, "companies.view")) or \
            (await has_effective_permission(db, user, "companies.view_all"))
+
+
+async def _resolve_company_id_scoped(db: AsyncSession, user: User, code: str) -> UUID:
+    """Вернуть id компании по коду, соблюдая область доступа вызывающего (404
+    вне области). Нужно ДО модерационного гейта на update/delete: иначе внешний
+    автор мог бы отправить в очередь правку компании вне своего доступа. Uniform
+    404 (как в сервисе) — не палим существование через 403 vs 404."""
+    cid = (await db.execute(
+        select(Company.id).where(Company.code == code)
+    )).scalar_one_or_none()
+    if cid is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Company not found")
+    scope = await _scope(db, user)
+    if scope is not None and cid not in set(scope):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Company not found")
+    return cid
 
 
 # ─── Companies ────────────────────────────────────────────────────
@@ -302,6 +321,21 @@ async def create_company(
                 "Scoped users cannot create new companies. Contact an administrator.",
             )
 
+    # Модерация: внешний автор → в очередь (закрывает прежнюю дыру — companies
+    # числился модерируемым, но гейта не было). Новой компании ещё нет →
+    # company_id=None; apply-хендлер создаёт и штампует id.
+    from app.services.moderation_service import gate_or_apply
+    queued, sub = await gate_or_apply(
+        db, user=user, module="companies", action="create",
+        entity_id=None, entity_label=f"Компания: {payload.code}",
+        company_id=None, sector_id=None, year=None,
+        payload=payload.model_dump(mode="json"),
+        diff_summary=f"Создание компании {payload.code}",
+    )
+    if queued:
+        return JSONResponse(status_code=status.HTTP_202_ACCEPTED, content={
+            "queued": True, "submission_id": str(sub.id), "status": sub.status})
+
     # Домен + аудит теперь атомарны внутри сервиса (одна UoW-транзакция);
     # роут больше не пишет аудит на отдельной сессии.
     detail, _grp = await service.create_company(
@@ -327,6 +361,21 @@ async def update_company(
             or await has_effective_permission(db, user, "admin.users")):
         raise HTTPException(403, "Permission required: companies.edit")
 
+    # Область автора проверяем ДО модерации (и заодно получаем company_id для
+    # scope модератора на approve). Внешний автор → в очередь.
+    cid = await _resolve_company_id_scoped(db, user, code)
+    from app.services.moderation_service import gate_or_apply
+    queued, sub = await gate_or_apply(
+        db, user=user, module="companies", action="update",
+        entity_id=code, entity_label=f"Компания {code}",
+        company_id=cid, sector_id=None, year=None,
+        payload=payload.model_dump(mode="json"),
+        diff_summary=f"Изменение компании {code}",
+    )
+    if queued:
+        return JSONResponse(status_code=status.HTTP_202_ACCEPTED, content={
+            "queued": True, "submission_id": str(sub.id), "status": sub.status})
+
     detail, _changes = await service.update_company(
         code, payload, scope_company_ids=await _scope(db, user),
         actor_id=str(user.id), actor_email=user.email,
@@ -347,6 +396,28 @@ async def delete_company(
             or await has_effective_permission(db, user, "companies.delete")
             or await has_effective_permission(db, user, "admin.users")):
         raise HTTPException(403, "Permission required: companies.delete or admin.users")
+
+    # Cascade — только владельцу (а владелец модерацию обходит). У остальных
+    # cascade невозможен, поэтому очередь всегда несёт soft-delete.
+    if cascade and not user.is_owner:
+        raise HTTPException(
+            403,
+            "Cascade delete requires owner status. Use ?cascade=false for deactivation.",
+        )
+
+    # Область автора ДО модерации + company_id для scope модератора. Внешний → очередь.
+    cid = await _resolve_company_id_scoped(db, user, code)
+    from app.services.moderation_service import gate_or_apply
+    queued, sub = await gate_or_apply(
+        db, user=user, module="companies", action="delete",
+        entity_id=code, entity_label=f"Компания {code}",
+        company_id=cid, sector_id=None, year=None,
+        payload={"code": code},
+        diff_summary=f"Деактивация компании {code}",
+    )
+    if queued:
+        return JSONResponse(status_code=status.HTTP_202_ACCEPTED, content={
+            "queued": True, "submission_id": str(sub.id), "status": sub.status})
 
     await service.delete_company(
         code, cascade=cascade, actor_is_owner=user.is_owner,

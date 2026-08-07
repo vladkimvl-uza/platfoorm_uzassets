@@ -51,6 +51,21 @@ async def apply(db, *, sub: ModerationSubmission, user: User) -> dict:
                 f"target_entity_id {sub.target_entity_id} != payload.company_id {payload.company_id}",
             )
 
+    # Защита от затирания: если дерево KPI (company, year) изменилось ПОСЛЕ
+    # подачи заявки, wipe+reinsert затёр бы новые правки. Сверяем editor-token,
+    # снятый при подаче, с актуальным. NULL (legacy/не captured) → проверки нет.
+    if sub.editor_token:
+        from app.core.editor_lock import compute_kpi_editor_token
+        current_tok = await compute_kpi_editor_token(
+            db, company_id=payload.company_id, year=payload.year,
+        )
+        if current_tok != sub.editor_token:
+            raise ValueError(
+                "Данные KPI этой компании за этот год изменились после подачи "
+                "заявки — применение затёрло бы новые правки. Отклоните заявку и "
+                "попросите автора пересоздать её на актуальных данных.",
+            )
+
     # Snapshot ESG-пометок (is_esg) перед заменой дерева — фронт /kpi их не
     # присылает; сохраняем по (должность, KPI), как делает live-путь editor_service,
     # иначе одобрение через модерацию молча сбрасывало бы is_esg в False.

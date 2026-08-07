@@ -85,6 +85,22 @@ async def apply(db, *, sub: ModerationSubmission, user: User) -> dict:
     if report is None:
         raise ValueError(f"Financial report {report_id} no longer exists")
 
+    # Защита от затирания: сверяем checksum отчёта на момент открытия автором
+    # (payload.expected_prev_checksum) с актуальным — тем же механизмом, что и
+    # прямой роут (в moderation-пути он был выключен, что и ловил аудит). Если
+    # отчёт изменился после подачи — delete-and-replace затёр бы новые строки.
+    if payload.expected_prev_checksum:
+        from app.services.financials_reports.service import _compute_checksum
+        _cur_lines = (await db.execute(
+            select(FinancialLine).where(FinancialLine.report_id == report_id)
+        )).scalars().all()
+        if _compute_checksum(report, list(_cur_lines)) != payload.expected_prev_checksum:
+            raise ValueError(
+                "Финотчёт изменился после подачи заявки — применение затёрло бы "
+                "новые правки. Отклоните заявку и попросите автора пересоздать "
+                "её на актуальных данных.",
+            )
+
     # Apply header
     report.year         = payload.year
     report.quarter      = payload.quarter

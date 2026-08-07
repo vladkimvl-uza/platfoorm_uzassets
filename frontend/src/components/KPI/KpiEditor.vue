@@ -554,17 +554,13 @@ async function save() {
     };
     const resp = await kpiApi.replaceCompanyYear(payload, editorToken.value);
     editorToken.value = resp.editorToken;  // re-arm for next save
-    // If gated, the interceptor already toasted the user; close the editor.
-    // Otherwise emit 'saved' so the parent refreshes.
-    if (isModerationQueued(resp.result)) {
-      emit("close");
-    } else {
-      // Успех = бэкенд закоммитил (API 2xx). Подтверждаем визуально.
-      useToast().success(t("KPI сохранён"));
-      markSaved();   // правки сохранены → обновляем снимок dirty-guard
-      emit("saved");
-    }
+    // Успех = бэкенд закоммитил (API 2xx). Подтверждаем визуально.
+    useToast().success(t("KPI сохранён"));
+    markSaved();   // правки сохранены → обновляем снимок dirty-guard
+    emit("saved");
   } catch (e: any) {
+    // Gated → interceptor already toasted; just close the editor.
+    if (isModerationQueued(e)) { emit("close"); return; }
     // 409 Conflict = another editor saved while we were working.
     // Show a clear reload prompt instead of generic failure.
     const status = e?.response?.status;

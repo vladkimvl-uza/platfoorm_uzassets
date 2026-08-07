@@ -322,6 +322,7 @@ async def bulk_upsert(
 
     # Optimistic-lock: если редактор прислал If-Match — сверяем со свежим токеном
     # (company, year) первой записи ДО записи/модерации. Расхождение → 409.
+    current_tok = None
     if first is not None:
         current_tok = await compute_bp_editor_token(
             db, company_id=first.company_id, year=first.year)
@@ -338,6 +339,8 @@ async def bulk_upsert(
         year=first.year if first else None,
         payload=payload.model_dump(mode="json"),
         diff_summary=f"Bulk-upsert {len(payload.records)} ячеек бизнес-плана",
+        # editor-token первой записи на момент подачи — apply сверит перед записью.
+        editor_token=current_tok,
     )
     if queued:
         return {

@@ -90,6 +90,11 @@ class User(Base, UUIDMixin, TimestampMixin):
     bypass_moderation:    Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     # External org name (informational, e.g. "РђРћ РќР“РњРљ" or "Deloitte audit team")
     external_org_name:    Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    # Персональный DENYLIST модулей (Фаза 5, «всё настраиваемо»): перечисленные
+    # модули этот внешний юзер пишет НАПРЯМУЮ (в обход модерации), остальные
+    # модерируются. NULL/[] = модерируются ВСЕ включённые модули (fail-closed:
+    # новый/забытый модуль автоматически под модерацией).
+    moderation_bypass_modules: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
 
     # Failed-login lockout
     failed_login_attempts: Mapped[int] = mapped_column(default=0, nullable=False)

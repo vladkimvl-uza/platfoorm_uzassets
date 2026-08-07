@@ -17,11 +17,13 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi import status as http_status
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
 from app.core.access import allowed_company_ids, ensure_company_access, has_unrestricted_view
 from app.core.security import has_effective_permission
+from app.models.subsidies import Subsidy
 from app.models.user import User
 from app.schemas.subsidies import (
     SubsidyPatch,
@@ -29,6 +31,7 @@ from app.schemas.subsidies import (
     SubsidySummary,
     SubsidyUpsert,
 )
+from app.services import moderation_service
 from app.services.subsidies.service import SubsidiesService
 
 router = APIRouter(prefix="/subsidies", tags=["subsidies"])
@@ -89,7 +92,22 @@ async def create_subsidy(
     user: User = Depends(get_current_user),
 ) -> SubsidyRow:
     await _require(db, user, "financials.edit")
+    # Author scope BEFORE gating: внешний автор не может поставить в очередь
+    # правку по компании вне своей области.
     await ensure_company_access(db, user, payload.company_id)
+    queued, sub = await moderation_service.gate_or_apply(
+        db, user=user, module="subsidies", action="create",
+        entity_id=None,
+        entity_label=(payload.program or "Субсидия"),
+        company_id=payload.company_id, sector_id=None, year=payload.year,
+        payload=payload.model_dump(mode="json"),
+        diff_summary="Создание записи субсидии",
+    )
+    if queued:
+        return JSONResponse(
+            status_code=http_status.HTTP_202_ACCEPTED,
+            content={"queued": True, "submission_id": str(sub.id), "status": sub.status},
+        )
     scope = await _scope(db, user)
     return await SubsidiesService(db).create(payload, user, scope_ids=scope)
 
@@ -104,6 +122,27 @@ async def update_subsidy(
     user: User = Depends(get_current_user),
 ) -> SubsidyRow:
     await _require(db, user, "financials.edit")
+    # Resolve + scope-check the target BEFORE gating (mirror companies.py):
+    # external author cannot queue an edit outside their company access.
+    existing = await db.get(Subsidy, subsidy_id)
+    if existing is None:
+        raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Subsidy not found")
+    await ensure_company_access(db, user, existing.company_id)
+    queued, sub = await moderation_service.gate_or_apply(
+        db, user=user, module="subsidies", action="edit",
+        entity_id=str(subsidy_id),
+        entity_label=(existing.program or "Субсидия"),
+        company_id=existing.company_id, sector_id=None, year=existing.year,
+        # exclude_unset: иначе одобрение частичной правки занулит неприсланные
+        # поля (хендлер ревалидирует и service.update делает exclude_unset).
+        payload=patch.model_dump(mode="json", exclude_unset=True),
+        diff_summary="Изменение записи субсидии",
+    )
+    if queued:
+        return JSONResponse(
+            status_code=http_status.HTTP_202_ACCEPTED,
+            content={"queued": True, "submission_id": str(sub.id), "status": sub.status},
+        )
     scope = await _scope(db, user)
     return await SubsidiesService(db).update(subsidy_id, patch, scope_ids=scope)
 
@@ -117,6 +156,22 @@ async def delete_subsidy(
     user: User = Depends(get_current_user),
 ) -> dict[str, bool]:
     await _require(db, user, "financials.edit")
+    # Resolve + scope-check the target BEFORE gating (mirror companies.py):
+    # external author cannot queue a delete outside their company access.
+    existing = await db.get(Subsidy, subsidy_id)
+    if existing is None:
+        raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Subsidy not found")
+    await ensure_company_access(db, user, existing.company_id)
+    queued, sub = await moderation_service.gate_or_apply(
+        db, user=user, module="subsidies", action="delete",
+        entity_id=str(subsidy_id),
+        entity_label=(existing.program or "Субсидия"),
+        company_id=existing.company_id, sector_id=None, year=existing.year,
+        payload={"id": str(subsidy_id)},
+        diff_summary="Удаление записи субсидии",
+    )
+    if queued:
+        return {"queued": True, "submission_id": str(sub.id), "status": sub.status}
     scope = await _scope(db, user)
     await SubsidiesService(db).delete(subsidy_id, scope_ids=scope)
     return {"ok": True}

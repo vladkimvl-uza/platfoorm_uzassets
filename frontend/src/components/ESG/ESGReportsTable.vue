@@ -99,20 +99,17 @@ async function commitEdit() {
       year: e.year,
       ...(e.field === "status" ? { status: next } : { report_url: next }),
     };
-    const res = await esgApi.upsertReport(payload);
-    if (isModerationQueued(res)) {
-      toast.info(t('Отправлено на согласование'));
-    } else {
-      // обновляем локально и подпись «последнее изменение»
-      const i = items.value.findIndex((x) => x.year === e.year);
-      if (i >= 0) items.value[i] = res;
-      else items.value.push(res);
-      lastBy.value = res.changed_by_name;
-      lastAt.value = res.updated_at;
-      lastYear.value = res.year;
-      toast.success(t('Сохранено'));
-    }
+    const res = await esgApi.upsertReport(payload) as ESGReportBrief;
+    // обновляем локально и подпись «последнее изменение»
+    const i = items.value.findIndex((x) => x.year === e.year);
+    if (i >= 0) items.value[i] = res;
+    else items.value.push(res);
+    lastBy.value = res.changed_by_name;
+    lastAt.value = res.updated_at;
+    lastYear.value = res.year;
+    toast.success(t('Сохранено'));
   } catch (err: unknown) {
+    if (isModerationQueued(err)) return;
     const x = err as { response?: { data?: { detail?: string } }; message?: string };
     toast.error(t('Не сохранено: {value0}', { value0: (x?.response?.data?.detail || x?.message || t("ошибка")) }));
   } finally {

@@ -89,7 +89,7 @@ async function performRefresh(): Promise<string | null> {
 // to ignore queued responses (treat as silent success) by checking
 // `resp.data?.__moderation_queued`.
 
-/** Tag added by the response interceptor on queued submissions. */
+/** Форма тега (legacy). Тот же маркер несёт ModerationQueuedError ниже. */
 export interface ModerationQueuedTag {
   __moderation_queued: true;
   submission_id: string;
@@ -97,7 +97,30 @@ export interface ModerationQueuedTag {
   message?: string;
 }
 
-export function isModerationQueued(value: unknown): value is ModerationQueuedTag {
+/**
+ * Ошибка, которой ОТКЛОНЯЕТСЯ запрос, когда запись ушла в модерацию (HTTP 202).
+ *
+ * Раньше интерцептор РЕЗОЛВИЛ ответ тегом — и любой калбэк, не проверивший
+ * isModerationQueued, молча рендерил тег как сущность (фантомные строки в
+ * таблицах). Теперь безопасный исход (оставить UI как есть) — дефолт: калбэк без
+ * обработки просто попадает в catch и НЕ мутирует локальное состояние. Калбэк с
+ * кастомным queued-UX ловит ошибку и проверяет `isModerationQueued(e)`. Тост
+ * модерации показывает сам интерцептор — калбэку повторять его не нужно.
+ */
+export class ModerationQueuedError extends Error {
+  readonly __moderation_queued = true as const;
+  readonly submission_id: string;
+  readonly status: string;
+  constructor(submission_id: string, status: string, message?: string) {
+    super(message || "Изменение отправлено на модерацию");
+    this.name = "ModerationQueuedError";
+    this.submission_id = submission_id;
+    this.status = status;
+  }
+}
+
+/** true для тега ИЛИ ModerationQueuedError — работает и в success-, и в catch-ветке. */
+export function isModerationQueued(value: unknown): value is ModerationQueuedTag | ModerationQueuedError {
   return !!(value && typeof value === "object" && (value as any).__moderation_queued === true);
 }
 
@@ -105,7 +128,7 @@ api.interceptors.response.use(
   (resp) => {
     const d = resp.data as { queued?: boolean; submission_id?: string; status?: string; message?: string } | undefined;
     if (d && d.queued === true && d.submission_id) {
-      // Lazy import — toast composable imports stores, avoid circular at module init.
+      // Тост модерации показываем ВСЕГДА и в одном месте (здесь).
       import("@/composables/useToast")
         .then(({ useToast }) => {
           const toast = useToast();
@@ -116,13 +139,12 @@ api.interceptors.response.use(
           );
         })
         .catch(() => { /* ignore */ });
-      // Tag the response data so callers can branch cleanly.
-      resp.data = {
-        __moderation_queued: true,
-        submission_id: d.submission_id,
-        status: d.status || "pending",
-        message: d.message,
-      } as ModerationQueuedTag;
+      // FLIP: отклоняем, а не подменяем resp.data тегом. Непроверенный калбэк
+      // безопасно попадает в catch и не рендерит тег как сущность (нет фантомных
+      // строк); калбэк с queued-UX ловит и проверяет isModerationQueued(e).
+      return Promise.reject(
+        new ModerationQueuedError(d.submission_id, d.status || "pending", d.message),
+      );
     }
     return resp;
   },

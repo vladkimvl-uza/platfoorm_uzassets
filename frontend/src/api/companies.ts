@@ -246,6 +246,9 @@ export const companiesApi = {
     return data;
   },
 
+  // create/update могут уйти в модерацию (202) — тогда запрос ОТКЛОНЯЕТСЯ
+  // (ModerationQueuedError), а тост показывает интерцептор; вызывающий ловит в
+  // catch и проверяет isModerationQueued(e). На success приходит сама сущность.
   async create(payload: CompanyCreatePayload): Promise<CompanyDetail> {
     const { data } = await api.post<CompanyDetail>("/companies", payload);
     return data;

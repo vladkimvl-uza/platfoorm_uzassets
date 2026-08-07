@@ -184,6 +184,7 @@ class ModerationQueryService:
                 "is_external": u.is_external,
                 "bypass_moderation": u.bypass_moderation,
                 "external_org_name": u.external_org_name,
+                "moderation_bypass_modules": u.moderation_bypass_modules or [],
                 "is_active": u.is_active,
                 "job_title": u.job_title,
             }

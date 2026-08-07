@@ -664,20 +664,16 @@ async function save() {
       return;
     }
     const resp = await bpApi.bulkUpsert(records, editorToken.value);
-    if (isModerationQueued(resp)) {
-      // Gated. Interceptor has shown a toast — just close.
-      dirty.value = false;
-      emit("close");
-    } else {
-      // Успех = бэкенд закоммитил запись (API ответил 2xx). Подтверждаем визуально.
-      dirty.value = false;
-      editorToken.value = (resp as any)?.editorToken ?? null;   // перевыдан — работаем дальше
-      lastSaved.value = new Date().toLocaleTimeString(getCurrentIntlLocale(), { hour: "2-digit", minute: "2-digit" });
-      const n = (resp as any)?.upserted;
-      toast.success(typeof n === "number" ? t("Сохранено · {n} ячеек записано", { n }) : t("Бизнес-план сохранён"));
-      emit("saved");
-    }
+    // Успех = бэкенд закоммитил запись (API ответил 2xx). Подтверждаем визуально.
+    dirty.value = false;
+    editorToken.value = (resp as any)?.editorToken ?? null;   // перевыдан — работаем дальше
+    lastSaved.value = new Date().toLocaleTimeString(getCurrentIntlLocale(), { hour: "2-digit", minute: "2-digit" });
+    const n = (resp as any)?.upserted;
+    toast.success(typeof n === "number" ? t("Сохранено · {n} ячеек записано", { n }) : t("Бизнес-план сохранён"));
+    emit("saved");
   } catch (e: any) {
+    // Gated. Interceptor has shown a toast — just close.
+    if (isModerationQueued(e)) { dirty.value = false; emit("close"); return; }
     console.error("[BP editor] save failed:", e);
     // 409 EditorConflict — кто-то сохранил параллельно; данные устарели.
     if (e?.response?.status === 409) {

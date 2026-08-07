@@ -31,6 +31,18 @@ async def apply(db, *, sub: ModerationSubmission, user: User) -> dict:
     action = (sub.action or "").lower()
 
     if action in ("create", "created"):
+        # Идемпотентность повтора: id созданной задачи столбим в
+        # sub.target_entity_id в ТОМ ЖЕ коммите, что и задачу, — если пометка
+        # apply_status='applied' не успела сохраниться, повтор НЕ создаёт дубль.
+        if sub.target_entity_id:
+            try:
+                dup = (await db.execute(
+                    select(Task).where(Task.id == UUID(sub.target_entity_id))
+                )).scalar_one_or_none()
+            except Exception:
+                dup = None
+            if dup is not None:
+                return {"action": "create", "task_id": sub.target_entity_id, "idempotent": True}
         payload = TaskCreate.model_validate(sub.proposed_value)
         extra: dict = {}
         for f in _EXTRA_FIELDS:
@@ -53,6 +65,7 @@ async def apply(db, *, sub: ModerationSubmission, user: User) -> dict:
         )
         db.add(task)
         await db.flush()
+        sub.target_entity_id = str(task.id)  # застолбить id в этом же коммите
         db.add(TaskHistory(
             task_id=task.id, actor_id=user.id, action="created",
             new_value=f"{task.title}",

@@ -75,6 +75,17 @@ async def apply(db, *, sub: ModerationSubmission, user: User) -> dict:
         return {"action": "upsert_data", "data_id": str(d.id)}
 
     if action == "create_member":
+        # Идемпотентность повтора: id столбим в sub.target_entity_id в том же
+        # коммите, что и члена совета, — повтор применения не плодит дубль.
+        if sub.target_entity_id:
+            try:
+                dup = (await db.execute(
+                    select(BoardMember).where(BoardMember.id == UUID(sub.target_entity_id))
+                )).scalar_one_or_none()
+            except Exception:
+                dup = None
+            if dup is not None:
+                return {"action": "create_member", "member_id": sub.target_entity_id, "idempotent": True}
         payload = BoardMemberCreate.model_validate(sub.proposed_value)
         m = BoardMember(
             company_id=payload.company_id,
@@ -86,6 +97,8 @@ async def apply(db, *, sub: ModerationSubmission, user: User) -> dict:
             term_end_date=payload.term_end_date, bio=payload.bio,
         )
         db.add(m)
+        await db.flush()
+        sub.target_entity_id = str(m.id)
         await db.commit()
         await db.refresh(m)
         return {"action": "create_member", "member_id": str(m.id)}

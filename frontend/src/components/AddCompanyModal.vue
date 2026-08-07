@@ -6,6 +6,7 @@
  */
 import { ref, onMounted } from "vue";
 import { companiesApi, type SectorBrief, type CompanyDetail } from "@/api/companies";
+import { isModerationQueued } from "@/api/client";
 import ModalShell from "@/components/ModalShell.vue";
 import { useI18n } from "@/composables/useI18n";
 import { sectorDisplayName } from "@/utils/displayNames";
@@ -49,6 +50,9 @@ async function submit() {
     });
     emit("created", detail);
   } catch (e: any) {
+    // Ушло на модерацию (202): интерцептор уже показал тост, компании ещё нет —
+    // НЕ эмитим created (иначе в родителе битая строка), просто закрываем.
+    if (isModerationQueued(e)) { emit("close"); return; }
     const status = e?.response?.status;
     error.value = status === 409 ? t('Компания с таким кодом уже существует') : (e?.response?.data?.detail || t('Не удалось создать компанию'));
   } finally {

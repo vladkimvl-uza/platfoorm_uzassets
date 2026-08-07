@@ -86,6 +86,26 @@ async def unit_cost_save_company(
             "SELECT id FROM companies WHERE code = :c AND is_active = true"
         ), {"c": code})).first()
         in_scope = bool(crow) and crow[0] in set(scope_ids)
+    # Scope проверяем ДО модерации: иначе внешний автор мог бы отправить в очередь
+    # (а после аппрува — записать) себестоимость чужой компании вне доступа.
+    if not in_scope:
+        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Нет доступа к компании")
+
+    # Модерация (закрывает прежнюю дыру: unit_cost числился модерируемым, но
+    # гейта не было — внешние писали напрямую). Компания едет кодом в
+    # target_entity_id; in_resolve_scope резолвит её по коду.
+    from app.services.moderation_service import gate_or_apply
+    queued, sub = await gate_or_apply(
+        db, user=user, module="unit_cost", action="edit",
+        entity_id=code, entity_label=f"Себестоимость: {code} · {year} {quarter}",
+        company_id=None, sector_id=None, year=year,
+        payload={"code": code, "year": year, "quarter": quarter,
+                 "products": payload.products, "imports": payload.imports,
+                 "comments": payload.comments},
+        diff_summary=f"Удельная себестоимость: {code} {year}/{quarter}",
+    )
+    if queued:
+        return {"queued": True, "submission_id": str(sub.id), "status": sub.status}
     return await UnitCostService().save_company(
         db, code, payload.products, payload.imports, payload.comments,
         year=year, quarter=quarter, cid_in_scope=in_scope,

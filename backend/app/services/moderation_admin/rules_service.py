@@ -104,6 +104,17 @@ class ModerationRulesService:
                     setattr(u, f, body[f])
             if "external_org_name" in body:
                 u.external_org_name = body["external_org_name"]
+            # Персональный denylist модулей: держим только валидные модерируемые
+            # (бакет A), пустой список → NULL (модерируется всё).
+            if "moderation_bypass_modules" in body and isinstance(
+                body["moderation_bypass_modules"], list
+            ):
+                from app.core.moderation_routes import MODERATABLE_MODULES
+                cleaned = sorted(
+                    {str(m) for m in body["moderation_bypass_modules"]}
+                    & set(MODERATABLE_MODULES)
+                )
+                u.moderation_bypass_modules = cleaned or None
             await self.uow.moderation.flush()
             await self.uow.moderation.refresh(u)
             return {
@@ -111,6 +122,7 @@ class ModerationRulesService:
                 "is_external": u.is_external,
                 "bypass_moderation": u.bypass_moderation,
                 "external_org_name": u.external_org_name,
+                "moderation_bypass_modules": u.moderation_bypass_modules or [],
             }
 
     # ─── состав модераторов ───────────────────────────────────────
