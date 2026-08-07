@@ -20,7 +20,6 @@ import {
   registerDisplayNameCatalog,
   sectorDisplayName,
 } from "@/utils/displayNames";
-import { usePortfolioYearStore } from "@/stores/portfolioYear";
 import { t } from "@/locale/i18n";
 
 // ─── Lightweight types (resilient to backend shape variations) ───
@@ -138,17 +137,12 @@ export const useCompaniesStore = defineStore("companies", () => {
 
   // ─── Getters ───
 
-  // Компании, видимые в ТЕКУЩЕМ выбранном году (исключаем скрытые per-year).
-  // Реактивно зависит от portfolioYear → при смене FY список обновляется.
-  const yearStore = usePortfolioYearStore();
-  const visibleCompanies = computed<CompanyLite[]>(() => {
-    const y = yearStore.year;
-    return companies.value.filter(c => !(Array.isArray(c.hidden_years) && c.hidden_years.includes(y)));
-  });
-
-  /** Companies grouped by sector, sorted by sector.sort_order then company.sort_order. */
+  /** Сайдбар: ВСЕ активные компании по секторам. hidden_years СЮДА НЕ применяем —
+   *  это навигация, а не дашборд. Иначе к компании, скрытой в текущем году, нельзя
+   *  добраться, чтобы снять флаг («скрыта всегда»). Скрытие per-year действует
+   *  только на дашбордах (там фильтрует бэкенд/сводные вью). */
   const bySector = computed<SectorGroup[]>(() => {
-    if (!visibleCompanies.value.length) return [];
+    if (!companies.value.length) return [];
 
     // Build lookup of sector metadata from the sectors[] response
     const sectorMeta = new Map<string, SectorLite>();
@@ -156,7 +150,7 @@ export const useCompaniesStore = defineStore("companies", () => {
 
     // Group companies by sector_code (each company knows its sector)
     const groups = new Map<string, SectorGroup>();
-    for (const c of visibleCompanies.value) {
+    for (const c of companies.value) {
       const key = c.sector_code || "_none";
       if (!groups.has(key)) {
         const meta = sectorMeta.get(key);
@@ -197,8 +191,8 @@ export const useCompaniesStore = defineStore("companies", () => {
     return result;
   });
 
-  /** Total count of companies VISIBLE in the selected year (excludes per-year hidden). */
-  const totalCount = computed(() => visibleCompanies.value.length);
+  /** Кол-во компаний в сайдбаре (все активные; hidden_years — только дашборды). */
+  const totalCount = computed(() => companies.value.length);
 
   /** Find a company by its `code` (case-insensitive). */
   function findByCode(code: string): CompanyLite | undefined {
