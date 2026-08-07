@@ -13,6 +13,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi import status as http_status
+from fastapi.responses import JSONResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -72,4 +73,25 @@ async def save_report_wizard(
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required: tasks.edit")
     cid = await _company_id(db, code)
     await ensure_company_access(db, user, cid)
+
+    # Модерация (deny-by-default Phase 4): внешний автор без bypass не пишет
+    # конфиг напрямую — правка едет в очередь и применяется apply-хендлером
+    # report_wizard от имени автора. Scope/право уже проверены ВЫШЕ. Компания
+    # резолвится в UUID (cid) — едет в submission, поэтому report_wizard НЕ нужен
+    # в _effective_company_id. `config` — полный объект (upsert full-replace),
+    # partial-NULL проблемы нет.
+    from app.services.moderation_service import gate_or_apply
+    queued, sub = await gate_or_apply(
+        db, user=user, module="report_wizard", action="edit",
+        entity_id=f"{code}:{year}",
+        entity_label=f"Мастер отчёта: {code} · {year}",
+        company_id=cid, sector_id=None, year=year,
+        payload={"code": code, "year": year, "config": payload.config},
+        diff_summary=f"Мастер отчёта: {code} {year}",
+    )
+    if queued:
+        return JSONResponse(
+            status_code=http_status.HTTP_202_ACCEPTED,
+            content={"queued": True, "submission_id": str(sub.id), "status": sub.status},
+        )
     return await ReportWizardService(db).upsert(cid, year, payload.config, user)

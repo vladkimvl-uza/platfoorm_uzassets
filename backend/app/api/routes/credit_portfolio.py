@@ -37,6 +37,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi import status as http_status
+from fastapi.responses import JSONResponse
 
 from app.core.security import get_current_user
 from app.dependencies.credit_portfolio import CreditPortfolioServiceDep
@@ -87,6 +88,16 @@ def _surface_500(label: str):
     return decorate
 
 
+def _queued(result) -> Optional[JSONResponse]:
+    """Модерация перехватила запись → сервис вернул queued-маркер (dict).
+    Превращаем его в HTTP 202, иначе None (пусть роут вернёт обычный ответ)."""
+    if isinstance(result, dict) and result.get("queued"):
+        return JSONResponse(
+            status_code=http_status.HTTP_202_ACCEPTED, content=result
+        )
+    return None
+
+
 # ─── Loans CRUD ───────────────────────────────────────────────────
 
 @router.get("/loans", response_model=list[LoanRead])
@@ -134,7 +145,8 @@ async def create_loan(
     user: User = Depends(get_current_user),
 ):
     """Create a loan. Requires `credit.edit` and scope to `payload.company_id`."""
-    return await service.create_loan(payload, user)
+    result = await service.create_loan(payload, user)
+    return _queued(result) or result
 
 
 @router.put("/loans/{loan_id}", response_model=LoanRead)
@@ -144,7 +156,8 @@ async def update_loan(
     service: CreditPortfolioServiceDep,
     user: User = Depends(get_current_user),
 ):
-    return await service.update_loan(loan_id, payload, user)
+    result = await service.update_loan(loan_id, payload, user)
+    return _queued(result) or result
 
 
 @router.delete("/loans/{loan_id}", status_code=http_status.HTTP_204_NO_CONTENT)
@@ -153,7 +166,8 @@ async def delete_loan(
     service: CreditPortfolioServiceDep,
     user: User = Depends(get_current_user),
 ):
-    await service.delete_loan(loan_id, user)
+    result = await service.delete_loan(loan_id, user)
+    return _queued(result)
 
 
 @router.post("/loans/bulk", response_model=BulkImportResponse)
@@ -162,7 +176,8 @@ async def bulk_import(
     service: CreditPortfolioServiceDep,
     user: User = Depends(get_current_user),
 ):
-    return await service.bulk_import(payload, user)
+    result = await service.bulk_import(payload, user)
+    return _queued(result) or result
 
 
 # ─── Sidebar / League table ───────────────────────────────────────
@@ -259,7 +274,8 @@ async def upsert_fx_rate(
     service: CreditPortfolioServiceDep,
     user: User = Depends(get_current_user),
 ):
-    return await service.upsert_fx_rate(payload, user)
+    result = await service.upsert_fx_rate(payload, user)
+    return _queued(result) or result
 
 
 # ─── Payments ─────────────────────────────────────────────────────
@@ -287,7 +303,8 @@ async def create_loan_payment(
     service: CreditPortfolioServiceDep,
     user: User = Depends(get_current_user),
 ):
-    return await service.create_loan_payment(loan_id, payload, user)
+    result = await service.create_loan_payment(loan_id, payload, user)
+    return _queued(result) or result
 
 
 @router.get(
@@ -317,7 +334,8 @@ async def update_payment(
     service: CreditPortfolioServiceDep,
     user: User = Depends(get_current_user),
 ):
-    return await service.update_payment(payment_id, payload, user)
+    result = await service.update_payment(payment_id, payload, user)
+    return _queued(result) or result
 
 
 @router.delete(
@@ -328,4 +346,5 @@ async def delete_payment(
     service: CreditPortfolioServiceDep,
     user: User = Depends(get_current_user),
 ):
-    await service.delete_payment(payment_id, user)
+    result = await service.delete_payment(payment_id, user)
+    return _queued(result)

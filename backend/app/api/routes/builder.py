@@ -22,6 +22,7 @@ from uuid import UUID
 
 import httpx
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -529,6 +530,28 @@ async def bulk_create(
     c = body.common
     targets = body.company_ids or [None]   # если не выбрано — без привязки к компании
     await _enforce_company_scope(db, user, targets)   # H-2: scope-guard
+
+    # Модерационный гейт (deny-by-default Фаза 4): ИИ-ingest bypass-путь раньше
+    # писал напрямую. Право+scope автора уже проверены выше. company_id ставим
+    # только если ровно одна целевая компания (иначе scope-гейт модератора не
+    # применим к мульти-компанийной пачке); год — из общих настроек.
+    _cids = [x for x in body.company_ids if x is not None]
+    from app.services.moderation_service import gate_or_apply
+    queued, sub = await gate_or_apply(
+        db, user=user, module="builder", action="create",
+        entity_id=None,
+        entity_label=(f"Конструктор: {len(body.projects)} проектов, "
+                      f"{len(body.standalone_tasks)} задач"),
+        company_id=(_cids[0] if len(_cids) == 1 else None),
+        sector_id=None, year=c.portfolio_year,
+        payload={"kind": "projects_tasks", **body.model_dump(mode="json")},
+        diff_summary=(f"Массовое заведение · {len(body.projects)} проектов + "
+                      f"{len(body.standalone_tasks)} задач × {len(_cids) or 1} компаний"),
+    )
+    if queued:
+        return JSONResponse(status_code=202, content={
+            "queued": True, "submission_id": str(sub.id), "status": sub.status})
+
     proj_n = 0
     task_n = 0
     # (kind, parent_id, body) — комментарии из импорта, создаём после сущностей
@@ -693,6 +716,23 @@ async def bulk_create_kpi(
 
     await _enforce_company_scope(db, user, grouped.keys())   # H-2: scope-guard
 
+    # Модерационный гейт (deny-by-default Фаза 4). Payload несёт СЫРОЕ тело
+    # (имена компаний строками) — apply-хендлер переразрешит их сам.
+    from app.services.moderation_service import gate_or_apply
+    queued, sub = await gate_or_apply(
+        db, user=user, module="builder", action="create",
+        entity_id=None,
+        entity_label=f"Импорт KPI: {body.manager_title}",
+        company_id=(UUID(next(iter(grouped))) if len(grouped) == 1 else None),
+        sector_id=None, year=body.year,
+        payload={"kind": "kpi", **body.model_dump(mode="json")},
+        diff_summary=(f"Импорт KPI · {len(grouped)} компаний, "
+                      f"{sum(len(v) for v in grouped.values())} индикаторов"),
+    )
+    if queued:
+        return JSONResponse(status_code=202, content={
+            "queued": True, "submission_id": str(sub.id), "status": sub.status})
+
     total_ind = 0
     for cid, inds in grouped.items():
         res = await kpi_svc.bulk_add_indicators(UUID(cid), body.year, body.manager_title, inds)
@@ -832,6 +872,24 @@ async def bulk_create_financials(
         )
 
     await _enforce_company_scope(db, user, {r["company_id"] for r in rows})   # H-2: scope-guard
+
+    # Модерационный гейт (deny-by-default Фаза 4). Payload несёт СЫРОЕ тело
+    # (имена компаний строками) — apply-хендлер переразрешит их сам.
+    _fin_cids = {r["company_id"] for r in rows}
+    from app.services.moderation_service import gate_or_apply
+    queued, sub = await gate_or_apply(
+        db, user=user, module="builder", action="create",
+        entity_id=None,
+        entity_label=f"Импорт финотчётности {body.default_year}",
+        company_id=(next(iter(_fin_cids)) if len(_fin_cids) == 1 else None),
+        sector_id=None, year=body.default_year,
+        payload={"kind": "financials", **body.model_dump(mode="json")},
+        diff_summary=(f"Импорт финотчётности · {len(_fin_cids)} компаний, "
+                      f"{len(rows)} строк"),
+    )
+    if queued:
+        return JSONResponse(status_code=202, content={
+            "queued": True, "submission_id": str(sub.id), "status": sub.status})
 
     res = await fin_svc.bulk_add_lines(rows, db, user)
     return {

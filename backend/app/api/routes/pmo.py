@@ -88,6 +88,41 @@ async def _company_or_404(db: AsyncSession, code: str) -> Company:
     return company
 
 
+async def _pmo_gate(
+    db: AsyncSession,
+    user: User,
+    *,
+    action: str,
+    entity: str,
+    entity_id: Optional[str],
+    entity_label: str,
+    company_id: Optional[UUID],
+    payload: dict,
+    diff_summary: str,
+):
+    """Модерационный гейт для write-роутов PMO (deny-by-default Phase 4).
+
+    Право автора (`pmo.edit`) и per-company scope уже проверены в самом роуте ДО
+    вызова. Тип сущности кодируется в proposed_value['_entity'] — один apply-
+    хендлер модуля "pmo" ветвится по нему. Возвращает JSONResponse(202) если
+    правка ушла на согласование, иначе None (роут пишет сам)."""
+    from app.services.moderation_service import gate_or_apply
+
+    body = {"_entity": entity, **(payload or {})}
+    queued, sub = await gate_or_apply(
+        db, user=user, module="pmo", action=action,
+        entity_id=entity_id, entity_label=entity_label,
+        company_id=company_id, sector_id=None, year=None,
+        payload=body, diff_summary=diff_summary,
+    )
+    if queued:
+        return JSONResponse(
+            status_code=http_status.HTTP_202_ACCEPTED,
+            content={"queued": True, "submission_id": str(sub.id), "status": sub.status},
+        )
+    return None
+
+
 @router.get("/companies/{code}/schedule", response_model=ScheduleResponse)
 async def get_schedule(
     code: str,
@@ -197,6 +232,21 @@ async def create_dependency(
     if await _would_create_cycle(db, payload.predecessor_id, payload.successor_id):
         raise HTTPException(http_status.HTTP_400_BAD_REQUEST, "Зависимость создала бы цикл")
 
+    gated = await _pmo_gate(
+        db, user, action="create", entity="dependency", entity_id=None,
+        entity_label=f"Зависимость: {pred.title} → {succ.title}",
+        company_id=succ.company_id,
+        payload={
+            "predecessor_id": str(payload.predecessor_id),
+            "successor_id": str(payload.successor_id),
+            "dep_type": payload.dep_type,
+            "lag_days": payload.lag_days,
+        },
+        diff_summary=f"Новая зависимость задач: {pred.title} → {succ.title}",
+    )
+    if gated is not None:
+        return gated
+
     dep = TaskDependency(
         predecessor_id=payload.predecessor_id,
         successor_id=payload.successor_id,
@@ -228,6 +278,14 @@ async def delete_dependency(
     succ = (await db.execute(select(Task).where(Task.id == dep.successor_id))).scalar_one_or_none()
     if succ is not None and succ.company_id:
         await ensure_company_access(db, user, succ.company_id)
+    gated = await _pmo_gate(
+        db, user, action="delete", entity="dependency", entity_id=str(dep.id),
+        entity_label="Зависимость задач", payload={},
+        company_id=succ.company_id if succ is not None else None,
+        diff_summary="Удаление зависимости задач",
+    )
+    if gated is not None:
+        return gated
     await db.delete(dep)
     await db.commit()
 
@@ -273,6 +331,14 @@ async def create_raid(
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Нет права на правку RAID (pmo.edit)")
     company = await _company_or_404(db, code)
     await ensure_company_access(db, user, company.id)
+    gated = await _pmo_gate(
+        db, user, action="create", entity="raid", entity_id=None,
+        entity_label=f"RAID: {payload.title}", company_id=company.id,
+        payload=payload.model_dump(mode="json"),
+        diff_summary=f"Новая запись RAID ({payload.kind}): {payload.title}",
+    )
+    if gated is not None:
+        return gated
     data = payload.model_dump()
     item = RaidItem(
         company_id=company.id,
@@ -300,6 +366,14 @@ async def update_raid(
     item = await _raid_or_404(db, item_id)
     if item.company_id:
         await ensure_company_access(db, user, item.company_id)
+    gated = await _pmo_gate(
+        db, user, action="edit", entity="raid", entity_id=str(item.id),
+        entity_label=f"RAID: {item.title}", company_id=item.company_id,
+        payload=payload.model_dump(mode="json", exclude_unset=True),
+        diff_summary=f"Правка записи RAID: {item.title}",
+    )
+    if gated is not None:
+        return gated
     fields = payload.model_dump(exclude_unset=True)
     for k, v in fields.items():
         setattr(item, k, v)
@@ -324,6 +398,13 @@ async def delete_raid(
     item = await _raid_or_404(db, item_id)
     if item.company_id:
         await ensure_company_access(db, user, item.company_id)
+    gated = await _pmo_gate(
+        db, user, action="delete", entity="raid", entity_id=str(item.id),
+        entity_label=f"RAID: {item.title}", company_id=item.company_id,
+        payload={}, diff_summary=f"Удаление записи RAID: {item.title}",
+    )
+    if gated is not None:
+        return gated
     await db.delete(item)
     await db.commit()
 
@@ -419,6 +500,14 @@ async def create_sprint(
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Нет права на правку (pmo.edit)")
     company = await _company_or_404(db, code)
     await ensure_company_access(db, user, company.id)
+    gated = await _pmo_gate(
+        db, user, action="create", entity="sprint", entity_id=None,
+        entity_label=f"Спринт: {payload.name}", company_id=company.id,
+        payload=payload.model_dump(mode="json"),
+        diff_summary=f"Новый спринт: {payload.name}",
+    )
+    if gated is not None:
+        return gated
     s = PmoSprint(company_id=company.id, created_by=user.id, **payload.model_dump())
     db.add(s)
     await db.flush()
@@ -441,6 +530,14 @@ async def update_sprint(
         raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Спринт не найден")
     if s.company_id:
         await ensure_company_access(db, user, s.company_id)
+    gated = await _pmo_gate(
+        db, user, action="edit", entity="sprint", entity_id=str(s.id),
+        entity_label=f"Спринт: {s.name}", company_id=s.company_id,
+        payload=payload.model_dump(mode="json", exclude_unset=True),
+        diff_summary=f"Правка спринта: {s.name}",
+    )
+    if gated is not None:
+        return gated
     for k, v in payload.model_dump(exclude_unset=True).items():
         setattr(s, k, v)
     await db.commit()
@@ -461,6 +558,13 @@ async def delete_sprint(
         raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Спринт не найден")
     if s.company_id:
         await ensure_company_access(db, user, s.company_id)
+    gated = await _pmo_gate(
+        db, user, action="delete", entity="sprint", entity_id=str(s.id),
+        entity_label=f"Спринт: {s.name}", company_id=s.company_id,
+        payload={}, diff_summary=f"Удаление спринта: {s.name}",
+    )
+    if gated is not None:
+        return gated
     # задачи спринта вернутся в бэклог (sprint_id → NULL по FK ON DELETE SET NULL)
     await db.delete(s)
     await db.commit()
@@ -615,6 +719,14 @@ async def create_raci(
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Нет права на правку (pmo.edit)")
     company = await _company_or_404(db, code)
     await ensure_company_access(db, user, company.id)
+    gated = await _pmo_gate(
+        db, user, action="create", entity="raci", entity_id=None,
+        entity_label=f"RACI: {payload.item_label} — {payload.person_name}",
+        company_id=company.id, payload=payload.model_dump(mode="json"),
+        diff_summary=f"Новая ячейка RACI: {payload.item_label} / {payload.person_name} ({payload.role})",
+    )
+    if gated is not None:
+        return gated
     item = PmoRaci(company_id=company.id, created_by=user.id, **payload.model_dump())
     db.add(item)
     await db.flush()
@@ -637,6 +749,15 @@ async def update_raci(
         raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Запись RACI не найдена")
     if item.company_id:
         await ensure_company_access(db, user, item.company_id)
+    gated = await _pmo_gate(
+        db, user, action="edit", entity="raci", entity_id=str(item.id),
+        entity_label=f"RACI: {item.item_label} — {item.person_name}",
+        company_id=item.company_id,
+        payload=payload.model_dump(mode="json", exclude_unset=True),
+        diff_summary=f"Правка ячейки RACI: {item.item_label} / {item.person_name}",
+    )
+    if gated is not None:
+        return gated
     for k, v in payload.model_dump(exclude_unset=True).items():
         setattr(item, k, v)
     await db.commit()
@@ -657,6 +778,14 @@ async def delete_raci(
         raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Запись RACI не найдена")
     if item.company_id:
         await ensure_company_access(db, user, item.company_id)
+    gated = await _pmo_gate(
+        db, user, action="delete", entity="raci", entity_id=str(item.id),
+        entity_label=f"RACI: {item.item_label} — {item.person_name}",
+        company_id=item.company_id, payload={},
+        diff_summary=f"Удаление ячейки RACI: {item.item_label} / {item.person_name}",
+    )
+    if gated is not None:
+        return gated
     await db.delete(item)
     await db.commit()
 
@@ -699,6 +828,15 @@ async def create_status_report(
     if payload.use_ai:
         from app.api.routes.ai import require_ai_feature_access
         await require_ai_feature_access(request, user, db)
+    gated = await _pmo_gate(
+        db, user, action="create", entity="status_report", entity_id=None,
+        entity_label="Статус-отчёт", company_id=company.id,
+        payload={"project_id": str(payload.project_id) if payload.project_id else None,
+                 "use_ai": payload.use_ai},
+        diff_summary="Формирование статус-отчёта портфеля/проекта",
+    )
+    if gated is not None:
+        return gated
     try:
         rep = await generate_status_report(db, code, payload.project_id, payload.use_ai, user.id, date.today())
     except Exception:
@@ -755,6 +893,14 @@ async def create_stakeholder(
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Нет права на правку (pmo.edit)")
     company = await _company_or_404(db, code)
     await ensure_company_access(db, user, company.id)
+    gated = await _pmo_gate(
+        db, user, action="create", entity="stakeholder", entity_id=None,
+        entity_label=f"Стейкхолдер: {payload.name}", company_id=company.id,
+        payload=payload.model_dump(mode="json"),
+        diff_summary=f"Новый стейкхолдер: {payload.name}",
+    )
+    if gated is not None:
+        return gated
     s = PmoStakeholder(company_id=company.id, created_by=user.id, **payload.model_dump())
     db.add(s)
     await db.flush()
@@ -775,6 +921,14 @@ async def update_stakeholder(
     s = await _stk_or_404(db, sid)
     if s.company_id:
         await ensure_company_access(db, user, s.company_id)
+    gated = await _pmo_gate(
+        db, user, action="edit", entity="stakeholder", entity_id=str(s.id),
+        entity_label=f"Стейкхолдер: {s.name}", company_id=s.company_id,
+        payload=payload.model_dump(mode="json", exclude_unset=True),
+        diff_summary=f"Правка стейкхолдера: {s.name}",
+    )
+    if gated is not None:
+        return gated
     for k, v in payload.model_dump(exclude_unset=True).items():
         setattr(s, k, v)
     await db.commit()
@@ -793,6 +947,13 @@ async def delete_stakeholder(
     s = await _stk_or_404(db, sid)
     if s.company_id:
         await ensure_company_access(db, user, s.company_id)
+    gated = await _pmo_gate(
+        db, user, action="delete", entity="stakeholder", entity_id=str(s.id),
+        entity_label=f"Стейкхолдер: {s.name}", company_id=s.company_id,
+        payload={}, diff_summary=f"Удаление стейкхолдера: {s.name}",
+    )
+    if gated is not None:
+        return gated
     await db.delete(s)
     await db.commit()
 
@@ -829,6 +990,14 @@ async def create_lesson(
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Нет права на правку (pmo.edit)")
     company = await _company_or_404(db, code)
     await ensure_company_access(db, user, company.id)
+    gated = await _pmo_gate(
+        db, user, action="create", entity="lesson", entity_id=None,
+        entity_label=f"Урок: {payload.title}", company_id=company.id,
+        payload=payload.model_dump(mode="json"),
+        diff_summary=f"Новый извлечённый урок ({payload.kind}): {payload.title}",
+    )
+    if gated is not None:
+        return gated
     item = PmoLesson(company_id=company.id, created_by=user.id, **payload.model_dump())
     db.add(item)
     await db.flush()
@@ -851,6 +1020,14 @@ async def update_lesson(
         raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Урок не найден")
     if item.company_id:
         await ensure_company_access(db, user, item.company_id)
+    gated = await _pmo_gate(
+        db, user, action="edit", entity="lesson", entity_id=str(item.id),
+        entity_label=f"Урок: {item.title}", company_id=item.company_id,
+        payload=payload.model_dump(mode="json", exclude_unset=True),
+        diff_summary=f"Правка извлечённого урока: {item.title}",
+    )
+    if gated is not None:
+        return gated
     for k, v in payload.model_dump(exclude_unset=True).items():
         setattr(item, k, v)
     await db.commit()
@@ -871,6 +1048,13 @@ async def delete_lesson(
         raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Урок не найден")
     if item.company_id:
         await ensure_company_access(db, user, item.company_id)
+    gated = await _pmo_gate(
+        db, user, action="delete", entity="lesson", entity_id=str(item.id),
+        entity_label=f"Урок: {item.title}", company_id=item.company_id,
+        payload={}, diff_summary=f"Удаление извлечённого урока: {item.title}",
+    )
+    if gated is not None:
+        return gated
     await db.delete(item)
     await db.commit()
 
@@ -916,6 +1100,14 @@ async def create_change(
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Нет права на правку (pmo.edit)")
     company = await _company_or_404(db, code)
     await ensure_company_access(db, user, company.id)
+    gated = await _pmo_gate(
+        db, user, action="create", entity="change", entity_id=None,
+        entity_label=f"Изменение: {payload.title}", company_id=company.id,
+        payload=payload.model_dump(mode="json"),
+        diff_summary=f"Новый запрос на изменение ({payload.kind}): {payload.title}",
+    )
+    if gated is not None:
+        return gated
     item = PmoChange(company_id=company.id, created_by=user.id, **payload.model_dump())
     _apply_change_decision(item)
     db.add(item)
@@ -939,6 +1131,14 @@ async def update_change(
         raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Изменение не найдено")
     if item.company_id:
         await ensure_company_access(db, user, item.company_id)
+    gated = await _pmo_gate(
+        db, user, action="edit", entity="change", entity_id=str(item.id),
+        entity_label=f"Изменение: {item.title}", company_id=item.company_id,
+        payload=payload.model_dump(mode="json", exclude_unset=True),
+        diff_summary=f"Правка запроса на изменение: {item.title}",
+    )
+    if gated is not None:
+        return gated
     for k, v in payload.model_dump(exclude_unset=True).items():
         setattr(item, k, v)
     _apply_change_decision(item)
@@ -960,6 +1160,13 @@ async def delete_change(
         raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Изменение не найдено")
     if item.company_id:
         await ensure_company_access(db, user, item.company_id)
+    gated = await _pmo_gate(
+        db, user, action="delete", entity="change", entity_id=str(item.id),
+        entity_label=f"Изменение: {item.title}", company_id=item.company_id,
+        payload={}, diff_summary=f"Удаление запроса на изменение: {item.title}",
+    )
+    if gated is not None:
+        return gated
     await db.delete(item)
     await db.commit()
 
@@ -1093,6 +1300,14 @@ async def create_charter(
         ).scalar_one_or_none()
         if existing is not None:
             return existing
+    gated = await _pmo_gate(
+        db, user, action="create", entity="charter", entity_id=None,
+        entity_label=f"Устав: {payload.project_title or 'проект'}", company_id=company.id,
+        payload=payload.model_dump(mode="json"),
+        diff_summary=f"Новый устав проекта: {payload.project_title or '—'}",
+    )
+    if gated is not None:
+        return gated
     item = PmoCharter(company_id=company.id, created_by=user.id, **payload.model_dump())
     db.add(item)
     await db.flush()
@@ -1115,6 +1330,14 @@ async def update_charter(
         raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Устав не найден")
     if item.company_id:
         await ensure_company_access(db, user, item.company_id)
+    gated = await _pmo_gate(
+        db, user, action="edit", entity="charter", entity_id=str(item.id),
+        entity_label=f"Устав: {item.project_title or 'проект'}", company_id=item.company_id,
+        payload=payload.model_dump(mode="json", exclude_unset=True),
+        diff_summary=f"Правка устава проекта: {item.project_title or '—'}",
+    )
+    if gated is not None:
+        return gated
     for k, v in payload.model_dump(exclude_unset=True).items():
         setattr(item, k, v)
     _apply_charter_approval(item, user)
@@ -1136,5 +1359,12 @@ async def delete_charter(
         raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Устав не найден")
     if item.company_id:
         await ensure_company_access(db, user, item.company_id)
+    gated = await _pmo_gate(
+        db, user, action="delete", entity="charter", entity_id=str(item.id),
+        entity_label=f"Устав: {item.project_title or 'проект'}", company_id=item.company_id,
+        payload={}, diff_summary=f"Удаление устава проекта: {item.project_title or '—'}",
+    )
+    if gated is not None:
+        return gated
     await db.delete(item)
     await db.commit()

@@ -9,6 +9,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi import status as http_status
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
@@ -40,7 +41,27 @@ async def save_matrix_config(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> MatrixConfigResponse:
+    # Author-гейт ДО модерации: иначе внешний автор мог бы отправить в очередь
+    # (а после аппрува — записать) конфиг матрицы чужой/недоступной компании.
     if not await has_effective_permission(db, user, "tasks.edit"):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Permission required: tasks.edit")
     await ensure_company_access(db, user, company_id)
+
+    # Модерация (deny-by-default Phase 4). Полная замена config — action="replace".
+    # company_id — реальный UUID → scope штатно через target_company_id.
+    from app.services.moderation_service import gate_or_apply
+    queued, sub = await gate_or_apply(
+        db, user=user, module="overview_matrix", action="replace",
+        entity_id=f"{company_id}:{year}",
+        entity_label=f"Матрица обзора: {company_id} · {year}",
+        company_id=company_id, sector_id=None, year=year,
+        payload={"company_id": str(company_id), "year": year,
+                 "config": config.model_dump(mode="json")},
+        diff_summary=f"Матрица квартального обзора: {company_id} {year}",
+    )
+    if queued:
+        return JSONResponse(
+            status_code=http_status.HTTP_202_ACCEPTED,
+            content={"queued": True, "submission_id": str(sub.id), "status": sub.status},
+        )
     return await OverviewMatrixService(db).upsert(company_id, year, config, user)

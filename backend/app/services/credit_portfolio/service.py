@@ -108,6 +108,53 @@ class CreditPortfolioService:
         if scope is not None and company_id not in scope:
             raise HTTPException(http_status.HTTP_403_FORBIDDEN, "No access")
 
+    # ─── Moderation gate (service-layer, deny-by-default Phase 4) ────
+    # Зеркалит financials_reports.save_report: разрешение автора и scope уже
+    # проверены ВЫШЕ по стеку каждого write-метода; здесь — только перехват на
+    # модерацию ПЕРЕД записью в репозиторий. Если правка ушла в очередь,
+    # метод возвращает queued-маркер (dict), который роут превращает в 202.
+    # Apply-хендлер (moderation_apply/credit.py) переигрывает те же методы от
+    # имени автора с `_skip_gate=True`, поэтому повторного гейта на выкате нет.
+
+    async def _maybe_gate(
+        self,
+        user: User,
+        *,
+        action: str,
+        company_id: Optional[UUID],
+        entity_id: Optional[str],
+        entity_label: str,
+        payload: dict,
+        diff_summary: str,
+    ) -> Optional[dict]:
+        """Вернуть queued-маркер, если правка перехвачена на модерацию, иначе None.
+
+        Вызывать ВНУТРИ `async with self.uow` (пишет заявку в ту же сессию) —
+        ПОСЛЕ _require + _check_company_access и ПЕРЕД записью в репозиторий."""
+        from app.services.moderation_service import gate_or_apply
+
+        queued, sub = await gate_or_apply(
+            self.uow._session,  # type: ignore[attr-defined]
+            user=user,
+            module="credit",
+            action=action,
+            entity_id=entity_id,
+            entity_label=entity_label,
+            company_id=company_id,
+            sector_id=None,
+            year=None,
+            payload=payload,
+            diff_summary=diff_summary,
+        )
+        if queued:
+            return {
+                "queued": True,
+                "submission_id": str(sub.id),
+                "status": sub.status,
+                "message": "Изменение отправлено на модерацию",
+            }
+        return None
+
     @staticmethod
     def _to_read(
         loan: CreditPortfolioLoan, company: Optional[Company] = None
@@ -168,7 +215,9 @@ class CreditPortfolioService:
             await self._check_company_access(user, loan.company_id)
             return self._to_read(loan)
 
-    async def create_loan(self, payload: LoanCreate, user: User) -> LoanRead:
+    async def create_loan(
+        self, payload: LoanCreate, user: User, *, _skip_gate: bool = False
+    ) -> LoanRead | dict:
         async with self.uow:
             await self._require(user, "credit.edit")
             await self._check_company_access(user, payload.company_id)
@@ -178,6 +227,17 @@ class CreditPortfolioService:
                     http_status.HTTP_409_CONFLICT,
                     f"Loan code '{payload.loan_code}' already exists",
                 )
+
+            if not _skip_gate:
+                queued = await self._maybe_gate(
+                    user, action="create", company_id=payload.company_id,
+                    entity_id=payload.loan_code,
+                    entity_label=f"Кредит {payload.loan_code} · {payload.bank}",
+                    payload={"_op": "loan", **payload.model_dump(mode="json")},
+                    diff_summary=f"Новый кредит {payload.loan_code} ({payload.bank})",
+                )
+                if queued is not None:
+                    return queued
 
             auto_flags = dict(payload.auto_flags)
             lender_type = payload.lender_type
@@ -218,8 +278,8 @@ class CreditPortfolioService:
             return self._to_read(loan, company=company)
 
     async def update_loan(
-        self, loan_id: UUID, payload: LoanUpdate, user: User
-    ) -> LoanRead:
+        self, loan_id: UUID, payload: LoanUpdate, user: User, *, _skip_gate: bool = False
+    ) -> LoanRead | dict:
         async with self.uow:
             await self._require(user, "credit.edit")
             repo = self.uow.credit_portfolio
@@ -227,6 +287,22 @@ class CreditPortfolioService:
             if loan is None:
                 raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Loan not found")
             await self._check_company_access(user, loan.company_id)
+
+            if not _skip_gate:
+                # PARTIAL PATCH: dump exclude_unset (mirror the write below —
+                # только реально присланные поля уходят в заявку и применяются).
+                queued = await self._maybe_gate(
+                    user, action="edit", company_id=loan.company_id,
+                    entity_id=str(loan_id),
+                    entity_label=f"Кредит {loan.loan_code} · {loan.bank}",
+                    payload={
+                        "_op": "loan", "loan_id": str(loan_id),
+                        **payload.model_dump(exclude_unset=True, mode="json"),
+                    },
+                    diff_summary=f"Правка кредита {loan.loan_code}",
+                )
+                if queued is not None:
+                    return queued
 
             data = payload.model_dump(exclude_unset=True)
             for k, v in data.items():
@@ -245,7 +321,9 @@ class CreditPortfolioService:
             )
             return self._to_read(loan, company=company)
 
-    async def delete_loan(self, loan_id: UUID, user: User) -> None:
+    async def delete_loan(
+        self, loan_id: UUID, user: User, *, _skip_gate: bool = False
+    ) -> Optional[dict]:
         async with self.uow:
             await self._require(user, "credit.delete")
             repo = self.uow.credit_portfolio
@@ -253,15 +331,42 @@ class CreditPortfolioService:
             if loan is None:
                 raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Loan not found")
             await self._check_company_access(user, loan.company_id)
+
+            if not _skip_gate:
+                queued = await self._maybe_gate(
+                    user, action="delete", company_id=loan.company_id,
+                    entity_id=str(loan_id),
+                    entity_label=f"Кредит {loan.loan_code} · {loan.bank}",
+                    payload={"_op": "loan", "loan_id": str(loan_id)},
+                    diff_summary=f"Удаление кредита {loan.loan_code}",
+                )
+                if queued is not None:
+                    return queued
+
             loan.deleted_at = date_type.today()
             loan.updated_by_user_id = user.id
+            return None
 
     async def bulk_import(
-        self, payload: BulkImportRequest, user: User
-    ) -> BulkImportResponse:
+        self, payload: BulkImportRequest, user: User, *, _skip_gate: bool = False
+    ) -> BulkImportResponse | dict:
         async with self.uow:
             await self._require(user, "credit.edit")
             repo = self.uow.credit_portfolio
+
+            if not _skip_gate:
+                # Массовый импорт спанит много компаний → company_id=None (scope
+                # каждой строки всё равно проверяется на выкате в самом методе).
+                queued = await self._maybe_gate(
+                    user, action="create", company_id=None,
+                    entity_id=None,
+                    entity_label=f"Импорт кредитов ({len(payload.items)} шт.)",
+                    payload={"_op": "bulk", **payload.model_dump(mode="json")},
+                    diff_summary=f"Массовый импорт кредитов: {len(payload.items)} строк",
+                )
+                if queued is not None:
+                    return queued
+
             scope = await self._scope_ids(user)
             inserted = updated = skipped = 0
             errors: list[str] = []
@@ -1078,11 +1183,24 @@ class CreditPortfolioService:
         return [FxRateRead.model_validate(r) for r in rows]
 
     async def upsert_fx_rate(
-        self, payload: FxRateUpsert, user: User
-    ) -> FxRateRead:
+        self, payload: FxRateUpsert, user: User, *, _skip_gate: bool = False
+    ) -> FxRateRead | dict:
         async with self.uow:
             await self._require(user, "credit.edit")
             repo = self.uow.credit_portfolio
+
+            if not _skip_gate:
+                # FX-курсы — глобальный справочник без привязки к компании.
+                queued = await self._maybe_gate(
+                    user, action="edit", company_id=None,
+                    entity_id=f"{payload.currency.upper()}@{payload.as_of_date.isoformat()}",
+                    entity_label=f"Курс {payload.currency.upper()} на {payload.as_of_date.isoformat()}",
+                    payload={"_op": "fx", **payload.model_dump(mode="json")},
+                    diff_summary=f"Курс {payload.currency.upper()} = {payload.rate_to_uzs} ({payload.as_of_date.isoformat()})",
+                )
+                if queued is not None:
+                    return queued
+
             rate = await repo.upsert_fx_rate(
                 as_of=payload.as_of_date,
                 currency=payload.currency.upper(),
@@ -1122,8 +1240,8 @@ class CreditPortfolioService:
         return [PaymentRead.model_validate(p) for p in rows]
 
     async def create_loan_payment(
-        self, loan_id: UUID, payload: PaymentCreate, user: User
-    ) -> PaymentRead:
+        self, loan_id: UUID, payload: PaymentCreate, user: User, *, _skip_gate: bool = False
+    ) -> PaymentRead | dict:
         async with self.uow:
             await self._require(user, "credit.edit")
             loan = await self._get_loan_or_404_in_tx(loan_id, user)
@@ -1135,6 +1253,20 @@ class CreditPortfolioService:
                     http_status.HTTP_400_BAD_REQUEST,
                     "Суммы платежа не могут быть отрицательными",
                 )
+
+            if not _skip_gate:
+                queued = await self._maybe_gate(
+                    user, action="create", company_id=loan.company_id,
+                    entity_id=str(loan_id),
+                    entity_label=f"Платёж по кредиту {loan.loan_code}",
+                    payload={
+                        "_op": "payment", "loan_id": str(loan_id),
+                        **payload.model_dump(mode="json"),
+                    },
+                    diff_summary=f"Новый платёж по кредиту {loan.loan_code} от {payload.paid_date.isoformat()}",
+                )
+                if queued is not None:
+                    return queued
 
             repo = self.uow.credit_portfolio
             payment = CreditPortfolioPayment(
@@ -1166,20 +1298,35 @@ class CreditPortfolioService:
             return PaymentRead.model_validate(payment)
 
     async def update_payment(
-        self, payment_id: UUID, payload: PaymentUpdate, user: User
-    ) -> PaymentRead:
+        self, payment_id: UUID, payload: PaymentUpdate, user: User, *, _skip_gate: bool = False
+    ) -> PaymentRead | dict:
         async with self.uow:
             await self._require(user, "credit.edit")
             repo = self.uow.credit_portfolio
             payment = await repo.get_payment(payment_id)
             if payment is None:
                 raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Payment not found")
-            await self._get_loan_or_404_in_tx(payment.loan_id, user)
+            loan = await self._get_loan_or_404_in_tx(payment.loan_id, user)
             if payment.deleted_at is not None:
                 raise HTTPException(
                     http_status.HTTP_400_BAD_REQUEST,
                     "Платёж удалён — восстановите перед редактированием",
                 )
+
+            if not _skip_gate:
+                # PARTIAL PATCH: dump exclude_unset (mirror the write below).
+                queued = await self._maybe_gate(
+                    user, action="edit", company_id=loan.company_id,
+                    entity_id=str(payment_id),
+                    entity_label=f"Платёж по кредиту {loan.loan_code}",
+                    payload={
+                        "_op": "payment", "payment_id": str(payment_id),
+                        **payload.model_dump(exclude_unset=True, mode="json"),
+                    },
+                    diff_summary=f"Правка платежа по кредиту {loan.loan_code}",
+                )
+                if queued is not None:
+                    return queued
 
             data = payload.model_dump(exclude_unset=True)
             for k, v in data.items():
@@ -1198,18 +1345,33 @@ class CreditPortfolioService:
             await repo.refresh(payment)
             return PaymentRead.model_validate(payment)
 
-    async def delete_payment(self, payment_id: UUID, user: User) -> None:
+    async def delete_payment(
+        self, payment_id: UUID, user: User, *, _skip_gate: bool = False
+    ) -> Optional[dict]:
         async with self.uow:
             await self._require(user, "credit.edit")
             repo = self.uow.credit_portfolio
             payment = await repo.get_payment(payment_id)
             if payment is None:
                 raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Payment not found")
-            await self._get_loan_or_404_in_tx(payment.loan_id, user)
+            loan = await self._get_loan_or_404_in_tx(payment.loan_id, user)
+
+            if not _skip_gate:
+                queued = await self._maybe_gate(
+                    user, action="delete", company_id=loan.company_id,
+                    entity_id=str(payment_id),
+                    entity_label=f"Платёж по кредиту {loan.loan_code}",
+                    payload={"_op": "payment", "payment_id": str(payment_id)},
+                    diff_summary=f"Удаление платежа по кредиту {loan.loan_code}",
+                )
+                if queued is not None:
+                    return queued
+
             if payment.deleted_at is None:
                 payment.deleted_at = date_type.today()
                 await repo.flush()
                 await self._recompute_loan_debt(payment.loan_id)
+            return None
 
     async def loan_payments_summary(
         self, loan_id: UUID, user: User

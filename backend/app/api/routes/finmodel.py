@@ -16,16 +16,18 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi import status as http_status
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
 from app.core.access import ensure_company_access
+from app.core.i18n import current_locale, tr
 from app.core.security import has_effective_permission
 from app.database import get_db
 from app.dependencies.finmodel import FinModelServiceDep
 from app.models.user import User
+from app.services.moderation_service import gate_or_apply
 from app.schemas.finmodel import (
     AuditList,
     CellBatchWrite,
@@ -58,6 +60,19 @@ async def _require(
     # company_id получает 403. Owner / companies.view_all — bypass.
     if company_id is not None:
         await ensure_company_access(db, user, company_id)
+
+
+def _queued_202(sub) -> JSONResponse:
+    """Единый ответ 202 для правок, ушедших на модерацию. Все finmodel-роуты
+    объявляют response_model / 201 / 204, поэтому отдаём JSONResponse(202), а не
+    plain dict (иначе FastAPI провалидировал бы 202-тело по response_model)."""
+    return JSONResponse(
+        status_code=http_status.HTTP_202_ACCEPTED,
+        content={
+            "queued": True, "submission_id": str(sub.id), "status": sub.status,
+            "message": tr("Изменение отправлено на модерацию", current_locale()),
+        },
+    )
 
 
 class ImportCommitRequest(BaseModel):
@@ -195,6 +210,17 @@ async def patch_cell(
     user: User = Depends(get_current_user),
 ):
     await _require(db, user, "finmodel.edit", company_id)
+    queued, sub = await gate_or_apply(
+        db, user=user, module="finmodel", action="edit",
+        entity_id=f"{company_id}:{year}",
+        entity_label=f"Финмодель · ячейка {body.row_code} · {year}",
+        company_id=company_id, sector_id=None, year=year,
+        payload={"op": "cell", "company_id": str(company_id), "year": year,
+                 "body": body.model_dump(mode="json")},
+        diff_summary=f"Финмодель · {year} · {body.row_code}",
+    )
+    if queued:
+        return _queued_202(sub)
     return await service.patch_cell(company_id, year, body, user_id=user.id)
 
 
@@ -208,6 +234,17 @@ async def patch_cells_batch(
     user: User = Depends(get_current_user),
 ):
     await _require(db, user, "finmodel.edit", company_id)
+    queued, sub = await gate_or_apply(
+        db, user=user, module="finmodel", action="edit",
+        entity_id=f"{company_id}:{year}",
+        entity_label=f"Финмодель · {len(body.cells)} ячеек · {year}",
+        company_id=company_id, sector_id=None, year=year,
+        payload={"op": "cells_batch", "company_id": str(company_id), "year": year,
+                 "body": body.model_dump(mode="json")},
+        diff_summary=f"Финмодель · {year} · пакет {len(body.cells)} ячеек",
+    )
+    if queued:
+        return _queued_202(sub)
     return await service.patch_cells_batch(company_id, year, body, user_id=user.id)
 
 
@@ -233,6 +270,17 @@ async def put_macro(
     user: User = Depends(get_current_user),
 ):
     await _require(db, user, "finmodel.edit", company_id)
+    queued, sub = await gate_or_apply(
+        db, user=user, module="finmodel", action="edit",
+        entity_id=f"{company_id}:{year}",
+        entity_label=f"Финмодель · макро-параметры · {year}",
+        company_id=company_id, sector_id=None, year=year,
+        payload={"op": "macro", "company_id": str(company_id), "year": year,
+                 "body": body.model_dump(mode="json")},
+        diff_summary=f"Финмодель · макро · {year}",
+    )
+    if queued:
+        return _queued_202(sub)
     return await service.put_macro(company_id, year, body, user_id=user.id)
 
 
@@ -248,6 +296,16 @@ async def create_year(
     user: User = Depends(get_current_user),
 ):
     await _require(db, user, "finmodel.edit", company_id)
+    queued, sub = await gate_or_apply(
+        db, user=user, module="finmodel", action="create",
+        entity_id=f"{company_id}:{year}",
+        entity_label=f"Финмодель · создать год {year}",
+        company_id=company_id, sector_id=None, year=year,
+        payload={"op": "year_create", "company_id": str(company_id), "year": year},
+        diff_summary=f"Финмодель · создание года {year}",
+    )
+    if queued:
+        return _queued_202(sub)
     return await service.create_year(company_id, year)
 
 
@@ -260,6 +318,16 @@ async def delete_year(
     user: User = Depends(get_current_user),
 ):
     await _require(db, user, "finmodel.edit", company_id)
+    queued, sub = await gate_or_apply(
+        db, user=user, module="finmodel", action="delete",
+        entity_id=f"{company_id}:{year}",
+        entity_label=f"Финмодель · удалить год {year}",
+        company_id=company_id, sector_id=None, year=year,
+        payload={"op": "year_delete", "company_id": str(company_id), "year": year},
+        diff_summary=f"Финмодель · удаление года {year}",
+    )
+    if queued:
+        return _queued_202(sub)
     await service.delete_year(company_id, year, user_id=user.id)
 
 
@@ -274,6 +342,17 @@ async def copy_year(
     user: User = Depends(get_current_user),
 ):
     await _require(db, user, "finmodel.edit", company_id)
+    queued, sub = await gate_or_apply(
+        db, user=user, module="finmodel", action="create",
+        entity_id=f"{company_id}:{year}",
+        entity_label=f"Финмодель · копировать {src_year} → {year}",
+        company_id=company_id, sector_id=None, year=year,
+        payload={"op": "year_copy", "company_id": str(company_id), "year": year,
+                 "src_year": src_year},
+        diff_summary=f"Финмодель · копирование года {src_year} → {year}",
+    )
+    if queued:
+        return _queued_202(sub)
     return await service.copy_year(company_id, year, src_year, user_id=user.id)
 
 
@@ -287,6 +366,17 @@ async def lock_year(
     user: User = Depends(get_current_user),
 ):
     await _require(db, user, "finmodel.edit", company_id)
+    queued, sub = await gate_or_apply(
+        db, user=user, module="finmodel", action="status_change",
+        entity_id=f"{company_id}:{year}",
+        entity_label=f"Финмодель · блокировка года {year} ({body.status})",
+        company_id=company_id, sector_id=None, year=year,
+        payload={"op": "year_lock", "company_id": str(company_id), "year": year,
+                 "body": body.model_dump(mode="json")},
+        diff_summary=f"Финмодель · статус года {year} → {body.status}",
+    )
+    if queued:
+        return _queued_202(sub)
     return await service.lock_year(company_id, year, body, user_id=user.id)
 
 
@@ -299,6 +389,16 @@ async def unlock_year(
     user: User = Depends(get_current_user),
 ):
     await _require(db, user, "finmodel.admin", company_id)
+    queued, sub = await gate_or_apply(
+        db, user=user, module="finmodel", action="status_change",
+        entity_id=f"{company_id}:{year}",
+        entity_label=f"Финмодель · разблокировка года {year}",
+        company_id=company_id, sector_id=None, year=year,
+        payload={"op": "year_unlock", "company_id": str(company_id), "year": year},
+        diff_summary=f"Финмодель · разблокировка года {year}",
+    )
+    if queued:
+        return _queued_202(sub)
     return await service.unlock_year(company_id, year)
 
 
@@ -314,6 +414,17 @@ async def create_scenario(
     user: User = Depends(get_current_user),
 ):
     await _require(db, user, "finmodel.edit", company_id)
+    queued, sub = await gate_or_apply(
+        db, user=user, module="finmodel", action="create",
+        entity_id=None,  # застолбится id созданного сценария (идемпотентность)
+        entity_label=f"Финмодель · сценарий «{body.name}»",
+        company_id=company_id, sector_id=None, year=None,
+        payload={"op": "scenario_create", "company_id": str(company_id),
+                 "body": body.model_dump(mode="json")},
+        diff_summary=f"Финмодель · новый сценарий «{body.name}»",
+    )
+    if queued:
+        return _queued_202(sub)
     return await service.create_scenario(company_id, body, user_id=user.id)
 
 
@@ -327,6 +438,17 @@ async def activate_scenario(
     user: User = Depends(get_current_user),
 ):
     await _require(db, user, "finmodel.edit", company_id)
+    queued, sub = await gate_or_apply(
+        db, user=user, module="finmodel", action="status_change",
+        entity_id=str(scenario_id),
+        entity_label="Финмодель · активировать сценарий",
+        company_id=company_id, sector_id=None, year=None,
+        payload={"op": "scenario_activate", "company_id": str(company_id),
+                 "scenario_id": str(scenario_id)},
+        diff_summary="Финмодель · активация сценария",
+    )
+    if queued:
+        return _queued_202(sub)
     return await service.activate_scenario(company_id, scenario_id, user_id=user.id)
 
 
@@ -340,6 +462,17 @@ async def delete_scenario(
     user: User = Depends(get_current_user),
 ):
     await _require(db, user, "finmodel.edit", company_id)
+    queued, sub = await gate_or_apply(
+        db, user=user, module="finmodel", action="delete",
+        entity_id=str(scenario_id),
+        entity_label="Финмодель · удалить сценарий",
+        company_id=company_id, sector_id=None, year=None,
+        payload={"op": "scenario_delete", "company_id": str(company_id),
+                 "scenario_id": str(scenario_id)},
+        diff_summary="Финмодель · удаление сценария",
+    )
+    if queued:
+        return _queued_202(sub)
     await service.delete_scenario(company_id, scenario_id)
 
 
@@ -404,6 +537,20 @@ async def import_excel_commit(
     user: User = Depends(get_current_user),
 ):
     await _require(db, user, "finmodel.edit", company_id)
+    queued, sub = await gate_or_apply(
+        db, user=user, module="finmodel", action="create",
+        entity_id=str(company_id),
+        entity_label="Финмодель · импорт из Excel",
+        company_id=company_id, sector_id=None,
+        year=(body.selected_years[0] if body.selected_years else None),
+        payload={"op": "import_commit", "company_id": str(company_id),
+                 "preview": body.preview,
+                 "selected_years": body.selected_years,
+                 "skip_unmatched": body.skip_unmatched},
+        diff_summary="Финмодель · импорт данных из Excel",
+    )
+    if queued:
+        return _queued_202(sub)
     return await service.import_excel_commit(
         company_id,
         preview=body.preview,
@@ -424,4 +571,18 @@ async def regenerate_forecast(
     user: User = Depends(get_current_user),
 ):
     await _require(db, user, "finmodel.edit", company_id)
+    # Прогноз ПЕРСИСТИТ (пишет строки FinModelCellValue с is_calculated=True), а не
+    # чистый compute — поэтому это бакет-A запись и модерируется, как остальные
+    # finmodel-правки (иначе внешний автор обошёл бы модерацию по forecast).
+    queued, sub = await gate_or_apply(
+        db, user=user, module="finmodel", action="edit",
+        entity_id=f"{company_id}:forecast",
+        entity_label=f"Финмодель · прогноз {body.base_year}→{','.join(map(str, body.target_years))}",
+        company_id=company_id, sector_id=None, year=body.base_year,
+        payload={"op": "forecast", "company_id": str(company_id),
+                 "year": body.base_year, "body": body.model_dump(mode="json")},
+        diff_summary=f"Финмодель · прогноз {body.base_year} → {body.target_years}",
+    )
+    if queued:
+        return _queued_202(sub)
     return await service.regenerate_forecast(company_id, body, user_id=user.id)

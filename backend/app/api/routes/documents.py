@@ -30,7 +30,7 @@ from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi import status as http_status
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -42,6 +42,7 @@ from app.database import get_db
 from app.models.company import Company
 from app.models.document import Document, DocumentFolder, DocumentLink
 from app.models.user import User
+from app.services.moderation_service import gate_or_apply
 from app.services.storage import StorageError, get_storage
 
 log = logging.getLogger(__name__)
@@ -272,9 +273,25 @@ async def create_folder(
     )).first()
     if dup:
         raise HTTPException(http_status.HTTP_409_CONFLICT, "Папка с таким именем уже есть")
+    color = _clean_color(payload.color)
+    # Модерация (deny-by-default): внешний автор → в очередь. Scope компании и
+    # право (companies.edit) проверены ВЫШЕ. Новой папки ещё нет → entity_id=None;
+    # apply-хендлер создаёт и штампует id.
+    queued, sub = await gate_or_apply(
+        db, user=user, module="documents", action="create",
+        entity_id=None, entity_label=name,
+        company_id=co.id, sector_id=None, year=None,
+        payload={"op": "folder", "code": co.code, "name": name,
+                 "parent_id": str(payload.parent_id) if payload.parent_id else None,
+                 "color": color},
+        diff_summary=f"Создание папки документов: {name}",
+    )
+    if queued:
+        return JSONResponse(status_code=http_status.HTTP_202_ACCEPTED, content={
+            "queued": True, "submission_id": str(sub.id), "status": sub.status})
     f = DocumentFolder(
         company_id=co.id, parent_id=payload.parent_id, name=name,
-        color=_clean_color(payload.color), is_system=False, created_by=user.id,
+        color=color, is_system=False, created_by=user.id,
     )
     db.add(f)
     await db.commit()
@@ -303,6 +320,22 @@ async def patch_folder(
         raise HTTPException(
             http_status.HTTP_400_BAD_REQUEST, "Системную папку нельзя переименовать",
         )
+    # Цвет валидируем/нормализуем ДО гейта (_clean_color 422-ит невалидный
+    # #RRGGBB) — иначе одобрение внесло бы сырой цвет в обход проверки прямого пути.
+    cleaned_color = _clean_color(payload.color) if payload.color is not None else None
+    # Модерация: scope + право проверены ВЫШЕ. exclude_unset — правим только
+    # присланные поля (полный дамп затёр бы неприсланные в None при apply).
+    queued, sub = await gate_or_apply(
+        db, user=user, module="documents", action="edit",
+        entity_id=str(folder_id), entity_label=f.name,
+        company_id=co.id, sector_id=None, year=None,
+        payload={"op": "folder", "code": co.code, "folder_id": str(folder_id),
+                 **payload.model_dump(mode="json", exclude_unset=True),
+                 **({"color": cleaned_color} if payload.color is not None else {})},
+        diff_summary=f"Правка папки документов: {f.name}",
+    )
+    if queued:
+        return {"queued": True, "submission_id": str(sub.id), "status": sub.status}
     if payload.name:
         f.name = _SAFE_NAME.sub("", payload.name).strip() or f.name
     if payload.parent_id is not None:
@@ -311,7 +344,7 @@ async def patch_folder(
         f.parent_id = payload.parent_id
     if payload.color is not None:
         # Цвет меняется и у системных папок: это оформление, а не структура.
-        f.color = _clean_color(payload.color)
+        f.color = cleaned_color
     await db.commit()
     await db.refresh(f)
     return _folder_out(f)
@@ -350,6 +383,19 @@ async def delete_folder(
             http_status.HTTP_409_CONFLICT,
             "Папка не пуста — сначала переместите или удалите содержимое",
         )
+    # Модерация: scope + право + guard'ы (системная/непустая) проверены ВЫШЕ.
+    # Роут отдаёт 204 (response_class=Response) → при постановке в очередь
+    # возвращаем JSONResponse(202), чтобы FastAPI пропустил тело.
+    queued, sub = await gate_or_apply(
+        db, user=user, module="documents", action="delete",
+        entity_id=str(folder_id), entity_label=f.name,
+        company_id=co.id, sector_id=None, year=None,
+        payload={"op": "folder", "code": co.code, "folder_id": str(folder_id)},
+        diff_summary=f"Удаление папки документов: {f.name}",
+    )
+    if queued:
+        return JSONResponse(status_code=http_status.HTTP_202_ACCEPTED, content={
+            "queued": True, "submission_id": str(sub.id), "status": sub.status})
     await db.delete(f)
     await db.commit()
     return Response(status_code=http_status.HTTP_204_NO_CONTENT)
@@ -532,6 +578,18 @@ async def patch_item(
     if doc is None:
         raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Документ не найден")
     await _require_write(db, user, doc.source_module)
+    # Модерация: scope + право (по источнику файла) проверены ВЫШЕ. exclude_unset —
+    # правим только присланные поля (полный дамп затёр бы неприсланные в None).
+    queued, sub = await gate_or_apply(
+        db, user=user, module="documents", action="edit",
+        entity_id=str(doc_id), entity_label=doc.name,
+        company_id=co.id, sector_id=None, year=None,
+        payload={"op": "item", "code": co.code, "doc_id": str(doc_id),
+                 **payload.model_dump(mode="json", exclude_unset=True)},
+        diff_summary=f"Правка файла: {doc.name}",
+    )
+    if queued:
+        return {"queued": True, "submission_id": str(sub.id), "status": sub.status}
     if payload.name:
         doc.name = _SAFE_NAME.sub("", payload.name).strip() or doc.name
     if payload.folder_id is not None:
@@ -563,6 +621,18 @@ async def delete_item(
     if doc is None:
         raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Документ не найден")
     await _require_write(db, user, doc.source_module)
+    # Модерация: scope + право проверены ВЫШЕ. Флаг hard (жёсткое удаление вместе
+    # с файлом) переносим в payload — apply повторит ту же ветку. 204 → 202.
+    queued, sub = await gate_or_apply(
+        db, user=user, module="documents", action="delete",
+        entity_id=str(doc_id), entity_label=doc.name,
+        company_id=co.id, sector_id=None, year=None,
+        payload={"op": "item", "code": co.code, "doc_id": str(doc_id), "hard": bool(hard)},
+        diff_summary=f"Удаление файла: {doc.name}" + (" (безвозвратно)" if hard else ""),
+    )
+    if queued:
+        return JSONResponse(status_code=http_status.HTTP_202_ACCEPTED, content={
+            "queued": True, "submission_id": str(sub.id), "status": sub.status})
     if hard:
         try:
             await get_storage().delete(doc.storage_key)
@@ -589,6 +659,16 @@ async def restore_item(
     if doc is None:
         raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Документ не найден")
     await _require_write(db, user, doc.source_module)
+    # Модерация: восстановление из корзины = правка файла (edit/restore).
+    queued, sub = await gate_or_apply(
+        db, user=user, module="documents", action="edit",
+        entity_id=str(doc_id), entity_label=doc.name,
+        company_id=co.id, sector_id=None, year=None,
+        payload={"op": "restore", "code": co.code, "doc_id": str(doc_id)},
+        diff_summary=f"Восстановление файла из корзины: {doc.name}",
+    )
+    if queued:
+        return {"queued": True, "submission_id": str(sub.id), "status": sub.status}
     doc.is_deleted = False
     await db.commit()
     return {"ok": True}
@@ -635,6 +715,20 @@ async def add_link(
     if doc is None:
         raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Документ не найден")
     await _require_write(db, user, _ENTITY_SOURCE.get(payload.entity_type, "library"))
+    # Модерация: scope + право (по источнику привязки) проверены ВЫШЕ. Роут отдаёт
+    # 201 → при постановке в очередь возвращаем JSONResponse(202).
+    queued, sub = await gate_or_apply(
+        db, user=user, module="documents", action="create",
+        entity_id=str(doc_id), entity_label=doc.name,
+        company_id=co.id, sector_id=None, year=None,
+        payload={"op": "link", "code": co.code, "doc_id": str(doc_id),
+                 "entity_type": payload.entity_type, "entity_id": payload.entity_id,
+                 "label": payload.label},
+        diff_summary=f"Привязка файла «{doc.name}» к {payload.entity_type}",
+    )
+    if queued:
+        return JSONResponse(status_code=http_status.HTTP_202_ACCEPTED, content={
+            "queued": True, "submission_id": str(sub.id), "status": sub.status})
     exists = (await db.execute(
         select(DocumentLink.id).where(
             DocumentLink.document_id == doc.id,
@@ -679,6 +773,18 @@ async def drop_link(
     if link is None:
         raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Привязка не найдена")
     await _require_write(db, user, _ENTITY_SOURCE.get(link.entity_type, "library"))
+    # Модерация: scope + право проверены ВЫШЕ. 204 → 202 при постановке в очередь.
+    queued, sub = await gate_or_apply(
+        db, user=user, module="documents", action="delete",
+        entity_id=str(link_id), entity_label=f"Привязка → {link.entity_type}",
+        company_id=co.id, sector_id=None, year=None,
+        payload={"op": "link", "code": co.code, "doc_id": str(doc_id),
+                 "link_id": str(link_id)},
+        diff_summary=f"Отвязка файла от {link.entity_type}",
+    )
+    if queued:
+        return JSONResponse(status_code=http_status.HTTP_202_ACCEPTED, content={
+            "queued": True, "submission_id": str(sub.id), "status": sub.status})
     await db.delete(link)
     await db.commit()
     return Response(status_code=http_status.HTTP_204_NO_CONTENT)

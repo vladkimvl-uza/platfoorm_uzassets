@@ -366,20 +366,38 @@ class CompanyLibraryService:
                     )
 
             if src is None or src == "library":
-                cd = dict(co.custom_data or {})
-                cd[field_code] = new_value
-                co.custom_data = cd
-                await r.flush()
-                routed_to = "companies.custom_data"
+                # Через модерацию (module="company_library", action="edit"): прямая
+                # запись custom_data у внешнего автора уходит в очередь. queued → 202
+                # (применит moderation_apply/company_library.py); write-through
+                # (owner/bypass/нет правила) — прямая запись как раньше.
+                gated = await self._gate_library_write(
+                    db, user, company_id, field_code, new_value, src,
+                )
+                if isinstance(gated, _QueuedResult):
+                    queued_result = gated
+                else:
+                    cd = dict(co.custom_data or {})
+                    cd[field_code] = new_value
+                    co.custom_data = cd
+                    await r.flush()
+                    routed_to = "companies.custom_data"
 
             elif src == "companies":
                 if (
                     fdef.source_path and "." not in fdef.source_path
                     and hasattr(co, fdef.source_path)
                 ):
-                    setattr(co, fdef.source_path, new_value)
-                    await r.flush()
-                    routed_to = f"companies.{fdef.source_path}"
+                    # Через модерацию (как custom_data выше). Валидность source_path
+                    # проверена ДО гейта — плохой запрос падает 400, а не встаёт в очередь.
+                    gated = await self._gate_library_write(
+                        db, user, company_id, field_code, new_value, src,
+                    )
+                    if isinstance(gated, _QueuedResult):
+                        queued_result = gated
+                    else:
+                        setattr(co, fdef.source_path, new_value)
+                        await r.flush()
+                        routed_to = f"companies.{fdef.source_path}"
                 else:
                     raise HTTPException(
                         http_status.HTTP_400_BAD_REQUEST,
@@ -498,6 +516,121 @@ class CompanyLibraryService:
             source_module=source_module,
             updated_at=now, routed_to=routed_to,
         )
+
+    async def _gate_library_write(
+        self, db, user, company_id: UUID, field_code: str, new_value: Any,
+        src: Optional[str],
+    ):
+        """Гейтит прямую запись library/companies-поля через модерацию
+        (module="company_library", action="edit"). queued → _QueuedResult (ушло на
+        модерацию); иначе None (вызывающий пишет напрямую как раньше). Payload
+        несёт всё, что нужно apply-хендлеру, чтобы воспроизвести запись."""
+        from app.services.moderation_service import gate_or_apply
+        payload = {
+            "company_id": str(company_id),
+            "field_code": field_code,
+            "value": new_value,
+            "source_module": src,
+        }
+        queued, sub = await gate_or_apply(
+            db, user=user, module="company_library", action="edit",
+            entity_id=str(company_id),
+            entity_label=f"Поле «{field_code}»",
+            company_id=company_id, sector_id=None, year=None,
+            payload=payload,
+            diff_summary=f"{field_code} → {new_value if new_value is not None else '—'}",
+        )
+        if queued:
+            return _QueuedResult(sub.id, sub.status)
+        return None
+
+    async def apply_library_field(
+        self, company_id: UUID, field_code: str, new_value: Any,
+        *, actor_id: str, actor_email: str,
+    ) -> str:
+        """Применяет одобренную библиотечную правку поля (module=company_library)
+        БЕЗ повторного гейта модерации — replay из очереди. Пишет только
+        library/companies-поля (ratings/financials модерируются своими модулями и
+        сюда не попадают). Атрибуция аудита/бродкаста — ПРЕДЛОЖИВШИЙ (proposer)."""
+        async with self.uow:
+            r = self.uow.company_library
+            co = await r.get_company(company_id)
+            if co is None:
+                raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Company not found")
+            fdef = await r.get_field_definition(field_code)
+            if fdef is None:
+                raise HTTPException(
+                    http_status.HTTP_404_NOT_FOUND,
+                    f"Field '{field_code}' not defined",
+                )
+            src = fdef.source_module
+            if src is None or src == "library":
+                cd = dict(co.custom_data or {})
+                cd[field_code] = new_value
+                co.custom_data = cd
+                await r.flush()
+                routed_to = "companies.custom_data"
+            elif src == "companies":
+                if (
+                    fdef.source_path and "." not in fdef.source_path
+                    and hasattr(co, fdef.source_path)
+                ):
+                    setattr(co, fdef.source_path, new_value)
+                    await r.flush()
+                    routed_to = f"companies.{fdef.source_path}"
+                else:
+                    raise HTTPException(
+                        http_status.HTTP_400_BAD_REQUEST,
+                        f"Field '{field_code}' source_path is invalid for Company attribute",
+                    )
+            else:
+                # ratings/финансы модерируются своими модулями — сюда не должно
+                # доходить; fail-closed, чтобы не писать мимо канон-пути.
+                raise HTTPException(
+                    http_status.HTTP_409_CONFLICT,
+                    f"Field '{field_code}' (source_module='{src}') is not a "
+                    "library-scoped field — moderate it through its own module",
+                )
+            await r.flush()
+            source_module = src
+
+        # Audit + broadcast (post-commit, best-effort) — атрибуция ПРЕДЛОЖИВШЕМУ.
+        try:
+            from app.core.audit_chain import append_audit_entry
+            from app.database import AsyncSessionLocal
+            async with AsyncSessionLocal() as session2:
+                await append_audit_entry(
+                    session2,
+                    actor_id=actor_id, actor_email=actor_email,
+                    action="library.field.update",
+                    entity_type="company",
+                    entity_id=str(company_id),
+                    diff={
+                        "field_code": field_code, "new_value": new_value,
+                        "source_module": source_module, "routed_to": routed_to,
+                    },
+                    notes=f"library write · {field_code}",
+                )
+                await session2.commit()
+        except Exception:
+            log.warning(
+                "audit append failed for library apply %s/%s",
+                company_id, field_code, exc_info=True,
+            )
+        try:
+            await broadcaster.broadcast_field_update(
+                company_id=str(company_id),
+                field_code=field_code,
+                value=new_value,
+                source_module=source_module,
+                actor_id=actor_id,
+            )
+        except Exception:
+            log.warning(
+                "ws broadcast failed for library apply %s/%s",
+                company_id, field_code, exc_info=True,
+            )
+        return routed_to
 
     async def _gate_rating_write(
         self, db, r, user, company_id: UUID, field_code: str, new_value: Any,

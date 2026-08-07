@@ -633,6 +633,18 @@ def _load_apply_handlers() -> None:
         "app.services.moderation_apply.consultants",
         "app.services.moderation_apply.notes",
         "app.services.moderation_apply.elasticity",
+        # Фаза 4, батч 2:
+        "app.services.moderation_apply.scenarios",
+        "app.services.moderation_apply.overview_matrix",
+        "app.services.moderation_apply.report_wizard",
+        "app.services.moderation_apply.ifrs_report_history",
+        "app.services.moderation_apply.documents",
+        # Фаза 4, батч 3 (сложные модули):
+        "app.services.moderation_apply.credit",
+        "app.services.moderation_apply.pmo",
+        "app.services.moderation_apply.finmodel",
+        "app.services.moderation_apply.builder",
+        "app.services.moderation_apply.company_library",
         # Skipped (deliberately):
         #   - uploads:  path storage with freeform JSON
     )
