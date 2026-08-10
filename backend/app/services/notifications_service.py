@@ -162,14 +162,76 @@ def _buffer_ws_push(db: AsyncSession, recipient_id: UUID, n: Notification) -> No
     db.info.setdefault("pending_ws", []).append((recipient_id, payload))
 
 
+def _buffer_ws_update(db: AsyncSession, recipient_id: UUID, n: Notification) -> None:
+    """Ставит notification.updated в ту же очередь на сессии (отправится после
+    commit). Для УЖЕ существующего уведомления, у которого поменялись
+    payload/is_read (напр. заявка модерации разрешена → гасим быстрые действия в
+    колокольчике у всех модераторов). Клиент заменяет строку в ленте по id."""
+    payload = {
+        "event": "notification.updated",
+        "notification": {
+            "id":          str(n.id),
+            "type":        n.type,
+            "priority":    n.priority,
+            "payload":     n.payload,
+            "is_read":     bool(n.is_read),
+            "is_archived": bool(n.is_archived),
+        },
+        "timestamp":     datetime.now(UTC).isoformat(),
+    }
+    db.info.setdefault("pending_ws", []).append((recipient_id, payload))
+
+
+async def settle_notifications(
+    db: AsyncSession,
+    *,
+    source_entity_id: Any,
+    types: "tuple[str, ...] | list[str]",
+    patch: dict,
+    mark_read: bool = True,
+    commit: bool = True,
+) -> int:
+    """Обновить УЖЕ разосланные уведомления по (source_entity_id + типы): смёржить
+    ``patch`` в payload, опц. пометить прочитанными, и разослать WS
+    notification.updated живым получателям. Возвращает число обновлённых.
+
+    Смысл: когда сущность-источник перешла в терминальное состояние (заявка
+    модерации одобрена/отклонена), «живые» карточки-приглашения к действию у ВСЕХ
+    получателей должны это отразить — иначе модератор жмёт «Принять» на уже
+    решённой заявке и ловит 409.
+    """
+    rows = (await db.execute(
+        select(Notification).where(
+            Notification.source_entity_id == str(source_entity_id),
+            Notification.type.in_(list(types)),
+            Notification.is_archived.is_(False),
+        )
+    )).scalars().all()
+    if not rows:
+        return 0
+    now = datetime.now(UTC)
+    for n in rows:
+        merged = dict(n.payload or {})
+        merged.update(patch)
+        n.payload = merged          # переприсваиваем → JSONB помечается dirty
+        if mark_read and not n.is_read:
+            n.is_read = True
+            n.read_at = now
+        _buffer_ws_update(db, n.recipient_user_id, n)
+    if commit:
+        await db.commit()          # after_commit-листенер разошлёт буфер
+    return len(rows)
+
+
 async def _flush_ws(pending: list) -> None:
     recipients: set = set()
-    for uid, payload in pending:            # notification.new — по одному на строку
+    for uid, payload in pending:            # notification.new / .updated — по строке
         recipients.add(uid)
         try:
             await notifications_ws_manager.send_to_user(uid, payload)
         except Exception as e:
-            log.warning("WS notification.new failed user=%s: %s", uid, e)
+            log.warning("WS push (%s) failed user=%s: %s",
+                        payload.get("event", "?"), uid, e)
     if not recipients:
         return
     # unread_count — по одному на получателя, из СВЕЖЕЙ (закоммиченной) сессии

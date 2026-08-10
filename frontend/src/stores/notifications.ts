@@ -311,9 +311,9 @@ export const useNotificationsStore = defineStore("notifications", {
       if (_pingTimer !== null) { clearInterval(_pingTimer); _pingTimer = null; }
     },
 
-    _handleEvent(data: { event: string; notification?: Notification; unread_count?: number }) {
+    _handleEvent(data: { event: string; notification?: Partial<Notification> & { id: string }; unread_count?: number }) {
       if (data.event === "notification.new" && data.notification) {
-        const n = data.notification;
+        const n = data.notification as Notification;
         if (!this.recent.find((x) => x.id === n.id)) {
           this.recent.unshift(n);
           if (this.recent.length > 30) this.recent.pop();
@@ -321,6 +321,23 @@ export const useNotificationsStore = defineStore("notifications", {
         if (!n.is_read) { this.unreadCount++; this._incCategories(n); }
         if (_toastCb) {
           try { _toastCb(n); } catch (e) { console.warn("[notifications] toast cb failed", e); }
+        }
+      } else if (data.event === "notification.updated" && data.notification) {
+        // Уже существующее уведомление изменилось (payload/is_read) — напр. заявка
+        // модерации разрешена → гасим быстрые действия в колокольчике. Мержим
+        // прилетевшие поля в строку ленты по id; если строки нет — игнорируем
+        // (появится при следующем refreshRecent). Общий счётчик поправит идущий
+        // следом notification.unread_count; per-category гасим здесь симметрично.
+        const upd = data.notification;
+        const idx = this.recent.findIndex((x) => x.id === upd.id);
+        if (idx >= 0) {
+          const prev = this.recent[idx];
+          const becameRead = !prev.is_read && upd.is_read === true;
+          this.recent[idx] = { ...prev, ...upd } as Notification;
+          if (becameRead) {
+            if (this.unreadCount > 0) this.unreadCount--;
+            this._decCategories(prev);
+          }
         }
       } else if (data.event === "notification.unread_count" && typeof data.unread_count === "number") {
         this.unreadCount = data.unread_count;

@@ -23,7 +23,7 @@ from app.models.moderation import (
     ModerationSubmission,
 )
 from app.models.user import Group, Role, User
-from app.services.notifications_service import notify
+from app.services.notifications_service import notify, settle_notifications
 
 log = logging.getLogger(__name__)
 
@@ -916,6 +916,7 @@ async def approve(
     # it in the UI — they can retry once the handler is wired.
     await _dispatch_apply(db, sub, user)
     await _notify_status_change(db, sub, "approved", note)
+    await _settle_pending(db, sub, "approved")
     await db.refresh(sub)
     return sub
 
@@ -939,6 +940,7 @@ async def reject(
 
     await db.commit()
     await _notify_status_change(db, sub, "rejected", note)
+    await _settle_pending(db, sub, "rejected")
     await db.refresh(sub)
     return sub
 
@@ -973,6 +975,7 @@ async def withdraw(
     sub.resolved_by_id = user.id
     sub.updated_at = now
     await db.commit()
+    await _settle_pending(db, sub, "withdrawn")
     await db.refresh(sub)
     return sub
 
@@ -1032,6 +1035,31 @@ async def _notify_status_change(
         source_module="moderation", source_entity_id=str(sub.id),
         source_user_id=sub.resolved_by_id,
     )
+
+
+async def _settle_pending(db: AsyncSession, sub: ModerationSubmission, resolution: str) -> None:
+    """Погасить у ВСЕХ модераторов карточки-приглашения `moderation.pending` этой
+    заявки, когда она перешла в терминал (approved/rejected/withdrawn).
+
+    Помечаем прочитанными и штампуем в payload `resolved`/`resolution`, и живой
+    WS-апдейт: быстрые действия «Принять/Отклонить» в колокольчике сменятся на
+    статус решения — даже если решение принято в разделе «Модерация» или другим
+    модератором. Иначе кнопки остаются активными и клик ловит 409 (заявка закрыта).
+    Не вызываем для review_requested/under_review — заявка ещё открыта.
+    """
+    try:
+        await settle_notifications(
+            db,
+            source_entity_id=sub.id,
+            types=("moderation.pending",),
+            patch={
+                "resolved": True,
+                "resolution": resolution,
+                "resolved_by_id": str(sub.resolved_by_id) if sub.resolved_by_id else None,
+            },
+        )
+    except Exception as e:  # гашение карточек — best-effort, не рушим резолв
+        log.warning("settle pending moderation notifications failed sub=%s: %s", sub.id, e)
 
 
 # ════════════════════════════════════════════════════════════

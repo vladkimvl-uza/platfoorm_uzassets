@@ -129,8 +129,9 @@ class QuietHoursConfig(BaseModel):
 
 class WSNotification(BaseModel):
     """What's sent over WebSocket to a connected client."""
-    event: Literal["notification.new", "notification.read", "notification.unread_count",
-                   "notification.archived", "system.ping"] = "notification.new"
+    event: Literal["notification.new", "notification.updated", "notification.read",
+                   "notification.unread_count", "notification.archived",
+                   "system.ping"] = "notification.new"
     notification: Optional[NotificationRead] = None
     unread_count: Optional[int] = None
     timestamp: datetime

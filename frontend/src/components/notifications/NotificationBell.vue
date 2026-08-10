@@ -131,6 +131,30 @@ async function handleItemClick(n: any) {
 const quickBusy = ref<Record<string, boolean>>({});
 const quickDone = ref<Record<string, "approved" | "rejected">>({});
 
+// Разрешённое состояние карточки модерации: локальный быстрый-экшн (quickDone)
+// ИЛИ серверный payload.resolved (заявку разрешили в разделе «Модерация» или
+// другой модератор — прилетает WS notification.updated). В обоих случаях вместо
+// кнопок «Принять/Отклонить» показываем статус-плашку.
+const RESOLUTION_LABELS: Record<string, string> = {
+  approved: "Принято",
+  rejected: "Отклонено",
+  withdrawn: "Отозвано",
+};
+const settled = computed(() => {
+  const m: Record<string, { kind: string; label: string }> = {};
+  for (const n of store.recent) {
+    if (!n.type?.startsWith("moderation.pending")) continue;
+    const local = quickDone.value[n.id];
+    if (local) { m[n.id] = { kind: local, label: RESOLUTION_LABELS[local] }; continue; }
+    const p = n.payload as any;
+    if (p?.resolved) {
+      const r = String(p.resolution || "");
+      m[n.id] = { kind: r, label: RESOLUTION_LABELS[r] || "Решено" };
+    }
+  }
+  return m;
+});
+
 async function quickAction(id: string, action: "approve" | "reject" | "open") {
   const item = store.recent.find((n) => n.id === id);
   const subId = (item?.payload as any)?.submission_id as string | undefined;
@@ -165,7 +189,11 @@ async function quickAction(id: string, action: "approve" | "reject" | "open") {
     // Сначала показываем «Принято» на самой карточке, и лишь потом гасим:
     // мгновенное исчезновение читалось как «кнопка не сработала».
     quickDone.value = { ...quickDone.value, [id]: "approved" };
-    await store.refreshCount();
+    // Бэкенд (settle на approve) уже пометил ЭТУ заявку прочитанной на сервере, а
+    // в WS-режиме прислал notification.updated (сам гасит счётчик). Поэтому здесь
+    // НЕ зовём refreshCount() — иначе в polling-режиме markRead ниже декрементнёт
+    // счётчик ПОВТОРНО (badge занижался бы на 1 до следующего опроса). markRead —
+    // единственный оптимистичный декремент + локальное «прочитано» для polling.
     setTimeout(() => { void store.markRead(id); }, 1400);
   } catch (e: any) {
     toast.error(e?.response?.data?.detail || t("Не удалось принять заявку"));
@@ -311,9 +339,10 @@ function priorityColorFor(p: string): string { return PRIORITY_LABELS[p as "crit
               </div>
 
               <div v-if="n.type.startsWith('moderation.pending')" class="nb-quick">
-                <div v-if="quickDone[n.id]" class="nb-q-done">
-                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l4 4 6-8"/></svg>
-                  {{ t('Принято') }}
+                <div v-if="settled[n.id]" class="nb-q-done" :class="`nb-q-done--${settled[n.id].kind}`">
+                  <svg v-if="settled[n.id].kind === 'approved'" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l4 4 6-8"/></svg>
+                  <svg v-else width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l10 10M13 3L3 13"/></svg>
+                  {{ t(settled[n.id].label) }}
                 </div>
                 <template v-else>
                   <button class="nb-q-approve" :disabled="quickBusy[n.id]" @click.stop="quickAction(n.id, 'approve')">
@@ -688,6 +717,9 @@ function priorityColorFor(p: string): string { return PRIORITY_LABELS[p as "crit
   font-size: 11px; font-weight: 600;
   animation: nbDonePop .34s cubic-bezier(.34, 1.56, .64, 1) both;
 }
+/* Отклонено — красный; Отозвано — нейтральный серый. Approved остаётся зелёным. */
+.nb-q-done--rejected  { background: rgba(226,75,74,.12);  color: var(--sev-critical, #A32D2D); }
+.nb-q-done--withdrawn { background: rgba(0,0,0,.06);      color: var(--t3, #5F5E5A); }
 .nb-q-done svg {
   stroke-dasharray: 16; stroke-dashoffset: 16;
   animation: nbCheckDraw .38s ease .10s forwards;
