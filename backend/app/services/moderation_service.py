@@ -59,6 +59,20 @@ _ACTION_ALIASES: dict[str, str] = {
     "bulk_upsert": "edit",
     "auto_aligned": "edit",
     "save_report": "edit",
+    # Точечная запись строки финотчёта из Company Library. Без алиаса канон
+    # "library_line" не попадал в MODERATED_ACTIONS → библиотечные fin/rating-
+    # записи внешних авторов шли МИМО модерации (латентный байпас).
+    "library_line": "edit",
+    # Фаза 4 (fin-хвост): 8 редакторов финансов через модерацию. Каждое действие
+    # диспатчится в moderation_apply/financials.py в свой apply_submission.
+    "nsbu_editor_save": "edit",
+    "ifrs_editor_save": "edit",
+    "hlf_save": "edit",
+    "indicators_save": "edit",
+    "detailed_cell": "edit",
+    "detailed_mapping": "edit",
+    "detailed_delete_line": "delete",
+    "detailed_import_confirm": "create",
     "security_flag": "edit",
     # create-семейство
     "created": "create",

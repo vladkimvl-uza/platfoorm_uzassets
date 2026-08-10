@@ -311,7 +311,10 @@ async def detailed_import_confirm(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    return await service.import_confirm(payload, db, user)
+    result, queued = await service.import_confirm(payload, db, user)
+    if queued is not None:
+        return JSONResponse(status_code=http_status.HTTP_202_ACCEPTED, content=queued)
+    return result
 
 
 @router.get("/detailed/{company_code}", response_model=dict)
@@ -342,11 +345,13 @@ async def update_detailed_cell(
     line_code: str = Query(..., max_length=64),
     value: Optional[float] = Query(None),
 ):
-    res = await service.update_cell(
+    res, queued = await service.update_cell(
         company_code, db, user,
         standard=standard, report_type=report_type,
         year=year, line_code=line_code, value=value,
     )
+    if queued is not None:
+        return JSONResponse(status_code=http_status.HTTP_202_ACCEPTED, content=queued)
     # Деталь уведомления: «МСФО · BS 2025 · ppe: 98 209».
     _v = "—" if value is None else f"{value:,.0f}".replace(",", " ")
     request.state.activity_summary = f"{standard} · {report_type} {year} · {line_code}: {_v}"
@@ -366,12 +371,15 @@ async def update_detailed_line_mapping(
     canonical_code: Optional[str] = Query(None),
     new_label: Optional[str] = Query(None),
 ):
-    return await service.update_line_mapping(
+    result, queued = await service.update_line_mapping(
         company_code, db, user,
         standard=standard, report_type=report_type,
         line_code=line_code, canonical_code=canonical_code,
         new_label=new_label,
     )
+    if queued is not None:
+        return JSONResponse(status_code=http_status.HTTP_202_ACCEPTED, content=queued)
+    return result
 
 
 @router.delete("/detailed/{company_code}/line", status_code=http_status.HTTP_204_NO_CONTENT)
@@ -384,10 +392,12 @@ async def delete_detailed_line(
     report_type: str = Query(..., pattern="^(PL|BS|CF)$"),
     line_code: str = Query(..., max_length=64),
 ):
-    await service.delete_line(
+    _res, queued = await service.delete_line(
         company_code, db, user,
         standard=standard, report_type=report_type, line_code=line_code,
     )
+    if queued is not None:
+        return JSONResponse(status_code=http_status.HTTP_202_ACCEPTED, content=queued)
 
 
 
@@ -488,7 +498,9 @@ async def save_nsbu_editor(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> dict:
-    result = await service.save(code, payload, db, user, expected_token=if_match)
+    result, queued = await service.save(code, payload, db, user, expected_token=if_match)
+    if queued is not None:
+        return JSONResponse(status_code=http_status.HTTP_202_ACCEPTED, content=queued)
     response.headers["X-Editor-Token"] = result.pop("_editor_token", EMPTY_TOKEN)
     return result
 
@@ -556,7 +568,9 @@ async def save_ifrs_editor(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> dict:
-    result = await service.save(code, payload, db, user, expected_token=if_match)
+    result, queued = await service.save(code, payload, db, user, expected_token=if_match)
+    if queued is not None:
+        return JSONResponse(status_code=http_status.HTTP_202_ACCEPTED, content=queued)
     response.headers["X-Editor-Token"] = result.pop("_editor_token", EMPTY_TOKEN)
     return result
 
@@ -582,7 +596,10 @@ async def save_company_indicators(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> dict:
-    return await service.upsert_indicators(code, payload, db, user)
+    result, queued = await service.upsert_indicators(code, payload, db, user)
+    if queued is not None:
+        return JSONResponse(status_code=http_status.HTTP_202_ACCEPTED, content=queued)
+    return result
 
 
 # Портфельная сумма годового индикатора (по умолчанию sponsorship) — KPI-карточка
@@ -687,6 +704,8 @@ async def save_company_hlf(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> dict:
-    result = await service.save_company_hlf(code, payload, db, user, expected_token=if_match)
+    result, queued = await service.save_company_hlf(code, payload, db, user, expected_token=if_match)
+    if queued is not None:
+        return JSONResponse(status_code=http_status.HTTP_202_ACCEPTED, content=queued)
     response.headers["X-Editor-Token"] = result.pop("_editor_token", EMPTY_TOKEN)
     return result

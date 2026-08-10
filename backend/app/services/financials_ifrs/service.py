@@ -152,6 +152,12 @@ def _period_to_quarter(period: str) -> Optional[int]:
     return m[period]
 
 
+def _ifrs_schema_key(period: str, consolidated: bool) -> str:
+    """Per-scope slot name in company.extra. Single source of truth so the
+    live path, the write core and the class staticmethod never drift."""
+    return f"ifrs_editor_schema_{period}_{'c' if consolidated else 's'}"
+
+
 # ─── Payload schemas ──────────────────────────────────────────────
 
 class IfrsCustomFieldDef(BaseModel):
@@ -179,13 +185,278 @@ class IfrsEditorSavePayload(BaseModel):
     notes: dict[str, str] = Field(default_factory=dict)
 
 
+# ─── Write core (shared by live PUT path + moderation apply path) ────────
+
+async def _apply_ifrs_editor_core(
+    db: AsyncSession,
+    *,
+    company,
+    payload: IfrsEditorSavePayload,
+    user: User,
+    expected_token: Optional[str] = None,
+) -> dict:
+    """Perform the full IFRS-editor write: schema slot (company.extra) + per-field
+    upsert/delete into financial_lines + audit + commit. Returns the same dict
+    the live route emits (incl. `_editor_token`).
+
+    Called by BOTH the live PUT path (`FinancialsIfrsService.save`, non-queued)
+    and the moderation apply path (`apply_submission`) so the two can never
+    drift.
+
+    `expected_token`: the schema slot in `company.extra` is a FULL-BLOB
+    last-writer-wins store, so when a token is supplied (the deferred apply
+    path) we re-validate it against the current slice BEFORE mutating —
+    mirroring `save_report.expected_prev_checksum` — to avoid clobbering edits
+    that landed while the change sat in the queue. The live path already
+    checked the token pre-gate and passes None to skip the redundant recompute.
+    """
+    co = company
+    quarter = _period_to_quarter(payload.period)
+    now_iso = datetime.now(UTC).isoformat()
+    schema_key = _ifrs_schema_key(payload.period, payload.consolidated)
+
+    # 0. Full-blob clobber guard (apply path only — expected_token supplied).
+    if expected_token:
+        prev_schema = (co.extra or {}).get(schema_key, {}) if co.extra else {}
+        current_token = await compute_financials_editor_token(
+            db, company_id=co.id, standard="IFRS",
+            consolidated=payload.consolidated, quarter=quarter,
+            schema_updated_at=prev_schema.get("updatedAt"),
+        )
+        check_editor_token(
+            scope_name=f"financials/ifrs/{co.code}/{payload.period}/"
+                       f"{'c' if payload.consolidated else 's'}",
+            expected_token=expected_token, current_token=current_token,
+        )
+
+    # 1. Persist customization (per-scope slot)
+    extra = dict(co.extra or {})
+    extra[schema_key] = {
+        "customFields": [cf.model_dump() for cf in payload.customFields],
+        "renames": payload.renames,
+        "formulaOverrides": payload.formulaOverrides,
+        "manualFlags": payload.manualFlags,
+        "notes": {
+            k: v for k, v in payload.notes.items() if v and v.strip()
+        },
+        "updatedAt": now_iso,
+        "updatedBy": user.email,
+    }
+    co.extra = extra
+
+    # 2. Build canonical map + bucket by report type
+    label_for_field: dict[str, str] = {}
+    custom_section_by_id: dict[str, str] = {}
+    canonical_for_field: dict[str, Optional[str]] = {}
+
+    for f in (
+        _IFRS_PL_FIELDS | _IFRS_OCI_FIELDS
+        | _IFRS_BS_FIELDS | _IFRS_CF_FIELDS
+    ):
+        canonical_for_field[f] = f
+    for cf in payload.customFields:
+        label_for_field[cf.id] = cf.label
+        if cf.section:
+            custom_section_by_id[cf.id] = cf.section
+        canonical_for_field[cf.id] = cf.canonical or None
+    for fld, renamed in payload.renames.items():
+        label_for_field[fld] = renamed
+
+    changes_by_report: dict[
+        tuple[int, str],
+        list[tuple[str, Optional[float], str, Optional[str]]],
+    ] = {}
+
+    for field, year_map in payload.values.items():
+        rtype = _ifrs_report_type(field)
+        if rtype is None and field in custom_section_by_id:
+            rtype = _SECTION_TO_RTYPE.get(custom_section_by_id[field])
+        if not rtype:
+            continue
+        for year_str, val in year_map.items():
+            try:
+                year = int(year_str)
+            except (TypeError, ValueError):
+                continue
+            changes_by_report.setdefault((year, rtype), []).append((
+                field, val,
+                label_for_field.get(field, field),
+                canonical_for_field.get(field),
+            ))
+
+    # 3. Upsert reports + lines
+    reports_created = 0
+    reports_updated = 0
+    lines_upserted = 0
+    lines_deleted = 0
+    audit_target_year = max(
+        (y for (y, _) in changes_by_report.keys()), default=None,
+    )
+
+    for (year, report_type), changes in changes_by_report.items():
+        base_filter = [
+            FinancialReport.company_id == co.id,
+            FinancialReport.year == year,
+            FinancialReport.standard == "IFRS",
+            FinancialReport.report_type == report_type,
+            FinancialReport.is_consolidated.is_(payload.consolidated),
+            FinancialReport.is_detailed.is_(False),
+        ]
+        if quarter is None:
+            base_filter.append(FinancialReport.quarter.is_(None))
+        else:
+            base_filter.append(FinancialReport.quarter == quarter)
+        rep_q = await db.execute(
+            select(FinancialReport).where(*base_filter)
+        )
+        existing_reports = list(rep_q.scalars().all())
+        report = None
+        for r in existing_reports:
+            if r.source == "ifrs-editor":
+                report = r
+                break
+        if report is None and existing_reports:
+            report = existing_reports[0]
+
+        if report is None:
+            report = FinancialReport(
+                company_id=co.id,
+                year=year,
+                quarter=quarter,
+                standard="IFRS",
+                report_type=report_type,
+                currency="UZS",
+                unit_scale=1_000_000_000,
+                source="ifrs-editor",
+                is_audited=bool(
+                    payload.audit_meta
+                    and payload.audit_meta.get("opinion") == "clean"
+                ),
+                is_detailed=False,
+                is_consolidated=payload.consolidated,
+                notes=(
+                    f"Saved via IFRS editor by {user.email} on {now_iso}"
+                ),
+                extra={"editor_version": "p7.59"},
+            )
+            db.add(report)
+            await db.flush()
+            reports_created += 1
+        else:
+            reports_updated += 1
+            report.source = report.source or "ifrs-editor"
+            report.notes = (
+                f"Last edit via IFRS editor by {user.email} on {now_iso}"
+            )
+
+        if payload.audit_meta is not None and year == audit_target_year:
+            rep_extra = dict(report.extra or {})
+            rep_extra["audit"] = payload.audit_meta
+            report.extra = rep_extra
+
+        ln_q = await db.execute(
+            select(FinancialLine).where(
+                FinancialLine.report_id == report.id
+            )
+        )
+        existing_lines = {
+            ln.line_code: ln for ln in ln_q.scalars().all()
+        }
+
+        for field, val, label, canonical in changes:
+            existing = existing_lines.get(field)
+            if val is None:
+                if existing is not None:
+                    await db.delete(existing)
+                    lines_deleted += 1
+                continue
+            decimal_val = Decimal(str(val))
+            new_parent = canonical
+            if existing is not None:
+                existing.value = decimal_val
+                existing.line_name = label
+                existing.parent_code = new_parent
+            else:
+                db.add(FinancialLine(
+                    report_id=report.id,
+                    line_code=field,
+                    parent_code=new_parent,
+                    line_name=label,
+                    value=decimal_val,
+                    is_subtotal=False,
+                    is_calculated=False,
+                    sort_order=0,
+                ))
+            lines_upserted += 1
+
+    # 4. Audit log entry
+    try:
+        sample_fields = sorted(set(
+            f for changes in changes_by_report.values()
+            for f, _, _, _ in changes
+        ))[:20]
+        await append_audit_entry(
+            db,
+            actor_id=str(user.id) if user.id else None,
+            actor_email=user.email,
+            action="ifrs_editor.save",
+            entity_type="company",
+            entity_id=str(co.id),
+            diff={
+                "period": payload.period,
+                "consolidated": payload.consolidated,
+                "reports_created": reports_created,
+                "reports_updated": reports_updated,
+                "lines_upserted": lines_upserted,
+                "lines_deleted": lines_deleted,
+                "fields": sample_fields,
+                "years": sorted({
+                    y for (y, _) in changes_by_report.keys()
+                }),
+            },
+            payload={
+                "company_code": co.code,
+                "customFields_count": len(payload.customFields),
+                "renames_count": len(payload.renames),
+                "audit_meta_set": payload.audit_meta is not None,
+            },
+            notes=(
+                f"IFRS editor save · {co.code} · {payload.period} · "
+                f"{'consolidated' if payload.consolidated else 'standalone'}"
+            ),
+        )
+    except Exception:
+        pass
+
+    await db.commit()
+
+    # Re-issue a fresh token (schema updatedAt just bumped to now_iso, lines
+    # committed) so the same open editor can keep saving without a reload.
+    new_token = await compute_financials_editor_token(
+        db, company_id=co.id, standard="IFRS",
+        consolidated=payload.consolidated, quarter=quarter,
+        schema_updated_at=now_iso,
+    )
+    return {
+        "ok": True,
+        "saved_at": now_iso,
+        "period": payload.period,
+        "consolidated": payload.consolidated,
+        "reports_created": reports_created,
+        "reports_updated": reports_updated,
+        "lines_upserted": lines_upserted,
+        "lines_deleted": lines_deleted,
+        "_editor_token": new_token,
+    }
+
+
 # ─── Service ──────────────────────────────────────────────────────
 
 @dataclass
 class FinancialsIfrsService:
     @staticmethod
     def _schema_key(period: str, consolidated: bool) -> str:
-        return f"ifrs_editor_schema_{period}_{'c' if consolidated else 's'}"
+        return _ifrs_schema_key(period, consolidated)
 
     async def get_schema(
         self,
@@ -280,7 +551,11 @@ class FinancialsIfrsService:
         user: User,
         *,
         expected_token: Optional[str] = None,
-    ) -> dict:
+    ) -> tuple[Optional[dict], Optional[dict]]:
+        """Returns either (result, None) for the normal happy path, or
+        (None, queued_dict) if the moderation gate held the change (route
+        turns the queued dict into HTTP 202). Mirrors save_report's contract.
+        The result dict still carries `_editor_token` for the route header."""
         if not await has_effective_permission(db, user, "financials.edit"):
             raise HTTPException(
                 http_status.HTTP_403_FORBIDDEN,
@@ -300,11 +575,12 @@ class FinancialsIfrsService:
             )
 
         quarter = _period_to_quarter(payload.period)
-        now_iso = datetime.now(UTC).isoformat()
 
         # 0. Optimistic-lock: recompute the current token from the SAME slice the
         # GET emitted (reading the pre-write schema updatedAt) and 409 on mismatch,
-        # BEFORE any write below. No-op when the caller sent no token (legacy).
+        # BEFORE queueing/writing below. No-op when the caller sent no token
+        # (legacy). Keeps the immediate-409 UX on the live path; the queued path
+        # re-checks the same token at apply time via the write core.
         schema_key = self._schema_key(payload.period, payload.consolidated)
         prev_schema = (co.extra or {}).get(schema_key, {}) if co.extra else {}
         current_token = await compute_financials_editor_token(
@@ -318,225 +594,45 @@ class FinancialsIfrsService:
             expected_token=expected_token, current_token=current_token,
         )
 
-        # 1. Persist customization (per-scope slot)
-        extra = dict(co.extra or {})
-        extra[schema_key] = {
-            "customFields": [cf.model_dump() for cf in payload.customFields],
-            "renames": payload.renames,
-            "formulaOverrides": payload.formulaOverrides,
-            "manualFlags": payload.manualFlags,
-            "notes": {
-                k: v for k, v in payload.notes.items() if v and v.strip()
+        # Moderation gate (deny-by-default; OFF unless an admin enables
+        # 'financials'). Carries the full self-describing payload — company code
+        # + the author's expected_token so apply re-validates the full-blob
+        # schema slot and never clobbers intervening edits.
+        from app.services.moderation_service import gate_or_apply
+        queued, sub = await gate_or_apply(
+            db, user=user,
+            module="financials", action="ifrs_editor_save",
+            entity_id=f"{co.code}:{payload.period}:"
+                      f"{'c' if payload.consolidated else 's'}",
+            entity_label=(
+                f"МСФО · {co.code} · {payload.period} · "
+                f"{'консолид.' if payload.consolidated else 'отдельная'}"
+            ),
+            company_id=co.id, sector_id=None, year=None,
+            payload={
+                "code": co.code,
+                "expected_token": expected_token,
+                **payload.model_dump(mode="json"),
             },
-            "updatedAt": now_iso,
-            "updatedBy": user.email,
-        }
-        co.extra = extra
-
-        # 2. Build canonical map + bucket by report type
-        label_for_field: dict[str, str] = {}
-        custom_section_by_id: dict[str, str] = {}
-        canonical_for_field: dict[str, Optional[str]] = {}
-
-        for f in (
-            _IFRS_PL_FIELDS | _IFRS_OCI_FIELDS
-            | _IFRS_BS_FIELDS | _IFRS_CF_FIELDS
-        ):
-            canonical_for_field[f] = f
-        for cf in payload.customFields:
-            label_for_field[cf.id] = cf.label
-            if cf.section:
-                custom_section_by_id[cf.id] = cf.section
-            canonical_for_field[cf.id] = cf.canonical or None
-        for fld, renamed in payload.renames.items():
-            label_for_field[fld] = renamed
-
-        changes_by_report: dict[
-            tuple[int, str],
-            list[tuple[str, Optional[float], str, Optional[str]]],
-        ] = {}
-
-        for field, year_map in payload.values.items():
-            rtype = _ifrs_report_type(field)
-            if rtype is None and field in custom_section_by_id:
-                rtype = _SECTION_TO_RTYPE.get(custom_section_by_id[field])
-            if not rtype:
-                continue
-            for year_str, val in year_map.items():
-                try:
-                    year = int(year_str)
-                except (TypeError, ValueError):
-                    continue
-                changes_by_report.setdefault((year, rtype), []).append((
-                    field, val,
-                    label_for_field.get(field, field),
-                    canonical_for_field.get(field),
-                ))
-
-        # 3. Upsert reports + lines
-        reports_created = 0
-        reports_updated = 0
-        lines_upserted = 0
-        lines_deleted = 0
-        audit_target_year = max(
-            (y for (y, _) in changes_by_report.keys()), default=None,
+            editor_token=expected_token,
+            diff_summary=(
+                f"МСФО-редактор · {co.code} · {payload.period} · "
+                f"полей: {len(payload.values)}"
+            ),
         )
-
-        for (year, report_type), changes in changes_by_report.items():
-            base_filter = [
-                FinancialReport.company_id == co.id,
-                FinancialReport.year == year,
-                FinancialReport.standard == "IFRS",
-                FinancialReport.report_type == report_type,
-                FinancialReport.is_consolidated.is_(payload.consolidated),
-                FinancialReport.is_detailed.is_(False),
-            ]
-            if quarter is None:
-                base_filter.append(FinancialReport.quarter.is_(None))
-            else:
-                base_filter.append(FinancialReport.quarter == quarter)
-            rep_q = await db.execute(
-                select(FinancialReport).where(*base_filter)
-            )
-            existing_reports = list(rep_q.scalars().all())
-            report = None
-            for r in existing_reports:
-                if r.source == "ifrs-editor":
-                    report = r
-                    break
-            if report is None and existing_reports:
-                report = existing_reports[0]
-
-            if report is None:
-                report = FinancialReport(
-                    company_id=co.id,
-                    year=year,
-                    quarter=quarter,
-                    standard="IFRS",
-                    report_type=report_type,
-                    currency="UZS",
-                    unit_scale=1_000_000_000,
-                    source="ifrs-editor",
-                    is_audited=bool(
-                        payload.audit_meta
-                        and payload.audit_meta.get("opinion") == "clean"
-                    ),
-                    is_detailed=False,
-                    is_consolidated=payload.consolidated,
-                    notes=(
-                        f"Saved via IFRS editor by {user.email} on {now_iso}"
-                    ),
-                    extra={"editor_version": "p7.59"},
-                )
-                db.add(report)
-                await db.flush()
-                reports_created += 1
-            else:
-                reports_updated += 1
-                report.source = report.source or "ifrs-editor"
-                report.notes = (
-                    f"Last edit via IFRS editor by {user.email} on {now_iso}"
-                )
-
-            if payload.audit_meta is not None and year == audit_target_year:
-                rep_extra = dict(report.extra or {})
-                rep_extra["audit"] = payload.audit_meta
-                report.extra = rep_extra
-
-            ln_q = await db.execute(
-                select(FinancialLine).where(
-                    FinancialLine.report_id == report.id
-                )
-            )
-            existing_lines = {
-                ln.line_code: ln for ln in ln_q.scalars().all()
+        if queued:
+            return None, {
+                "queued": True, "submission_id": str(sub.id),
+                "status": sub.status,
+                "message": "Изменение отправлено на модерацию",
             }
 
-            for field, val, label, canonical in changes:
-                existing = existing_lines.get(field)
-                if val is None:
-                    if existing is not None:
-                        await db.delete(existing)
-                        lines_deleted += 1
-                    continue
-                decimal_val = Decimal(str(val))
-                new_parent = canonical
-                if existing is not None:
-                    existing.value = decimal_val
-                    existing.line_name = label
-                    existing.parent_code = new_parent
-                else:
-                    db.add(FinancialLine(
-                        report_id=report.id,
-                        line_code=field,
-                        parent_code=new_parent,
-                        line_name=label,
-                        value=decimal_val,
-                        is_subtotal=False,
-                        is_calculated=False,
-                        sort_order=0,
-                    ))
-                lines_upserted += 1
-
-        # 4. Audit log entry
-        try:
-            sample_fields = sorted(set(
-                f for changes in changes_by_report.values()
-                for f, _, _, _ in changes
-            ))[:20]
-            await append_audit_entry(
-                db,
-                actor_id=str(user.id) if user.id else None,
-                actor_email=user.email,
-                action="ifrs_editor.save",
-                entity_type="company",
-                entity_id=str(co.id),
-                diff={
-                    "period": payload.period,
-                    "consolidated": payload.consolidated,
-                    "reports_created": reports_created,
-                    "reports_updated": reports_updated,
-                    "lines_upserted": lines_upserted,
-                    "lines_deleted": lines_deleted,
-                    "fields": sample_fields,
-                    "years": sorted({
-                        y for (y, _) in changes_by_report.keys()
-                    }),
-                },
-                payload={
-                    "company_code": co.code,
-                    "customFields_count": len(payload.customFields),
-                    "renames_count": len(payload.renames),
-                    "audit_meta_set": payload.audit_meta is not None,
-                },
-                notes=(
-                    f"IFRS editor save · {co.code} · {payload.period} · "
-                    f"{'consolidated' if payload.consolidated else 'standalone'}"
-                ),
-            )
-        except Exception:
-            pass
-
-        await db.commit()
-
-        # Re-issue a fresh token (schema updatedAt just bumped to now_iso, lines
-        # committed) so the same open editor can keep saving without a reload.
-        new_token = await compute_financials_editor_token(
-            db, company_id=co.id, standard="IFRS",
-            consolidated=payload.consolidated, quarter=quarter,
-            schema_updated_at=now_iso,
+        # Live path: token already validated above → pass None to the core so it
+        # does not recompute. The core performs every DB mutation + commit.
+        result = await _apply_ifrs_editor_core(
+            db, company=co, payload=payload, user=user, expected_token=None,
         )
-        return {
-            "ok": True,
-            "saved_at": now_iso,
-            "period": payload.period,
-            "consolidated": payload.consolidated,
-            "reports_created": reports_created,
-            "reports_updated": reports_updated,
-            "lines_upserted": lines_upserted,
-            "lines_deleted": lines_deleted,
-            "_editor_token": new_token,
-        }
+        return result, None
 
     async def get_history(
         self, code: str, db: AsyncSession, user: User, *, limit: int,
@@ -984,3 +1080,57 @@ class FinancialsIfrsService:
             "log": parse_log,
             "filename": file.filename,
         }
+
+
+# ─── Moderation apply entrypoint ─────────────────────────────────────────
+# Dispatched by app.services.moderation_apply.financials when an approved
+# submission has action="ifrs_editor_save". Resolves the company from the
+# code carried in proposed_value, attributes the write to the ORIGINAL
+# proposer (not the approving moderator), validates the payload, and runs the
+# SAME write core as the live PUT path.
+
+async def apply_submission(db: AsyncSession, *, sub, user: User) -> dict:
+    if not sub.proposed_value:
+        raise ValueError("proposed_value is empty")
+    pv = dict(sub.proposed_value)
+
+    code = pv.get("code")
+    if not code:
+        raise ValueError("proposed_value missing company code")
+    repo = FinancialsRepository(db)
+    co = await repo.find_company_by_code(str(code))
+    if co is None:
+        raise ValueError(f"Company '{code}' no longer exists")
+
+    expected_token = pv.get("expected_token")
+    try:
+        # Extra carrier keys (code / expected_token) are ignored by the schema.
+        payload = IfrsEditorSavePayload.model_validate(pv)
+    except Exception as e:
+        raise ValueError(
+            f"proposed_value does not match IfrsEditorSavePayload: {e}"
+        ) from e
+
+    # Attribute the write to the proposer (fallback to the approving moderator).
+    actor: User = user
+    if sub.proposer_user_id:
+        proposer = (await db.execute(
+            select(User).where(User.id == sub.proposer_user_id)
+        )).scalar_one_or_none()
+        if proposer is not None:
+            actor = proposer
+
+    result = await _apply_ifrs_editor_core(
+        db, company=co, payload=payload, user=actor,
+        expected_token=expected_token,
+    )
+    return {
+        "action": "ifrs_editor_save",
+        "code": co.code,
+        "period": payload.period,
+        "consolidated": payload.consolidated,
+        "reports_created": result.get("reports_created"),
+        "reports_updated": result.get("reports_updated"),
+        "lines_upserted": result.get("lines_upserted"),
+        "lines_deleted": result.get("lines_deleted"),
+    }

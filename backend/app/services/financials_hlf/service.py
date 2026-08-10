@@ -238,6 +238,64 @@ def _parse_hlf_sheet(ws) -> dict:
     }
 
 
+# ─── Shared write-core (LIVE + APPLY) ─────────────────────────────
+# The HLF store is a FULL-BLOB last-writer-wins replace of company.extra['hlf'].
+# Both the live PUT path (save_company_hlf) and the moderation apply path
+# (apply_submission) funnel through this ONE function so there is no drift.
+#
+# Optimistic-lock re-check lives HERE (not only on the route): on the live path
+# `expected_token` is the author's If-Match; on the apply path it is the token
+# captured at submit time and carried in proposed_value. Either way we refuse to
+# clobber intervening edits (mirror of save_report.expected_prev_checksum, which
+# is likewise re-checked inside the apply handler). No-op when the token is absent
+# (legacy clients) — see check_editor_token.
+
+async def _apply_hlf_core(
+    db: AsyncSession,
+    *,
+    company,
+    payload: "HlfSavePayload",
+    user: User,
+    expected_token: Optional[str] = None,
+) -> dict:
+    now_iso = datetime.utcnow().isoformat()
+    extra = dict(company.extra or {})
+    existing = extra.get("hlf", {}) or {}
+
+    check_editor_token(
+        scope_name=f"financials/hlf/{company.code}",
+        expected_token=expected_token,
+        current_token=token_from_isos(
+            existing.get("updated_at"), existing.get("imported_at"),
+        ),
+    )
+
+    extra["hlf"] = {
+        **existing,
+        "currency": payload.currency,
+        "unit": payload.unit,
+        "years": payload.years,
+        "sections": [s.model_dump() for s in payload.sections],
+        "updated_at": now_iso,
+        "updated_by": user.email,
+    }
+    company.extra = extra
+    await db.commit()
+
+    total_rows = sum(len(s.rows) for s in payload.sections)
+    return {
+        "code": company.code,
+        "saved": True,
+        "years": payload.years,
+        "sections_count": len(payload.sections),
+        "rows_count": total_rows,
+        "updated_at": now_iso,
+        # Re-issue (matches a subsequent GET: updated_at=now_iso + preserved
+        # imported_at via {**existing}) — same editor saves again w/o reload.
+        "_editor_token": token_from_isos(now_iso, existing.get("imported_at")),
+    }
+
+
 # ─── Service ──────────────────────────────────────────────────────
 
 @dataclass
@@ -371,7 +429,14 @@ class FinancialsHlfService:
         user: User,
         *,
         expected_token: Optional[str] = None,
-    ) -> dict:
+    ) -> tuple[Optional[dict], Optional[dict]]:
+        """Returns either (result, None) for the normal write path, or
+        (None, queued_dict) if the moderation gate held the change (HTTP 202).
+
+        Moderation is deny-by-default and OFF in prod until an admin enables the
+        'financials' module in the panel — so this is pure wiring, no behavior
+        change today (owner/bypass/no-rule all take the (result, None) branch).
+        """
         if not await has_effective_permission(db, user, "financials.edit"):
             raise HTTPException(
                 http_status.HTTP_403_FORBIDDEN, "Permission required",
@@ -388,41 +453,101 @@ class FinancialsHlfService:
             raise HTTPException(
                 http_status.HTTP_403_FORBIDDEN, "No access",
             )
-        now_iso = datetime.utcnow().isoformat()
-        extra = dict(co.extra or {})
-        existing = extra.get("hlf", {}) or {}
 
-        # Optimistic-lock: HLF save is a FULL-BLOB replace (last-writer-wins), so
-        # a concurrent editor would silently wipe the other's entire statement.
-        # Recompute the token from the pre-write updated_at and 409 on mismatch,
-        # BEFORE the overwrite. No-op when the caller sent no token (legacy).
-        check_editor_token(
-            scope_name=f"financials/hlf/{code}",
-            expected_token=expected_token,
-            current_token=token_from_isos(
-                existing.get("updated_at"), existing.get("imported_at"),
+        # Moderation gate — AFTER permission + per-company scope, BEFORE any DB
+        # mutation. The editor-token optimistic-lock check is deferred into
+        # _apply_hlf_core so the LIVE and APPLY paths run it identically (full-
+        # blob store): `expected_token` is carried inside proposed_value so the
+        # apply path re-checks it against intervening edits.
+        from app.services.moderation_service import gate_or_apply
+        queued, sub = await gate_or_apply(
+            db, user=user,
+            module="financials", action="hlf_save",
+            entity_id=co.code,
+            entity_label=(
+                "Высокоуровневая отчётность · "
+                f"{co.name_short or co.name_ru or co.code}"
+            ),
+            company_id=co.id, sector_id=None, year=None,
+            payload={
+                "code": co.code,
+                "years": payload.years,
+                "sections": [s.model_dump() for s in payload.sections],
+                "currency": payload.currency,
+                "unit": payload.unit,
+                "expected_token": expected_token,
+            },
+            editor_token=expected_token,
+            diff_summary=(
+                f"HLF · {len(payload.sections)} секц. · годы {payload.years}"
             ),
         )
-        extra["hlf"] = {
-            **existing,
-            "currency": payload.currency,
-            "unit": payload.unit,
-            "years": payload.years,
-            "sections": [s.model_dump() for s in payload.sections],
-            "updated_at": now_iso,
-            "updated_by": user.email,
-        }
-        co.extra = extra
-        await db.commit()
-        total_rows = sum(len(s.rows) for s in payload.sections)
-        return {
-            "code": co.code,
-            "saved": True,
-            "years": payload.years,
-            "sections_count": len(payload.sections),
-            "rows_count": total_rows,
-            "updated_at": now_iso,
-            # Re-issue (matches a subsequent GET: updated_at=now_iso + preserved
-            # imported_at via {**existing}) — same editor saves again w/o reload.
-            "_editor_token": token_from_isos(now_iso, existing.get("imported_at")),
-        }
+        if queued:
+            return None, {
+                "queued": True,
+                "submission_id": str(sub.id),
+                "status": sub.status,
+                "message": "Изменение отправлено на модерацию",
+            }
+
+        result = await _apply_hlf_core(
+            db, company=co, payload=payload, user=user,
+            expected_token=expected_token,
+        )
+        return result, None
+
+
+# ─── Moderation apply entry point ─────────────────────────────────
+# Dispatched by app.services.moderation_apply.financials when an approved
+# submission has action "hlf_save". Resolves the company by the code carried in
+# proposed_value, attributes the write to the ORIGINAL proposer (not the
+# approving moderator), validates the payload schema, and funnels through the
+# SAME _apply_hlf_core the live path uses.
+
+async def apply_submission(db: AsyncSession, *, sub, user: User) -> dict:
+    from sqlalchemy import select
+
+    pv = dict(sub.proposed_value or {})
+    if not pv:
+        raise ValueError("proposed_value is empty")
+
+    code = pv.get("code") or sub.target_entity_id
+    if not code:
+        raise ValueError("hlf apply requires a company code in proposed_value")
+
+    repo = FinancialsRepository(db)
+    co = await repo.find_company_by_code(str(code))
+    if co is None:
+        raise ValueError(f"Company '{code}' no longer exists")
+
+    try:
+        payload = HlfSavePayload.model_validate({
+            "years": pv.get("years"),
+            "sections": pv.get("sections"),
+            "currency": pv.get("currency", "UZS"),
+            "unit": pv.get("unit", "bln"),
+        })
+    except Exception as e:  # noqa: BLE001 — surface as apply_error, don't crash
+        raise ValueError(
+            f"proposed_value does not match HlfSavePayload: {e}"
+        ) from e
+
+    # Attribute the write to the proposer; fall back to the approving moderator.
+    author: User = user
+    if sub.proposer_user_id:
+        proposer = (await db.execute(
+            select(User).where(User.id == sub.proposer_user_id)
+        )).scalar_one_or_none()
+        if proposer is not None:
+            author = proposer
+
+    result = await _apply_hlf_core(
+        db, company=co, payload=payload, user=author,
+        expected_token=pv.get("expected_token"),
+    )
+    return {
+        "code": co.code,
+        "years": result.get("years"),
+        "sections": result.get("sections_count"),
+        "rows": result.get("rows_count"),
+    }

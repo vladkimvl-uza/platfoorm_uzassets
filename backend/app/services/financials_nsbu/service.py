@@ -180,7 +180,16 @@ class FinancialsNsbuService:
         user: User,
         *,
         expected_token: Optional[str] = None,
-    ) -> dict:
+    ) -> tuple[Optional[dict], Optional[dict]]:
+        """Save NSBU-editor values + schema customization.
+
+        Returns a 2-tuple `(result, queued)` (mirrors
+        financials_reports.save_report):
+          - `(result_dict, None)` — normal write-through; `result_dict` carries
+            `_editor_token`, which the route lifts into the X-Editor-Token header;
+          - `(None, queued_dict)` — moderation intercepted the change; the route
+            turns it into HTTP 202 and MUST NOT read X-Editor-Token off it.
+        """
         if not await has_effective_permission(db, user, "financials.edit"):
             raise HTTPException(
                 http_status.HTTP_403_FORBIDDEN,
@@ -199,11 +208,9 @@ class FinancialsNsbuService:
                 http_status.HTTP_403_FORBIDDEN, "No access",
             )
 
-        now_iso = datetime.now(UTC).isoformat()
-
-        # 0. Optimistic-lock: recompute the current token from the SAME slice the
-        # GET emitted (reading the pre-write schema updatedAt) and 409 on mismatch,
-        # BEFORE any write below. No-op when the caller sent no token (legacy).
+        # Optimistic-lock: recompute the current token from the SAME slice the GET
+        # emitted (reading the pre-write schema updatedAt) and 409 on mismatch,
+        # BEFORE the moderation gate and any write. No-op when no token was sent.
         prev_schema = (co.extra or {}).get("nsbu_editor_schema", {}) if co.extra else {}
         current_token = await compute_financials_editor_token(
             db, company_id=co.id, standard="NSBU",
@@ -215,202 +222,44 @@ class FinancialsNsbuService:
             expected_token=expected_token, current_token=current_token,
         )
 
-        # 1. Persist customization to company.extra.nsbu_editor_schema
-        extra = dict(co.extra or {})
-        extra["nsbu_editor_schema"] = {
-            "customFields": [cf.model_dump() for cf in payload.customFields],
-            "renames": payload.renames,
-            "formulaOverrides": payload.formulaOverrides,
-            "manualFlags": payload.manualFlags,
-            "updatedAt": now_iso,
-            "updatedBy": user.email,
-        }
-        co.extra = extra
-
-        # 2. Group values by (year, report_type)
-        custom_section_by_id: dict[str, str] = {}
-        for cf in payload.customFields:
-            if cf.section in ("pnl", "sofp"):
-                custom_section_by_id[cf.id] = cf.section
-
-        changes_by_report: dict[
-            tuple[int, str],
-            list[tuple[str, Optional[float], str, Optional[str]]],
-        ] = {}
-
-        label_for_field: dict[str, str] = {
-            f: f for f in (_NSBU_PL_FIELDS | _NSBU_BS_FIELDS)
-        }
-        for cf in payload.customFields:
-            label_for_field[cf.id] = cf.label
-        for fld, renamed in payload.renames.items():
-            label_for_field[fld] = renamed
-
-        # canonical mapping per field — for custom fields, allows
-        # them to contribute to portfolio aggregations via parent_code.
-        canonical_for_field: dict[str, Optional[str]] = {}
-        for f in (_NSBU_PL_FIELDS | _NSBU_BS_FIELDS):
-            canonical_for_field[f] = f
-        for cf in payload.customFields:
-            canonical_for_field[cf.id] = cf.canonical or None
-
-        for field, year_map in payload.values.items():
-            if field in _NSBU_PL_FIELDS:
-                report_type = "PL"
-            elif field in _NSBU_BS_FIELDS:
-                report_type = "BS"
-            elif field in custom_section_by_id:
-                report_type = (
-                    "PL" if custom_section_by_id[field] == "pnl" else "BS"
-                )
-            else:
-                continue
-            for year_str, val in year_map.items():
-                try:
-                    year = int(year_str)
-                except (TypeError, ValueError):
-                    continue
-                changes_by_report.setdefault((year, report_type), []).append((
-                    field, val,
-                    label_for_field.get(field, field),
-                    canonical_for_field.get(field),
-                ))
-
-        # 3. Upsert reports + lines
-        reports_created = 0
-        reports_updated = 0
-        lines_upserted = 0
-        lines_deleted = 0
-
-        for (year, report_type), changes in changes_by_report.items():
-            rep_q = await db.execute(
-                select(FinancialReport).where(
-                    FinancialReport.company_id == co.id,
-                    FinancialReport.year == year,
-                    FinancialReport.quarter.is_(None),
-                    FinancialReport.standard == "NSBU",
-                    FinancialReport.report_type == report_type,
-                    FinancialReport.is_detailed == False,  # noqa: E712
-                ).order_by(FinancialReport.updated_at.desc())
-            )
-            existing_reports = list(rep_q.scalars().all())
-            report: Optional[FinancialReport] = None
-            for r in existing_reports:
-                if r.source == "nsbu-editor":
-                    report = r
-                    break
-            if report is None and existing_reports:
-                report = existing_reports[0]
-
-            if report is None:
-                report = FinancialReport(
-                    company_id=co.id,
-                    year=year, quarter=None,
-                    standard="NSBU", report_type=report_type,
-                    currency="UZS",
-                    unit_scale=1_000_000_000,
-                    source="nsbu-editor",
-                    is_audited=False, is_detailed=False,
-                    notes=f"Saved via NSBU editor by {user.email} on {now_iso}",
-                    extra={"editor_version": "p7.52"},
-                )
-                db.add(report)
-                await db.flush()
-                reports_created += 1
-            else:
-                reports_updated += 1
-                report.source = report.source or "nsbu-editor"
-                report.notes = (
-                    f"Last edit via NSBU editor by {user.email} on {now_iso}"
-                )
-
-            ln_q = await db.execute(
-                select(FinancialLine).where(
-                    FinancialLine.report_id == report.id
-                )
-            )
-            existing_lines = {
-                ln.line_code: ln for ln in ln_q.scalars().all()
+        # Moderation gate — AFTER permission + scope + editor-token checks and
+        # BEFORE any DB mutation (mirrors financials_reports.save_report). Writes
+        # through unchanged until an admin enables 'financials' moderation; then an
+        # external author's save is queued as HTTP 202. `expected_token` also rides
+        # in the payload so the apply path can re-check it against current state —
+        # the schema blob (customFields/renames/…) is last-writer-wins.
+        from app.services.moderation_service import gate_or_apply
+        queued, sub = await gate_or_apply(
+            db, user=user,
+            module="financials", action="nsbu_editor_save",
+            entity_id=co.code,
+            entity_label=(
+                f"НСБУ-редактор · {co.code} "
+                f"{co.name_short or co.name_ru or ''}"
+            ).strip(),
+            company_id=co.id, sector_id=None, year=None,
+            payload={
+                "code": co.code,
+                "expected_token": expected_token,
+                **payload.model_dump(mode="json"),
+            },
+            editor_token=expected_token,
+            diff_summary=f"Сохранение НСБУ-редактора · {co.code}",
+        )
+        if queued:
+            return None, {
+                "queued": True,
+                "submission_id": str(sub.id),
+                "status": sub.status,
+                "message": "Изменение отправлено на модерацию",
             }
 
-            for field, val, label, canonical in changes:
-                existing = existing_lines.get(field)
-                if val is None:
-                    if existing is not None:
-                        await db.delete(existing)
-                        lines_deleted += 1
-                    continue
-                decimal_val = Decimal(str(val))
-                new_parent = canonical
-                if existing is not None:
-                    existing.value = decimal_val
-                    existing.line_name = label
-                    existing.parent_code = new_parent
-                else:
-                    db.add(FinancialLine(
-                        report_id=report.id,
-                        line_code=field,
-                        parent_code=new_parent,
-                        line_name=label,
-                        value=decimal_val,
-                        is_subtotal=False,
-                        is_calculated=False,
-                        sort_order=0,
-                    ))
-                lines_upserted += 1
-
-        # audit-log entry
-        try:
-            sample_fields = sorted(set(
-                field for changes in changes_by_report.values()
-                for field, _, _, _ in changes
-            ))[:20]
-            await append_audit_entry(
-                db,
-                actor_id=str(user.id) if user.id else None,
-                actor_email=user.email,
-                action="nsbu_editor.save",
-                entity_type="company",
-                entity_id=str(co.id),
-                diff={
-                    "reports_created": reports_created,
-                    "reports_updated": reports_updated,
-                    "lines_upserted": lines_upserted,
-                    "lines_deleted": lines_deleted,
-                    "fields": sample_fields,
-                    "years": sorted({
-                        y for (y, _) in changes_by_report.keys()
-                    }),
-                },
-                payload={
-                    "company_code": co.code,
-                    "customFields_count": len(payload.customFields),
-                    "renames_count": len(payload.renames),
-                    "formulaOverrides_count": len(payload.formulaOverrides),
-                },
-                notes=f"NSBU editor save · {co.code}",
-            )
-        except Exception:
-            pass
-
-        await db.commit()
-
-        # Re-issue a fresh token (schema updatedAt just bumped to now_iso, lines
-        # committed) so the same open editor can keep saving without a reload.
-        new_token = await compute_financials_editor_token(
-            db, company_id=co.id, standard="NSBU",
-            consolidated=None, quarter=None,
-            schema_updated_at=now_iso,
+        # Live write-through. The token was already validated above, so the shared
+        # core skips its apply-path re-check (expected_token=None).
+        result = await _apply_nsbu_editor_core(
+            db, company=co, payload=payload, user=user, expected_token=None,
         )
-        return {
-            "ok": True,
-            "saved_at": now_iso,
-            "reports_created": reports_created,
-            "reports_updated": reports_updated,
-            "lines_upserted": lines_upserted,
-            "lines_deleted": lines_deleted,
-            "_editor_token": new_token,
-        }
+        return result, None
 
     async def get_history(
         self, code: str, db: AsyncSession, user: User, *, limit: int,
@@ -731,3 +580,296 @@ class FinancialsNsbuService:
             "log": parse_log,
             "filename": file.filename,
         }
+
+
+# ─── Shared write core + moderation apply ─────────────────────────
+# The LIVE save path (FinancialsNsbuService.save) and the moderation APPLY path
+# (apply_submission, dispatched from moderation_apply/financials.py) call the SAME
+# core, so the two can never drift.
+
+async def _apply_nsbu_editor_core(
+    db: AsyncSession,
+    *,
+    company,
+    payload: NsbuEditorSavePayload,
+    user: User,
+    expected_token: Optional[str] = None,
+) -> dict:
+    """Perform the NSBU-editor writes (schema JSONB + financial_reports/lines) and
+    commit. Attributes writes to `user` (the proposer on the apply path).
+
+    When `expected_token` is truthy (apply path), re-check it against the current
+    scope token BEFORE mutating: the schema store is a full-blob, last-writer-wins
+    overwrite, so a stale apply would clobber edits made after the author submitted
+    (mirrors save_report.expected_prev_checksum on its apply path). The live path
+    validates the token before the gate and passes None here to skip the re-check.
+    """
+    co = company
+    now_iso = datetime.now(UTC).isoformat()
+
+    prev_schema = (co.extra or {}).get("nsbu_editor_schema", {}) if co.extra else {}
+    if expected_token:
+        current_token = await compute_financials_editor_token(
+            db, company_id=co.id, standard="NSBU",
+            consolidated=None, quarter=None,
+            schema_updated_at=prev_schema.get("updatedAt"),
+        )
+        if expected_token != current_token:
+            raise ValueError(
+                "Данные НСБУ-редактора изменились после подачи заявки — "
+                "применение затёрло бы новые правки. Отклоните заявку и "
+                "попросите автора пересоздать её на актуальных данных.",
+            )
+
+    # 1. Persist customization to company.extra.nsbu_editor_schema
+    extra = dict(co.extra or {})
+    extra["nsbu_editor_schema"] = {
+        "customFields": [cf.model_dump() for cf in payload.customFields],
+        "renames": payload.renames,
+        "formulaOverrides": payload.formulaOverrides,
+        "manualFlags": payload.manualFlags,
+        "updatedAt": now_iso,
+        "updatedBy": user.email,
+    }
+    co.extra = extra
+
+    # 2. Group values by (year, report_type)
+    custom_section_by_id: dict[str, str] = {}
+    for cf in payload.customFields:
+        if cf.section in ("pnl", "sofp"):
+            custom_section_by_id[cf.id] = cf.section
+
+    changes_by_report: dict[
+        tuple[int, str],
+        list[tuple[str, Optional[float], str, Optional[str]]],
+    ] = {}
+
+    label_for_field: dict[str, str] = {
+        f: f for f in (_NSBU_PL_FIELDS | _NSBU_BS_FIELDS)
+    }
+    for cf in payload.customFields:
+        label_for_field[cf.id] = cf.label
+    for fld, renamed in payload.renames.items():
+        label_for_field[fld] = renamed
+
+    # canonical mapping per field — for custom fields, allows
+    # them to contribute to portfolio aggregations via parent_code.
+    canonical_for_field: dict[str, Optional[str]] = {}
+    for f in (_NSBU_PL_FIELDS | _NSBU_BS_FIELDS):
+        canonical_for_field[f] = f
+    for cf in payload.customFields:
+        canonical_for_field[cf.id] = cf.canonical or None
+
+    for field, year_map in payload.values.items():
+        if field in _NSBU_PL_FIELDS:
+            report_type = "PL"
+        elif field in _NSBU_BS_FIELDS:
+            report_type = "BS"
+        elif field in custom_section_by_id:
+            report_type = (
+                "PL" if custom_section_by_id[field] == "pnl" else "BS"
+            )
+        else:
+            continue
+        for year_str, val in year_map.items():
+            try:
+                year = int(year_str)
+            except (TypeError, ValueError):
+                continue
+            changes_by_report.setdefault((year, report_type), []).append((
+                field, val,
+                label_for_field.get(field, field),
+                canonical_for_field.get(field),
+            ))
+
+    # 3. Upsert reports + lines
+    reports_created = 0
+    reports_updated = 0
+    lines_upserted = 0
+    lines_deleted = 0
+
+    for (year, report_type), changes in changes_by_report.items():
+        rep_q = await db.execute(
+            select(FinancialReport).where(
+                FinancialReport.company_id == co.id,
+                FinancialReport.year == year,
+                FinancialReport.quarter.is_(None),
+                FinancialReport.standard == "NSBU",
+                FinancialReport.report_type == report_type,
+                FinancialReport.is_detailed == False,  # noqa: E712
+            ).order_by(FinancialReport.updated_at.desc())
+        )
+        existing_reports = list(rep_q.scalars().all())
+        report: Optional[FinancialReport] = None
+        for r in existing_reports:
+            if r.source == "nsbu-editor":
+                report = r
+                break
+        if report is None and existing_reports:
+            report = existing_reports[0]
+
+        if report is None:
+            report = FinancialReport(
+                company_id=co.id,
+                year=year, quarter=None,
+                standard="NSBU", report_type=report_type,
+                currency="UZS",
+                unit_scale=1_000_000_000,
+                source="nsbu-editor",
+                is_audited=False, is_detailed=False,
+                notes=f"Saved via NSBU editor by {user.email} on {now_iso}",
+                extra={"editor_version": "p7.52"},
+            )
+            db.add(report)
+            await db.flush()
+            reports_created += 1
+        else:
+            reports_updated += 1
+            report.source = report.source or "nsbu-editor"
+            report.notes = (
+                f"Last edit via NSBU editor by {user.email} on {now_iso}"
+            )
+
+        ln_q = await db.execute(
+            select(FinancialLine).where(
+                FinancialLine.report_id == report.id
+            )
+        )
+        existing_lines = {
+            ln.line_code: ln for ln in ln_q.scalars().all()
+        }
+
+        for field, val, label, canonical in changes:
+            existing = existing_lines.get(field)
+            if val is None:
+                if existing is not None:
+                    await db.delete(existing)
+                    lines_deleted += 1
+                continue
+            decimal_val = Decimal(str(val))
+            new_parent = canonical
+            if existing is not None:
+                existing.value = decimal_val
+                existing.line_name = label
+                existing.parent_code = new_parent
+            else:
+                db.add(FinancialLine(
+                    report_id=report.id,
+                    line_code=field,
+                    parent_code=new_parent,
+                    line_name=label,
+                    value=decimal_val,
+                    is_subtotal=False,
+                    is_calculated=False,
+                    sort_order=0,
+                ))
+            lines_upserted += 1
+
+    # audit-log entry
+    try:
+        sample_fields = sorted(set(
+            field for changes in changes_by_report.values()
+            for field, _, _, _ in changes
+        ))[:20]
+        await append_audit_entry(
+            db,
+            actor_id=str(user.id) if user.id else None,
+            actor_email=user.email,
+            action="nsbu_editor.save",
+            entity_type="company",
+            entity_id=str(co.id),
+            diff={
+                "reports_created": reports_created,
+                "reports_updated": reports_updated,
+                "lines_upserted": lines_upserted,
+                "lines_deleted": lines_deleted,
+                "fields": sample_fields,
+                "years": sorted({
+                    y for (y, _) in changes_by_report.keys()
+                }),
+            },
+            payload={
+                "company_code": co.code,
+                "customFields_count": len(payload.customFields),
+                "renames_count": len(payload.renames),
+                "formulaOverrides_count": len(payload.formulaOverrides),
+            },
+            notes=f"NSBU editor save · {co.code}",
+        )
+    except Exception:
+        pass
+
+    await db.commit()
+
+    # Re-issue a fresh token (schema updatedAt just bumped to now_iso, lines
+    # committed) so the same open editor can keep saving without a reload.
+    new_token = await compute_financials_editor_token(
+        db, company_id=co.id, standard="NSBU",
+        consolidated=None, quarter=None,
+        schema_updated_at=now_iso,
+    )
+    return {
+        "ok": True,
+        "saved_at": now_iso,
+        "reports_created": reports_created,
+        "reports_updated": reports_updated,
+        "lines_upserted": lines_upserted,
+        "lines_deleted": lines_deleted,
+        "_editor_token": new_token,
+    }
+
+
+async def apply_submission(db: AsyncSession, *, sub, user: User) -> dict:
+    """Apply an approved NSBU-editor save (moderation dispatch target).
+
+    `moderation_apply/financials.py` routes action="nsbu_editor_save" here.
+    Resolves the company by the code carried in `sub.proposed_value`, loads the
+    PROPOSER for attribution (falls back to the approving moderator), validates
+    the payload against NsbuEditorSavePayload, and calls the shared write core.
+    Editor-token re-validation is carried by the payload's `expected_token` and
+    performed inside the core (the schema blob is last-writer-wins).
+    """
+    pv = dict(sub.proposed_value or {})
+    if not pv:
+        raise ValueError("proposed_value is empty")
+
+    code = pv.get("code") or sub.target_entity_id
+    if not code:
+        raise ValueError(
+            "nsbu_editor_save requires a company code in proposed_value",
+        )
+
+    repo = FinancialsRepository(db)
+    co = await repo.find_company_by_code(str(code))
+    if co is None:
+        raise ValueError(f"Company '{code}' no longer exists")
+
+    proposer: Optional[User] = None
+    if sub.proposer_user_id:
+        proposer = (await db.execute(
+            select(User).where(User.id == sub.proposer_user_id)
+        )).scalar_one_or_none()
+    actor = proposer or user
+
+    expected_token = pv.get("expected_token")
+    schema_payload = {
+        k: v for k, v in pv.items() if k not in ("code", "expected_token")
+    }
+    try:
+        payload = NsbuEditorSavePayload.model_validate(schema_payload)
+    except Exception as e:
+        raise ValueError(
+            f"proposed_value does not match NsbuEditorSavePayload: {e}",
+        ) from e
+
+    result = await _apply_nsbu_editor_core(
+        db, company=co, payload=payload, user=actor, expected_token=expected_token,
+    )
+    return {
+        "action": "nsbu_editor_save",
+        "code": co.code,
+        "reports_created": result["reports_created"],
+        "reports_updated": result["reports_updated"],
+        "lines_upserted": result["lines_upserted"],
+        "lines_deleted": result["lines_deleted"],
+    }

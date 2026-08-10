@@ -26,6 +26,29 @@ async def apply(db, *, sub: ModerationSubmission, user: User) -> dict:
     if not sub.proposed_value:
         raise ValueError("proposed_value is empty")
 
+    action = (sub.action or "").lower()
+
+    # ── Редакторы финансов (fin-хвост): каждый диспатчится в apply_submission
+    # своего сервиса, который переигрывает тот же write-core от имени автора.
+    # ДОЛЖНО быть ВЫШЕ ветки save_report (иначе payload редактора уйдёт в
+    # full-replace по report_id и упадёт на FinancialReportSavePayload).
+    if action == "nsbu_editor_save":
+        from app.services.financials_nsbu.service import apply_submission
+        return await apply_submission(db, sub=sub, user=user)
+    if action == "ifrs_editor_save":
+        from app.services.financials_ifrs.service import apply_submission
+        return await apply_submission(db, sub=sub, user=user)
+    if action == "hlf_save":
+        from app.services.financials_hlf.service import apply_submission
+        return await apply_submission(db, sub=sub, user=user)
+    if action == "indicators_save":
+        from app.services.financials_indicators.service import apply_submission
+        return await apply_submission(db, sub=sub, user=user)
+    if action in ("detailed_cell", "detailed_mapping",
+                  "detailed_delete_line", "detailed_import_confirm"):
+        from app.services.financials_detailed.service import apply_submission
+        return await apply_submission(db, sub=sub, user=user)
+
     # ── Точечная запись ОДНОЙ строки из Company Library (mirrors _write_financial).
     # Отдельное действие, чтобы apply НЕ делал full-replace (иначе одна правка через
     # библиотеку затёрла бы все остальные строки отчёта). value уже unit-scaled.

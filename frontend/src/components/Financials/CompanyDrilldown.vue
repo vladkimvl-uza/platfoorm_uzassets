@@ -609,7 +609,9 @@ async function saveInn(v: string) {
     markEdited();
     toast.success(v ? t("ИНН сохранён") : t("ИНН очищен"));
   } catch (e: unknown) {
-    inn.value = prev;
+    inn.value = prev;   // не сохранено (queued или ошибка) → откат оптимистичного
+    // 202 → на модерации: тост показал интерцептор @/api/client, не дублируем.
+    if ((e as { __moderation_queued?: boolean })?.__moderation_queued === true) return;
     toast.error(t("Не удалось сохранить ИНН: {e}", { e: errMsg(e) }));
   } finally { saving.value = false; }
 }
@@ -629,7 +631,9 @@ async function saveIndicator(field: string, year: number, num: number | null) {
     markEdited();
     toast.success(t("Сохранено"));
   } catch (e: unknown) {
-    indicators.value = { ...indicators.value, [field]: prevMap };
+    indicators.value = { ...indicators.value, [field]: prevMap };   // откат (не сохранено)
+    // 202 → на модерации: тост показал интерцептор @/api/client, не дублируем.
+    if ((e as { __moderation_queued?: boolean })?.__moderation_queued === true) return;
     toast.error(t("Не сохранено: {e}", { e: errMsg(e) }));
   } finally { saving.value = false; }
 }
@@ -667,7 +671,9 @@ async function saveFinancial(field: string, year: number, num: number | null) {
     markEdited();
     toast.success(t("Сохранено"));
   } catch (e: unknown) {
-    values.value = { ...values.value, [field]: prevMap };
+    values.value = { ...values.value, [field]: prevMap };   // откат (не сохранено)
+    // 202 → на модерации: тост показал интерцептор @/api/client, не дублируем.
+    if ((e as { __moderation_queued?: boolean })?.__moderation_queued === true) return;
     toast.error(t("Не сохранено: {e}", { e: errMsg(e) }));
   } finally { saving.value = false; }
 }
