@@ -8,7 +8,7 @@
  * /builder/bulk создаёт всё.
  */
 import { ref, computed, onMounted, watch } from "vue";
-import { api } from "@/api/client";
+import { api, isModerationQueued } from "@/api/client";
 import { useToast } from "@/composables/useToast";
 import ModalShell from "@/components/ModalShell.vue";
 import EptLogo from "@/components/EptLogo.vue";
@@ -141,6 +141,9 @@ async function createKpi() {
     toast.success(msg, 6000);
     previewRows.value = null;
   } catch (e: any) {
+    // Ушло на модерацию (202): тост модерации показал интерцептор — не дублируем
+    // красной ошибкой. Заявка захвачена, чистим превью, чтобы не отправить дважды.
+    if (isModerationQueued(e)) { previewRows.value = null; return; }
     toast.error(e?.response?.data?.detail || t('Ошибка создания KPI'));
   } finally {
     creatingKpi.value = false;
@@ -169,6 +172,7 @@ async function createFin() {
     toast.success(msg, 6000);
     previewRows.value = null;
   } catch (e: any) {
+    if (isModerationQueued(e)) { previewRows.value = null; return; }
     toast.error(e?.response?.data?.detail || t('Ошибка создания финотчётов'));
   } finally {
     creatingFin.value = false;
@@ -232,6 +236,7 @@ async function submit() {
     toast.success(okMsg, 5000);
     projects.value = []; standalone.value = [];
   } catch (e: any) {
+    if (isModerationQueued(e)) { projects.value = []; standalone.value = []; return; }
     toast.error(e?.response?.data?.detail || t('Ошибка создания'));
   } finally { submitting.value = false; }
 }
