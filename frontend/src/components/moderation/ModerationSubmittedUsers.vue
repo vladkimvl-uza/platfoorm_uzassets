@@ -121,7 +121,7 @@ const filtered = () => {
     <div class="su-hd">
       <BIcon name="info-circle" :size="14" />
       <span>
-        {{ t('Пользователи с флагом') }} <code>is_external</code> {{ t('— их правки данных идут на согласование. Выше — глобально какие модули модерируются; в колонке «прямая запись» — модули-исключения конкретного юзера (пишет напрямую в обход модерации).') }}
+        {{ t('Пользователи с флагом') }} <code>is_external</code> {{ t('— их правки в Задачах и Проектах идут на согласование; остальные модули открыты и фиксируются журналом изменений. Ниже — какие модули модерируются; в колонке «прямая запись» — модули-исключения конкретного юзера (пишет напрямую в обход модерации).') }}
         <code>bypass_moderation</code> {{ t('снимает модерацию с юзера полностью. Флаг') }} <code>is_external</code> {{ t('меняется на странице пользователя («Безопасность» → «Модерация»).') }}
       </span>
     </div>
@@ -133,6 +133,7 @@ const filtered = () => {
         <span class="mp-policy-title">{{ t('Модерируемые модули') }}</span>
         <span class="mp-hint">{{ t('правки внешних авторов в этих модулях идут на согласование') }}</span>
       </div>
+      <div class="mp-arch">{{ t('Модерируется только работа с задачами и проектами. Все остальные модули открыты для прямых изменений — подотчётность обеспечивает журнал изменений (кто/что/когда).') }}</div>
       <div class="mp-chips">
         <button v-for="code in policy.available_modules" :key="code"
                 class="mp-chip" :class="{ on: isModerated(code) }"
@@ -394,6 +395,7 @@ const filtered = () => {
 .mp-chip.on .mp-dot { background: var(--p-deep); }
 .mp-chip:disabled { opacity: .6; cursor: default; }
 .mp-need { font-size: 10px; color: var(--color-text-tertiary); line-height: 1.4; }
+.mp-arch { font-size: 10.5px; color: var(--color-text-tertiary); line-height: 1.45; margin: 2px 0 8px; padding: 6px 9px; border-radius: 7px; background: color-mix(in srgb, var(--color-accent, #7F77DD) 7%, transparent); }
 
 /* ── Per-user denylist popover ── */
 .su-modwrap { position: relative; display: inline-block; }

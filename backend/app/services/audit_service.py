@@ -343,6 +343,44 @@ async def query_events(
     return rows, total
 
 
+def _entity_event_out(r: AuditLog) -> dict[str, Any]:
+    """Одна строка пер-сущностного журнала изменений (компактно для UI)."""
+    fields = None
+    if isinstance(r.diff, dict) and isinstance(r.diff.get("fields"), list):
+        fields = [str(x) for x in r.diff["fields"]]
+    return {
+        "id": str(r.id),
+        "actor_id": str(r.actor_id) if r.actor_id else None,
+        "actor_email": r.actor_email,
+        "actor_role": r.actor_role,
+        "action": r.action,
+        "module": r.module,
+        "entity_label": r.entity_label,
+        "fields": fields,
+        "http_method": r.http_method,
+        "http_status": r.http_status,
+        "at": r.created_at.isoformat() if r.created_at else None,
+    }
+
+
+async def entity_history(
+    db: AsyncSession, *, entity_type: str, entity_id: str, limit: int = 50,
+) -> list[dict[str, Any]]:
+    """Журнал изменений ОДНОЙ записи (кто/что/когда), новые сверху.
+
+    Использует индекс ix_audit_entity_time. Только мутации несут
+    entity_type/entity_id (см. AuditLoggerMiddleware), поэтому просмотры сюда не
+    попадают — это именно история правок.
+    """
+    rows = (await db.execute(
+        select(AuditLog)
+        .where(AuditLog.entity_type == entity_type, AuditLog.entity_id == entity_id)
+        .order_by(AuditLog.created_at.desc())
+        .limit(max(1, min(limit, 200)))
+    )).scalars().all()
+    return [_entity_event_out(r) for r in rows]
+
+
 # ─── Aggregates ──────────────────────────────────────────────
 
 async def compute_stats(db: AsyncSession, hours: int = 24) -> dict[str, Any]:

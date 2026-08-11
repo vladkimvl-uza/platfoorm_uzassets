@@ -110,6 +110,18 @@ async def lifespan(app: FastAPI):
     except Exception as e:  # noqa: BLE001
         logger.warning(f"Email config load failed: {e}")
 
+    # Модерация: одноразовая нормализация политики к архитектуре
+    # tasks/projects-only. Сбрасывает устаревший allow-list (пустой или со старыми
+    # модулями) к новому дефолту ровно один раз (по policy_version). Не фатально.
+    try:
+        from app.database import AsyncSessionLocal
+        from app.services.moderation_config import normalize_policy
+        async with AsyncSessionLocal() as _db:
+            await normalize_policy(_db)
+            await _db.commit()
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"Moderation policy normalize failed: {e}")
+
     # Encryption key startup validation. If any user has mfa_enabled=true
     # we MUST be able to decrypt their TOTP secret — fail fast instead of
     # discovering this at runtime when someone tries to log in.
@@ -413,6 +425,7 @@ ROUTER_MODULES = [
     "presence",         # Presence heartbeat (online/away/offline индикаторы)
     "status_updates",   # «Текущий статус проекта» — нарративные апдейты + история
     "watches",          # «Отслеживание» проектов/задач (watch/follow) + уведомления
+    "history",          # Пер-сущностный журнал изменений (кто/что/когда по записи)
     "calendar",         # Календарь дедлайнов (авто-агрегация из due_date)
     "companies",
     "projects",

@@ -8,6 +8,7 @@ otherwise from the bearer token directly.
 from __future__ import annotations
 
 import logging
+import re
 import time
 from typing import Optional
 
@@ -23,6 +24,25 @@ from app.services.audit_service import (
 )
 
 logger = logging.getLogger(__name__)
+
+_UUID_RE = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+_INT_RE = re.compile(r"^\d+$")
+
+
+def _entity_from_path(path: str) -> tuple[Optional[str], Optional[str]]:
+    """Достаём (entity_type, entity_id) из пути для пер-сущностного журнала
+    изменений: первая пара ``<коллекция>/<id>``, где id — UUID или число.
+
+    Для ``/tasks/{uuid}/status`` вернёт ('tasks', uuid) — историю ведём по самой
+    сущности, а не по подресурсу. Пути на код компании (не-UUID) сюда не попадают
+    (у них свои rich-писатели / история на уровне компании не по этому ключу).
+    """
+    segs = [s for s in path.split("/") if s]
+    for i in range(len(segs) - 1):
+        ident = segs[i + 1]
+        if _UUID_RE.match(ident) or _INT_RE.match(ident):
+            return segs[i][:64], ident[:128]
+    return None, None
 
 # Path prefixes excluded from logging — high-volume / internal / не-действия.
 SKIP_PREFIXES = (
@@ -200,6 +220,22 @@ class AuditLoggerMiddleware(BaseHTTPMiddleware):
                         audit_meta = {"impersonator_id": _imp_id, "impersonator_email": _imp_email}
                         _tag = f"[от имени: {_imp_email or _imp_id}]"
                         _notes = f"{_tag} {_notes}" if _notes else _tag
+
+                    # Пер-сущностный журнал изменений (кто/что/когда по каждой
+                    # записи). Структурные ссылки (entity_type/entity_id) и список
+                    # изменённых полей пишем ТОЛЬКО для мутаций — история = правки,
+                    # не просмотры. Оба поля входят в HMAC (build_chain_body).
+                    entity_type = entity_id = None
+                    audit_diff = None
+                    if method.upper() in _AUDIT_METHODS:
+                        entity_type, entity_id = _entity_from_path(path)
+                        _changed = (
+                            getattr(request.state, "activity_fields", None)
+                            or getattr(request.state, "activity_body_keys", None)
+                        )
+                        if _changed:
+                            audit_diff = {"fields": [str(f) for f in list(_changed)[:60]]}
+
                     async with AsyncSessionLocal() as db:
                         await write_event(
                             db,
@@ -208,6 +244,9 @@ class AuditLoggerMiddleware(BaseHTTPMiddleware):
                             actor_role=actor_role,
                             action=action,
                             module=module,
+                            entity_type=entity_type,
+                            entity_id=entity_id,
+                            diff=audit_diff,
                             http_method=method,
                             http_path=path[:512],
                             http_status=status,

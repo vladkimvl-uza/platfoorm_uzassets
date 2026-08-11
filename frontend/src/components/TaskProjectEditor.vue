@@ -39,6 +39,7 @@ import StatusTracker from "./StatusTracker.vue";
 import { statusUpdatesApi, type StatusHealth } from "@/api/statusUpdates";
 import { watchesApi } from "@/api/watches";
 import AttachmentsPanel from "./Attachments/AttachmentsPanel.vue";
+import ChangeHistory from "./common/ChangeHistory.vue";
 import { usePermissions } from "@/composables/usePermissions";
 import { pmoApi, type DependencyRead } from "@/api/pmo";
 import { useI18n } from "@/composables/useI18n";
@@ -1438,6 +1439,12 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
               :current-user-id="currentUserId"
               :is-admin="isAdmin"
             />
+          </section>
+
+          <!-- История изменений записи: кто / что / когда менял -->
+          <section v-if="!isCreate && props.entity?.id" class="block">
+            <ChangeHistory :entity-type="kind === 'project' ? 'projects' : 'tasks'"
+                           :entity-id="String(props.entity.id)" collapsed />
           </section>
 
           <!-- Collapsible: Основание + Тип (project only) -->
