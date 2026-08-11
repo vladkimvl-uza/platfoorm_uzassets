@@ -8,9 +8,11 @@ import { computed, ref } from "vue";
 import ModalShell from "@/components/ModalShell.vue";
 import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
-import { productionApi, type ProdCompany, type ProdLine } from "@/api/production";
+import {
+  productionApi, type ProdCompany, type ProdLine,
+  PRODUCTION_PERIOD_KEYS, productionPeriodGenitive, productionPeriodLabel,
+} from "@/api/production";
 import { useI18n } from "@/composables/useI18n";
-import { i18nKey } from "@/locale/keys";
 
 
 const { t } = useI18n();
@@ -52,7 +54,7 @@ const working = ref<ELine[]>((() => {
 // пустыми. Копируем ТОЛЬКО структуру (название, единицу, иерархию «в т.ч.»);
 // числа не переносим — это данные другого периода, и подставлять их значило
 // бы показать чужой факт как свой.
-const PERIOD_ORDER = ["h1", "h2", "annual"];
+const PERIOD_ORDER = PRODUCTION_PERIOD_KEYS;
 const copyBusy = ref(false);
 const copyDone = ref(0);
 /** Пустой период: только строка-итог без наименований и чисел. */
@@ -64,7 +66,7 @@ const isBlank = computed(() =>
 const copySources = computed(() =>
   PERIOD_ORDER.filter((p) => p !== props.period).map((p) => ({
     value: p,
-    label: p === "h1" ? t("1 полугодия") : p === "h2" ? t("2 полугодия") : t("года"),
+    label: t(productionPeriodGenitive(p)),
   })),
 );
 
@@ -189,7 +191,7 @@ async function save() {
   }
 }
 
-const periodLabel = computed(() => ({ h1: i18nKey("1 полугодие"), h2: i18nKey("2 полугодие"), annual: i18nKey("год") }[props.period] || props.period));
+const periodLabel = computed(() => productionPeriodLabel(props.period));
 </script>
 
 <template>

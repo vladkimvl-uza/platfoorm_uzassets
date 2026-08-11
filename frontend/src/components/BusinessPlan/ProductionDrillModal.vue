@@ -6,11 +6,10 @@ import { computed } from "vue";
 import ModalShell from "@/components/ModalShell.vue";
 import CompanyAvatar from "@/components/CompanyAvatar.vue";
 import { usePermissions } from "@/composables/usePermissions";
-import type { ProdCompany, ProdLine } from "@/api/production";
+import { type ProdCompany, type ProdLine, productionPeriodLabel } from "@/api/production";
 import { execCol as pctCol, execZone as pctZone } from "@/utils/execBand";
 import { useI18n } from "@/composables/useI18n";
 import { getCurrentIntlLocale } from "@/locale/i18n";
-import { i18nKey } from "@/locale/keys";
 
 
 const { t } = useI18n();
@@ -20,8 +19,7 @@ const emit = defineEmits<{ (e: "close"): void; (e: "edit"): void }>();
 
 const canEdit = usePermissions("bp").canEdit;
 
-const PERIOD_LABEL: Record<string, string> = { h1: i18nKey("1 полугодие"), h2: i18nKey("2 полугодие"), annual: i18nKey("год") };
-const periodLabel = computed(() => PERIOD_LABEL[props.period] || props.period);
+const periodLabel = computed(() => productionPeriodLabel(props.period));
 
 function fmtM(v: number | null | undefined): string {
   if (v == null || !isFinite(v)) return "—";

@@ -10,16 +10,16 @@
  * аккуратный empty-state с CTA «Заполнить». Редактор встроен (ProductionEditModal).
  */
 import { computed, nextTick, onMounted, ref, watch } from "vue";
-import { productionApi, type ProdCompany, type ProdLine } from "@/api/production";
+import {
+  productionApi, type ProdCompany, type ProdLine,
+  PRODUCTION_PERIOD_KEYS, productionPeriodLabel,
+} from "@/api/production";
 import { useCountUpScan } from "@/composables/useCountUp";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import ProductionEditModal from "@/components/BusinessPlan/ProductionEditModal.vue";
 import { execCol as pctCol, execZone as pctZone } from "@/utils/execBand";
 import { useI18n } from "@/composables/useI18n";
 import { getCurrentIntlLocale } from "@/locale/i18n";
-import { i18nKey } from "@/locale/keys";
-
-
 const { t } = useI18n();
 
 const props = defineProps<{
@@ -28,8 +28,6 @@ const props = defineProps<{
   year: number;
   canEdit?: boolean;
 }>();
-
-const PERIOD_LABEL: Record<string, string> = { h1: i18nKey("1 полугодие"), h2: i18nKey("2 полугодие"), annual: i18nKey("год") };
 
 const loading = ref(false);
 const error = ref<string | null>(null);
@@ -46,7 +44,9 @@ const products = computed(() => (company.value?.lines || []).filter((l) => !l.to
 const periodOpts = computed(() => {
   const ps = combos.value.filter((c) => c.year === props.year).map((c) => c.period);
   const uniq = Array.from(new Set(ps));
-  return uniq.map((p) => ({ value: p, label: t(PERIOD_LABEL[p] || p) }));
+  // Показываем в каноническом порядке (кварталы → полугодия → год).
+  uniq.sort((a, b) => PRODUCTION_PERIOD_KEYS.indexOf(a) - PRODUCTION_PERIOD_KEYS.indexOf(b));
+  return uniq.map((p) => ({ value: p, label: t(productionPeriodLabel(p)) }));
 });
 
 async function load() {

@@ -1,4 +1,36 @@
 import { api } from "@/api/client";
+import { i18nKey } from "@/locale/keys";
+
+/**
+ * Периоды производственных показателей: кварталы + полугодия + год.
+ * Единый источник для тумблеров и подписей (по образцу BP_PERIODS). Период —
+ * свободная строка: бэкенд не валидирует и хранит его полем записи
+ * (raw_snapshot.productionData: {k, year, period, lines}), расчёт per-record
+ * (не нарастающий итог). Метки — i18n-маркеры, оборачивать в t() при выводе.
+ */
+export const PRODUCTION_PERIODS: { key: string; label: string }[] = [
+  { key: "q1", label: "Q1" },
+  { key: "q2", label: "Q2" },
+  { key: "q3", label: "Q3" },
+  { key: "q4", label: "Q4" },
+  { key: "h1", label: i18nKey("1 полугодие") },
+  { key: "h2", label: i18nKey("2 полугодие") },
+  { key: "annual", label: i18nKey("Год") },
+];
+/** Ключи периодов в каноническом порядке. */
+export const PRODUCTION_PERIOD_KEYS = PRODUCTION_PERIODS.map((p) => p.key);
+/** Метка периода (i18n-маркер — оборачивать в t()). */
+export function productionPeriodLabel(key: string): string {
+  return PRODUCTION_PERIODS.find((p) => p.key === key)?.label || key;
+}
+/** Родительный падеж для «скопировать из …» (номенклатуру из другого периода). */
+export function productionPeriodGenitive(key: string): string {
+  const m: Record<string, string> = {
+    h1: i18nKey("1 полугодия"), h2: i18nKey("2 полугодия"), annual: i18nKey("года"),
+    q1: "Q1", q2: "Q2", q3: "Q3", q4: "Q4",
+  };
+  return m[key] || key;
+}
 
 export interface ProdLine {
   name: string;

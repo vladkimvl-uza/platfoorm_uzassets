@@ -15,7 +15,7 @@ import ForensicUploadModal from "@/components/Procurement/ForensicUploadModal.vu
 import { useCountUpScan } from "@/composables/useCountUp";
 import { useCompanyScope } from "@/composables/useCompanyScope";
 import { useProductionData } from "@/composables/useProductionData";
-import type { ProdCompany } from "@/api/production";
+import { type ProdCompany, PRODUCTION_PERIODS } from "@/api/production";
 import { execCol as pctCol, execZone as pctZone } from "@/utils/execBand";
 import ModalShell from "@/components/ModalShell.vue";
 import { useI18n } from "@/composables/useI18n";
@@ -136,11 +136,9 @@ async function onImported() {
   await st.load();
 }
 
-const PERIOD_OPTS = computed(() => [
-  { value: "h1", label: t("1 полугодие") },
-  { value: "h2", label: t("2 полугодие") },
-  { value: "annual", label: t("Год") },
-]);
+const PERIOD_OPTS = computed(() =>
+  PRODUCTION_PERIODS.map((p) => ({ value: p.key, label: t(p.label) })),
+);
 const periodLabel = computed(
   () => PERIOD_OPTS.value.find((o) => o.value === st.period.value)?.label || st.period.value,
 );
