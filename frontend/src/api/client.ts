@@ -157,7 +157,10 @@ api.interceptors.response.use(
       original &&
       !original._retried &&
       !original.url?.includes("/auth/refresh") &&
-      !original.url?.includes("/auth/login")
+      !original.url?.includes("/auth/login") &&
+      // preview-exchange 401 = истёкший ТИКЕТ, не сессия. Иначе интерцептор
+      // сожжёт refresh-токен АДМИНА (rotate single-use) → его самого разлогинит.
+      !original.url?.includes("/rbac/v3/users/preview-exchange")
     ) {
       original._retried = true;
 

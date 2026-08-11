@@ -25,6 +25,8 @@ from app.schemas.rbac_v3 import (
     GroupUpdatePayload,
     PasswordResetPayload,
     PermissionBrief,
+    PreviewExchangeRequest,
+    PreviewExchangeResponse,
     PreviewTokenResponse,
     RBACOverview,
     RoleBrief,
@@ -304,6 +306,18 @@ async def create_preview_token(
     user: User = Depends(get_current_user),
 ):
     return await service.create_preview_token(user_id, db, user)
+
+
+# Обмен preview-тикета на impersonation-токен. БЕЗ auth-зависимости: тикет
+# (подписанный, 60с, type='preview_ticket') сам является credential — новая
+# вкладка меняет его на токен в ТЕЛЕ ответа, а не тащит 30-мин токен в URL.
+@router.post("/users/preview-exchange", response_model=PreviewExchangeResponse)
+async def exchange_preview_ticket(
+    payload: PreviewExchangeRequest,
+    service: RbacV3ServiceDep,
+    db: AsyncSession = Depends(get_db),
+):
+    return await service.exchange_preview_ticket(payload.ticket, db)
 
 
 # ─── Groups ───────────────────────────────────────────────────────

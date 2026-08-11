@@ -209,9 +209,20 @@ class UserListResponse(BaseModel):
 # =====================================================================
 
 class PreviewTokenResponse(BaseModel):
+    # Тикет обмена (60с), НЕ 30-мин токен — токен в URL новой вкладки утекал в
+    # логи/history. Вкладка меняет тикет на access_token через preview-exchange.
+    preview_ticket: str
+    target_user_id: UUID
+    target_email: str
+
+
+class PreviewExchangeRequest(BaseModel):
+    ticket: str
+
+
+class PreviewExchangeResponse(BaseModel):
     access_token: str
     expires_in: int
-    target_user_id: UUID
     target_email: str
 
 

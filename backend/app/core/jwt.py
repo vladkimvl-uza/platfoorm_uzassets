@@ -111,6 +111,22 @@ def create_ws_ticket(
     )
 
 
+def create_preview_ticket(
+    *, subject: str, expires_seconds: int = 60, extra_claims: dict | None = None,
+) -> str:
+    """Короткоживущий (60с) тикет ОБМЕНА на impersonation-токен вместо передачи
+    30-мин access-JWT в URL новой вкладки (утечка в nginx-логи/history/Referer).
+    Отдельный type='preview_ticket' (не подменяется access-токеном, expected_type).
+    `subject` = id импертонируемого пользователя; extra_claims несут
+    impersonator_id/email. Даже утёкший тикет бесполезен после истечения/обмена."""
+    return _create_token(
+        subject=subject,
+        token_type="preview_ticket",
+        expires_delta=timedelta(seconds=expires_seconds),
+        extra_claims=extra_claims,
+    )
+
+
 def create_refresh_token(*, subject: str, jti: str | None = None) -> tuple[str, str]:
     """Sign a refresh token. Returns (token, jti).
     Caller stores SHA-256(jti) in `user_sessions.refresh_token_hash`."""

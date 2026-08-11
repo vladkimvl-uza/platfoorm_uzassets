@@ -670,15 +670,29 @@ export const rolesApiExt = {
 // ─── Impersonate / preview-token ───────────────────────────────
 
 export interface RbacV3PreviewTokenResponse {
+  preview_ticket: string;   // 60с тикет обмена (НЕ токен) — токен в URL утекал в логи
+  target_user_id: string;
+  target_email: string;
+}
+
+export interface RbacV3PreviewExchangeResponse {
   access_token: string;
   expires_in: number;
-  target_user_id: string;
   target_email: string;
 }
 
 export async function createPreviewToken(userId: string): Promise<RbacV3PreviewTokenResponse> {
   const { data } = await api.post<RbacV3PreviewTokenResponse>(
     `/rbac/v3/users/${userId}/preview-token`,
+  );
+  return data;
+}
+
+/** Обменять preview-тикет (из URL новой вкладки) на impersonation-токен. Тикет
+ *  сам credential (подписан, 60с) — токен приходит в теле, не в URL. */
+export async function exchangePreviewTicket(ticket: string): Promise<RbacV3PreviewExchangeResponse> {
+  const { data } = await api.post<RbacV3PreviewExchangeResponse>(
+    `/rbac/v3/users/preview-exchange`, { ticket },
   );
   return data;
 }

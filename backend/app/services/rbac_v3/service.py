@@ -47,6 +47,7 @@ from app.schemas.rbac_v3 import (
     GroupUpdatePayload,
     PasswordResetPayload,
     PermissionBrief,
+    PreviewExchangeResponse,
     PreviewTokenResponse,
     RBACOverview,
     RoleBrief,
@@ -1560,6 +1561,10 @@ class RbacV3Service:
         target = await repo.get_user_with_roles_perms(user_id)
         if not target:
             raise HTTPException(http_status.HTTP_404_NOT_FOUND, "User not found")
+        # Per-company scope: company-scoped admin.users НЕ может импертонировать юзера
+        # чужой компании (горизонтальная эскалация). Только здесь можно проверить —
+        # exchange без актора. Зеркалит get_user/update_user (404 вне скоупа).
+        await _ensure_target_in_scope(db, user, target)
         if str(target.id) == str(user.id):
             raise HTTPException(
                 http_status.HTTP_400_BAD_REQUEST, "Cannot impersonate yourself"
@@ -1577,28 +1582,75 @@ class RbacV3Service:
                 http_status.HTTP_403_FORBIDDEN,
                 "Cannot impersonate a user with admin.users privilege",
             )
-        from app.core.jwt import create_access_token
-        expires_minutes = 30
-        token = create_access_token(
+        # Отдаём КОРОТКОживущий тикет обмена (60с), а НЕ 30-мин access-токен: токен
+        # в URL новой вкладки утекал в nginx-логи/history/Referer (P1). Вкладка
+        # меняет тикет на токен через preview-exchange (тело ответа, не URL).
+        from app.core.jwt import create_preview_ticket
+        ticket = create_preview_ticket(
             subject=str(target.id),
-            expires_minutes=expires_minutes,
             extra_claims={
                 "impersonator_id": str(user.id),
                 "impersonator_email": user.email,
-                "is_preview": True,
             },
         )
         await append_audit_entry(
             db, actor_id=str(user.id), actor_email=user.email,
             action="rbac.user.impersonate",
             entity_type="user", entity_id=str(target.id),
-            notes=f"target_email={target.email}, duration_min={expires_minutes}",
+            notes=f"target_email={target.email}",
         )
         await db.commit()
         return PreviewTokenResponse(
+            preview_ticket=ticket,
+            target_user_id=target.id,
+            target_email=target.email,
+        )
+
+    async def exchange_preview_ticket(
+        self, ticket: str, db: AsyncSession
+    ) -> "PreviewExchangeResponse":
+        """Обменять preview-тикет на 30-мин impersonation-токен. БЕЗ auth —
+        подписанный тикет сам credential (как ws_ticket). Тикет 60с/type-specific;
+        цель ПЕРЕПРОВЕРЯется (stale-guard): всё ещё активна, не OWNER, без
+        admin.users — иначе устаревший тикет мог бы импертонировать повысившегося."""
+        from app.core.jwt import create_access_token, decode_token
+        try:
+            payload = decode_token(ticket, expected_type="preview_ticket")
+        except Exception:
+            raise HTTPException(
+                http_status.HTTP_401_UNAUTHORIZED,
+                "Preview-тикет недействителен или истёк",
+            )
+        target_id = payload.get("sub")
+        imp_id = payload.get("impersonator_id")
+        imp_email = payload.get("impersonator_email")
+        if not target_id or not imp_id:
+            raise HTTPException(http_status.HTTP_401_UNAUTHORIZED, "Некорректный тикет")
+
+        target = await self._repo(db).get_user_with_roles_perms(UUID(str(target_id)))
+        if not target or not target.is_active or target.is_owner:
+            raise HTTPException(
+                http_status.HTTP_403_FORBIDDEN, "Пользователь больше недоступен для входа"
+            )
+        if await has_effective_permission(db, target, "admin.users"):
+            raise HTTPException(
+                http_status.HTTP_403_FORBIDDEN,
+                "Пользователь получил право admin.users — вход невозможен",
+            )
+
+        expires_minutes = 30
+        token = create_access_token(
+            subject=str(target.id),
+            expires_minutes=expires_minutes,
+            extra_claims={
+                "impersonator_id": str(imp_id),
+                "impersonator_email": imp_email,
+                "is_preview": True,
+            },
+        )
+        return PreviewExchangeResponse(
             access_token=token,
             expires_in=expires_minutes * 60,
-            target_user_id=target.id,
             target_email=target.email,
         )
 

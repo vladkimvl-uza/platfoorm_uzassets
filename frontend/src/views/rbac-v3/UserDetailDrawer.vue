@@ -657,8 +657,9 @@ async function startImpersonate() {
   impersonating.value = true;
   try {
     const resp = await createPreviewToken(detail.value.id);
-    // Open new tab with preview token in URL — AppShell picks it up and stores
-    const url = window.location.origin + '/?preview_token=' + encodeURIComponent(resp.access_token)
+    // В URL новой вкладки — короткоживущий ТИКЕТ (60с), НЕ 30-мин токен: токен в
+    // URL утекал в логи/history. AppShell поменяет тикет на токен через exchange.
+    const url = window.location.origin + '/?preview_ticket=' + encodeURIComponent(resp.preview_ticket)
               + '&preview_email=' + encodeURIComponent(resp.target_email);
     window.open(url, '_blank');
   } catch (e: any) {

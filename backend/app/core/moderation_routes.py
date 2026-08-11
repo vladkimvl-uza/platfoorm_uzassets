@@ -337,6 +337,7 @@ ROUTE_CLASS: dict[str, RouteClass] = {
     "rbac_v3:permanently_delete_user:DELETE": RouteClass("C"),
     "rbac_v3:set_user_permissions:PUT": RouteClass("C"),
     "rbac_v3:create_preview_token:POST": RouteClass("C"),
+    "rbac_v3:exchange_preview_ticket:POST": RouteClass("C"),
     "rbac_v3:reactivate_user:POST": RouteClass("C"),
     "rbac_v3:reset_password:POST": RouteClass("C"),
     "report_wizard:save_report_wizard:PUT": RouteClass("A", "report_wizard", "edit", True),

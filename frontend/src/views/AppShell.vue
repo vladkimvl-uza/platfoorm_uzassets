@@ -355,28 +355,47 @@ import { ref as _impRef, onMounted as _impOnMounted } from 'vue';
 import ImpersonateBanner from '@/components/rbac-v3/ImpersonateBanner.vue';
 const _impEmail = _impRef<string | null>(null);
 const _impActive = _impRef<boolean>(false);
-_impOnMounted(() => {
-  // First: detect ?preview_token in URL and stash it
+_impOnMounted(async () => {
+  // Detect ?preview_ticket in URL и обменять его на impersonation-токен. Тикет
+  // (60с) вместо 30-мин токена: токен в URL утекал в nginx-логи/history/Referer.
   const url = new URL(window.location.href);
-  const tok = url.searchParams.get('preview_token');
+  const ticket = url.searchParams.get('preview_ticket');
   const targetEmail = url.searchParams.get('preview_email');
-  if (tok) {
-    // Save current real token for later restore
+  if (ticket) {
+    // Сразу чистим тикет из URL/history (не держим лишнего в адресной строке).
+    url.searchParams.delete('preview_ticket');
+    url.searchParams.delete('preview_email');
+    window.history.replaceState({}, '', url.toString());
+    // Бэкапим реальный токен ДО подмены (для возврата из impersonation).
     const currentToken = localStorage.getItem('uza_access_token');
     const currentRefresh = localStorage.getItem('uza_refresh_token');
     if (currentToken && !localStorage.getItem('uza_preview_real_token')) {
       localStorage.setItem('uza_preview_real_token', currentToken);
       if (currentRefresh) localStorage.setItem('uza_preview_real_refresh', currentRefresh);
     }
-    // Apply preview token
-    localStorage.setItem('uza_access_token', tok);
-    localStorage.removeItem('uza_refresh_token'); // preview cannot refresh
-    if (targetEmail) localStorage.setItem('uza_preview_email', targetEmail);
-    // Clean URL and reload to make stores pick up new identity
-    url.searchParams.delete('preview_token');
-    url.searchParams.delete('preview_email');
-    window.history.replaceState({}, '', url.toString());
-    window.location.reload();
+    try {
+      const { exchangePreviewTicket } = await import('@/api/rbacV3');
+      const resp = await exchangePreviewTicket(ticket);   // токен в ТЕЛЕ, не в URL
+      localStorage.setItem('uza_access_token', resp.access_token);
+      localStorage.removeItem('uza_refresh_token'); // preview cannot refresh
+      if (targetEmail) localStorage.setItem('uza_preview_email', targetEmail);
+      window.location.reload();   // stores подхватят новую личность
+    } catch {
+      // Тикет истёк/недействителен — откат бэкапа, остаёмся в своём аккаунте + тост
+      // (иначе новая вкладка молча показывала бы аккаунт админа без объяснения).
+      const back = localStorage.getItem('uza_preview_real_token');
+      if (back) {
+        localStorage.setItem('uza_access_token', back);
+        const backR = localStorage.getItem('uza_preview_real_refresh');
+        if (backR) localStorage.setItem('uza_refresh_token', backR);
+        localStorage.removeItem('uza_preview_real_token');
+        localStorage.removeItem('uza_preview_real_refresh');
+      }
+      try {
+        const { useToast } = await import('@/composables/useToast');
+        useToast().error(t('Не удалось войти как пользователь — тикет истёк, повторите'));
+      } catch { /* toast best-effort */ }
+    }
     return;
   }
   // Restore previous state on subsequent mounts
