@@ -180,6 +180,14 @@ async def get_current_user(
 
     # Stash on request.state for rate-limiter and audit middleware
     request.state.user = user
+    # Impersonation («Войти как»): токен несёт impersonator_*; кладём в
+    # request.state, чтобы audit-мидлварь атрибутировала действие И импертонатору.
+    # Иначе действия импертонированного пишутся ТОЛЬКО на цель (жертву) → потеря
+    # ответственного, репудиация (RBAC-аудит P1).
+    imp_id = claims.get("impersonator_id")
+    if imp_id:
+        request.state.impersonator_id = str(imp_id)
+        request.state.impersonator_email = claims.get("impersonator_email")
     return user
 
 

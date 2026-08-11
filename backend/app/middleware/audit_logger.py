@@ -186,6 +186,20 @@ class AuditLoggerMiddleware(BaseHTTPMiddleware):
                     ua = request.headers.get("user-agent", "")[:512]
                     is_critical = action == "DELETE" or status >= 500
 
+                    # Impersonation-атрибуция: действие «под чужим аккаунтом» (Войти
+                    # как) пишется на actor_id = ЦЕЛЬ; реальный инициатор — в
+                    # request.state.impersonator_* (из токена). Дублируем его в NOTES
+                    # (notes ВХОДИТ в HMAC-цепь build_chain_body → tamper-evident, не
+                    # репудируется) + в meta (структурно, для UI). meta в хеш НЕ
+                    # входит, поэтому ответственный держится именно в hashed-notes.
+                    _imp_id = getattr(request.state, "impersonator_id", None)
+                    _imp_email = getattr(request.state, "impersonator_email", None)
+                    audit_meta = None
+                    _notes = getattr(request.state, "activity_summary", None)
+                    if _imp_id:
+                        audit_meta = {"impersonator_id": _imp_id, "impersonator_email": _imp_email}
+                        _tag = f"[от имени: {_imp_email or _imp_id}]"
+                        _notes = f"{_tag} {_notes}" if _notes else _tag
                     async with AsyncSessionLocal() as db:
                         await write_event(
                             db,
@@ -204,7 +218,8 @@ class AuditLoggerMiddleware(BaseHTTPMiddleware):
                             # Роут может положить человекочитаемую деталь в request.state
                             # (напр. /ai/chat — текст запроса к ИИ). Пишем в аудит.
                             entity_label=getattr(request.state, "activity_entity", None),
-                            notes=getattr(request.state, "activity_summary", None),
+                            notes=_notes,
+                            meta=audit_meta,
                         )
                         await db.commit()
 
