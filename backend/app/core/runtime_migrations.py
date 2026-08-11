@@ -1338,6 +1338,14 @@ _HLF_BF_MATCHERS: dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]] = {
                    "cash flows from investing", "поток от инвест", "инвестиционн"), ("cashflow",)),
     "cff": ("CF", ("financing cash flow", "net cash from financing", "cash from financing",
                    "cash flows from financing", "поток от фин", "финансиров"), ("cashflow",)),
+    # CapEx — отдельная строка инвест-раздела (НЕ subtotal). Нужен канону для FCF =
+    # CFO − |CapEx| (ось C деривит freeCashFlow из cfo/cfi_capex; без бэкфилла у
+    # HLF-only компаний капекса нет → FCF ошибочно = cfo). Иглы специфичны, чтобы
+    # НЕ поймать equity «капитал» (тот в sofp; здесь фильтр секции = cashflow).
+    "cfi_capex": ("CF", ("purchase of ppe", "purchases of property", "purchase of property",
+                         "capital expenditure", "capex", "additions to property",
+                         "капитальные затраты", "капитал қўйилмалар",
+                         "приобретение основных средств"), ("cashflow",)),
     "dividendsPaid": ("CF", ("dividends paid", "тўланган дивиденд", "дивиденды выпл",
                              "дивиденды упл", "дивиденд"), ("cashflow", "sofp", "pnl")),
 }
@@ -1352,9 +1360,11 @@ _HLF_BF_LABELS: dict[str, str] = {
     "cfo": "CFO · Поток от операционной деятельности",
     "cfi": "CFI · Поток от инвестиционной деятельности",
     "cff": "CFF · Поток от финансовой деятельности",
+    "cfi_capex": "CapEx · Капитальные затраты",
     "dividendsPaid": "Дивиденды выплаченные",
 }
-_HLF_BF_ABS = {"tax", "dividendsPaid"}          # знак → конвенция редактора
+# CapEx хранится ПОЛОЖИТЕЛЬНЫМ (редактор: cfi_capex positiveOnly; FCF = cfo − |capex|).
+_HLF_BF_ABS = {"tax", "dividendsPaid", "cfi_capex"}   # знак → конвенция редактора
 _HLF_BF_BAD_LABEL = ("%", "margin", "маржа", "рентабельн")
 
 
