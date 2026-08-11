@@ -841,10 +841,6 @@ async function saveCurrent() {
     // Invalidate portfolio cache so dashboards reflect saved changes next load
     portfolioCache.value = null;
   } catch (e: unknown) {
-    // 202 → правка ушла на модерацию: интерцептор @/api/client уже показал тост,
-    // не дублируем красной ошибкой (isModerationQueued: __moderation_queued===true).
-    // dirty + localStorage-бэкап НЕ трогаем — изменение лишь в очереди, не сохранено.
-    if ((e as { __moderation_queued?: boolean })?.__moderation_queued === true) return;
     const err = e as { response?: { status?: number; data?: { detail?: string } }; message?: string };
     // Optimistic-lock conflict: keep dirty + localStorage backup (never wiped on
     // this path) so the user's edits survive; ask them to reload the editor.

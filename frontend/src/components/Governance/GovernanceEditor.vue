@@ -7,8 +7,8 @@
  *     заседания, посещаемость, заметки) → governanceApi.upsertData
  *   • «Совет директоров» — CRUD членов совета → create/update/deleteMember
  *
- * Бэкенд гейтит governance.edit и пишет историю/модерацию (202 → на
- * модерацию). Данные общие с /governance → правки синхронизируются (оба
+ * Бэкенд гейтит governance.edit и пишет историю изменений.
+ * Данные общие с /governance → правки синхронизируются (оба
  * читают из одного источника; после сейва эмитим saved → родитель рефетчит).
  */
 import { reactive, ref, computed } from "vue";
@@ -19,7 +19,6 @@ import {
   type BoardMemberBrief,
   type RoleType,
 } from "@/api/governance";
-import { isModerationQueued } from "@/api/client";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
 import ModalShell from "@/components/ModalShell.vue";
@@ -45,7 +44,6 @@ const emit = defineEmits<{ close: []; saved: [] }>();
 const section = ref<"data" | "board">("data");
 const saving = ref(false);
 const err = ref<string | null>(null);
-const queued = ref(false);
 
 // ─── Секция «Показатели» ──────────────────────────────────────────
 const form = reactive({
@@ -180,7 +178,7 @@ function fillFromBoard(): void {
 async function saveData(): Promise<void> {
   const verr = validateData();
   if (verr) { err.value = verr; toast.error(verr); return; }
-  saving.value = true; err.value = null; queued.value = false;
+  saving.value = true; err.value = null;
   try {
     const res = await governanceApi.upsertData({
       company_id: props.companyId,
@@ -206,7 +204,6 @@ async function saveData(): Promise<void> {
     });
     toast.success(t('Показатели сохранены')); emit("saved");
   } catch (e: any) {
-    if (isModerationQueued(e)) { queued.value = true; setTimeout(() => emit("saved"), 1200); return; }
     const msg = e?.response?.data?.detail || e?.message || t('Не удалось сохранить');
     err.value = msg; toast.error(msg);
   } finally { saving.value = false; }
@@ -249,7 +246,7 @@ async function saveMember(): Promise<void> {
   if (mForm.appointed_date && mForm.term_end_date && mForm.term_end_date <= mForm.appointed_date) {
     const m = t('«Срок до» должен быть позже даты назначения'); err.value = m; toast.error(m); return;
   }
-  saving.value = true; err.value = null; queued.value = false;
+  saving.value = true; err.value = null;
   const payload = {
     full_name: mForm.full_name.trim(),
     position: mForm.position.trim() || null,
@@ -279,7 +276,6 @@ async function saveMember(): Promise<void> {
     toast.success(editingMember.value ? t('Член совета обновлён') : t('Член совета добавлен'));
     emit("saved");
   } catch (e: any) {
-    if (isModerationQueued(e)) { queued.value = true; setTimeout(() => { showMemberForm.value = false; emit("saved"); }, 1200); return; }
     const msg = e?.response?.data?.detail || e?.message || t('Не удалось сохранить члена совета');
     err.value = msg; toast.error(msg);
   } finally { saving.value = false; }
@@ -324,7 +320,6 @@ const ROLE_OPTIONS = computed(() => ROLE_TYPE_META);
 
       <div class="ge-body">
         <p v-if="err" class="ge-err">{{ err }}</p>
-        <p v-if="queued" class="ge-queued">{{ t('Отправлено на модерацию') }}</p>
 
         <!-- ─── ПОКАЗАТЕЛИ ─── -->
         <template v-if="section === 'data'">
@@ -489,7 +484,6 @@ const ROLE_OPTIONS = computed(() => ROLE_TYPE_META);
 .ge-tab-count { font-size: 10.5px; background: rgba(124, 111, 247, 0.12); color: var(--p-deep, #534AB7); padding: 1px 6px; border-radius: 7px; margin-left: 3px; }
 .ge-body { padding: 14px 0 0; }
 .ge-err { font-size: 12px; color: var(--sev-high, #E24B4A); margin: 0 0 10px; }
-.ge-queued { font-size: 12px; color: var(--p-deep, #534AB7); font-weight: 500; margin: 0 0 10px; }
 .ge-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .ge-field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
 .ge-field-wide { grid-column: 1 / -1; }

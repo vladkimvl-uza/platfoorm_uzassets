@@ -19,7 +19,7 @@
  */
 import { computed, nextTick, onMounted, onBeforeUnmount, ref, watch } from "vue";
 import SidebarBurger from "@/components/SidebarBurger.vue";
-import { api, isModerationQueued } from "@/api/client";
+import { api } from "@/api/client";
 import { useCountUpScan } from "@/composables/useCountUp";
 import { useCompanyScope } from "@/composables/useCompanyScope";
 import { downloadForensicTemplate } from "@/utils/forensicTemplate";
@@ -473,7 +473,7 @@ async function editAction(action: "import" | "template" | "report" | "edit" | "c
 
 async function onEditSaved(patches: { company: ProcCompany; year: number }[]) {
   if (!patches.length) { showEditModal.value = false; return; }
-  let saved = 0, queued = 0, failed = 0;
+  let saved = 0, failed = 0;
   for (const { company, year } of patches) {
     const yr = company.years?.find(y => y.y === year);
     const payload: Record<string, unknown> = {
@@ -497,14 +497,11 @@ async function onEditSaved(patches: { company: ProcCompany; year: number }[]) {
       await api.put(`/forensic/companies/${encodeURIComponent(company.k)}`, payload);
       // 200 → applied
       saved++;
-    } catch (e) {
-      // 202 → moderation queued (interceptor rejects with ModerationQueuedError)
-      if (isModerationQueued(e)) queued++;
-      else failed++;
+    } catch {
+      failed++;
     }
   }
   const parts = [t("Сохранено: {count}", { count: saved })];
-  if (queued)  parts.push(t("на модерации: {count}", { count: queued }));
   if (failed)  parts.push(t("ошибок: {count}", { count: failed }));
   if (failed) toast.error(parts.join(" · "));
   else        toast.success(parts.join(" · "));

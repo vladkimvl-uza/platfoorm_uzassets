@@ -664,9 +664,7 @@ async function save() {
     // Успех = бэкенд закоммитил (API 2xx). Подтверждаем визуально.
     toast.success(t("Финансовая отчётность сохранена"));
   } catch (e: unknown) {
-    // 202 → правка ушла на модерацию: интерцептор @/api/client уже показал тост.
     // dirty остаётся true (await упал до сброса) → правки на экране целы.
-    if ((e as { __moderation_queued?: boolean })?.__moderation_queued === true) return;
     const err = e as { response?: { status?: number; data?: { detail?: string } }; message?: string };
     // Конфликт: кто-то сохранил, пока редактировали. Не сбрасываем dirty →
     // правки на экране целы; просим перезагрузить, чтобы не затереть чужое.

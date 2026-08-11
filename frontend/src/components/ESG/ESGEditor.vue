@@ -8,7 +8,7 @@
  *   • «Риски» — ESG-проблемы: столп, заголовок, серьёзность, статус →
  *     esgApi.createIssue / updateIssue / deleteIssue (не year-scoped)
  *
- * Бэкенд гейтит esg.edit + пишет историю/модерацию (202 → на модерацию).
+ * Бэкенд гейтит esg.edit + пишет историю изменений.
  * Данные общие с /esg → после сейва эмитим saved, родитель рефетчит.
  */
 import { reactive, ref, computed } from "vue";
@@ -17,7 +17,6 @@ import {
   type Pillar, type Severity, type IssueStatus,
   type ESGMetricBrief, type ESGIssueBrief,
 } from "@/api/esg";
-import { isModerationQueued } from "@/api/client";
 import { useConfirm } from "@/composables/useConfirm";
 import { useI18n } from "@/composables/useI18n";
 const { t } = useI18n();
@@ -38,7 +37,6 @@ const emit = defineEmits<{ close: []; saved: [] }>();
 const section = ref<"metrics" | "issues">("metrics");
 const saving = ref(false);
 const err = ref<string | null>(null);
-const queued = ref(false);
 
 function pillarMeta(p: Pillar) { return PILLAR_META.find(x => x.key === p) || PILLAR_META[0]; }
 function sevMeta(s: Severity | null) { return SEVERITY_META.find(x => x.key === s) || { label: "—", color: "#94A3B8" }; }
@@ -86,7 +84,7 @@ function _num(v: unknown): number | null {
 async function saveMetric(): Promise<void> {
   if (!mForm.metric_code.trim()) { err.value = t('Укажите код метрики'); return; }
   if (!mForm.metric_name.trim()) { err.value = t('Укажите название метрики'); return; }
-  saving.value = true; err.value = null; queued.value = false;
+  saving.value = true; err.value = null;
   try {
     const res = await esgApi.upsertMetric({
       company_id: props.companyId, year: props.year, pillar: mForm.pillar,
@@ -101,7 +99,6 @@ async function saveMetric(): Promise<void> {
     if (i >= 0) localMetrics.value[i] = saved; else localMetrics.value.push(saved);
     showMetricForm.value = false; emit("saved");
   } catch (e: any) {
-    if (isModerationQueued(e)) { queued.value = true; setTimeout(() => { showMetricForm.value = false; emit("saved"); }, 1200); return; }
     err.value = e?.response?.data?.detail || e?.message || t('Не удалось сохранить метрику');
   } finally { saving.value = false; }
 }
@@ -140,7 +137,7 @@ function openEditIssue(it: ESGIssueBrief): void {
 }
 async function saveIssue(): Promise<void> {
   if (!iForm.title.trim()) { err.value = t('Укажите заголовок'); return; }
-  saving.value = true; err.value = null; queued.value = false;
+  saving.value = true; err.value = null;
   try {
     let res: ESGIssueBrief | { detail?: string };
     if (editingIssue.value) {
@@ -161,7 +158,6 @@ async function saveIssue(): Promise<void> {
     } else localIssues.value.push(saved);
     showIssueForm.value = false; emit("saved");
   } catch (e: any) {
-    if (isModerationQueued(e)) { queued.value = true; setTimeout(() => { showIssueForm.value = false; emit("saved"); }, 1200); return; }
     err.value = e?.response?.data?.detail || e?.message || t('Не удалось сохранить риск');
   } finally { saving.value = false; }
 }
@@ -201,7 +197,6 @@ const PILLARS = computed(() => PILLAR_META);
 
       <div class="ee-body">
         <p v-if="err" class="ee-err">{{ err }}</p>
-        <p v-if="queued" class="ee-queued">{{ t('⏳ Отправлено на модерацию') }}</p>
 
         <!-- ─── МЕТРИКИ ─── -->
         <template v-if="section === 'metrics'">
@@ -360,7 +355,6 @@ const PILLARS = computed(() => PILLAR_META);
 .ee-tab-count { font-size: 10.5px; background: rgba(124, 111, 247, 0.12); color: var(--p-deep, #534AB7); padding: 1px 6px; border-radius: 7px; margin-left: 3px; }
 .ee-body { padding: 18px 20px; overflow-y: auto; }
 .ee-err { font-size: 12px; color: var(--sev-high, #E24B4A); margin: 0 0 10px; }
-.ee-queued { font-size: 12px; color: var(--p-deep, #534AB7); font-weight: 500; margin: 0 0 10px; }
 .ee-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .ee-field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
 .ee-wide { grid-column: 1 / -1; }

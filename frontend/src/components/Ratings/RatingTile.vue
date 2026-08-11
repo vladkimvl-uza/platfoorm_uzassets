@@ -5,14 +5,12 @@
  * • Отображение: credit (грейд + outlook + дата) или esg (балл + шкала + дата).
  * • Inline-edit под RBAC `ratings.edit` (canEdit-проп) — клик по карандашу →
  *   форма прямо в карточке. Сохранение через ratingsApi (PATCH/POST), которое
- *   уже гейтит permission на бэке, пишет историю (moderation/audit) и
+ *   уже гейтит permission на бэке, пишет историю (audit) и
  *   рассылает field_update по WebSocket → синхронизация во всех вью.
- * • Если правка ушла на модерацию (202) — показываем «на модерации».
  * • Премиум: flip view↔edit, focus-ring, save-state, hover-affordance.
  */
 import { reactive, ref, computed } from "vue";
 import { ratingsApi, type AgencyRatingBrief } from "@/api/ratings";
-import { isModerationQueued } from "@/api/client";
 import { useI18n } from "@/composables/useI18n";
 import { i18nKey } from "@/locale/keys";
 import { formatRatingDate } from "@/utils/ratingDates";
@@ -89,7 +87,6 @@ const agencyMark = computed(() =>
 const editing = ref(false);
 const saving = ref(false);
 const err = ref<string | null>(null);
-const queued = ref(false);
 const buf = reactive({ rating: "", outlook: "", score: "", date: "", url: "" });
 
 function startEdit(): void {
@@ -100,7 +97,6 @@ function startEdit(): void {
   buf.date = props.rating?.rating_date_text || "";
   buf.url = props.rating?.report_url || "";
   err.value = null;
-  queued.value = false;
   editing.value = true;
 }
 function cancel(): void { editing.value = false; err.value = null; }
@@ -138,12 +134,6 @@ async function save(): Promise<void> {
     editing.value = false;
     emit("saved");
   } catch (e: any) {
-    if (isModerationQueued(e)) {
-      // Interceptor already fired the «на модерацию» toast — keep the in-card queued badge.
-      queued.value = true;
-      setTimeout(() => { editing.value = false; emit("saved"); }, 1400);
-      return;
-    }
     err.value = e?.response?.data?.detail || e?.message || t('Не удалось сохранить');
   } finally {
     saving.value = false;
@@ -170,7 +160,6 @@ async function save(): Promise<void> {
         <input v-model="buf.date" class="rt-in" :placeholder="t('дата (окт 2025)')"
                maxlength="64" :disabled="saving" />
         <p v-if="err" class="rt-err">{{ err }}</p>
-        <p v-if="queued" class="rt-queued">{{ t('⏳ Отправлено на модерацию') }}</p>
         <div class="rt-actions">
           <button class="rt-btn rt-btn-ghost" @click="cancel" :disabled="saving">{{ t('Отмена') }}</button>
           <button class="rt-btn rt-btn-save" @click="save" :disabled="saving">
@@ -294,7 +283,6 @@ async function save(): Promise<void> {
 .rt-in:focus { border-color: var(--p, #7C6FF7); box-shadow: 0 0 0 3px rgba(124, 111, 247, 0.14); }
 .rt-in-grade { font-size: 18px; font-weight: 600; letter-spacing: -0.02em; }
 .rt-err { font-size: 10.5px; color: var(--sev-high, #E24B4A); margin: 0; }
-.rt-queued { font-size: 10.5px; color: var(--p-deep, #534AB7); margin: 0; font-weight: 500; }
 .rt-actions { display: flex; gap: 6px; margin-top: 2px; }
 .rt-btn { flex: 1; border: none; border-radius: 7px; padding: 7px 0; font-size: 11.5px; font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.14s; display: inline-flex; align-items: center; justify-content: center; min-height: 30px; }
 .rt-btn-ghost { background: transparent; border: 1px solid var(--border-input, #E2E8F0); color: var(--t2, #334155); }

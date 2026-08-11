@@ -9,7 +9,6 @@ import { esgApi, type ESGSwotItemBrief } from "@/api/esg";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
-import { isModerationQueued } from "@/api/client";
 import { useI18n } from "@/composables/useI18n";
 import { getCurrentIntlLocale } from "@/locale/i18n";
 const { t } = useI18n();
@@ -92,7 +91,6 @@ async function removeItem(it: ESGSwotItemBrief) {
     toast.success(t('Вывод удалён')); emit("changed");
     await load();
   } catch (e: any) {
-    if (isModerationQueued(e)) { await load(); return; }
     toast.error(t('Не удалено: {value0}', { value0: (e?.response?.data?.detail || e?.message || t("ошибка")) }));
   } finally { saving.value = false; }
 }
@@ -117,7 +115,6 @@ async function save() {
     await load();
     emit("changed");
   } catch (e: any) {
-    if (isModerationQueued(e)) { editing.value = null; draft.value = ""; await load(); emit("changed"); return; }
     toast.error(e?.response?.data?.detail || t('Не удалось сохранить'));
   } finally {
     saving.value = false;

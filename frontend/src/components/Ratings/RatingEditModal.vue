@@ -6,14 +6,13 @@
  *  - If `existing` prop is null → CREATE mode (POST /ratings)
  *  - If `existing` is set → EDIT mode (PATCH /ratings/{id})
  *  - Delete button visible only in EDIT mode (DELETE /ratings/{id})
- *  - Save returns AgencyRatingBrief OR ModerationQueuedTag (handled by api).
+ *  - Save returns AgencyRatingBrief.
  *
  * Outlook values mirror legacy olkLbl:
  *  Stable / Positive / Negative / Developing / RWN / RWP
  */
 import { ref, computed, watch } from "vue";
 import { ratingsApi, type AgencyRatingBrief } from "@/api/ratings";
-import { isModerationQueued } from "@/api/client";
 import { useConfirm } from "@/composables/useConfirm";
 import { useI18n } from "@/composables/useI18n";
 import { i18nKey } from "@/locale/keys";
@@ -156,12 +155,6 @@ async function save() {
     emit("saved");
     setTimeout(() => emit("close"), 1000);
   } catch (e: unknown) {
-    if (isModerationQueued(e)) {
-      // Interceptor already fired the «на модерацию» toast — just close as on success.
-      emit("saved");
-      setTimeout(() => emit("close"), 1000);
-      return;
-    }
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
     error.value = err?.response?.data?.detail || err?.message || t('Ошибка сохранения');
   } finally {
@@ -184,12 +177,6 @@ async function remove() {
     emit("saved");
     setTimeout(() => emit("close"), 1000);
   } catch (e: unknown) {
-    if (isModerationQueued(e)) {
-      // Interceptor already fired the «на модерацию» toast — just close as on success.
-      emit("saved");
-      setTimeout(() => emit("close"), 1000);
-      return;
-    }
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
     error.value = err?.response?.data?.detail || err?.message || t('Ошибка удаления');
   } finally {

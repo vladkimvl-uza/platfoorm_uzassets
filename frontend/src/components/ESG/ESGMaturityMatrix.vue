@@ -9,7 +9,6 @@ import { computed, ref, watch } from "vue";
 import { useToast } from "@/composables/useToast";
 import { esgApi, type ESGMaturityHeatmap, type ESGMaturityCompany, type ESGRatingMini } from "@/api/esg";
 import { ratingsApi } from "@/api/ratings";
-import { isModerationQueued } from "@/api/client";
 import ESGReportRatingModal from "@/components/ESG/ESGReportRatingModal.vue";
 import { useI18n } from "@/composables/useI18n";
 import { i18nKey } from "@/locale/keys";
@@ -135,7 +134,6 @@ async function commitRatingEdit(r: ESGRatingMini) {
     await ratingsApi.update(r.id, payload as never);
     toast.success(t('Рейтинг обновлён')); emit("saved");
   } catch (e: unknown) {
-    if (isModerationQueued(e)) return;
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
     toast.error(t('Не сохранено: {value0}', { value0: errorText(err) }));
   } finally { ratingSaving.value = false; }
@@ -157,7 +155,6 @@ async function confirmDeleteRating(r: ESGRatingMini) {
     await ratingsApi.remove(r.id);
     toast.success(t('Рейтинг удалён')); emit("saved");
   } catch (e: unknown) {
-    if (isModerationQueued(e)) return;
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
     toast.error(t('Не удалено: {value0}', { value0: errorText(err) }));
   } finally { ratingSaving.value = false; }
@@ -186,7 +183,6 @@ async function commitAddRating(c: ESGMaturityCompany) {
     toast.success(t('Рейтинг добавлен')); emit("saved");
     cancelAddRating();
   } catch (e: unknown) {
-    if (isModerationQueued(e)) { cancelAddRating(); return; }
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
     toast.error(t('Не добавлено: {value0}', { value0: errorText(err) }));
   } finally { ratingSaving.value = false; }
@@ -232,7 +228,6 @@ async function setStage(c: ESGMaturityCompany, dim: string, sub: string, stage: 
     await esgApi.upsertMaturityCell({ company_id: c.company_id, year: props.heatmap!.year, dimension: dim, sub_key: sub, stage });
     toast.success(t('Сохранено')); emit("saved");
   } catch (e: unknown) {
-    if (isModerationQueued(e)) return;
     if (cell) cell.stage = prev ?? 0;
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
     toast.error(t('Не сохранено: {value0}', { value0: errorText(err) }));
@@ -315,7 +310,6 @@ async function commitLink(c: ESGMaturityCompany) {
     await esgApi.upsertMaturityCell({ company_id: c.company_id, year: props.heatmap!.year, dimension: "D2", sub_key: "", evidence_url: url });
     toast.success(t('Ссылка сохранена')); emit("saved");
   } catch (e: unknown) {
-    if (isModerationQueued(e)) return;
     if (cell) cell.evidence_url = prevUrl;
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
     toast.error(t('Не сохранено: {value0}', { value0: errorText(err) }));

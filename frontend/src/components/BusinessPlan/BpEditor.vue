@@ -271,7 +271,6 @@ import {
   type BpPlanDraft,
   type BpRecordUpsert,
 } from "@/api/bpKpi";
-import { isModerationQueued } from "@/api/client";
 import { usePermissions } from "@/composables/usePermissions";
 
 const perm = usePermissions("bp");
@@ -672,8 +671,6 @@ async function save() {
     toast.success(typeof n === "number" ? t("Сохранено · {n} ячеек записано", { n }) : t("Бизнес-план сохранён"));
     emit("saved");
   } catch (e: any) {
-    // Gated. Interceptor has shown a toast — just close.
-    if (isModerationQueued(e)) { dirty.value = false; emit("close"); return; }
     console.error("[BP editor] save failed:", e);
     // 409 EditorConflict — кто-то сохранил параллельно; данные устарели.
     if (e?.response?.status === 409) {

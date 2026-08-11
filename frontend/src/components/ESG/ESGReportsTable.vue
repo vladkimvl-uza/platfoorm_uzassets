@@ -6,7 +6,6 @@
  * внизу — подпись «кто и когда менял последним». Двунаправленно через /esg API.
  */
 import { computed, ref, watch } from "vue";
-import { isModerationQueued } from "@/api/client";
 import { esgApi, type ESGReportBrief } from "@/api/esg";
 import { useToast } from "@/composables/useToast";
 import { useI18n } from "@/composables/useI18n";
@@ -109,7 +108,6 @@ async function commitEdit() {
     lastYear.value = res.year;
     toast.success(t('Сохранено'));
   } catch (err: unknown) {
-    if (isModerationQueued(err)) return;
     const x = err as { response?: { data?: { detail?: string } }; message?: string };
     toast.error(t('Не сохранено: {value0}', { value0: (x?.response?.data?.detail || x?.message || t("ошибка")) }));
   } finally {

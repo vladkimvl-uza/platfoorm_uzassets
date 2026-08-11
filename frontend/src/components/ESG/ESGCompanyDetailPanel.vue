@@ -25,7 +25,6 @@ import ESGEditor from "@/components/ESG/ESGEditor.vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import { useAuthStore } from "@/stores/auth";
 import { useToast } from "@/composables/useToast";
-import { isModerationQueued } from "@/api/client";
 import { useI18n } from "@/composables/useI18n";
 import { useCompaniesStore } from "@/stores/companies";
 import { resolveCompanyDisplayName } from "@/utils/displayNames";
@@ -96,7 +95,6 @@ async function saveEdit(m: ESGMetricBrief) {
     await load();
     emit("changed");
   } catch (e: any) {
-    if (isModerationQueued(e)) { editingId.value = null; await load(); emit("changed"); return; }
     toast.error(e?.response?.data?.detail || t("Не удалось сохранить"));
   } finally {
     savingId.value = null;

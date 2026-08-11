@@ -252,7 +252,6 @@ import {
   type KpiManagerUpsert,
   type KpiPlanDraft,
 } from "@/api/bpKpi";
-import { isModerationQueued } from "@/api/client";
 import { usePermissions } from "@/composables/usePermissions";
 import { useI18n } from "@/composables/useI18n";
 import { getCurrentIntlLocale } from "@/locale/i18n";
@@ -559,8 +558,6 @@ async function save() {
     markSaved();   // правки сохранены → обновляем снимок dirty-guard
     emit("saved");
   } catch (e: any) {
-    // Gated → interceptor already toasted; just close the editor.
-    if (isModerationQueued(e)) { emit("close"); return; }
     // 409 Conflict = another editor saved while we were working.
     // Show a clear reload prompt instead of generic failure.
     const status = e?.response?.status;

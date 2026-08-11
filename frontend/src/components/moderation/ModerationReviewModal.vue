@@ -402,10 +402,6 @@ const visibleEntries = computed(() =>
               <span :class="applyPillClass(sub.apply_status)">
                 {{ t(applyPillLabel(sub.apply_status)) }}
               </span>
-              <span v-if="sub.apply_status === 'applied' && sub.apply_result"
-                    class="mrm-apply-result">
-                {{ JSON.stringify(sub.apply_result) }}
-              </span>
               <button
                 v-if="canResolve && (sub.apply_status === 'failed' || sub.apply_status === 'skipped' || sub.apply_status === 'pending')"
                 class="mrm-btn mrm-btn-ghost"
@@ -413,7 +409,7 @@ const visibleEntries = computed(() =>
                 @click="retryApply"
               >
                 <BIcon name="refresh" :size="14" />
-                {{ acting ? '…' : 'Re-apply' }}
+                {{ acting ? '…' : t('Повторить применение') }}
               </button>
             </div>
             <div v-if="sub.apply_error" class="mrm-apply-err">

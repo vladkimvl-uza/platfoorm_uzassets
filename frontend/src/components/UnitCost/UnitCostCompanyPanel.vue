@@ -9,7 +9,6 @@ import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "@/composables/useI18n";
 import { getCurrentIntlLocale } from "@/locale/i18n";
 import { useToast } from "@/composables/useToast";
-import { isModerationQueued } from "@/api/client";
 import CreditDonut, { type DonutEntry } from "@/components/CreditPortfolio/CreditDonut.vue";
 import MentionableTextarea from "@/components/MentionableTextarea.vue";
 import { unitCostApi, FUELS, type UCCompany, type UCPrices, type UCWorld,
@@ -219,12 +218,6 @@ async function save() {
     initial = JSON.stringify({ p: draft.value, i: imports.value, c: comments.value });
     emit("saved");
   } catch (e: unknown) {
-    if (isModerationQueued(e)) {
-      // Ушло на модерацию (202): интерцептор показал тост. Сбрасываем dirty-базу,
-      // но НЕ помечаем как сохранённое (без emit saved — правки ещё нет).
-      initial = JSON.stringify({ p: draft.value, i: imports.value, c: comments.value });
-      return;
-    }
     const err = e as { response?: { data?: { detail?: string } }; message?: string };
     toast.error(t("Не сохранено: {msg}", { msg: err?.response?.data?.detail || err?.message || t("ошибка") }));
   } finally { saving.value = false; }

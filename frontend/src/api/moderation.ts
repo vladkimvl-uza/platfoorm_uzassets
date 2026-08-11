@@ -285,7 +285,12 @@ export const moderationApi = {
   },
 };
 
-/** Русские подписи модулей модерации для панели. */
+/** Русские подписи модулей для UI модерации.
+ *  ВНИМАНИЕ: это НЕ список модерируемых модулей. Модерируются только tasks/
+ *  projects (backend LOCKED_MODERATABLE) — набор берётся из /moderation/policy.
+ *  Здесь оставлены подписи и legacy-модулей: у них могут быть ИСТОРИЧЕСКИЕ
+ *  заявки в очереди (созданные до сужения архитектуры), которым нужен лейбл.
+ *  Не удалять и не читать как перечень модерируемого. */
 export const MODERATION_MODULE_LABELS: Record<string, string> = {
   tasks: "Задачи", projects: "Проекты", comments: "Комментарии", kpi: "KPI",
   financials: "Финансы", business_plan: "Бизнес-план", esg: "ESG",
