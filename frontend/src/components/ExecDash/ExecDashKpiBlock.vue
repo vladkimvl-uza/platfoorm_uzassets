@@ -197,7 +197,7 @@ function openKpi(): void {
             :title="t('За выбранный FY данных по KPI нет — показан последний год с данными')"
           >{{ t("данные за FY {y}", { y: yearBadge }) }}</span></div>
         <div class="ed-kpi-head-s">
-          FY {{ resolvedYear }} · {{ t(periodLabel) }}<template v-if="summary"> · {{ summary.co_count }} {{ t("компаний") }}</template>
+          FY {{ resolvedYear }} · {{ t(periodLabel) }}<template v-if="summary"> · {{ (summary.co_with_data ?? summary.co_count) < summary.co_count ? t("по {n} из {m} компаний", { n: summary.co_with_data, m: summary.co_count }) : t("{n} компаний", { n: summary.co_count }) }}</template>
         </div>
       </div>
       <div class="ed-kpi-tabs" role="tablist" :aria-label="t('Квартал')">

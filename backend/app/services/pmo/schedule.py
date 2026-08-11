@@ -207,13 +207,21 @@ async def build_schedule(
             blocked=blocked,
         ))
 
-    # Сводка
+    # Сводка. Портфельный slip = (прогнозный финиш − базовый финиш), но ОБА max
+    # обязаны считаться по ОДНОМУ подмножеству — барам, у которых есть И due, И
+    # baseline_due. Раньше max(dues) и max(base_dues) брались по РАЗНЫМ множествам
+    # (бар с due без базлайна vs бар с базлайном без due) → сравнение несопоставимых
+    # баров давало фиктивный slip. Для отображения общего финиша сохраняем max по
+    # всем due/baseline отдельно.
     dues = [b.due for b in bars if b.due]
     base_dues = [b.baseline_due for b in bars if b.baseline_due]
     forecast_finish = max(dues) if dues else None
     baseline_finish = max(base_dues) if base_dues else None
-    if forecast_finish and baseline_finish:
-        portfolio_slip = (forecast_finish - baseline_finish).days
+    comparable = [b for b in bars if b.due and b.baseline_due]
+    if comparable:
+        portfolio_slip = (
+            max(b.due for b in comparable) - max(b.baseline_due for b in comparable)
+        ).days
     else:
         portfolio_slip = max((b.slip_days for b in bars), default=0)
     overdue_count = sum(
