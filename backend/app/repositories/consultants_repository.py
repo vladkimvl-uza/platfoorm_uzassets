@@ -89,7 +89,10 @@ class ConsultantsRepository:
             .where(Task.is_archived == False)  # noqa: E712
         )
         if year:
-            q = q.where(Task.portfolio_year == year)
+            # legacy-задачи без года (portfolio_year IS NULL) не пропадают при
+            # фильтре года — иначе они видны только в «Все годы» и Σ по годам ≠ All
+            # (аудит consultants). Тот же паттерн, что exec-дрилл направлений.
+            q = q.where(or_(Task.portfolio_year == year, Task.portfolio_year.is_(None)))
         if company_ids is not None:
             if not company_ids:
                 return []
@@ -136,7 +139,9 @@ class ConsultantsRepository:
             .where(Task.is_archived == False)  # noqa: E712
         )
         if year:
-            q = q.where(Task.portfolio_year == year)
+            # legacy-задачи без года видны в каждом году (как выше / exec-дрилл),
+            # иначе они пропадают из года и Σ по годам ≠ «Все годы».
+            q = q.where(or_(Task.portfolio_year == year, Task.portfolio_year.is_(None)))
         return list((await self.session.execute(q)).all())
 
     async def list_assignments_for_tasks(
