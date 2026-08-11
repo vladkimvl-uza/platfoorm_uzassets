@@ -15,6 +15,7 @@ import { computed, ref } from "vue";
 import type { PortfolioSummaryResponse } from "@/api/financials";
 import type { CompanyListItem, SectorBrief } from "@/api/companies";
 import { fmtCompact, sectorColor, buildCompanyIndex } from "./financialsHelpers";
+import { fcfFromMetrics } from "@/utils/financeMetrics";
 import { useI18n } from "@/composables/useI18n";
 import { resolveCompanyDisplayName } from "@/utils/displayNames";
 
@@ -205,7 +206,7 @@ const rows = computed<Row[]>(() => {
       const cff = cur.cff ?? null;
       const div = cur.dividendsPaid ?? null;
       const eb  = cur.ebitda ?? null;
-      const fcf = (cfo != null && cfi != null) ? cfo + cfi : null;
+      const fcf = fcfFromMetrics(cur);
       const conv = (eb != null && eb > 0 && cfo != null) ? pct(cfo, eb) : null;
       sortVals = [0, 0, cfo, cfi, cff, fcf, div, conv];
       cells = [

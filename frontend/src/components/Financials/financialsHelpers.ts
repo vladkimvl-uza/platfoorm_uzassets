@@ -12,6 +12,11 @@ import { i18nKey } from "@/locale/keys";
 import { sectorDisplayName } from "@/utils/displayNames";
 
 
+// Канонические деривации метрик (EBITDA / FCF) — единый источник в
+// @/utils/financeMetrics. Ре-экспортим для обратной совместимости импортёров.
+export { deriveEbitda, deriveFcf, fcfFromMetrics } from "@/utils/financeMetrics";
+
+
 // ─── Formatting ────────────────────────────────────────────────────────────
 
 /** Format a raw value (in UZS) into "млрд" or "млн" representation,

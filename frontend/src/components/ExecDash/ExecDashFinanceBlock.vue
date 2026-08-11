@@ -16,6 +16,7 @@ import {
   fmtPct,
   fmtPctSigned,
 } from "@/components/Financials/financialsHelpers";
+import { fcfFromMetrics } from "@/utils/financeMetrics";
 import { useSectorMeta } from "@/utils/sectorMeta";
 import { useCompanyScope } from "@/composables/useCompanyScope";
 import { useFormatters } from "@/composables/useFormatters";
@@ -335,7 +336,10 @@ const extKpis = computed<ExtKpis | null>(() => {
   const debt = debtOf(totals) ?? 0;
   const cfo = get("cfo");
   const cfi = get("cfi");
-  const fcf = cfo + cfi;
+  // Канон FCF = CFO − |CapEx| (см. @/utils/financeMetrics). Бэкенд деривит
+  // freeCashFlow пер-компанию, narrowedSummary суммирует его в totals —
+  // читаем канон отсюда, НЕ cfo+cfi.
+  const fcf = fcfFromMetrics(totals) ?? 0;
   const netProfit = kpis.value.totalNetProfit;
   const roe = equity > 0 ? (netProfit / equity) * 100 : null;
   const dToE = equity > 0 ? debt / equity : null;
@@ -404,6 +408,7 @@ interface CompanyRow {
   debt: number | null;
   cfo: number | null;
   cfi: number | null;
+  freeCashFlow: number | null;  // канон FCF = CFO − |CapEx| (бэкенд-дериват), НЕ cfo+cfi
   ebitda: number | null;
   ebitdaPct: number | null;  // EBITDA / revenue
   yoy: number | null;        // revenue YoY
@@ -476,6 +481,7 @@ const tableRows = computed<CompanyRow[]>(() => {
     const debt = debtOf(yCur);
     const cfo = arr(yCur.cfo);
     const cfi = arr(yCur.cfi);
+    const freeCashFlow = fcfFromMetrics(yCur);  // канон CFO−CapEx (бэкенд-дериват)
     const ebitda = arr(yCur.ebitda);
     const ebitdaPct = (revenue && ebitda && revenue !== 0) ? (ebitda / revenue) * 100 : null;
     const prevRev = arr(yPrev.revenue);
@@ -488,7 +494,9 @@ const tableRows = computed<CompanyRow[]>(() => {
       trend5y.push(rv);
       breakdown.push({ year: yr, revenue: rv, profit: arr(yd.profit) });
     }
-    const hasData = revenue !== null || profit !== null || ebitda !== null;
+    // freeCashFlow в гейте: компания только с ДДС (cfo есть, P&L пуст) вносит
+    // FCF в хедер-тотал → должна быть и строкой, иначе Σ строк ≠ хедер FCF-дрилла.
+    const hasData = revenue !== null || profit !== null || ebitda !== null || freeCashFlow !== null;
     if (!hasData) continue;
     rows.push({
       idx: 0,
@@ -499,7 +507,7 @@ const tableRows = computed<CompanyRow[]>(() => {
         it.company_name_short || it.company_name || it.company_code,
       ) || it.company_code,
       sector: canonSector(it.sector_code),
-      revenue, profit, assets, debt, cfo, cfi, ebitda, ebitdaPct, yoy, trend5y, breakdown, hasData,
+      revenue, profit, assets, debt, cfo, cfi, freeCashFlow, ebitda, ebitdaPct, yoy, trend5y, breakdown, hasData,
     });
   }
   // sort
@@ -918,7 +926,7 @@ onBeforeUnmount(() => {
           <div class="ed-fin-kpi-bar"></div>
           <div class="ed-fin-kpi-lbl">Free Cash Flow</div>
           <div class="ed-fin-kpi-val" :class="extKpis.freeCashFlow >= 0 ? 'p' : 'n'">{{ fmtNum(tFcf) }}<span>{{ t(unitLabel) }} {{ t(currencyLabel) }}</span></div>
-          <div class="ed-fin-kpi-d">CFO + CFI<span v-if="extKpis.roe != null"> · ROE <strong>{{ fmtPct(tRoe, 0) }}</strong></span></div>
+          <div class="ed-fin-kpi-d">CFO − CapEx<span v-if="extKpis.roe != null"> · ROE <strong>{{ fmtPct(tRoe, 0) }}</strong></span></div>
         </div>
         <!-- Дебиторская / Кредиторская — только НСБУ (под МСФО это tradeReceivables, остатков нет) -->
         <div v-if="fin.standard.value === 'NSBU'" class="ed-fin-kpi-card" data-accent="violet" style="--d: 480ms;">

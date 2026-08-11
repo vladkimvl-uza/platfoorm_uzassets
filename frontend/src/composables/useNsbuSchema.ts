@@ -1,5 +1,6 @@
 import { i18nKey } from "@/locale/keys";
 import { t } from "@/locale/i18n";
+import { deriveEbitda } from "@/utils/financeMetrics";
 
 /**
  * useNsbuSchema.ts — Pack 7.51
@@ -117,13 +118,7 @@ export const AUTO_FORMULAS: Record<string, AutoFormulaDef> = {
   },
   ebitda: {
     expr: i18nKey("opProfit + |depreciation| (или profit + |tax| + |dep| + |finCost|)"),
-    fn: (g) => {
-      const op = g("opProfit"), dp = g("depreciation");
-      if (op != null && dp != null) return op + Math.abs(dp);
-      const pr = g("profit"), tx = g("tax"), fc = g("finCost");
-      if (pr != null) return pr + Math.abs(tx || 0) + Math.abs(dp || 0) + Math.abs(fc || 0);
-      return null;
-    },
+    fn: (g) => deriveEbitda(g),
   },
   totalAssets: {
     expr: "totalNCA + totalCA",

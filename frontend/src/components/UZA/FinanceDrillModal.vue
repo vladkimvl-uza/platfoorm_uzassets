@@ -25,6 +25,7 @@ import { useRouter } from "vue-router";
 import { useFormatters } from "@/composables/useFormatters";
 import { useI18n } from "@/composables/useI18n";
 import { i18nKey } from "@/locale/keys";
+import { fcfFromMetrics } from "@/utils/financeMetrics";
 
 const { t: tr } = useI18n();
 
@@ -68,6 +69,7 @@ export interface FinCompanyRow {
   debt: number | null;
   cfo: number | null;
   cfi: number | null;
+  freeCashFlow?: number | null;  // канон FCF = CFO − |CapEx| (бэкенд-дериват); родитель прокидывает
   ebitda: number | null;
   yoy: number | null;
 }
@@ -151,14 +153,14 @@ const KPI_META: Record<FinKpiKind, KpiMeta> = {
     label: "Free Cash Flow",
     color: "#1D9E75",
     valueGetter: (k) => k.freeCashFlow,
-    rowField: (r) => {
-      // FCF ≈ CFO + CFI; null only когда оба отсутствуют
-      if (r.cfo == null && r.cfi == null) return null;
-      return (r.cfo ?? 0) + (r.cfi ?? 0);
-    },
+    // Канон FCF = CFO − |CapEx| (решение владельца), НЕ CFO+CFI. Читаем
+    // per-company freeCashFlow (бэкенд деривит cfo−|cfi_capex|, родитель прокидывает
+    // его в строку) — тогда сумма строк сходится с хедер-тоталом. fcfFromMetrics
+    // вернёт null, когда нет ни freeCashFlow, ни CFO.
+    rowField: (r) => fcfFromMetrics(r),
     badgeGetter: (k) => k.roe != null
-      ? { text: "CFO + CFI · ROE " + fmtPct(k.roe, 0), tone: k.freeCashFlow >= 0 ? "good" : "bad" }
-      : { text: "CFO + CFI", tone: k.freeCashFlow >= 0 ? "good" : "bad" },
+      ? { text: "CFO − CapEx · ROE " + fmtPct(k.roe, 0), tone: k.freeCashFlow >= 0 ? "good" : "bad" }
+      : { text: "CFO − CapEx", tone: k.freeCashFlow >= 0 ? "good" : "bad" },
   },
 };
 

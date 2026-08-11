@@ -366,6 +366,19 @@ class FinancialsPortfolioService:
         items = list(by_co.values())
         items.sort(key=lambda x: x["company_code"] or "")
 
+        # ─── Канон FCF = CFO − |CapEx| (решение владельца 10.08.2026) ──────
+        # Раньше портфельные экраны считали «Free Cash Flow» инлайном как CFO+CFI
+        # (весь инвестиционный поток), а per-company дрилл — CFO−CapEx → на одном и
+        # том же годе два разных числа. Канонизируем ЗДЕСЬ, до тоталов: где нет
+        # сохранённой строки freeCashFlow, но есть cfo — деривим cfo−|cfi_capex|.
+        # Экраны читают готовый freeCashFlow, а не пересобирают cfo+cfi.
+        for it in items:
+            for _y, _m in it["by_year"].items():
+                if _m.get("freeCashFlow") is None and _m.get("cfo") is not None:
+                    _m["freeCashFlow"] = (
+                        float(_m["cfo"]) - abs(float(_m.get("cfi_capex") or 0.0))
+                    )
+
         total_companies = await repo.count_companies(
             allowed_company_ids=allowed_set,
         )

@@ -28,6 +28,7 @@ import { useCompanyScope } from "@/composables/useCompanyScope";
 import { i18nKey } from "@/locale/keys";
 import { useAiFeatureAccess } from "@/composables/useAiFeatureAccess";
 import { companyDisplayName } from "@/utils/displayNames";
+import { deriveEbitda, deriveFcf } from "@/utils/financeMetrics";
 
 
 const toast = useToast();
@@ -1100,6 +1101,23 @@ function buildKpis(years: number[], rows: HlfRow[]): KpiVal[] {
   };
   const computeMetric = (fn: (yi: number) => number | null): (number | null)[] => years.map((_, yi) => fn(yi));
 
+  // Геттер по КАНОН-кодам (financeMetrics) поверх HLF-блоба: маппит коды формул
+  // deriveEbitda/deriveFcf на label-matched строки блоба. tax отдельной строки в
+  // HLF нет → null (в фолбэке EBITDA трактуется как 0).
+  const CANON_TO_HLF: Record<string, string> = {
+    opProfit: "operating_profit",
+    depreciation: "depreciation",
+    profit: "net_profit",
+    tax: "tax",
+    finCost: "finance_costs",
+    cfo: "operating_cf",
+    cfi_capex: "capex",
+  };
+  const canonGetter = (yi: number) => (code: string): number | null => {
+    const k = CANON_TO_HLF[code];
+    return k ? get(k, yi) : null;
+  };
+
   return [
     {
       label: "Gross margin", key: "gm", unit: "%",
@@ -1111,9 +1129,10 @@ function buildKpis(years: number[], rows: HlfRow[]): KpiVal[] {
     {
       label: "EBITDA margin", key: "ebitda_m", unit: "%",
       values: computeMetric(yi => {
-        const r = get("revenue", yi), op = get("operating_profit", yi), d = get("depreciation", yi);
-        if (r == null || r <= 0 || op == null) return null;
-        return ((op + (d == null ? 0 : Math.abs(d))) / r) * 100;
+        const r = get("revenue", yi);
+        if (r == null || r <= 0) return null;
+        const ebitda = deriveEbitda(canonGetter(yi));
+        return ebitda == null ? null : (ebitda / r) * 100;
       }),
     },
     {
@@ -1141,10 +1160,9 @@ function buildKpis(years: number[], rows: HlfRow[]): KpiVal[] {
       label: "Debt / EBITDA", key: "de", unit: "x",
       values: computeMetric(yi => {
         const debt = totalDebtIn(rows, years[yi]);
-        const op = get("operating_profit", yi), d = get("depreciation", yi);
-        if (debt == null || op == null) return null;
-        const ebitda = op + (d == null ? 0 : Math.abs(d));
-        return ebitda > 0 ? debt / ebitda : null;
+        if (debt == null) return null;
+        const ebitda = deriveEbitda(canonGetter(yi));
+        return (ebitda != null && ebitda > 0) ? debt / ebitda : null;
       }),
     },
     {
@@ -1163,11 +1181,7 @@ function buildKpis(years: number[], rows: HlfRow[]): KpiVal[] {
     },
     {
       label: "FCF", key: "fcf", unit: "money",
-      values: computeMetric(yi => {
-        const cfo = get("operating_cf", yi), cx = get("capex", yi);
-        if (cfo == null) return null;
-        return cfo - (cx == null ? 0 : Math.abs(cx));
-      }),
+      values: computeMetric(yi => deriveFcf(canonGetter(yi))),
     },
     {
       label: "CapEx / Revenue", key: "capex_rev", unit: "%",

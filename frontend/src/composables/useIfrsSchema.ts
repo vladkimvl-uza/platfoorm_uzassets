@@ -1,5 +1,6 @@
 import { i18nKey } from "@/locale/keys";
 import { t } from "@/locale/i18n";
+import { deriveEbitda, deriveFcf } from "@/utils/financeMetrics";
 
 /**
  * useIfrsSchema — IFRS-editor schema (Pack 7.60).
@@ -113,13 +114,7 @@ export const AUTO_FORMULAS: Record<string, AutoFormulaDef> = {
   },
   ebitda: {
     expr: "opProfit + |depreciation|",
-    fn: (g) => {
-      const op = g("opProfit"), dp = g("depreciation");
-      if (op != null && dp != null) return op + Math.abs(dp);
-      const pr = g("profit"), tx = g("tax"), fc = g("finCost");
-      if (pr != null) return pr + Math.abs(tx || 0) + Math.abs(dp || 0) + Math.abs(fc || 0);
-      return null;
-    },
+    fn: (g) => deriveEbitda(g),
   },
   // IFRS-specific
   total_comprehensive_income: {
@@ -195,11 +190,7 @@ export const AUTO_FORMULAS: Record<string, AutoFormulaDef> = {
   },
   freeCashFlow: {
     expr: "cfo − |cfi_capex|",
-    fn: (g) => {
-      const o = g("cfo"), cx = g("cfi_capex");
-      if (o == null) return null;
-      return o - Math.abs(cx || 0);
-    },
+    fn: (g) => deriveFcf(g),
   },
 };
 
