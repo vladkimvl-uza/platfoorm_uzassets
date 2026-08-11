@@ -1329,7 +1329,7 @@ async function onDeletePermanent() {
                 <span class="rv3-dr-mod-lbl">
                   <span class="rv3-dr-mod-name">{{ t('External (внешний пользователь)') }}</span>
                   <span class="rv3-dr-mod-hint">
-                    {{ t('Включает сопоставление по правилам с {flag}.', { flag: 'trigger_is_external=true' }) }}
+                    {{ t('Внешний автор: его правки в Задачах и Проектах идут на согласование модератору. Остальные модули он редактирует напрямую — подотчётность обеспечивает журнал изменений.') }}
                   </span>
                 </span>
                 <label class="rv3-dr-mod-switch">
@@ -1347,7 +1347,7 @@ async function onDeletePermanent() {
                 <span class="rv3-dr-mod-lbl">
                   <span class="rv3-dr-mod-name">{{ t('Bypass moderation (обход)') }}</span>
                   <span class="rv3-dr-mod-hint">
-                    {{ t('Запись идёт напрямую, даже если правило совпало.') }}
+                    {{ t('Снимает согласование с пользователя полностью — правки в Задачах и Проектах тоже пишутся напрямую.') }}
                   </span>
                 </span>
                 <label class="rv3-dr-mod-switch">

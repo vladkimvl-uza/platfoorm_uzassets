@@ -137,12 +137,16 @@ async function sendReply() {
   }
 }
 
-/** Открыть саму запись, которой касается заявка (если это задача/проект). */
+/** Переход к записи умеем только для задач/проектов (единственные модерируемые
+ *  модули). У исторических заявок старых модулей записи здесь не открываем. */
+function canOpenTarget(s: Submission | null): boolean {
+  return !!(s && s.target_entity_id && (s.target_module === "tasks" || s.target_module === "projects"));
+}
+
+/** Открыть саму запись, которой касается заявка (задача/проект). */
 function openTarget(s: Submission) {
-  const id = s.target_entity_id;
-  if (!id) return;
-  const kind = s.target_module === "projects" ? "projects" : "tasks";
-  if (!entityEditor.openFromLink(`/${kind}/${id}`)) return;
+  if (!canOpenTarget(s)) return;
+  if (!entityEditor.openFromLink(`/${s.target_module}/${s.target_entity_id}`)) return;
   closeDetail();
 }
 
@@ -284,7 +288,7 @@ function proposedLines(s: Submission): { k: string; v: string }[] {
 
       <template #footer>
         <button
-          v-if="detail && detail.target_entity_id"
+          v-if="canOpenTarget(detail)"
           class="msd-btn-ghost"
           @click="openTarget(detail)"
         >

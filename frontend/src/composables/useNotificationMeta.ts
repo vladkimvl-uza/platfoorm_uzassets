@@ -289,14 +289,17 @@ export function describeNotification(n: NotifEntity): NotifDescriptor {
     return { verb: translateUi("Ждёт согласования"), accent: C.amber, icon: "moderation",
              entity: entity || titleEntity(n.title) || n.title || undefined, detail: bodyDetail() };
   }
-  // — Модерация: решение —
-  if (t === "approved") {
+  // — Модерация: решение автору. Бэкенд шлёт типы С префиксом
+  //   (moderation.approved/rejected/review_requested), поэтому матчим обе формы —
+  //   иначе ветка мертва и автор видит серый фолбэк «Уведомление» вместо
+  //   зелёного «Согласовал» / красного «Отклонил» (и в колокольчике, и в тосте).
+  if (t === "approved" || t === "moderation.approved") {
     return { verb: translateUi("Согласовал"), accent: C.green, icon: "result", entity: entity || titleEntity(n.title) || n.title || undefined, detail: bodyDetail() };
   }
-  if (t === "rejected") {
+  if (t === "rejected" || t === "moderation.rejected") {
     return { verb: translateUi("Отклонил"), accent: C.red, icon: "moderation", entity: entity || titleEntity(n.title) || n.title || undefined, detail: bodyDetail() };
   }
-  if (t === "review_requested") {
+  if (t === "review_requested" || t === "moderation.review_requested") {
     return { verb: translateUi("Вернул на доработку"), accent: C.amber, icon: "moderation", entity: entity || titleEntity(n.title) || n.title || undefined, detail: bodyDetail() };
   }
   // — Дедлайны (шедулер) —

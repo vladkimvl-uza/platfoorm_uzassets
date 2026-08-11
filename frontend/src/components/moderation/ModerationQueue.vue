@@ -12,9 +12,9 @@ import { useI18n } from "@/composables/useI18n";
 const { t } = useI18n();
 
 
-/** Модули, которые проходят модерацию (зеркалит MODERATED_MODULES на бэке).
- *  В строках очереди показывался сырой код («business_plan»), а фильтр по
- *  модулю существовал в коде, но контрола для него в интерфейсе не было. */
+/** Карта ПОДПИСЕЙ модулей (для строк очереди и исторических заявок старых
+ *  модулей). Набор фактически модерируемых модулей теперь берётся с бэкенда
+ *  (policy.moderatable_all = только tasks/projects) — см. moderatableCodes. */
 const MODULES: { code: string; label: string }[] = [
   { code: "tasks", label: "Задачи" },
   { code: "projects", label: "Проекты" },
@@ -59,6 +59,10 @@ const totalPages = computed(() => Math.max(1, Math.ceil(total.value / perPage)))
 
 const openId = ref<string | null>(props.openSubmissionId);
 
+// Фактически модерируемые модули — с бэкенда (LOCKED_MODERATABLE = tasks/projects),
+// а не хардкод: иначе фильтр предлагал бы 13 модулей, где очередь всегда пуста.
+const moderatableCodes = ref<string[]>(["tasks", "projects"]);
+
 async function load() {
   loading.value = true;
   loadError.value = null;
@@ -80,7 +84,20 @@ async function load() {
 
 onMounted(async () => {
   await Promise.all([load(), dir.ensureLoaded()]);
+  // Набор модерируемых модулей для фильтра — из политики (tasks/projects).
+  try {
+    const p = await moderationApi.getPolicy();
+    if (Array.isArray(p?.moderatable_all) && p.moderatable_all.length) {
+      moderatableCodes.value = p.moderatable_all;
+    }
+  } catch { /* оставляем дефолт tasks/projects */ }
 });
+
+/** Ручное обновление очереди + метрик (живого WS/поллинга у очереди нет). */
+async function refresh() {
+  await load();
+  emit("change");
+}
 watch([filterStatuses, filterModule], () => { page.value = 1; void load(); }, { deep: true });
 watch(page, load);
 watch(() => props.openSubmissionId, (v) => { if (v) openId.value = v; });
@@ -118,9 +135,12 @@ async function onResolved() {
       <span class="mq-sep"></span>
       <select v-model="filterModule" class="mq-select" :title="t('Фильтр по модулю')">
         <option value="">{{ t('все модули') }}</option>
-        <option v-for="m in MODULES" :key="m.code" :value="m.code">{{ t(m.label) }}</option>
+        <option v-for="code in moderatableCodes" :key="code" :value="code">{{ moduleRu(code) }}</option>
       </select>
       <button v-if="filterStatuses.length || filterModule" class="mq-clear" @click="clearFilters">{{ t('сбросить') }}</button>
+      <button class="mq-refresh" :disabled="loading" :title="t('Обновить очередь')" @click="refresh">
+        <BIcon name="refresh" :size="14" />
+      </button>
     </div>
 
     <div v-if="loadError" class="mq-error">{{ loadError }}</div>
@@ -135,7 +155,8 @@ async function onResolved() {
     </div>
 
     <div v-else class="mq-list">
-      <div v-for="s in items" :key="s.id" class="mq-row" :class="`status-${s.status}`" @click="open(s.id)">
+      <div v-for="s in items" :key="s.id" class="mq-row" :class="`status-${s.status}`"
+           role="button" tabindex="0" @click="open(s.id)" @keydown.enter.prevent="open(s.id)" @keydown.space.prevent="open(s.id)">
         <span class="mq-status-pill" :style="{ background: STATUS_LABELS[s.status].bg, color: STATUS_LABELS[s.status].color }">
           {{ t(STATUS_LABELS[s.status].label) }}
         </span>
@@ -294,6 +315,17 @@ async function onResolved() {
   border-radius: 8px; padding: 5px 9px; cursor: pointer;
 }
 .mq-clear-inline { margin-left: 8px; }
+.mq-refresh {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; margin-left: auto; padding: 0;
+  background: var(--color-background-primary, #fff);
+  border: 0.5px solid var(--color-border-tertiary, #E5E7EB);
+  border-radius: 8px; color: var(--t2, #4B5468); cursor: pointer;
+  transition: background .12s, color .12s;
+}
+.mq-refresh:hover:not(:disabled) { background: color-mix(in srgb, var(--p-deep, #534AB7) 8%, transparent); color: var(--p-deep, #534AB7); }
+.mq-refresh:disabled { opacity: .5; cursor: default; }
+.mq-row:focus-visible { outline: 2px solid var(--p-deep, #534AB7); outline-offset: -2px; }
 .mq-pager {
   display: flex; align-items: center; justify-content: center; gap: 12px;
   padding: 8px 0 2px;

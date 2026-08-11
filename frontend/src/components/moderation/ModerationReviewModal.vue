@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import BIcon from "@/components/broadcasts/BIcon.vue";
 import {
   moderationApi, formatRelativeTime, STATUS_LABELS,
@@ -20,6 +20,11 @@ const { confirmDialog } = useConfirm();
 
 const props = defineProps<{ submissionId: string }>();
 const emit = defineEmits<{ close: []; resolved: [] }>();
+
+// Esc закрывает карточку заявки (модалка кастомная, глобального Esc не наследует).
+function onKeydown(e: KeyboardEvent) { if (e.key === "Escape") emit("close"); }
+onMounted(() => window.addEventListener("keydown", onKeydown));
+onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 
 const auth = useAuthStore();
 const dir = useUserDirectory();
@@ -42,6 +47,7 @@ const acting = ref(false);
 const error = ref<string | null>(null);
 const newComment = ref("");
 const internalToggle = ref(false);
+const commentPosting = ref(false);
 
 // C1: inline resolution panel — replaces window.prompt for reject.
 // Решение модератора — только «принять» или «отклонить с комментарием»
@@ -102,11 +108,12 @@ function cancelResolvePanel() {
 
 async function submitResolve() {
   if (!sub.value || !resolveMode.value) return;
+  const mode = resolveMode.value;
   acting.value = true;
   try {
-    if (resolveMode.value === "approve") {
+    if (mode === "approve") {
       await moderationApi.approve(sub.value.id, resolveNote.value || undefined);
-    } else if (resolveMode.value === "reject") {
+    } else if (mode === "reject") {
       if (!resolveNote.value.trim()) {
         toast.error(t('Укажите причину отклонения'));
         acting.value = false;
@@ -115,6 +122,9 @@ async function submitResolve() {
       await moderationApi.reject(sub.value.id, resolveNote.value);
     }
     resolveMode.value = null;
+    // Явное подтверждение исхода (канон «feedback everywhere»): действие
+    // применяет чужую правку к данным — молчаливое закрытие недостаточно.
+    toast.success(mode === "approve" ? t('Заявка одобрена') : t('Заявка отклонена'));
     emit("resolved");
   } catch (e: any) {
     // Тост, а не баннер: карточка заявки длинная, баннер вверху модератор,
@@ -176,12 +186,16 @@ function applyPillLabel(s: string | null): string {
 
 async function postComment() {
   const text = newComment.value.trim();
-  if (!sub.value || !text) return;
+  // Гард от повторной отправки: комментарий висит и на @keyup.enter, и на клике —
+  // быстрый двойной Enter иначе создаёт дубль. В полёте — игнорируем.
+  if (!sub.value || !text || commentPosting.value) return;
+  commentPosting.value = true;
   try {
     const c = await moderationApi.addComment(sub.value.id, text, { is_internal: internalToggle.value });
     comments.value.push(c);
     newComment.value = "";
   } catch (e: any) { toast.error(e?.response?.data?.detail || e?.message || t('Действие не выполнено')); }
+  finally { commentPosting.value = false; }
 }
 
 function onBackdropClick(e: MouseEvent) {
@@ -250,7 +264,7 @@ const visibleEntries = computed(() =>
 
 <template>
   <div class="mrm-backdrop" @click="onBackdropClick">
-    <div class="mrm-card">
+    <div class="mrm-card" role="dialog" aria-modal="true" :aria-label="t('Карточка заявки на модерацию')">
 
       <div v-if="loading" class="mrm-loading">{{ t('Загрузка…') }}</div>
 
@@ -270,7 +284,7 @@ const visibleEntries = computed(() =>
               <div class="mrm-title">{{ sub.target_entity_label || moduleRu(sub.target_module) }}</div>
             </div>
           </div>
-          <button class="mrm-close" @click="emit('close')">
+          <button class="mrm-close" :aria-label="t('Закрыть')" @click="emit('close')">
             <BIcon name="x" :size="14" />
           </button>
         </div>
