@@ -29,6 +29,7 @@ _SYSTEM_FOLDER = {
     "project": "tasks",
     "library": "general",
     "financials": "financials",
+    "esg": "esg",
 }
 
 

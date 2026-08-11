@@ -300,6 +300,9 @@ class ESGMaturityCompany(BaseModel):
     ratings: list[ESGRatingMini] = Field(default_factory=list)   # сами ESG-рейтинги (агентство/значение/ссылка)
     not_needed: bool = False                                  # «не нуждается» → исключена из метрик/статистики
     dim_not_required: list[str] = Field(default_factory=list)    # измерения «не требуется» (D1..D5)
+    # Кол-во загруженных документов по этапам ESG: {"D4:2": 3, "D1:iso14001": 1, …}
+    # entity_id = "<dim>:<stageIdx>" (climate D4:1..4 / risk D5:1..3 / ISO D1:iso*).
+    stage_doc_counts: dict[str, int] = Field(default_factory=dict)
 
 
 class ESGMaturityBaskets(BaseModel):

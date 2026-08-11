@@ -64,6 +64,10 @@ _ENTITY_SOURCE: dict[str, str] = {
     "project": "project",
     "financial_report": "financials",
     "company": "library",
+    # Документы этапа ESG-зрелости (климат/риски/ISO). Источник esg → право
+    # esg.edit + системная папка «ESG». entity_id = "<dim>:<stageIdx>" (D4:1..4 /
+    # D5:1..3 / D1:iso14001|iso45001|iso50001), без года (этапы программные).
+    "esg_stage": "esg",
 }
 _MAX_UPLOAD_BYTES = 64 * 1024 * 1024      # 64 МБ на файл
 _SAFE_NAME = re.compile(r"[\\/\x00-\x1f]")
@@ -535,7 +539,9 @@ async def upload_document(
             target_folder = None
     if target_folder is None:
         sys_key = "tasks" if source in ("task", "project") else (
-            "financials" if source == "financials" else "general"
+            "financials" if source == "financials" else (
+                "esg" if source == "esg" else "general"
+            )
         )
         target_folder = (await db.execute(
             select(DocumentFolder.id).where(

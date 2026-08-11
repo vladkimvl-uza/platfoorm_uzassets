@@ -265,6 +265,10 @@ export interface ESGMaturityCompany {
   ratings: ESGRatingMini[];            // сами ESG-рейтинги (агентство/значение/ссылка)
   not_needed?: boolean;                // «не нуждается» → исключена из метрик/статистики
   dim_not_required?: string[];         // измерения «не требуется» (D1..D5)
+  // Кол-во документов по этапам ESG: {"D4:2":3, "D1:iso14001":1, …}. Ключ =
+  // "<dim>:<stageIdx>" (climate D4:1..4 / risk D5:1..3 / ISO D1:iso*). Файлы —
+  // в библиотеке «Документы» компании (тег entity_type='esg_stage').
+  stage_doc_counts?: Record<string, number>;
 }
 export interface ESGMaturityHeatmap {
   year: number;

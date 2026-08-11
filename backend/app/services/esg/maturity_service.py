@@ -16,7 +16,7 @@ from typing import Optional
 from uuid import UUID
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -210,6 +210,29 @@ class ESGMaturityService:
                     outlook=ar.outlook, report_url=ar.report_url, prev=prev,
                 ))
 
+        # Счётчики документов по этапам ESG (entity_type='esg_stage', entity_id=
+        # "<dim>:<stageIdx>") одним GROUP BY — для бейджей «есть документы» на
+        # степперах матрицы/профиле без N-запросов. Файлы живут в библиотеке
+        # «Документы» (Document + DocumentLink), этап — тег привязки.
+        doc_counts_by_co: dict[UUID, dict[str, int]] = {}
+        if co_ids:
+            from app.models.document import Document, DocumentLink
+            try:
+                dq = await db.execute(
+                    select(Document.company_id, DocumentLink.entity_id, func.count())
+                    .join(DocumentLink, DocumentLink.document_id == Document.id)
+                    .where(
+                        DocumentLink.entity_type == "esg_stage",
+                        Document.company_id.in_(co_ids),
+                        Document.is_deleted.is_(False),
+                    )
+                    .group_by(Document.company_id, DocumentLink.entity_id)
+                )
+                for cid, eid, cnt in dq.all():
+                    doc_counts_by_co.setdefault(cid, {})[eid] = int(cnt)
+            except Exception:
+                doc_counts_by_co = {}
+
         out_companies: list[ESGMaturityCompany] = []
         ems_list: list[float] = []
         climate_funnel = [0, 0, 0, 0]   # passed stage>=1..4
@@ -285,6 +308,7 @@ class ESGMaturityService:
                 ratings=ratings_by_co.get(co.id, []),
                 not_needed=not_needed,
                 dim_not_required=sorted(dim_nr),
+                stage_doc_counts=doc_counts_by_co.get(co.id, {}),
             ))
 
             # «Не нуждается» → компания не участвует ни в одной агрегированной метрике.

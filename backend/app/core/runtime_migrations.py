@@ -2032,6 +2032,7 @@ async def _patch_documents_library(conn) -> None:
         ("tasks", "Задачи и проекты"),
         ("financials", "Финансовая отчётность"),
         ("general", "Общие документы"),
+        ("esg", "ESG и устойчивое развитие"),
     ):
         await conn.execute(
             text("""

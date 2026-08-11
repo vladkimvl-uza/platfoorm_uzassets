@@ -10,6 +10,7 @@ import { esgApi, type ESGMaturityHeatmap } from "@/api/esg";
 import { ratingsApi, type AgencyRatingBrief, type AgencyRatingHistoryItem } from "@/api/ratings";
 import ESGReportsTable from "@/components/ESG/ESGReportsTable.vue";
 import ESGMaturityMatrix from "@/components/ESG/ESGMaturityMatrix.vue";
+import EsgStageDocsPanel from "@/components/ESG/EsgStageDocsPanel.vue";
 import UzaStateBlock from "@/components/UZA/UzaStateBlock.vue";
 import { useI18n } from "@/composables/useI18n";
 import { getCurrentIntlLocale } from "@/locale/i18n";
@@ -45,6 +46,13 @@ async function loadMaturity() {
 }
 watch(() => [props.companyId, props.year], loadMaturity, { immediate: true });
 
+// Тихий рефреш после загрузки/удаления документа этапа: обновляем счётчики,
+// НЕ показывая скелетон (иначе панель этапов разрушится и потеряет раскрытый
+// этап/список файлов). Сама панель уже обновила свои бейджи оптимистично.
+async function refreshCounts() {
+  try { heatmap.value = await esgApi.getMaturityHeatmap(props.year); } catch { /* держим прежние */ }
+}
+
 // Срез матрицы зрелости по ОДНОЙ компании — та же редактируемая матрица, что в
 // /esg (ISO / отчётность / заверение / рейтинг / климат / риски), но одна строка.
 const singleHeatmap = computed<ESGMaturityHeatmap | null>(() => {
@@ -54,6 +62,12 @@ const singleHeatmap = computed<ESGMaturityHeatmap | null>(() => {
   return { ...hm, companies: row ? [row] : [] };
 });
 const hasRow = computed(() => (singleHeatmap.value?.companies.length || 0) > 0);
+
+// Счётчики документов по этапам ESG для панели загрузки (из строки своей компании).
+const stageDocCounts = computed<Record<string, number>>(() => {
+  const row = (heatmap.value?.companies || []).find(c => c.company_id === props.companyId);
+  return row?.stage_doc_counts || {};
+});
 
 // ─── Динамика ESG-рейтингов (read-only, как в ESGMaturityProfileModal) ───
 const ratings = ref<AgencyRatingBrief[]>([]);
@@ -105,6 +119,12 @@ function histDate(iso: string): string {
         </div>
       </div>
       <UzaStateBlock v-else state="empty" variant="inline" :text="t('Матрица зрелости за {value0} год не заполнена', { value0: year })" />
+
+      <!-- Документы по этапам ESG (климат / риски / ISO) → раздел «Документы» -->
+      <div class="mpp-docs">
+        <EsgStageDocsPanel :company-code="companyCode" :stage-doc-counts="stageDocCounts"
+                           :can-edit="canEdit" @changed="refreshCounts" />
+      </div>
 
       <!-- Динамика рейтингов -->
       <div class="mpp-rh">
