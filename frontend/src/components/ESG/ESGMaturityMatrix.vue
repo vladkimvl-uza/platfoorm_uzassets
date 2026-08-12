@@ -252,12 +252,12 @@ function clickStep(c: ESGMaturityCompany, dim: string, i: number) {
   setPending(c, dim, "", cur === i + 1 ? i : i + 1);
 }
 function cycleRep(c: ESGMaturityCompany) {
-  // клик по пилюле циклит статусы 0..3 (нет→разовый→регулярный→IFRS SDS),
-  // затем «не требуется», затем обратно к статусу
-  if (dStage(c, "nr", "D2") >= 1) { setPending(c, "nr", "D2", 0); return; }   // не требуется → вернуть статус
+  // Клик по пилюле циклит статусы ЗАМКНУТО: нет→разовый→регулярный→IFRS SDS→нет.
+  // «Не требуется» вынесено в отдельную кнопку н/т (иначе из IFRS SDS нельзя
+  // было вернуться к «нет» — цикл упирался в «не требуется»↔стадию).
+  if (dStage(c, "nr", "D2") >= 1) { setPending(c, "nr", "D2", 0); return; }   // не требуется → снять
   const s = repStage(c);
-  if (s >= 3) { setPending(c, "nr", "D2", 1); return; }                       // после «IFRS SDS» → не требуется
-  setPending(c, "D2", "", s + 1);
+  setPending(c, "D2", "", s >= 3 ? 0 : s + 1);
 }
 // D2A «Прохождение независимого заверения»: клик циклит нет→запланировано→в процессе→пройдено→нет
 function cycleAssur(c: ESGMaturityCompany) {
@@ -406,7 +406,7 @@ async function commitLink(c: ESGMaturityCompany) {
                 <button type="button" class="mm-pill" :class="{ ed: canEdit, pend: isPending(c,'D2','') || isPending(c,'nr','D2'), nr: isDimNr(c,'D2') }"
                         :style="isDimNr(c,'D2') ? {} : { color: REP_COLORS[repStage(c)], background: REP_COLORS[repStage(c)] + '1E' }"
                         :disabled="!canEdit"
-                        :title="isDimNr(c,'D2') ? t('Подготовка отчётности: не требуется · клик → вернуть статус') : t('Подготовка ESG-отчётности: {value0} · клик циклит, после «IFRS SDS» → не требуется', { value0: t(REP_LABELS[repStage(c)]) })"
+                        :title="isDimNr(c,'D2') ? t('Подготовка отчётности: не требуется · клик → вернуть статус') : t('Подготовка ESG-отчётности: {value0} · клик циклит статусы (нет → разовый → регулярный → IFRS SDS)', { value0: t(REP_LABELS[repStage(c)]) })"
                         @click="cycleRep(c)">
                   {{ isDimNr(c,'D2') ? t('не требуется') : t(REP_LABELS[repStage(c)]) }}
                 </button>
@@ -419,6 +419,8 @@ async function commitLink(c: ESGMaturityCompany) {
                     {{ cellEvidence(c,'D2') ? '✎' : '+' }}
                   </button>
                 </template>
+                <button v-if="canEdit" type="button" class="mm-nr-tg" :class="{ on: isDimNr(c,'D2') }"
+                        @click.stop="toggleDimNr(c,'D2')" :title="isDimNr(c,'D2') ? t('Вернуть отчётность в статистику') : t('Не требуется — исключить отчётность из статистики')">{{ t('н/т') }}</button>
               </div>
               <input v-if="isLinkEdit(c) && !isDimNr(c,'D2')" :ref="focusEl" v-model="linkDraft" type="url" class="mm-rep-inp"
                      :placeholder="t('https://… ссылка на отчёт')" @click.stop

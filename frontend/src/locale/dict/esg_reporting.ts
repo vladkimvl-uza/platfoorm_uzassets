@@ -6,6 +6,9 @@ export const uz: Record<string, string> = {
   "ESG-отчётность 2025": "ESG-hisobot 2025",
   "разовый · регулярный · IFRS SDS": "bir martalik · muntazam · IFRS SDS",
   "разовый · регулярный · IFRS SDS · по компаниям": "bir martalik · muntazam · IFRS SDS · kompaniyalar bo'yicha",
+  "Вернуть отчётность в статистику": "Hisobotni statistikaga qaytarish",
+  "Не требуется — исключить отчётность из статистики": "Talab qilinmaydi — hisobotni statistikadan chiqarish",
+  "Подготовка ESG-отчётности: {value0} · клик циклит статусы (нет → разовый → регулярный → IFRS SDS)": "ESG-hisobot tayyorlash: {value0} · bosish statuslarni aylantiradi (yo'q → bir martalik → muntazam → IFRS SDS)",
 };
 
 export const en: Record<string, string> = {
@@ -13,4 +16,7 @@ export const en: Record<string, string> = {
   "ESG-отчётность 2025": "ESG reporting 2025",
   "разовый · регулярный · IFRS SDS": "one-time · regular · IFRS SDS",
   "разовый · регулярный · IFRS SDS · по компаниям": "one-time · regular · IFRS SDS · by company",
+  "Вернуть отчётность в статистику": "Return reporting to statistics",
+  "Не требуется — исключить отчётность из статистики": "Not required — exclude reporting from statistics",
+  "Подготовка ESG-отчётности: {value0} · клик циклит статусы (нет → разовый → регулярный → IFRS SDS)": "ESG reporting preparation: {value0} · click cycles statuses (none → one-time → regular → IFRS SDS)",
 };
