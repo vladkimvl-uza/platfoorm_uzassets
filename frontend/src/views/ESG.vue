@@ -229,6 +229,9 @@ const matAlerts = computed<MatAlert[]>(() => {
   push("rt", t("без независимого рейтинга"),
     t("Нет ни одного независимого ESG-рейтинга (Sustainable Fitch / S&P ESG / CDP). Рекомендуется инициировать присвоение."),
     "#D97706", (c) => !nr(c, "D3") && (c.rating_count || 0) === 0);
+  push("docs", t("нет подтверждающих документов"),
+    t("Не загружено ни одного документа по этапам ESG (климат / риски / ISO) — заявленная зрелость не подкреплена доказательствами."),
+    "#7C6FF7", (c) => !Object.values((c.stage_doc_counts || {}) as Record<string, number>).some((v) => (v || 0) > 0));
   return out;
 });
 const matProfile = ref<ESGMaturityCompany | null>(null);
