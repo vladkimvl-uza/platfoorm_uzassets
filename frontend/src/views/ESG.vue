@@ -245,6 +245,9 @@ const ISO_STAGE_LBL = [i18nKey("нет"), i18nKey("в процессе"), i18nKe
 const REP_STAGE_LBL = [i18nKey("нет"), i18nKey("разовый"), i18nKey("регулярный"), "IFRS SDS"];
 // Кол-во компаний с ESG-отчётностью уровня IFRS SDS и выше (D2 ≥ 3).
 const ifrsSdsCount = computed(() => (heatmap.value?.companies || []).filter((c) => !c.not_needed && !(c.dim_not_required || []).includes("D2") && (c.dim_stage?.D2 ?? 0) >= 3).length);
+// Стадии ESG-отчётности: разовый (D2=1) и регулярный (D2=2) — промежуточные до IFRS SDS.
+const repOneTime = computed(() => (heatmap.value?.companies || []).filter((c) => !c.not_needed && !(c.dim_not_required || []).includes("D2") && (c.dim_stage?.D2 ?? 0) === 1).length);
+const repRegular = computed(() => (heatmap.value?.companies || []).filter((c) => !c.not_needed && !(c.dim_not_required || []).includes("D2") && (c.dim_stage?.D2 ?? 0) === 2).length);
 // Климатические стратегии (D4): разработанные = «+план» и выше (стадия ≥3);
 // в процессе = Scope 1–2 / +риски (стадии 1–2).
 const _d4 = (c: ESGMaturityCompany) => (c.dim_stage?.D4 ?? 0);
@@ -305,13 +308,18 @@ function baseRow(c: ESGMaturityCompany): ESGDrillRow {
 
 const drill = ref<{ title: string; subtitle?: string; description?: string; accent?: string; rows: ESGDrillRow[] } | null>(null);
 
-function openKpiDrill(kind: "ifrssds" | "coverage" | "baskets" | "iso" | "climate" | "docs_coverage" | "docs_total") {
+function openKpiDrill(kind: "ifrssds" | "reporting" | "coverage" | "baskets" | "iso" | "climate" | "docs_coverage" | "docs_total") {
   const cs = [...(heatmap.value?.companies || [])].filter((c) => !c.not_needed);
   const nr = (c: ESGMaturityCompany, d: string) => (c.dim_not_required || []).includes(d);
   if (kind === "ifrssds") {
     const list = cs.filter((c) => !nr(c, "D2") && (c.dim_stage?.D2 ?? 0) >= 3).sort((a, b) => (b.dim_stage?.D2 ?? 0) - (a.dim_stage?.D2 ?? 0));
     drill.value = { title: i18nKey("Отчётность 2025 · IFRS SDS"), subtitle: i18nKey("ESG-отчётность по IFRS S2 (D2 ≥ IFRS SDS) · подготовка в процессе"), accent: "#7C6FF7",
       rows: list.map((c) => ({ ...baseRow(c), value: t(REP_STAGE_LBL[c.dim_stage?.D2 ?? 0]), valueColor: "#1D9E75" })) };
+  } else if (kind === "reporting") {
+    const list = cs.filter((c) => !nr(c, "D2")).sort((a, b) => (b.dim_stage?.D2 ?? 0) - (a.dim_stage?.D2 ?? 0));
+    const repColor = (s: number) => s >= 3 ? "#7C6FF7" : s === 2 ? "#378ADD" : s === 1 ? "#D97706" : "#94A3B8";
+    drill.value = { title: i18nKey("ESG-отчётность 2025"), subtitle: i18nKey("разовый · регулярный · IFRS SDS · по компаниям"), accent: "#7C6FF7",
+      rows: list.map((c) => { const s = c.dim_stage?.D2 ?? 0; return { ...baseRow(c), value: t(REP_STAGE_LBL[s]), valueColor: repColor(s), badge: t(REP_STAGE_LBL[s]), badgeColor: repColor(s) }; }) };
   } else if (kind === "coverage") {
     const list = cs.filter((c) => !nr(c, "D3")).sort((a, b) => (b.rating_count || 0) - (a.rating_count || 0));
     drill.value = { title: i18nKey("Рейтинги в предприятиях"), subtitle: i18nKey("независимые ESG-рейтинги по компаниям"), accent: "#D97706",
@@ -848,10 +856,12 @@ onMounted(() => { void companiesStore.ensureLoaded(); load(); loadMaturity(); lo
                 <div class="kpi2-sub">{{ t('все три стандарта') }}<span v-if="docStats.cosByDir.iso" class="ev-kpi-doc" :title="t('компаний с ISO-документами')">📎 {{ docStats.cosByDir.iso }}</span></div>
               </div>
               <!-- 3. Отчётность 2025 · IFRS SDS (выделен ярко) -->
-              <div class="kpi2 fin-shimmer ev-kpi ev-kpi-hl" style="--kpi2-accent:#7C6FF7; --kpi2-d:80ms" @click="openKpiDrill('ifrssds')">
-                <div class="kpi2-lbl">{{ t('Отчётность 2025') }} <span class="ev-kpi-badge">IFRS SDS</span></div>
-                <div class="kpi2-val"><Odometer :value="ifrsSdsCount" /><span class="ev-kpi-unit"> / {{ totalD2 }}</span></div>
-                <div class="kpi2-sub">{{ t('подготовка в процессе · обновляется в июле') }}</div>
+              <div class="kpi2 fin-shimmer ev-kpi ev-kpi-hl" style="--kpi2-accent:#7C6FF7; --kpi2-d:80ms" @click="openKpiDrill('reporting')">
+                <div class="kpi2-lbl">{{ t('ESG-отчётность') }} <span class="ev-kpi-badge">2025</span></div>
+                <div class="kpi2-val ev-baskets">
+                  <span style="color:#D97706">{{ repOneTime }}</span><span class="ev-bsep">/</span><span style="color:#378ADD">{{ repRegular }}</span><span class="ev-bsep">/</span><span style="color:#7C6FF7">{{ ifrsSdsCount }}</span>
+                </div>
+                <div class="kpi2-sub">{{ t('разовый · регулярный · IFRS SDS') }}</div>
               </div>
               <!-- 4. Климатические стратегии (разработанные / в процессе) -->
               <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#1D9E75; --kpi2-d:160ms" @click="openKpiDrill('climate')">
