@@ -302,7 +302,7 @@ function baseRow(c: ESGMaturityCompany): ESGDrillRow {
 
 const drill = ref<{ title: string; subtitle?: string; description?: string; accent?: string; rows: ESGDrillRow[] } | null>(null);
 
-function openKpiDrill(kind: "ifrssds" | "coverage" | "baskets" | "iso" | "climate") {
+function openKpiDrill(kind: "ifrssds" | "coverage" | "baskets" | "iso" | "climate" | "docs_coverage" | "docs_total") {
   const cs = [...(heatmap.value?.companies || [])].filter((c) => !c.not_needed);
   const nr = (c: ESGMaturityCompany, d: string) => (c.dim_not_required || []).includes(d);
   if (kind === "ifrssds") {
@@ -325,6 +325,34 @@ function openKpiDrill(kind: "ifrssds" | "coverage" | "baskets" | "iso" | "climat
     drill.value = { title: i18nKey("Климатические стратегии"), subtitle: i18nKey("разработанные (D4 ≥ +план) · в процессе (Scope 1–2 / +риски)"), accent: "#1D9E75",
       rows: list.map((c) => { const s = _d4(c); return { ...baseRow(c), value: t(CLIMATE_STAGE_LBL[s]), valueColor: s >= 3 ? "#1D9E75" : s >= 1 ? "#D97706" : "#94A3B8",
         badge: s >= 3 ? t("разраб.") : s >= 1 ? t("в проц.") : t("нет"), badgeColor: s >= 3 ? "#1D9E75" : s >= 1 ? "#D97706" : "#94A3B8" }; }) };
+  } else if (kind === "docs_coverage") {
+    // Обеспеченность этапов документами по компаниям: подтверждённых этапов из
+    // применимых. Сортируем ПО ВОЗРАСТАНИЮ — компании с пробелами сверху.
+    const cov = (c: ESGMaturityCompany) => {
+      const sdc = (c.stage_doc_counts || {}) as Record<string, number>;
+      let docd = 0, tot = 0;
+      for (const s of DOC_DIMS) {
+        const applicable = !((c.dim_not_required || []).includes(s.dim));
+        if (applicable) tot += s.n;
+        if (applicable) for (const [k, v] of Object.entries(sdc)) if (k.startsWith(s.prefix) && (v || 0) > 0) docd++;
+      }
+      return { docd, tot };
+    };
+    const list = cs.map((c) => ({ c, ...cov(c) })).sort((a, b) => a.docd - b.docd || a.tot - b.tot);
+    drill.value = { title: i18nKey("Обеспеченность этапов документами"), subtitle: i18nKey("подтверждено файлами этапов из применимых · пробелы сверху"), accent: "#0E9F8E",
+      rows: list.map(({ c, docd, tot }) => ({ ...baseRow(c),
+        value: `${docd}/${tot}`,
+        valueColor: docd === 0 ? "#E24B4A" : docd >= tot ? "#1D9E75" : "#D97706",
+        badge: docd === 0 ? t("нет") : docd >= tot ? t("полно") : t("частично"),
+        badgeColor: docd === 0 ? "#E24B4A" : docd >= tot ? "#1D9E75" : "#D97706" })) };
+  } else if (kind === "docs_total") {
+    // Документы ESG по компаниям: всего загруженных файлов этапов, лидеры сверху.
+    const files = (c: ESGMaturityCompany) => Object.values((c.stage_doc_counts || {}) as Record<string, number>).reduce((s, v) => s + (v || 0), 0);
+    const list = cs.map((c) => ({ c, n: files(c) })).sort((a, b) => b.n - a.n);
+    drill.value = { title: i18nKey("Документы ESG по компаниям"), subtitle: i18nKey("загруженных файлов этапов (климат · риски · ISO)"), accent: "#7C6FF7",
+      rows: list.map(({ c, n }) => ({ ...baseRow(c),
+        value: n > 0 ? t("{count} файл.", { count: n }) : t("нет"),
+        valueColor: n > 0 ? "#1D9E75" : "#94A3B8" })) };
   } else {
     const list = cs.filter((c) => !nr(c, "D1")).sort((a, b) => (b.dim_stage?.D1 ?? 0) - (a.dim_stage?.D1 ?? 0));
     drill.value = { title: i18nKey("ИСО — системы менеджмента"), subtitle: i18nKey("системы менеджмента ISO (D1)"), accent: "#378ADD",
@@ -845,13 +873,13 @@ onMounted(() => { void companiesStore.ensureLoaded(); load(); loadMaturity(); lo
                 <div class="kpi2-sub">{{ t('зрелые · развив. · начин.') }}<span v-if="docStats.cosWithDocs" class="ev-kpi-doc" :title="t('компаний с ESG-документами')">📎 {{ docStats.cosWithDocs }}</span></div>
               </div>
               <!-- 7. Документная обеспеченность этапов (по загруженным файлам) -->
-              <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#0EA5A3; --kpi2-d:400ms">
+              <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#0EA5A3; --kpi2-d:400ms" @click="openKpiDrill('docs_coverage')">
                 <div class="kpi2-lbl">{{ t('Обеспеченность этапов') }}</div>
                 <div class="kpi2-val"><Odometer :value="docStats.stagesWithDocs" /><span class="ev-kpi-unit"> / {{ docStats.totalStages }}</span></div>
                 <div class="kpi2-sub">{{ t('этапов подтверждено файлами · {value0}%', { value0: docsCoveragePct }) }}</div>
               </div>
               <!-- 8. Документы ESG: всего файлов + вовлечённость + свежесть -->
-              <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#7C6FF7; --kpi2-d:480ms">
+              <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#7C6FF7; --kpi2-d:480ms" @click="openKpiDrill('docs_total')">
                 <div class="kpi2-lbl">{{ t('Документы ESG') }}</div>
                 <div class="kpi2-val"><Odometer :value="docStats.totalFiles" /><span class="ev-kpi-unit"> {{ t('файлов') }}</span></div>
                 <div class="kpi2-sub">{{ t('{value0} из {value1} компаний', { value0: docStats.cosWithDocs, value1: docStats.cosTotal }) }}<span v-if="(heatmap.docs_last30 || 0) > 0" class="ev-doc-fresh"> · +{{ heatmap.docs_last30 }} {{ t('за 30 дн.') }}</span></div>
