@@ -323,6 +323,7 @@ class ESGMaturityHeatmap(BaseModel):
     iso_full_count: int = 0                                   # компаний со всеми 3 ISO
     rated_count: int = 0
     total_companies: int = 0
+    docs_last30: int = 0                                       # файлов этапов ESG за 30 дней
     available_years: list[int] = Field(default_factory=list)
     generated_at: datetime
 

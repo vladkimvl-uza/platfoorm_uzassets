@@ -282,6 +282,7 @@ export interface ESGMaturityHeatmap {
   iso_full_count: number;
   rated_count: number;
   total_companies: number;
+  docs_last30?: number;
   available_years: number[];
   generated_at: string;
 }

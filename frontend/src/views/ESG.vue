@@ -259,6 +259,42 @@ const totalD4 = computed(() => dimTotal("D4"));
 const totalD5 = computed(() => dimTotal("D5"));
 const coveragePct = computed(() => Math.round((heatmap.value?.rated_count ?? 0) / Math.max(1, totalD3.value) * 100));
 
+// ── Документная обеспеченность ESG (по загруженным файлам этапов) ──
+// Документируемые этапы (панель загрузки): климат D4 (4) · риски D5 (3) · ISO D1 (3).
+const DOC_DIMS = [
+  { dim: "D4", n: 4, prefix: "D4:", dir: "climate" as const },
+  { dim: "D5", n: 3, prefix: "D5:", dir: "risk" as const },
+  { dim: "D1", n: 3, prefix: "D1:", dir: "iso" as const },
+];
+const docStats = computed(() => {
+  const cos = (heatmap.value?.companies || []).filter((c) => !c.not_needed);
+  let totalStages = 0, stagesWithDocs = 0, totalFiles = 0, cosWithDocs = 0;
+  const byDir = { climate: 0, risk: 0, iso: 0 };
+  const cosByDir = { climate: 0, risk: 0, iso: 0 };
+  for (const c of cos) {
+    const sdc = (c.stage_doc_counts || {}) as Record<string, number>;
+    let any = false;
+    const hit = { climate: false, risk: false, iso: false };
+    for (const s of DOC_DIMS) {
+      const applicable = !((c.dim_not_required || []).includes(s.dim));
+      if (applicable) totalStages += s.n;
+      for (const [k, v] of Object.entries(sdc)) {
+        if (k.startsWith(s.prefix) && (v || 0) > 0) {
+          totalFiles += v; any = true;
+          if (applicable) { stagesWithDocs++; byDir[s.dir]++; hit[s.dir] = true; }
+        }
+      }
+    }
+    if (any) cosWithDocs++;
+    (["climate", "risk", "iso"] as const).forEach((d) => { if (hit[d]) cosByDir[d]++; });
+  }
+  return { totalStages, stagesWithDocs, totalFiles, cosWithDocs, cosTotal: cos.length, byDir, cosByDir };
+});
+const docsCoveragePct = computed(() => {
+  const s = docStats.value;
+  return s.totalStages ? Math.round(s.stagesWithDocs / s.totalStages * 100) : 0;
+});
+
 function baseRow(c: ESGMaturityCompany): ESGDrillRow {
   return { id: c.company_id, name: companyName(c),
            sector: sectorName(c.sector_name, c.sector_code), color: c.sector_color || "#7C6FF7", value: "" };
@@ -778,7 +814,7 @@ onMounted(() => { void companiesStore.ensureLoaded(); load(); loadMaturity(); lo
               <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#378ADD; --kpi2-d:0ms" @click="openKpiDrill('iso')">
                 <div class="kpi2-lbl">{{ t('ИСО') }}</div>
                 <div class="kpi2-val"><Odometer :value="heatmap.iso_full_count" /><span class="ev-kpi-unit"> / {{ totalD1 }}</span></div>
-                <div class="kpi2-sub">{{ t('все три стандарта') }}</div>
+                <div class="kpi2-sub">{{ t('все три стандарта') }}<span v-if="docStats.cosByDir.iso" class="ev-kpi-doc" :title="t('компаний с ISO-документами')">📎 {{ docStats.cosByDir.iso }}</span></div>
               </div>
               <!-- 3. Отчётность 2025 · IFRS SDS (выделен ярко) -->
               <div class="kpi2 fin-shimmer ev-kpi ev-kpi-hl" style="--kpi2-accent:#7C6FF7; --kpi2-d:80ms" @click="openKpiDrill('ifrssds')">
@@ -792,7 +828,7 @@ onMounted(() => { void companiesStore.ensureLoaded(); load(); loadMaturity(); lo
                 <div class="kpi2-val ev-baskets">
                   <span style="color:#1D9E75">{{ climateDeveloped }}</span><span class="ev-bsep">/</span><span style="color:#D97706">{{ climateInProgress }}</span>
                 </div>
-                <div class="kpi2-sub">{{ t('разработанные · в процессе') }}</div>
+                <div class="kpi2-sub">{{ t('разработанные · в процессе') }}<span v-if="docStats.cosByDir.climate" class="ev-kpi-doc" :title="t('компаний с климат-документами')">📎 {{ docStats.cosByDir.climate }}</span></div>
               </div>
               <!-- 5. Кол-во рейтингов в предприятиях -->
               <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#D97706; --kpi2-d:240ms" @click="openKpiDrill('coverage')">
@@ -806,7 +842,19 @@ onMounted(() => { void companiesStore.ensureLoaded(); load(); loadMaturity(); lo
                 <div class="kpi2-val ev-baskets">
                   <span style="color:#1D9E75">{{ heatmap.baskets.mature }}</span><span class="ev-bsep">/</span><span style="color:#D97706">{{ heatmap.baskets.developing }}</span><span class="ev-bsep">/</span><span style="color:#E24B4A">{{ heatmap.baskets.starting }}</span>
                 </div>
-                <div class="kpi2-sub">{{ t('зрелые · развив. · начин.') }}</div>
+                <div class="kpi2-sub">{{ t('зрелые · развив. · начин.') }}<span v-if="docStats.cosWithDocs" class="ev-kpi-doc" :title="t('компаний с ESG-документами')">📎 {{ docStats.cosWithDocs }}</span></div>
+              </div>
+              <!-- 7. Документная обеспеченность этапов (по загруженным файлам) -->
+              <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#0EA5A3; --kpi2-d:400ms">
+                <div class="kpi2-lbl">{{ t('Обеспеченность этапов') }}</div>
+                <div class="kpi2-val"><Odometer :value="docStats.stagesWithDocs" /><span class="ev-kpi-unit"> / {{ docStats.totalStages }}</span></div>
+                <div class="kpi2-sub">{{ t('этапов подтверждено файлами · {value0}%', { value0: docsCoveragePct }) }}</div>
+              </div>
+              <!-- 8. Документы ESG: всего файлов + вовлечённость + свежесть -->
+              <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#7C6FF7; --kpi2-d:480ms">
+                <div class="kpi2-lbl">{{ t('Документы ESG') }}</div>
+                <div class="kpi2-val"><Odometer :value="docStats.totalFiles" /><span class="ev-kpi-unit"> {{ t('файлов') }}</span></div>
+                <div class="kpi2-sub">{{ t('{value0} из {value1} компаний', { value0: docStats.cosWithDocs, value1: docStats.cosTotal }) }}<span v-if="(heatmap.docs_last30 || 0) > 0" class="ev-doc-fresh"> · +{{ heatmap.docs_last30 }} {{ t('за 30 дн.') }}</span></div>
               </div>
             </div>
 
@@ -1070,7 +1118,7 @@ onMounted(() => { void companiesStore.ensureLoaded(); load(); loadMaturity(); lo
 /* 6 KPI-блоков «база → результат» в ОДИН ряд (специфичность выше базы) */
 /* 5 карточек после удаления плейсхолдера «Отчётность 2024» — сетка 6 колонок
    оставляла пустой хвост справа; лента растянута на всю ширину. */
-.ev-kpi-strip.ev-mat-kpis { grid-template-columns: repeat(5, 1fr); }
+.ev-kpi-strip.ev-mat-kpis { grid-template-columns: repeat(auto-fit, minmax(162px, 1fr)); }
 @media (max-width: 1280px) { .ev-kpi-strip.ev-mat-kpis { grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 760px)  { .ev-kpi-strip.ev-mat-kpis { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 480px)  { .ev-kpi-strip.ev-mat-kpis { grid-template-columns: 1fr; } }
@@ -1078,6 +1126,9 @@ onMounted(() => { void companiesStore.ensureLoaded(); load(); loadMaturity(); lo
 .ev-kpi-strip.ev-mat-kpis .kpi2-val { font-size: clamp(26px, 1.7vw, 40px); }
 .ev-kpi-strip.ev-mat-kpis .ev-kpi-unit { font-size: 13px; }
 .ev-kpi-unit { font-size: 14px; font-weight: 400; color: var(--t3, #94A3B8); letter-spacing: 0; }
+/* Бейдж «подтверждено документами» на KPI-картах ESG + свежесть загрузок. */
+.ev-kpi-doc { display: inline-flex; align-items: center; gap: 2px; margin-left: 7px; font-size: 10px; font-weight: 600; color: var(--p-deep, #534AB7); background: color-mix(in srgb, var(--p-deep, #534AB7) 10%, transparent); padding: 0 6px; border-radius: 999px; white-space: nowrap; }
+.ev-doc-fresh { color: #0E9F8E; font-weight: 600; }
 .ev-baskets { display: inline-flex; align-items: baseline; gap: 2px; font-feature-settings: 'tnum'; }
 
 /* Отчётность 2025 · IFRS SDS — выделен ярко */

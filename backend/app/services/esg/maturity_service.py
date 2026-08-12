@@ -215,7 +215,10 @@ class ESGMaturityService:
         # степперах матрицы/профиле без N-запросов. Файлы живут в библиотеке
         # «Документы» (Document + DocumentLink), этап — тег привязки.
         doc_counts_by_co: dict[UUID, dict[str, int]] = {}
+        docs_last30 = 0
         if co_ids:
+            from datetime import timedelta
+
             from app.models.document import Document, DocumentLink
             try:
                 dq = await db.execute(
@@ -230,8 +233,21 @@ class ESGMaturityService:
                 )
                 for cid, eid, cnt in dq.all():
                     doc_counts_by_co.setdefault(cid, {})[eid] = int(cnt)
+                # Свежесть: файлов этапов ESG, загруженных за последние 30 дней.
+                d30 = await db.execute(
+                    select(func.count(func.distinct(Document.id)))
+                    .join(DocumentLink, DocumentLink.document_id == Document.id)
+                    .where(
+                        DocumentLink.entity_type == "esg_stage",
+                        Document.company_id.in_(co_ids),
+                        Document.is_deleted.is_(False),
+                        Document.created_at >= datetime.now(UTC) - timedelta(days=30),
+                    )
+                )
+                docs_last30 = int(d30.scalar() or 0)
             except Exception:
                 doc_counts_by_co = {}
+                docs_last30 = 0
 
         out_companies: list[ESGMaturityCompany] = []
         ems_list: list[float] = []
@@ -346,6 +362,7 @@ class ESGMaturityService:
             iso_full_count=iso_full,
             rated_count=sum(1 for c in out_companies if c.rating_count > 0 and not c.not_needed and "D3" not in c.dim_not_required and c.company_id not in rollup_skip),
             total_companies=sum(1 for c in out_companies if not c.not_needed and c.company_id not in rollup_skip),
+            docs_last30=docs_last30,
             available_years=years or [target_year],
             generated_at=datetime.now(UTC),
         )
