@@ -552,7 +552,10 @@ async def upload_document(
 
     doc = Document(
         company_id=co.id, folder_id=target_folder, name=filename,
-        storage_key=stored or key, mime_type=file.content_type,
+        # get_storage().upload() возвращает StoredObject — в строковую колонку
+        # storage_key кладём именно .key (иначе asyncpg: «expected str, got
+        # StoredObject» → 500 на ЛЮБОЙ загрузке в библиотеку документов).
+        storage_key=(stored.key if stored else key), mime_type=file.content_type,
         size_bytes=len(data), description=description,
         source_module=source, uploader_id=user.id,
     )
