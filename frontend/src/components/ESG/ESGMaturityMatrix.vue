@@ -238,6 +238,14 @@ function cycleIso(c: ESGMaturityCompany, sub: string) {
   const s = dStage(c, "D1", sub);
   setPending(c, "D1", sub, s >= 2 ? 0 : s + 1);
 }
+// Число загруженных документов этапов по префиксу измерения (D4:/D5:/D1:).
+// Клик по 📎 открывает карточку компании — там панель со ссылками на все файлы.
+function dimDocs(c: ESGMaturityCompany, prefix: string): number {
+  const sdc = (c.stage_doc_counts || {}) as Record<string, number>;
+  let n = 0;
+  for (const [k, v] of Object.entries(sdc)) if (k.startsWith(prefix)) n += (v || 0);
+  return n;
+}
 // степпер: клик по сегменту i → превью стадии i+1 (повторный клик по вершине → −1)
 function clickStep(c: ESGMaturityCompany, dim: string, i: number) {
   const cur = dStage(c, dim, "");
@@ -385,6 +393,7 @@ async function commitLink(c: ESGMaturityCompany) {
               </button>
               <button v-if="canEdit && xi === ISO.length - 1" type="button" class="mm-nr-tg"
                       @click.stop="toggleDimNr(c,'D1')" :title="t('Не требуется — исключить ISO из статистики')">{{ t('н/т') }}</button>
+              <button v-if="xi === ISO.length - 1 && dimDocs(c,'D1:')" type="button" class="mm-doc" :title="t('ISO-документы: {n} · открыть карточку', { n: dimDocs(c,'D1:') })" @click.stop="emit('open-company', c.company_id)">📎{{ dimDocs(c,'D1:') }}</button>
               <div v-if="isPending(c,'D1',x.sub) || (xi === ISO.length - 1 && isPending(c,'nr','D1'))" class="mm-confirm">
                 <button type="button" class="mm-ok" :title="t('Применить')" @click.stop="confirmPending">✓</button>
                 <button type="button" class="mm-no" :title="t('Отмена')" @click.stop="cancelPending">✕</button>
@@ -482,6 +491,7 @@ async function commitLink(c: ESGMaturityCompany) {
               <span v-else class="mm-step">
                 <i v-for="i in 4" :key="i" class="mm-dot clm" :class="{ on: dStage(c,'D4','') >= i, ed: canEdit, pend: isPending(c,'D4','') }" @click="clickStep(c,'D4',i-1)"></i>
               </span>
+              <button v-if="dimDocs(c,'D4:')" type="button" class="mm-doc" :title="t('Документы этапа: {n} · открыть карточку', { n: dimDocs(c,'D4:') })" @click.stop="emit('open-company', c.company_id)">📎{{ dimDocs(c,'D4:') }}</button>
               <button v-if="canEdit" type="button" class="mm-nr-tg" :class="{ on: isDimNr(c,'D4') }"
                       @click.stop="toggleDimNr(c,'D4')" :title="isDimNr(c,'D4') ? t('Вернуть в статистику') : t('Не требуется — исключить из статистики')">{{ t('н/т') }}</button>
               <div v-if="isPending(c,'D4','') || isPending(c,'nr','D4')" class="mm-confirm">
@@ -495,6 +505,7 @@ async function commitLink(c: ESGMaturityCompany) {
               <span v-else class="mm-step">
                 <i v-for="i in 3" :key="i" class="mm-dot rsk" :class="{ on: dStage(c,'D5','') >= i, ed: canEdit, pend: isPending(c,'D5','') }" @click="clickStep(c,'D5',i-1)"></i>
               </span>
+              <button v-if="dimDocs(c,'D5:')" type="button" class="mm-doc" :title="t('Документы этапа: {n} · открыть карточку', { n: dimDocs(c,'D5:') })" @click.stop="emit('open-company', c.company_id)">📎{{ dimDocs(c,'D5:') }}</button>
               <button v-if="canEdit" type="button" class="mm-nr-tg" :class="{ on: isDimNr(c,'D5') }"
                       @click.stop="toggleDimNr(c,'D5')" :title="isDimNr(c,'D5') ? t('Вернуть в статистику') : t('Не требуется — исключить из статистики')">{{ t('н/т') }}</button>
               <div v-if="isPending(c,'D5','') || isPending(c,'nr','D5')" class="mm-confirm">
@@ -613,6 +624,9 @@ async function commitLink(c: ESGMaturityCompany) {
 .mm-nr-tg { display: inline-block; margin-top: 4px; font-size: 8.5px; font-weight: 700; color: #B6BBC8; background: transparent; border: 1px solid var(--border, #ECEAF5); border-radius: 5px; padding: 0 5px; height: 15px; line-height: 13px; cursor: pointer; transition: all .14s ease; }
 .mm-nr-tg:hover { color: #E24B4A; border-color: #F3C3C2; background: #FEF3F2; }
 .mm-nr-tg.on { color: #fff; background: #94A3B8; border-color: #94A3B8; }
+/* 📎-чип «есть документы этапа» → открыть карточку со ссылками на файлы. */
+.mm-doc { display: inline-flex; align-items: center; gap: 1px; margin: 4px 0 0 4px; font-size: 8.5px; font-weight: 700; color: var(--p-deep, #534AB7); background: color-mix(in srgb, var(--p-deep, #534AB7) 10%, transparent); border: 1px solid color-mix(in srgb, var(--p-deep, #534AB7) 22%, transparent); border-radius: 6px; padding: 0 5px; height: 15px; line-height: 13px; cursor: pointer; transition: all .14s ease; vertical-align: top; }
+.mm-doc:hover { background: color-mix(in srgb, var(--p-deep, #534AB7) 18%, transparent); box-shadow: 0 1px 4px rgba(83,74,183,.2); }
 
 .mm-step { display: inline-flex; gap: 4px; align-items: center; }
 .mm-dot { width: 11px; height: 11px; border-radius: 50%; background: #E6E4F0; transition: transform .12s, background .15s; }
