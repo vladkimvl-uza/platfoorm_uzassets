@@ -224,7 +224,9 @@ class AuthUserService:
         direct: list[str] = []
         try:
             rows = await RbacV3Repository(db).user_grant_rows(user.id)
-            direct = [c for c, t in rows if t == "grant"]
+            # Только ГЛОБАЛЬНЫЕ гранты в «дали лично» — точечные (по компаниям)
+            # действуют лишь в контексте компании, в общий список не выносим.
+            direct = [c for c, t, sc in rows if t == "grant" and not sc]
         except Exception:  # noqa: BLE001 — не критично для входа
             direct = []
         return _user_to_public(user, permissions, scope, direct)

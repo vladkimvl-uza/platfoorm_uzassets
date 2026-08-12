@@ -297,24 +297,42 @@ class RbacV3Repository:
         ))
         return set(rows.scalars().all())
 
-    async def user_grant_rows(self, user_id: UUID) -> list[tuple[str, str]]:
-        """Прямые user-гранты: [(permission_code, grant_type)]."""
+    async def user_grant_rows(self, user_id: UUID) -> list[tuple[str, str, Optional[list]]]:
+        """Прямые user-гранты: [(permission_code, grant_type, scope_companies)].
+
+        scope_companies пусто/None = глобальный грант; непусто = точечный (по
+        компаниям). Вызывающий сам решает, что делать с областью: плоский набор
+        прав строится только из ГЛОБАЛЬНЫХ (см. effective_permission_codes),
+        точечные применяются в контексте (см. core.security.has_effective_permission).
+        """
         try:
             rows = (await self._session.execute(
                 select(
                     UserPermissionGrant.permission_code,
                     UserPermissionGrant.grant_type,
                     UserPermissionGrant.expires_at,
+                    UserPermissionGrant.scope_companies,
                 )
                 .where(UserPermissionGrant.user_id == user_id)
             )).all()
             now = datetime.now(UTC)
             return [
-                (c, t) for c, t, expires_at in rows
+                (c, t, sc) for c, t, expires_at, sc in rows
                 if expires_at is None or expires_at >= now
             ]
         except Exception:
             return []
+
+    async def scoped_user_grants(self, user_id: UUID) -> list[dict]:
+        """Активные ТОЧЕЧНЫЕ (по компаниям) прямые user-гранты. В плоский набор
+        прав не входят (см. effective_permission_codes) — отдаём отдельно для
+        отображения в админке и применения с учётом компании."""
+        out: list[dict] = []
+        for code, gtype, sc in await self.user_grant_rows(user_id):
+            if not sc:
+                continue
+            out.append({"code": code, "grant_type": gtype, "companies": list(sc or [])})
+        return out
 
     async def active_group_deny_codes(self, user_id: UUID) -> set[str]:
         try:
@@ -340,8 +358,11 @@ class RbacV3Repository:
     async def effective_permission_codes(self, user_id: UUID) -> list[str]:
         base = await self.base_permission_codes(user_id)
         ug = await self.user_grant_rows(user_id)
-        ug_grant = {c for c, t in ug if t == "grant"}
-        ug_deny = {c for c, t in ug if t == "deny"}
+        # В ПЛОСКИЙ набор входят только ГЛОБАЛЬНЫЕ (без scope) гранты/deny —
+        # точечные (по компаниям) сузили бы/расширили бы доступ шире заявленного,
+        # поэтому применяются лишь в контексте (has_effective_permission).
+        ug_grant = {c for c, t, sc in ug if t == "grant" and not sc}
+        ug_deny = {c for c, t, sc in ug if t == "deny" and not sc}
         group_deny = await self.active_group_deny_codes(user_id)
         denied = ug_deny | group_deny
         effective = (base | ug_grant) - denied
@@ -369,11 +390,15 @@ class RbacV3Repository:
     async def set_user_grants(
         self,
         user_id: UUID,
-        rows: list[tuple[str, str]],
+        rows: list[tuple[str, str, Optional[list]]],
         granted_by: Optional[UUID],
         manage_codes: Optional[set[str]] = None,
     ) -> None:
-        """Заменить прямые user-гранты (rows = [(code, grant_type)]).
+        """Заменить прямые user-гранты (rows = [(code, grant_type, scope_companies)]).
+
+        scope_companies пусто/None = глобальный грант; непусто = точечный (по
+        компаниям). Одна строка на код (unique user_id+code): код — либо глобальный,
+        либо точечный.
 
         `manage_codes` ограничивает зачистку кодами, которыми вызывающий
         действительно управляет. Без него сохранение сетки «Доступ к модулям»
@@ -385,13 +410,15 @@ class RbacV3Repository:
         import uuid as _uuid
         stmt = delete(UserPermissionGrant).where(UserPermissionGrant.user_id == user_id)
         if manage_codes is not None:
-            touched = set(manage_codes) | {c for c, _ in rows}
+            touched = set(manage_codes) | {c for c, _, _ in rows}
             stmt = stmt.where(UserPermissionGrant.permission_code.in_(touched))
         await self._session.execute(stmt)
-        for code, gtype in rows:
+        for code, gtype, scope in rows:
             self._session.add(UserPermissionGrant(
                 id=_uuid.uuid4(), user_id=user_id,
-                permission_code=code, grant_type=gtype, granted_by_id=granted_by,
+                permission_code=code, grant_type=gtype,
+                scope_companies=(list(scope) if scope else None),
+                granted_by_id=granted_by,
             ))
 
     async def list_user_memberships(self, user_id: UUID) -> Sequence[Any]:

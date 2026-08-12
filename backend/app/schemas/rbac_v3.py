@@ -77,6 +77,11 @@ class RoleUpdatePayload(BaseModel):
 
 class RolePermissionsUpdate(BaseModel):
     permission_codes: list[str] = Field(default_factory=list)
+    # Точечная область по КОМПАНИЯМ для отдельных кодов: {code: [company_id, ...]}.
+    # Если для гранованного кода задан непустой список — грант становится точечным
+    # (действует только для этих компаний) вместо глобального. Пусто/нет = глобально.
+    # Компании — UUID (строкой). Секторы/годы для user-грантов не поддерживаются.
+    scoped_companies: dict[str, list[str]] = Field(default_factory=dict)
 
 
 # =====================================================================
@@ -141,10 +146,19 @@ class UserCreateGroupMembership(BaseModel):
     role_code: str = Field(..., min_length=1, max_length=64)
 
 
+class ScopedPermissionGrant(BaseModel):
+    """Точечный (по компаниям) прямой user-грант модуля."""
+    permission_code: str
+    grant_type: str = "grant"
+    scope_companies: list[str] = Field(default_factory=list)
+
+
 class UserDetail(UserBrief):
     effective_permissions: list[str] = Field(default_factory=list)
     direct_permissions: list[str] = Field(default_factory=list)
     denied_permissions: list[str] = Field(default_factory=list)
+    # Точечные (по компаниям) прямые гранты модулей — в плоский набор не входят.
+    scoped_permissions: list[ScopedPermissionGrant] = Field(default_factory=list)
     # per-(user, group) role assignments.
     group_memberships: list[UserGroupMembership] = Field(default_factory=list)
     # followup: moderation flags surfaced in the user-detail drawer.

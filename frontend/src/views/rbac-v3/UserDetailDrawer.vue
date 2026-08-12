@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue';
-import { rbacV3Api, deriveAccessMap, rolesApi, groupsApi, adminMfaApi, generatePassword, levelsToPermissions } from '@/api/rbacV3';
+import { rbacV3Api, deriveAccessMap, rolesApi, groupsApi, adminMfaApi, generatePassword, levelsToPermissions, permissionsToLevels } from '@/api/rbacV3';
 import { MODULE_REGISTRY, type AccessLevel } from '@/composables/usePermissions';
 import type { RbacV3UserDetail, RbacV3UserBrief, RbacV3Role, RbacV3Group, AdminMfaRow } from '@/api/rbacV3';
 import { moderationApi } from '@/api/moderation';
@@ -82,8 +82,68 @@ const editingAccess = ref(false);
 const draftLevels = ref<Record<string, AccessLevel>>({});
 const savingAccess = ref(false);
 
+// ── Точечный доступ к модулям по КОМПАНИЯМ (scoped grants) ──
+// Модуль выдаётся не глобально, а только для выбранных компаний. Хранится
+// поверх ролей как персональный грант со scope_companies. Модуль в этой секции
+// перекрывает свой уровень в общей сетке (при сохранении сетка его игнорирует).
+type ScopeLevel = 'read' | 'write';
+interface ScopedEntry { module: string; level: ScopeLevel; companies: string[]; }
+const scopedGrants = ref<ScopedEntry[]>([]);
+const newScopeModule = ref<string>('');
+const newScopeLevel = ref<ScopeLevel>('write');
+const newScopeCompanies = ref<string[]>([]);
+const scopeModuleOptions = MODULE_REGISTRY.map((m) => ({ code: m.code, label: m.label }));
+// Модуль уже доступен глобально (роль/общий доступ)? Тогда точечная выдача его
+// НЕ ограничит (роль продолжит давать глобально) — предупреждаем админа (F1).
+const newScopeGloballyHeld = computed(() => {
+  const m = newScopeModule.value;
+  const lvl = m ? access.value?.levels?.[m] : undefined;
+  return !!lvl && lvl !== 'none';
+});
+
+function moduleLabelOf(code: string): string {
+  return MODULE_REGISTRY.find((m) => m.code === code)?.label || code;
+}
+
+// Восстанавливаем module+level+companies из плоских scoped-грантов (обратно к
+// levelsToPermissions): группируем коды по набору компаний → уровень модуля.
+function deriveScoped(src: { permission_code: string; grant_type: string; scope_companies: string[] }[]): ScopedEntry[] {
+  const byScope: Record<string, { companies: string[]; codes: string[] }> = {};
+  for (const g of src) {
+    if (g.grant_type !== 'grant') continue;
+    const key = [...g.scope_companies].sort().join('|');
+    (byScope[key] ||= { companies: g.scope_companies, codes: [] }).codes.push(g.permission_code);
+  }
+  const out: ScopedEntry[] = [];
+  for (const grp of Object.values(byScope)) {
+    const levels = permissionsToLevels(grp.codes);
+    for (const [module, level] of Object.entries(levels)) {
+      if (level === 'none') continue;
+      out.push({ module, level: level === 'write' ? 'write' : 'read', companies: grp.companies });
+    }
+  }
+  return out;
+}
+/** Read-only вид точечных грантов (вне режима редактирования). */
+const scopedGrantsView = computed<ScopedEntry[]>(() => deriveScoped(detail.value?.scoped_permissions || []));
+function loadScopedGrants() {
+  scopedGrants.value = deriveScoped(detail.value?.scoped_permissions || []).map((e) => ({ ...e }));
+}
+
+function addScopedGrant() {
+  if (!newScopeModule.value || !newScopeCompanies.value.length) return;
+  scopedGrants.value = scopedGrants.value.filter((e) => e.module !== newScopeModule.value);
+  scopedGrants.value.push({
+    module: newScopeModule.value, level: newScopeLevel.value,
+    companies: [...newScopeCompanies.value],
+  });
+  newScopeModule.value = ''; newScopeCompanies.value = []; newScopeLevel.value = 'write';
+}
+function removeScopedGrant(i: number) { scopedGrants.value.splice(i, 1); }
+
 function openAccessEditor() {
   draftLevels.value = { ...access.value.levels };
+  loadScopedGrants();
   editingAccess.value = true;
 }
 function cancelAccessEditor() {
@@ -93,9 +153,22 @@ async function saveAccess() {
   if (!detail.value) return;
   savingAccess.value = true;
   try {
-    detail.value = await rbacV3Api.setPermissions(
-      detail.value.id, levelsToPermissions(draftLevels.value),
+    // Глобальная сетка БЕЗ модулей, отданных в точечный доступ (их перекрывает scope).
+    const scopedModules = new Set(scopedGrants.value.map((e) => e.module));
+    const globalLevels = Object.fromEntries(
+      Object.entries(draftLevels.value).filter(([m]) => !scopedModules.has(m)),
     );
+    const globalCodes = levelsToPermissions(globalLevels);
+    // Точечные: коды каждого модуля + карта code → компании.
+    const scopedMap: Record<string, string[]> = {};
+    const scopedCodes: string[] = [];
+    for (const e of scopedGrants.value) {
+      for (const c of levelsToPermissions({ [e.module]: e.level })) {
+        scopedMap[c] = e.companies; scopedCodes.push(c);
+      }
+    }
+    const allCodes = Array.from(new Set([...globalCodes, ...scopedCodes]));
+    detail.value = await rbacV3Api.setPermissions(detail.value.id, allCodes, scopedMap);
     editingAccess.value = false;
     // Явный фидбэк: сохранение прав — не то место, где можно молчать.
     toast.success(t('Доступ к модулям сохранён'));
@@ -1027,6 +1100,41 @@ async function onDeletePermanent() {
               <div class="rv3-dr-acc-hint">
                 {{ t('Изменения сохраняются как персональные права поверх ролей: повышение — grant, понижение — deny. Это влияет только на данного пользователя. Администрирование платформы выдаётся ролью.') }}
               </div>
+
+              <!-- Точечный доступ по компаниям -->
+              <div class="rv3-dr-scope">
+                <div class="rv3-dr-scope-hd">{{ t('Точечный доступ по компаниям') }}</div>
+                <div class="rv3-dr-scope-sub">{{ t('Даёт доступ к модулю ТОЛЬКО в выбранных компаниях (поверх ролей). НЕ ограничивает доступ, который роль уже даёт глобально. Компании — только из вашей области видимости.') }}</div>
+                <ul v-if="scopedGrants.length" class="rv3-dr-scope-list">
+                  <li v-for="(e, i) in scopedGrants" :key="e.module + ':' + i" class="rv3-dr-scope-item">
+                    <span class="rv3-dr-scope-mod">{{ t(moduleLabelOf(e.module)) }}</span>
+                    <span class="rv3-dr-scope-lvl" :class="e.level">{{ e.level === 'write' ? t('Редактировать') : t('Наблюдать') }}</span>
+                    <span class="rv3-dr-scope-cos">
+                      <span v-for="cid in e.companies" :key="cid" class="rv3-dr-scope-chip">{{ companyName(cid) }}</span>
+                    </span>
+                    <button type="button" class="rv3-dr-scope-del" :title="t('Убрать')" @click="removeScopedGrant(i)">✕</button>
+                  </li>
+                </ul>
+                <div v-else class="rv3-dr-scope-empty">{{ t('Точечных грантов нет') }}</div>
+                <div class="rv3-dr-scope-add">
+                  <select v-model="newScopeModule" class="rv3-dr-scope-sel">
+                    <option value="">{{ t('— модуль —') }}</option>
+                    <option v-for="m in scopeModuleOptions" :key="m.code" :value="m.code">{{ t(m.label) }}</option>
+                  </select>
+                  <select v-model="newScopeLevel" class="rv3-dr-scope-sel">
+                    <option value="read">{{ t('Наблюдать') }}</option>
+                    <option value="write">{{ t('Редактировать') }}</option>
+                  </select>
+                  <select v-model="newScopeCompanies" multiple class="rv3-dr-scope-cosel" :size="4">
+                    <option v-for="c in allCompanies" :key="c.id" :value="c.id">{{ c.name }}</option>
+                  </select>
+                  <button type="button" class="rv3-btn rv3-btn-ghost" :disabled="!newScopeModule || !newScopeCompanies.length" @click="addScopedGrant">{{ t('Добавить') }}</button>
+                </div>
+                <div v-if="newScopeGloballyHeld" class="rv3-dr-scope-warn">
+                  {{ t('Этот модуль уже доступен пользователю глобально (роль или общий доступ) — точечная выдача его не ограничит. Ограничение доступа роли здесь не поддерживается.') }}
+                </div>
+              </div>
+
               <div class="rv3-dr-role-foot">
                 <div style="flex:1"></div>
                 <button class="rv3-btn rv3-btn-ghost" :disabled="savingAccess" @click="cancelAccessEditor">{{ t('Отмена') }}</button>
@@ -1040,6 +1148,19 @@ async function onDeletePermanent() {
               <span><span class="rv3-sw" style="background:#7C6FF7"></span>{{ t("Редактировать") }}</span>
               <span><span class="rv3-sw" style="background:#0891B2"></span>{{ t("Наблюдать") }}</span>
               <span><span class="rv3-sw" style="background:#D1D5DB"></span>{{ t("Нет доступа") }}</span>
+            </div>
+            <!-- Точечный доступ по компаниям (read-only) -->
+            <div v-if="!editingAccess && scopedGrantsView.length" class="rv3-dr-scope rv3-dr-scope-ro">
+              <div class="rv3-dr-scope-hd">{{ t('Точечный доступ по компаниям') }}</div>
+              <ul class="rv3-dr-scope-list">
+                <li v-for="(e, i) in scopedGrantsView" :key="e.module + ':' + i" class="rv3-dr-scope-item">
+                  <span class="rv3-dr-scope-mod">{{ t(moduleLabelOf(e.module)) }}</span>
+                  <span class="rv3-dr-scope-lvl" :class="e.level">{{ e.level === 'write' ? t('Редактировать') : t('Наблюдать') }}</span>
+                  <span class="rv3-dr-scope-cos">
+                    <span v-for="cid in e.companies" :key="cid" class="rv3-dr-scope-chip">{{ companyName(cid) }}</span>
+                  </span>
+                </li>
+              </ul>
             </div>
           </div>
         </div>
@@ -1666,6 +1787,27 @@ async function onDeletePermanent() {
   margin: 10px 0 4px; font-size: 10.5px; color: var(--t3, var(--t-muted));
   line-height: 1.45; font-style: italic;
 }
+
+/* Точечный доступ по компаниям */
+.rv3-dr-scope { margin: 12px 0 4px; padding: 11px 12px; border-radius: 10px; background: color-mix(in srgb, var(--p-deep, #534AB7) 5%, transparent); border: 0.5px solid color-mix(in srgb, var(--p-deep, #534AB7) 18%, transparent); }
+.rv3-dr-scope-ro { background: transparent; }
+.rv3-dr-scope-hd { font-size: 11.5px; font-weight: 700; color: var(--t1, #1E2A4A); letter-spacing: .01em; }
+.rv3-dr-scope-sub { font-size: 10px; color: var(--t3, #94A3B8); line-height: 1.45; margin: 3px 0 9px; }
+.rv3-dr-scope-list { list-style: none; margin: 0 0 9px; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+.rv3-dr-scope-item { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 6px 8px; border-radius: 8px; background: var(--bg1, #fff); border: 0.5px solid rgba(0,0,0,.06); }
+.rv3-dr-scope-mod { font-size: 12px; font-weight: 600; color: var(--t1, #1E2A4A); }
+.rv3-dr-scope-lvl { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; padding: 1px 7px; border-radius: 999px; }
+.rv3-dr-scope-lvl.write { color: #5B21B6; background: rgba(124,111,247,.16); }
+.rv3-dr-scope-lvl.read { color: #0E7490; background: rgba(8,145,178,.14); }
+.rv3-dr-scope-cos { display: inline-flex; flex-wrap: wrap; gap: 4px; flex: 1; min-width: 0; }
+.rv3-dr-scope-chip { font-size: 10px; padding: 1px 8px; border-radius: 6px; background: rgba(0,0,0,.05); color: var(--t2, #4B5468); }
+.rv3-dr-scope-del { flex: none; width: 22px; height: 22px; border: 0; background: transparent; color: var(--t3, #94A3B8); cursor: pointer; border-radius: 6px; font-size: 12px; }
+.rv3-dr-scope-del:hover { background: rgba(226,75,74,.1); color: #A32D2D; }
+.rv3-dr-scope-empty { font-size: 11px; color: var(--t3, #94A3B8); padding: 2px 0 9px; }
+.rv3-dr-scope-add { display: flex; gap: 6px; flex-wrap: wrap; align-items: flex-start; }
+.rv3-dr-scope-sel, .rv3-dr-scope-cosel { font-family: inherit; font-size: 11.5px; color: var(--t2, #4B5468); background: var(--bg1, #fff); border: 0.5px solid var(--color-border-tertiary, #E5E7EB); border-radius: 8px; padding: 5px 8px; }
+.rv3-dr-scope-cosel { min-width: 160px; }
+.rv3-dr-scope-warn { margin-top: 8px; font-size: 10.5px; line-height: 1.45; color: #92400E; background: rgba(245,158,11,.12); border-radius: 7px; padding: 6px 9px; }
 
 /* Activity tab — аудит-история (структурирована по дням + детали) */
 .rv3-act-count, .rv3-act-daycnt {

@@ -58,6 +58,16 @@ class UserPermissionGrant(Base, UUIDMixin, TimestampMixin):
     )
     permission_code: Mapped[str] = mapped_column(String(128), nullable=False)
     grant_type:      Mapped[str] = mapped_column(String(16), nullable=False, default="grant")
+
+    # Точечная область по КОМПАНИЯМ (решение владельца, авг 2026): персональный
+    # грант/deny на модуль может действовать только для перечисленных компаний.
+    # Пусто/NULL = глобально (все компании, как было). Семантика зеркалит
+    # GroupPermissionGrant.scope_companies + core.security._scoped_grant_applies:
+    # scoped GRANT входит в эффективные права ТОЛЬКО в контексте своей компании;
+    # scoped DENY отзывает право ТОЛЬКО для своих компаний (в отличие от группового
+    # deny — тот глобален). Секторы/годы для user-грантов НЕ вводим (только компании).
+    scope_companies: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
+
     expires_at:      Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     granted_by_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True,

@@ -295,21 +295,31 @@ async def has_effective_permission(
     has_user_grant = False
     try:
         ug_q = await db.execute(
-            select(UserPermissionGrant.grant_type, UserPermissionGrant.expires_at)
+            select(
+                UserPermissionGrant.grant_type,
+                UserPermissionGrant.expires_at,
+                UserPermissionGrant.scope_companies,
+            )
             .where(
                 UserPermissionGrant.user_id == user.id,
                 UserPermissionGrant.permission_code.in_(candidate_codes),
             )
         )
-        for grant_type, expires_at in ug_q.all():
+        for grant_type, expires_at, sc_co in ug_q.all():
             if expires_at is not None and expires_at < now:
                 continue
+            # Точечная область (companies): без scope (пусто) грант/deny действуют
+            # ГЛОБАЛЬНО (как раньше); со scope — только в контексте своей компании.
+            # _scoped_grant_applies даёт True для пустого scope и для совпавшей
+            # компании (в отличие от группового deny, user deny тоже уважает scope).
+            if not _scoped_grant_applies(sc_co, None, None, company_id, None):
+                continue
             if grant_type == "deny":
-                return False  # user-level deny overrides everything below
+                return False  # user-level deny (в своей области) перебивает всё ниже
             if grant_type == "grant":
                 has_user_grant = True
     except Exception:
-        # таблица может ещё не существовать до self-heal — деградируем безопасно
+        # таблица/колонка может ещё не существовать до self-heal — деградируем безопасно
         has_user_grant = False
 
     # --- (2)(3) Group permission grants — чтобы deny отработал ДО grant-источников.

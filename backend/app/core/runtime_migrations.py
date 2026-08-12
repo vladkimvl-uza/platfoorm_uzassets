@@ -1772,6 +1772,12 @@ async def _patch_user_permission_grant(conn) -> None:
         "CREATE INDEX IF NOT EXISTS ix_user_perm_grant_user "
         "ON user_permission_grant (user_id)",
     ))
+    # Точечная область по компаниям для персональных грантов модулей (авг 2026).
+    # Пусто/NULL = глобально; непусто = грант/deny действует только для этих компаний.
+    await conn.execute(text(
+        "ALTER TABLE user_permission_grant "
+        "ADD COLUMN IF NOT EXISTS scope_companies JSONB",
+    ))
 
 
 async def _patch_rbac_module_permissions(conn) -> None:

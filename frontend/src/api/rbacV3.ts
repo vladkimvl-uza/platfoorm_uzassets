@@ -41,11 +41,20 @@ export interface RbacV3UserGroupMembership {
   role_name: string;
 }
 
+/** Точечный (по компаниям) прямой user-грант модуля. */
+export interface RbacV3ScopedGrant {
+  permission_code: string;
+  grant_type: string;
+  scope_companies: string[];   // UUID компаний
+}
+
 export interface RbacV3UserDetail extends RbacV3UserBrief {
   invite_email_sent?: boolean | null;   // только при создании: ушло ли письмо-приглашение
   effective_permissions: string[];
   direct_permissions?: string[];
   denied_permissions?: string[];
+  /** Точечные (по компаниям) гранты модулей — вне плоского набора. */
+  scoped_permissions?: RbacV3ScopedGrant[];
   // per-(user, group) memberships with their role inside the group.
   group_memberships: RbacV3UserGroupMembership[];
   // followup: moderation flags surfaced for the user-detail drawer.
@@ -124,10 +133,16 @@ export const rbacV3Api = {
   },
   // Прямое per-user редактирование доступа к модулям (OWNER/ADMIN).
   // permission_codes — плоский список (из levelsToPermissions сетки).
-  async setPermissions(userId: string, permission_codes: string[]): Promise<RbacV3UserDetail> {
+  // scopedCompanies — {code: [company_uuid,...]}: делает грант кода точечным
+  // (только для этих компаний) вместо глобального. Пусто = всё глобально.
+  async setPermissions(
+    userId: string,
+    permission_codes: string[],
+    scopedCompanies?: Record<string, string[]>,
+  ): Promise<RbacV3UserDetail> {
     const { data } = await api.put<RbacV3UserDetail>(
       `/rbac/v3/users/${userId}/permissions`,
-      { permission_codes },
+      { permission_codes, scoped_companies: scopedCompanies || {} },
     );
     return data;
   },

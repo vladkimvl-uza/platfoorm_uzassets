@@ -55,6 +55,7 @@ from app.schemas.rbac_v3 import (
     RoleDetail,
     RolePermissionsUpdate,
     RoleUpdatePayload,
+    ScopedPermissionGrant,
     UserBrief,
     UserCompanyMembership,
     UserCreatePayload,
@@ -894,6 +895,7 @@ class RbacV3Service:
         base = await self._hydrate_user(db, u)
         perms = await repo.effective_permission_codes(u.id)
         user_grants = await repo.user_grant_rows(u.id)
+        scoped_grants = await repo.scoped_user_grants(u.id)
         mem_rows = await repo.list_user_memberships(u.id)
         memberships = [
             UserGroupMembership(
@@ -905,8 +907,15 @@ class RbacV3Service:
         return UserDetail(
             **base.model_dump(),
             effective_permissions=perms,
-            direct_permissions=sorted(c for c, grant_type in user_grants if grant_type == "grant"),
-            denied_permissions=sorted(c for c, grant_type in user_grants if grant_type == "deny"),
+            direct_permissions=sorted(c for c, gt, sc in user_grants if gt == "grant" and not sc),
+            denied_permissions=sorted(c for c, gt, sc in user_grants if gt == "deny" and not sc),
+            scoped_permissions=[
+                ScopedPermissionGrant(
+                    permission_code=g["code"], grant_type=g["grant_type"],
+                    scope_companies=[str(x) for x in g["companies"]],
+                )
+                for g in scoped_grants
+            ],
             group_memberships=memberships,
             is_external=bool(getattr(u, "is_external", False)),
             bypass_moderation=bool(getattr(u, "bypass_moderation", False)),
@@ -973,6 +982,17 @@ class RbacV3Service:
             if code not in desired and _GRID_CODE_LEVEL_ANCHOR[code] not in desired
         )
         grants = sorted(desired - baseline)
+        # Точечная область по КОМПАНИЯМ: {code: [company_uuid,...]}. Применяем ТОЛЬКО
+        # к выдаваемым (grant) кодам — «сузить» роль-данный код здесь нельзя (нужен
+        # scoped-deny, не в этой версии). Пустой список = глобально.
+        scoped_map: dict[str, list[str]] = {}
+        for code, companies in (payload.scoped_companies or {}).items():
+            if code not in grants:
+                continue
+            clean = [str(c).strip() for c in (companies or []) if str(c).strip()]
+            if clean:
+                scoped_map[code] = clean
+
         # P0 ceiling: не-owner не может выдать права СВЕРХ собственных эффективных;
         # admin / admin.* — только owner. Иначе admin.users-актор self-эскалируется.
         if not user.is_owner:
@@ -987,7 +1007,31 @@ class RbacV3Service:
                         current_locale(), permissions=", ".join(excess),
                     ),
                 )
-        rows = [(c, "grant") for c in grants] + [(c, "deny") for c in denies]
+            # Company-ceiling: точечный доступ можно дать только к компаниям в
+            # области видимости актора (иначе горизонтальная эскалация — выдал бы
+            # права на чужую компанию). Owner / companies.view_all — без ограничения.
+            from app.core.access import allowed_company_ids, has_unrestricted_view
+            if scoped_map and not has_unrestricted_view(user):
+                allowed = await allowed_company_ids(db, user)  # None = все компании
+                allowed_set = None if allowed is None else {str(x) for x in allowed}
+                if allowed_set is not None:
+                    outside = sorted({
+                        c for companies in scoped_map.values()
+                        for c in companies if c not in allowed_set
+                    })
+                    if outside:
+                        raise HTTPException(
+                            http_status.HTTP_403_FORBIDDEN,
+                            tr(
+                                "Нельзя выдать точечный доступ к компаниям вне вашей "
+                                "области: {companies}",
+                                current_locale(), companies=", ".join(outside),
+                            ),
+                        )
+        rows = (
+            [(c, "grant", scoped_map.get(c)) for c in grants]
+            + [(c, "deny", None) for c in denies]
+        )
         # Зачищаем только то, чем управляет сама сетка: коды вне неё (например
         # moderation.review) сетка не показывает и восстановить не может, а
         # раньше replace-all стирал их при каждом сохранении.
