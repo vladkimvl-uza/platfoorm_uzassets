@@ -121,21 +121,25 @@ async def allowed_company_ids(db: AsyncSession, user: User) -> Optional[list[UUI
         from app.models.rbac_v3 import UserPermissionGrant
 
         now = datetime.now(UTC)
-        uq = await db.execute(
-            select(UserPermissionGrant.scope_companies, UserPermissionGrant.expires_at)
-            .where(
-                UserPermissionGrant.user_id == user.id,
-                UserPermissionGrant.grant_type == "grant",
-                UserPermissionGrant.scope_companies.is_not(None),
-            )
-        )
         urefs: set[str] = set()
-        for scope, expires_at in uq.all():
-            if expires_at is not None and expires_at < now:
-                continue
-            for ref in (scope or []):
-                if ref:
-                    urefs.add(str(ref).strip())
+        # SAVEPOINT: если колонки scope_companies ещё нет (окно деплоя ДО миграции),
+        # запрос упадёт, но откатится ТОЛЬКО сейвпоинт — внешняя транзакция реквеста
+        # не «отравится» (иначе следующий же запрос в реквесте падал бы с 500).
+        async with db.begin_nested():
+            uq = await db.execute(
+                select(UserPermissionGrant.scope_companies, UserPermissionGrant.expires_at)
+                .where(
+                    UserPermissionGrant.user_id == user.id,
+                    UserPermissionGrant.grant_type == "grant",
+                    UserPermissionGrant.scope_companies.is_not(None),
+                )
+            )
+            for scope, expires_at in uq.all():
+                if expires_at is not None and expires_at < now:
+                    continue
+                for ref in (scope or []):
+                    if ref:
+                        urefs.add(str(ref).strip())
         if urefs:
             ucq = await db.execute(
                 select(Company.id).where(

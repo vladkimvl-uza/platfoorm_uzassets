@@ -294,18 +294,23 @@ async def has_effective_permission(
     # deny на user-уровне перебивает любой grant роли/группы; grant — даёт право.
     has_user_grant = False
     try:
-        ug_q = await db.execute(
-            select(
-                UserPermissionGrant.grant_type,
-                UserPermissionGrant.expires_at,
-                UserPermissionGrant.scope_companies,
+        # SAVEPOINT: колонки scope_companies может ещё не быть (окно деплоя до
+        # миграции) — тогда упадёт только сейвпоинт, транзакция реквеста цела
+        # (иначе следующий же запрос падал бы с 500). Fetch внутри, обработка вне.
+        async with db.begin_nested():
+            ug_q = await db.execute(
+                select(
+                    UserPermissionGrant.grant_type,
+                    UserPermissionGrant.expires_at,
+                    UserPermissionGrant.scope_companies,
+                )
+                .where(
+                    UserPermissionGrant.user_id == user.id,
+                    UserPermissionGrant.permission_code.in_(candidate_codes),
+                )
             )
-            .where(
-                UserPermissionGrant.user_id == user.id,
-                UserPermissionGrant.permission_code.in_(candidate_codes),
-            )
-        )
-        for grant_type, expires_at, sc_co in ug_q.all():
+            ug_rows = ug_q.all()
+        for grant_type, expires_at, sc_co in ug_rows:
             if expires_at is not None and expires_at < now:
                 continue
             # Точечная область (companies): без scope (пусто) грант/deny действуют

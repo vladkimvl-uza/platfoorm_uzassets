@@ -306,15 +306,18 @@ class RbacV3Repository:
         точечные применяются в контексте (см. core.security.has_effective_permission).
         """
         try:
-            rows = (await self._session.execute(
-                select(
-                    UserPermissionGrant.permission_code,
-                    UserPermissionGrant.grant_type,
-                    UserPermissionGrant.expires_at,
-                    UserPermissionGrant.scope_companies,
-                )
-                .where(UserPermissionGrant.user_id == user_id)
-            )).all()
+            # SAVEPOINT: колонки scope_companies может ещё не быть (окно деплоя до
+            # миграции) — падает только сейвпоинт, транзакция реквеста цела.
+            async with self._session.begin_nested():
+                rows = (await self._session.execute(
+                    select(
+                        UserPermissionGrant.permission_code,
+                        UserPermissionGrant.grant_type,
+                        UserPermissionGrant.expires_at,
+                        UserPermissionGrant.scope_companies,
+                    )
+                    .where(UserPermissionGrant.user_id == user_id)
+                )).all()
             now = datetime.now(UTC)
             return [
                 (c, t, sc) for c, t, expires_at, sc in rows
