@@ -240,6 +240,7 @@ async def ensure_yearly_rates_schema() -> None:
             await _patch_kpi_direction(conn)
             await _patch_esg_maturity(conn)
             await _patch_esg_assurance_split(conn)
+            await _patch_esg_d2a_in_progress(conn)
             await _patch_esg_swot(conn)
             await _patch_esg_report(conn)
             await _patch_kpi_indicator_is_esg(conn)
@@ -1777,6 +1778,31 @@ async def _patch_user_permission_grant(conn) -> None:
     await conn.execute(text(
         "ALTER TABLE user_permission_grant "
         "ADD COLUMN IF NOT EXISTS scope_companies JSONB",
+    ))
+
+
+async def _patch_esg_d2a_in_progress(conn) -> None:
+    """D2A «Прохождение независимого заверения»: между «запланировано» (1) и
+    «пройдено» вставлена стадия «в процессе» (2), поэтому «пройдено» становится 3.
+
+    ОДНОРАЗОВО (гуард-маркер в system_config): сдвигаем существующее «пройдено»
+    (было stage=2) на 3, иначе после смены лейблов оно бы читалось как «в
+    процессе». Повторный старт НЕ сдвигает новые «в процессе» (2) → 3."""
+    marker = (await conn.execute(text(
+        "SELECT 1 FROM system_config WHERE key = 'esg.d2a_in_progress_v2' LIMIT 1"
+    ))).scalar()
+    if marker:
+        return
+    await conn.execute(text(
+        "UPDATE esg_maturity_cells SET stage = 3 "
+        "WHERE dimension = 'D2A' AND stage = 2"
+    ))
+    await conn.execute(text(
+        "INSERT INTO system_config (id, key, value, description, is_secret, "
+        "created_at, updated_at) VALUES (gen_random_uuid(), "
+        "'esg.d2a_in_progress_v2', 'true'::jsonb, "
+        "'D2A: вставлена стадия «в процессе» (пройдено 2→3)', FALSE, NOW(), NOW()) "
+        "ON CONFLICT (key) DO NOTHING"
     ))
 
 

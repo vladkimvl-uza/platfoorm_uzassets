@@ -88,9 +88,9 @@ const ISO = [
 // D2 «Подготовка ESG-отчётности» — 0..3 (заверение вынесено в отдельную колонку D2A)
 const REP_LABELS = [i18nKey("нет"), i18nKey("разовый"), i18nKey("регулярный"), "IFRS SDS"];
 const REP_COLORS = ["#94A3B8", "#378ADD", "#378ADD", "#7C6FF7"];
-// D2A «Прохождение независимого заверения» — нет / запланировано / пройдено
-const ASSUR_LABELS = [i18nKey("нет"), i18nKey("запланировано"), i18nKey("пройдено")];
-const ASSUR_COLORS = ["#94A3B8", "#D9A05A", "#1D9E75"];
+// D2A «Прохождение независимого заверения» — нет / запланировано / в процессе / пройдено
+const ASSUR_LABELS = [i18nKey("нет"), i18nKey("запланировано"), i18nKey("в процессе"), i18nKey("пройдено")];
+const ASSUR_COLORS = ["#94A3B8", "#D9A05A", "#378ADD", "#1D9E75"];
 // Клампим отображаемую стадию отчётности: legacy-данные могли иметь D2=4
 // («+ assurance»); теперь заверение — отдельное измерение, D2 ≤ 3.
 function repStage(c: ESGMaturityCompany): number { return Math.min(3, dStage(c, "D2", "")); }
@@ -259,11 +259,11 @@ function cycleRep(c: ESGMaturityCompany) {
   if (s >= 3) { setPending(c, "nr", "D2", 1); return; }                       // после «IFRS SDS» → не требуется
   setPending(c, "D2", "", s + 1);
 }
-// D2A «Прохождение независимого заверения»: клик циклит нет→запланировано→пройдено→нет
+// D2A «Прохождение независимого заверения»: клик циклит нет→запланировано→в процессе→пройдено→нет
 function cycleAssur(c: ESGMaturityCompany) {
   if (dStage(c, "nr", "D2A") >= 1) { setPending(c, "nr", "D2A", 0); return; }
   const s = dStage(c, "D2A", "");
-  setPending(c, "D2A", "", s >= 2 ? 0 : s + 1);
+  setPending(c, "D2A", "", s >= 3 ? 0 : s + 1);
 }
 
 // ── «Не нуждается» (исключение компании из метрик/статистики) ───────────
@@ -434,7 +434,7 @@ async function commitLink(c: ESGMaturityCompany) {
                       :class="{ ed: canEdit, pend: isPending(c,'D2A','') || isPending(c,'nr','D2A'), nr: isDimNr(c,'D2A') }"
                       :style="isDimNr(c,'D2A') ? {} : { color: ASSUR_COLORS[dStage(c,'D2A','')], background: ASSUR_COLORS[dStage(c,'D2A','')] + '1E' }"
                       :disabled="!canEdit"
-                      :title="isDimNr(c,'D2A') ? t('Независимое заверение: не требуется · клик → вернуть статус') : t('Прохождение независимого заверения: {value0} · клик циклит нет → запланировано → пройдено', { value0: t(ASSUR_LABELS[dStage(c,'D2A','')]) })"
+                      :title="isDimNr(c,'D2A') ? t('Независимое заверение: не требуется · клик → вернуть статус') : t('Прохождение независимого заверения: {value0} · клик циклит нет → запланировано → в процессе → пройдено', { value0: t(ASSUR_LABELS[dStage(c,'D2A','')]) })"
                       @click="cycleAssur(c)">
                 {{ isDimNr(c,'D2A') ? t('не требуется') : t(ASSUR_LABELS[dStage(c,'D2A','')]) }}
               </button>

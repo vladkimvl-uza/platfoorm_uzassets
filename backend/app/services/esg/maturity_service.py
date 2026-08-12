@@ -266,7 +266,7 @@ class ESGMaturityService:
             briefs: list[ESGMaturityCellBrief] = []
             iso_stages = [0, 0, 0]
             d2 = d4 = d5 = 0
-            d2a = 0   # D2A — прохождение независимого заверения (0 нет / 1 запл. / 2 пройдено)
+            d2a = 0   # D2A — заверение (0 нет / 1 запл. / 2 в процессе / 3 пройдено)
             not_needed = False
             dim_nr: set[str] = set()   # измерения «не требуется» → вне статистики и EMS
             for cell in cells:
@@ -303,9 +303,10 @@ class ESGMaturityService:
             dim_stage = {"D1": d1, "D2": d2, "D3": d3, "D4": d4, "D5": d5}
 
             # EMS — нормализуем по присутствующим весам, исключая «не требуется».
-            # Заверение (D2A «пройдено») — верхняя ступень отчётности: поднимает
-            # D2 до 4/4 (сохраняет прежнюю семантику legacy-стадии «+ assurance»).
-            d2_ems = min(4, d2 + (1 if d2a >= 2 else 0))
+            # Заверение (D2A «пройдено» = стадия 3) — верхняя ступень отчётности:
+            # поднимает D2 до 4/4 (семантика legacy-стадии «+ assurance»). Стадии
+            # «запланировано» (1) и «в процессе» (2) НЕ бустят — заверение не пройдено.
+            d2_ems = min(4, d2 + (1 if d2a >= 3 else 0))
             ems_stage = {**dim_stage, "D2": d2_ems}
             active_w = {k: w for k, w in _WEIGHTS.items() if k not in dim_nr}
             total_w = sum(active_w.values()) or 1.0

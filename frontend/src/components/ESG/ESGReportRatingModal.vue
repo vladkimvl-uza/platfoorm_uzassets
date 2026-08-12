@@ -38,7 +38,8 @@ const REP_OPTS = [
   { v: 2, label: i18nKey("регулярный") }, { v: 3, label: "IFRS SDS" },
 ];
 const ASSUR_OPTS = [
-  { v: 0, label: i18nKey("нет") }, { v: 1, label: i18nKey("запланировано") }, { v: 2, label: i18nKey("пройдено") },
+  { v: 0, label: i18nKey("нет") }, { v: 1, label: i18nKey("запланировано") },
+  { v: 2, label: i18nKey("в процессе") }, { v: 3, label: i18nKey("пройдено") },
 ];
 
 interface RatingRow { id?: string; agency: string; value: string; report_url: string; _new?: boolean }
