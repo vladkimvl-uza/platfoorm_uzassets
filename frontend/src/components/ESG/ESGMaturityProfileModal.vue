@@ -8,6 +8,7 @@
 import { computed, ref, watch } from "vue";
 import ModalShell from "@/components/ModalShell.vue";
 import ESGReportsTable from "@/components/ESG/ESGReportsTable.vue";
+import EsgStageDocsPanel from "@/components/ESG/EsgStageDocsPanel.vue";
 import type { ESGMaturityCompany } from "@/api/esg";
 import { ratingsApi, type AgencyRatingBrief, type AgencyRatingHistoryItem } from "@/api/ratings";
 import { useI18n } from "@/composables/useI18n";
@@ -21,7 +22,7 @@ const { t } = useI18n();
 
 
 const props = defineProps<{ company: ESGMaturityCompany | null; canEdit?: boolean }>();
-const emit = defineEmits<{ (e: "close"): void }>();
+const emit = defineEmits<{ (e: "close"): void; (e: "changed"): void }>();
 const companyName = computed(() =>
   resolveCompanyDisplayName(
     props.company?.company_name || props.company?.company_code,
@@ -136,6 +137,14 @@ watch(() => props.company, (c) => {
 
     <!-- Годовая таблица ESG-отчётов (редактируемая, с 2021) -->
     <ESGReportsTable v-if="company" :company-id="company.company_id" :can-edit="canEdit" />
+
+    <!-- Документы по этапам ESG (климат / риски / ISO) — загрузка + история;
+         файлы попадают в раздел «Документы» компании (папка ESG). -->
+    <div v-if="company" class="mp-docs">
+      <EsgStageDocsPanel :company-code="company.company_code"
+                         :stage-doc-counts="company.stage_doc_counts"
+                         :can-edit="canEdit" @changed="emit('changed')" />
+    </div>
   </ModalShell>
 </template>
 
@@ -143,6 +152,9 @@ watch(() => props.company, (c) => {
 .mp-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%; }
 .mp-eyebrow { font-size: 10px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--t3, #94A3B8); }
 .mp-title { font-size: 18px; font-weight: 500; color: var(--t1, #1E2A4A); margin-top: 3px; }
+
+/* Документы по этапам ESG — отделяем от таблицы отчётов тонкой линией сверху. */
+.mp-docs { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border, #ECEAF5); }
 
 /* Динамика рейтингов (история) */
 .mp-rh { margin-top: 4px; }
