@@ -84,11 +84,11 @@ async def _admin_gate(db: AsyncSession, user: User) -> None:
     )
 
 
-async def _require_consultants_view(db: AsyncSession, user: User) -> None:
+async def _require_consultants_view(db: AsyncSession, user: User, company_id=None) -> None:
     """Гейт данных модуля «Консультанты». Раньше здесь стоял `tasks.view`:
     право `consultants.view` проверял только роут фронта, и прямой вызов API
     отдавал сводку любому, кто видит задачи."""
-    if not await has_effective_permission(db, user, "consultants.view"):
+    if not await has_effective_permission(db, user, "consultants.view", company_id=company_id):
         raise HTTPException(
             http_status.HTTP_403_FORBIDDEN,
             "Permission required: consultants.view",
@@ -230,7 +230,7 @@ async def consultants_by_company(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
-    await _require_consultants_view(db, user)
+    await _require_consultants_view(db, user, company_id=company_id)
     # Скоуп по компании не трогаем: право открывает модуль, скоуп — конкретную
     # компанию.
     await ensure_company_access(db, user, company_id)

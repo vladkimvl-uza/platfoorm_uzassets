@@ -467,16 +467,18 @@ class FinancialsIfrsService:
         period: str,
         consolidated: bool,
     ) -> dict:
-        if not await has_effective_permission(db, user, "financials.view"):
-            raise HTTPException(
-                http_status.HTTP_403_FORBIDDEN, "Permission required",
-            )
         repo = FinancialsRepository(db)
         co = await repo.find_company_by_code(code)
         if not co:
             raise HTTPException(
                 http_status.HTTP_404_NOT_FOUND,
                 f"Company '{code}' not found",
+            )
+        if not await has_effective_permission(
+            db, user, "financials.view", company_id=co.id,
+        ):
+            raise HTTPException(
+                http_status.HTTP_403_FORBIDDEN, "Permission required",
             )
         scope_ids = await allowed_company_ids(db, user)
         if scope_ids is not None and co.id not in scope_ids:
@@ -556,17 +558,19 @@ class FinancialsIfrsService:
         (None, queued_dict) if the moderation gate held the change (route
         turns the queued dict into HTTP 202). Mirrors save_report's contract.
         The result dict still carries `_editor_token` for the route header."""
-        if not await has_effective_permission(db, user, "financials.edit"):
-            raise HTTPException(
-                http_status.HTTP_403_FORBIDDEN,
-                "Permission required: financials.edit",
-            )
         repo = FinancialsRepository(db)
         co = await repo.find_company_by_code(code)
         if not co:
             raise HTTPException(
                 http_status.HTTP_404_NOT_FOUND,
                 f"Company '{code}' not found",
+            )
+        if not await has_effective_permission(
+            db, user, "financials.edit", company_id=co.id,
+        ):
+            raise HTTPException(
+                http_status.HTTP_403_FORBIDDEN,
+                "Permission required: financials.edit",
             )
         scope_ids = await allowed_company_ids(db, user)
         if scope_ids is not None and co.id not in scope_ids:
@@ -637,16 +641,18 @@ class FinancialsIfrsService:
     async def get_history(
         self, code: str, db: AsyncSession, user: User, *, limit: int,
     ) -> dict:
-        if not await has_effective_permission(db, user, "financials.view"):
-            raise HTTPException(
-                http_status.HTTP_403_FORBIDDEN, "Permission required",
-            )
         repo = FinancialsRepository(db)
         co = await repo.find_company_by_code(code)
         if not co:
             raise HTTPException(
                 http_status.HTTP_404_NOT_FOUND,
                 f"Company '{code}' not found",
+            )
+        if not await has_effective_permission(
+            db, user, "financials.view", company_id=co.id,
+        ):
+            raise HTTPException(
+                http_status.HTTP_403_FORBIDDEN, "Permission required",
             )
         scope_ids = await allowed_company_ids(db, user)
         if scope_ids is not None and co.id not in scope_ids:
@@ -690,16 +696,18 @@ class FinancialsIfrsService:
         year: int,
         consolidated: bool,
     ) -> dict:
-        if not await has_effective_permission(db, user, "financials.view"):
-            raise HTTPException(
-                http_status.HTTP_403_FORBIDDEN, "Permission required",
-            )
         repo = FinancialsRepository(db)
         co = await repo.find_company_by_code(code)
         if not co:
             raise HTTPException(
                 http_status.HTTP_404_NOT_FOUND,
                 f"Company '{code}' not found",
+            )
+        if not await has_effective_permission(
+            db, user, "financials.view", company_id=co.id,
+        ):
+            raise HTTPException(
+                http_status.HTTP_403_FORBIDDEN, "Permission required",
             )
         scope_ids = await allowed_company_ids(db, user)
         if scope_ids is not None and co.id not in scope_ids:
@@ -809,16 +817,18 @@ class FinancialsIfrsService:
         period: str,
         consolidated: bool,
     ) -> StreamingResponse:
-        if not await has_effective_permission(db, user, "financials.view"):
-            raise HTTPException(
-                http_status.HTTP_403_FORBIDDEN, "Permission required",
-            )
         repo = FinancialsRepository(db)
         co = await repo.find_company_by_code(code)
         if not co:
             raise HTTPException(
                 http_status.HTTP_404_NOT_FOUND,
                 f"Company '{code}' not found",
+            )
+        if not await has_effective_permission(
+            db, user, "financials.view", company_id=co.id,
+        ):
+            raise HTTPException(
+                http_status.HTTP_403_FORBIDDEN, "Permission required",
             )
         try:
             year_list = sorted({
@@ -950,16 +960,18 @@ class FinancialsIfrsService:
         db: AsyncSession,
         user: User,
     ) -> dict:
-        if not await has_effective_permission(db, user, "financials.view"):
-            raise HTTPException(
-                http_status.HTTP_403_FORBIDDEN, "Permission required",
-            )
         repo = FinancialsRepository(db)
         co = await repo.find_company_by_code(code)
         if not co:
             raise HTTPException(
                 http_status.HTTP_404_NOT_FOUND,
                 f"Company '{code}' not found",
+            )
+        if not await has_effective_permission(
+            db, user, "financials.view", company_id=co.id,
+        ):
+            raise HTTPException(
+                http_status.HTTP_403_FORBIDDEN, "Permission required",
             )
         contents = await file.read()
         if not contents:

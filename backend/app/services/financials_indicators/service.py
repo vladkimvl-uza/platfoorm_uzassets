@@ -191,17 +191,17 @@ async def apply_submission(db: AsyncSession, *, sub, user: User) -> dict:
 class FinancialsIndicatorsService:
     async def _load(self, code: str, db: AsyncSession, user: User, *, write: bool):
         perm = "financials.edit" if write else "financials.view"
-        if not await has_effective_permission(db, user, perm):
-            raise HTTPException(
-                http_status.HTTP_403_FORBIDDEN,
-                f"Permission required: {perm}",
-            )
         repo = FinancialsRepository(db)
         co = await repo.find_company_by_code(code)
         if not co:
             raise HTTPException(
                 http_status.HTTP_404_NOT_FOUND,
                 f"Company '{code}' not found",
+            )
+        if not await has_effective_permission(db, user, perm, company_id=co.id):
+            raise HTTPException(
+                http_status.HTTP_403_FORBIDDEN,
+                f"Permission required: {perm}",
             )
         scope_ids = await allowed_company_ids(db, user)
         if scope_ids is not None and co.id not in scope_ids:

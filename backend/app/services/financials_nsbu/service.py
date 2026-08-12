@@ -115,16 +115,18 @@ class FinancialsNsbuService:
     async def get_schema(
         self, code: str, db: AsyncSession, user: User,
     ) -> dict:
-        if not await has_effective_permission(db, user, "financials.view"):
-            raise HTTPException(
-                http_status.HTTP_403_FORBIDDEN, "Permission required",
-            )
         repo = FinancialsRepository(db)
         co = await repo.find_company_by_code(code)
         if not co:
             raise HTTPException(
                 http_status.HTTP_404_NOT_FOUND,
                 f"Company '{code}' not found",
+            )
+        if not await has_effective_permission(
+            db, user, "financials.view", company_id=co.id,
+        ):
+            raise HTTPException(
+                http_status.HTTP_403_FORBIDDEN, "Permission required",
             )
         scope_ids = await allowed_company_ids(db, user)
         if scope_ids is not None and co.id not in scope_ids:
@@ -190,17 +192,19 @@ class FinancialsNsbuService:
           - `(None, queued_dict)` — moderation intercepted the change; the route
             turns it into HTTP 202 and MUST NOT read X-Editor-Token off it.
         """
-        if not await has_effective_permission(db, user, "financials.edit"):
-            raise HTTPException(
-                http_status.HTTP_403_FORBIDDEN,
-                "Permission required: financials.edit",
-            )
         repo = FinancialsRepository(db)
         co = await repo.find_company_by_code(code)
         if not co:
             raise HTTPException(
                 http_status.HTTP_404_NOT_FOUND,
                 f"Company '{code}' not found",
+            )
+        if not await has_effective_permission(
+            db, user, "financials.edit", company_id=co.id,
+        ):
+            raise HTTPException(
+                http_status.HTTP_403_FORBIDDEN,
+                "Permission required: financials.edit",
             )
         scope_ids = await allowed_company_ids(db, user)
         if scope_ids is not None and co.id not in scope_ids:
@@ -264,16 +268,18 @@ class FinancialsNsbuService:
     async def get_history(
         self, code: str, db: AsyncSession, user: User, *, limit: int,
     ) -> dict:
-        if not await has_effective_permission(db, user, "financials.view"):
-            raise HTTPException(
-                http_status.HTTP_403_FORBIDDEN, "Permission required",
-            )
         repo = FinancialsRepository(db)
         co = await repo.find_company_by_code(code)
         if not co:
             raise HTTPException(
                 http_status.HTTP_404_NOT_FOUND,
                 f"Company '{code}' not found",
+            )
+        if not await has_effective_permission(
+            db, user, "financials.view", company_id=co.id,
+        ):
+            raise HTTPException(
+                http_status.HTTP_403_FORBIDDEN, "Permission required",
             )
         scope_ids = await allowed_company_ids(db, user)
         if scope_ids is not None and co.id not in scope_ids:
@@ -311,16 +317,18 @@ class FinancialsNsbuService:
     async def download_template(
         self, code: str, years: str, db: AsyncSession, user: User,
     ) -> StreamingResponse:
-        if not await has_effective_permission(db, user, "financials.view"):
-            raise HTTPException(
-                http_status.HTTP_403_FORBIDDEN, "Permission required",
-            )
         repo = FinancialsRepository(db)
         co = await repo.find_company_by_code(code)
         if not co:
             raise HTTPException(
                 http_status.HTTP_404_NOT_FOUND,
                 f"Company '{code}' not found",
+            )
+        if not await has_effective_permission(
+            db, user, "financials.view", company_id=co.id,
+        ):
+            raise HTTPException(
+                http_status.HTTP_403_FORBIDDEN, "Permission required",
             )
         try:
             year_list = sorted({
@@ -453,16 +461,18 @@ class FinancialsNsbuService:
         db: AsyncSession,
         user: User,
     ) -> dict:
-        if not await has_effective_permission(db, user, "financials.view"):
-            raise HTTPException(
-                http_status.HTTP_403_FORBIDDEN, "Permission required",
-            )
         repo = FinancialsRepository(db)
         co = await repo.find_company_by_code(code)
         if not co:
             raise HTTPException(
                 http_status.HTTP_404_NOT_FOUND,
                 f"Company '{code}' not found",
+            )
+        if not await has_effective_permission(
+            db, user, "financials.view", company_id=co.id,
+        ):
+            raise HTTPException(
+                http_status.HTTP_403_FORBIDDEN, "Permission required",
             )
         contents = await file.read()
         if not contents:

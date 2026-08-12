@@ -60,8 +60,10 @@ router = APIRouter(prefix="/kpi", tags=["kpi"])
 
 # ── permission helpers (keep thin) ────────────────────────────────
 
-async def _require(db: AsyncSession, user: User, code: str) -> None:
-    if not await has_effective_permission(db, user, code):
+async def _require(
+    db: AsyncSession, user: User, code: str, company_id: Optional[UUID] = None,
+) -> None:
+    if not await has_effective_permission(db, user, code, company_id=company_id):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, f"{code} required")
 
 
@@ -94,7 +96,7 @@ async def get_company_year(
     Returns 403 if the caller lacks scope to this company. Issues an
     `X-Editor-Token` response header (optimistic lock) — must be echoed back as
     `If-Match` on the next PUT to avoid lost-update races."""
-    await _require(db, user, "kpi.view")
+    await _require(db, user, "kpi.view", company_id=company_id)
     await ensure_company_access(db, user, company_id)
     # Optimistic-lock token — выдаётся client'у на GET, проверяется на PUT.
     from app.core.editor_lock import compute_kpi_editor_token
@@ -126,7 +128,7 @@ async def replace_company_year(
     4) Atomic service.replace_year() — UoW гарантирует rollback при сбое.
     5) Post-commit side-effect — broadcast kpi_completion.
     """
-    await _require(db, user, "kpi.edit")
+    await _require(db, user, "kpi.edit", company_id=company_id)
     await ensure_company_access(db, user, company_id)
 
     # Год в пути — источник истины; тело обязано совпадать. Иначе прямой путь
@@ -191,7 +193,7 @@ async def delete_year(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require(db, user, "kpi.delete")
+    await _require(db, user, "kpi.delete", company_id=company_id)
     await ensure_company_access(db, user, company_id)
     await service.delete_year(company_id, year)
 
@@ -210,7 +212,7 @@ async def kpi_plan_draft(
     «Рассчитать показатели»). Read-only: ничего не пишет — применение через
     редактор (только пустые планы) и штатный PUT replace_year (kpi.edit +
     модерация + optimistic-lock). Literal-путь — ПЕРЕД /{company_id}/{year}."""
-    await _require(db, user, "kpi.view")
+    await _require(db, user, "kpi.view", company_id=company_id)
     await ensure_company_access(db, user, company_id)
     try:
         return await service.plan_draft(company_id, target_year)
@@ -239,7 +241,7 @@ async def forecast_company(
     OLS/CAGR-тренд на годы, коридор надёжности. Числа воспроизводимы; ИИ-слой
     (/ai/kpi-analysis mode=forecast) получает их как опору. 3-сегментный путь —
     чтобы не коллидировать с `/{company_id}/{year}`."""
-    await _require(db, user, "kpi.view")
+    await _require(db, user, "kpi.view", company_id=company_id)
     await ensure_company_access(db, user, company_id)
     return await service.forecast_company(company_id, base_year, horizon)
 
@@ -289,7 +291,7 @@ async def get_attention(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require(db, user, "kpi.view")
+    await _require(db, user, "kpi.view", company_id=company_id)
     await ensure_company_access(db, user, company_id)
     return await service.get_attention(company_id, year, period)
 
@@ -305,7 +307,7 @@ async def get_comment(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require(db, user, "kpi.view")
+    await _require(db, user, "kpi.view", company_id=company_id)
     await ensure_company_access(db, user, company_id)
     return await service.get_comment(company_id, year, period)
 
@@ -317,7 +319,7 @@ async def upsert_comment(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require(db, user, "kpi.edit")
+    await _require(db, user, "kpi.edit", company_id=payload.company_id)
     await ensure_company_access(db, user, payload.company_id)
     return await service.upsert_comment(payload, author_id=user.id)
 
@@ -342,15 +344,16 @@ async def load_template(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require(db, user, "kpi.import")
-    # ensure_company_access проверяется внутри service после lookup-а co.id.
-    # Здесь только базовая permission gate.
-    co = None  # для lookup перед scope-check придётся читать DB:
+    # Резолвим компанию по коду ПЕРЕД permission-check — чистый DB-lookup без
+    # побочных эффектов — чтобы прокинуть company_id в scoped-грант проверки.
+    co = None
     from sqlalchemy import func, select
 
     from app.models.company import Company
     res = await db.execute(select(Company).where(func.lower(Company.code) == company_code.lower()))
     co = res.scalar_one_or_none()
+    await _require(db, user, "kpi.import", company_id=co.id if co is not None else None)
+    # ensure_company_access проверяется внутри service после lookup-а co.id.
     if co is not None:
         await ensure_company_access(db, user, co.id)
     return await service.load_template(company_code, year)

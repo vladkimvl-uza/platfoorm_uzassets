@@ -37,8 +37,8 @@ from app.services.subsidies.service import SubsidiesService
 router = APIRouter(prefix="/subsidies", tags=["subsidies"])
 
 
-async def _require(db: AsyncSession, user: User, code: str) -> None:
-    if not await has_effective_permission(db, user, code):
+async def _require(db: AsyncSession, user: User, code: str, company_id=None) -> None:
+    if not await has_effective_permission(db, user, code, company_id=company_id):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, f"Permission required: {code}")
 
 
@@ -59,7 +59,9 @@ async def list_subsidies(
     user: User = Depends(get_current_user),
 ) -> list[SubsidyRow]:
     """Реестр субсидий (RBAC-scoped). Фильтры: year / sector_code / company_id."""
-    await _require(db, user, "financials.view")
+    # company_id — optional filter; when set it's a concrete company → включает
+    # scoped-грант в этой компании (None = глобальная проверка, поведение прежнее).
+    await _require(db, user, "financials.view", company_id=company_id)
     if company_id is not None:
         await ensure_company_access(db, user, company_id)
     scope = await _scope(db, user)
@@ -91,7 +93,7 @@ async def create_subsidy(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> SubsidyRow:
-    await _require(db, user, "financials.edit")
+    await _require(db, user, "financials.edit", company_id=payload.company_id)
     # Author scope BEFORE gating: внешний автор не может поставить в очередь
     # правку по компании вне своей области.
     await ensure_company_access(db, user, payload.company_id)
@@ -121,12 +123,12 @@ async def update_subsidy(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> SubsidyRow:
-    await _require(db, user, "financials.edit")
     # Resolve + scope-check the target BEFORE gating (mirror companies.py):
     # external author cannot queue an edit outside their company access.
     existing = await db.get(Subsidy, subsidy_id)
     if existing is None:
         raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Subsidy not found")
+    await _require(db, user, "financials.edit", company_id=existing.company_id)
     await ensure_company_access(db, user, existing.company_id)
     queued, sub = await moderation_service.gate_or_apply(
         db, user=user, module="subsidies", action="edit",
@@ -155,12 +157,12 @@ async def delete_subsidy(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> dict[str, bool]:
-    await _require(db, user, "financials.edit")
     # Resolve + scope-check the target BEFORE gating (mirror companies.py):
     # external author cannot queue a delete outside their company access.
     existing = await db.get(Subsidy, subsidy_id)
     if existing is None:
         raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Subsidy not found")
+    await _require(db, user, "financials.edit", company_id=existing.company_id)
     await ensure_company_access(db, user, existing.company_id)
     queued, sub = await moderation_service.gate_or_apply(
         db, user=user, module="subsidies", action="delete",

@@ -393,16 +393,18 @@ class FinancialsHlfService:
     async def get_company_hlf(
         self, code: str, db: AsyncSession, user: User,
     ) -> dict:
-        if not await has_effective_permission(db, user, "financials.view"):
-            raise HTTPException(
-                http_status.HTTP_403_FORBIDDEN, "Permission required",
-            )
         repo = FinancialsRepository(db)
         co = await repo.find_company_by_code(code)
         if not co:
             raise HTTPException(
                 http_status.HTTP_404_NOT_FOUND,
                 f"Company '{code}' not found",
+            )
+        if not await has_effective_permission(
+            db, user, "financials.view", company_id=co.id,
+        ):
+            raise HTTPException(
+                http_status.HTTP_403_FORBIDDEN, "Permission required",
             )
         scope_ids = await allowed_company_ids(db, user)
         if scope_ids is not None and co.id not in scope_ids:
@@ -437,16 +439,18 @@ class FinancialsHlfService:
         'financials' module in the panel — so this is pure wiring, no behavior
         change today (owner/bypass/no-rule all take the (result, None) branch).
         """
-        if not await has_effective_permission(db, user, "financials.edit"):
-            raise HTTPException(
-                http_status.HTTP_403_FORBIDDEN, "Permission required",
-            )
         repo = FinancialsRepository(db)
         co = await repo.find_company_by_code(code)
         if not co:
             raise HTTPException(
                 http_status.HTTP_404_NOT_FOUND,
                 f"Company '{code}' not found",
+            )
+        if not await has_effective_permission(
+            db, user, "financials.edit", company_id=co.id,
+        ):
+            raise HTTPException(
+                http_status.HTTP_403_FORBIDDEN, "Permission required",
             )
         scope_ids = await allowed_company_ids(db, user)
         if scope_ids is not None and co.id not in scope_ids:

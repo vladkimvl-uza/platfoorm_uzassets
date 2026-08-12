@@ -180,15 +180,23 @@ class FinancialsReportsService:
             checksum=checksum,
         )
 
-    async def _require_view(self, db: AsyncSession, user: User) -> None:
-        if not await has_effective_permission(db, user, "financials.view"):
+    async def _require_view(
+        self, db: AsyncSession, user: User, company_id=None,
+    ) -> None:
+        if not await has_effective_permission(
+            db, user, "financials.view", company_id=company_id,
+        ):
             raise HTTPException(
                 http_status.HTTP_403_FORBIDDEN,
                 "Permission required: financials.view",
             )
 
-    async def _require_edit(self, db: AsyncSession, user: User) -> None:
-        if not await has_effective_permission(db, user, "financials.edit"):
+    async def _require_edit(
+        self, db: AsyncSession, user: User, company_id=None,
+    ) -> None:
+        if not await has_effective_permission(
+            db, user, "financials.edit", company_id=company_id,
+        ):
             raise HTTPException(
                 http_status.HTTP_403_FORBIDDEN,
                 "Permission required: financials.edit",
@@ -240,13 +248,13 @@ class FinancialsReportsService:
     async def get_report(
         self, report_id: UUID, db: AsyncSession, user: User
     ) -> FinancialReportFull:
-        await self._require_view(db, user)
         repo = self._repo(db)
         report = await repo.get_report(report_id)
         if not report:
             raise HTTPException(
                 http_status.HTTP_404_NOT_FOUND, "Financial report not found"
             )
+        await self._require_view(db, user, company_id=report.company_id)
         scope_ids = await allowed_company_ids(db, user)
         if scope_ids is not None and report.company_id not in scope_ids:
             raise HTTPException(
@@ -262,7 +270,7 @@ class FinancialsReportsService:
         db: AsyncSession,
         user: User,
     ) -> FinancialReportFull:
-        await self._require_edit(db, user)
+        await self._require_edit(db, user, company_id=payload.company_id)
         scope_ids = await allowed_company_ids(db, user)
         if scope_ids is not None and payload.company_id not in scope_ids:
             raise HTTPException(
@@ -313,13 +321,13 @@ class FinancialsReportsService:
     ) -> tuple[Optional[FinancialReportSaveResponse], Optional[dict]]:
         """Returns either (response, None) for the normal happy path, or
         (None, queued_dict) if moderation gate held the change."""
-        await self._require_edit(db, user)
         repo = self._repo(db)
         report = await repo.get_report(report_id)
         if not report:
             raise HTTPException(
                 http_status.HTTP_404_NOT_FOUND, "Financial report not found"
             )
+        await self._require_edit(db, user, company_id=report.company_id)
         scope_ids = await allowed_company_ids(db, user)
         if scope_ids is not None and report.company_id not in scope_ids:
             raise HTTPException(
@@ -464,13 +472,13 @@ class FinancialsReportsService:
     async def delete_report(
         self, report_id: UUID, db: AsyncSession, user: User
     ) -> None:
-        await self._require_edit(db, user)
         repo = self._repo(db)
         report = await repo.get_report(report_id)
         if not report:
             raise HTTPException(
                 http_status.HTTP_404_NOT_FOUND, "Financial report not found"
             )
+        await self._require_edit(db, user, company_id=report.company_id)
         scope_ids = await allowed_company_ids(db, user)
         if scope_ids is not None and report.company_id not in scope_ids:
             raise HTTPException(

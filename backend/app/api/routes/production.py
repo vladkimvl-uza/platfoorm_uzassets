@@ -63,6 +63,18 @@ async def production_available(
     return await service.available()
 
 
+async def _company_uuid(db: AsyncSession, code: str):
+    """UUID компании по коду — для company-scoped проверки права (точечный грант
+    bp.* на конкретную компанию). Production адресует компании кодом, а scope в
+    scope_companies хранится UUID'ами, поэтому резолвим."""
+    from sqlalchemy import func, select
+
+    from app.models.company import Company
+    return (await db.execute(
+        select(Company.id).where(func.lower(Company.code) == code.lower())
+    )).scalar_one_or_none()
+
+
 @router.get("/companies/{code}")
 async def production_company_detail(
     code: str,
@@ -74,7 +86,7 @@ async def production_company_detail(
 ) -> dict[str, Any]:
     """Производство одной компании — для вкладки БП в карточке компании.
     Scoped: company-scoped юзер видит только свои компании (как PUT ниже)."""
-    if not await has_effective_permission(db, user, "bp.view"):
+    if not await has_effective_permission(db, user, "bp.view", company_id=await _company_uuid(db, code)):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "bp.view required")
     if not has_unrestricted_view(user):
         scope_ids = await allowed_company_ids(db, user)
@@ -92,7 +104,7 @@ async def update_production_company(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
-    if not await has_effective_permission(db, user, "bp.edit"):
+    if not await has_effective_permission(db, user, "bp.edit", company_id=await _company_uuid(db, code)):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "bp.edit required")
     if not has_unrestricted_view(user):
         scope_ids = await allowed_company_ids(db, user)

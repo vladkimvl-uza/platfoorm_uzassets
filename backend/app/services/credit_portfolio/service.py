@@ -88,8 +88,12 @@ class CreditPortfolioService:
 
     # ─── Common gates (must be called inside `async with self.uow`) ──
 
-    async def _require(self, user: User, perm: str) -> None:
-        if not await has_effective_permission(self.uow._session, user, perm):  # type: ignore[attr-defined]
+    async def _require(
+        self, user: User, perm: str, company_id: Optional[UUID] = None
+    ) -> None:
+        if not await has_effective_permission(
+            self.uow._session, user, perm, company_id=company_id  # type: ignore[attr-defined]
+        ):
             raise HTTPException(http_status.HTTP_403_FORBIDDEN, f"{perm} required")
         # (Прежний стопгап на запись внешним авторам снят: при выкате модерация
         # ВЫКЛючена по умолчанию, поэтому credit ведёт себя как остальные пока-не-
@@ -187,7 +191,7 @@ class CreditPortfolioService:
         include_deleted: bool = False,
     ) -> list[LoanRead]:
         async with self.uow:
-            await self._require(user, "credit.view")
+            await self._require(user, "credit.view", company_id=company_id)
             repo = self.uow.credit_portfolio
             if company_code:
                 co = await repo.get_company_by_code(company_code)
@@ -219,7 +223,7 @@ class CreditPortfolioService:
         self, payload: LoanCreate, user: User, *, _skip_gate: bool = False
     ) -> LoanRead | dict:
         async with self.uow:
-            await self._require(user, "credit.edit")
+            await self._require(user, "credit.edit", company_id=payload.company_id)
             await self._check_company_access(user, payload.company_id)
             repo = self.uow.credit_portfolio
             if await repo.get_loan_by_code(payload.loan_code) is not None:
@@ -504,7 +508,7 @@ class CreditPortfolioService:
     ) -> CreditPortfolioAggregate:
         as_of = as_of or _DEFAULT_AS_OF
         async with self.uow:
-            await self._require(user, "credit.view")
+            await self._require(user, "credit.view", company_id=company_id)
             repo = self.uow.credit_portfolio
 
             if company_code:
@@ -841,7 +845,7 @@ class CreditPortfolioService:
     ) -> RiskMetrics:
         as_of = as_of or _DEFAULT_AS_OF
         async with self.uow:
-            await self._require(user, "credit.view")
+            await self._require(user, "credit.view", company_id=company_id)
             repo = self.uow.credit_portfolio
 
             if company_code:
@@ -978,7 +982,7 @@ class CreditPortfolioService:
     ) -> list[RiskBubblePoint]:
         as_of = as_of or _DEFAULT_AS_OF
         async with self.uow:
-            await self._require(user, "credit.view")
+            await self._require(user, "credit.view", company_id=company_id)
             repo = self.uow.credit_portfolio
 
             if company_code:
@@ -1028,7 +1032,7 @@ class CreditPortfolioService:
     ) -> list[SankeyFlow]:
         as_of = as_of or _DEFAULT_AS_OF
         async with self.uow:
-            await self._require(user, "credit.view")
+            await self._require(user, "credit.view", company_id=company_id)
             repo = self.uow.credit_portfolio
 
             if company_code:

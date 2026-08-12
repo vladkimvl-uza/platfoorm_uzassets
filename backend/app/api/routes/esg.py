@@ -55,8 +55,8 @@ from app.schemas.esg import (
 router = APIRouter(prefix="/esg", tags=["esg"])
 
 
-async def _require(db: AsyncSession, user: User, code: str) -> None:
-    if not await has_effective_permission(db, user, code):
+async def _require(db: AsyncSession, user: User, code: str, company_id: Optional[UUID] = None) -> None:
+    if not await has_effective_permission(db, user, code, company_id=company_id):
         raise HTTPException(403, "Forbidden")
 
 
@@ -109,7 +109,7 @@ async def upsert_maturity_cell(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require(db, user, "esg.edit")
+    await _require(db, user, "esg.edit", company_id=payload.company_id)
 
     from app.services.moderation_service import gate_or_apply
     queued, sub = await gate_or_apply(
@@ -149,7 +149,7 @@ async def upsert_swot(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require(db, user, "esg.edit")
+    await _require(db, user, "esg.edit", company_id=payload.company_id)
     from app.services.moderation_service import gate_or_apply
     queued, sub = await gate_or_apply(
         db, user=user, module="esg", action="upsert_swot",
@@ -178,7 +178,7 @@ async def get_company_reports(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require(db, user, "esg.view")
+    await _require(db, user, "esg.view", company_id=company_id)
     return await service.get_reports(
         db, company_id=company_id, scope_company_ids=await _scope(db, user),
     )
@@ -191,7 +191,7 @@ async def upsert_report(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require(db, user, "esg.edit")
+    await _require(db, user, "esg.edit", company_id=payload.company_id)
     from app.services.moderation_service import gate_or_apply
     queued, sub = await gate_or_apply(
         db, user=user, module="esg", action="upsert_report",
@@ -237,7 +237,7 @@ async def get_esg_kpi_managers(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require(db, user, "esg.view")
+    await _require(db, user, "esg.view", company_id=company_id)
     from datetime import datetime as _dt
     from datetime import timezone as _tz
     yr = year or _dt.now(_tz.utc).year
@@ -253,7 +253,7 @@ async def add_esg_kpi(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require(db, user, "esg.edit")
+    await _require(db, user, "esg.edit", company_id=payload.company_id)
     return await service.add_esg_kpi(
         db, payload, scope_company_ids=await _scope(db, user),
     )
@@ -269,7 +269,7 @@ async def get_company_detail(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require(db, user, "esg.view")
+    await _require(db, user, "esg.view", company_id=company_id)
     return await service.get_company_detail(
         company_id, year=year, scope_company_ids=await _scope(db, user),
     )
@@ -284,7 +284,7 @@ async def upsert_metric(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require(db, user, "esg.edit")
+    await _require(db, user, "esg.edit", company_id=payload.company_id)
 
     from app.services.moderation_service import gate_or_apply
     queued, sub = await gate_or_apply(
@@ -325,9 +325,9 @@ async def delete_swot(
 ):
     """Удаление вывода — под модерацией, как и его создание (PUT /swot):
     внешний автор не должен уметь тихо стирать выводы напрямую."""
-    await _require(db, user, "esg.edit")
     from app.models.esg import ESGSwotItem as _SW
     _item = (await db.execute(select(_SW).where(_SW.id == item_id))).scalar_one_or_none()
+    await _require(db, user, "esg.edit", company_id=_item.company_id if _item else None)
     if _item is None:
         raise HTTPException(http_status.HTTP_404_NOT_FOUND, "SWOT item not found")
     from app.services.moderation_service import gate_or_apply
@@ -361,7 +361,7 @@ async def list_issues(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require(db, user, "esg.view")
+    await _require(db, user, "esg.view", company_id=company_id)
     return await service.list_issues(
         company_id=company_id, pillar=pillar,
         severity=severity, status=status,
@@ -377,7 +377,7 @@ async def create_issue(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require(db, user, "esg.edit")
+    await _require(db, user, "esg.edit", company_id=payload.company_id)
 
     from app.services.moderation_service import gate_or_apply
     queued, sub = await gate_or_apply(

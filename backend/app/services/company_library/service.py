@@ -350,7 +350,7 @@ class CompanyLibraryService:
             # (+ модерация как канон-путь /ratings); всё прочее → companies.edit.
             from app.core.security import has_effective_permission
             required_perm = "ratings.edit" if src == "ratings" else "companies.edit"
-            if not await has_effective_permission(db, user, required_perm):
+            if not await has_effective_permission(db, user, required_perm, company_id=company_id):
                 raise HTTPException(
                     http_status.HTTP_403_FORBIDDEN,
                     f"Permission required: {required_perm}",

@@ -39,15 +39,20 @@ from app.services.procurement.import_service import PaImportSummary
 router = APIRouter(prefix="/procurement", tags=["procurement-analysis"])
 
 
-async def _require_pa_edit(db: AsyncSession, user: User) -> None:
+async def _require_pa_edit(
+    db: AsyncSession, user: User, company_id: Optional[UUID] = None
+) -> None:
     """Гейт правки данных анализа закупок.
 
     `procurement_analysis.edit` есть в каталоге и видно в сетке «Доступ к
     модулям», но не проверялось нигде — выдача права не давала эффекта. Прежнее
     `procurement.edit` оставлено рядом, чтобы не отобрать правку у ролей,
-    которые редактируют закрытия сегодня."""
-    if not (await _has_permission(db, user, "procurement_analysis.edit")
-            or await _has_permission(db, user, "procurement.edit")):
+    которые редактируют закрытия сегодня.
+
+    company_id (если известна конкретная компания) — включает per-company
+    scoped-гранты через has_effective_permission; None → глобально/по роли."""
+    if not (await _has_permission(db, user, "procurement_analysis.edit", company_id=company_id)
+            or await _has_permission(db, user, "procurement.edit", company_id=company_id)):
         raise HTTPException(
             http_status.HTTP_403_FORBIDDEN,
             "procurement_analysis.edit required",
@@ -93,7 +98,7 @@ async def get_aggregate(
     # /procurement/aggregate обслуживает экран «Анализ закупок», у которого в
     # каталоге есть собственный код. Раньше экран гейтился чужим правом закупок,
     # и админ, снимая procurement_analysis.view, ничего не менял.
-    if not await _has_permission(db, user, "procurement_analysis.view"):
+    if not await _has_permission(db, user, "procurement_analysis.view", company_id=company_id):
         raise HTTPException(
             http_status.HTTP_403_FORBIDDEN, "procurement_analysis.view required"
         )

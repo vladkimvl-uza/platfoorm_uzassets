@@ -72,8 +72,8 @@ async def _broadcast_rating_update(rec: AgencyRating, user) -> None:
         logger.warning("ratings library-sync broadcast failed", exc_info=True)
 
 
-async def _require(db: AsyncSession, user: User, code: str) -> None:
-    if not await has_effective_permission(db, user, code):
+async def _require(db: AsyncSession, user: User, code: str, company_id=None) -> None:
+    if not await has_effective_permission(db, user, code, company_id=company_id):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, f"Permission required: {code}")
 
 
@@ -126,12 +126,12 @@ async def get_rating_history(
     user: User = Depends(get_current_user),
 ):
     """Таймлайн изменений рейтинга по (компания, агентство) — create/update/delete."""
-    await _require(db, user, "ratings.view")
     company = (await db.execute(
         select(Company).where(func.lower(Company.code) == code.lower())
     )).scalar_one_or_none()
     if company is None:
         raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Company not found")
+    await _require(db, user, "ratings.view", company_id=company.id)
     scope_ids = await _scope(db, user)
     if scope_ids is not None and company.id not in scope_ids:
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "No access to this company")
@@ -154,7 +154,7 @@ async def create_rating(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require(db, user, "ratings.edit")
+    await _require(db, user, "ratings.edit", company_id=payload.company_id)
 
     scope_ids = await _scope(db, user)
     if scope_ids is not None and payload.company_id not in scope_ids:
@@ -193,10 +193,10 @@ async def update_rating(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require(db, user, "ratings.edit")
     scope_ids = await _scope(db, user)
 
     rec_pre = await service.get_for_moderation(rating_id, scope_company_ids=scope_ids)
+    await _require(db, user, "ratings.edit", company_id=rec_pre.company_id)
 
     from app.services.moderation_service import gate_or_apply
     queued, sub = await gate_or_apply(
@@ -228,10 +228,10 @@ async def delete_rating(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require(db, user, "ratings.edit")
     scope_ids = await _scope(db, user)
 
     rec_pre = await service.get_for_moderation(rating_id, scope_company_ids=scope_ids)
+    await _require(db, user, "ratings.edit", company_id=rec_pre.company_id)
 
     from app.services.moderation_service import gate_or_apply
     queued, sub = await gate_or_apply(

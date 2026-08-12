@@ -77,14 +77,18 @@ async def unit_cost_save_company(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not await has_effective_permission(db, user, "unit_cost.edit"):
+    # Резолвим id компании по коду ПЕРЕД permission-check — чистый DB-lookup без
+    # побочных эффектов — чтобы прокинуть company_id в scoped-грант проверки
+    # (crow переиспользуется ниже для scope-проверки).
+    crow = (await db.execute(text(
+        "SELECT id FROM companies WHERE code = :c AND is_active = true"
+    ), {"c": code})).first()
+    company_uuid = crow[0] if crow else None
+    if not await has_effective_permission(db, user, "unit_cost.edit", company_id=company_uuid):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "unit_cost.edit required")
     scope_ids = await allowed_company_ids(db, user)
     in_scope = True
     if scope_ids is not None:
-        crow = (await db.execute(text(
-            "SELECT id FROM companies WHERE code = :c AND is_active = true"
-        ), {"c": code})).first()
         in_scope = bool(crow) and crow[0] in set(scope_ids)
     # Scope проверяем ДО модерации: иначе внешний автор мог бы отправить в очередь
     # (а после аппрува — записать) себестоимость чужой компании вне доступа.

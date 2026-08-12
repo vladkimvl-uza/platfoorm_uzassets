@@ -144,7 +144,7 @@ async def get_raw_records(
     """Fetch raw business-plan records (P&L + SOFP rows) for company × year.
 
     Used by the BP editor. Computed/derived rows live at GET /{company}/{year}/{period}."""
-    if not await has_effective_permission(db, user, "bp.view"):
+    if not await has_effective_permission(db, user, "bp.view", company_id=company_id):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "bp.view required")
     await ensure_company_access(db, user, company_id)
     # Optimistic-lock: токен состояния (company, year) — редактор вернёт его в
@@ -170,7 +170,7 @@ async def forecast_company(
     Детерминированный движок core/forecast по годовому ряду факта/ожидаемого.
     Числа воспроизводимы; ИИ-слой (/ai/bp-analysis mode=forecast) берёт их опорой.
     Путь с literal `forecast` — чтобы не коллидировать с /{company_id}/{year}/{period}."""
-    if not await has_effective_permission(db, user, "bp.view"):
+    if not await has_effective_permission(db, user, "bp.view", company_id=company_id):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "bp.view required")
     await ensure_company_access(db, user, company_id)
     return await service.forecast_company(company_id, base_year, horizon)
@@ -188,7 +188,7 @@ async def plan_draft(
     показатели»). Read-only: ничего не пишет — применение через редактор
     (только пустые ячейки) и штатный bulk-upsert (bp.edit + модерация + лок).
     Literal-путь — регистрируется ПЕРЕД catch-all /{company_id}/{year}/{period}."""
-    if not await has_effective_permission(db, user, "bp.view"):
+    if not await has_effective_permission(db, user, "bp.view", company_id=company_id):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "bp.view required")
     await ensure_company_access(db, user, company_id)
     try:
@@ -218,7 +218,7 @@ async def quarter_forecast(
     нарастающим итогом); сезонный fallback — прошлогодние кварталы. Питает
     ghost-бары в «Динамике по кварталам». Путь 2-сегментный — с catch-all
     /{company_id}/{year}/{period} не коллидирует."""
-    if not await has_effective_permission(db, user, "bp.view"):
+    if not await has_effective_permission(db, user, "bp.view", company_id=company_id):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "bp.view required")
     try:
         if company_id is not None:
@@ -251,7 +251,7 @@ async def get_computed(
     """Fetch BP with all derived metrics computed (margins, growth, FX-normalised).
 
     Period is one of: year, q1, q2, q3, q4. Used by BP dashboards and PDF reports."""
-    if not await has_effective_permission(db, user, "bp.view"):
+    if not await has_effective_permission(db, user, "bp.view", company_id=company_id):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "bp.view required")
     await ensure_company_access(db, user, company_id)
     try:
@@ -276,7 +276,7 @@ async def upsert_one(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not await has_effective_permission(db, user, "bp.edit"):
+    if not await has_effective_permission(db, user, "bp.edit", company_id=payload.company_id):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "bp.edit required")
     await ensure_company_access(db, user, payload.company_id)
     await service.upsert_one(payload)
@@ -307,14 +307,19 @@ async def bulk_upsert(
 
     Pack 148: gated by moderation (module='business_plan', action='bulk_upsert').
     """
-    if not await has_effective_permission(db, user, "bp.edit"):
-        raise HTTPException(http_status.HTTP_403_FORBIDDEN, "bp.edit required")
-
-    # Scope-проверка ДО модерации по КАЖДОЙ компании в наборе: иначе
-    # ограниченный пользователь мог отправить на модерацию (а после аппрува —
-    # записать) данные бизнес-плана чужой компании вне своего доступа.
-    for cid in {r.company_id for r in payload.records}:
-        await ensure_company_access(db, user, cid)
+    # Право bp.edit И доступ к компании проверяем ПО КАЖДОЙ компании набора:
+    # при точечном (по компаниям) гранте bp.edit на компанию A пользователь не
+    # должен через мультикомпанийный батч записать данные компании B, к которой у
+    # него лишь видимость. (Раньше bp.edit сверялся только по records[0] — дыра.)
+    companies = {r.company_id for r in payload.records}
+    if not companies:
+        if not await has_effective_permission(db, user, "bp.edit"):
+            raise HTTPException(http_status.HTTP_403_FORBIDDEN, "bp.edit required")
+    else:
+        for cid in companies:
+            if not await has_effective_permission(db, user, "bp.edit", company_id=cid):
+                raise HTTPException(http_status.HTTP_403_FORBIDDEN, "bp.edit required")
+            await ensure_company_access(db, user, cid)
 
     # Moderation gate (uses first record's company_id for rule matching)
     from app.services.moderation_service import gate_or_apply
@@ -367,7 +372,7 @@ async def delete_year(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not await has_effective_permission(db, user, "bp.delete"):
+    if not await has_effective_permission(db, user, "bp.delete", company_id=company_id):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "bp.delete required")
     await ensure_company_access(db, user, company_id)
     await service.delete_year(company_id, year)
@@ -384,7 +389,7 @@ async def get_attention(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not await has_effective_permission(db, user, "bp.view"):
+    if not await has_effective_permission(db, user, "bp.view", company_id=company_id):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "bp.view required")
     await ensure_company_access(db, user, company_id)
     return await service.attention(company_id, year, period)
@@ -401,7 +406,7 @@ async def get_comment(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not await has_effective_permission(db, user, "bp.view"):
+    if not await has_effective_permission(db, user, "bp.view", company_id=company_id):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "bp.view required")
     await ensure_company_access(db, user, company_id)
     return await service.get_comment(company_id, year, period)
@@ -414,7 +419,7 @@ async def upsert_comment(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not await has_effective_permission(db, user, "bp.edit"):
+    if not await has_effective_permission(db, user, "bp.edit", company_id=payload.company_id):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "bp.edit required")
     await ensure_company_access(db, user, payload.company_id)
     return await service.upsert_comment(payload, author_id=user.id)

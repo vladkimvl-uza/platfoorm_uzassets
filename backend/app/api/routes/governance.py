@@ -40,8 +40,8 @@ from app.schemas.governance import (
 router = APIRouter(prefix="/governance", tags=["governance"])
 
 
-async def _require(db: AsyncSession, user: User, code: str) -> None:
-    if not await has_effective_permission(db, user, code):
+async def _require(db: AsyncSession, user: User, code: str, company_id: Optional[UUID] = None) -> None:
+    if not await has_effective_permission(db, user, code, company_id=company_id):
         raise HTTPException(403, "Forbidden")
 
 
@@ -92,7 +92,7 @@ async def get_company_detail(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require(db, user, "governance.view")
+    await _require(db, user, "governance.view", company_id=company_id)
     return await service.get_company_detail(
         company_id, year=year,
         scope_company_ids=await _scope(db, user),
@@ -108,7 +108,7 @@ async def upsert_governance_data(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require(db, user, "governance.edit")
+    await _require(db, user, "governance.edit", company_id=payload.company_id)
     scope = await _require_company_scope(db, user, payload.company_id)
 
     # Moderation gate (scope уже проверен выше — заявку на чужую компанию не создаём)
@@ -179,7 +179,7 @@ async def list_board_members(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require(db, user, "governance.view")
+    await _require(db, user, "governance.view", company_id=company_id)
     return await service.list_board_members(
         company_id, include_past=include_past,
         scope_company_ids=await _scope(db, user),
@@ -193,7 +193,7 @@ async def create_board_member(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require(db, user, "governance.edit")
+    await _require(db, user, "governance.edit", company_id=payload.company_id)
     scope = await _require_company_scope(db, user, payload.company_id)
 
     from app.services.moderation_service import gate_or_apply

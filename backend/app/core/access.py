@@ -109,6 +109,46 @@ async def allowed_company_ids(db: AsyncSession, user: User) -> Optional[list[UUI
     except Exception:
         pass  # scope — дополнение; сбой не должен ломать базовую видимость
 
+    # Scoped USER permission grants: персональный grant модуля со scope_companies
+    # даёт пользователю ВИДИМОСТЬ указанных компаний — иначе ensure_company_access
+    # заблокировал бы его на них и точечный грант модуля был бы недостижим.
+    # Симметрично групповым грантам выше. Пер-модульность даёт сам гейт прав
+    # (has_effective_permission(company_id=...)), здесь — только видимость компании.
+    try:
+        from datetime import UTC, datetime
+
+        from app.models.company import Company
+        from app.models.rbac_v3 import UserPermissionGrant
+
+        now = datetime.now(UTC)
+        uq = await db.execute(
+            select(UserPermissionGrant.scope_companies, UserPermissionGrant.expires_at)
+            .where(
+                UserPermissionGrant.user_id == user.id,
+                UserPermissionGrant.grant_type == "grant",
+                UserPermissionGrant.scope_companies.is_not(None),
+            )
+        )
+        urefs: set[str] = set()
+        for scope, expires_at in uq.all():
+            if expires_at is not None and expires_at < now:
+                continue
+            for ref in (scope or []):
+                if ref:
+                    urefs.add(str(ref).strip())
+        if urefs:
+            ucq = await db.execute(
+                select(Company.id).where(
+                    (Company.id.cast(String).in_(urefs))
+                    | (Company.code.in_(urefs))
+                )
+            )
+            for cid in ucq.scalars().all():
+                if cid is not None and cid not in ids:
+                    ids.append(cid)
+    except Exception:
+        pass  # user-scope — дополнение; сбой не ломает базовую видимость
+
     # Plus legacy organization_id (if set and not already in the list).
     org_id = user.organization_id
     if org_id is not None and org_id not in ids:
