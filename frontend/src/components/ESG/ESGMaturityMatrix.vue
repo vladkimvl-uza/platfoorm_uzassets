@@ -87,7 +87,8 @@ const ISO = [
 ];
 // D2 «Подготовка ESG-отчётности» — 0..3 (заверение вынесено в отдельную колонку D2A)
 const REP_LABELS = [i18nKey("нет"), i18nKey("разовый"), i18nKey("регулярный"), "IFRS SDS"];
-const REP_COLORS = ["#94A3B8", "#378ADD", "#378ADD", "#7C6FF7"];
+// разовый/регулярный — разные оттенки синего, чтобы статусы различались визуально
+const REP_COLORS = ["#94A3B8", "#5EA9E8", "#2F7BC9", "#7C6FF7"];
 // D2A «Прохождение независимого заверения» — нет / запланировано / в процессе / пройдено
 const ASSUR_LABELS = [i18nKey("нет"), i18nKey("запланировано"), i18nKey("в процессе"), i18nKey("пройдено")];
 const ASSUR_COLORS = ["#94A3B8", "#D9A05A", "#378ADD", "#1D9E75"];
@@ -251,14 +252,6 @@ function clickStep(c: ESGMaturityCompany, dim: string, i: number) {
   const cur = dStage(c, dim, "");
   setPending(c, dim, "", cur === i + 1 ? i : i + 1);
 }
-function cycleRep(c: ESGMaturityCompany) {
-  // Клик по пилюле циклит статусы ЗАМКНУТО: нет→разовый→регулярный→IFRS SDS→нет.
-  // «Не требуется» вынесено в отдельную кнопку н/т (иначе из IFRS SDS нельзя
-  // было вернуться к «нет» — цикл упирался в «не требуется»↔стадию).
-  if (dStage(c, "nr", "D2") >= 1) { setPending(c, "nr", "D2", 0); return; }   // не требуется → снять
-  const s = repStage(c);
-  setPending(c, "D2", "", s >= 3 ? 0 : s + 1);
-}
 // D2A «Прохождение независимого заверения»: клик циклит нет→запланировано→в процессе→пройдено→нет
 function cycleAssur(c: ESGMaturityCompany) {
   if (dStage(c, "nr", "D2A") >= 1) { setPending(c, "nr", "D2A", 0); return; }
@@ -286,6 +279,31 @@ function toggleDimNr(c: ESGMaturityCompany, dim: string) {
   if (!props.canEdit || saving.value) return;
   const cur = cellStage(c, "nr", dim) >= 1;
   setPending(c, "nr", dim, cur ? 0 : 1);
+}
+
+// ── Прямой выбор статуса отчётности (D2) выпадающим меню ─────────────────
+// Клик по пилюле открывает меню со ВСЕМИ статусами (нет/разовый/регулярный/
+// IFRS SDS + «не требуется»). Выбор применяется сразу — без цикла и confirm,
+// поэтому любой статус, включая разовый/регулярный, выбирается в один клик.
+const repMenu = ref<{ c: ESGMaturityCompany; x: number; y: number } | null>(null);
+function toggleRepMenu(c: ESGMaturityCompany, e: MouseEvent) {
+  if (!props.canEdit || saving.value) return;
+  if (repMenu.value && repMenu.value.c === c) { repMenu.value = null; return; }
+  const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+  const x = Math.max(8, Math.min(r.left, window.innerWidth - 180));
+  repMenu.value = { c, x, y: r.bottom + 4 };
+}
+async function pickRep(stage: number) {
+  const c = repMenu.value?.c; if (!c) return;
+  repMenu.value = null;
+  if (isDimNr(c, "D2")) await setStage(c, "nr", "D2", 0);   // снять «не требуется»
+  await setStage(c, "D2", "", stage);
+}
+async function pickRepNr() {
+  const c = repMenu.value?.c; if (!c) return;
+  const on = isDimNr(c, "D2");
+  repMenu.value = null;
+  await setStage(c, "nr", "D2", on ? 0 : 1);
 }
 
 // ── Ссылка на отчёт в колонке «Отчётность» (evidence_url ячейки D2) ─────
@@ -403,12 +421,13 @@ async function commitLink(c: ESGMaturityCompany) {
             <!-- Отчётность + inline-ссылка на отчёт -->
             <td class="mm-c mm-cedit mm-rep-c">
               <div class="mm-rep-row">
-                <button type="button" class="mm-pill" :class="{ ed: canEdit, pend: isPending(c,'D2','') || isPending(c,'nr','D2'), nr: isDimNr(c,'D2') }"
+                <button type="button" class="mm-pill" :class="{ ed: canEdit, open: repMenu?.c === c, nr: isDimNr(c,'D2') }"
                         :style="isDimNr(c,'D2') ? {} : { color: REP_COLORS[repStage(c)], background: REP_COLORS[repStage(c)] + '1E' }"
                         :disabled="!canEdit"
-                        :title="isDimNr(c,'D2') ? t('Подготовка отчётности: не требуется · клик → вернуть статус') : t('Подготовка ESG-отчётности: {value0} · клик циклит статусы (нет → разовый → регулярный → IFRS SDS)', { value0: t(REP_LABELS[repStage(c)]) })"
-                        @click="cycleRep(c)">
+                        :title="isDimNr(c,'D2') ? t('Подготовка отчётности: не требуется · клик — выбрать статус') : t('Подготовка ESG-отчётности: {value0} · клик — выбрать статус', { value0: t(REP_LABELS[repStage(c)]) })"
+                        @click.stop="toggleRepMenu(c, $event)">
                   {{ isDimNr(c,'D2') ? t('не требуется') : t(REP_LABELS[repStage(c)]) }}
+                  <span v-if="canEdit" class="mm-pill-cv">▾</span>
                 </button>
                 <template v-if="!isDimNr(c,'D2')">
                   <a v-if="cellEvidence(c,'D2') && !isLinkEdit(c)" class="mm-rchip-lnk" :href="cellEvidence(c,'D2') || undefined"
@@ -419,16 +438,10 @@ async function commitLink(c: ESGMaturityCompany) {
                     {{ cellEvidence(c,'D2') ? '✎' : '+' }}
                   </button>
                 </template>
-                <button v-if="canEdit" type="button" class="mm-nr-tg" :class="{ on: isDimNr(c,'D2') }"
-                        @click.stop="toggleDimNr(c,'D2')" :title="isDimNr(c,'D2') ? t('Вернуть отчётность в статистику') : t('Не требуется — исключить отчётность из статистики')">{{ t('н/т') }}</button>
               </div>
               <input v-if="isLinkEdit(c) && !isDimNr(c,'D2')" :ref="focusEl" v-model="linkDraft" type="url" class="mm-rep-inp"
                      :placeholder="t('https://… ссылка на отчёт')" @click.stop
                      @keydown.enter.prevent="commitLink(c)" @keydown.esc.stop.prevent="cancelLink" @blur="commitLink(c)" />
-              <div v-if="isPending(c,'D2','') || isPending(c,'nr','D2')" class="mm-confirm">
-                <button type="button" class="mm-ok" :title="t('Применить')" @click.stop="confirmPending">✓</button>
-                <button type="button" class="mm-no" :title="t('Отмена')" @click.stop="cancelPending">✕</button>
-              </div>
             </td>
             <!-- Прохождение независимого заверения (D2A): нет / запланировано / пройдено -->
             <td class="mm-c mm-cedit">
@@ -531,6 +544,23 @@ async function commitLink(c: ESGMaturityCompany) {
     @close="unifiedFor = null"
     @saved="emit('saved')"
   />
+
+  <!-- Прямой выбор статуса отчётности (D2): меню поверх таблицы (teleport → body,
+       чтобы overflow таблицы не обрезал). Выбор применяется сразу. -->
+  <teleport to="body">
+    <div v-if="repMenu" class="mm-menu-back" @click="repMenu = null"></div>
+    <div v-if="repMenu" class="mm-menu" :style="{ top: repMenu.y + 'px', left: repMenu.x + 'px' }" @click.stop>
+      <div class="mm-menu-hd">{{ t('Подготовка ESG-отчётности') }}</div>
+      <button v-for="(lbl, i) in REP_LABELS" :key="i" type="button" class="mm-menu-it"
+              :class="{ cur: !isDimNr(repMenu.c, 'D2') && repStage(repMenu.c) === i }" @click="pickRep(i)">
+        <span class="mm-menu-dot" :style="{ background: REP_COLORS[i] }"></span>{{ t(lbl) }}
+      </button>
+      <div class="mm-menu-sep"></div>
+      <button type="button" class="mm-menu-it nr" :class="{ cur: isDimNr(repMenu.c, 'D2') }" @click="pickRepNr">
+        <span class="mm-menu-dot dash"></span>{{ t('не требуется') }}
+      </button>
+    </div>
+  </teleport>
 </template>
 
 <style scoped>
@@ -570,6 +600,22 @@ async function commitLink(c: ESGMaturityCompany) {
 .mm-pill.ed { cursor: pointer; }
 .mm-pill.ed:hover { transform: scale(1.04); }
 .mm-pill.nr { background: #F1F2F6 !important; color: #8A90A8 !important; font-style: italic; }
+.mm-pill.open { outline: 2px solid color-mix(in srgb, var(--brand, #6C5CE7) 55%, #fff); outline-offset: 1px; }
+.mm-pill-cv { font-size: 8px; opacity: .5; margin-left: 3px; }
+
+/* Меню прямого выбора статуса отчётности (D2) — teleport → body */
+.mm-menu-back { position: fixed; inset: 0; z-index: 4000; background: transparent; }
+.mm-menu { position: fixed; z-index: 4001; min-width: 172px; background: var(--card, #fff); border: 1px solid var(--border, #ECEAF5); border-radius: 10px; box-shadow: 0 12px 34px rgba(24,22,60,.18); padding: 5px; animation: mmMenuIn .12s ease; }
+.mm-menu-hd { font-size: 9px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--t3, #94A3B8); padding: 4px 8px 5px; }
+.mm-menu-it { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; background: transparent; border: none; border-radius: 7px; padding: 7px 8px; font-size: 12px; font-weight: 600; font-family: inherit; color: var(--t1, #1F2233); cursor: pointer; transition: background .12s; }
+.mm-menu-it:hover { background: color-mix(in srgb, var(--brand, #6C5CE7) 8%, #fff); }
+.mm-menu-it.cur { background: color-mix(in srgb, var(--brand, #6C5CE7) 12%, #fff); }
+.mm-menu-it.cur::after { content: "✓"; margin-left: auto; color: var(--brand, #6C5CE7); font-weight: 700; }
+.mm-menu-it.nr { color: #8A90A8; font-style: italic; }
+.mm-menu-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.mm-menu-dot.dash { background: transparent; border: 1.5px dashed #B6BBC8; }
+.mm-menu-sep { height: 1px; background: var(--border, #ECEAF5); margin: 4px 6px; }
+@keyframes mmMenuIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 
 .mm-rate { font-size: 10.5px; font-weight: 600; color: var(--t2, #475569); }
 .mm-rate.none { color: #C4C8D4; }
