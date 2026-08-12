@@ -92,9 +92,20 @@ const REP_COLORS = ["#94A3B8", "#5EA9E8", "#2F7BC9", "#7C6FF7"];
 // D2A «Прохождение независимого заверения» — нет / запланировано / в процессе / пройдено
 const ASSUR_LABELS = [i18nKey("нет"), i18nKey("запланировано"), i18nKey("в процессе"), i18nKey("пройдено")];
 const ASSUR_COLORS = ["#94A3B8", "#D9A05A", "#378ADD", "#1D9E75"];
-// Клампим отображаемую стадию отчётности: legacy-данные могли иметь D2=4
-// («+ assurance»); теперь заверение — отдельное измерение, D2 ≤ 3.
-function repStage(c: ESGMaturityCompany): number { return Math.min(3, dStage(c, "D2", "")); }
+// D1 ISO (по каждому стандарту) — нет / в процессе / сертифицирован
+const ISO_LABELS = [i18nKey("нет"), i18nKey("в процессе"), i18nKey("сертифицирован")];
+const ISO_COLORS = ["#94A3B8", "#D97706", "#1D9E75"];
+// D4 «Разработка климатической стратегии» — 4 этапа (Scope 1–2 → риски → план → реализация)
+const CLIM_LABELS = [i18nKey("нет"), i18nKey("Scope 1–2"), i18nKey("Клим. риски"), i18nKey("План декарб."), i18nKey("Реализация")];
+const CLIM_COLORS = ["#94A3B8", "#A7D9BF", "#6FC79E", "#3EAE7E", "#1D9E75"];
+// D5 «Внедрение ESG-рисков» — 3 этапа (двойная существенность → оценка → ERM)
+const RISK_LABELS = [i18nKey("нет"), i18nKey("Двойная сущ."), i18nKey("Кол. оценка"), i18nKey("Интеграция ERM")];
+const RISK_COLORS = ["#94A3B8", "#B7AEF2", "#8B7CF0", "#6C5CE7"];
+// Отображаемая стадия, кламп в диапазон меток (legacy-данные могли иметь D2=4
+// «+ assurance»; теперь заверение — отдельное измерение). len = число меток.
+function dispStage(c: ESGMaturityCompany, dim: string, sub: string, len: number): number {
+  return Math.min(len - 1, Math.max(0, dStage(c, dim, sub)));
+}
 
 // Короткое имя агентства для компактной ячейки рейтинга.
 function agencyAbbr(a: string): string {
@@ -234,11 +245,6 @@ async function setStage(c: ESGMaturityCompany, dim: string, sub: string, stage: 
     toast.error(t('Не сохранено: {value0}', { value0: errorText(err) }));
   } finally { saving.value = null; }
 }
-// ISO chip: клик циклит превью 0→1→2→0 (применяется по ✓)
-function cycleIso(c: ESGMaturityCompany, sub: string) {
-  const s = dStage(c, "D1", sub);
-  setPending(c, "D1", sub, s >= 2 ? 0 : s + 1);
-}
 // Число загруженных документов этапов по префиксу измерения (D4:/D5:/D1:).
 // Клик по 📎 открывает карточку компании — там панель со ссылками на все файлы.
 function dimDocs(c: ESGMaturityCompany, prefix: string): number {
@@ -246,17 +252,6 @@ function dimDocs(c: ESGMaturityCompany, prefix: string): number {
   let n = 0;
   for (const [k, v] of Object.entries(sdc)) if (k.startsWith(prefix)) n += (v || 0);
   return n;
-}
-// степпер: клик по сегменту i → превью стадии i+1 (повторный клик по вершине → −1)
-function clickStep(c: ESGMaturityCompany, dim: string, i: number) {
-  const cur = dStage(c, dim, "");
-  setPending(c, dim, "", cur === i + 1 ? i : i + 1);
-}
-// D2A «Прохождение независимого заверения»: клик циклит нет→запланировано→в процессе→пройдено→нет
-function cycleAssur(c: ESGMaturityCompany) {
-  if (dStage(c, "nr", "D2A") >= 1) { setPending(c, "nr", "D2A", 0); return; }
-  const s = dStage(c, "D2A", "");
-  setPending(c, "D2A", "", s >= 3 ? 0 : s + 1);
 }
 
 // ── «Не нуждается» (исключение компании из метрик/статистики) ───────────
@@ -281,29 +276,50 @@ function toggleDimNr(c: ESGMaturityCompany, dim: string) {
   setPending(c, "nr", dim, cur ? 0 : 1);
 }
 
-// ── Прямой выбор статуса отчётности (D2) выпадающим меню ─────────────────
-// Клик по пилюле открывает меню со ВСЕМИ статусами (нет/разовый/регулярный/
-// IFRS SDS + «не требуется»). Выбор применяется сразу — без цикла и confirm,
-// поэтому любой статус, включая разовый/регулярный, выбирается в один клик.
-const repMenu = ref<{ c: ESGMaturityCompany; x: number; y: number } | null>(null);
-function toggleRepMenu(c: ESGMaturityCompany, e: MouseEvent) {
+// Прямой сброс «не требуется» без confirm (для свёрнутой группы ISO).
+async function setNr(c: ESGMaturityCompany, dim: string, on: boolean) {
   if (!props.canEdit || saving.value) return;
-  if (repMenu.value && repMenu.value.c === c) { repMenu.value = null; return; }
+  await setStage(c, "nr", dim, on ? 1 : 0);
+}
+
+// ── Единый выпадающий выбор стадии (ISO / отчётность / заверение / климат /
+// риски). Клик по пилюле/чипу открывает меню со ВСЕМИ стадиями измерения плюс
+// «не требуется»; выбор применяется сразу, одним кликом — без цикла и confirm.
+type StageMenuCfg = { dim: string; sub: string; labels: string[]; colors: string[]; title: string };
+const stageMenu = ref<(StageMenuCfg & { c: ESGMaturityCompany; x: number; y: number }) | null>(null);
+function isMenuOpen(c: ESGMaturityCompany, dim: string, sub = ""): boolean {
+  const m = stageMenu.value;
+  return !!m && m.c === c && m.dim === dim && (m.sub || "") === (sub || "");
+}
+function openStageMenu(c: ESGMaturityCompany, cfg: StageMenuCfg, e: MouseEvent) {
+  if (!props.canEdit || saving.value) return;
+  if (isMenuOpen(c, cfg.dim, cfg.sub)) { stageMenu.value = null; return; }
   const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-  const x = Math.max(8, Math.min(r.left, window.innerWidth - 180));
-  repMenu.value = { c, x, y: r.bottom + 4 };
+  const x = Math.max(8, Math.min(r.left, window.innerWidth - 232));
+  // Вертикальный кламп: таблица — в scroll-контейнере, нижние строки у края экрана.
+  // Оценка высоты меню (шапка + стадии + «не требуется» + отступы) и подъём вверх,
+  // если снизу не помещается, чтобы нижние пункты не ушли за экран (там их не
+  // прокрутить — backdrop перехватывает). .mm-menu также имеет max-height+scroll.
+  const est = 34 + (cfg.labels.length + 1) * 34 + 14;
+  let y = r.bottom + 4;
+  if (y + est > window.innerHeight - 8) y = Math.max(8, window.innerHeight - est - 8);
+  stageMenu.value = { c, ...cfg, x, y };
 }
-async function pickRep(stage: number) {
-  const c = repMenu.value?.c; if (!c) return;
-  repMenu.value = null;
-  if (isDimNr(c, "D2")) await setStage(c, "nr", "D2", 0);   // снять «не требуется»
-  await setStage(c, "D2", "", stage);
+const menuCur = computed(() => {
+  const m = stageMenu.value;
+  return m ? dispStage(m.c, m.dim, m.sub, m.labels.length) : -1;
+});
+async function pickStage(stage: number) {
+  const m = stageMenu.value; if (!m) return;
+  stageMenu.value = null;
+  if (isDimNr(m.c, m.dim)) await setStage(m.c, "nr", m.dim, 0);   // снять «не требуется»
+  await setStage(m.c, m.dim, m.sub, stage);
 }
-async function pickRepNr() {
-  const c = repMenu.value?.c; if (!c) return;
-  const on = isDimNr(c, "D2");
-  repMenu.value = null;
-  await setStage(c, "nr", "D2", on ? 0 : 1);
+async function pickStageNr() {
+  const m = stageMenu.value; if (!m) return;
+  const on = isDimNr(m.c, m.dim);
+  stageMenu.value = null;
+  await setStage(m.c, "nr", m.dim, on ? 0 : 1);
 }
 
 // ── Ссылка на отчёт в колонке «Отчётность» (evidence_url ячейки D2) ─────
@@ -395,38 +411,29 @@ async function commitLink(c: ESGMaturityCompany) {
             <template v-else>
             <!-- ISO: 3 ячейки, либо свёрнутая «не требуется» на всю группу (colspan=3) -->
             <td v-if="isDimNr(c,'D1')" class="mm-c mm-cedit" colspan="3">
-              <span class="mm-nr">{{ t('не требуется') }}</span>
-              <button v-if="canEdit" type="button" class="mm-nr-tg on"
-                      @click.stop="toggleDimNr(c,'D1')" :title="t('Вернуть ISO в статистику')">{{ t('н/т') }}</button>
-              <div v-if="isPending(c,'nr','D1')" class="mm-confirm">
-                <button type="button" class="mm-ok" :title="t('Применить')" @click.stop="confirmPending">✓</button>
-                <button type="button" class="mm-no" :title="t('Отмена')" @click.stop="cancelPending">✕</button>
-              </div>
+              <button v-if="canEdit" type="button" class="mm-nr-restore"
+                      @click.stop="setNr(c,'D1',false)" :title="t('Вернуть ISO в статистику')">{{ t('не требуется') }} ⟲</button>
+              <span v-else class="mm-nr">{{ t('не требуется') }}</span>
             </td>
             <template v-else>
             <td v-for="(x, xi) in ISO" :key="x.sub" class="mm-c mm-cedit">
-              <button type="button" class="mm-iso" :class="['s'+dStage(c,'D1',x.sub), { ed: canEdit, pend: isPending(c,'D1',x.sub) }]"
-                      :disabled="!canEdit" :title="t(x.tip)" @click="cycleIso(c, x.sub)">
-                {{ dStage(c,'D1',x.sub) >= 2 ? '✓' : dStage(c,'D1',x.sub) === 1 ? '◐' : '—' }}
+              <button type="button" class="mm-iso" :class="['s'+dispStage(c,'D1',x.sub,3), { ed: canEdit, open: isMenuOpen(c,'D1',x.sub) }]"
+                      :disabled="!canEdit" :title="t(x.tip)"
+                      @click.stop="openStageMenu(c, { dim:'D1', sub:x.sub, labels: ISO_LABELS, colors: ISO_COLORS, title: t(x.tip) }, $event)">
+                {{ dispStage(c,'D1',x.sub,3) >= 2 ? '✓' : dispStage(c,'D1',x.sub,3) === 1 ? '◐' : '—' }}
               </button>
-              <button v-if="canEdit && xi === ISO.length - 1" type="button" class="mm-nr-tg"
-                      @click.stop="toggleDimNr(c,'D1')" :title="t('Не требуется — исключить ISO из статистики')">{{ t('н/т') }}</button>
               <button v-if="xi === ISO.length - 1 && dimDocs(c,'D1:')" type="button" class="mm-doc" :title="t('ISO-документы: {n} · открыть карточку', { n: dimDocs(c,'D1:') })" @click.stop="emit('open-company', c.company_id)">📎{{ dimDocs(c,'D1:') }}</button>
-              <div v-if="isPending(c,'D1',x.sub) || (xi === ISO.length - 1 && isPending(c,'nr','D1'))" class="mm-confirm">
-                <button type="button" class="mm-ok" :title="t('Применить')" @click.stop="confirmPending">✓</button>
-                <button type="button" class="mm-no" :title="t('Отмена')" @click.stop="cancelPending">✕</button>
-              </div>
             </td>
             </template>
             <!-- Отчётность + inline-ссылка на отчёт -->
             <td class="mm-c mm-cedit mm-rep-c">
               <div class="mm-rep-row">
-                <button type="button" class="mm-pill" :class="{ ed: canEdit, open: repMenu?.c === c, nr: isDimNr(c,'D2') }"
-                        :style="isDimNr(c,'D2') ? {} : { color: REP_COLORS[repStage(c)], background: REP_COLORS[repStage(c)] + '1E' }"
+                <button type="button" class="mm-pill" :class="{ ed: canEdit, open: isMenuOpen(c,'D2'), nr: isDimNr(c,'D2') }"
+                        :style="isDimNr(c,'D2') ? {} : { color: REP_COLORS[dispStage(c,'D2','',4)], background: REP_COLORS[dispStage(c,'D2','',4)] + '1E' }"
                         :disabled="!canEdit"
-                        :title="isDimNr(c,'D2') ? t('Подготовка отчётности: не требуется · клик — выбрать статус') : t('Подготовка ESG-отчётности: {value0} · клик — выбрать статус', { value0: t(REP_LABELS[repStage(c)]) })"
-                        @click.stop="toggleRepMenu(c, $event)">
-                  {{ isDimNr(c,'D2') ? t('не требуется') : t(REP_LABELS[repStage(c)]) }}
+                        :title="isDimNr(c,'D2') ? t('Подготовка отчётности: не требуется · клик — выбрать статус') : t('Подготовка ESG-отчётности: {value0} · клик — выбрать статус', { value0: t(REP_LABELS[dispStage(c,'D2','',4)]) })"
+                        @click.stop="openStageMenu(c, { dim:'D2', sub:'', labels: REP_LABELS, colors: REP_COLORS, title: t('Подготовка ESG-отчётности') }, $event)">
+                  {{ isDimNr(c,'D2') ? t('не требуется') : t(REP_LABELS[dispStage(c,'D2','',4)]) }}
                   <span v-if="canEdit" class="mm-pill-cv">▾</span>
                 </button>
                 <template v-if="!isDimNr(c,'D2')">
@@ -445,20 +452,15 @@ async function commitLink(c: ESGMaturityCompany) {
             </td>
             <!-- Прохождение независимого заверения (D2A): нет / запланировано / пройдено -->
             <td class="mm-c mm-cedit">
-              <button type="button" class="mm-pill"
-                      :class="{ ed: canEdit, pend: isPending(c,'D2A','') || isPending(c,'nr','D2A'), nr: isDimNr(c,'D2A') }"
-                      :style="isDimNr(c,'D2A') ? {} : { color: ASSUR_COLORS[dStage(c,'D2A','')], background: ASSUR_COLORS[dStage(c,'D2A','')] + '1E' }"
+              <button type="button" class="mm-pill mm-pill-wide"
+                      :class="{ ed: canEdit, open: isMenuOpen(c,'D2A'), nr: isDimNr(c,'D2A') }"
+                      :style="isDimNr(c,'D2A') ? {} : { color: ASSUR_COLORS[dispStage(c,'D2A','',4)], background: ASSUR_COLORS[dispStage(c,'D2A','',4)] + '1E' }"
                       :disabled="!canEdit"
-                      :title="isDimNr(c,'D2A') ? t('Независимое заверение: не требуется · клик → вернуть статус') : t('Прохождение независимого заверения: {value0} · клик циклит нет → запланировано → в процессе → пройдено', { value0: t(ASSUR_LABELS[dStage(c,'D2A','')]) })"
-                      @click="cycleAssur(c)">
-                {{ isDimNr(c,'D2A') ? t('не требуется') : t(ASSUR_LABELS[dStage(c,'D2A','')]) }}
+                      :title="isDimNr(c,'D2A') ? t('Независимое заверение: не требуется · клик — выбрать статус') : t('Прохождение независимого заверения: {value0} · клик — выбрать статус', { value0: t(ASSUR_LABELS[dispStage(c,'D2A','',4)]) })"
+                      @click.stop="openStageMenu(c, { dim:'D2A', sub:'', labels: ASSUR_LABELS, colors: ASSUR_COLORS, title: t('Прохождение независимого заверения') }, $event)">
+                <span class="mm-pill-lbl">{{ isDimNr(c,'D2A') ? t('не требуется') : t(ASSUR_LABELS[dispStage(c,'D2A','',4)]) }}</span>
+                <span v-if="canEdit" class="mm-pill-cv">▾</span>
               </button>
-              <button v-if="canEdit" type="button" class="mm-nr-tg" :class="{ on: isDimNr(c,'D2A') }"
-                      @click.stop="toggleDimNr(c,'D2A')" :title="isDimNr(c,'D2A') ? t('Вернуть заверение в статистику') : t('Не требуется — исключить заверение из статистики')">{{ t('н/т') }}</button>
-              <div v-if="isPending(c,'D2A','') || isPending(c,'nr','D2A')" class="mm-confirm">
-                <button type="button" class="mm-ok" :title="t('Применить')" @click.stop="confirmPending">✓</button>
-                <button type="button" class="mm-no" :title="t('Отмена')" @click.stop="cancelPending">✕</button>
-              </div>
             </td>
             <!-- Рейтинг → значение (inline-правка) + агентство + ссылка + динамика «старый → новый» -->
             <td class="mm-c mm-rate-c mm-cedit">
@@ -500,33 +502,29 @@ async function commitLink(c: ESGMaturityCompany) {
                 <button type="button" class="mm-no" :title="t('Отмена')" @click.stop="cancelPending">✕</button>
               </div>
             </td>
-            <!-- Климатическая стратегия stepper 4 -->
+            <!-- Климатическая стратегия — 4 этапа (меню выбора) -->
             <td class="mm-c mm-cedit">
-              <span v-if="isDimNr(c,'D4')" class="mm-nr">{{ t('не требуется') }}</span>
-              <span v-else class="mm-step">
-                <i v-for="i in 4" :key="i" class="mm-dot clm" :class="{ on: dStage(c,'D4','') >= i, ed: canEdit, pend: isPending(c,'D4','') }" @click="clickStep(c,'D4',i-1)"></i>
-              </span>
+              <button type="button" class="mm-pill mm-pill-wide" :class="{ ed: canEdit, open: isMenuOpen(c,'D4'), nr: isDimNr(c,'D4') }"
+                      :style="isDimNr(c,'D4') ? {} : { color: CLIM_COLORS[dispStage(c,'D4','',5)], background: CLIM_COLORS[dispStage(c,'D4','',5)] + '1E' }"
+                      :disabled="!canEdit"
+                      :title="isDimNr(c,'D4') ? t('Климатическая стратегия: не требуется · клик — выбрать этап') : t('Разработка климатической стратегии: {value0} · клик — выбрать этап', { value0: t(CLIM_LABELS[dispStage(c,'D4','',5)]) })"
+                      @click.stop="openStageMenu(c, { dim:'D4', sub:'', labels: CLIM_LABELS, colors: CLIM_COLORS, title: t('Разработка климатической стратегии') }, $event)">
+                <span class="mm-pill-lbl">{{ isDimNr(c,'D4') ? t('не требуется') : t(CLIM_LABELS[dispStage(c,'D4','',5)]) }}</span>
+                <span v-if="canEdit" class="mm-pill-cv">▾</span>
+              </button>
               <button v-if="dimDocs(c,'D4:')" type="button" class="mm-doc" :title="t('Документы этапа: {n} · открыть карточку', { n: dimDocs(c,'D4:') })" @click.stop="emit('open-company', c.company_id)">📎{{ dimDocs(c,'D4:') }}</button>
-              <button v-if="canEdit" type="button" class="mm-nr-tg" :class="{ on: isDimNr(c,'D4') }"
-                      @click.stop="toggleDimNr(c,'D4')" :title="isDimNr(c,'D4') ? t('Вернуть в статистику') : t('Не требуется — исключить из статистики')">{{ t('н/т') }}</button>
-              <div v-if="isPending(c,'D4','') || isPending(c,'nr','D4')" class="mm-confirm">
-                <button type="button" class="mm-ok" :title="t('Применить')" @click.stop="confirmPending">✓</button>
-                <button type="button" class="mm-no" :title="t('Отмена')" @click.stop="cancelPending">✕</button>
-              </div>
             </td>
-            <!-- ESG Риски stepper 3 -->
+            <!-- ESG-риски — 3 этапа (меню выбора) -->
             <td class="mm-c mm-cedit">
-              <span v-if="isDimNr(c,'D5')" class="mm-nr">{{ t('не требуется') }}</span>
-              <span v-else class="mm-step">
-                <i v-for="i in 3" :key="i" class="mm-dot rsk" :class="{ on: dStage(c,'D5','') >= i, ed: canEdit, pend: isPending(c,'D5','') }" @click="clickStep(c,'D5',i-1)"></i>
-              </span>
+              <button type="button" class="mm-pill mm-pill-wide" :class="{ ed: canEdit, open: isMenuOpen(c,'D5'), nr: isDimNr(c,'D5') }"
+                      :style="isDimNr(c,'D5') ? {} : { color: RISK_COLORS[dispStage(c,'D5','',4)], background: RISK_COLORS[dispStage(c,'D5','',4)] + '1E' }"
+                      :disabled="!canEdit"
+                      :title="isDimNr(c,'D5') ? t('ESG-риски: не требуется · клик — выбрать этап') : t('Внедрение ESG-рисков: {value0} · клик — выбрать этап', { value0: t(RISK_LABELS[dispStage(c,'D5','',4)]) })"
+                      @click.stop="openStageMenu(c, { dim:'D5', sub:'', labels: RISK_LABELS, colors: RISK_COLORS, title: t('Внедрение ESG-рисков') }, $event)">
+                <span class="mm-pill-lbl">{{ isDimNr(c,'D5') ? t('не требуется') : t(RISK_LABELS[dispStage(c,'D5','',4)]) }}</span>
+                <span v-if="canEdit" class="mm-pill-cv">▾</span>
+              </button>
               <button v-if="dimDocs(c,'D5:')" type="button" class="mm-doc" :title="t('Документы этапа: {n} · открыть карточку', { n: dimDocs(c,'D5:') })" @click.stop="emit('open-company', c.company_id)">📎{{ dimDocs(c,'D5:') }}</button>
-              <button v-if="canEdit" type="button" class="mm-nr-tg" :class="{ on: isDimNr(c,'D5') }"
-                      @click.stop="toggleDimNr(c,'D5')" :title="isDimNr(c,'D5') ? t('Вернуть в статистику') : t('Не требуется — исключить из статистики')">{{ t('н/т') }}</button>
-              <div v-if="isPending(c,'D5','') || isPending(c,'nr','D5')" class="mm-confirm">
-                <button type="button" class="mm-ok" :title="t('Применить')" @click.stop="confirmPending">✓</button>
-                <button type="button" class="mm-no" :title="t('Отмена')" @click.stop="cancelPending">✕</button>
-              </div>
             </td>
             </template>
           </tr>
@@ -545,19 +543,19 @@ async function commitLink(c: ESGMaturityCompany) {
     @saved="emit('saved')"
   />
 
-  <!-- Прямой выбор статуса отчётности (D2): меню поверх таблицы (teleport → body,
-       чтобы overflow таблицы не обрезал). Выбор применяется сразу. -->
+  <!-- Единое меню выбора стадии (ISO/отчётность/заверение/климат/риски): поверх
+       таблицы (teleport → body, чтобы overflow таблицы не обрезал). Применяется сразу. -->
   <teleport to="body">
-    <div v-if="repMenu" class="mm-menu-back" @click="repMenu = null"></div>
-    <div v-if="repMenu" class="mm-menu" :style="{ top: repMenu.y + 'px', left: repMenu.x + 'px' }" @click.stop>
-      <div class="mm-menu-hd">{{ t('Подготовка ESG-отчётности') }}</div>
-      <button v-for="(lbl, i) in REP_LABELS" :key="i" type="button" class="mm-menu-it"
-              :class="{ cur: !isDimNr(repMenu.c, 'D2') && repStage(repMenu.c) === i }" @click="pickRep(i)">
-        <span class="mm-menu-dot" :style="{ background: REP_COLORS[i] }"></span>{{ t(lbl) }}
+    <div v-if="stageMenu" class="mm-menu-back" @click="stageMenu = null"></div>
+    <div v-if="stageMenu" class="mm-menu" :style="{ top: stageMenu.y + 'px', left: stageMenu.x + 'px' }" @click.stop>
+      <div class="mm-menu-hd">{{ stageMenu.title }}</div>
+      <button v-for="(lbl, i) in stageMenu.labels" :key="i" type="button" class="mm-menu-it"
+              :class="{ cur: !isDimNr(stageMenu.c, stageMenu.dim) && menuCur === i }" @click="pickStage(i)">
+        <span class="mm-menu-dot" :style="{ background: stageMenu.colors[i] }"></span>{{ t(lbl) }}
       </button>
       <div class="mm-menu-sep"></div>
-      <button type="button" class="mm-menu-it nr" :class="{ cur: isDimNr(repMenu.c, 'D2') }" @click="pickRepNr">
-        <span class="mm-menu-dot dash"></span>{{ t('не требуется') }}
+      <button type="button" class="mm-menu-it nr" :class="{ cur: isDimNr(stageMenu.c, stageMenu.dim) }" @click="pickStageNr">
+        <span class="mm-menu-dot dash"></span>{{ stageMenu.dim === 'D1' ? t('Вся ISO: не требуется') : t('не требуется') }}
       </button>
     </div>
   </teleport>
@@ -595,17 +593,27 @@ async function commitLink(c: ESGMaturityCompany) {
 .mm-iso.s0 { background: #F1F5F9; color: #94A3B8; }
 .mm-iso.ed { cursor: pointer; }
 .mm-iso.ed:hover { transform: scale(1.08); box-shadow: 0 0 0 1px rgba(0,0,0,.08); }
+.mm-iso.open { outline: 2px solid color-mix(in srgb, var(--brand, #6C5CE7) 55%, #fff); outline-offset: 1px; }
 
 .mm-pill { padding: 3px 9px; border-radius: 6px; border: none; font-size: 10.5px; font-weight: 600; font-family: inherit; cursor: default; white-space: nowrap; transition: transform .12s; }
 .mm-pill.ed { cursor: pointer; }
 .mm-pill.ed:hover { transform: scale(1.04); }
 .mm-pill.nr { background: #F1F2F6 !important; color: #8A90A8 !important; font-style: italic; }
 .mm-pill.open { outline: 2px solid color-mix(in srgb, var(--brand, #6C5CE7) 55%, #fff); outline-offset: 1px; }
-.mm-pill-cv { font-size: 8px; opacity: .5; margin-left: 3px; }
+.mm-pill-cv { font-size: 8px; opacity: .5; margin-left: 3px; flex-shrink: 0; }
 
-/* Меню прямого выбора статуса отчётности (D2) — teleport → body */
+/* Пилюля с фиксированной шириной (заверение/климат/риски): flex-строка, чтобы
+   обрезалась ТОЛЬКО подпись (multiline-safe), а стрелка ▾ никогда не резалась.
+   Полное название — в тултипе и в меню. */
+.mm-pill-wide { max-width: 150px; display: inline-flex; align-items: center; gap: 3px; vertical-align: middle; }
+.mm-pill-lbl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+/* Свёрнутая «не требуется» (группа ISO) — клик возвращает в статистику. */
+.mm-nr-restore { font-size: 10px; font-weight: 600; font-style: italic; color: #8A90A8; background: transparent; border: 1px dashed var(--border, #ECEAF5); border-radius: 6px; padding: 2px 8px; cursor: pointer; transition: all .14s ease; }
+.mm-nr-restore:hover { color: var(--brand, #6C5CE7); border-color: color-mix(in srgb, var(--brand, #6C5CE7) 40%, #fff); background: color-mix(in srgb, var(--brand, #6C5CE7) 6%, #fff); }
+
+/* Единое меню выбора стадии (ISO/отчётность/заверение/климат/риски) — teleport → body */
 .mm-menu-back { position: fixed; inset: 0; z-index: 4000; background: transparent; }
-.mm-menu { position: fixed; z-index: 4001; min-width: 172px; background: var(--card, #fff); border: 1px solid var(--border, #ECEAF5); border-radius: 10px; box-shadow: 0 12px 34px rgba(24,22,60,.18); padding: 5px; animation: mmMenuIn .12s ease; }
+.mm-menu { position: fixed; z-index: 4001; min-width: 200px; max-width: 240px; max-height: calc(100dvh - 24px); overflow-y: auto; background: var(--card, #fff); border: 1px solid var(--border, #ECEAF5); border-radius: 10px; box-shadow: 0 12px 34px rgba(24,22,60,.18); padding: 5px; animation: mmMenuIn .12s ease; }
 .mm-menu-hd { font-size: 9px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--t3, #94A3B8); padding: 4px 8px 5px; }
 .mm-menu-it { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; background: transparent; border: none; border-radius: 7px; padding: 7px 8px; font-size: 12px; font-weight: 600; font-family: inherit; color: var(--t1, #1F2233); cursor: pointer; transition: background .12s; }
 .mm-menu-it:hover { background: color-mix(in srgb, var(--brand, #6C5CE7) 8%, #fff); }
@@ -719,6 +727,7 @@ async function commitLink(c: ESGMaturityCompany) {
   .mm-co-bar { width: 56px; height: 6px; }
   .mm-iso { width: 40px; height: 32px; font-size: 16px; }
   .mm-pill { font-size: 13px; padding: 5px 13px; }
+  .mm-pill-wide { max-width: 200px; }
   .mm-rate { font-size: 13px; }
   .mm-dot { width: 15px; height: 15px; }
   .mm-ems span { font-size: 18px; }
@@ -733,6 +742,7 @@ async function commitLink(c: ESGMaturityCompany) {
   .mm-co-bar { width: 76px; height: 8px; }
   .mm-iso { width: 52px; height: 42px; font-size: 21px; border-radius: 9px; }
   .mm-pill { font-size: 16px; padding: 7px 17px; }
+  .mm-pill-wide { max-width: 260px; }
   .mm-rate { font-size: 16px; }
   .mm-dot { width: 20px; height: 20px; }
   .mm-ems span { font-size: 24px; }
