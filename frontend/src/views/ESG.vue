@@ -253,6 +253,10 @@ const repRegular = computed(() => (heatmap.value?.companies || []).filter((c) =>
 const _d4 = (c: ESGMaturityCompany) => (c.dim_stage?.D4 ?? 0);
 const climateDeveloped = computed(() => (heatmap.value?.companies || []).filter((c) => !c.not_needed && !(c.dim_not_required || []).includes("D4") && _d4(c) >= 3).length);
 const climateInProgress = computed(() => (heatmap.value?.companies || []).filter((c) => !c.not_needed && !(c.dim_not_required || []).includes("D4") && (_d4(c) === 1 || _d4(c) === 2)).length);
+// ESG-риски (D5): интегрированные в ERM = стадия 3; в процессе = double-mat./оценка (1–2).
+const _d5 = (c: ESGMaturityCompany) => (c.dim_stage?.D5 ?? 0);
+const riskIntegrated = computed(() => (heatmap.value?.companies || []).filter((c) => !c.not_needed && !(c.dim_not_required || []).includes("D5") && _d5(c) >= 3).length);
+const riskInProgress = computed(() => (heatmap.value?.companies || []).filter((c) => !c.not_needed && !(c.dim_not_required || []).includes("D5") && (_d5(c) === 1 || _d5(c) === 2)).length);
 
 // Знаменатель «применимых» компаний по измерению: вне «не нуждается» И вне «не требуется» этого измерения.
 function dimTotal(dim: string): number {
@@ -279,20 +283,23 @@ const docStats = computed(() => {
   const cosByDir = { climate: 0, risk: 0, iso: 0 };
   for (const c of cos) {
     const sdc = (c.stage_doc_counts || {}) as Record<string, number>;
-    let any = false;
+    const applicable: Record<string, boolean> = {};
+    for (const s of DOC_DIMS) { applicable[s.dim] = !((c.dim_not_required || []).includes(s.dim)); if (applicable[s.dim]) totalStages += s.n; }
+    // Год/квартал закодированы в ключе ("D4:1:2025:Q3"). Считаем РАЗНЫЕ этапы
+    // (dim:idx), а не периоды — иначе «подтверждено» раздувается сверх totalStages.
+    const bases = new Set<string>();
     const hit = { climate: false, risk: false, iso: false };
-    for (const s of DOC_DIMS) {
-      const applicable = !((c.dim_not_required || []).includes(s.dim));
-      if (applicable) totalStages += s.n;
-      for (const [k, v] of Object.entries(sdc)) {
-        if (k.startsWith(s.prefix) && (v || 0) > 0) {
-          totalFiles += v; any = true;
-          if (applicable) { stagesWithDocs++; byDir[s.dir]++; hit[s.dir] = true; }
-        }
-      }
+    for (const [k, v] of Object.entries(sdc)) {
+      if ((v || 0) <= 0) continue;
+      totalFiles += v;
+      const base = k.split(":").slice(0, 2).join(":");
+      const dd = DOC_DIMS.find((s) => base.startsWith(s.dim + ":"));
+      if (!dd || !applicable[dd.dim]) continue;
+      bases.add(base); hit[dd.dir] = true;
     }
-    if (any) cosWithDocs++;
-    (["climate", "risk", "iso"] as const).forEach((d) => { if (hit[d]) cosByDir[d]++; });
+    stagesWithDocs += bases.size;
+    if (bases.size) cosWithDocs++;
+    (["climate", "risk", "iso"] as const).forEach((d) => { if (hit[d]) { cosByDir[d]++; byDir[d]++; } });
   }
   return { totalStages, stagesWithDocs, totalFiles, cosWithDocs, cosTotal: cos.length, byDir, cosByDir };
 });
@@ -308,7 +315,7 @@ function baseRow(c: ESGMaturityCompany): ESGDrillRow {
 
 const drill = ref<{ title: string; subtitle?: string; description?: string; accent?: string; rows: ESGDrillRow[] } | null>(null);
 
-function openKpiDrill(kind: "ifrssds" | "reporting" | "coverage" | "baskets" | "iso" | "climate" | "docs_coverage" | "docs_total") {
+function openKpiDrill(kind: "ifrssds" | "reporting" | "coverage" | "baskets" | "iso" | "climate" | "risk" | "docs_coverage" | "docs_total") {
   const cs = [...(heatmap.value?.companies || [])].filter((c) => !c.not_needed);
   const nr = (c: ESGMaturityCompany, d: string) => (c.dim_not_required || []).includes(d);
   if (kind === "ifrssds") {
@@ -336,18 +343,27 @@ function openKpiDrill(kind: "ifrssds" | "reporting" | "coverage" | "baskets" | "
     drill.value = { title: i18nKey("Климатические стратегии"), subtitle: i18nKey("разработанные (D4 ≥ +план) · в процессе (Scope 1–2 / +риски)"), accent: "#1D9E75",
       rows: list.map((c) => { const s = _d4(c); return { ...baseRow(c), value: t(CLIMATE_STAGE_LBL[s]), valueColor: s >= 3 ? "#1D9E75" : s >= 1 ? "#D97706" : "#94A3B8",
         badge: s >= 3 ? t("разраб.") : s >= 1 ? t("в проц.") : t("нет"), badgeColor: s >= 3 ? "#1D9E75" : s >= 1 ? "#D97706" : "#94A3B8" }; }) };
+  } else if (kind === "risk") {
+    const list = cs.filter((c) => !nr(c, "D5")).sort((a, b) => _d5(b) - _d5(a));
+    drill.value = { title: i18nKey("Интеграция контроля за рисками в ERM"), subtitle: i18nKey("интегрированные (D5 = ERM) · в процессе (double-mat. / оценка)"), accent: "#6C5CE7",
+      rows: list.map((c) => { const s = _d5(c); return { ...baseRow(c), value: t(RISK_STAGE_LBL[s]), valueColor: s >= 3 ? "#1D9E75" : s >= 1 ? "#D97706" : "#94A3B8",
+        badge: s >= 3 ? t("интегр.") : s >= 1 ? t("в проц.") : t("нет"), badgeColor: s >= 3 ? "#1D9E75" : s >= 1 ? "#D97706" : "#94A3B8" }; }) };
   } else if (kind === "docs_coverage") {
     // Обеспеченность этапов документами по компаниям: подтверждённых этапов из
     // применимых. Сортируем ПО ВОЗРАСТАНИЮ — компании с пробелами сверху.
     const cov = (c: ESGMaturityCompany) => {
       const sdc = (c.stage_doc_counts || {}) as Record<string, number>;
-      let docd = 0, tot = 0;
+      let tot = 0;
+      // Год/квартал закодированы в ключе ("D4:1:2025") — считаем РАЗНЫЕ этапы
+      // (dim:idx), а не периоды, иначе docd раздувается сверх tot (как в docStats).
+      const bases = new Set<string>();
       for (const s of DOC_DIMS) {
         const applicable = !((c.dim_not_required || []).includes(s.dim));
-        if (applicable) tot += s.n;
-        if (applicable) for (const [k, v] of Object.entries(sdc)) if (k.startsWith(s.prefix) && (v || 0) > 0) docd++;
+        if (!applicable) continue;
+        tot += s.n;
+        for (const [k, v] of Object.entries(sdc)) if (k.startsWith(s.prefix) && (v || 0) > 0) bases.add(k.split(":").slice(0, 2).join(":"));
       }
-      return { docd, tot };
+      return { docd: bases.size, tot };
     };
     const list = cs.map((c) => ({ c, ...cov(c) })).sort((a, b) => a.docd - b.docd || a.tot - b.tot);
     drill.value = { title: i18nKey("Обеспеченность этапов документами"), subtitle: i18nKey("подтверждено файлами этапов из применимых · пробелы сверху"), accent: "#0E9F8E",
@@ -366,7 +382,7 @@ function openKpiDrill(kind: "ifrssds" | "reporting" | "coverage" | "baskets" | "
         valueColor: n > 0 ? "#1D9E75" : "#94A3B8" })) };
   } else {
     const list = cs.filter((c) => !nr(c, "D1")).sort((a, b) => (b.dim_stage?.D1 ?? 0) - (a.dim_stage?.D1 ?? 0));
-    drill.value = { title: i18nKey("ИСО — системы менеджмента"), subtitle: i18nKey("системы менеджмента ISO (D1)"), accent: "#378ADD",
+    drill.value = { title: i18nKey("ISO — системы менеджмента"), subtitle: i18nKey("системы менеджмента ISO (D1)"), accent: "#378ADD",
       rows: list.map((c) => { const s = c.dim_stage?.D1 ?? 0; return { ...baseRow(c), value: t(ISO_STAGE_LBL[s]), valueColor: s >= 3 ? "#1D9E75" : s >= 1 ? "#D97706" : "#94A3B8" }; }) };
   }
 }
@@ -851,7 +867,7 @@ onMounted(() => { void companiesStore.ensureLoaded(); load(); loadMaturity(); lo
             <div class="ev-kpi-strip ev-mat-kpis kpi-rail">
               <!-- 1. ИСО (база) -->
               <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#378ADD; --kpi2-d:0ms" @click="openKpiDrill('iso')">
-                <div class="kpi2-lbl">{{ t('ИСО') }}</div>
+                <div class="kpi2-lbl">{{ t('ISO') }}</div>
                 <div class="kpi2-val"><Odometer :value="heatmap.iso_full_count" /><span class="ev-kpi-unit"> / {{ totalD1 }}</span></div>
                 <div class="kpi2-sub">{{ t('все три стандарта') }}<span v-if="docStats.cosByDir.iso" class="ev-kpi-doc" :title="t('компаний с ISO-документами')">📎 {{ docStats.cosByDir.iso }}</span></div>
               </div>
@@ -870,6 +886,14 @@ onMounted(() => { void companiesStore.ensureLoaded(); load(); loadMaturity(); lo
                   <span style="color:#1D9E75">{{ climateDeveloped }}</span><span class="ev-bsep">/</span><span style="color:#D97706">{{ climateInProgress }}</span>
                 </div>
                 <div class="kpi2-sub">{{ t('разработанные · в процессе') }}<span v-if="docStats.cosByDir.climate" class="ev-kpi-doc" :title="t('компаний с климат-документами')">📎 {{ docStats.cosByDir.climate }}</span></div>
+              </div>
+              <!-- 4b. Интеграция контроля за рисками в ERM (D5): интегрированные / в процессе -->
+              <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#6C5CE7; --kpi2-d:200ms" @click="openKpiDrill('risk')">
+                <div class="kpi2-lbl">{{ t('Интеграция контроля за рисками в ERM') }}</div>
+                <div class="kpi2-val ev-baskets">
+                  <span style="color:#1D9E75">{{ riskIntegrated }}</span><span class="ev-bsep">/</span><span style="color:#D97706">{{ riskInProgress }}</span>
+                </div>
+                <div class="kpi2-sub">{{ t('интегрированные · в процессе') }}<span v-if="docStats.cosByDir.risk" class="ev-kpi-doc" :title="t('компаний с риск-документами')">📎 {{ docStats.cosByDir.risk }}</span></div>
               </div>
               <!-- 5. Кол-во рейтингов в предприятиях -->
               <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#D97706; --kpi2-d:240ms" @click="openKpiDrill('coverage')">
@@ -890,12 +914,6 @@ onMounted(() => { void companiesStore.ensureLoaded(); load(); loadMaturity(); lo
                 <div class="kpi2-lbl">{{ t('Обеспеченность этапов') }}</div>
                 <div class="kpi2-val"><Odometer :value="docStats.stagesWithDocs" /><span class="ev-kpi-unit"> / {{ docStats.totalStages }}</span></div>
                 <div class="kpi2-sub">{{ t('этапов подтверждено файлами · {value0}%', { value0: docsCoveragePct }) }}</div>
-              </div>
-              <!-- 8. Документы ESG: всего файлов + вовлечённость + свежесть -->
-              <div class="kpi2 fin-shimmer ev-kpi" style="--kpi2-accent:#7C6FF7; --kpi2-d:480ms" @click="openKpiDrill('docs_total')">
-                <div class="kpi2-lbl">{{ t('Документы ESG') }}</div>
-                <div class="kpi2-val"><Odometer :value="docStats.totalFiles" /><span class="ev-kpi-unit"> {{ t('файлов') }}</span></div>
-                <div class="kpi2-sub">{{ t('{value0} из {value1} компаний', { value0: docStats.cosWithDocs, value1: docStats.cosTotal }) }}<span v-if="(heatmap.docs_last30 || 0) > 0" class="ev-doc-fresh"> · +{{ heatmap.docs_last30 }} {{ t('за 30 дн.') }}</span></div>
               </div>
             </div>
 

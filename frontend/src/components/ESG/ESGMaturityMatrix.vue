@@ -365,7 +365,7 @@ async function commitLink(c: ESGMaturityCompany) {
       <thead>
         <tr>
           <th class="mm-h-co">{{ t('Компания') }}</th>
-          <th class="mm-h-grp" colspan="3">{{ t('Внедрение систем менеджмента ИСО') }}</th>
+          <th class="mm-h-grp" colspan="3">{{ t('Внедрение систем менеджмента ISO') }}</th>
           <th class="mm-h">{{ t('Подготовка ESG-отчётности') }}</th>
           <th class="mm-h">{{ t('Прохождение независимого заверения') }}</th>
           <th class="mm-h">{{ t('Получение ESG-рейтинга') }}</th>

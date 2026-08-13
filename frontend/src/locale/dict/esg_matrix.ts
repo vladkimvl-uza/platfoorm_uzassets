@@ -24,6 +24,12 @@ export const uz: Record<string, string> = {
   "Климатическая стратегия: не требуется · клик — выбрать этап": "Iqlim strategiyasi: talab qilinmaydi · bosing — bosqichni tanlang",
   "Внедрение ESG-рисков: {value0} · клик — выбрать этап": "ESG xavflarini joriy etish: {value0} · bosing — bosqichni tanlang",
   "ESG-риски: не требуется · клик — выбрать этап": "ESG xavflar: talab qilinmaydi · bosing — bosqichni tanlang",
+  // KPI-карточка рисков (ESG.vue) — интеграция D5 в ERM
+  "Интеграция контроля за рисками в ERM": "Risklar nazoratini ERM ga integratsiya qilish",
+  "интегрированные · в процессе": "integratsiyalangan · jarayonda",
+  "компаний с риск-документами": "risk-hujjatli kompaniyalar",
+  "интегрированные (D5 = ERM) · в процессе (double-mat. / оценка)": "integratsiyalangan (D5 = ERM) · jarayonda (double-mat. / baho)",
+  "интегр.": "integr.",
 };
 
 export const en: Record<string, string> = {
@@ -42,4 +48,9 @@ export const en: Record<string, string> = {
   "Климатическая стратегия: не требуется · клик — выбрать этап": "Climate strategy: not required · click to choose stage",
   "Внедрение ESG-рисков: {value0} · клик — выбрать этап": "ESG risk implementation: {value0} · click to choose stage",
   "ESG-риски: не требуется · клик — выбрать этап": "ESG risks: not required · click to choose stage",
+  "Интеграция контроля за рисками в ERM": "Risk control integration into ERM",
+  "интегрированные · в процессе": "integrated · in progress",
+  "компаний с риск-документами": "companies with risk documents",
+  "интегрированные (D5 = ERM) · в процессе (double-mat. / оценка)": "integrated (D5 = ERM) · in progress (double-mat. / assessment)",
+  "интегр.": "integr.",
 };
