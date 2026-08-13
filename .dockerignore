@@ -1,0 +1,23 @@
+# Root build context (used by the nginx image, whose context is the project
+# root — see nginx/Dockerfile). The nginx build npm-installs and vite-builds
+# the frontend itself, so local deps/artifacts must NOT be shipped in the
+# context: they bloat it (~200 MB) and a stale dist hash can break the
+# transfer ("invalid file request"). frontend/.dockerignore is NOT consulted
+# for the root context, hence this file.
+**/node_modules
+**/dist
+**/.vite
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/*.log
+**/*.tsbuildinfo
+.git
+.gitignore
+**/.DS_Store
+# Local env / secrets — never needed to build the frontend bundle
+**/.env
+**/.env.*
+# Stray local files that don't belong in any image
+frontend/s1-drop.png
+zz2.json
